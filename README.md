@@ -47,6 +47,7 @@ docker build -t openchronicle .
 # Run it with a mounted story project
 docker run -v /path/to/story:/app/story openchronicle
 
+```
 This project is dual-licensed under AGPL-3.0 for engine code and CC BY-NC-SA 4.0 for story content.
 
 ![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)
