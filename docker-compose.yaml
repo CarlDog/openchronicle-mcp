@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  openchronicle:
+    build: .
+    container_name: openchronicle
+    volumes:
+      - ./storypacks:/app/storypacks:ro
+      - ./storage:/app/storage
+    ports:
+      - "8199:8000"
+    environment:
+      - STORYPACK=demo-story
