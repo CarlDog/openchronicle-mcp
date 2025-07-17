@@ -21,12 +21,13 @@ Craft immersive, branching story worlds using GPT-4o, Claude, or local LLMs — 
 
 ## 🔧 Core Features (v0.1.x)
 
-- 🧱 Modular scene prompt builder with canon/context injection
-- 🧠 Inline `DistilBERT`-powered content classifier for tone and NSFW detection
-- 🔄 Multi-model support with smart router (GPT-4o, Claude, Mistral, etc.)
-- 🗂️ Story project folders with structured metadata
-- 📓 Canon-aware memory and world state manager
-- 🔥 User preferences: spice level, tone filters, model routing rules
+- 🧱 **Modular scene prompt builder** with canon/context injection
+- 🧠 **Advanced memory management** with character tracking, world state, and flags
+- 🔄 **Scene rollback system** with automatic backups and integrity validation
+- � **Canon-aware context building** with structured memory integration
+- 🗂️ **Story project folders** with structured metadata and modular storypacks
+- � **Comprehensive scene logging** with memory snapshots and rollback points
+- 🎯 **Lightweight and portable** - optimized for Docker, Raspberry Pi, and cloud deployment
 
 ---
 

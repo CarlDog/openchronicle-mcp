@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are helping build OpenChronicle, a modular interactive storytelling engine that runs locally or in Docker. Users create structured storypacks containing canon, characters, memory, and meta.yaml config files. The system loads these packs, tracks scenes as discrete JSON files, builds prompts for LLMs, and supports rollback, memory mutation, and canonical continuity. Code must remain lightweight and portable, optimized for Raspberry Pi, NAS, or cloud-based hosting."
+    },
+    {
+      "role": "user",
+      "content": "Project Structure:\n- /core/: main Python modules (loader, memory, context builder, logger, rollback)\n- /storypacks/: per-story folders with canon, characters, memory, and style guides\n- /storage/: output directory for logged scenes, memory states, and exports\n\nCurrent modules:\n- story_loader.py: loads storypacks and parses meta.yaml\n- scene_logger.py: logs scenes, flags, memory snapshots, and supports rollback\n- context_builder.py: builds prompts using current memory and canon snippets\n\nGoals:\n- Modular, readable code\n- JSON-based memory and logging\n- Canon reference injection\n- Flag-based memory and branching\n- CLI-first, API-ready\n\nInstructions:\n- Don't hardcode file paths\n- Keep each module focused and clean\n- Think in story logic, not web app logic\n- Assume OpenAI or local LLM integration\n- Help build memory_manager.py and rollback_engine.py next"
+    }
+  ]
+}

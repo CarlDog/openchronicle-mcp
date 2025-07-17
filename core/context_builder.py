@@ -1,13 +1,7 @@
 import os
 import json
 import random
-
-def load_memory(story_id):
-    memory_path = os.path.join("storage", story_id, "memory", "current_memory.json")
-    if os.path.exists(memory_path):
-        with open(memory_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return {}
+from .memory_manager import load_current_memory
 
 def load_canon_snippets(storypack_path, refs=None, limit=5):
     canon_dir = os.path.join(storypack_path, "canon")
@@ -37,8 +31,30 @@ def build_context(user_input, story_data):
     story_id = story_data["id"]
     story_path = story_data["path"]
 
-    memory = load_memory(story_id)
+    memory = load_current_memory(story_id)
     canon_chunks = load_canon_snippets(story_path)
+
+    # Build memory summary for context
+    memory_summary = []
+    if memory.get("characters"):
+        memory_summary.append("=== CHARACTERS ===")
+        for char_name, char_data in memory["characters"].items():
+            memory_summary.append(f"{char_name}: {char_data.get('current_state', {})}")
+    
+    if memory.get("world_state"):
+        memory_summary.append("=== WORLD STATE ===")
+        for key, value in memory["world_state"].items():
+            memory_summary.append(f"{key}: {value}")
+    
+    if memory.get("flags"):
+        memory_summary.append("=== ACTIVE FLAGS ===")
+        for flag in memory["flags"]:
+            memory_summary.append(f"- {flag['name']}")
+    
+    if memory.get("recent_events"):
+        memory_summary.append("=== RECENT EVENTS ===")
+        for event in memory["recent_events"][-5:]:  # Last 5 events
+            memory_summary.append(f"- {event['description']}")
 
     prompt_parts = [
         "You are continuing a fictional interactive narrative.",
@@ -47,8 +63,7 @@ def build_context(user_input, story_data):
         "=== CANON ===",
         *canon_chunks,
         "",
-        "=== MEMORY STATE ===",
-        json.dumps(memory, indent=2),
+        *memory_summary,
         "",
         "=== USER INPUT ===",
         user_input,

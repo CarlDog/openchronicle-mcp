@@ -1,0 +1,29 @@
+{
+  "characters": {
+    "test_character": {
+      "traits": {
+        "brave": true
+      },
+      "relationships": {},
+      "history": [],
+      "current_state": {
+        "location": "test_location"
+      }
+    }
+  },
+  "world_state": {},
+  "flags": [
+    {
+      "name": "test_flag",
+      "timestamp": "2025-07-17T00:14:14.563230",
+      "data": {
+        "value": "test"
+      }
+    }
+  ],
+  "recent_events": [],
+  "metadata": {
+    "created": "2025-07-17T00:14:14.540685",
+    "last_updated": "2025-07-17T00:14:14.564228"
+  }
+}
