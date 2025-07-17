@@ -8,10 +8,13 @@ This directory contains comprehensive documentation, examples, and patterns to e
 .copilot/
 ├── README.md                    # This file
 ├── context.json                 # Unified project context for Copilot
-├── next_priority_full_text_search.md # Current development priority
+├── core_logic_phase1_plan.md    # Current development priority - Memory & Continuity Enhancement
+├── next_priority_full_text_search.md # Full-text search system (COMPLETED)
 ├── integration_summary.md       # Token management and dynamic models (COMPLETED)
 ├── character_style_completion.md # Character consistency system (COMPLETED)
 ├── test_organization_summary.md # Test structure organization (COMPLETED)
+├── fts_phase1_complete.md       # FTS Phase 1 completion summary
+├── fts_phase2_complete.md       # FTS Phase 2 completion summary
 ├── architecture/                # System architecture documentation
 │   └── module_interactions.md   # Module relationships and data flow
 ├── config/                      # Configuration examples
