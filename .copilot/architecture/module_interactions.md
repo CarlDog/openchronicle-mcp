@@ -9,27 +9,39 @@
 │ • Load meta.yaml│───▶│ • Build prompts │───▶│ • LLM providers │
 │ • Parse canon   │    │ • Inject style  │    │ • Fallback logic│
 │ • Load chars    │    │ • Add memory    │    │ • Token limits  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+└─────────────────┘    └─────────────────┘    │ • Dynamic mgmt  │
+         │                       │             └─────────────────┘
+         ▼                       ▼                       │
+┌─────────────────┐    ┌─────────────────┐              │
+│ memory_manager  │    │ content_analyzer│              │
+│                 │    │                 │              │
+│ • World state   │◀──▶│ • Classify tone │              │
+│ • Character mem │    │ • NSFW detect   │              │
+│ • Flags/events  │    │ • Smart routing │              │
+└─────────────────┘    └─────────────────┘              │
          │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ memory_manager  │    │ content_analyzer│    │  scene_logger   │
-│                 │    │                 │    │                 │
-│ • World state   │◀──▶│ • Classify tone │    │ • Log scenes    │
-│ • Character mem │    │ • NSFW detect   │    │ • Memory snaps  │
-│ • Flags/events  │    │ • Smart routing │    │ • Rollback pts  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         │                       │                       │
-         └───────────────────────┼───────────────────────┘
-                                 ▼
-                    ┌─────────────────┐
-                    │    database     │
-                    │                 │
-                    │ • SQLite per    │
-                    │   story         │
-                    │ • Rollback      │
-                    │   support       │
-                    └─────────────────┘
+         └───────────────────────┼───────────────────────┤
+                                 ▼                       ▼
+                    ┌─────────────────┐    ┌─────────────────┐
+                    │    database     │    │  scene_logger   │
+                    │                 │    │                 │
+                    │ • SQLite per    │    │ • Log scenes    │
+                    │   story         │    │ • Memory snaps  │
+                    │ • Rollback      │    │ • Rollback pts  │
+                    │   support       │    │ • Centralized   │
+                    └─────────────────┘    │   logging       │
+                                          └─────────────────┘
+                                                   │
+                                                   ▼
+                                          ┌─────────────────┐
+                                          │ utilities/      │
+                                          │ logging_system  │
+                                          │                 │
+                                          │ • Centralized   │
+                                          │   logging       │
+                                          │ • Log rotation  │
+                                          │ • Maintenance   │
+                                          └─────────────────┘
 ```
 
 ## Data Flow Patterns
@@ -48,6 +60,65 @@ Scene Output → content_analyzer → memory_manager → database
 ```
 User Request → rollback_engine → database → memory_manager → scene_logger
 ```
+
+### 4. Dynamic Model Management Flow
+```
+User Request → model_adapter.add_model_config() → validate_config → update_registry → centralized_logging
+```
+
+### 5. Model Health Monitoring Flow
+```
+Scheduled Check → model_adapter.health_check() → provider_status → registry_update → logging
+```
+
+## Dynamic Model Management Architecture
+
+The ModelManager class provides runtime model configuration management:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        ModelManager                             │
+├─────────────────────────────────────────────────────────────────┤
+│ Dynamic Operations:                                             │
+│ • add_model_config(name, config)    • remove_model_config(name)│
+│ • enable_model(name)                • disable_model(name)      │
+│ • list_model_configs()              • validate_config(config)  │
+├─────────────────────────────────────────────────────────────────┤
+│ Registry Management:                                            │
+│ • Automatic backup creation         • Configuration validation │
+│ • Fallback chain maintenance        • Content routing updates  │
+│ • Health status monitoring          • Error handling/rollback  │
+├─────────────────────────────────────────────────────────────────┤
+│ Integration Points:                                             │
+│ • Centralized logging system        • Configuration persistence│
+│ • Provider health monitoring        • Runtime model switching  │
+└─────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+                        ┌─────────────────────┐
+                        │ config/             │
+                        │ model_registry.json │
+                        │                     │
+                        │ • Active models     │
+                        │ • Fallback chains   │
+                        │ • Content routing   │
+                        │ • Health status     │
+                        └─────────────────────┘
+```
+
+### Configuration Flow
+
+1. **Add Model**: `add_model_config()` → validate → backup registry → update registry → log
+2. **Remove Model**: `remove_model_config()` → backup registry → update registry → log
+3. **Enable/Disable**: `enable_model()`/`disable_model()` → update registry → log
+4. **Health Check**: Periodic validation → status update → registry update → log
+
+### Safety Mechanisms
+
+- **Validation**: All configurations validated before adding
+- **Backup**: Automatic backup before registry changes
+- **Rollback**: Failed operations automatically rolled back
+- **Logging**: All operations logged with centralized system
 
 ## Module Responsibilities
 

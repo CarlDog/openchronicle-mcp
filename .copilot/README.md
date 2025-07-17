@@ -16,6 +16,7 @@ This directory contains comprehensive documentation, examples, and patterns to e
 │       ├── openai.json          # OpenAI GPT configuration
 │       └── ollama.json          # Ollama local model configuration
 ├── examples/                    # Complete working examples
+│   ├── dynamic_model_management.py # Dynamic model management examples
 │   └── storypacks/              # Example story packages
 │       └── fantasy-tavern/      # Fantasy tavern story example
 │           ├── meta.yaml        # Story metadata
@@ -27,6 +28,7 @@ This directory contains comprehensive documentation, examples, and patterns to e
 ├── patterns/                    # Development patterns and best practices
 │   ├── core_module_pattern.py   # Standard module structure
 │   ├── development_guidelines.md # Coding standards and conventions
+│   ├── dynamic_model_management.md # Dynamic model management system
 │   └── token_management.py      # Token optimization patterns
 └── testing/                     # Testing patterns and examples
     └── test_patterns.py         # Standard testing approaches
