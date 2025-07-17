@@ -1,9 +1,0 @@
-{
-  "version": 1,
-  "messages": [
-    {
-      "role": "user",
-      "content": "📝 Style Guide Utilization + meta.yaml Role Definition\n\n🎯 Goals:\n- Actively use `style_guide.md` to influence model output and narrative format\n- Define the structure and purpose of `meta.yaml` per storypack\n\n📘 Style Guide Support:\n- Parse `style_guide.md` in `story_loader.py`\n- Extract fields such as:\n   - narrative_mode: e.g. 'first-person present tense'\n   - voice: e.g. 'sarcastic and verbose'\n   - format: e.g. 'dialogue-heavy scene format with ### separators'\n   - restrictions: e.g. 'no modern slang', 'avoid inner monologue'\n- Inject style directives into prompt in `context_builder.py`\n- Allow for optional locking or override of style per session\n- Re-inject style on long time skips or POV switches\n\n📄 meta.yaml Role:\n- Defines global story-level metadata for a storypack\n- Example fields:\n   - title\n   - description\n   - author\n   - default_model: openai, ollama, etc.\n   - fallback_chain: [openai, ollama, mock]\n   - style_guide: path to active style file\n   - nsfw_flags: true/false\n- Parsed by `story_loader.py` and injected into session config or runtime memory\n- May override global engine settings on a per-story basis"
-    }
-  ]
-}
