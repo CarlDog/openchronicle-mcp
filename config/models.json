@@ -1,26 +1,99 @@
 {
   "default_adapter": "mock",
   "analyzer_adapter": "mock",
+  "image_adapter": "mock_image",
   
   "// DEPLOYMENT CONFIGURATION": "Choose your deployment by changing the adapters above",
   "// Docker with embedded Ollama": "Set default_adapter to 'ollama' and analyzer_adapter to 'ollama_analyzer'",
   "// External Ollama (local)": "Set default_adapter to 'ollama_local' and analyzer_adapter to 'ollama_local'", 
   "// OpenAI cloud": "Set default_adapter to 'openai' and analyzer_adapter to 'openai' (need OPENAI_API_KEY)",
+  "// Anthropic Claude": "Set default_adapter to 'anthropic' and analyzer_adapter to 'anthropic' (need ANTHROPIC_API_KEY)",
+  "// Google Gemini": "Set default_adapter to 'gemini' and analyzer_adapter to 'gemini' (need GOOGLE_API_KEY)",
   "// Testing/minimal": "Keep default_adapter as 'mock' and analyzer_adapter as 'mock'",
   
   "adapters": {
+    "// TEXT GENERATION ADAPTERS": "======================================",
+    
     "openai": {
       "type": "openai",
       "model_name": "gpt-4o-mini",
       "max_tokens": 2048,
+      "temperature": 0.7,
+      "available_models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    },
+    "openai_premium": {
+      "type": "openai",
+      "model_name": "gpt-4o",
+      "max_tokens": 4096,
       "temperature": 0.7
     },
+    
+    "anthropic": {
+      "type": "anthropic",
+      "model_name": "claude-3-5-sonnet-20241022",
+      "max_tokens": 4096,
+      "temperature": 0.7,
+      "available_models": ["claude-3-5-sonnet-20241022", "claude-3-haiku-20240307", "claude-3-opus-20240229"]
+    },
+    
+    "gemini": {
+      "type": "gemini",
+      "model_name": "gemini-1.5-pro",
+      "max_tokens": 2048,
+      "temperature": 0.7,
+      "available_models": ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]
+    },
+    
+    "groq": {
+      "type": "groq",
+      "model_name": "llama-3.1-70b-versatile",
+      "max_tokens": 2048,
+      "temperature": 0.7,
+      "available_models": ["llama-3.1-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"]
+    },
+    
+    "cohere": {
+      "type": "cohere",
+      "model_name": "command-r-plus",
+      "max_tokens": 2048,
+      "temperature": 0.7,
+      "available_models": ["command-r-plus", "command-r", "command-light"]
+    },
+    
+    "mistral": {
+      "type": "mistral",
+      "model_name": "mistral-large-latest",
+      "max_tokens": 2048,
+      "temperature": 0.7,
+      "available_models": ["mistral-large-latest", "mistral-medium-latest", "mistral-small-latest"]
+    },
+    
+    "huggingface": {
+      "type": "huggingface",
+      "model_name": "microsoft/DialoGPT-large",
+      "max_tokens": 2048,
+      "temperature": 0.7,
+      "base_url": "https://api-inference.huggingface.co/models/"
+    },
+    
+    "azure_openai": {
+      "type": "azure_openai",
+      "model_name": "gpt-4o-mini",
+      "max_tokens": 2048,
+      "temperature": 0.7,
+      "azure_endpoint": "https://your-resource.openai.azure.com/",
+      "api_version": "2024-02-01"
+    },
+    
+    "// LOCAL/SELF-HOSTED ADAPTERS": "======================================",
+    
     "ollama": {
       "type": "ollama",
       "model_name": "llama3.2:3b",
       "base_url": "http://ollama:11434",
       "max_tokens": 2048,
-      "temperature": 0.7
+      "temperature": 0.7,
+      "available_models": ["llama3.2:3b", "llama3.2:1b", "mistral:7b", "codellama:7b", "phi3:mini"]
     },
     "ollama_analyzer": {
       "type": "ollama",
@@ -36,6 +109,39 @@
       "max_tokens": 2048,
       "temperature": 0.7
     },
+    
+    "// IMAGE GENERATION ADAPTERS": "======================================",
+    
+    "dalle": {
+      "type": "openai_image",
+      "model_name": "dall-e-3",
+      "size": "1024x1024",
+      "quality": "standard",
+      "style": "vivid",
+      "available_models": ["dall-e-3", "dall-e-2"],
+      "available_sizes": ["1024x1024", "1792x1024", "1024x1792"]
+    },
+    
+    "stability": {
+      "type": "stability",
+      "model_name": "stable-diffusion-xl-1024-v1-0",
+      "width": 1024,
+      "height": 1024,
+      "steps": 30,
+      "cfg_scale": 7,
+      "available_models": ["stable-diffusion-xl-1024-v1-0", "stable-diffusion-v1-6"]
+    },
+    
+    "replicate": {
+      "type": "replicate",
+      "model_name": "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b",
+      "width": 1024,
+      "height": 1024,
+      "available_models": ["stability-ai/sdxl", "runwayml/stable-diffusion-v1-5"]
+    },
+    
+    "// TESTING/MOCK ADAPTERS": "======================================",
+    
     "mock": {
       "type": "mock",
       "model_name": "mock-model",
@@ -45,6 +151,14 @@
         "The world around you shifts as the tale unfolds.",
         "A new chapter begins with unexpected twists and turns.",
         "The narrative deepens as your choices shape the story."
+      ]
+    },
+    
+    "mock_image": {
+      "type": "mock_image",
+      "model_name": "mock-image-model",
+      "responses": [
+        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzNzNkYyIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zNWVtIj5Nb2NrIEltYWdlPC90ZXh0Pgo8L3N2Zz4K"
       ]
     }
   }

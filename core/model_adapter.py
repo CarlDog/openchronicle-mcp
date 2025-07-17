@@ -327,6 +327,28 @@ class ModelManager:
             adapter = OllamaAdapter(adapter_config)
         elif adapter_type == "mock":
             adapter = MockAdapter(adapter_config)
+        elif adapter_type == "anthropic":
+            adapter = AnthropicAdapter(adapter_config)
+        elif adapter_type == "gemini":
+            adapter = GeminiAdapter(adapter_config)
+        elif adapter_type == "groq":
+            adapter = GroqAdapter(adapter_config)
+        elif adapter_type == "cohere":
+            adapter = CohereAdapter(adapter_config)
+        elif adapter_type == "mistral":
+            adapter = MistralAdapter(adapter_config)
+        elif adapter_type == "huggingface":
+            adapter = HuggingFaceAdapter(adapter_config)
+        elif adapter_type == "azure_openai":
+            adapter = AzureOpenAIAdapter(adapter_config)
+        elif adapter_type == "openai_image":
+            adapter = OpenAIImageAdapter(adapter_config)
+        elif adapter_type == "stability":
+            adapter = StabilityAdapter(adapter_config)
+        elif adapter_type == "replicate":
+            adapter = ReplicateAdapter(adapter_config)
+        elif adapter_type == "mock_image":
+            adapter = MockImageAdapter(adapter_config)
         else:
             raise ValueError(f"Unknown adapter type: {adapter_type}")
         
@@ -375,6 +397,25 @@ class ModelManager:
         else:
             raise ValueError(f"Adapter '{name}' not found")
     
+    async def generate_image(self, prompt: str, adapter_name: str = None, **kwargs) -> str:
+        """Generate image using specified or default image adapter."""
+        # Use image_adapter from config if no adapter specified
+        if adapter_name is None:
+            adapter_name = self.config.get("image_adapter", "mock_image")
+        
+        if adapter_name not in self.adapters:
+            # Try to initialize the adapter
+            if not await self.initialize_adapter(adapter_name):
+                raise RuntimeError(f"Failed to initialize image adapter: {adapter_name}")
+        
+        adapter = self.adapters[adapter_name]
+        
+        # Check if this is actually an image adapter
+        if not hasattr(adapter, 'generate_image'):
+            raise RuntimeError(f"Adapter '{adapter_name}' does not support image generation")
+        
+        return await adapter.generate_image(prompt, **kwargs)
+
     async def shutdown(self):
         """Shutdown all adapters."""
         for adapter in self.adapters.values():
@@ -384,3 +425,601 @@ class ModelManager:
 
 # Global model manager instance
 model_manager = ModelManager()
+
+# ================================
+# TEXT GENERATION ADAPTERS
+# ================================
+
+class AnthropicAdapter(ModelAdapter):
+    """Anthropic Claude adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("ANTHROPIC_API_KEY")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Anthropic client."""
+        if not self.api_key:
+            raise ValueError("Anthropic API key required")
+        
+        try:
+            import anthropic
+            self.client = anthropic.AsyncAnthropic(api_key=self.api_key)
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("anthropic package required for Anthropic adapter")
+        except Exception as e:
+            print(f"Failed to initialize Anthropic adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using Anthropic Claude."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = await self.client.messages.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                temperature=kwargs.get("temperature", self.temperature)
+            )
+            return response.content[0].text
+        except Exception as e:
+            raise RuntimeError(f"Anthropic API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Anthropic model information."""
+        return {
+            "provider": "Anthropic",
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized
+        }
+
+class GeminiAdapter(ModelAdapter):
+    """Google Gemini adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("GOOGLE_API_KEY")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Gemini client."""
+        if not self.api_key:
+            raise ValueError("Google API key required")
+        
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+            self.client = genai.GenerativeModel(self.model_name)
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("google-generativeai package required for Gemini adapter")
+        except Exception as e:
+            print(f"Failed to initialize Gemini adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using Google Gemini."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = self.client.generate_content(
+                prompt,
+                generation_config={
+                    "temperature": kwargs.get("temperature", self.temperature),
+                    "max_output_tokens": kwargs.get("max_tokens", self.max_tokens),
+                }
+            )
+            return response.text
+        except Exception as e:
+            raise RuntimeError(f"Gemini API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Gemini model information."""
+        return {
+            "provider": "Google",
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized
+        }
+
+class GroqAdapter(ModelAdapter):
+    """Groq fast inference adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("GROQ_API_KEY")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Groq client."""
+        if not self.api_key:
+            raise ValueError("Groq API key required")
+        
+        try:
+            import groq
+            self.client = groq.AsyncGroq(api_key=self.api_key)
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("groq package required for Groq adapter")
+        except Exception as e:
+            print(f"Failed to initialize Groq adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using Groq."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                temperature=kwargs.get("temperature", self.temperature)
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise RuntimeError(f"Groq API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Groq model information."""
+        return {
+            "provider": "Groq",
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized
+        }
+
+class CohereAdapter(ModelAdapter):
+    """Cohere Command adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("COHERE_API_KEY")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Cohere client."""
+        if not self.api_key:
+            raise ValueError("Cohere API key required")
+        
+        try:
+            import cohere
+            self.client = cohere.AsyncClient(api_key=self.api_key)
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("cohere package required for Cohere adapter")
+        except Exception as e:
+            print(f"Failed to initialize Cohere adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using Cohere."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = await self.client.generate(
+                model=self.model_name,
+                prompt=prompt,
+                max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                temperature=kwargs.get("temperature", self.temperature)
+            )
+            return response.generations[0].text
+        except Exception as e:
+            raise RuntimeError(f"Cohere API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Cohere model information."""
+        return {
+            "provider": "Cohere",
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized
+        }
+
+class MistralAdapter(ModelAdapter):
+    """Mistral AI adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("MISTRAL_API_KEY")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Mistral client."""
+        if not self.api_key:
+            raise ValueError("Mistral API key required")
+        
+        try:
+            from mistralai.async_client import MistralAsyncClient
+            self.client = MistralAsyncClient(api_key=self.api_key)
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("mistralai package required for Mistral adapter")
+        except Exception as e:
+            print(f"Failed to initialize Mistral adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using Mistral."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            from mistralai.models.chat_completion import ChatMessage
+            response = await self.client.chat(
+                model=self.model_name,
+                messages=[ChatMessage(role="user", content=prompt)],
+                max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                temperature=kwargs.get("temperature", self.temperature)
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise RuntimeError(f"Mistral API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Mistral model information."""
+        return {
+            "provider": "Mistral",
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized
+        }
+
+class HuggingFaceAdapter(ModelAdapter):
+    """Hugging Face Inference API adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("HUGGINGFACE_API_KEY")
+        self.base_url = config.get("base_url", "https://api-inference.huggingface.co/models/")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Hugging Face client."""
+        if not self.api_key:
+            raise ValueError("Hugging Face API key required")
+        
+        try:
+            import httpx
+            self.client = httpx.AsyncClient(
+                headers={"Authorization": f"Bearer {self.api_key}"}
+            )
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("httpx package required for Hugging Face adapter")
+        except Exception as e:
+            print(f"Failed to initialize Hugging Face adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using Hugging Face."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = await self.client.post(
+                f"{self.base_url}{self.model_name}",
+                json={
+                    "inputs": prompt,
+                    "parameters": {
+                        "max_new_tokens": kwargs.get("max_tokens", self.max_tokens),
+                        "temperature": kwargs.get("temperature", self.temperature)
+                    }
+                }
+            )
+            result = response.json()
+            return result[0]["generated_text"]
+        except Exception as e:
+            raise RuntimeError(f"Hugging Face API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Hugging Face model information."""
+        return {
+            "provider": "Hugging Face",
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized
+        }
+
+class AzureOpenAIAdapter(ModelAdapter):
+    """Azure OpenAI adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("AZURE_OPENAI_API_KEY")
+        self.azure_endpoint = config.get("azure_endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT")
+        self.api_version = config.get("api_version", "2024-02-01")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Azure OpenAI client."""
+        if not self.api_key or not self.azure_endpoint:
+            raise ValueError("Azure OpenAI API key and endpoint required")
+        
+        try:
+            from openai import AsyncAzureOpenAI
+            self.client = AsyncAzureOpenAI(
+                api_key=self.api_key,
+                azure_endpoint=self.azure_endpoint,
+                api_version=self.api_version
+            )
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("openai package required for Azure OpenAI adapter")
+        except Exception as e:
+            print(f"Failed to initialize Azure OpenAI adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using Azure OpenAI."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=kwargs.get("max_tokens", self.max_tokens),
+                temperature=kwargs.get("temperature", self.temperature)
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            raise RuntimeError(f"Azure OpenAI API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Azure OpenAI model information."""
+        return {
+            "provider": "Azure OpenAI",
+            "model_name": self.model_name,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized
+        }
+
+# ================================
+# IMAGE GENERATION ADAPTERS
+# ================================
+
+class ImageAdapter(ModelAdapter):
+    """Abstract base class for image generation adapters."""
+    
+    @abstractmethod
+    async def generate_image(self, prompt: str, **kwargs) -> str:
+        """Generate an image from a text prompt. Returns base64 or URL."""
+        pass
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Redirect to image generation for compatibility."""
+        return await self.generate_image(prompt, **kwargs)
+
+class OpenAIImageAdapter(ImageAdapter):
+    """OpenAI DALL-E image adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("OPENAI_API_KEY")
+        self.size = config.get("size", "1024x1024")
+        self.quality = config.get("quality", "standard")
+        self.style = config.get("style", "vivid")
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize OpenAI client."""
+        if not self.api_key:
+            raise ValueError("OpenAI API key required")
+        
+        try:
+            import openai
+            self.client = openai.AsyncOpenAI(api_key=self.api_key)
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("openai package required for OpenAI image adapter")
+        except Exception as e:
+            print(f"Failed to initialize OpenAI image adapter: {e}")
+            return False
+    
+    async def generate_image(self, prompt: str, **kwargs) -> str:
+        """Generate image using DALL-E."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = await self.client.images.generate(
+                model=self.model_name,
+                prompt=prompt,
+                size=kwargs.get("size", self.size),
+                quality=kwargs.get("quality", self.quality),
+                style=kwargs.get("style", self.style),
+                n=1
+            )
+            return response.data[0].url
+        except Exception as e:
+            raise RuntimeError(f"OpenAI Image API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get OpenAI image model information."""
+        return {
+            "provider": "OpenAI",
+            "model_name": self.model_name,
+            "size": self.size,
+            "quality": self.quality,
+            "style": self.style,
+            "initialized": self.initialized
+        }
+
+class StabilityAdapter(ImageAdapter):
+    """Stability AI Stable Diffusion adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("STABILITY_API_KEY")
+        self.width = config.get("width", 1024)
+        self.height = config.get("height", 1024)
+        self.steps = config.get("steps", 30)
+        self.cfg_scale = config.get("cfg_scale", 7)
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Stability client."""
+        if not self.api_key:
+            raise ValueError("Stability API key required")
+        
+        try:
+            import httpx
+            self.client = httpx.AsyncClient(
+                headers={"Authorization": f"Bearer {self.api_key}"}
+            )
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("httpx package required for Stability adapter")
+        except Exception as e:
+            print(f"Failed to initialize Stability adapter: {e}")
+            return False
+    
+    async def generate_image(self, prompt: str, **kwargs) -> str:
+        """Generate image using Stability AI."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            response = await self.client.post(
+                f"https://api.stability.ai/v1/generation/{self.model_name}/text-to-image",
+                json={
+                    "text_prompts": [{"text": prompt}],
+                    "cfg_scale": kwargs.get("cfg_scale", self.cfg_scale),
+                    "height": kwargs.get("height", self.height),
+                    "width": kwargs.get("width", self.width),
+                    "steps": kwargs.get("steps", self.steps),
+                    "samples": 1
+                }
+            )
+            result = response.json()
+            return f"data:image/png;base64,{result['artifacts'][0]['base64']}"
+        except Exception as e:
+            raise RuntimeError(f"Stability API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Stability model information."""
+        return {
+            "provider": "Stability AI",
+            "model_name": self.model_name,
+            "width": self.width,
+            "height": self.height,
+            "steps": self.steps,
+            "cfg_scale": self.cfg_scale,
+            "initialized": self.initialized
+        }
+
+class ReplicateAdapter(ImageAdapter):
+    """Replicate API adapter."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get("api_key") or os.getenv("REPLICATE_API_TOKEN")
+        self.width = config.get("width", 1024)
+        self.height = config.get("height", 1024)
+        self.client = None
+    
+    async def initialize(self) -> bool:
+        """Initialize Replicate client."""
+        if not self.api_key:
+            raise ValueError("Replicate API token required")
+        
+        try:
+            import replicate
+            replicate.api_token = self.api_key
+            self.client = replicate
+            self.initialized = True
+            return True
+        except ImportError:
+            raise ImportError("replicate package required for Replicate adapter")
+        except Exception as e:
+            print(f"Failed to initialize Replicate adapter: {e}")
+            return False
+    
+    async def generate_image(self, prompt: str, **kwargs) -> str:
+        """Generate image using Replicate."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        try:
+            output = self.client.run(
+                self.model_name,
+                input={
+                    "prompt": prompt,
+                    "width": kwargs.get("width", self.width),
+                    "height": kwargs.get("height", self.height)
+                }
+            )
+            return output[0] if isinstance(output, list) else output
+        except Exception as e:
+            raise RuntimeError(f"Replicate API error: {e}")
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get Replicate model information."""
+        return {
+            "provider": "Replicate",
+            "model_name": self.model_name,
+            "width": self.width,
+            "height": self.height,
+            "initialized": self.initialized
+        }
+
+class MockImageAdapter(ImageAdapter):
+    """Mock image adapter for testing."""
+    
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.responses = config.get("responses", [
+            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzNzNkYyIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zNWVtIj5Nb2NrIEltYWdlPC90ZXh0Pgo8L3N2Zz4K"
+        ])
+        self.response_index = 0
+    
+    async def initialize(self) -> bool:
+        """Initialize mock image adapter."""
+        self.initialized = True
+        return True
+    
+    async def generate_image(self, prompt: str, **kwargs) -> str:
+        """Generate mock image."""
+        if not self.initialized:
+            raise RuntimeError("Adapter not initialized")
+        
+        # Cycle through responses
+        response = self.responses[self.response_index % len(self.responses)]
+        self.response_index += 1
+        
+        return response
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get mock image model information."""
+        return {
+            "provider": "Mock",
+            "model_name": self.model_name,
+            "responses_count": len(self.responses),
+            "current_index": self.response_index,
+            "initialized": self.initialized
+        }

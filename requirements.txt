@@ -6,7 +6,25 @@ httpx
 sqlalchemy>=2.0.0
 aiosqlite
 
-# Optional LLM dependencies
-openai>=1.0.0
-# Install with: pip install openai (for OpenAI GPT models)
-# httpx already included above for Ollama support
+# LLM API Dependencies (install as needed)
+openai>=1.0.0                    # OpenAI GPT models + DALL-E
+anthropic>=0.25.0                # Anthropic Claude models
+google-generativeai>=0.3.0      # Google Gemini models
+groq>=0.4.0                      # Groq fast inference
+cohere>=4.0.0                    # Cohere Command models
+mistralai>=0.4.0                 # Mistral AI models
+transformers>=4.30.0             # Hugging Face models
+azure-openai>=1.0.0              # Azure OpenAI
+stability-sdk>=0.3.0             # Stability AI Stable Diffusion
+replicate>=0.15.0                # Replicate API
+
+# Image processing
+pillow>=10.0.0                   # Image handling
+requests>=2.31.0                 # HTTP requests
+
+# Optional: Install only what you need
+# pip install openai anthropic google-generativeai
+# pip install groq cohere mistralai  
+# pip install transformers torch
+# pip install stability-sdk replicate
+# pip install pillow requests
