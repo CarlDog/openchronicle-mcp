@@ -39,7 +39,18 @@ class StorageCleanup:
             "empty_directories": []
         }
         
-        # Find configuration backups
+        # Find configuration backups in centralized location
+        backup_config_dir = self.root_dir / "storage" / "backups" / "config"
+        if backup_config_dir.exists():
+            for backup_file in backup_config_dir.glob("*.backup.*"):
+                file_stat = backup_file.stat()
+                cleanup_items["config_backups"].append({
+                    "path": backup_file,
+                    "size": file_stat.st_size,
+                    "modified": datetime.fromtimestamp(file_stat.st_mtime)
+                })
+        
+        # Also check for old backups in config directory (for migration)
         for backup_file in self.config_dir.glob("*.backup.*"):
             file_stat = backup_file.stat()
             cleanup_items["config_backups"].append({
@@ -124,7 +135,16 @@ class StorageCleanup:
     
     def cleanup_old_backups(self, keep_count: int = 5) -> None:
         """Clean up old configuration backups, keeping only the most recent ones."""
-        backup_files = list(self.config_dir.glob("*.backup.*"))
+        # Check centralized backup location
+        backup_config_dir = self.root_dir / "storage" / "backups" / "config"
+        backup_files = []
+        
+        if backup_config_dir.exists():
+            backup_files.extend(list(backup_config_dir.glob("*.backup.*")))
+        
+        # Also check old config directory for migration
+        backup_files.extend(list(self.config_dir.glob("*.backup.*")))
+        
         if len(backup_files) <= keep_count:
             log_info(f"Only {len(backup_files)} backup files found, keeping all")
             return

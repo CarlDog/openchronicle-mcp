@@ -341,6 +341,56 @@ def test_required_files():
         print(f"❌ File structure error: {e}")
         return False
 
+def test_backup_system():
+    """Test the centralized backup system functionality."""
+    try:
+        # Add utilities to path
+        utilities_path = os.path.join(os.path.dirname(__file__), "utilities")
+        sys.path.insert(0, utilities_path)
+        
+        from backup_manager import BackupManager
+        from logging_system import log_info
+        
+        # Test backup manager initialization
+        backup_manager = BackupManager('storage/backups')
+        print("✅ Backup manager initialized successfully")
+        
+        # Test backup statistics
+        stats = backup_manager.get_backup_statistics()
+        print(f"✅ Backup statistics: {stats['total_files']} files, {stats['total_size']} bytes")
+        
+        # Test directory structure
+        from pathlib import Path
+        base_path = Path('storage/backups')
+        expected_dirs = ['config', 'databases', 'logs', 'stories']
+        
+        for dir_name in expected_dirs:
+            dir_path = base_path / dir_name
+            if not dir_path.exists():
+                print(f"❌ Missing backup directory: {dir_name}")
+                return False
+        
+        print("✅ All backup directories exist")
+        
+        # Test cleanup functionality
+        cleanup_stats = backup_manager.cleanup_old_backups(keep_count=10)
+        print("✅ Backup cleanup functionality works")
+        
+        # Test integration with utilities
+        try:
+            from cleanup_storage import main as cleanup_main
+            from update_models import main as update_main
+            print("✅ Backup system integration verified")
+        except ImportError as e:
+            print(f"❌ Integration error: {e}")
+            return False
+        
+        return True
+    except Exception as e:
+        print(f"❌ Backup system error: {e}")
+        traceback.print_exc()
+        return False
+
 def main():
     """Run all tests."""
     print("🔍 Running OpenChronicle codebase verification...")
@@ -356,7 +406,8 @@ def main():
         test_memory_system,
         test_rollback_system,
         test_model_adapter_system,
-        test_content_analysis_system
+        test_content_analysis_system,
+        test_backup_system
     ]
     
     passed = 0

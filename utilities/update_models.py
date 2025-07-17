@@ -10,9 +10,14 @@ from pathlib import Path
 from datetime import datetime
 
 def backup_config():
-    """Create a backup of the current models.json."""
+    """Create a backup of the current models.json in the centralized backup location."""
     config_path = Path(__file__).parent.parent / "config" / "models.json"
-    backup_path = config_path.parent / f"models.json.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    backup_dir = Path(__file__).parent.parent / "storage" / "backups" / "config"
+    
+    # Ensure backup directory exists
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    
+    backup_path = backup_dir / f"models.json.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     if config_path.exists():
         with open(config_path, 'r') as src:

@@ -164,6 +164,53 @@ python utilities/maintenance.py --check-databases
 python utilities/maintenance.py --dry-run
 ```
 
+### 7. Backup Manager (`backup_manager.py`)
+
+Centralized backup management system for all OpenChronicle components.
+
+**Features:**
+- Centralized backup location (`storage/backups/`)
+- Organized backup categories (config, databases, logs, stories)
+- Timestamped backups with standardized naming
+- Automated cleanup with configurable retention
+- Comprehensive backup statistics and monitoring
+- Dry-run support for testing operations
+
+**Usage:**
+```python
+from backup_manager import BackupManager
+
+# Initialize backup manager
+bm = BackupManager('storage/backups')
+
+# Create configuration backup
+backup_file = bm.backup_config('config/models.json')
+
+# Get backup statistics
+stats = bm.get_backup_statistics()
+
+# Clean up old backups (keep 5 most recent)
+cleanup_stats = bm.cleanup_old_backups(keep_count=5)
+
+# Backup databases
+db_backup = bm.backup_database('storage/story/openchronicle.db')
+
+# Backup logs
+log_backup = bm.backup_logs('logs/openchronicle.log')
+
+# Backup story data
+story_backup = bm.backup_story('storage/story-name/')
+```
+
+**Directory Structure:**
+```
+storage/backups/
+├── config/     # Configuration file backups
+├── databases/  # Database backups
+├── logs/       # Log file backups
+└── stories/    # Story data backups
+```
+
 ## Log Files
 
 All utilities use the centralized logging system with logs stored in the `logs/` directory:
@@ -194,6 +241,44 @@ All utilities integrate with the main OpenChronicle system:
 - Respect configuration formats and validation rules
 - Provide detailed feedback and error reporting
 - Support both interactive and automated execution
+
+## Testing
+
+### Main Test Suite (`../test_codebase.py`)
+
+The main test suite includes comprehensive testing of all utilities including the backup system:
+
+```bash
+# Run all tests including backup system
+python test_codebase.py
+
+# Tests include:
+# - Directory structure validation
+# - Core module imports
+# - Database functionality
+# - Story loading and processing
+# - Memory management
+# - Rollback system
+# - Model adapter system
+# - Content analysis
+# - Backup system functionality
+```
+
+### Standalone Backup Test (`../test_backup_system.py`)
+
+Dedicated test script for the centralized backup system:
+
+```bash
+# Test backup system specifically
+python test_backup_system.py
+
+# Features tested:
+# - Backup manager initialization
+# - Directory structure verification
+# - Backup statistics and monitoring
+# - Cleanup functionality
+# - Integration with other utilities
+```
 
 ## Development
 
