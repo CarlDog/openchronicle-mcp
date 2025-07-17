@@ -39,7 +39,7 @@ def test_centralized_backup_system():
     config_path = Path('config/models.json')
     if config_path.exists():
         print("\n📁 Testing Config Backup:")
-        backup_file = backup_manager.backup_config(str(config_path))
+        backup_file = backup_manager.backup_config("models.json")
         if backup_file:
             print(f"  ✅ Config backup created: {backup_file}")
         else:
@@ -72,8 +72,8 @@ def test_centralized_backup_system():
     print("\n🔗 Integration Test:")
     try:
         # Test import of utilities that use backup manager
-        from utilities.cleanup_storage import main as cleanup_main
-        from utilities.update_models import main as update_main
+        from cleanup_storage import main as cleanup_main
+        from update_models import main as update_main
         print("  ✅ All utility integrations working")
     except ImportError as e:
         print(f"  ❌ Integration error: {e}")

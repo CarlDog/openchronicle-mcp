@@ -13,7 +13,7 @@ import argparse
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
-from utilities.logging_system import log_maintenance_action, log_system_event, log_info, log_error
+from logging_system import log_maintenance_action, log_system_event, log_info, log_error
 
 # Add the parent directory to the path so we can import core modules
 sys.path.insert(0, str(Path(__file__).parent.parent))

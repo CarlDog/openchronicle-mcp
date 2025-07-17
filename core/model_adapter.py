@@ -5,9 +5,15 @@ Provides a unified interface for different LLM backends (OpenAI, Ollama, local m
 
 import json
 import os
+import sys
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+from pathlib import Path
+
+# Add utilities to path for logging system
+sys.path.append(str(Path(__file__).parent.parent / "utilities"))
+from logging_system import log_model_interaction, log_system_event, log_info, log_error
 
 class ModelAdapter(ABC):
     """Abstract base class for model adapters."""
@@ -79,7 +85,7 @@ class OpenAIAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("openai package required for OpenAI adapter")
         except Exception as e:
-            print(f"Failed to initialize OpenAI adapter: {e}")
+            log_error(f"Failed to initialize OpenAI adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -131,14 +137,15 @@ class OllamaAdapter(ModelAdapter):
             response = await self.client.get("/api/tags")
             if response.status_code == 200:
                 self.initialized = True
+                log_info(f"Ollama adapter initialized successfully for {self.model_name}")
                 return True
             else:
-                print(f"Ollama connection failed: {response.status_code}")
+                log_error(f"Ollama connection failed: {response.status_code}")
                 return False
         except ImportError:
             raise ImportError("httpx package required for Ollama adapter")
         except Exception as e:
-            print(f"Failed to initialize Ollama adapter: {e}")
+            log_error(f"Failed to initialize Ollama adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -459,7 +466,7 @@ class AnthropicAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("anthropic package required for Anthropic adapter")
         except Exception as e:
-            print(f"Failed to initialize Anthropic adapter: {e}")
+            log_error(f"Failed to initialize Anthropic adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -510,7 +517,7 @@ class GeminiAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("google-generativeai package required for Gemini adapter")
         except Exception as e:
-            print(f"Failed to initialize Gemini adapter: {e}")
+            log_error(f"Failed to initialize Gemini adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -561,7 +568,7 @@ class GroqAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("groq package required for Groq adapter")
         except Exception as e:
-            print(f"Failed to initialize Groq adapter: {e}")
+            log_error(f"Failed to initialize Groq adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -611,7 +618,7 @@ class CohereAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("cohere package required for Cohere adapter")
         except Exception as e:
-            print(f"Failed to initialize Cohere adapter: {e}")
+            log_error(f"Failed to initialize Cohere adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -661,7 +668,7 @@ class MistralAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("mistralai package required for Mistral adapter")
         except Exception as e:
-            print(f"Failed to initialize Mistral adapter: {e}")
+            log_error(f"Failed to initialize Mistral adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -715,7 +722,7 @@ class HuggingFaceAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("httpx package required for Hugging Face adapter")
         except Exception as e:
-            print(f"Failed to initialize Hugging Face adapter: {e}")
+            log_error(f"Failed to initialize Hugging Face adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -776,7 +783,7 @@ class AzureOpenAIAdapter(ModelAdapter):
         except ImportError:
             raise ImportError("openai package required for Azure OpenAI adapter")
         except Exception as e:
-            print(f"Failed to initialize Azure OpenAI adapter: {e}")
+            log_error(f"Failed to initialize Azure OpenAI adapter: {e}")
             return False
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
@@ -849,7 +856,7 @@ class OpenAIImageAdapter(ImageAdapter):
         except ImportError:
             raise ImportError("openai package required for OpenAI image adapter")
         except Exception as e:
-            print(f"Failed to initialize OpenAI image adapter: {e}")
+            log_error(f"Failed to initialize OpenAI image adapter: {e}")
             return False
     
     async def generate_image(self, prompt: str, **kwargs) -> str:
@@ -908,7 +915,7 @@ class StabilityAdapter(ImageAdapter):
         except ImportError:
             raise ImportError("httpx package required for Stability adapter")
         except Exception as e:
-            print(f"Failed to initialize Stability adapter: {e}")
+            log_error(f"Failed to initialize Stability adapter: {e}")
             return False
     
     async def generate_image(self, prompt: str, **kwargs) -> str:
@@ -969,7 +976,7 @@ class ReplicateAdapter(ImageAdapter):
         except ImportError:
             raise ImportError("replicate package required for Replicate adapter")
         except Exception as e:
-            print(f"Failed to initialize Replicate adapter: {e}")
+            log_error(f"Failed to initialize Replicate adapter: {e}")
             return False
     
     async def generate_image(self, prompt: str, **kwargs) -> str:

@@ -8,25 +8,24 @@ import json
 import os
 from pathlib import Path
 from datetime import datetime
+from backup_manager import BackupManager
+from logging_system import log_info, log_error, log_maintenance_action
 
 def backup_config():
-    """Create a backup of the current models.json in the centralized backup location."""
-    config_path = Path(__file__).parent.parent / "config" / "models.json"
-    backup_dir = Path(__file__).parent.parent / "storage" / "backups" / "config"
-    
-    # Ensure backup directory exists
-    backup_dir.mkdir(parents=True, exist_ok=True)
-    
-    backup_path = backup_dir / f"models.json.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    
-    if config_path.exists():
-        with open(config_path, 'r') as src:
-            content = src.read()
-        with open(backup_path, 'w') as dst:
-            dst.write(content)
-        print(f"✅ Backup created: {backup_path}")
-        return backup_path
-    return None
+    """Create a backup of the current models.json using the centralized backup manager."""
+    try:
+        backup_manager = BackupManager()
+        backup_path = backup_manager.backup_config("models.json")
+        if backup_path:
+            log_info(f"Config backup created: {backup_path}")
+            print(f"✅ Backup created: {backup_path}")
+            return backup_path
+        else:
+            log_error("Failed to create config backup")
+            return None
+    except Exception as e:
+        log_error(f"Error creating backup: {e}")
+        return None
 
 def add_new_adapter(adapter_name, adapter_config):
     """Add a new adapter to models.json."""

@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from pathlib import Path
 from core.story_loader import load_storypack
 from core.context_builder import build_context_with_analysis
 from core.memory_manager import (
@@ -13,6 +14,10 @@ from core.scene_logger import save_scene
 from core.rollback_engine import get_rollback_candidates, rollback_to_scene
 from core.model_adapter import model_manager
 from core.content_analyzer import content_analyzer
+
+# Add utilities to path for logging system
+sys.path.append(str(Path(__file__).parent / "utilities"))
+from logging_system import log_model_interaction, log_system_event, log_info, log_error
 
 def print_memory_summary(story_id):
     """Print a summary of current memory state."""
@@ -34,6 +39,7 @@ def show_model_info():
             print(f"   {adapter_name}: {info['provider']} - {info['model_name']} ({status})")
         except Exception as e:
             print(f"   {adapter_name}: ❌ Error: {e}")
+            log_error(f"Model adapter error for {adapter_name}: {e}")
 
 async def switch_model():
     """Switch the active model adapter."""
@@ -53,8 +59,10 @@ async def switch_model():
                 print(f"✅ Switched to {adapter_name}")
             else:
                 print(f"❌ Failed to initialize {adapter_name}")
+                log_error(f"Failed to initialize adapter: {adapter_name}")
         except Exception as e:
             print(f"❌ Error switching to {adapter_name}: {e}")
+            log_error(f"Error switching to adapter {adapter_name}: {e}")
 
 def show_rollback_options(story_id):
     """Show available rollback options."""

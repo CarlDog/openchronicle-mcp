@@ -5,9 +5,15 @@ Uses local LLM to analyze, classify, and optimize story content before main LLM 
 
 import json
 import os
+import sys
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from pathlib import Path
 from core.model_adapter import model_manager
+
+# Add utilities to path for logging system
+sys.path.append(str(Path(__file__).parent.parent / "utilities"))
+from logging_system import log_model_interaction, log_system_event, log_info, log_error
 
 class ContentAnalyzer:
     """Analyzes user input and story content to optimize context and routing."""
@@ -47,7 +53,7 @@ class ContentAnalyzer:
             return analysis
             
         except Exception as e:
-            print(f"⚠️ Content analysis failed: {e}")
+            log_error(f"⚠️ Content analysis failed: {e}")
             # Fallback to basic analysis
             return self._fallback_analysis(user_input)
     
@@ -105,7 +111,7 @@ Response (JSON only):"""
                 raise ValueError("No valid JSON found in response")
                 
         except (json.JSONDecodeError, ValueError) as e:
-            print(f"⚠️ Failed to parse analysis response: {e}")
+            log_error(f"⚠️ Failed to parse analysis response: {e}")
             return self._fallback_analysis(response)
     
     def _fallback_analysis(self, user_input: str) -> Dict[str, Any]:
