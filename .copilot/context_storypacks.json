@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "messages": [
+    {
+      "role": "user",
+      "content": "📦 Standardized Storypack Format + Converter Utility\n\n🎯 Goals:\n- Provide users with structured examples for building their own stories\n- Enable conversion of loose files (markdowns, character bios, scenes) into OpenChronicle storypacks\n\n📁 Storypack Structure:\n- `meta.yaml`: story title, description, default model, tone lock, NSFW flags\n- `characters/*.json`: each file holds a character with name, motivation, style_block, memory\n- `canon/*.md`: core world lore documents\n- `memory/*.json`: persistent state objects (world flags, scene progress, etc.)\n- `style_guide.md`: optional, sets narrative constraints or style modes\n- `scenes/*.jsonl`: logged user/model exchanges with memory state snapshots\n\n🛠️ Converter Utility (`storypack_converter.py`):\n- Input: folder of user-supplied files (bios, notes, markdown, etc.)\n- Output: best-guess storypack structure\n- Uses:\n   - heuristics and keyword detection\n   - optional LLM pass to classify tone or extract memory\n   - interactive CLI prompt to name characters, label canon, etc.\n\n📚 Templates Folder:\n- Include `examples/` directory with 1–2 complete storypacks for user reference\n- Examples: 'Smalltown Mystery', 'Fantasy Tavern Start', 'Cyberpunk Noir'\n\n📁 File Impacts:\n- `story_loader.py`: validate and enforce structure\n- `storypack_converter.py`: new module for bootstrapping user files into OpenChronicle format\n- `.copilot/examples/`: store example storypack components for Copilot awareness"
+    }
+  ]
+}
