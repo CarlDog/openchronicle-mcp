@@ -82,3 +82,10 @@
   "status": "planned",
   "priority": "medium"
 }
+{
+  "id": "goal-content-risk-tagging",
+  "title": "Content Risk Tagging System",
+  "description": "Develop a tagging and classification system for risky or high-sensitivity content (e.g., non-consensual scenes, minor risk, coercion, abuse). Tags should be generated via local lightweight classifiers or rule-based filters. The system must not censor user content but must allow downstream warnings, export restrictions, or model routing decisions. Logged risk events should be stored in scene metadata for audit and story portability.",
+  "status": "planned",
+  "priority": "high"
+}
