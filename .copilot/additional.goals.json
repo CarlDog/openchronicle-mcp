@@ -12,3 +12,31 @@
   "status": "planned",
   "priority": "low"
 }
+{
+  "id": "goal-narrative-heatmap",
+  "title": "Narrative Heatmap Generator",
+  "description": "Build a heatmap that visualizes character, location, and emotional 'activity' across the timeline. Useful for writers editing structure and for measuring pacing. Exposed via CLI or exportable CSV.",
+  "status": "planned",
+  "priority": "low"
+}
+{
+  "id": "goal-what-if-forking",
+  "title": "What-If Forking Engine",
+  "description": "Enable non-destructive timeline forks from any scene. Allow users to explore alternate decisions and outcomes, generating new branches stored in the storypack under `/branches/` with metadata describing the divergence.",
+  "status": "planned",
+  "priority": "low"
+}
+{
+  "id": "goal-emotion-drift-tracker",
+  "title": "Emotion Drift Tracker",
+  "description": "Track a character's emotional state over time and log the arc (e.g., joy → confusion → anger → resolve). Integrate into timeline tools and memory audit logs for post-play analysis and author editing.",
+  "status": "planned",
+  "priority": "low"
+}
+{
+  "id": "goal-character-qa-mode",
+  "title": "Character Q&A Mode",
+  "description": "Enable users to ask characters out-of-world questions using memory and motivations. Characters should respond as if interviewed, using internal beliefs and knowledge, not just improv. This enhances immersion and debugging of character logic.",
+  "status": "planned",
+  "priority": "medium"
+}
