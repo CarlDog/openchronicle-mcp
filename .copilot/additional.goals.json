@@ -40,3 +40,38 @@
   "status": "planned",
   "priority": "medium"
 }
+{
+  "id": "goal-motivation-response-weighting",
+  "title": "Motivation-Driven Response Weighting",
+  "description": "Integrate a lightweight pre-generation module that scores and optionally biases character responses based on their core motivations, emotional context, and recent memory. Helps reduce random or illogical dialogue while preserving character intent.",
+  "status": "planned",
+  "priority": "medium"
+}
+{
+  "id": "goal-behavioral-fingerprinting",
+  "title": "Behavioral Fingerprinting System",
+  "description": "Assign each character a behavioral fingerprint representing their evolving traits (e.g. 60% loyal, 25% anxious, 15% impulsive). Update fingerprint over time and use it to influence tone, decisions, and conflict simulations.",
+  "status": "planned",
+  "priority": "low"
+}
+{
+  "id": "goal-character-conflict-engine",
+  "title": "Character Conflict Engine",
+  "description": "Detect direct conflicts between character goals and motivations. Use this system to trigger tension scenes, simulate offscreen developments (e.g. betrayal, sabotage), or raise stakes in dialogue. Connect to memory and timeline for continuity.",
+  "status": "planned",
+  "priority": "medium"
+}
+{
+  "id": "goal-scene-risk-grading",
+  "title": "Scene Risk Grading System",
+  "description": "Introduce a system to classify scenes based on narrative intensity, tone, safety flags, and potential legal gray zones (e.g. violence, NSFW, power imbalance). This helps users prep content for export and filter downstream LLM routing if desired.",
+  "status": "planned",
+  "priority": "low"
+}
+{
+  "id": "goal-anonymous-story-analytics",
+  "title": "Optional Anonymous Story Analytics",
+  "description": "Provide opt-in telemetry for anonymous story statistics: character usage, scene length, genre tags, tone shifts. Enables performance tuning, model feedback, and community heatmaps without compromising user privacy or story ownership.",
+  "status": "planned",
+  "priority": "low"
+}
