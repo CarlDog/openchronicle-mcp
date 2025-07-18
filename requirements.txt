@@ -1,10 +1,15 @@
-fastapi
-uvicorn
-pyyaml
-jinja2
-httpx
-sqlalchemy>=2.0.0
-aiosqlite
+# Core dependencies
+tiktoken>=0.9.0                  # Token counting and management
+pyyaml>=6.0                      # YAML configuration files
+httpx>=0.28.0                    # HTTP client for API calls
+pytest>=8.0.0                    # Testing framework
+sqlalchemy>=2.0.0                # Database ORM
+aiosqlite>=0.21.0                # Async SQLite support
+
+# Web framework (for future API development)
+fastapi>=0.116.0                 # FastAPI web framework
+uvicorn>=0.35.0                  # ASGI server
+jinja2>=3.1.0                    # Template engine
 
 # LLM API Dependencies (install as needed)
 openai>=1.0.0                    # OpenAI GPT models + DALL-E
