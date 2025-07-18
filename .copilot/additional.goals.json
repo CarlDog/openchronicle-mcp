@@ -1,0 +1,7 @@
+{
+  "id": "goal-character-consistency-engine",
+  "title": "Character Consistency Engine",
+  "description": "Develop a system to track and enforce logical, emotionally consistent character behavior across scenes. This includes preserving motivation, detecting contradictions, and optionally validating tone coherence across LLM responses. Future versions may support internal conflict modeling and cross-scene behavioral audits.",
+  "status": "planned",
+  "priority": "medium"
+}
