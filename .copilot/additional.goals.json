@@ -96,3 +96,10 @@
   "status": "planned",
   "priority": "critical"
 }
+{
+  "id": "goal-character-interaction-dynamics",
+  "title": "Character Interaction Dynamics",
+  "description": "Enable fully reactive, multi-character dialogue and behavior within scenes. Characters should respond not only to the user but also to each other, with contextual memory, emotional state tracking, and motivation threading. Support should include dialogue chaining, private thoughts, relational state changes, and layered scene orchestration logic. Emulate natural social dynamics — argument escalation, deception, camaraderie, betrayal — within the story environment.",
+  "status": "planned",
+  "priority": "high"
+}
