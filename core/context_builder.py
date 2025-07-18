@@ -17,6 +17,7 @@ from .emotional_stability_engine import EmotionalStabilityEngine
 from .character_interaction_engine import CharacterInteractionEngine
 from .character_stat_engine import CharacterStatEngine
 from .narrative_dice_engine import NarrativeDiceEngine
+from .memory_consistency_engine import MemoryConsistencyEngine
 from .token_manager import TokenManager
 
 def load_canon_snippets(storypack_path, refs=None, limit=5):
@@ -251,6 +252,7 @@ async def build_context_with_dynamic_models(user_input: str, story_data: Dict[st
     interaction_engine = CharacterInteractionEngine()
     stat_engine = CharacterStatEngine()
     dice_engine = NarrativeDiceEngine()
+    memory_engine = MemoryConsistencyEngine()
     token_manager = TokenManager(model_manager)
     
     # Load character styles and consistency data
@@ -369,6 +371,11 @@ async def build_context_with_dynamic_models(user_input: str, story_data: Dict[st
                 dice_prompt = _check_for_dice_resolution(user_input, active_character, character_stats, dice_engine)
                 if dice_prompt:
                     context_parts["dice_resolution"] = dice_prompt
+            
+            # Add character memory context for persistent continuity
+            memory_context = memory_engine.get_memory_context_for_prompt(active_character, user_input, max_tokens=300)
+            if memory_context:
+                context_parts["character_memories"] = memory_context
             
             # Detect if this might be a multi-character scene (basic heuristic)
             scene_characters = _detect_scene_characters(user_input, story_data.get("characters", {}))
