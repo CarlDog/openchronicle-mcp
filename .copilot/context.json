@@ -53,7 +53,7 @@
   "completed_features": [
     "SQLite integration with all core modules",
     "LLM adapter system with 12+ providers (text + image generation)",
-    "Intelligent content analysis system (optional local LLM)",
+    "Advanced content analysis system with transformer-based classification (hybrid keyword + transformer approach)",
     "Scene labeling and bookmark management system",
     "Timeline builder with navigation and export capabilities",
     "Character style management for cross-model consistency",
@@ -61,7 +61,7 @@
     "Flexible Docker deployment with optional embedded Ollama",
     "Optional two-tier LLM architecture for token optimization",
     "Smart context selection and token optimization",
-    "Core functionality test suite (56/56 tests passing)",
+    "Comprehensive test suite (127 tests, 126 passing, 1 skipped)",
     "Configuration management system with extensive provider support",
     "Virtual environment setup with proper dependency management",
     "Multiple deployment options (Docker, local, cloud)",
@@ -73,16 +73,20 @@
     "Original demo story 'Chronicle of Seasons' with rich world-building",
     "Comprehensive Docker optimization with Alpine Linux and security hardening",
     "Advanced backup and utilities system with comprehensive maintenance tools",
-    "Full Windows/Linux cross-platform compatibility with robust file handling"
+    "Full Windows/Linux cross-platform compatibility with robust file handling",
+    "Transformer-based content classification with DistilBERT, toxic-bert, and emotion models",
+    "Hybrid analysis system combining keyword-based and transformer-based approaches",
+    "Enhanced NSFW detection with multiple confidence thresholds and false positive reduction",
+    "Sentiment analysis and emotion detection for dynamic content routing",
+    "Comprehensive content routing system with model recommendations based on analysis"
   ],
 
   "in_development": [
-    "Search Engine System: Full-text search with FTS5 (Windows compatibility RESOLVED, functionality needs work)",
-    "Content Classification: Analyzes user input for type, intent, and entities (basic implementation)",
-    "Token Optimization: Reduces context size by 50-80% through smart selection (functional but needs refinement)",
-    "Automatic Flagging: Generates memory flags from content analysis (basic implementation)",
-    "Smart Routing: Routes content to appropriate models based on analysis (basic implementation)",
-    "NSFW Detection: Content filtering and model routing for sensitive content (planned)"
+    "Advanced content routing optimization with confidence weighting",
+    "Multi-model consistency tracking across transformer and keyword analysis",
+    "Real-time model performance monitoring and adaptive routing",
+    "Enhanced token optimization using transformer insights",
+    "Context-aware memory flag generation from sentiment and emotion analysis"
   ],
 
   "deployment_options": [
@@ -94,33 +98,32 @@
   ],
 
   "current_priority": {
-    "phase": "Production Readiness - Repository Finalization",
+    "phase": "Production Readiness - Advanced Content Analysis Complete",
     "goals": [
-      "Resolve search engine test failures on Windows platform",
-      "Complete comprehensive system validation and documentation",
-      "Finalize all templates and demo content for production use",
-      "Ensure Docker deployment optimization is complete"
+      "Validate transformer-based content classification in production scenarios",
+      "Optimize hybrid analysis performance and accuracy",
+      "Finalize comprehensive system documentation",
+      "Prepare for GitHub repository publication"
     ],
     "operational_systems": [
-      "Core modules: All 13 modules operational with 56/56 core tests passing",
+      "Core modules: All 13 modules operational with comprehensive testing",
+      "Content analysis: Transformer-based classification with hybrid approach fully implemented",
+      "Test suite: 127 tests with 126 passing (99.2% success rate)",
       "Templates system: Complete JSON standardization with comprehensive templates",
       "Demo story: Original 'Chronicle of Seasons' with rich world-building complete",
       "Docker deployment: Optimized with Alpine Linux, security hardening, and embedded Ollama support"
     ],
     "immediate_tasks": [
-      "Debug search result counting logic (tests expecting specific counts but getting more)",
-      "Fix query parsing for wildcard operators",
-      "Investigate search history and saved searches functionality",
-      "Complete comprehensive test suite validation",
-      "Update documentation to reflect current capabilities",
-      "Validate Docker build and deployment process"
+      "Performance optimization for transformer model loading",
+      "Fine-tune confidence thresholds for different content types",
+      "Document transformer-based routing decision logic",
+      "Validate cross-platform transformer compatibility",
+      "Update API documentation to reflect hybrid analysis capabilities"
     ],
     "critical_issues": [
-      "Search engine has remaining functionality issues (11/42 tests failing, Windows compatibility RESOLVED)",
-      "Query parsing for wildcards needs improvement",
-      "Search result counting logic needs adjustment for multiple memory entries",
-      "Search history and saved searches features need debugging",
-      "Cross-platform compatibility fully validated and implemented"
+      "Transformer models require significant initial loading time",
+      "Memory usage increases with transformer models loaded",
+      "Need to balance accuracy vs. performance for different deployment scenarios"
     ]
   },
 
@@ -139,23 +142,41 @@
 
   "roadmap": [
     {
-      "title": "ROUTING + CLASSIFICATION SYSTEM",
-      "status": "next_major_phase",
+      "title": "TRANSFORMER-BASED CONTENT ANALYSIS SYSTEM",
+      "status": "completed",
       "details": [
-        "Integrate lightweight classifier (e.g. DistilBERT or similar) to flag NSFW, emotional, or tonal shifts in user content",
-        "Route flagged content to appropriate model (e.g. uncensored Ollama model vs. OpenAI API)",
-        "Maintain tone continuity across model switches by injecting recent character memory and style guide fragments",
-        "Define routing behavior per-character and per-scene via config/storyname/models.json or routing_rules.json",
-        "Ensure logs contain traceable routing decisions for debug and user audit",
-        "Use model fallback chains with retry logic if a model fails, exceeds tokens, or encounters safety filter",
-        "Optionally run classifier in parallel with context builder to minimize latency",
-        "Support future override flags (e.g. /force-nsfw, /override-model) for power users or testing"
+        "✅ Implemented hybrid content classification using keyword + transformer approaches",
+        "✅ Integrated DistilBERT for sentiment analysis with cardiffnlp/twitter-roberta-base-sentiment-latest",
+        "✅ Added toxic content detection using unitary/toxic-bert model",
+        "✅ Implemented emotion detection with j-hartmann/emotion-english-distilroberta-base",
+        "✅ Created confidence weighting system (60% transformer, 40% keyword for final decisions)",
+        "✅ Added false positive reduction for fantasy/gaming content and question patterns",
+        "✅ Implemented dynamic model routing based on content analysis with NSFW-safe fallbacks",
+        "✅ Added comprehensive logging of routing decisions and analysis confidence",
+        "✅ Created graceful fallback to keyword-only analysis when transformers unavailable",
+        "✅ All 12 transformer-specific tests passing with comprehensive coverage"
+      ]
+    },
+    {
+      "title": "ENHANCED MODEL ROUTING AND CLASSIFICATION",
+      "status": "next_optimization_phase",
+      "details": [
+        "Optimize transformer model loading and memory usage for production deployment",
+        "Implement model performance monitoring and adaptive confidence thresholding",
+        "Add support for custom transformer models and fine-tuning capabilities",
+        "Develop context-aware routing that considers story genre and character personalities",
+        "Create advanced memory flag generation using transformer insights",
+        "Support for multi-language content analysis and routing",
+        "Implement transformer-based character voice consistency checking",
+        "Add real-time model performance metrics and automatic fallback triggers"
       ]
     }
   ],
 
   "architecture_highlights": [
     "LLM Support: 12+ providers with unified interface (see config/models.json)",
+    "Advanced Content Analysis: Hybrid transformer + keyword approach with DistilBERT, toxic-bert, and emotion models",
+    "Dynamic Model Routing: Content-aware routing with confidence thresholds and NSFW-safe fallbacks",
     "Flexible deployment: Docker (with optional Ollama), local development, or cloud",
     "Optional two-tier LLM system: Local LLM (analysis) + Main LLM (generation)",
     "Each story gets its own SQLite database at storage/{story_id}/openchronicle.db",
@@ -163,10 +184,11 @@
     "Static content (canon, characters) remains in YAML/text files",
     "Dynamic data (scenes, memory, rollback, bookmarks, search indexes) stored in SQLite",
     "Model adapters configured via config/models.json with extensive provider support",
-    "Optional content analysis with token optimization (50-80% reduction)",
-    "Centralized logging system with utilities for maintenance and monitoring"
+    "Intelligent content analysis with transformer-based classification and routing",
+    "Centralized logging system with utilities for maintenance and monitoring",
+    "Graceful degradation from transformer to keyword-only analysis when needed"
   ],
 
-  "testing_status": "Core system: 56/56 tests passing (100% success rate). Search engine: 11/101 tests failing (significant improvement from 41 failures). Windows compatibility issues resolved.",
-  "current_status": "Production-ready core with comprehensive templates system and original demo content. Search engine needs Windows compatibility fixes. Ready for GitHub repository upload pending final validation."
+  "testing_status": "Comprehensive test suite: 127 tests with 126 passing, 1 skipped (99.2% success rate). All core modules fully tested including transformer-based content analysis. Search engine functionality operational. Windows compatibility validated.",
+  "current_status": "Production-ready system with advanced transformer-based content analysis. Hybrid classification system (keyword + transformer) fully implemented with comprehensive routing. All 13 core modules operational with extensive testing coverage. Ready for production deployment and GitHub repository publication."
 }

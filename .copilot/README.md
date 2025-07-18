@@ -17,6 +17,7 @@ This directory contains essential documentation, examples, and patterns to enhan
 │       └── ollama.json          # Ollama local model configuration
 ├── examples/                    # Complete working examples
 │   ├── dynamic_model_management.py # Dynamic model management examples
+│   ├── transformer_content_analysis.py # Transformer-based content analysis examples
 │   └── storypacks/              # Example story packages
 │       └── fantasy-tavern/      # Fantasy tavern story example
 │           ├── meta.yaml        # Story metadata
@@ -29,6 +30,7 @@ This directory contains essential documentation, examples, and patterns to enhan
 │   ├── core_module_pattern.py   # Standard module structure
 │   ├── development_guidelines.md # Coding standards and conventions
 │   ├── dynamic_model_management.md # Dynamic model management system
+│   ├── transformer_analysis_pattern.md # Transformer-based content analysis patterns
 │   └── token_management.py      # Token optimization patterns
 └── testing/                     # Testing patterns and examples
     └── test_patterns.py         # Standard testing approaches
@@ -78,9 +80,19 @@ This directory automatically enhances Copilot's suggestions by providing:
 - Working code examples demonstrating the project's coding style
 - Module relationships and data flow understanding
 - Testing strategies and implementation patterns
+- Transformer-based content analysis patterns and examples
 
 ### For Story Creation
 - Use `examples/storypacks/fantasy-tavern/` as a complete template
+- Adapt `meta.yaml` for your story's metadata requirements
+- Reference `style_guide.md` for narrative formatting standards
+- Use character and canon examples as structural templates
+
+### For Content Analysis Integration
+- Review `patterns/transformer_analysis_pattern.md` for hybrid analysis patterns
+- Use `examples/transformer_content_analysis.py` for implementation examples
+- Follow confidence weighting and false positive reduction patterns
+- Implement graceful fallback from transformer to keyword-only analysis
 - Adapt `meta.yaml` for your story's metadata requirements
 - Reference `style_guide.md` for narrative formatting standards
 - Use character and canon examples as structural templates
