@@ -8,7 +8,6 @@ This directory contains essential documentation, examples, and patterns to enhan
 .copilot/
 ├── README.md                    # This file - overview and usage guide
 ├── context.json                 # Unified project context and status (PRIMARY REFERENCE)
-├── technical_improvements.md    # Core module enhancements and technical debt
 ├── architecture/               # System architecture documentation
 │   └── module_interactions.md  # Module relationships and data flow
 ├── config/                     # Configuration examples and templates
@@ -36,6 +35,7 @@ This directory contains essential documentation, examples, and patterns to enhan
 ├── tasks/                      # Task management and development planning
 │   ├── README.md               # Task management overview and guidelines
 │   ├── task_registry.json      # Master task registry with status tracking (15 tasks)
+│   ├── task_registry.json      # Master task registry with status tracking (16 tasks)
 │   ├── priority_matrix.json    # Priority matrix and dependency mapping
 │   ├── mvp_roadmap.md          # MVP milestone tracking and timeline
 │   ├── engines/                # Character and narrative engine tasks
