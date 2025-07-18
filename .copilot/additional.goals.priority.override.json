@@ -1,0 +1,107 @@
+[
+  {
+    "id": "goal-legal-and-liability-framework",
+    "title": "Legal and Liability Protection Framework",
+    "priority": "critical"
+  },
+  {
+    "id": "goal-content-risk-tagging",
+    "title": "Content Risk Tagging System",
+    "priority": "critical"
+  },
+  {
+    "id": "goal-character-consistency-engine",
+    "title": "Character Consistency Engine",
+    "priority": "high"
+  },
+  {
+    "id": "goal-character-interaction-dynamics",
+    "title": "Character Interaction Dynamics",
+    "priority": "high"
+  },
+  {
+    "id": "goal-emotional-stability-engine",
+    "title": "Emotional Stability and Gratification Loop Prevention",
+    "priority": "high"
+  },
+  {
+    "id": "goal-character-emotional-config",
+    "title": "Configurable Emotional Behavior for Characters",
+    "priority": "high"
+  },
+  {
+    "id": "goal-character-narrative-attributes",
+    "title": "Narrative Character Attributes and Traits",
+    "priority": "high"
+  },
+  {
+    "id": "goal-narrative-resolution-engine",
+    "title": "Narrative Resolution and Failure Engine",
+    "priority": "high"
+  },
+  {
+    "id": "goal-storypack-importer-utility",
+    "title": "Storypack Importer and Auto-Converter Tool",
+    "priority": "high"
+  },
+  {
+    "id": "goal-character-qa-mode",
+    "title": "Character Q&A Mode",
+    "priority": "medium"
+  },
+  {
+    "id": "goal-motivation-response-weighting",
+    "title": "Motivation-Driven Response Weighting",
+    "priority": "medium"
+  },
+  {
+    "id": "goal-character-conflict-engine",
+    "title": "Character Conflict Engine",
+    "priority": "medium"
+  },
+  {
+    "id": "goal-character-mutation-lifecycle",
+    "title": "Character Mutation Lifecycle",
+    "priority": "medium"
+  },
+  {
+    "id": "goal-chatgpt-import-bridge",
+    "title": "Import from ChatGPT Conversations",
+    "priority": "medium"
+  },
+  {
+    "id": "goal-image-generation-integration",
+    "title": "Image Generation Integration",
+    "priority": "low"
+  },
+  {
+    "id": "goal-narrative-heatmap",
+    "title": "Narrative Heatmap Generator",
+    "priority": "low"
+  },
+  {
+    "id": "goal-what-if-forking",
+    "title": "What-If Forking Engine",
+    "priority": "low"
+  },
+  {
+    "id": "goal-emotion-drift-tracker",
+    "title": "Emotion Drift Tracker",
+    "priority": "low"
+  },
+  {
+    "id": "goal-behavioral-fingerprinting",
+    "title": "Behavioral Fingerprinting System",
+    "priority": "low"
+  },
+  {
+    "id": "goal-scene-risk-grading",
+    "title": "Scene Risk Grading System",
+    "priority": "low"
+  },
+  {
+    "id": "goal-anonymous-story-analytics",
+    "title": "Optional Anonymous Story Analytics",
+    "priority": "low"
+  }
+]
