@@ -161,3 +161,26 @@
     "Future support for stat evolution, training, or degradation over story arcs is encouraged."
   ]
 }
+{
+  "id": "goal-narrative-resolution-engine",
+  "title": "Narrative Resolution and Failure Engine",
+  "description": "Introduce a modular resolution engine to allow chance-based scene outcomes. Scenes should optionally include success/failure branches, driven by random number generation and influenced by character stats. This system enhances tension, allows for unpredictable outcomes, and creates space for failure, learning, or unintended consequences — all critical for immersive long-form storytelling.",
+  "status": "planned",
+  "priority": "high",
+  "config_extension": {
+    "resolution_system": {
+      "enabled": true,
+      "dice_engine": "d20",
+      "modifier_tolerance": 3,
+      "skill_dependency": true,
+      "failure_narrative_required": true
+    }
+  },
+  "notes": [
+    "Dice engine is pluggable (d20, d6, 2d10, etc) and user-configurable per storypack.",
+    "Character stats should influence success rolls (e.g., charisma modifies persuasion rolls).",
+    "Scenes should optionally include narrative branches for failure.",
+    "Critical failures (natural 1) and critical successes (natural 20) can be handled as edge cases.",
+    "This system should be optional — user decides per project or scene whether to use resolution checks."
+  ]
+}
