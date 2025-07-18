@@ -89,3 +89,10 @@
   "status": "planned",
   "priority": "high"
 }
+{
+  "id": "goal-legal-and-liability-framework",
+  "title": "Legal and Liability Protection Framework",
+  "description": "Develop clear, robust terms of use and licensing policies to protect the OpenChronicle development team from liability related to user-generated content, including derivative or copyrighted material, NSFW content, and illegal usage. Ensure all deployments are self-hosted, with disclaimers that users are solely responsible for the stories they generate. Include CLI onboarding warnings, LICENSE/TERMS.md docs, and restrictions against training on user data without consent.",
+  "status": "planned",
+  "priority": "critical"
+}
