@@ -302,10 +302,23 @@ class ContentAnalyzer:
         
         # Only override keyword-based detection if transformer is very confident AND
         # there are other indicators (negative sentiment, negative emotions)
+        # Increased threshold to reduce false positives on fantasy/gaming content
+        
+        # Common false positive patterns to exclude
+        is_question = user_input.strip().endswith('?') or user_input.lower().startswith(('what', 'why', 'how', 'where', 'when', 'who'))
+        is_fantasy_content = any(fantasy_word in user_input.lower() for fantasy_word in 
+                               ["spell", "magic", "wizard", "dragon", "adventure", "fantasy", "cast", "battle"])
+        is_analysis_request = any(analysis_word in user_input.lower() for analysis_word in
+                                ["meaning", "analyze", "explain", "understand", "interpret"])
+        
         high_confidence_toxic = (
-            nsfw_score > 0.95 and 
+            nsfw_score > 0.99 and 
             (sentiment in ["negative", "NEGATIVE"] or 
-             primary_emotion in ["anger", "disgust", "fear"])
+             primary_emotion in ["anger", "disgust"]) and
+             # Exclude common false positive patterns
+             not is_question and
+             not is_fantasy_content and
+             not is_analysis_request
         )
         
         if high_confidence_toxic:

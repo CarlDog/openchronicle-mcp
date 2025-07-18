@@ -7,6 +7,7 @@ Demonstrates the enhanced capabilities with dynamic model selection.
 import asyncio
 import sys
 import os
+import pytest
 from pathlib import Path
 
 # Add the project root to sys.path
@@ -21,6 +22,7 @@ from core.token_manager import TokenManager
 from core.context_builder import build_context_with_dynamic_models
 from core.story_loader import load_storypack
 
+@pytest.mark.asyncio
 async def test_dynamic_model_integration():
     """Test the enhanced dynamic model integration features."""
     print("🧪 Testing Dynamic Model Integration")

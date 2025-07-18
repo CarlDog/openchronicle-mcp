@@ -6,6 +6,7 @@ Test script for dynamic model management functionality.
 import asyncio
 import sys
 import os
+import pytest
 from pathlib import Path
 
 # Add the project root to sys.path
@@ -15,6 +16,7 @@ if project_root not in sys.path:
 
 from core.model_adapter import ModelManager
 
+@pytest.mark.asyncio
 async def test_dynamic_model_management():
     """Test the new dynamic model management features."""
     print("🧪 Testing Dynamic Model Management")
