@@ -103,3 +103,10 @@
   "status": "planned",
   "priority": "high"
 }
+{
+  "id": "goal-emotional-stability-engine",
+  "title": "Emotional Stability and Gratification Loop Prevention",
+  "description": "Prevent characters from falling into repetitive gratification loops (e.g., constant flirting, praise-seeking, or sexual innuendo). Implement emotional cooldowns, varied motivation stacks, memory-aware dialogue planning, and narrative disruptors to keep interactions dynamic, grounded, and emotionally believable. Loop detection logic should flag excessive repetition, while characters should exhibit resistance, shame, or boundary-setting where appropriate.",
+  "status": "planned",
+  "priority": "high"
+}
