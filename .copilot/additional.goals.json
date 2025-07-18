@@ -184,3 +184,26 @@
     "This system should be optional — user decides per project or scene whether to use resolution checks."
   ]
 }
+{
+  "id": "goal-storypack-importer-utility",
+  "title": "Storypack Importer and Auto-Converter Tool",
+  "description": "Develop a utility to help users create valid OpenChronicle storypacks from existing files, legacy projects, or long-form narrative documents. The tool should accept multiple input types — including config files, character notes, dialogue transcripts, Markdown scene breakdowns, or even EPUBs — and attempt to convert them into the standardized storypack format. This accelerates onboarding and helps long-time creators bring existing work into the OpenChronicle engine.",
+  "status": "planned",
+  "priority": "high",
+  "planned_features": [
+    "Multi-file upload support (JSON, TXT, Markdown, YAML, EPUB)",
+    "Character profile detection and conversion",
+    "Basic world metadata extraction",
+    "Scene and dialogue segmentation (from Markdown or prose)",
+    "Preview/confirm each generated component before saving",
+    "Smart folder scaffolding into `/storypacks/your_project/`",
+    "Optional summarization to extract character metadata",
+    "Fail-safe mode: auto-create 'incomplete.json' blocks for anything uncertain"
+  ],
+  "notes": [
+    "Import wizard can run from CLI or be wrapped into a GUI later",
+    "Long-form inputs like EPUBs should use summarization + segmentation + tagging",
+    "A future update could include fine-tuning for styles, tones, or canonical sorting",
+    "Can be paired with an 'export' utility for portability between story engines"
+  ]
+}
