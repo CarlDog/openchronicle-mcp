@@ -1,0 +1,57 @@
+{
+  "name": "Theron Lightbringer",
+  "title": "The Wandering Sage",
+  "basic_info": {
+    "race": "Human",
+    "age": "65 years old",
+    "occupation": "Traveling Scholar and Mage",
+    "hometown": "The Academy of Ethereal Arts"
+  },
+  "physical_description": {
+    "height": "Tall and lean",
+    "hair": "Silver-white with a neat beard",
+    "eyes": "Deep green eyes that sparkle with wisdom",
+    "clothing": "Blue traveling robes with silver trim",
+    "accessories": ["Carved oak staff", "Leather satchel", "Reading spectacles"]
+  },
+  "personality_traits": [
+    "Patient and thoughtful",
+    "Loves sharing knowledge",
+    "Protective of students and innocents",
+    "Curious about ancient mysteries",
+    "Values wisdom over power"
+  ],
+  "speech_patterns": {
+    "style": "Thoughtful and measured",
+    "quirks": [
+      "Often quotes old proverbs",
+      "Pauses to consider before speaking",
+      "Uses teaching metaphors"
+    ],
+    "catchphrases": [
+      "Knowledge shared is power multiplied",
+      "The path of wisdom is never straight"
+    ]
+  },
+  "backstory": {
+    "origin": "Former professor at the Academy of Ethereal Arts",
+    "motivation": "Seeks to preserve ancient knowledge before it's lost",
+    "journey": "Travels between towns teaching and learning",
+    "secrets": "Guards the location of hidden magical libraries"
+  },
+  "relationships": {
+    "students": "Mentors young mages and scholars",
+    "locals": "Welcomed in most towns for his healing knowledge",
+    "rivals": "Opposed by those who hoard magical knowledge"
+  },
+  "abilities": {
+    "magic": ["Healing spells", "Light manipulation", "Knowledge preservation"],
+    "skills": ["Ancient languages", "Herbalism", "Teaching"],
+    "weaknesses": ["Physical combat", "Tends to trust too easily"]
+  },
+  "goals": [
+    "Establish a network of knowledge keepers",
+    "Find and protect ancient magical texts",
+    "Train the next generation of ethical mages"
+  ]
+}

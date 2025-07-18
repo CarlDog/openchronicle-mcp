@@ -1,0 +1,126 @@
+{
+  "template_info": {
+    "name": "Demo Story Memory Templates",
+    "description": "Template structures for tracking various types of information in The Chronicle of Seasons",
+    "purpose": "Provide consistent formats for character, location, and plot memory tracking"
+  },
+  "character_memory_template": {
+    "type": "character",
+    "name": "character_name",
+    "attributes": {
+      "physical_description": "Description of character appearance",
+      "personality_traits": ["trait1", "trait2"],
+      "current_mood": "emotional_state",
+      "relationships": {
+        "character_name": "relationship_type"
+      },
+      "current_location": "location_name",
+      "goals": ["goal1", "goal2"],
+      "recent_actions": ["action1", "action2"],
+      "skills_and_abilities": ["skill1", "skill2"],
+      "knowledge_areas": ["area1", "area2"],
+      "character_development": "growth_or_changes"
+    }
+  },
+  "location_memory_template": {
+    "type": "location",
+    "name": "location_name",
+    "attributes": {
+      "description": "Physical description of the location",
+      "current_occupants": ["character1", "character2"],
+      "notable_objects": ["object1", "object2"],
+      "atmosphere": "current_mood_or_atmosphere",
+      "time_of_day": "morning/afternoon/evening/night",
+      "weather": "current_weather_conditions",
+      "magical_properties": "any_special_magical_effects",
+      "accessibility": "how_to_reach_or_enter",
+      "significance": "importance_to_story"
+    }
+  },
+  "plot_memory_template": {
+    "type": "plot",
+    "name": "event_or_plot_point",
+    "attributes": {
+      "description": "Description of what happened",
+      "participants": ["character1", "character2"],
+      "location": "where_it_happened",
+      "consequences": ["consequence1", "consequence2"],
+      "unresolved_elements": ["element1", "element2"],
+      "importance": "high/medium/low",
+      "themes_addressed": ["theme1", "theme2"],
+      "character_growth": "how_characters_changed",
+      "world_building": "new_information_revealed"
+    }
+  },
+  "example_memory_entries": {
+    "character_example": {
+      "type": "character",
+      "name": "Kira Brightwell",
+      "attributes": {
+        "physical_description": "Young woman with auburn hair and bright green eyes, often carrying books",
+        "personality_traits": ["curious", "determined", "respectful", "eager_to_learn"],
+        "current_mood": "excited_about_new_discovery",
+        "relationships": {
+          "Theron Lightbringer": "mentor_and_guide",
+          "Finn Oakshield": "trusted_friend_and_protector"
+        },
+        "current_location": "Great Library of Millbrook",
+        "goals": ["prove_herself_as_scholar", "uncover_crystal_cavern_secrets", "complete_research_project"],
+        "recent_actions": ["discovered_ancient_text", "convinced_mentor_to_approve_expedition"],
+        "skills_and_abilities": ["research", "critical_thinking", "memory_magic_basics"],
+        "knowledge_areas": ["ancient_texts", "magical_theory", "historical_research"],
+        "character_development": "Growing confidence in her abilities"
+      }
+    },
+    "location_example": {
+      "type": "location",
+      "name": "Great Library of Millbrook",
+      "attributes": {
+        "description": "Grand library with tall windows, wooden tables, and countless books and scrolls",
+        "current_occupants": ["Kira Brightwell", "Theron Lightbringer", "various_scholars"],
+        "notable_objects": ["ancient_texts", "research_tables", "magical_preservation_crystals"],
+        "atmosphere": "quiet_scholarly_excitement",
+        "time_of_day": "morning",
+        "weather": "clear_with_sunlight_streaming_through_windows",
+        "magical_properties": "Books are preserved by gentle preservation magic",
+        "accessibility": "Open to all scholars and students",
+        "significance": "Central hub of knowledge in Millbrook Village"
+      }
+    },
+    "plot_example": {
+      "type": "plot",
+      "name": "Discovery of the Crystal Cavern Text",
+      "attributes": {
+        "description": "Kira discovers an ancient text describing previously unknown crystal formations",
+        "participants": ["Kira Brightwell", "Theron Lightbringer"],
+        "location": "Great Library of Millbrook",
+        "consequences": ["expedition_planned", "mentor_approval_gained", "research_project_approved"],
+        "unresolved_elements": ["what_will_be_found_in_caverns", "potential_dangers"],
+        "importance": "high",
+        "themes_addressed": ["curiosity_and_discovery", "mentor_student_relationship"],
+        "character_growth": "Kira shows mature understanding of responsibility",
+        "world_building": "Reveals existence of unexplored crystal formations"
+      }
+    }
+  },
+  "usage_guidelines": {
+    "when_to_create_entries": [
+      "After significant character development",
+      "When locations change or new ones are introduced",
+      "After major plot events or discoveries",
+      "When relationships between characters evolve"
+    ],
+    "consistency_rules": [
+      "Always use the same character names across entries",
+      "Keep location descriptions consistent",
+      "Link plot events to character and location changes",
+      "Update entries when story progresses"
+    ],
+    "best_practices": [
+      "Be specific in descriptions",
+      "Focus on story-relevant information",
+      "Update regularly to maintain accuracy",
+      "Cross-reference related entries"
+    ]
+  }
+}

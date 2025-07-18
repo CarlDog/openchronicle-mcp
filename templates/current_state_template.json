@@ -1,0 +1,88 @@
+{
+  "story_memory": {
+    "story_title": "{{STORY_TITLE}}",
+    "current_chapter": "{{CURRENT_CHAPTER}}",
+    "current_scene": "{{CURRENT_SCENE}}",
+    "story_start_date": "{{STORY_START_DATE}}",
+    "last_updated": "{{LAST_UPDATED}}"
+  },
+  "character_snapshots": {
+    "{{CHARACTER_1_ID}}": {
+      "current_location": "{{CHARACTER_1_LOCATION}}",
+      "current_mood": "{{CHARACTER_1_MOOD}}",
+      "recent_actions": [
+        "{{CHARACTER_1_ACTION_1}}",
+        "{{CHARACTER_1_ACTION_2}}"
+      ],
+      "current_goals": [
+        "{{CHARACTER_1_GOAL_1}}",
+        "{{CHARACTER_1_GOAL_2}}"
+      ],
+      "emotional_state": "{{CHARACTER_1_EMOTIONAL_STATE}}",
+      "relationships": {
+        "{{OTHER_CHARACTER_1}}": "{{RELATIONSHIP_1}}",
+        "{{OTHER_CHARACTER_2}}": "{{RELATIONSHIP_2}}"
+      }
+    }
+  },
+  "location_history": [
+    {
+      "location": "{{SCENE_LOCATION_1}}",
+      "timestamp": "{{SCENE_TIMESTAMP_1}}",
+      "characters_present": ["{{CHARACTER_1}}", "{{CHARACTER_2}}"],
+      "key_events": ["{{EVENT_1}}", "{{EVENT_2}}"],
+      "mood": "{{SCENE_MOOD_1}}"
+    }
+  ],
+  "plot_progression": {
+    "current_arc": "{{CURRENT_ARC}}",
+    "completed_beats": [
+      "{{COMPLETED_BEAT_1}}",
+      "{{COMPLETED_BEAT_2}}"
+    ],
+    "upcoming_beats": [
+      "{{UPCOMING_BEAT_1}}",
+      "{{UPCOMING_BEAT_2}}"
+    ],
+    "themes_explored": [
+      "{{THEME_1}}",
+      "{{THEME_2}}"
+    ]
+  },
+  "world_state": {
+    "season": "{{CURRENT_SEASON}}",
+    "weather": "{{CURRENT_WEATHER}}",
+    "time_of_day": "{{TIME_OF_DAY}}",
+    "active_locations": [
+      "{{ACTIVE_LOCATION_1}}",
+      "{{ACTIVE_LOCATION_2}}"
+    ],
+    "magical_conditions": "{{MAGICAL_CONDITIONS}}",
+    "political_situation": "{{POLITICAL_SITUATION}}"
+  },
+  "important_discoveries": [
+    {
+      "discovery": "{{DISCOVERY_1}}",
+      "discovered_by": "{{DISCOVERER_1}}",
+      "location": "{{DISCOVERY_LOCATION_1}}",
+      "significance": "{{DISCOVERY_SIGNIFICANCE_1}}",
+      "implications": "{{DISCOVERY_IMPLICATIONS_1}}"
+    }
+  ],
+  "active_mysteries": [
+    {
+      "mystery": "{{MYSTERY_1}}",
+      "clues": ["{{CLUE_1}}", "{{CLUE_2}}"],
+      "theories": ["{{THEORY_1}}", "{{THEORY_2}}"],
+      "investigators": ["{{INVESTIGATOR_1}}", "{{INVESTIGATOR_2}}"]
+    }
+  ],
+  "recent_dialogue": [
+    {
+      "speaker": "{{SPEAKER_1}}",
+      "content": "{{DIALOGUE_1}}",
+      "context": "{{DIALOGUE_CONTEXT_1}}",
+      "significance": "{{DIALOGUE_SIGNIFICANCE_1}}"
+    }
+  ]
+}

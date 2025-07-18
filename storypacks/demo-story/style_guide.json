@@ -1,0 +1,85 @@
+{
+  "story_title": "The Chronicle of Seasons",
+  "setting": "The magical realm of Aethermoor",
+  "description": "Style guide for a knowledge-focused fantasy setting with demonstration story content",
+  "overview": "This is the style guide for 'The Chronicle of Seasons' - a demonstration story set in the magical realm of Aethermoor. It contains guidelines for character dialogue, narrative style, and world-building consistency for this knowledge-focused fantasy setting.",
+  "character_dialogue": {
+    "general_guidelines": [
+      "Use formal but warm language, appropriate to academic settings",
+      "Avoid excessive exposition in dialogue, let world-building emerge naturally"
+    ],
+    "character_specific": {
+      "kira_brightwell": {
+        "description": "Eager, respectful, with growing confidence",
+        "speech_patterns": [
+          "Enthusiastic about learning",
+          "Respectful to mentors",
+          "Shows growing confidence as story progresses"
+        ]
+      },
+      "theron_lightbringer": {
+        "description": "Wise, measured, with gentle teaching approach",
+        "speech_patterns": [
+          "Speaks thoughtfully and deliberately",
+          "Uses teaching moments naturally",
+          "Shows patience and wisdom"
+        ]
+      },
+      "finn_oakshield": {
+        "description": "Practical, loyal, speaks plainly but kindly",
+        "speech_patterns": [
+          "Direct and honest communication",
+          "Practical concerns and solutions",
+          "Loyalty and care for friends"
+        ]
+      }
+    }
+  },
+  "narrative_style": {
+    "tense": "past_tense",
+    "perspective": "third_person_limited",
+    "primary_viewpoint": "kira_brightwell",
+    "tone": "hopeful_and_educational",
+    "description_style": "vivid_but_accessible",
+    "target_audience": "general_audiences"
+  },
+  "world_building": {
+    "setting_name": "Aethermoor",
+    "magic_system": "Knowledge-based magic tied to seasonal cycles",
+    "culture": "Values learning, knowledge sharing, and community cooperation",
+    "technology_level": "Medieval with magical enhancements",
+    "themes": [
+      "Responsibility of knowledge",
+      "Mentorship and growth",
+      "Courage in the face of unknown",
+      "Preservation of wisdom"
+    ],
+    "consistency_rules": [
+      "Always check canon directory for established facts about locations, history, and magic",
+      "Document new world elements as they're introduced",
+      "Maintain consistency with established lore"
+    ]
+  },
+  "content_guidelines": {
+    "originality": "All content must be completely original and copyright-free",
+    "audience": "Suitable for general audiences (no graphic violence or inappropriate content)",
+    "values": [
+      "Learning and growth",
+      "Cooperation and community",
+      "Responsibility and wisdom",
+      "Educational elements should feel natural, not forced"
+    ]
+  },
+  "tone_guidelines": {
+    "overall_tone": "Maintain appropriate tone for the story genre",
+    "balance": "Balance serious moments with lighter elements",
+    "emotional_beats": "Ensure emotional beats land effectively",
+    "consistency": "Maintain hopeful, educational tone throughout"
+  },
+  "quality_standards": {
+    "dialogue_quality": "Natural and character-appropriate",
+    "world_building": "Consistent and immersive",
+    "educational_value": "Learning opportunities woven naturally into story",
+    "entertainment_value": "Engaging and appropriate for target audience"
+  }
+}

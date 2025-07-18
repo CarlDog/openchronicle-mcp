@@ -1,0 +1,107 @@
+{
+  "name": "{{CHARACTER_NAME}}",
+  "title": "{{CHARACTER_TITLE}}",
+  "basic_info": {
+    "race": "{{RACE}}",
+    "gender": "{{GENDER}}",
+    "age": "{{AGE}}",
+    "occupation": "{{OCCUPATION}}",
+    "origin": "{{ORIGIN_LOCATION}}"
+  },
+  "physical_description": {
+    "height": "{{HEIGHT}}",
+    "build": "{{BUILD}}",
+    "hair": "{{HAIR_DESCRIPTION}}",
+    "eyes": "{{EYE_DESCRIPTION}}",
+    "distinguishing_features": [
+      "{{FEATURE_1}}",
+      "{{FEATURE_2}}"
+    ],
+    "typical_clothing": "{{CLOTHING_DESCRIPTION}}"
+  },
+  "personality": {
+    "core_traits": [
+      "{{TRAIT_1}}",
+      "{{TRAIT_2}}",
+      "{{TRAIT_3}}"
+    ],
+    "values": [
+      "{{VALUE_1}}",
+      "{{VALUE_2}}"
+    ],
+    "fears": [
+      "{{FEAR_1}}",
+      "{{FEAR_2}}"
+    ],
+    "motivations": [
+      "{{MOTIVATION_1}}",
+      "{{MOTIVATION_2}}"
+    ]
+  },
+  "background": {
+    "childhood": "{{CHILDHOOD_BACKGROUND}}",
+    "education": "{{EDUCATION_BACKGROUND}}",
+    "significant_events": [
+      "{{EVENT_1}}",
+      "{{EVENT_2}}"
+    ],
+    "current_situation": "{{CURRENT_SITUATION}}"
+  },
+  "abilities": {
+    "skills": [
+      "{{SKILL_1}}",
+      "{{SKILL_2}}",
+      "{{SKILL_3}}"
+    ],
+    "magical_abilities": [
+      "{{MAGICAL_ABILITY_1}}",
+      "{{MAGICAL_ABILITY_2}}"
+    ],
+    "weaknesses": [
+      "{{WEAKNESS_1}}",
+      "{{WEAKNESS_2}}"
+    ]
+  },
+  "relationships": {
+    "family": {
+      "{{FAMILY_MEMBER_1}}": "{{RELATIONSHIP_TYPE_1}}",
+      "{{FAMILY_MEMBER_2}}": "{{RELATIONSHIP_TYPE_2}}"
+    },
+    "friends": {
+      "{{FRIEND_1}}": "{{FRIENDSHIP_DESCRIPTION_1}}",
+      "{{FRIEND_2}}": "{{FRIENDSHIP_DESCRIPTION_2}}"
+    },
+    "enemies": {
+      "{{ENEMY_1}}": "{{ENEMY_DESCRIPTION_1}}"
+    }
+  },
+  "story_role": {
+    "importance": "{{STORY_IMPORTANCE}}",
+    "character_arc": "{{CHARACTER_ARC}}",
+    "key_scenes": [
+      "{{KEY_SCENE_1}}",
+      "{{KEY_SCENE_2}}"
+    ],
+    "growth_trajectory": "{{GROWTH_DESCRIPTION}}"
+  },
+  "dialogue_style": {
+    "speech_patterns": [
+      "{{SPEECH_PATTERN_1}}",
+      "{{SPEECH_PATTERN_2}}"
+    ],
+    "vocabulary": "{{VOCABULARY_LEVEL}}",
+    "tone": "{{SPEAKING_TONE}}",
+    "catchphrases": [
+      "{{CATCHPHRASE_1}}"
+    ]
+  },
+  "style_block": {
+    "description": "{{STYLE_BLOCK_DESCRIPTION}}",
+    "voice_characteristics": [
+      "{{VOICE_CHARACTERISTIC_1}}",
+      "{{VOICE_CHARACTERISTIC_2}}"
+    ],
+    "emotional_range": "{{EMOTIONAL_RANGE}}",
+    "interaction_style": "{{INTERACTION_STYLE}}"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "name": "The Chronicle of Seasons",
+  "title": "The Chronicle of Seasons",
+  "version": "1.0.0",
+  "description": "A demonstration story for OpenChronicle featuring original characters in the magical realm of Aethermoor",
+  "author": "OpenChronicle Team",
+  "created": "2024-01-01",
+  "last_modified": "2024-01-01",
+  "settings": {
+    "genre": "fantasy",
+    "tone": "adventure",
+    "target_audience": "general"
+  },
+  "directories": {
+    "canon": "Canonical story information and lore",
+    "characters": "Character definitions and profiles",
+    "memory": "Story-specific memory and context data"
+  },
+  "dependencies": [
+    {
+      "openchronicle-core": ">=1.0.0"
+    }
+  ],
+  "tags": [
+    "demo",
+    "fantasy",
+    "adventure",
+    "tutorial"
+  ]
+}

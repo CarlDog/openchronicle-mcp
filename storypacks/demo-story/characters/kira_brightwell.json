@@ -1,0 +1,64 @@
+{
+  "name": "Kira Brightwell",
+  "title": "The Brave Apprentice",
+  "basic_info": {
+    "race": "Human",
+    "age": "22 years old",
+    "occupation": "Apprentice Scholar",
+    "hometown": "Millbrook Village"
+  },
+  "physical_description": {
+    "height": "Average height, sturdy build",
+    "hair": "Chestnut brown in a practical braid",
+    "eyes": "Bright blue eyes full of determination",
+    "clothing": "Simple traveling clothes with a scholar's cloak",
+    "accessories": ["Leather journal", "Quill pen", "Small dagger"]
+  },
+  "personality_traits": [
+    "Curious and eager to learn",
+    "Brave despite her fears",
+    "Compassionate towards others",
+    "Strong sense of justice",
+    "Sometimes impulsive but well-meaning"
+  ],
+  "speech_patterns": {
+    "style": "Enthusiastic and direct",
+    "quirks": [
+      "Asks many questions",
+      "Takes detailed notes",
+      "Uses expressions from her village"
+    ],
+    "catchphrases": [
+      "There must be more to this story",
+      "We can't give up now"
+    ]
+  },
+  "backstory": {
+    "origin": "Daughter of the village librarian",
+    "motivation": "Chosen to help recover stolen ancient texts",
+    "journey": "First time leaving her peaceful village",
+    "secrets": "Has an unusual ability to read magical scripts"
+  },
+  "relationships": {
+    "mentor": "Student of Theron Lightbringer",
+    "family": "Misses her parents and younger brother",
+    "friends": "Loyal to her traveling companions"
+  },
+  "abilities": {
+    "magic": ["Script reading", "Minor protective spells"],
+    "skills": ["Research", "Note-taking", "Village medicine"],
+    "weaknesses": ["Inexperienced in combat", "Sometimes too trusting"]
+  },
+  "character_arc": {
+    "start": "Sheltered village girl with dreams of adventure",
+    "growth": "Learns courage comes from helping others",
+    "challenges": "Must overcome fear to protect what she loves",
+    "end_goal": "Become a true keeper of knowledge"
+  },
+  "goals": [
+    "Recover the stolen Chronicle of Seasons",
+    "Prove herself worthy of Theron's teaching",
+    "Return home safely with new knowledge",
+    "Protect her village from future threats"
+  ]
+}

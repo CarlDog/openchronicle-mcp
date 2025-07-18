@@ -1,0 +1,66 @@
+{
+  "name": "Finn Oakshield",
+  "title": "The Loyal Guardian",
+  "basic_info": {
+    "race": "Human",
+    "age": "28 years old",
+    "occupation": "Village Blacksmith and Guard",
+    "hometown": "Millbrook Village"
+  },
+  "physical_description": {
+    "height": "Medium height, muscular from smithing",
+    "hair": "Auburn hair kept short and practical",
+    "eyes": "Warm brown eyes that reflect kindness",
+    "clothing": "Leather vest over practical shirt, smith's apron",
+    "accessories": ["Well-maintained sword", "Smith's hammer", "Family medallion"]
+  },
+  "personality_traits": [
+    "Fiercely loyal to friends",
+    "Practical and reliable",
+    "Brave when protecting others",
+    "Humble about his abilities",
+    "Steady and dependable"
+  ],
+  "speech_patterns": {
+    "style": "Simple and straightforward",
+    "quirks": [
+      "Uses smithing metaphors",
+      "Calls friends by caring nicknames",
+      "Speaks with quiet confidence"
+    ],
+    "catchphrases": [
+      "A good blade is forged through fire",
+      "I'll stand with you, no matter what"
+    ]
+  },
+  "backstory": {
+    "origin": "Son of the village blacksmith",
+    "motivation": "Promised Kira's parents he'd keep her safe",
+    "journey": "First adventure beyond the village borders",
+    "secrets": "His family's smithing techniques are magical"
+  },
+  "relationships": {
+    "best_friend": "Kira Brightwell - childhood friend",
+    "family": "Maintains family smithy traditions",
+    "village": "Respected as reliable protector",
+    "mentor": "Learns wisdom from Theron"
+  },
+  "abilities": {
+    "combat": ["Sword fighting", "Shield work", "Tactical defense"],
+    "crafting": ["Blacksmithing", "Weapon repair", "Magical metalwork"],
+    "magic": ["Enchanting metal", "Protective wards"],
+    "weaknesses": ["Book learning", "Sometimes too protective"]
+  },
+  "character_arc": {
+    "start": "Simple village smith content with small life",
+    "growth": "Discovers his worth extends beyond his hammer",
+    "challenges": "Must learn when to fight and when to trust others",
+    "end_goal": "Become a master craftsman and guardian"
+  },
+  "goals": [
+    "Protect Kira and support her mission",
+    "Master his family's magical smithing arts",
+    "Prove himself worthy of the trust placed in him",
+    "Return home to improve village defenses"
+  ]
+}

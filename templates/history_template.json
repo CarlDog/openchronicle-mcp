@@ -1,0 +1,73 @@
+{
+  "realm_name": "{{REALM_NAME}}",
+  "chronicle_title": "{{CHRONICLE_TITLE}}",
+  "historical_periods": {
+    "{{PERIOD_1_ID}}": {
+      "name": "{{PERIOD_1_NAME}}",
+      "duration": "{{PERIOD_1_DURATION}}",
+      "description": "{{PERIOD_1_DESCRIPTION}}",
+      "key_events": [
+        "{{PERIOD_1_EVENT_1}}",
+        "{{PERIOD_1_EVENT_2}}"
+      ],
+      "notable_figures": [
+        "{{PERIOD_1_FIGURE_1}}",
+        "{{PERIOD_1_FIGURE_2}}"
+      ],
+      "achievements": [
+        "{{PERIOD_1_ACHIEVEMENT_1}}",
+        "{{PERIOD_1_ACHIEVEMENT_2}}"
+      ]
+    },
+    "{{PERIOD_2_ID}}": {
+      "name": "{{PERIOD_2_NAME}}",
+      "duration": "{{PERIOD_2_DURATION}}",
+      "description": "{{PERIOD_2_DESCRIPTION}}",
+      "key_events": [
+        "{{PERIOD_2_EVENT_1}}",
+        "{{PERIOD_2_EVENT_2}}"
+      ],
+      "notable_figures": [
+        "{{PERIOD_2_FIGURE_1}}",
+        "{{PERIOD_2_FIGURE_2}}"
+      ],
+      "consequences": [
+        "{{PERIOD_2_CONSEQUENCE_1}}",
+        "{{PERIOD_2_CONSEQUENCE_2}}"
+      ]
+    }
+  },
+  "important_artifacts": {
+    "{{ARTIFACT_1_ID}}": {
+      "name": "{{ARTIFACT_1_NAME}}",
+      "type": "{{ARTIFACT_1_TYPE}}",
+      "description": "{{ARTIFACT_1_DESCRIPTION}}",
+      "powers": [
+        "{{ARTIFACT_1_POWER_1}}",
+        "{{ARTIFACT_1_POWER_2}}"
+      ],
+      "location": "{{ARTIFACT_1_LOCATION}}",
+      "guardians": "{{ARTIFACT_1_GUARDIANS}}"
+    }
+  },
+  "cultural_traditions": {
+    "{{TRADITION_1_ID}}": {
+      "name": "{{TRADITION_1_NAME}}",
+      "frequency": "{{TRADITION_1_FREQUENCY}}",
+      "description": "{{TRADITION_1_DESCRIPTION}}",
+      "activities": [
+        "{{TRADITION_1_ACTIVITY_1}}",
+        "{{TRADITION_1_ACTIVITY_2}}"
+      ]
+    }
+  },
+  "magical_systems": {
+    "{{MAGIC_SYSTEM_1_ID}}": {
+      "description": "{{MAGIC_SYSTEM_1_DESCRIPTION}}",
+      "techniques": [
+        "{{MAGIC_TECHNIQUE_1}}",
+        "{{MAGIC_TECHNIQUE_2}}"
+      ]
+    }
+  }
+}

@@ -67,8 +67,8 @@ OpenChronicle supports multiple LLM backends. Edit `config/models.json` to set y
 - Configure `config/models.json` and run `python main.py`
 
 **Option 3: Cloud Deployment**
-- Set environment variables (e.g., `OPENAI_API_KEY`)
-- Set `default_adapter` to "openai" in `config/models.json`
+- Set environment variable: `export OPENAI_API_KEY=your_api_key_here`
+- Set `default_adapter` to "openai" in `config/model_registry.json`
 - Run `python main.py`
 
 ---
@@ -83,7 +83,7 @@ OpenChronicle supports multiple LLM backends through a unified adapter system:
 - **Mock**: Built-in testing adapter
 
 ### Configuration
-Models are configured in `config/models.json`:
+Models are configured in `config/model_registry.json`:
 
 ```json
 {
@@ -102,6 +102,26 @@ Models are configured in `config/models.json`:
     }
   }
 }
+```
+
+### Environment Variables
+API keys are loaded from environment variables:
+
+- **OpenAI**: `OPENAI_API_KEY`
+- **Anthropic**: `ANTHROPIC_API_KEY`
+- **Google**: `GOOGLE_API_KEY`
+- **Groq**: `GROQ_API_KEY`
+- **Cohere**: `COHERE_API_KEY`
+- **Mistral**: `MISTRAL_API_KEY`
+- **HuggingFace**: `HUGGINGFACE_API_KEY`
+- **Azure OpenAI**: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
+- **Stability AI**: `STABILITY_API_KEY`
+- **Replicate**: `REPLICATE_API_TOKEN`
+
+Set these in your system environment or shell:
+```bash
+export OPENAI_API_KEY=your_api_key_here
+export ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
 ### CLI Commands

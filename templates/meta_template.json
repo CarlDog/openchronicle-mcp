@@ -1,0 +1,29 @@
+{
+  "name": "{{STORY_NAME}}",
+  "title": "{{STORY_TITLE}}",
+  "version": "1.0.0",
+  "description": "{{STORY_DESCRIPTION}}",
+  "author": "{{AUTHOR_NAME}}",
+  "created": "{{CREATION_DATE}}",
+  "last_modified": "{{LAST_MODIFIED_DATE}}",
+  "settings": {
+    "genre": "{{GENRE}}",
+    "tone": "{{TONE}}",
+    "target_audience": "{{TARGET_AUDIENCE}}"
+  },
+  "directories": {
+    "canon": "Canonical story information and lore",
+    "characters": "Character definitions and profiles",
+    "memory": "Story-specific memory and context data"
+  },
+  "dependencies": [
+    {
+      "openchronicle-core": ">=1.0.0"
+    }
+  ],
+  "tags": [
+    "{{TAG1}}",
+    "{{TAG2}}",
+    "{{TAG3}}"
+  ]
+}

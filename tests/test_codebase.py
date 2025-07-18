@@ -434,7 +434,6 @@ def test_required_files():
             "requirements.txt",
             "Dockerfile",
             "docker-compose.yaml",
-            ".env",
             "core/__init__.py",
             "core/story_loader.py",
             "core/context_builder.py",
@@ -444,8 +443,8 @@ def test_required_files():
             "core/model_adapter.py",
             "core/content_analyzer.py",
             "config/model_registry.json",
-            "storypacks/demo-story/meta.yaml",
-            "storypacks/demo-story/style_guide.md"
+            "storypacks/demo-story/meta.json",
+            "storypacks/demo-story/style_guide.json"
         ]
         
         for file_path in required_files:

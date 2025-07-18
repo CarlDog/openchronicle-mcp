@@ -1,0 +1,74 @@
+{
+  "story_title": "{{STORY_TITLE}}",
+  "setting": "{{SETTING_NAME}}",
+  "description": "{{STYLE_GUIDE_DESCRIPTION}}",
+  "overview": "{{OVERVIEW_TEXT}}",
+  "character_dialogue": {
+    "general_guidelines": [
+      "{{DIALOGUE_GUIDELINE_1}}",
+      "{{DIALOGUE_GUIDELINE_2}}",
+      "{{DIALOGUE_GUIDELINE_3}}"
+    ],
+    "character_specific": {
+      "{{CHARACTER_NAME_1}}": {
+        "description": "{{CHARACTER_1_DESCRIPTION}}",
+        "speech_patterns": [
+          "{{CHARACTER_1_SPEECH_1}}",
+          "{{CHARACTER_1_SPEECH_2}}"
+        ]
+      },
+      "{{CHARACTER_NAME_2}}": {
+        "description": "{{CHARACTER_2_DESCRIPTION}}",
+        "speech_patterns": [
+          "{{CHARACTER_2_SPEECH_1}}",
+          "{{CHARACTER_2_SPEECH_2}}"
+        ]
+      }
+    }
+  },
+  "narrative_style": {
+    "tense": "{{NARRATIVE_TENSE}}",
+    "perspective": "{{NARRATIVE_PERSPECTIVE}}",
+    "primary_viewpoint": "{{PRIMARY_VIEWPOINT_CHARACTER}}",
+    "tone": "{{NARRATIVE_TONE}}",
+    "description_style": "{{DESCRIPTION_STYLE}}",
+    "target_audience": "{{TARGET_AUDIENCE}}"
+  },
+  "world_building": {
+    "setting_name": "{{SETTING_NAME}}",
+    "magic_system": "{{MAGIC_SYSTEM_DESCRIPTION}}",
+    "culture": "{{CULTURE_DESCRIPTION}}",
+    "technology_level": "{{TECHNOLOGY_LEVEL}}",
+    "themes": [
+      "{{THEME_1}}",
+      "{{THEME_2}}",
+      "{{THEME_3}}"
+    ],
+    "consistency_rules": [
+      "{{CONSISTENCY_RULE_1}}",
+      "{{CONSISTENCY_RULE_2}}",
+      "{{CONSISTENCY_RULE_3}}"
+    ]
+  },
+  "content_guidelines": {
+    "originality": "{{ORIGINALITY_REQUIREMENT}}",
+    "audience": "{{AUDIENCE_GUIDELINES}}",
+    "values": [
+      "{{VALUE_1}}",
+      "{{VALUE_2}}",
+      "{{VALUE_3}}"
+    ]
+  },
+  "tone_guidelines": {
+    "overall_tone": "{{OVERALL_TONE}}",
+    "balance": "{{TONE_BALANCE}}",
+    "emotional_beats": "{{EMOTIONAL_BEATS}}",
+    "consistency": "{{TONE_CONSISTENCY}}"
+  },
+  "quality_standards": {
+    "dialogue_quality": "{{DIALOGUE_QUALITY}}",
+    "world_building": "{{WORLD_BUILDING_QUALITY}}",
+    "educational_value": "{{EDUCATIONAL_VALUE}}",
+    "entertainment_value": "{{ENTERTAINMENT_VALUE}}"
+  }
+}
