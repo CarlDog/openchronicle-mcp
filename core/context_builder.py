@@ -14,6 +14,7 @@ from .content_analyzer import ContentAnalyzer
 from .character_style_manager import CharacterStyleManager
 from .character_consistency_engine import CharacterConsistencyEngine
 from .emotional_stability_engine import EmotionalStabilityEngine
+from .character_interaction_engine import CharacterInteractionEngine
 from .token_manager import TokenManager
 
 def load_canon_snippets(storypack_path, refs=None, limit=5):
@@ -245,6 +246,7 @@ async def build_context_with_dynamic_models(user_input: str, story_data: Dict[st
     character_manager = CharacterStyleManager(model_manager)
     consistency_engine = CharacterConsistencyEngine(character_manager)
     emotional_engine = EmotionalStabilityEngine()
+    interaction_engine = CharacterInteractionEngine()
     token_manager = TokenManager(model_manager)
     
     # Load character styles and consistency data
@@ -338,6 +340,29 @@ async def build_context_with_dynamic_models(user_input: str, story_data: Dict[st
                     context_parts["emotional_stability"] += f"\n{anti_loop_prompt}"
                 elif anti_loop_prompt:
                     context_parts["emotional_stability"] = anti_loop_prompt
+    
+    # Add character interaction dynamics context for multi-character scenes
+    if active_character:
+        # Detect if this might be a multi-character scene (basic heuristic)
+        scene_characters = _detect_scene_characters(user_input, story_data.get("characters", {}))
+        
+        if len(scene_characters) > 1 and active_character in scene_characters:
+            # Create or get existing scene
+            scene_id = f"scene_{story_id}_{hash(frozenset(scene_characters)) % 10000}"
+            
+            # Check if scene exists, if not create it
+            if scene_id not in interaction_engine.scene_states:
+                interaction_engine.create_scene(
+                    scene_id=scene_id,
+                    characters=scene_characters,
+                    scene_focus="character interaction",
+                    environment_context="current scene"
+                )
+            
+            # Generate relationship context
+            relationship_prompt = interaction_engine.generate_relationship_prompt(scene_id, active_character)
+            if relationship_prompt:
+                context_parts["character_interactions"] = relationship_prompt
     
     # Estimate token usage and trim if necessary
     estimated_tokens = sum(
@@ -618,3 +643,32 @@ def get_emotional_stability_report(emotional_engine: EmotionalStabilityEngine,
     except Exception as e:
         log_error(f"Failed to generate emotional stability report: {e}")
         return {"error": str(e)}
+
+def _detect_scene_characters(user_input: str, characters: Dict[str, Any]) -> List[str]:
+    """
+    Detect which characters are likely present in the current scene based on user input.
+    
+    This is a simple heuristic that looks for character names in the input.
+    In a more sophisticated implementation, this could use NLP or scene analysis.
+    """
+    if not user_input or not characters:
+        return []
+    
+    input_lower = user_input.lower()
+    detected_characters = []
+    
+    for char_name, char_data in characters.items():
+        # Check if character name appears in input
+        if char_name.lower() in input_lower:
+            detected_characters.append(char_name)
+        
+        # Check aliases if they exist
+        if isinstance(char_data, dict):
+            aliases = char_data.get('aliases', [])
+            for alias in aliases:
+                if alias.lower() in input_lower:
+                    detected_characters.append(char_name)
+                    break
+    
+    # Remove duplicates while preserving order
+    return list(dict.fromkeys(detected_characters))
