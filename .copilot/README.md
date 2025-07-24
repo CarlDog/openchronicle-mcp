@@ -1,53 +1,69 @@
 # OpenChronicle .copilot Directory
 
-This directory contains essential documentation, examples, and patterns to enhance GitHub Copilot's understanding of the OpenChronicle project. It serves as a streamlined knowledge base for AI-assisted development.
+This directory contains essential documentation, examples, and patterns to enhance GitHub Copilot's understanding of the OpenChronicle project. It serves as a streamlined knowledge base for AI-assisted development during post-MVP sprint development.
 
 ## 📁 Directory Structure
 
 ```
 .copilot/
-├── README.md                    # This file - overview and usage guide
-├── context.json                 # Unified project context and status (PRIMARY REFERENCE)
-├── development_config.md        # Development environment and command patterns
-├── architecture/               # System architecture documentation
-│   └── module_interactions.md  # Module relationships and data flow
-├── config/                     # Configuration examples and templates
-│   ├── model_registry.json     # Model priority and fallback configuration
-│   └── models/                 # Individual model configurations
-│       ├── openai.json         # OpenAI GPT configuration
-│       └── ollama.json         # Ollama local model configuration
-├── examples/                   # Complete working examples
-│   ├── dynamic_model_management.py # Dynamic model management examples
+├── README.md                          # This file - overview and usage guide
+├── context.json                       # Unified project context and status (PRIMARY REFERENCE)
+├── development_config.md              # Development environment and command patterns
+├── development_alignment_checklist.md # Configuration synchronization checklist
+├── architecture/                      # System architecture documentation
+│   └── module_interactions.md         # Module relationships and data flow
+├── config/                           # Configuration examples and templates
+│   ├── model_registry.json           # Model priority and fallback configuration
+│   └── models/                       # Individual model configurations
+│       ├── openai.json               # OpenAI GPT configuration
+│       └── ollama.json               # Ollama local model configuration
+├── examples/                         # Complete working examples
+│   ├── dynamic_model_management.py   # Dynamic model management examples
 │   ├── transformer_content_analysis.py # Transformer-based content analysis examples
-│   └── storypacks/             # Example story packages
-│       └── fantasy-tavern/     # Fantasy tavern story example
-│           ├── meta.yaml       # Story metadata
-│           ├── style_guide.md  # Narrative style guide
-│           ├── characters/     # Character definitions
+│   └── storypacks/                   # Example story packages
+│       └── fantasy-tavern/           # Fantasy tavern story example
+│           ├── meta.yaml             # Story metadata
+│           ├── style_guide.md        # Narrative style guide
+│           ├── characters/           # Character definitions
 │           │   └── gareth_ironwood.json
-│           └── canon/          # World lore documents
+│           └── canon/                # World lore documents
 │               └── wanderers_rest_tavern.md
-├── patterns/                   # Development patterns and best practices
-│   ├── core_module_pattern.py  # Standard module structure
-│   ├── development_guidelines.md # Coding standards and conventions
-│   ├── dynamic_model_management.md # Dynamic model management system
+├── patterns/                         # Development patterns and best practices
+│   ├── core_module_pattern.py        # Standard module structure
+│   ├── development_guidelines.md     # Coding standards and conventions
+│   ├── dynamic_model_management.md   # Dynamic model management system
 │   ├── transformer_analysis_pattern.md # Transformer-based content analysis patterns
-│   └── token_management.py     # Token optimization patterns
-├── tasks/                      # Task management and development planning
-│   ├── README.md               # Task management overview and guidelines
-│   ├── task_registry.json      # Master task registry with status tracking (15 tasks)
-│   ├── task_registry.json      # Master task registry with status tracking (16 tasks)
-│   ├── priority_matrix.json    # Priority matrix and dependency mapping
-│   ├── mvp_roadmap.md          # MVP milestone tracking and timeline
-│   ├── engines/                # Character and narrative engine tasks
+│   └── token_management.py           # Token optimization patterns
+├── tasks/                            # Task management and development planning
+│   ├── README.md                     # Task management overview and guidelines
+│   ├── sprint_action_items.md        # CURRENT SPRINT tracking document (PRIMARY)
+│   ├── sprint_planning_guide.md      # Sprint methodology and workflow
+│   ├── task_registry.json            # Master task registry with status tracking
+│   ├── priority_matrix.json          # Priority matrix and dependency mapping
+│   ├── mvp_roadmap.md                # Completed MVP milestone documentation
+│   ├── engines/                      # Character and narrative engine tasks
 │   │   ├── character_consistency_engine.md
 │   │   ├── character_interaction_engine.md
 │   │   ├── character_stat_engine.md
 │   │   ├── emotional_stability_engine.md
 │   │   ├── narrative_dice_engine.md
 │   │   └── image_generation_engine.md
-│   ├── utilities/              # Tool and utility development tasks
+│   ├── utilities/                    # Tool and utility development tasks
 │   │   ├── storypack_importer.md
+│   │   └── stress_testing_framework.md
+│   └── safety/                      # Safety and content moderation tasks
+```
+
+## 🎯 Current Development Phase
+
+**Sprint 1:** Post-MVP Foundation Hardening  
+**Period:** July 24 - September 10, 2025 (7 weeks)  
+**Focus:** Dynamic model management, performance optimization, bug fixes
+
+### Key Documents for Current Sprint
+1. **`tasks/sprint_action_items.md`** - Main tracking document with 18 tasks
+2. **`context.json`** - Project status and immediate priorities  
+3. **`development_alignment_checklist.md`** - Configuration sync checklist
 │   │   └── stress_testing_framework.md
 │   └── safety/                 # Legal, ethical, and safety tasks
 │       ├── content_risk_framework.md

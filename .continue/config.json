@@ -1,0 +1,84 @@
+{
+  "models": [
+    {
+      "title": "Ollama Gemma3",
+      "provider": "ollama",
+      "model": "gemma3:latest",
+      "apiBase": "http://localhost:11434"
+    },
+    {
+      "title": "OpenAI GPT-4",
+      "provider": "openai", 
+      "model": "gpt-4",
+      "apiKey": "${OPENAI_API_KEY}"
+    }
+  ],
+  "tabAutocompleteModel": {
+    "title": "Ollama Codellama",
+    "provider": "ollama",
+    "model": "codellama:latest",
+    "apiBase": "http://localhost:11434"
+  },
+  "customCommands": [
+    {
+      "name": "test",
+      "prompt": "Write a comprehensive test for the following code, following OpenChronicle testing patterns with mocks and validation:",
+      "description": "Generate tests following OpenChronicle patterns"
+    },
+    {
+      "name": "docstring",
+      "prompt": "Write a Google-style docstring for this function, including Args, Returns, and Raises sections:",
+      "description": "Generate Google-style docstrings"
+    },
+    {
+      "name": "analyze",
+      "prompt": "Analyze this OpenChronicle code for potential issues, improvements, and alignment with our architecture patterns:",
+      "description": "Code analysis and improvement suggestions"
+    },
+    {
+      "name": "fix-bug",
+      "prompt": "Fix this bug in OpenChronicle code, ensuring proper error handling and logging:",
+      "description": "Bug fixing with OpenChronicle patterns"
+    }
+  ],
+  "contextProviders": [
+    {
+      "name": "diff",
+      "params": {}
+    },
+    {
+      "name": "folder",
+      "params": {
+        "folders": ["core", "tests", ".copilot"]
+      }
+    },
+    {
+      "name": "codebase",
+      "params": {}
+    }
+  ],
+  "slashCommands": [
+    {
+      "name": "edit",
+      "description": "Edit highlighted code"
+    },
+    {
+      "name": "comment",
+      "description": "Write comments for highlighted code"
+    },
+    {
+      "name": "share",
+      "description": "Export conversation"
+    },
+    {
+      "name": "cmd",
+      "description": "Generate shell command"
+    }
+  ],
+  "allowAnonymousTelemetry": false,
+  "embeddingsProvider": {
+    "provider": "ollama",
+    "model": "nomic-embed-text:latest",
+    "apiBase": "http://localhost:11434"
+  }
+}
