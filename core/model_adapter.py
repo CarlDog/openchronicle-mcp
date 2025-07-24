@@ -885,6 +885,259 @@ class ModelManager:
         
         return models_info
 
+    async def discover_ollama_models(self, base_url: str = "http://localhost:11434") -> Dict[str, Any]:
+        """
+        Discover available Ollama models by querying the /api/tags endpoint.
+        
+        Args:
+            base_url: Ollama server base URL
+            
+        Returns:
+            Dictionary with discovered models and metadata
+        """
+        try:
+            import httpx
+            
+            log_info(f"Discovering Ollama models at {base_url}")
+            
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{base_url}/api/tags")
+                response.raise_for_status()
+                
+                data = response.json()
+                models = data.get("models", [])
+                
+                discovered = {
+                    "server_url": base_url,
+                    "total_models": len(models),
+                    "models": {},
+                    "timestamp": datetime.now(UTC).isoformat()
+                }
+                
+                for model in models:
+                    model_name = model.get("name", "unknown")
+                    size_bytes = model.get("size", 0)
+                    modified_at = model.get("modified_at", "")
+                    
+                    # Convert size to human readable
+                    if size_bytes > 1024**3:  # GB
+                        size_str = f"{size_bytes / (1024**3):.1f} GB"
+                    elif size_bytes > 1024**2:  # MB
+                        size_str = f"{size_bytes / (1024**2):.1f} MB"
+                    else:
+                        size_str = f"{size_bytes} bytes"
+                    
+                    # Extract base model name (remove tags like :latest, :7b, etc.)
+                    base_name = model_name.split(":")[0] if ":" in model_name else model_name
+                    
+                    discovered["models"][model_name] = {
+                        "name": model_name,
+                        "base_name": base_name,
+                        "size": size_bytes,
+                        "size_human": size_str,
+                        "modified_at": modified_at,
+                        "family": self._guess_model_family(base_name),
+                        "capabilities": self._guess_model_capabilities(model_name)
+                    }
+                
+                log_system_event("ollama_discovery", f"Discovered {len(models)} Ollama models")
+                return discovered
+                
+        except ImportError:
+            error_msg = "httpx package required for Ollama model discovery"
+            log_error(error_msg)
+            return {"error": error_msg}
+        except Exception as e:
+            error_msg = f"Failed to discover Ollama models: {e}"
+            log_error(error_msg)
+            return {"error": error_msg}
+
+    def _guess_model_family(self, model_name: str) -> str:
+        """Guess the model family based on the model name."""
+        model_lower = model_name.lower()
+        
+        # Check more specific models first
+        if "codellama" in model_lower:
+            return "codellama"
+        elif "llama" in model_lower:
+            return "llama"
+        elif "gemma" in model_lower:
+            return "gemma"
+        elif "mistral" in model_lower:
+            return "mistral"
+        elif "phi" in model_lower:
+            return "phi"
+        elif "qwen" in model_lower:
+            return "qwen"
+        elif "neural" in model_lower:
+            return "neural-chat"
+        elif "orca" in model_lower:
+            return "orca"
+        elif "vicuna" in model_lower:
+            return "vicuna"
+        else:
+            return "unknown"
+
+    def _guess_model_capabilities(self, model_name: str) -> Dict[str, bool]:
+        """Guess model capabilities based on the model name."""
+        model_lower = model_name.lower()
+        
+        capabilities = {
+            "text_generation": True,  # All models can generate text
+            "code_generation": False,
+            "instruction_following": False,
+            "conversation": False,
+            "analysis": False
+        }
+        
+        # Code generation models
+        if any(term in model_lower for term in ["code", "coder", "starcoder", "deepseek-coder"]):
+            capabilities["code_generation"] = True
+        
+        # Instruction following models (check for instruct, chat, it)
+        if any(term in model_lower for term in ["instruct", "chat", "it"]):
+            capabilities["instruction_following"] = True
+            capabilities["conversation"] = True
+        
+        # Analysis capable models (larger models typically better at analysis)
+        if any(term in model_lower for term in ["13b", "30b", "70b", "8x7b", "gemma", "llama"]):
+            capabilities["analysis"] = True
+        
+        return capabilities
+
+    async def add_discovered_ollama_models(
+        self, 
+        base_url: str = "http://localhost:11434",
+        auto_enable: bool = True,
+        priority_start: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Discover Ollama models and add them to the model registry.
+        
+        Args:
+            base_url: Ollama server base URL
+            auto_enable: Whether to enable discovered models by default
+            priority_start: Starting priority number for discovered models
+            
+        Returns:
+            Dictionary with results of the discovery and addition process
+        """
+        discovery_result = await self.discover_ollama_models(base_url)
+        
+        if "error" in discovery_result:
+            return discovery_result
+        
+        results = {
+            "discovered_count": discovery_result["total_models"],
+            "added_models": [],
+            "skipped_models": [],
+            "errors": []
+        }
+        
+        # Load current registry
+        registry_file = os.path.join("config", "model_registry.json")
+        if not os.path.exists(registry_file):
+            results["errors"].append("Model registry not found")
+            return results
+        
+        try:
+            with open(registry_file, "r", encoding="utf-8") as f:
+                registry = json.load(f)
+        except Exception as e:
+            results["errors"].append(f"Failed to load registry: {e}")
+            return results
+        
+        # Check existing models to avoid duplicates
+        existing_ollama_models = set()
+        for model_entry in registry["models"]:
+            if model_entry.get("type") == "ollama" or model_entry["name"].startswith("ollama_"):
+                model_name = model_entry.get("config", {}).get("model_name", "")
+                if model_name:
+                    existing_ollama_models.add(model_name)
+        
+        current_priority = priority_start
+        
+        # Add each discovered model to registry
+        for model_name, model_info in discovery_result["models"].items():
+            if model_name in existing_ollama_models:
+                results["skipped_models"].append({
+                    "name": model_name,
+                    "reason": "Already exists in registry"
+                })
+                continue
+            
+            # Create registry entry for the model
+            registry_name = f"ollama_{model_info['base_name']}_{model_name.split(':')[-1] if ':' in model_name else 'latest'}"
+            
+            new_model_entry = {
+                "name": registry_name,
+                "type": "ollama",
+                "priority": current_priority,
+                "fallbacks": ["mock"],
+                "enabled": auto_enable,
+                "supports_nsfw": True,  # Ollama models typically support NSFW
+                "content_types": ["general", "fantasy", "sci-fi", "creative"],
+                "description": f"Ollama {model_info['family']} model - {model_info['size_human']}",
+                "config": {
+                    "base_url": base_url,
+                    "model_name": model_name,
+                    "timeout": 120,
+                    "max_tokens": 2048,
+                    "temperature": 0.7
+                },
+                "metadata": {
+                    "family": model_info["family"],
+                    "size": model_info["size"],
+                    "capabilities": model_info["capabilities"],
+                    "discovered_at": discovery_result["timestamp"]
+                }
+            }
+            
+            # Add enhanced content types based on capabilities
+            if model_info["capabilities"]["code_generation"]:
+                new_model_entry["content_types"].extend(["code", "technical"])
+            
+            if model_info["capabilities"]["analysis"]:
+                new_model_entry["content_types"].append("analysis")
+            
+            registry["models"].append(new_model_entry)
+            
+            results["added_models"].append({
+                "registry_name": registry_name,
+                "model_name": model_name,
+                "family": model_info["family"],
+                "size": model_info["size_human"],
+                "capabilities": model_info["capabilities"]
+            })
+            
+            current_priority += 1
+        
+        # Save updated registry
+        try:
+            # Create backup
+            backup_file = f"{registry_file}.backup.{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
+            with open(registry_file, "r", encoding="utf-8") as f:
+                backup_content = f.read()
+            with open(backup_file, "w", encoding="utf-8") as f:
+                f.write(backup_content)
+            
+            # Write updated registry
+            with open(registry_file, "w", encoding="utf-8") as f:
+                json.dump(registry, f, indent=2, ensure_ascii=False)
+            
+            log_system_event(
+                "ollama_models_added", 
+                f"Added {len(results['added_models'])} Ollama models to registry"
+            )
+            
+            # Reload configuration to pick up new models
+            self.config = self._load_config()
+            
+        except Exception as e:
+            results["errors"].append(f"Failed to save registry: {e}")
+        
+        return results
+
     async def shutdown(self):
         """Shutdown all adapters."""
         for adapter in self.adapters.values():
