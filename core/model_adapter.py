@@ -358,6 +358,18 @@ class ModelManager:
         self.default_adapter: Optional[str] = None
         self.global_config = self._load_global_config()
         self.config = self._load_config()
+        
+        # Initialize performance monitoring
+        self.performance_monitor = None
+        self._initialize_performance_monitoring()
+        
+        # Enhanced adapter status tracking
+        self.adapter_status: Dict[str, Dict[str, Any]] = {}
+        self.disabled_adapters: Dict[str, Dict[str, Any]] = {}
+        self.api_key_status: Dict[str, Dict[str, Any]] = {}
+        
+        # Validate all configured adapters during initialization
+        self._validate_all_configured_adapters()
     
     def _load_global_config(self) -> Dict[str, Any]:
         """Load global configuration from registry."""
@@ -716,6 +728,52 @@ class ModelManager:
         log_info(f"Registry-only configuration loaded with {len(adapters)} adapters")
         return config
     
+    def _validate_all_configured_adapters(self):
+        """Validate all configured adapters and track their status without initializing them."""
+        try:
+            for name, adapter_config in self.config.get("adapters", {}).items():
+                adapter_type = adapter_config.get("type", "unknown")
+                
+                # Validate prerequisites for this adapter
+                validation_result = self._validate_adapter_prerequisites(name, adapter_config, adapter_type)
+                
+                if not validation_result["valid"]:
+                    # Track as disabled
+                    self.disabled_adapters[name] = {
+                        "type": adapter_type,
+                        "reason": validation_result["reason"],
+                        "can_enable_later": validation_result.get("can_enable_later", True),
+                        "recommendation": validation_result.get("recommendation", "Check configuration"),
+                        "last_check": datetime.now(UTC).isoformat(),
+                        "config": adapter_config
+                    }
+                    
+                    # Update API key status if applicable
+                    if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
+                        self.api_key_status[adapter_type] = {
+                            "available": False,
+                            "reason": validation_result["reason"],
+                            "recommendation": validation_result.get("recommendation", ""),
+                            "last_validated": datetime.now(UTC).isoformat()
+                        }
+                else:
+                    # Track as ready but not initialized
+                    if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
+                        self.api_key_status[adapter_type] = {
+                            "available": True,
+                            "reason": "API key validated successfully",
+                            "recommendation": f"{adapter_type.title()} adapter ready for use",
+                            "last_validated": datetime.now(UTC).isoformat()
+                        }
+                        
+            log_info(f"Validated {len(self.config.get('adapters', {}))} configured adapters: "
+                    f"{len(self.disabled_adapters)} disabled, "
+                    f"{len(self.config.get('adapters', {})) - len(self.disabled_adapters)} ready")
+                    
+        except Exception as e:
+            log_error(f"Error during adapter validation: {e}")
+    
+    
     def register_adapter(self, name: str, adapter: ModelAdapter):
         """Register a model adapter."""
         self.adapters[name] = adapter
@@ -751,135 +809,154 @@ class ModelManager:
         
         log_system_event("adapter_initialization", f"Initializing {adapter_type} adapter: {name}")
         
-        # Attempt initialization with retry logic
-        last_exception = None
-        for attempt in range(max_retries + 1):
-            try:
-                # Pre-initialization validation
-                validation_result = self._validate_adapter_prerequisites(name, adapter_config, adapter_type)
-                if not validation_result["valid"]:
+        # Start performance tracking for initialization
+        async with self.track_model_operation(name, "initialize") as tracker:
+            
+            # Attempt initialization with retry logic
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    # Pre-initialization validation with enhanced API key checking
+                    validation_result = self._validate_adapter_prerequisites(name, adapter_config, adapter_type)
+                    if not validation_result["valid"]:
+                        # Track disabled adapter with detailed information
+                        self.disabled_adapters[name] = {
+                            "type": adapter_type,
+                            "reason": validation_result["reason"],
+                            "can_enable_later": validation_result.get("can_enable_later", True),
+                            "recommendation": validation_result.get("recommendation", "Check configuration"),
+                            "last_check": datetime.now(UTC).isoformat(),
+                            "config": adapter_config
+                        }
+                        
+                        # Update API key status if applicable
+                        if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
+                            self.api_key_status[adapter_type] = {
+                                "available": False,
+                                "reason": validation_result["reason"],
+                                "recommendation": validation_result.get("recommendation", ""),
+                                "last_validated": datetime.now(UTC).isoformat()
+                            }
+                        
+                        if graceful_degradation:
+                            log_error(f"Skipping {name} due to failed prerequisites: {validation_result['reason']}")
+                            log_system_event("adapter_initialization_skipped", f"Skipped {name}: {validation_result['reason']}")
+                            return False
+                        else:
+                            raise RuntimeError(f"Adapter prerequisites failed: {validation_result['reason']}")
+                    else:
+                        # Track successful validation
+                        if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
+                            self.api_key_status[adapter_type] = {
+                                "available": True,
+                                "reason": "API key validated successfully",
+                                "recommendation": f"{adapter_type.title()} adapter ready for use",
+                                "last_validated": datetime.now(UTC).isoformat()
+                            }
+                    
+                    # Create adapter instance
+                    adapter = self._create_adapter_instance(adapter_type, adapter_config)
+                    
+                    # Initialize with timeout protection
+                    initialization_timeout = adapter_config.get("initialization_timeout", 30.0)
+                    success = await asyncio.wait_for(
+                        adapter.initialize(), 
+                        timeout=initialization_timeout
+                    )
+                    
+                    if success:
+                        self.adapters[name] = adapter
+                        if self.default_adapter is None:
+                            self.default_adapter = name
+                        
+                        # Track successful adapter status
+                        self.adapter_status[name] = {
+                            "type": adapter_type,
+                            "status": "active",
+                            "initialized_at": datetime.now(UTC).isoformat(),
+                            "model_name": adapter_config.get("model_name", name),
+                            "description": adapter_config.get("description", f"{adapter_type} adapter"),
+                            "supports_nsfw": adapter_config.get("supports_nsfw", False),
+                            "content_types": adapter_config.get("content_types", ["general"])
+                        }
+                        
+                        # Remove from disabled adapters if it was there
+                        if name in self.disabled_adapters:
+                            del self.disabled_adapters[name]
+                        
+                        log_system_event("adapter_initialization_success", f"Successfully initialized {adapter_type} adapter: {name}")
+                        return True
+                    else:
+                        raise RuntimeError(f"Adapter initialization returned False")
+                        
+                except asyncio.TimeoutError as e:
+                    last_exception = e
+                    error_msg = f"Timeout initializing {adapter_type} adapter {name} (attempt {attempt + 1}/{max_retries + 1})"
+                    log_error(error_msg)
+                    log_system_event("adapter_initialization_timeout", error_msg)
+                    
+                except ImportError as e:
+                    # Dependencies missing - don't retry
+                    error_msg = f"Missing dependencies for {adapter_type} adapter {name}: {e}"
+                    log_error(error_msg)
+                    log_system_event("adapter_initialization_dependency_error", error_msg)
                     if graceful_degradation:
-                        log_error(f"Skipping {name} due to failed prerequisites: {validation_result['reason']}")
-                        log_system_event("adapter_initialization_skipped", f"Skipped {name}: {validation_result['reason']}")
                         return False
                     else:
-                        raise RuntimeError(f"Adapter prerequisites failed: {validation_result['reason']}")
-                
-                # Create adapter instance
-                adapter = self._create_adapter_instance(adapter_type, adapter_config)
-                
-                # Initialize with timeout protection
-                initialization_timeout = adapter_config.get("initialization_timeout", 30.0)
-                success = await asyncio.wait_for(
-                    adapter.initialize(), 
-                    timeout=initialization_timeout
-                )
-                
-                if success:
-                    self.adapters[name] = adapter
-                    if self.default_adapter is None:
-                        self.default_adapter = name
-                    log_system_event("adapter_initialization_success", f"Successfully initialized {adapter_type} adapter: {name}")
-                    return True
-                else:
-                    raise RuntimeError(f"Adapter initialization returned False")
+                        raise RuntimeError(error_msg)
+                        
+                except (ConnectionError, OSError) as e:
+                    # Network/connection issues - retry (handle httpx.ConnectError if available)
+                    if httpx and hasattr(httpx, 'ConnectError') and isinstance(e, httpx.ConnectError):
+                        pass  # This is also a connection error
+                    last_exception = e
+                    error_msg = f"Connection error initializing {adapter_type} adapter {name} (attempt {attempt + 1}/{max_retries + 1}): {e}"
+                    log_error(error_msg)
+                    log_system_event("adapter_initialization_connection_error", error_msg)
                     
-            except asyncio.TimeoutError as e:
-                last_exception = e
-                error_msg = f"Timeout initializing {adapter_type} adapter {name} (attempt {attempt + 1}/{max_retries + 1})"
-                log_error(error_msg)
-                log_system_event("adapter_initialization_timeout", error_msg)
-                
-            except ImportError as e:
-                # Dependencies missing - don't retry
-                error_msg = f"Missing dependencies for {adapter_type} adapter {name}: {e}"
-                log_error(error_msg)
-                log_system_event("adapter_initialization_dependency_error", error_msg)
-                if graceful_degradation:
-                    return False
-                else:
-                    raise RuntimeError(error_msg)
+                    if attempt < max_retries:
+                        # Exponential backoff for retries
+                        wait_time = 2 ** attempt
+                        log_info(f"Retrying {name} initialization in {wait_time} seconds...")
+                        await asyncio.sleep(wait_time)
+                        
+                except Exception as e:
+                    # Other errors - handle based on graceful_degradation setting
+                    last_exception = e
+                    error_msg = f"Error initializing {adapter_type} adapter {name}: {e}"
+                    log_error(error_msg)
+                    log_system_event("adapter_initialization_error", error_msg)
                     
-            except (ConnectionError, OSError) as e:
-                # Network/connection issues - retry (handle httpx.ConnectError if available)
-                if httpx and hasattr(httpx, 'ConnectError') and isinstance(e, httpx.ConnectError):
-                    pass  # This is also a connection error
-                last_exception = e
-                error_msg = f"Connection error initializing {adapter_type} adapter {name} (attempt {attempt + 1}/{max_retries + 1}): {e}"
-                log_error(error_msg)
-                log_system_event("adapter_initialization_connection_error", error_msg)
-                
-                if attempt < max_retries:
-                    # Exponential backoff for retries
-                    wait_time = 2 ** attempt
-                    log_info(f"Retrying {name} initialization in {wait_time} seconds...")
-                    await asyncio.sleep(wait_time)
-                    
-            except Exception as e:
-                # Other errors - handle based on graceful_degradation setting
-                last_exception = e
-                error_msg = f"Error initializing {adapter_type} adapter {name}: {e}"
-                log_error(error_msg)
-                log_system_event("adapter_initialization_error", error_msg)
-                
-                # For unknown errors, only retry if it might be transient
-                if attempt < max_retries and self._is_potentially_transient_error(e):
-                    wait_time = 1 + attempt
-                    log_info(f"Retrying {name} initialization in {wait_time} seconds...")
-                    await asyncio.sleep(wait_time)
-                else:
-                    break
-        
-        # All attempts failed
-        final_error_msg = f"Failed to initialize {adapter_type} adapter {name} after {max_retries + 1} attempts"
-        if last_exception:
-            final_error_msg += f". Last error: {last_exception}"
+                    # For unknown errors, only retry if it might be transient
+                    if attempt < max_retries and self._is_potentially_transient_error(e):
+                        wait_time = 1 + attempt
+                        log_info(f"Retrying {name} initialization in {wait_time} seconds...")
+                        await asyncio.sleep(wait_time)
+                    else:
+                        break
             
-        log_system_event("adapter_initialization_failed", final_error_msg)
-        
-        if graceful_degradation:
-            log_error(f"Continuing without {name} adapter")
-            return False
-        else:
-            raise RuntimeError(final_error_msg)
+            # All attempts failed
+            final_error_msg = f"Failed to initialize {adapter_type} adapter {name} after {max_retries + 1} attempts"
+            if last_exception:
+                final_error_msg += f". Last error: {last_exception}"
+                
+            log_system_event("adapter_initialization_failed", final_error_msg)
+            
+            if graceful_degradation:
+                log_error(f"Continuing without {name} adapter")
+                return False
+            else:
+                raise RuntimeError(final_error_msg)
     
     def _validate_adapter_prerequisites(self, name: str, adapter_config: Dict[str, Any], adapter_type: str) -> Dict[str, Any]:
         """
-        Validate prerequisites for adapter initialization.
+        Enhanced validation with smart API key validation and graceful skipping.
         
         Returns:
-            Dict with 'valid' (bool) and 'reason' (str) keys
+            Dict with 'valid' (bool), 'reason' (str), 'can_enable_later' (bool), and 'recommendation' (str) keys
         """
         try:
-            # Check for required API keys
-            if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
-                required_env_vars = {
-                    "openai": ["OPENAI_API_KEY"],
-                    "anthropic": ["ANTHROPIC_API_KEY"], 
-                    "gemini": ["GEMINI_API_KEY"],
-                    "groq": ["GROQ_API_KEY"],
-                    "cohere": ["COHERE_API_KEY"],
-                    "mistral": ["MISTRAL_API_KEY"]
-                }
-                
-                env_vars = required_env_vars.get(adapter_type, [])
-                for env_var in env_vars:
-                    if not adapter_config.get("api_key") and not os.getenv(env_var):
-                        return {
-                            "valid": False, 
-                            "reason": f"Missing API key: {env_var} environment variable or config.api_key required"
-                        }
-            
-            # Check for network connectivity (for non-local adapters)
-            if adapter_type not in ["mock", "mock_image"]:
-                base_url = adapter_config.get("base_url")
-                if base_url and not self._test_connectivity(base_url):
-                    return {
-                        "valid": False,
-                        "reason": f"Cannot connect to {base_url}"
-                    }
-            
-            # Check for required Python packages
+            # Check for required Python packages first
             required_packages = {
                 "openai": ["openai"],
                 "anthropic": ["anthropic"],
@@ -899,16 +976,667 @@ class ModelManager:
                 except ImportError:
                     return {
                         "valid": False,
-                        "reason": f"Missing required package: {package}. Install with: pip install {package}"
+                        "reason": f"Missing required package: {package}",
+                        "can_enable_later": True,
+                        "recommendation": f"Install with: pip install {package}"
                     }
             
-            return {"valid": True, "reason": "Prerequisites validated"}
+            # Smart API key validation for API-based adapters
+            if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
+                api_validation = self._validate_api_key_smart(name, adapter_config, adapter_type)
+                if not api_validation["valid"]:
+                    return api_validation
+            
+            # Check for network connectivity (for non-local adapters)
+            if adapter_type not in ["mock", "mock_image"]:
+                base_url = adapter_config.get("base_url")
+                if base_url and not self._test_connectivity(base_url):
+                    return {
+                        "valid": False,
+                        "reason": f"Cannot connect to {base_url}",
+                        "can_enable_later": True,
+                        "recommendation": "Check network connectivity and service status"
+                    }
+            
+            return {
+                "valid": True, 
+                "reason": "Prerequisites validated",
+                "can_enable_later": False,
+                "recommendation": "Adapter ready for use"
+            }
             
         except Exception as e:
             return {
                 "valid": False,
-                "reason": f"Prerequisite validation error: {e}"
+                "reason": f"Prerequisite validation error: {e}",
+                "can_enable_later": True,
+                "recommendation": "Check system configuration and try again"
             }
+    
+    def _validate_api_key_smart(self, name: str, adapter_config: Dict[str, Any], adapter_type: str) -> Dict[str, Any]:
+        """
+        Smart API key validation that actually tests the key with a lightweight API call.
+        
+        Returns:
+            Dict with validation result including recommendations for missing/invalid keys
+        """
+        # Define API key environment variables and endpoints
+        api_providers = {
+            "openai": {
+                "env_vars": ["OPENAI_API_KEY"],
+                "test_endpoint": "https://api.openai.com/v1/models",
+                "test_method": self._test_openai_api_key,
+                "setup_guide": "https://platform.openai.com/api-keys"
+            },
+            "anthropic": {
+                "env_vars": ["ANTHROPIC_API_KEY"],
+                "test_endpoint": "https://api.anthropic.com/v1/messages",
+                "test_method": self._test_anthropic_api_key,
+                "setup_guide": "https://console.anthropic.com/account/keys"
+            },
+            "gemini": {
+                "env_vars": ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+                "test_endpoint": "https://generativelanguage.googleapis.com/v1/models",
+                "test_method": self._test_gemini_api_key,
+                "setup_guide": "https://makersuite.google.com/app/apikey"
+            },
+            "groq": {
+                "env_vars": ["GROQ_API_KEY"],
+                "test_endpoint": "https://api.groq.com/openai/v1/models",
+                "test_method": self._test_groq_api_key,
+                "setup_guide": "https://console.groq.com/keys"
+            },
+            "cohere": {
+                "env_vars": ["COHERE_API_KEY"],
+                "test_endpoint": "https://api.cohere.ai/v1/models",
+                "test_method": self._test_cohere_api_key,
+                "setup_guide": "https://dashboard.cohere.com/api-keys"
+            },
+            "mistral": {
+                "env_vars": ["MISTRAL_API_KEY"],
+                "test_endpoint": "https://api.mistral.ai/v1/models",
+                "test_method": self._test_mistral_api_key,
+                "setup_guide": "https://console.mistral.ai/api-keys/"
+            }
+        }
+        
+        provider_info = api_providers.get(adapter_type)
+        if not provider_info:
+            return {"valid": True, "reason": "No API key required", "can_enable_later": False, "recommendation": "Local adapter ready"}
+        
+        # Check if API key is provided
+        api_key = adapter_config.get("api_key")
+        if not api_key:
+            # Check environment variables
+            for env_var in provider_info["env_vars"]:
+                api_key = os.getenv(env_var)
+                if api_key:
+                    break
+        
+        if not api_key:
+            env_var_list = " or ".join(provider_info["env_vars"])
+            return {
+                "valid": False,
+                "reason": f"Missing API key for {adapter_type}",
+                "can_enable_later": True,
+                "recommendation": f"Set {env_var_list} environment variable or add api_key to config. Get your key at: {provider_info['setup_guide']}"
+            }
+        
+        # Validate API key format
+        if not self._validate_api_key_format(api_key, adapter_type):
+            return {
+                "valid": False,
+                "reason": f"Invalid API key format for {adapter_type}",
+                "can_enable_later": True,
+                "recommendation": f"Check your API key format. Get a valid key at: {provider_info['setup_guide']}"
+            }
+        
+        # Test API key with lightweight call
+        if provider_info.get("test_method"):
+            try:
+                is_valid, error_msg = provider_info["test_method"](api_key, adapter_config)
+                if not is_valid:
+                    return {
+                        "valid": False,
+                        "reason": f"API key validation failed: {error_msg}",
+                        "can_enable_later": True,
+                        "recommendation": f"Verify your API key is active and has appropriate permissions. Get a new key at: {provider_info['setup_guide']}"
+                    }
+            except Exception as e:
+                # If API test fails due to network/other issues, allow the adapter but log the issue
+                log_error(f"Could not validate {adapter_type} API key due to network error: {e}")
+                return {
+                    "valid": True,
+                    "reason": f"API key present but could not validate due to network error",
+                    "can_enable_later": False,
+                    "recommendation": "Network validation failed, proceeding with provided API key"
+                }
+        
+        return {
+            "valid": True,
+            "reason": "API key validated successfully",
+            "can_enable_later": False,
+            "recommendation": f"{adapter_type.title()} adapter ready for use"
+        }
+    
+    def _validate_api_key_format(self, api_key: str, adapter_type: str) -> bool:
+        """Validate API key format for different providers."""
+        if not api_key or len(api_key.strip()) < 10:
+            return False
+        
+        # Provider-specific format validation
+        api_key = api_key.strip()
+        
+        if adapter_type == "openai":
+            return api_key.startswith("sk-") and len(api_key) > 20
+        elif adapter_type == "anthropic":
+            return api_key.startswith("sk-ant-") and len(api_key) > 30
+        elif adapter_type == "gemini":
+            return len(api_key) > 20 and not api_key.startswith("sk-")
+        elif adapter_type == "groq":
+            return api_key.startswith("gsk_") and len(api_key) > 30
+        elif adapter_type == "cohere":
+            return len(api_key) > 20 and not api_key.startswith("sk-")
+        elif adapter_type == "mistral":
+            return len(api_key) > 20
+        
+        return True  # Unknown format, assume valid
+    
+    def _test_openai_api_key(self, api_key: str, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Test OpenAI API key with a lightweight request."""
+        try:
+            if httpx is None:
+                return True, "httpx not available, skipping validation"
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get("https://api.openai.com/v1/models", headers=headers)
+                
+                if response.status_code == 200:
+                    return True, "API key valid"
+                elif response.status_code == 401:
+                    return False, "Invalid API key"
+                elif response.status_code == 429:
+                    return False, "API key rate limited or quota exceeded"
+                else:
+                    return False, f"API returned status {response.status_code}"
+                    
+        except Exception as e:
+            return False, f"API test failed: {e}"
+    
+    def _test_anthropic_api_key(self, api_key: str, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Test Anthropic API key with a lightweight request."""
+        try:
+            if httpx is None:
+                return True, "httpx not available, skipping validation"
+            
+            headers = {
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
+            }
+            
+            # Use a minimal request to test the key
+            data = {
+                "model": "claude-3-haiku-20240307",
+                "max_tokens": 1,
+                "messages": [{"role": "user", "content": "test"}]
+            }
+            
+            with httpx.Client(timeout=10.0) as client:
+                response = client.post("https://api.anthropic.com/v1/messages", headers=headers, json=data)
+                
+                if response.status_code == 200:
+                    return True, "API key valid"
+                elif response.status_code == 401:
+                    return False, "Invalid API key"
+                elif response.status_code == 429:
+                    return False, "API key rate limited or quota exceeded"
+                else:
+                    return False, f"API returned status {response.status_code}"
+                    
+        except Exception as e:
+            return False, f"API test failed: {e}"
+    
+    def _test_gemini_api_key(self, api_key: str, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Test Gemini API key with a lightweight request."""
+        try:
+            if httpx is None:
+                return True, "httpx not available, skipping validation"
+            
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(f"https://generativelanguage.googleapis.com/v1/models?key={api_key}")
+                
+                if response.status_code == 200:
+                    return True, "API key valid"
+                elif response.status_code == 401 or response.status_code == 403:
+                    return False, "Invalid API key or insufficient permissions"
+                elif response.status_code == 429:
+                    return False, "API key rate limited or quota exceeded"
+                else:
+                    return False, f"API returned status {response.status_code}"
+                    
+        except Exception as e:
+            return False, f"API test failed: {e}"
+    
+    def _test_groq_api_key(self, api_key: str, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Test Groq API key with a lightweight request."""
+        try:
+            if httpx is None:
+                return True, "httpx not available, skipping validation"
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get("https://api.groq.com/openai/v1/models", headers=headers)
+                
+                if response.status_code == 200:
+                    return True, "API key valid"
+                elif response.status_code == 401:
+                    return False, "Invalid API key"
+                elif response.status_code == 429:
+                    return False, "API key rate limited or quota exceeded"
+                else:
+                    return False, f"API returned status {response.status_code}"
+                    
+        except Exception as e:
+            return False, f"API test failed: {e}"
+    
+    def _test_cohere_api_key(self, api_key: str, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Test Cohere API key with a lightweight request."""
+        try:
+            if httpx is None:
+                return True, "httpx not available, skipping validation"
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get("https://api.cohere.ai/v1/models", headers=headers)
+                
+                if response.status_code == 200:
+                    return True, "API key valid"
+                elif response.status_code == 401:
+                    return False, "Invalid API key"
+                elif response.status_code == 429:
+                    return False, "API key rate limited or quota exceeded"
+                else:
+                    return False, f"API returned status {response.status_code}"
+                    
+        except Exception as e:
+            return False, f"API test failed: {e}"
+    
+    def _test_mistral_api_key(self, api_key: str, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Test Mistral API key with a lightweight request."""
+        try:
+            if httpx is None:
+                return True, "httpx not available, skipping validation"
+            
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get("https://api.mistral.ai/v1/models", headers=headers)
+                
+                if response.status_code == 200:
+                    return True, "API key valid"
+                elif response.status_code == 401:
+                    return False, "Invalid API key"
+                elif response.status_code == 429:
+                    return False, "API key rate limited or quota exceeded"
+                else:
+                    return False, f"API returned status {response.status_code}"
+                    
+        except Exception as e:
+            return False, f"API test failed: {e}"
+    
+    def get_adapter_status_summary(self) -> Dict[str, Any]:
+        """
+        Get a comprehensive summary of adapter status including disabled adapters and recommendations.
+        
+        Returns:
+            Dict with detailed status information and user-friendly recommendations
+        """
+        active_adapters = len(self.adapters)
+        disabled_adapters = len(self.disabled_adapters)
+        total_configured = active_adapters + disabled_adapters
+        
+        # Categorize disabled adapters by reason
+        missing_api_keys = []
+        missing_packages = []
+        network_issues = []
+        other_issues = []
+        
+        for name, info in self.disabled_adapters.items():
+            reason = info["reason"].lower()
+            if "api key" in reason:
+                missing_api_keys.append({
+                    "name": name,
+                    "type": info["type"],
+                    "recommendation": info.get("recommendation", "")
+                })
+            elif "package" in reason:
+                missing_packages.append({
+                    "name": name,
+                    "type": info["type"],
+                    "recommendation": info.get("recommendation", "")
+                })
+            elif "connect" in reason or "network" in reason:
+                network_issues.append({
+                    "name": name,
+                    "type": info["type"],
+                    "recommendation": info.get("recommendation", "")
+                })
+            else:
+                other_issues.append({
+                    "name": name,
+                    "type": info["type"],
+                    "reason": info["reason"],
+                    "recommendation": info.get("recommendation", "")
+                })
+        
+        # Generate user-friendly summary
+        summary = {
+            "overview": {
+                "total_configured": total_configured,
+                "active_adapters": active_adapters,
+                "disabled_adapters": disabled_adapters,
+                "health_status": "excellent" if disabled_adapters == 0 else ("good" if active_adapters > 0 else "poor")
+            },
+            "active_adapters": {
+                name: {
+                    "type": info["type"],
+                    "model_name": info["model_name"],
+                    "description": info["description"],
+                    "supports_nsfw": info["supports_nsfw"],
+                    "content_types": info["content_types"],
+                    "initialized_at": info["initialized_at"]
+                }
+                for name, info in self.adapter_status.items()
+            },
+            "disabled_adapters": {
+                "missing_api_keys": missing_api_keys,
+                "missing_packages": missing_packages,
+                "network_issues": network_issues,
+                "other_issues": other_issues
+            },
+            "api_key_status": self.api_key_status,
+            "recommendations": self._generate_status_recommendations(missing_api_keys, missing_packages, network_issues, other_issues),
+            "default_adapter": self.default_adapter
+        }
+        
+        return summary
+    
+    def _generate_status_recommendations(self, missing_api_keys: List[Dict], missing_packages: List[Dict], 
+                                        network_issues: List[Dict], other_issues: List[Dict]) -> List[str]:
+        """Generate user-friendly recommendations for improving adapter availability."""
+        recommendations = []
+        
+        if missing_api_keys:
+            api_types = {item["type"] for item in missing_api_keys}
+            recommendations.append(
+                f"🔑 Set up API keys for {', '.join(sorted(api_types))} to enable advanced AI models. "
+                f"This will unlock {len(missing_api_keys)} additional adapters."
+            )
+        
+        if missing_packages:
+            package_count = len(missing_packages)
+            recommendations.append(
+                f"📦 Install missing Python packages to enable {package_count} adapter(s). "
+                f"Run 'pip install' commands shown in the detailed status."
+            )
+        
+        if network_issues:
+            service_count = len(network_issues)
+            recommendations.append(
+                f"🌐 Check network connectivity - {service_count} service(s) are unreachable. "
+                f"Verify internet connection and service status."
+            )
+        
+        if other_issues:
+            issue_count = len(other_issues)
+            recommendations.append(
+                f"⚠️ Resolve {issue_count} configuration issue(s). "
+                f"Check detailed status for specific solutions."
+            )
+        
+        if not any([missing_api_keys, missing_packages, network_issues, other_issues]):
+            recommendations.append("✅ All configured adapters are working properly!")
+        
+        return recommendations
+    
+    def get_api_key_setup_guide(self) -> Dict[str, Any]:
+        """
+        Generate a comprehensive API key setup guide for users.
+        
+        Returns:
+            Dict with setup instructions for each provider
+        """
+        api_providers = {
+            "openai": {
+                "service_name": "OpenAI (GPT-4, GPT-3.5)",
+                "setup_url": "https://platform.openai.com/api-keys",
+                "env_var": "OPENAI_API_KEY",
+                "description": "Access to GPT-4, GPT-3.5 Turbo, and DALL-E models",
+                "pricing": "Pay-per-use, free tier available",
+                "steps": [
+                    "1. Visit https://platform.openai.com/api-keys",
+                    "2. Sign in or create an OpenAI account",
+                    "3. Click 'Create new secret key'",
+                    "4. Copy the key (starts with 'sk-')",
+                    "5. Set environment variable: OPENAI_API_KEY=your_key_here"
+                ]
+            },
+            "anthropic": {
+                "service_name": "Anthropic (Claude)",
+                "setup_url": "https://console.anthropic.com/account/keys",
+                "env_var": "ANTHROPIC_API_KEY",
+                "description": "Access to Claude 3 Opus, Sonnet, and Haiku models",
+                "pricing": "Pay-per-use, competitive rates",
+                "steps": [
+                    "1. Visit https://console.anthropic.com/account/keys",
+                    "2. Sign in or create an Anthropic account",
+                    "3. Click 'Create Key'",
+                    "4. Copy the key (starts with 'sk-ant-')",
+                    "5. Set environment variable: ANTHROPIC_API_KEY=your_key_here"
+                ]
+            },
+            "gemini": {
+                "service_name": "Google Gemini",
+                "setup_url": "https://makersuite.google.com/app/apikey",
+                "env_var": "GEMINI_API_KEY",
+                "description": "Access to Gemini Pro and other Google AI models",
+                "pricing": "Generous free tier, pay-per-use beyond limits",
+                "steps": [
+                    "1. Visit https://makersuite.google.com/app/apikey",
+                    "2. Sign in with your Google account",
+                    "3. Click 'Get API key' or 'Create API key'",
+                    "4. Copy the generated key",
+                    "5. Set environment variable: GEMINI_API_KEY=your_key_here"
+                ]
+            },
+            "groq": {
+                "service_name": "Groq (Ultra-fast inference)",
+                "setup_url": "https://console.groq.com/keys",
+                "env_var": "GROQ_API_KEY",
+                "description": "Ultra-fast inference for Llama, Mixtral, and other models",
+                "pricing": "Generous free tier, very fast responses",
+                "steps": [
+                    "1. Visit https://console.groq.com/keys",
+                    "2. Sign in or create a Groq account",
+                    "3. Click 'Create API Key'",
+                    "4. Copy the key (starts with 'gsk_')",
+                    "5. Set environment variable: GROQ_API_KEY=your_key_here"
+                ]
+            },
+            "cohere": {
+                "service_name": "Cohere",
+                "setup_url": "https://dashboard.cohere.com/api-keys",
+                "env_var": "COHERE_API_KEY",
+                "description": "Access to Command and other Cohere models",
+                "pricing": "Free tier available, pay-per-use",
+                "steps": [
+                    "1. Visit https://dashboard.cohere.com/api-keys",
+                    "2. Sign in or create a Cohere account",
+                    "3. Click 'New API Key'",
+                    "4. Copy the generated key",
+                    "5. Set environment variable: COHERE_API_KEY=your_key_here"
+                ]
+            },
+            "mistral": {
+                "service_name": "Mistral AI",
+                "setup_url": "https://console.mistral.ai/api-keys/",
+                "env_var": "MISTRAL_API_KEY",
+                "description": "Access to Mistral 7B, 8x7B, and other efficient models",
+                "pricing": "Competitive pricing, efficient models",
+                "steps": [
+                    "1. Visit https://console.mistral.ai/api-keys/",
+                    "2. Sign in or create a Mistral account",
+                    "3. Click 'Create new key'",
+                    "4. Copy the generated key",
+                    "5. Set environment variable: MISTRAL_API_KEY=your_key_here"
+                ]
+            }
+        }
+        
+        # Add status information
+        setup_guide = {
+            "providers": api_providers,
+            "current_status": self.api_key_status,
+            "disabled_due_to_api_keys": [
+                {
+                    "adapter": name,
+                    "provider": info["type"],
+                    "recommendation": info.get("recommendation", "")
+                }
+                for name, info in self.disabled_adapters.items()
+                if "api key" in info["reason"].lower()
+            ],
+            "general_instructions": [
+                "Environment variables can be set in your system or in a .env file",
+                "Restart OpenChronicle after setting new API keys",
+                "API keys are sensitive - never share them publicly",
+                "Each provider has different pricing - check their websites for current rates",
+                "Free tiers are often sufficient for testing and light usage"
+            ]
+        }
+        
+        return setup_guide
+    
+    def check_for_new_api_keys(self) -> Dict[str, Any]:
+        """
+        Check if any previously missing API keys are now available and can enable disabled adapters.
+        
+        Returns:
+            Dict with information about newly available adapters
+        """
+        newly_available = []
+        still_disabled = []
+        
+        for name, info in self.disabled_adapters.copy().items():
+            if info.get("can_enable_later", False):
+                adapter_type = info["type"]
+                adapter_config = info["config"]
+                
+                # Re-validate prerequisites
+                validation_result = self._validate_adapter_prerequisites(name, adapter_config, adapter_type)
+                
+                if validation_result["valid"]:
+                    newly_available.append({
+                        "name": name,
+                        "type": adapter_type,
+                        "previous_reason": info["reason"],
+                        "now_available": True
+                    })
+                    
+                    # Update status
+                    self.disabled_adapters[name]["can_enable_later"] = False
+                    self.disabled_adapters[name]["status"] = "ready_to_initialize"
+                    
+                else:
+                    still_disabled.append({
+                        "name": name,
+                        "type": adapter_type,
+                        "reason": validation_result["reason"],
+                        "recommendation": validation_result.get("recommendation", "")
+                    })
+        
+        result = {
+            "newly_available": newly_available,
+            "still_disabled": still_disabled,
+            "can_initialize_now": len(newly_available) > 0,
+            "check_timestamp": datetime.now(UTC).isoformat()
+        }
+        
+        if newly_available:
+            log_info(f"Found {len(newly_available)} adapters that can now be initialized")
+            log_system_event("api_keys_newly_available", f"Can now initialize: {[item['name'] for item in newly_available]}")
+        
+        return result
+    
+    async def auto_initialize_available_adapters(self) -> Dict[str, Any]:
+        """
+        Automatically initialize any adapters that were previously disabled but are now available.
+        
+        Returns:
+            Dict with initialization results
+        """
+        check_result = self.check_for_new_api_keys()
+        
+        if not check_result["can_initialize_now"]:
+            return {
+                "success": True,
+                "message": "No new adapters available for initialization",
+                "newly_initialized": [],
+                "failed_initializations": []
+            }
+        
+        newly_initialized = []
+        failed_initializations = []
+        
+        for adapter_info in check_result["newly_available"]:
+            name = adapter_info["name"]
+            try:
+                success = await self.initialize_adapter(name, graceful_degradation=True)
+                if success:
+                    newly_initialized.append({
+                        "name": name,
+                        "type": adapter_info["type"],
+                        "status": "initialized_successfully"
+                    })
+                else:
+                    failed_initializations.append({
+                        "name": name,
+                        "type": adapter_info["type"],
+                        "reason": "Initialization returned False"
+                    })
+            except Exception as e:
+                failed_initializations.append({
+                    "name": name,
+                    "type": adapter_info["type"],
+                    "reason": str(e)
+                })
+        
+        log_info(f"Auto-initialization complete: {len(newly_initialized)} successful, {len(failed_initializations)} failed")
+        
+        return {
+            "success": True,
+            "message": f"Initialized {len(newly_initialized)} adapter(s)",
+            "newly_initialized": newly_initialized,
+            "failed_initializations": failed_initializations,
+            "total_active_adapters": len(self.adapters)
+        }
     
     def _test_connectivity(self, base_url: str, timeout: float = 5.0) -> bool:
         """Test basic connectivity to a URL."""
@@ -981,56 +1709,67 @@ class ModelManager:
         """Generate response using specified or default adapter with fallback support."""
         adapter_name = adapter_name or self.default_adapter or "mock"
         
-        # Use fallback chain if configured
-        if "fallback_chains" in self.config and adapter_name in self.config["fallback_chains"]:
-            chain = self.config["fallback_chains"][adapter_name]
-            log_info(f"Using fallback chain for {adapter_name}: {chain}")
-            log_system_event("fallback_chain_usage", f"Using fallback chain for {adapter_name}: {chain}")
+        # Start performance tracking
+        async with self.track_model_operation(adapter_name, "generate", prompt_length=len(prompt)) as tracker:
             
-            for attempt_adapter in chain:
-                try:
-                    if attempt_adapter not in self.adapters:
-                        # Try to initialize the adapter
-                        if not await self.initialize_adapter(attempt_adapter):
-                            log_error(f"Failed to initialize adapter: {attempt_adapter}")
-                            continue
-                    
-                    adapter = self.adapters[attempt_adapter]
-                    response = await adapter.generate_response(prompt, **kwargs)
-                    
-                    # Log interaction if story_id provided
-                    if story_id:
-                        metadata = {"adapter": attempt_adapter, "kwargs": kwargs, "fallback_position": chain.index(attempt_adapter)}
-                        adapter.log_interaction(story_id, prompt, response, metadata)
-                    
-                    log_info(f"Successfully generated response using {attempt_adapter}")
-                    log_system_event("fallback_chain_success", f"Successfully generated response using {attempt_adapter} (fallback position {chain.index(attempt_adapter)})")
-                    return response
-                    
-                except Exception as e:
-                    log_error(f"Adapter {attempt_adapter} failed: {e}")
-                    log_system_event("fallback_chain_failure", f"Adapter {attempt_adapter} failed: {e}")
-                    continue
+            # Use fallback chain if configured
+            if "fallback_chains" in self.config and adapter_name in self.config["fallback_chains"]:
+                chain = self.config["fallback_chains"][adapter_name]
+                log_info(f"Using fallback chain for {adapter_name}: {chain}")
+                log_system_event("fallback_chain_usage", f"Using fallback chain for {adapter_name}: {chain}")
+                
+                for attempt_adapter in chain:
+                    try:
+                        if attempt_adapter not in self.adapters:
+                            # Try to initialize the adapter
+                            if not await self.initialize_adapter(attempt_adapter):
+                                log_error(f"Failed to initialize adapter: {attempt_adapter}")
+                                continue
+                        
+                        adapter = self.adapters[attempt_adapter]
+                        response = await adapter.generate_response(prompt, **kwargs)
+                        
+                        # Track performance metrics
+                        tracker.set_tokens_processed(len(response.split()) if response else 0)
+                        tracker.set_response_size(len(response.encode('utf-8')) if response else 0)
+                        
+                        # Log interaction if story_id provided
+                        if story_id:
+                            metadata = {"adapter": attempt_adapter, "kwargs": kwargs, "fallback_position": chain.index(attempt_adapter)}
+                            adapter.log_interaction(story_id, prompt, response, metadata)
+                        
+                        log_info(f"Successfully generated response using {attempt_adapter}")
+                        log_system_event("fallback_chain_success", f"Successfully generated response using {attempt_adapter} (fallback position {chain.index(attempt_adapter)})")
+                        return response
+                        
+                    except Exception as e:
+                        log_error(f"Adapter {attempt_adapter} failed: {e}")
+                        log_system_event("fallback_chain_failure", f"Adapter {attempt_adapter} failed: {e}")
+                        continue
+                
+                # If all adapters in chain failed, raise error
+                log_system_event("fallback_chain_exhausted", f"All adapters in fallback chain failed for {adapter_name}")
+                raise RuntimeError(f"All adapters in fallback chain failed for {adapter_name}")
             
-            # If all adapters in chain failed, raise error
-            log_system_event("fallback_chain_exhausted", f"All adapters in fallback chain failed for {adapter_name}")
-            raise RuntimeError(f"All adapters in fallback chain failed for {adapter_name}")
-        
-        # Original single adapter logic
-        if adapter_name not in self.adapters:
-            # Try to initialize the adapter
-            if not await self.initialize_adapter(adapter_name):
-                raise RuntimeError(f"Failed to initialize adapter: {adapter_name}")
-        
-        adapter = self.adapters[adapter_name]
-        response = await adapter.generate_response(prompt, **kwargs)
-        
-        # Log interaction if story_id provided
-        if story_id:
-            metadata = {"adapter": adapter_name, "kwargs": kwargs}
-            adapter.log_interaction(story_id, prompt, response, metadata)
-        
-        return response
+            # Original single adapter logic
+            if adapter_name not in self.adapters:
+                # Try to initialize the adapter
+                if not await self.initialize_adapter(adapter_name):
+                    raise RuntimeError(f"Failed to initialize adapter: {adapter_name}")
+            
+            adapter = self.adapters[adapter_name]
+            response = await adapter.generate_response(prompt, **kwargs)
+            
+            # Track performance metrics
+            tracker.set_tokens_processed(len(response.split()) if response else 0)
+            tracker.set_response_size(len(response.encode('utf-8')) if response else 0)
+            
+            # Log interaction if story_id provided
+            if story_id:
+                metadata = {"adapter": adapter_name, "kwargs": kwargs}
+                adapter.log_interaction(story_id, prompt, response, metadata)
+            
+            return response
     
     def get_available_adapters(self) -> List[str]:
         """Get list of available adapters."""
@@ -2007,6 +2746,529 @@ class ModelManager:
         except Exception as e:
             log_error(f"Failed to save runtime state: {e}")
             return False
+
+    def _initialize_performance_monitoring(self):
+        """Initialize performance monitoring system."""
+        try:
+            from utilities.performance_monitor import PerformanceMonitor
+            self.performance_monitor = PerformanceMonitor()
+            self.performance_monitor.start_monitoring()
+            log_system_event("performance_monitoring_init", "Performance monitoring system initialized")
+        except ImportError:
+            log_system_event("performance_monitoring_disabled", "Performance monitoring disabled - psutil not available")
+            self.performance_monitor = None
+        except Exception as e:
+            log_error(f"Failed to initialize performance monitoring: {e}")
+            self.performance_monitor = None
+
+    # ================================
+    # PERFORMANCE DIAGNOSTIC AND OPTIMIZATION SYSTEM
+    # ================================
+    
+    async def generate_performance_report(self, time_window_hours: int = 24) -> Dict[str, Any]:
+        """
+        Generate comprehensive performance diagnostic report.
+        
+        Args:
+            time_window_hours: Hours to include in analysis
+            
+        Returns:
+            Dictionary containing performance report and optimization recommendations
+        """
+        if not self.performance_monitor:
+            return {
+                "success": False,
+                "error": "Performance monitoring not available",
+                "recommendations": ["Install psutil package to enable performance monitoring"]
+            }
+        
+        try:
+            # Generate comprehensive report
+            report = self.performance_monitor.generate_performance_report(time_window_hours)
+            
+            # Save report to file
+            report_file = self.performance_monitor.save_report_to_file(report)
+            
+            # Get current system health
+            health_summary = self.performance_monitor.get_system_health_summary()
+            
+            # Generate model registry updates
+            registry_updates = self._generate_registry_performance_updates(report)
+            
+            # Apply automatic optimizations if enabled
+            optimizations_applied = await self._apply_automatic_optimizations(report)
+            
+            log_system_event(
+                "performance_report_generated",
+                f"Performance report generated: {report.total_operations} operations analyzed, "
+                f"{len(report.bottlenecks)} bottlenecks found, {len(report.optimization_recommendations)} recommendations"
+            )
+            
+            return {
+                "success": True,
+                "report": report,
+                "report_file": report_file,
+                "health_summary": health_summary,
+                "registry_updates": registry_updates,
+                "optimizations_applied": optimizations_applied,
+                "summary": {
+                    "time_period": report.time_period,
+                    "total_operations": report.total_operations,
+                    "success_rate": report.successful_operations / max(report.total_operations, 1),
+                    "avg_duration": report.avg_duration,
+                    "efficiency_score": report.avg_efficiency_score,
+                    "bottlenecks_found": len(report.bottlenecks),
+                    "recommendations_count": len(report.optimization_recommendations),
+                    "performance_trend": report.performance_trend,
+                    "trend_confidence": report.trend_confidence,
+                    "fastest_models": report.fastest_models[:3],
+                    "most_efficient_models": report.most_efficient_models[:3],
+                    "critical_issues": [
+                        b.description for b in report.bottlenecks 
+                        if b.severity in ["critical", "high"]
+                    ]
+                }
+            }
+            
+        except Exception as e:
+            log_error(f"Failed to generate performance report: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "recommendations": ["Check performance monitoring system configuration"]
+            }
+    
+    async def get_model_performance_analytics(self, adapter_name: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Get detailed performance analytics for specific adapter or all adapters.
+        
+        Args:
+            adapter_name: Specific adapter to analyze, or None for all adapters
+            
+        Returns:
+            Dictionary containing performance analytics and rankings
+        """
+        if not self.performance_monitor:
+            return {
+                "success": False,
+                "error": "Performance monitoring not available"
+            }
+        
+        try:
+            if adapter_name:
+                # Get statistics for specific adapter
+                stats = self.performance_monitor.get_adapter_statistics(adapter_name)
+                if not stats:
+                    return {
+                        "success": False,
+                        "error": f"No performance data available for adapter '{adapter_name}'"
+                    }
+                
+                return {
+                    "success": True,
+                    "adapter_name": adapter_name,
+                    "statistics": stats,
+                    "rankings": {
+                        "efficiency_rank": self._get_adapter_rank(adapter_name, "efficiency"),
+                        "speed_rank": self._get_adapter_rank(adapter_name, "speed"),
+                        "reliability_rank": self._get_adapter_rank(adapter_name, "reliability")
+                    }
+                }
+            else:
+                # Get analytics for all adapters
+                all_stats = self.performance_monitor.get_all_adapter_statistics()
+                rankings = {
+                    "efficiency": self.performance_monitor.get_model_rankings("efficiency"),
+                    "speed": self.performance_monitor.get_model_rankings("speed"),
+                    "reliability": self.performance_monitor.get_model_rankings("reliability"),
+                    "overall": self.performance_monitor.get_model_rankings("overall")
+                }
+                
+                return {
+                    "success": True,
+                    "all_adapters": all_stats,
+                    "rankings": rankings,
+                    "summary": {
+                        "total_adapters_tracked": len(all_stats),
+                        "adapters_with_sufficient_data": len([
+                            name for name, stats in all_stats.items()
+                            if stats.get("total_operations", 0) >= 3
+                        ]),
+                        "best_overall": rankings["overall"][0] if rankings["overall"] else None,
+                        "fastest": rankings["speed"][0] if rankings["speed"] else None,
+                        "most_reliable": rankings["reliability"][0] if rankings["reliability"] else None
+                    }
+                }
+                
+        except Exception as e:
+            log_error(f"Failed to get model performance analytics: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def analyze_performance_bottlenecks(self, time_window_hours: int = 24) -> Dict[str, Any]:
+        """
+        Analyze current performance bottlenecks and provide specific recommendations.
+        
+        Args:
+            time_window_hours: Hours to analyze for bottlenecks
+            
+        Returns:
+            Dictionary containing bottleneck analysis and recommendations
+        """
+        if not self.performance_monitor:
+            return {
+                "success": False,
+                "error": "Performance monitoring not available"
+            }
+        
+        try:
+            # Analyze bottlenecks
+            bottlenecks = self.performance_monitor.analyze_bottlenecks(time_window_hours)
+            
+            # Get current system health
+            health = self.performance_monitor.get_system_health_summary()
+            
+            # Get active operations that might be causing issues
+            active_ops = self.performance_monitor.get_active_operations()
+            
+            # Categorize bottlenecks by severity
+            critical_bottlenecks = [b for b in bottlenecks if b.severity == "critical"]
+            high_bottlenecks = [b for b in bottlenecks if b.severity == "high"]
+            medium_bottlenecks = [b for b in bottlenecks if b.severity == "medium"]
+            
+            # Generate immediate action recommendations
+            immediate_actions = self._generate_immediate_action_recommendations(
+                critical_bottlenecks, high_bottlenecks, health
+            )
+            
+            log_system_event(
+                "bottleneck_analysis_completed",
+                f"Analyzed performance bottlenecks: {len(critical_bottlenecks)} critical, "
+                f"{len(high_bottlenecks)} high, {len(medium_bottlenecks)} medium severity"
+            )
+            
+            return {
+                "success": True,
+                "analysis_period": f"Last {time_window_hours} hours",
+                "system_health": health,
+                "bottlenecks": {
+                    "critical": critical_bottlenecks,
+                    "high": high_bottlenecks,
+                    "medium": medium_bottlenecks,
+                    "total_count": len(bottlenecks)
+                },
+                "active_operations": active_ops,
+                "immediate_actions": immediate_actions,
+                "summary": {
+                    "health_status": health.get("health_status", "unknown"),
+                    "critical_issues_count": len(critical_bottlenecks),
+                    "needs_immediate_attention": len(critical_bottlenecks) > 0 or health.get("health_status") == "critical",
+                    "cpu_usage": health.get("cpu_usage_percent", 0),
+                    "memory_usage": health.get("memory_usage_percent", 0),
+                    "recent_success_rate": health.get("recent_success_rate", 1.0)
+                }
+            }
+            
+        except Exception as e:
+            log_error(f"Failed to analyze performance bottlenecks: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def get_optimization_recommendations(self, target_use_case: str = "general") -> Dict[str, Any]:
+        """
+        Get specific optimization recommendations based on use case and current performance.
+        
+        Args:
+            target_use_case: "speed", "efficiency", "reliability", or "general"
+            
+        Returns:
+            Dictionary containing targeted optimization recommendations
+        """
+        if not self.performance_monitor:
+            return {
+                "success": False,
+                "error": "Performance monitoring not available",
+                "recommendations": ["Install psutil package to enable performance monitoring"]
+            }
+        
+        try:
+            # Get current performance data
+            report = self.performance_monitor.generate_performance_report(24)
+            health = self.performance_monitor.get_system_health_summary()
+            
+            # Get model rankings for the target use case
+            if target_use_case == "speed":
+                rankings = self.performance_monitor.get_model_rankings("speed")
+            elif target_use_case == "efficiency":
+                rankings = self.performance_monitor.get_model_rankings("efficiency")
+            elif target_use_case == "reliability":
+                rankings = self.performance_monitor.get_model_rankings("reliability")
+            else:  # general
+                rankings = self.performance_monitor.get_model_rankings("overall")
+            
+            # Generate targeted recommendations
+            recommendations = []
+            
+            # Model selection recommendations
+            if rankings:
+                top_models = rankings[:3]
+                recommendations.append({
+                    "category": "model_selection",
+                    "priority": "high",
+                    "title": f"Optimize for {target_use_case}",
+                    "description": f"Based on performance data, these models perform best for {target_use_case} use cases",
+                    "action": f"Consider using: {', '.join([name for name, _ in top_models])}",
+                    "expected_impact": "20-50% improvement in target metric",
+                    "evidence": {
+                        "top_models": top_models,
+                        "data_points": sum(
+                            self.performance_monitor.get_adapter_statistics(name).get("total_operations", 0)
+                            for name, _ in top_models
+                        )
+                    }
+                })
+            
+            # System resource recommendations
+            cpu_usage = health.get("cpu_usage_percent", 0)
+            memory_usage = health.get("memory_usage_percent", 0)
+            
+            if cpu_usage > 80:
+                recommendations.append({
+                    "category": "system_resources",
+                    "priority": "critical" if cpu_usage > 90 else "high",
+                    "title": "High CPU Usage Detected",
+                    "description": f"CPU usage is {cpu_usage:.1f}%, which may impact performance",
+                    "action": "Reduce concurrent operations or use lighter models",
+                    "expected_impact": "Reduced latency and improved stability",
+                    "evidence": {"cpu_usage": cpu_usage}
+                })
+            
+            if memory_usage > 85:
+                recommendations.append({
+                    "category": "system_resources",
+                    "priority": "critical" if memory_usage > 95 else "high",
+                    "title": "High Memory Usage Detected",
+                    "description": f"Memory usage is {memory_usage:.1f}%, which may cause system instability",
+                    "action": "Implement memory cleanup or use models with lower memory requirements",
+                    "expected_impact": "Improved stability and reduced risk of crashes",
+                    "evidence": {"memory_usage": memory_usage}
+                })
+            
+            # Performance trend recommendations
+            if report.performance_trend == "degrading" and report.trend_confidence > 0.6:
+                recommendations.append({
+                    "category": "performance_trend",
+                    "priority": "medium",
+                    "title": "Performance Degradation Detected",
+                    "description": f"Performance has been degrading with {report.trend_confidence:.1%} confidence",
+                    "action": "Review recent changes and consider system maintenance",
+                    "expected_impact": "Restore previous performance levels",
+                    "evidence": {
+                        "trend": report.performance_trend,
+                        "confidence": report.trend_confidence
+                    }
+                })
+            
+            # Configuration recommendations based on bottlenecks
+            for bottleneck in report.bottlenecks:
+                if bottleneck.severity in ["critical", "high"]:
+                    recommendations.append({
+                        "category": "configuration",
+                        "priority": bottleneck.severity,
+                        "title": f"{bottleneck.bottleneck_type.title()} Bottleneck",
+                        "description": bottleneck.description,
+                        "action": bottleneck.recommendation,
+                        "expected_impact": f"Reduce {bottleneck.bottleneck_type} impact by {bottleneck.impact_score:.1%}",
+                        "evidence": bottleneck.evidence
+                    })
+            
+            # Sort recommendations by priority
+            priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+            recommendations.sort(key=lambda x: priority_order.get(x["priority"], 4))
+            
+            log_system_event(
+                "optimization_recommendations_generated",
+                f"Generated {len(recommendations)} optimization recommendations for {target_use_case} use case"
+            )
+            
+            return {
+                "success": True,
+                "target_use_case": target_use_case,
+                "recommendations": recommendations,
+                "current_performance": {
+                    "avg_duration": report.avg_duration,
+                    "success_rate": report.successful_operations / max(report.total_operations, 1),
+                    "efficiency_score": report.avg_efficiency_score,
+                    "system_health": health.get("health_status", "unknown")
+                },
+                "summary": {
+                    "total_recommendations": len(recommendations),
+                    "critical_issues": len([r for r in recommendations if r["priority"] == "critical"]),
+                    "high_priority": len([r for r in recommendations if r["priority"] == "high"]),
+                    "expected_overall_impact": "Significant improvement expected" if len(recommendations) > 2 else "Moderate improvement expected"
+                }
+            }
+            
+        except Exception as e:
+            log_error(f"Failed to generate optimization recommendations: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _generate_registry_performance_updates(self, report) -> Dict[str, Any]:
+        """Generate performance-based updates for model registry."""
+        try:
+            updates = {}
+            
+            # Update performance ratings for each model
+            for adapter_name, rating in report.model_rankings.items():
+                updates[adapter_name] = {
+                    "performance_rating": rating,
+                    "last_benchmark": datetime.now(UTC).isoformat(),
+                    "operations_count": report.total_operations
+                }
+            
+            # Add speed rankings
+            for i, (adapter_name, speed_score) in enumerate(report.fastest_models):
+                if adapter_name in updates:
+                    updates[adapter_name]["speed_rank"] = i + 1
+                    updates[adapter_name]["speed_score"] = speed_score
+            
+            # Add efficiency rankings
+            for i, (adapter_name, efficiency_score) in enumerate(report.most_efficient_models):
+                if adapter_name in updates:
+                    updates[adapter_name]["efficiency_rank"] = i + 1
+                    updates[adapter_name]["efficiency_score"] = efficiency_score
+            
+            # Add reliability rankings
+            for i, (adapter_name, reliability_score) in enumerate(report.most_reliable_models):
+                if adapter_name in updates:
+                    updates[adapter_name]["reliability_rank"] = i + 1
+                    updates[adapter_name]["reliability_score"] = reliability_score
+            
+            return {
+                "success": True,
+                "updates": updates,
+                "timestamp": datetime.now(UTC).isoformat()
+            }
+            
+        except Exception as e:
+            log_error(f"Failed to generate registry performance updates: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    async def _apply_automatic_optimizations(self, report) -> List[str]:
+        """Apply automatic optimizations based on performance report."""
+        optimizations_applied = []
+        
+        try:
+            # Auto-disable consistently failing adapters
+            for adapter_name in self.adapters:
+                stats = self.performance_monitor.get_adapter_statistics(adapter_name)
+                if stats and stats.get("success_rate", 1.0) < 0.3 and stats.get("total_operations", 0) > 5:
+                    # Don't actually disable, just log the recommendation
+                    optimizations_applied.append(
+                        f"Recommended: Disable {adapter_name} (success rate: {stats['success_rate']:.1%})"
+                    )
+            
+            # Update default model based on performance
+            if report.most_efficient_models:
+                best_model = report.most_efficient_models[0][0]
+                if best_model in self.adapters and best_model != self.default_adapter:
+                    # Don't automatically change default, just recommend
+                    optimizations_applied.append(
+                        f"Recommended: Consider setting {best_model} as default adapter"
+                    )
+            
+            # Log memory cleanup recommendation if needed
+            if report.avg_memory_usage > 1000:  # > 1GB
+                optimizations_applied.append(
+                    "Recommended: Implement periodic memory cleanup"
+                )
+            
+        except Exception as e:
+            log_error(f"Failed to apply automatic optimizations: {e}")
+            optimizations_applied.append(f"Error applying optimizations: {str(e)}")
+        
+        return optimizations_applied
+    
+    def _get_adapter_rank(self, adapter_name: str, criteria: str) -> Optional[int]:
+        """Get the rank of an adapter for specific criteria."""
+        try:
+            rankings = self.performance_monitor.get_model_rankings(criteria)
+            for i, (name, _) in enumerate(rankings):
+                if name == adapter_name:
+                    return i + 1
+            return None
+        except Exception:
+            return None
+    
+    def _generate_immediate_action_recommendations(self, critical_bottlenecks, high_bottlenecks, health) -> List[str]:
+        """Generate immediate action recommendations for critical issues."""
+        actions = []
+        
+        # Critical bottlenecks
+        for bottleneck in critical_bottlenecks:
+            actions.append(f"CRITICAL: {bottleneck.recommendation}")
+        
+        # High priority bottlenecks
+        for bottleneck in high_bottlenecks:
+            actions.append(f"HIGH: {bottleneck.recommendation}")
+        
+        # System health issues
+        health_status = health.get("health_status", "unknown")
+        if health_status == "critical":
+            cpu_usage = health.get("cpu_usage_percent", 0)
+            memory_usage = health.get("memory_usage_percent", 0)
+            
+            if cpu_usage > 90:
+                actions.append("IMMEDIATE: Reduce system load - CPU usage critical")
+            if memory_usage > 95:
+                actions.append("IMMEDIATE: Free memory - system instability risk")
+        
+        # Success rate issues
+        success_rate = health.get("recent_success_rate", 1.0)
+        if success_rate < 0.7:
+            actions.append("URGENT: Investigate adapter failures - low success rate")
+        
+        return actions
+
+    def track_model_operation(self, adapter_name: str, operation_type: str, **kwargs):
+        """
+        Context manager for tracking model operation performance.
+        
+        Usage:
+            async with model_manager.track_model_operation("gpt4", "generate") as tracker:
+                result = await adapter.generate_response(prompt)
+                tracker.set_tokens_processed(len(result.split()))
+        """
+        if self.performance_monitor:
+            return self.performance_monitor.track_operation(adapter_name, operation_type, **kwargs)
+        else:
+            # Return a no-op context manager if monitoring is disabled
+            from contextlib import asynccontextmanager
+            
+            @asynccontextmanager
+            async def dummy_tracker():
+                class DummyTracker:
+                    def set_tokens_processed(self, count): pass
+                    def set_response_size(self, size): pass
+                    def set_network_latency(self, latency): pass
+                    def set_processing_time(self, time): pass
+                    def set_quality_score(self, score): pass
+                
+                yield DummyTracker()
+            
+            return dummy_tracker()
+
+    # ================================
 
     # ================================
     # INTELLIGENT MODEL RECOMMENDATION SYSTEM
