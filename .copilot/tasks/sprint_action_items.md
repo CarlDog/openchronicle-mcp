@@ -128,7 +128,6 @@
   - **Features Added:**
     - `_validate_api_key_smart()` method with provider-specific validation logic and actual API testing
     - `_validate_api_key_format()` with provider-specific format validation (sk-, sk-ant-, gsk_, etc.)
-    - Individual API testing methods for each provider: `_test_openai_api_key()`, `_test_anthropic_api_key()`, etc.
     - `get_adapter_status_summary()` for comprehensive status reporting with categorized disabled adapters
     - `get_api_key_setup_guide()` with detailed setup instructions, pricing info, and step-by-step guides
     - `check_for_new_api_keys()` for dynamic detection of newly available adapters
