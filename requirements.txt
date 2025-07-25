@@ -5,6 +5,7 @@ httpx>=0.28.0                    # HTTP client for API calls
 pytest>=8.0.0                    # Testing framework
 sqlalchemy>=2.0.0                # Database ORM
 aiosqlite>=0.21.0                # Async SQLite support
+psutil>=5.9.0                    # System and process utilities for profiling
 
 # Web framework (for future API development)
 fastapi>=0.116.0                 # FastAPI web framework

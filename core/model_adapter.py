@@ -3,6 +3,7 @@ Model adapter system for OpenChronicle.
 Provides a unified interface for different LLM backends (OpenAI, Ollama, local models).
 """
 
+import asyncio
 import json
 import os
 import sys
@@ -14,6 +15,12 @@ from pathlib import Path
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent / "utilities"))
 from logging_system import log_model_interaction, log_system_event, log_info, log_error
+
+# Optional imports for enhanced error handling
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 class ModelAdapter(ABC):
     """Abstract base class for model adapters."""
@@ -586,8 +593,16 @@ class ModelManager:
             
             try:
                 # Create adapter config directly from registry entry
+                # Determine the actual adapter type - prefer explicit type, otherwise use provider name
+                actual_type = model_entry.get("type")
+                if actual_type in ["text", "image"]:
+                    # These are category types, not adapter types - use provider name instead
+                    actual_type = provider
+                elif actual_type is None:
+                    actual_type = provider
+                
                 adapter_config = {
-                    "type": model_entry.get("type", provider),  # Use provider name as type if not specified
+                    "type": actual_type,
                     "model_name": model_entry.get("model_name", provider),
                     "temperature": model_entry.get("temperature", 0.7),
                     "supports_nsfw": model_entry.get("supports_nsfw", False),
@@ -705,64 +720,262 @@ class ModelManager:
         """Register a model adapter."""
         self.adapters[name] = adapter
     
-    async def initialize_adapter(self, name: str) -> bool:
-        """Initialize a specific adapter."""
+    async def initialize_adapter(self, name: str, max_retries: int = 2, graceful_degradation: bool = True) -> bool:
+        """
+        Initialize a specific adapter with enhanced error handling.
+        
+        Args:
+            name: Adapter name to initialize
+            max_retries: Number of retry attempts for transient failures
+            graceful_degradation: If True, continue execution even if adapter fails
+            
+        Returns:
+            bool: True if successful, False if failed (when graceful_degradation=True)
+            
+        Raises:
+            ValueError: If adapter not found in configuration (only when graceful_degradation=False)
+            RuntimeError: If initialization fails critically (only when graceful_degradation=False)
+        """
+        # Validate adapter exists in configuration
         if name not in self.config["adapters"]:
-            log_system_event("adapter_initialization", f"Adapter {name} not found in configuration")
-            raise ValueError(f"Adapter '{name}' not found in configuration")
+            error_msg = f"Adapter '{name}' not found in configuration"
+            log_system_event("adapter_initialization_error", error_msg)
+            if graceful_degradation:
+                log_error(f"Skipping missing adapter: {name}")
+                return False
+            else:
+                raise ValueError(error_msg)
         
         adapter_config = self.config["adapters"][name]
-        adapter_type = adapter_config["type"]
+        adapter_type = adapter_config.get("type", "unknown")
         
         log_system_event("adapter_initialization", f"Initializing {adapter_type} adapter: {name}")
         
-        try:
-            if adapter_type == "openai":
-                adapter = OpenAIAdapter(adapter_config, self)
-            elif adapter_type == "ollama":
-                adapter = OllamaAdapter(adapter_config, self)
-            elif adapter_type == "mock":
-                adapter = MockAdapter(adapter_config)
-            elif adapter_type == "anthropic":
-                adapter = AnthropicAdapter(adapter_config, self)
-            elif adapter_type == "gemini":
-                adapter = GeminiAdapter(adapter_config)
-            elif adapter_type == "groq":
-                adapter = GroqAdapter(adapter_config)
-            elif adapter_type == "cohere":
-                adapter = CohereAdapter(adapter_config)
-            elif adapter_type == "mistral":
-                adapter = MistralAdapter(adapter_config)
-            elif adapter_type == "huggingface":
-                adapter = HuggingFaceAdapter(adapter_config)
-            elif adapter_type == "azure_openai":
-                adapter = AzureOpenAIAdapter(adapter_config)
-            elif adapter_type == "openai_image":
-                adapter = OpenAIImageAdapter(adapter_config, self)
-            elif adapter_type == "stability":
-                adapter = StabilityAdapter(adapter_config, self)
-            elif adapter_type == "replicate":
-                adapter = ReplicateAdapter(adapter_config)
-            elif adapter_type == "mock_image":
-                adapter = MockImageAdapter(adapter_config)
-            else:
-                log_system_event("adapter_initialization", f"Unknown adapter type: {adapter_type}")
-                raise ValueError(f"Unknown adapter type: {adapter_type}")
+        # Attempt initialization with retry logic
+        last_exception = None
+        for attempt in range(max_retries + 1):
+            try:
+                # Pre-initialization validation
+                validation_result = self._validate_adapter_prerequisites(name, adapter_config, adapter_type)
+                if not validation_result["valid"]:
+                    if graceful_degradation:
+                        log_error(f"Skipping {name} due to failed prerequisites: {validation_result['reason']}")
+                        log_system_event("adapter_initialization_skipped", f"Skipped {name}: {validation_result['reason']}")
+                        return False
+                    else:
+                        raise RuntimeError(f"Adapter prerequisites failed: {validation_result['reason']}")
+                
+                # Create adapter instance
+                adapter = self._create_adapter_instance(adapter_type, adapter_config)
+                
+                # Initialize with timeout protection
+                initialization_timeout = adapter_config.get("initialization_timeout", 30.0)
+                success = await asyncio.wait_for(
+                    adapter.initialize(), 
+                    timeout=initialization_timeout
+                )
+                
+                if success:
+                    self.adapters[name] = adapter
+                    if self.default_adapter is None:
+                        self.default_adapter = name
+                    log_system_event("adapter_initialization_success", f"Successfully initialized {adapter_type} adapter: {name}")
+                    return True
+                else:
+                    raise RuntimeError(f"Adapter initialization returned False")
+                    
+            except asyncio.TimeoutError as e:
+                last_exception = e
+                error_msg = f"Timeout initializing {adapter_type} adapter {name} (attempt {attempt + 1}/{max_retries + 1})"
+                log_error(error_msg)
+                log_system_event("adapter_initialization_timeout", error_msg)
+                
+            except ImportError as e:
+                # Dependencies missing - don't retry
+                error_msg = f"Missing dependencies for {adapter_type} adapter {name}: {e}"
+                log_error(error_msg)
+                log_system_event("adapter_initialization_dependency_error", error_msg)
+                if graceful_degradation:
+                    return False
+                else:
+                    raise RuntimeError(error_msg)
+                    
+            except (ConnectionError, OSError) as e:
+                # Network/connection issues - retry (handle httpx.ConnectError if available)
+                if httpx and hasattr(httpx, 'ConnectError') and isinstance(e, httpx.ConnectError):
+                    pass  # This is also a connection error
+                last_exception = e
+                error_msg = f"Connection error initializing {adapter_type} adapter {name} (attempt {attempt + 1}/{max_retries + 1}): {e}"
+                log_error(error_msg)
+                log_system_event("adapter_initialization_connection_error", error_msg)
+                
+                if attempt < max_retries:
+                    # Exponential backoff for retries
+                    wait_time = 2 ** attempt
+                    log_info(f"Retrying {name} initialization in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+                    
+            except Exception as e:
+                # Other errors - handle based on graceful_degradation setting
+                last_exception = e
+                error_msg = f"Error initializing {adapter_type} adapter {name}: {e}"
+                log_error(error_msg)
+                log_system_event("adapter_initialization_error", error_msg)
+                
+                # For unknown errors, only retry if it might be transient
+                if attempt < max_retries and self._is_potentially_transient_error(e):
+                    wait_time = 1 + attempt
+                    log_info(f"Retrying {name} initialization in {wait_time} seconds...")
+                    await asyncio.sleep(wait_time)
+                else:
+                    break
+        
+        # All attempts failed
+        final_error_msg = f"Failed to initialize {adapter_type} adapter {name} after {max_retries + 1} attempts"
+        if last_exception:
+            final_error_msg += f". Last error: {last_exception}"
             
-            success = await adapter.initialize()
-            if success:
-                self.adapters[name] = adapter
-                if self.default_adapter is None:
-                    self.default_adapter = name
-                log_system_event("adapter_initialization", f"Successfully initialized {adapter_type} adapter: {name}")
-            else:
-                log_system_event("adapter_initialization", f"Failed to initialize {adapter_type} adapter: {name}")
+        log_system_event("adapter_initialization_failed", final_error_msg)
         
+        if graceful_degradation:
+            log_error(f"Continuing without {name} adapter")
+            return False
+        else:
+            raise RuntimeError(final_error_msg)
+    
+    def _validate_adapter_prerequisites(self, name: str, adapter_config: Dict[str, Any], adapter_type: str) -> Dict[str, Any]:
+        """
+        Validate prerequisites for adapter initialization.
+        
+        Returns:
+            Dict with 'valid' (bool) and 'reason' (str) keys
+        """
+        try:
+            # Check for required API keys
+            if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
+                required_env_vars = {
+                    "openai": ["OPENAI_API_KEY"],
+                    "anthropic": ["ANTHROPIC_API_KEY"], 
+                    "gemini": ["GEMINI_API_KEY"],
+                    "groq": ["GROQ_API_KEY"],
+                    "cohere": ["COHERE_API_KEY"],
+                    "mistral": ["MISTRAL_API_KEY"]
+                }
+                
+                env_vars = required_env_vars.get(adapter_type, [])
+                for env_var in env_vars:
+                    if not adapter_config.get("api_key") and not os.getenv(env_var):
+                        return {
+                            "valid": False, 
+                            "reason": f"Missing API key: {env_var} environment variable or config.api_key required"
+                        }
+            
+            # Check for network connectivity (for non-local adapters)
+            if adapter_type not in ["mock", "mock_image"]:
+                base_url = adapter_config.get("base_url")
+                if base_url and not self._test_connectivity(base_url):
+                    return {
+                        "valid": False,
+                        "reason": f"Cannot connect to {base_url}"
+                    }
+            
+            # Check for required Python packages
+            required_packages = {
+                "openai": ["openai"],
+                "anthropic": ["anthropic"],
+                "gemini": ["google.generativeai"],
+                "groq": ["groq"],
+                "cohere": ["cohere"],
+                "mistral": ["mistralai"],
+                "huggingface": ["transformers", "torch"],
+                "stability": ["stability_sdk"],
+                "replicate": ["replicate"]
+            }
+            
+            packages = required_packages.get(adapter_type, [])
+            for package in packages:
+                try:
+                    __import__(package)
+                except ImportError:
+                    return {
+                        "valid": False,
+                        "reason": f"Missing required package: {package}. Install with: pip install {package}"
+                    }
+            
+            return {"valid": True, "reason": "Prerequisites validated"}
+            
         except Exception as e:
-            log_system_event("adapter_initialization", f"Error initializing {adapter_type} adapter {name}: {e}")
-            raise
+            return {
+                "valid": False,
+                "reason": f"Prerequisite validation error: {e}"
+            }
+    
+    def _test_connectivity(self, base_url: str, timeout: float = 5.0) -> bool:
+        """Test basic connectivity to a URL."""
+        try:
+            if httpx is None:
+                return True  # Assume connectivity if httpx not available
+            with httpx.Client(timeout=timeout) as client:
+                response = client.get(base_url, timeout=timeout)
+                return response.status_code < 500  # Accept any non-server-error status
+        except Exception:
+            return False
+    
+    def _create_adapter_instance(self, adapter_type: str, adapter_config: Dict[str, Any]):
+        """Create an adapter instance based on type."""
+        if adapter_type == "openai":
+            return OpenAIAdapter(adapter_config, self)
+        elif adapter_type == "ollama":
+            return OllamaAdapter(adapter_config, self)
+        elif adapter_type == "mock":
+            return MockAdapter(adapter_config)
+        elif adapter_type == "anthropic":
+            return AnthropicAdapter(adapter_config, self)
+        elif adapter_type == "gemini":
+            return GeminiAdapter(adapter_config)
+        elif adapter_type == "groq":
+            return GroqAdapter(adapter_config)
+        elif adapter_type == "cohere":
+            return CohereAdapter(adapter_config)
+        elif adapter_type == "mistral":
+            return MistralAdapter(adapter_config)
+        elif adapter_type == "huggingface":
+            return HuggingFaceAdapter(adapter_config)
+        elif adapter_type == "azure_openai":
+            return AzureOpenAIAdapter(adapter_config)
+        elif adapter_type == "openai_image":
+            return OpenAIImageAdapter(adapter_config, self)
+        elif adapter_type == "stability":
+            return StabilityAdapter(adapter_config, self)
+        elif adapter_type == "replicate":
+            return ReplicateAdapter(adapter_config)
+        elif adapter_type == "mock_image":
+            return MockImageAdapter(adapter_config)
+        else:
+            raise ValueError(f"Unknown adapter type: {adapter_type}")
+    
+    def _is_potentially_transient_error(self, error: Exception) -> bool:
+        """Determine if an error might be transient and worth retrying."""
+        error_str = str(error).lower()
+        transient_indicators = [
+            "timeout", "connection", "network", "temporary", "rate limit",
+            "service unavailable", "too many requests", "server error",
+            "502", "503", "504", "gateway", "proxy"
+        ]
+        return any(indicator in error_str for indicator in transient_indicators)
+    
+    async def initialize_adapter_safe(self, name: str) -> bool:
+        """
+        Safe wrapper for adapter initialization that always uses graceful degradation.
         
-        return success
+        This method never raises exceptions and is safe to call during startup.
+        """
+        try:
+            return await self.initialize_adapter(name, graceful_degradation=True)
+        except Exception as e:
+            log_error(f"Unexpected error in safe adapter initialization for {name}: {e}")
+            log_system_event("adapter_initialization_safe_fallback", f"Safe initialization failed for {name}: {e}")
+            return False
     
     async def generate_response(self, prompt: str, adapter_name: Optional[str] = None, story_id: Optional[str] = None, **kwargs) -> str:
         """Generate response using specified or default adapter with fallback support."""
@@ -1745,6 +1958,407 @@ class ModelManager:
             results["errors"].append(f"Failed to save registry: {e}")
         
         return results
+
+    # ================================
+    # RUNTIME STATE HELPER METHODS
+    # ================================
+    
+    def _load_runtime_state(self) -> Dict[str, Any]:
+        """Load runtime state from storage."""
+        try:
+            runtime_state_file = os.path.join("storage", "runtime", "runtime_state.json")
+            
+            if os.path.exists(runtime_state_file):
+                with open(runtime_state_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            else:
+                # Return empty structure if file doesn't exist
+                return {
+                    "model_states": {},
+                    "adapter_performance": {},
+                    "task_recommendations": {},
+                    "content_routing_state": {},
+                    "performance_analytics": {},
+                    "metadata": {
+                        "created": datetime.now(UTC).isoformat(),
+                        "last_updated": datetime.now(UTC).isoformat(),
+                        "version": "1.0"
+                    }
+                }
+        except Exception as e:
+            log_error(f"Failed to load runtime state: {e}")
+            return {"model_states": {}, "adapter_performance": {}, "task_recommendations": {}}
+    
+    def _save_runtime_state(self, runtime_state: Dict[str, Any]) -> bool:
+        """Save runtime state to storage."""
+        try:
+            runtime_state_file = os.path.join("storage", "runtime", "runtime_state.json")
+            os.makedirs(os.path.dirname(runtime_state_file), exist_ok=True)
+            
+            # Update metadata
+            if "metadata" not in runtime_state:
+                runtime_state["metadata"] = {}
+            runtime_state["metadata"]["last_updated"] = datetime.now(UTC).isoformat()
+            
+            with open(runtime_state_file, "w", encoding="utf-8") as f:
+                json.dump(runtime_state, f, indent=2)
+            
+            return True
+        except Exception as e:
+            log_error(f"Failed to save runtime state: {e}")
+            return False
+
+    # ================================
+    # INTELLIGENT MODEL RECOMMENDATION SYSTEM
+    # ================================
+    
+    async def profile_system_and_generate_recommendations(self) -> Dict[str, Any]:
+        """Profile system capabilities and generate personalized model recommendations."""
+        try:
+            # Import here to avoid circular imports
+            from utilities.system_profiler import SystemProfiler
+            
+            log_system_event("system_profiling_started", f"Starting system profiling with manager {id(self)}")
+            
+            # Create profiler and run complete analysis
+            profiler = SystemProfiler()
+            
+            # Step 1: Profile hardware
+            system_specs = profiler.profile_system_hardware()
+            log_info(f"System profiled: {system_specs.cpu_cores} cores, {system_specs.total_memory:.1f}GB RAM")
+            
+            # Step 2: Benchmark available models
+            benchmarks = await profiler.benchmark_available_models(self)
+            log_info(f"Benchmarked {len(benchmarks)} models")
+            
+            # Step 3: Generate recommendations
+            recommendations = profiler.generate_model_recommendations()
+            log_info(f"Generated {len(recommendations)} recommendations")
+            
+            # Step 4: Save profile results
+            profile_file = profiler.save_profile_results()
+            
+            # Step 5: Update runtime state with recommendations
+            await self._update_runtime_recommendations(recommendations)
+            
+            results = {
+                "success": True,
+                "system_specs": system_specs,
+                "benchmarks": benchmarks,
+                "recommendations": recommendations,
+                "profile_file": profile_file,
+                "summary": profiler.get_system_summary()
+            }
+            
+            log_system_event("system_profiling_completed", 
+                           f"System profiling completed: {profiler._categorize_system_tier()} tier, "
+                           f"{len(benchmarks)} models tested, {len(recommendations)} recommendations generated")
+            
+            return results
+            
+        except Exception as e:
+            log_error(f"System profiling failed: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "recommendations": []
+            }
+    
+    async def get_model_recommendation_for_task(self, task_type: str = "general") -> Optional[str]:
+        """Get the best model recommendation for a specific task type."""
+        try:
+            # Check if we have cached recommendations in runtime state
+            runtime_state = self._load_runtime_state()
+            
+            task_recommendations = runtime_state.get("task_recommendations", {})
+            task_rec = task_recommendations.get(task_type, {})
+            
+            if task_rec.get("current_recommendation"):
+                model_name = task_rec["current_recommendation"]
+                confidence = task_rec.get("recommendation_confidence", 0.0)
+                
+                # Return recommendation if confidence is reasonable and model is available
+                if confidence > 0.5 and model_name in self.get_available_adapters():
+                    log_info(f"Using cached recommendation for {task_type}: {model_name} (confidence: {confidence:.2f})")
+                    return model_name
+                else:
+                    log_info(f"Cached recommendation for {task_type} has low confidence or unavailable model")
+            
+            # If no good cached recommendation, try to find best available
+            return await self._find_best_available_model_for_task(task_type)
+            
+        except Exception as e:
+            log_error(f"Failed to get model recommendation for {task_type}: {e}")
+            return None
+    
+    async def _find_best_available_model_for_task(self, task_type: str) -> Optional[str]:
+        """Find the best available model for a specific task without full profiling."""
+        available_adapters = self.get_available_adapters()
+        
+        if not available_adapters:
+            return None
+        
+        # Simple heuristics based on model names and runtime performance data
+        runtime_state = self._load_runtime_state()
+        adapter_stats = runtime_state.get("adapter_performance", {})
+        
+        scored_models = []
+        
+        for adapter_name in available_adapters:
+            try:
+                # Get adapter info
+                info = self.get_adapter_info(adapter_name)
+                
+                # Skip non-text models for most tasks
+                if task_type in ["fast_responses", "analysis", "creative", "general"] and info.get("type") == "image":
+                    continue
+                
+                score = 0.0
+                
+                # Performance-based scoring from runtime stats
+                stats = adapter_stats.get(adapter_name, {})
+                
+                # Response time factor (prefer faster models for some tasks)
+                avg_response_time = stats.get("average_response_time", 10.0)
+                if task_type == "fast_responses":
+                    score += max(0, (10.0 - avg_response_time) / 10.0) * 0.4
+                else:
+                    score += max(0, (20.0 - avg_response_time) / 20.0) * 0.2
+                
+                # Success rate factor
+                success_rate = stats.get("success_rate", 0.5)
+                score += success_rate * 0.3
+                
+                # Quality score factor
+                quality_score = stats.get("average_quality_score", 2.5)
+                score += (quality_score / 5.0) * 0.2
+                
+                # Model name heuristics
+                model_lower = adapter_name.lower()
+                
+                if task_type == "fast_responses":
+                    if any(term in model_lower for term in ["groq", "fast", "turbo"]):
+                        score += 0.2
+                elif task_type == "analysis":
+                    if any(term in model_lower for term in ["gpt-4", "claude", "sonnet", "opus"]):
+                        score += 0.3
+                    elif any(term in model_lower for term in ["gemini", "llama-2"]):
+                        score += 0.15
+                elif task_type == "creative":
+                    if any(term in model_lower for term in ["gpt", "claude", "gemini"]):
+                        score += 0.25
+                elif task_type == "general":
+                    if any(term in model_lower for term in ["gpt", "claude"]):
+                        score += 0.2
+                
+                # Health status bonus
+                if stats.get("health_status") == "healthy":
+                    score += 0.1
+                
+                scored_models.append((adapter_name, score))
+                
+            except Exception as e:
+                log_info(f"Error scoring model {adapter_name}: {e}")
+                continue
+        
+        if not scored_models:
+            # Fallback to first available model
+            return available_adapters[0] if available_adapters else None
+        
+        # Sort by score and return best
+        scored_models.sort(key=lambda x: x[1], reverse=True)
+        best_model = scored_models[0][0]
+        
+        log_info(f"Selected {best_model} for {task_type} (score: {scored_models[0][1]:.2f})")
+        return best_model
+    
+    async def _update_runtime_recommendations(self, recommendations: List) -> None:
+        """Update runtime state with new model recommendations."""
+        try:
+            runtime_state = self._load_runtime_state()
+            
+            # Create task recommendations mapping
+            task_recommendations = runtime_state.get("task_recommendations", {})
+            current_time = datetime.now(UTC).isoformat()
+            
+            # Group recommendations by task type
+            for rec in recommendations:
+                for task_type in rec.recommended_for:
+                    if task_type not in task_recommendations:
+                        task_recommendations[task_type] = {}
+                    
+                    # Update if this is a better recommendation
+                    current_confidence = task_recommendations[task_type].get("recommendation_confidence", 0.0)
+                    if rec.confidence_score > current_confidence:
+                        task_recommendations[task_type].update({
+                            "current_recommendation": rec.model_name,
+                            "last_recommendation_change": current_time,
+                            "recommendation_confidence": rec.confidence_score,
+                            "user_override_active": False,
+                            "rationale": rec.rationale,
+                            "configuration_suggestions": rec.configuration_suggestions
+                        })
+            
+            # Ensure all standard task types exist
+            standard_tasks = ["fast_responses", "analysis", "creative", "general"]
+            for task_type in standard_tasks:
+                if task_type not in task_recommendations:
+                    # Try to find a fallback recommendation
+                    fallback = await self._find_best_available_model_for_task(task_type)
+                    if fallback:
+                        task_recommendations[task_type] = {
+                            "current_recommendation": fallback,
+                            "last_recommendation_change": current_time,
+                            "recommendation_confidence": 0.5,
+                            "user_override_active": False,
+                            "rationale": "Fallback recommendation based on availability",
+                            "configuration_suggestions": {}
+                        }
+            
+            runtime_state["task_recommendations"] = task_recommendations
+            
+            # Add profiling metadata
+            runtime_state["last_system_profile"] = current_time
+            runtime_state["profiling_version"] = "1.0"
+            
+            self._save_runtime_state(runtime_state)
+            
+            log_system_event("runtime_recommendations_updated", 
+                           f"Updated {len(task_recommendations)} task recommendations at {current_time}")
+            
+        except Exception as e:
+            log_error(f"Failed to update runtime recommendations: {e}")
+    
+    def get_system_recommendations_summary(self) -> Dict[str, Any]:
+        """Get a summary of current system recommendations."""
+        try:
+            runtime_state = self._load_runtime_state()
+            task_recommendations = runtime_state.get("task_recommendations", {})
+            
+            summary = {
+                "available": bool(task_recommendations),
+                "last_profile": runtime_state.get("last_system_profile"),
+                "recommendations": {},
+                "system_info": {}
+            }
+            
+            # Add recommendations for each task type
+            for task_type, rec_data in task_recommendations.items():
+                summary["recommendations"][task_type] = {
+                    "model": rec_data.get("current_recommendation"),
+                    "confidence": rec_data.get("recommendation_confidence", 0.0),
+                    "rationale": rec_data.get("rationale", ""),
+                    "last_updated": rec_data.get("last_recommendation_change")
+                }
+            
+            # Add quick system info
+            try:
+                from utilities.system_profiler import get_quick_system_info
+                summary["system_info"] = get_quick_system_info()
+            except Exception:
+                summary["system_info"] = {"error": "Unable to get system info"}
+            
+            return summary
+            
+        except Exception as e:
+            log_error(f"Failed to get recommendations summary: {e}")
+            return {"available": False, "error": str(e)}
+    
+    async def auto_configure_optimal_settings(self, adapter_name: str, task_type: str = "general") -> Dict[str, Any]:
+        """Auto-configure optimal settings for a model based on system capabilities and task type."""
+        try:
+            # Get system info
+            from utilities.system_profiler import get_quick_system_info
+            system_info = get_quick_system_info()
+            
+            # Get runtime performance data
+            runtime_state = self._load_runtime_state()
+            adapter_stats = runtime_state.get("adapter_performance", {}).get(adapter_name, {})
+            task_recommendations = runtime_state.get("task_recommendations", {})
+            
+            # Base configuration
+            config = {
+                "model_name": adapter_name,
+                "temperature": 0.7,
+                "max_tokens": 800,
+                "timeout": 30
+            }
+            
+            # Adjust based on system tier
+            memory_gb = system_info.get("memory_gb", 8)
+            cpu_cores = system_info.get("cpu_cores", 4)
+            
+            if memory_gb < 8 or cpu_cores < 4:
+                # Low-end system
+                config.update({
+                    "max_tokens": 400,
+                    "timeout": 20,
+                    "batch_size": 1
+                })
+            elif memory_gb >= 16 and cpu_cores >= 8:
+                # High-end system
+                config.update({
+                    "max_tokens": 1500,
+                    "timeout": 60,
+                    "batch_size": 2
+                })
+            
+            # Task-specific adjustments
+            if task_type == "fast_responses":
+                config.update({
+                    "temperature": 0.5,
+                    "max_tokens": min(config["max_tokens"], 200),
+                    "timeout": 15
+                })
+            elif task_type == "analysis":
+                config.update({
+                    "temperature": 0.3,
+                    "max_tokens": max(config["max_tokens"], 1000),
+                    "timeout": 45
+                })
+            elif task_type == "creative":
+                config.update({
+                    "temperature": 0.8,
+                    "max_tokens": max(config["max_tokens"], 800),
+                    "timeout": 60
+                })
+            
+            # Apply recommendations from profiling if available
+            task_rec = task_recommendations.get(task_type, {})
+            if task_rec.get("configuration_suggestions"):
+                suggestions = task_rec["configuration_suggestions"]
+                for key, value in suggestions.items():
+                    if key in config:
+                        config[key] = value
+            
+            # Performance-based adjustments
+            avg_response_time = adapter_stats.get("average_response_time", 5.0)
+            if avg_response_time > 10.0:
+                # Slow model, reduce max_tokens and timeout
+                config["max_tokens"] = int(config["max_tokens"] * 0.7)
+                config["timeout"] = min(config["timeout"], 30)
+            elif avg_response_time < 2.0:
+                # Fast model, can afford higher limits
+                config["max_tokens"] = int(config["max_tokens"] * 1.2)
+                config["timeout"] = min(config["timeout"] + 15, 90)
+            
+            log_info(f"Auto-configured optimal settings for {adapter_name} ({task_type}): {config}")
+            
+            return {
+                "success": True,
+                "configuration": config,
+                "system_tier": "high_end" if memory_gb >= 16 and cpu_cores >= 8 else ("mid_range" if memory_gb >= 8 else "low_end"),
+                "task_type": task_type,
+                "reasoning": f"Optimized for {task_type} on {system_info.get('platform', 'unknown')} system"
+            }
+            
+        except Exception as e:
+            log_error(f"Failed to auto-configure settings for {adapter_name}: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "configuration": {"temperature": 0.7, "max_tokens": 800, "timeout": 30}
+            }
 
     async def shutdown(self):
         """Shutdown all adapters."""

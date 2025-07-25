@@ -1,0 +1,149 @@
+{
+  "timestamp": "2025-07-25T00:56:57.467454+00:00",
+  "system_specs": {
+    "cpu_cores": 8,
+    "cpu_physical_cores": 4,
+    "cpu_frequency_max": 2300.0,
+    "cpu_frequency_current": 2300.0,
+    "cpu_brand": "AMD64 Family 23 Model 24 Stepping 1, AuthenticAMD",
+    "total_memory": 29.949058532714844,
+    "available_memory": 14.60647964477539,
+    "memory_usage_percent": 51.2,
+    "platform": "Windows-11-10.0.26100-SP0",
+    "architecture": "64bit",
+    "python_version": "3.13.5",
+    "disk_space_gb": 931.5102310180664,
+    "disk_usage_percent": 33.22367437941249
+  },
+  "benchmarks": [
+    {
+      "model_name": "ollama",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0016794204711914062,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "openai",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0029168128967285156,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "anthropic",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0006444454193115234,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "groq",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0018014907836914062,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "gemini",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0005767345428466797,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "cohere",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0010335445404052734,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "mistral",
+      "adapter_type": "unknown",
+      "initialization_time": 0.000591278076171875,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "mock",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0006694793701171875,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "test-sync",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0006108283996582031,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "openai_dalle",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0006101131439208984,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    },
+    {
+      "model_name": "mock_image",
+      "adapter_type": "unknown",
+      "initialization_time": 0.0007212162017822266,
+      "response_time": 0.0,
+      "memory_usage_mb": 0.0,
+      "success": false,
+      "error_message": "ModelManager.initialize_adapter_safe() got an unexpected keyword argument 'max_retries'",
+      "tokens_per_second": null,
+      "quality_score": null
+    }
+  ],
+  "recommendations": [],
+  "summary": {
+    "system_tier": "mid_range",
+    "total_adapters_tested": 11,
+    "successful_tests": 0,
+    "fastest_model": "ollama",
+    "recommended_general_model": null
+  }
+}

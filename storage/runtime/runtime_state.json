@@ -3,7 +3,7 @@
   "metadata": {
     "name": "OpenChronicle Model Runtime State",
     "description": "Dynamic runtime state and analytics for AI models",
-    "last_updated": "2025-07-25T00:36:16.132003+00:00",
+    "last_updated": "2025-07-25T00:58:32.121300+00:00",
     "auto_generated": true
   },
   "global_runtime": {
@@ -316,5 +316,53 @@
       "most_cost_effective": "ollama",
       "user_favorite": "anthropic"
     }
-  }
+  },
+  "test_section": {
+    "test": "data",
+    "timestamp": "2025-01-01"
+  },
+  "task_recommendations": {
+    "fast_responses": {
+      "current_recommendation": "ollama",
+      "last_recommendation_change": "2025-07-25T00:58:32.119870+00:00",
+      "recommendation_confidence": 0.9,
+      "user_override_active": false,
+      "rationale": "Fast response time (999.00s) with reasonable resource usage",
+      "configuration_suggestions": {
+        "max_tokens": 300,
+        "temperature": 0.7,
+        "timeout": 30
+      }
+    },
+    "analysis": {
+      "current_recommendation": "gemini",
+      "last_recommendation_change": "2025-07-25T00:57:03.107869+00:00",
+      "recommendation_confidence": 0.5,
+      "user_override_active": false,
+      "rationale": "Fallback recommendation based on availability",
+      "configuration_suggestions": {}
+    },
+    "creative": {
+      "current_recommendation": "gemini",
+      "last_recommendation_change": "2025-07-25T00:57:03.107869+00:00",
+      "recommendation_confidence": 0.5,
+      "user_override_active": false,
+      "rationale": "Fallback recommendation based on availability",
+      "configuration_suggestions": {}
+    },
+    "general": {
+      "current_recommendation": "ollama",
+      "last_recommendation_change": "2025-07-25T00:58:32.119870+00:00",
+      "recommendation_confidence": 0.6000000000000001,
+      "user_override_active": false,
+      "rationale": "Best overall balance of performance and capability (score: 0.60)",
+      "configuration_suggestions": {
+        "max_tokens": 800,
+        "temperature": 0.7,
+        "timeout": 45
+      }
+    }
+  },
+  "last_system_profile": "2025-07-25T00:58:32.119870+00:00",
+  "profiling_version": "1.0"
 }
