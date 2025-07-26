@@ -7,7 +7,7 @@ import json
 import os
 import sys
 import logging
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, List, Any, Optional, Tuple, Union, cast
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -30,7 +30,13 @@ try:
     logging.getLogger("transformers.configuration_utils").setLevel(logging.ERROR)
     logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
     
-    from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+    # Import with fallback for different transformers versions
+    try:
+        from transformers.pipelines import pipeline
+    except ImportError:
+        from transformers import pipeline  # type: ignore
+    
+    from transformers import AutoTokenizer, AutoModelForSequenceClassification
     import torch
     TRANSFORMERS_AVAILABLE = True
     log_info("Transformers library loaded - advanced classification enabled")
@@ -49,9 +55,9 @@ class ContentAnalyzer:
         self.use_transformers = use_transformers and TRANSFORMERS_AVAILABLE
         
         # Initialize transformer models if available
-        self.nsfw_classifier = None
-        self.sentiment_classifier = None
-        self.emotion_classifier = None
+        self.nsfw_classifier: Optional[Any] = None
+        self.sentiment_classifier: Optional[Any] = None
+        self.emotion_classifier: Optional[Any] = None
         
         if self.use_transformers:
             self._initialize_transformers()
@@ -79,7 +85,7 @@ class ContentAnalyzer:
                     
                     # NSFW Content Detection  
                     # Using a general text classification model fine-tuned for content safety
-                    self.nsfw_classifier = pipeline(
+                    self.nsfw_classifier = pipeline(  # type: ignore
                         "text-classification",
                         model="unitary/toxic-bert",
                         device=device,
@@ -89,7 +95,9 @@ class ContentAnalyzer:
                     )
                     
                     # Sentiment Analysis
-                    self.sentiment_classifier = pipeline(
+                    # Use explicit Any casting to avoid type checker issues
+                    pipeline_func = cast(Any, pipeline)
+                    self.sentiment_classifier = pipeline_func(
                         "sentiment-analysis",
                         model="cardiffnlp/twitter-roberta-base-sentiment-latest",
                         device=device,
@@ -99,7 +107,7 @@ class ContentAnalyzer:
                     )
                     
                     # Emotion Detection
-                    self.emotion_classifier = pipeline(
+                    self.emotion_classifier = pipeline(  # type: ignore
                         "text-classification",
                         model="j-hartmann/emotion-english-distilroberta-base",
                         device=device,
@@ -173,44 +181,47 @@ class ContentAnalyzer:
                 nsfw_result = self.nsfw_classifier(user_input)
                 # Handle nested list format: [[{...}]] -> {...}
                 if isinstance(nsfw_result, list) and len(nsfw_result) > 0:
-                    nsfw_result = nsfw_result[0]
+                    nsfw_result = nsfw_result[0]  # type: ignore
                     if isinstance(nsfw_result, list) and len(nsfw_result) > 0:
-                        nsfw_result = nsfw_result[0]
+                        nsfw_result = nsfw_result[0]  # type: ignore
                 
                 # toxic-bert returns TOXIC or NOT_TOXIC
                 analysis["transformer_results"]["nsfw"] = nsfw_result
-                if nsfw_result["label"] == "TOXIC":
-                    analysis["nsfw_score"] = nsfw_result["score"]
-                else:
-                    analysis["nsfw_score"] = 1.0 - nsfw_result["score"]
+                if isinstance(nsfw_result, dict) and "label" in nsfw_result and "score" in nsfw_result:
+                    if nsfw_result["label"] == "TOXIC":
+                        analysis["nsfw_score"] = nsfw_result["score"]
+                    else:
+                        analysis["nsfw_score"] = 1.0 - nsfw_result["score"]
             
             # Sentiment Analysis
             if self.sentiment_classifier:
                 sentiment_result = self.sentiment_classifier(user_input)
                 # Handle nested list format: [[{...}]] -> {...}
                 if isinstance(sentiment_result, list) and len(sentiment_result) > 0:
-                    sentiment_result = sentiment_result[0]
+                    sentiment_result = sentiment_result[0]  # type: ignore
                     if isinstance(sentiment_result, list) and len(sentiment_result) > 0:
-                        sentiment_result = sentiment_result[0]
+                        sentiment_result = sentiment_result[0]  # type: ignore
                 
                 analysis["transformer_results"]["sentiment"] = sentiment_result
-                analysis["sentiment"] = sentiment_result["label"].lower()
-                analysis["sentiment_score"] = sentiment_result["score"]
+                if isinstance(sentiment_result, dict) and "label" in sentiment_result and "score" in sentiment_result:
+                    analysis["sentiment"] = sentiment_result["label"].lower()
+                    analysis["sentiment_score"] = sentiment_result["score"]
             
             # Emotion Detection
             if self.emotion_classifier:
                 emotion_result = self.emotion_classifier(user_input)
                 # Handle nested list format: [[{...}]] -> {...}
                 if isinstance(emotion_result, list) and len(emotion_result) > 0:
-                    emotion_result = emotion_result[0]
+                    emotion_result = emotion_result[0]  # type: ignore
                     if isinstance(emotion_result, list) and len(emotion_result) > 0:
-                        emotion_result = emotion_result[0]
+                        emotion_result = emotion_result[0]  # type: ignore
                 
                 analysis["transformer_results"]["emotion"] = emotion_result
-                analysis["emotions"] = {
-                    "primary_emotion": emotion_result["label"],
-                    "confidence": emotion_result["score"]
-                }
+                if isinstance(emotion_result, dict) and "label" in emotion_result and "score" in emotion_result:
+                    analysis["emotions"] = {
+                        "primary_emotion": emotion_result["label"],
+                        "confidence": emotion_result["score"]
+                    }
             
             # Calculate overall transformer confidence
             confidences = []
@@ -841,16 +852,13 @@ if __name__ == "__main__":
     test_content = "Lyra draws her sword and attacks the dragon"
     print(f"Analyzing: {test_content}")
     
-    # Analyze content
-    result = content_analyzer.analyze_content(test_content)
-    print(f"Content analysis result: {result}")
-    
     # Test content type detection
-    content_type = content_analyzer.detect_content_type(test_content)
-    print(f"Content type: {content_type}")
+    content_type_result = content_analyzer.detect_content_type(test_content)
+    print(f"Content type detection: {content_type_result}")
     
     # Test model recommendation
-    model = content_analyzer.get_best_analysis_model(content_type)
+    content_type_str = content_type_result.get("content_type", "general")
+    model = content_analyzer.get_best_analysis_model(content_type_str)
     print(f"Recommended model: {model}")
     
     print("Content analysis system test complete!")
