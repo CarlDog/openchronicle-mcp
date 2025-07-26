@@ -1,107 +1,269 @@
 {
+  "_template_info": {
+    "description": "Adaptable character profile template for import and manual creation",
+    "required_fields": ["name", "basic_info.age", "physical_description.hair", "physical_description.eyes", "personality.core_traits"],
+    "optional_fields": "Any field marked with '_optional': true can be safely deleted",
+    "usage": "Delete entire fields/sections with '_optional': true, or just the '_optional' key to make field required",
+    "import_adaptability": {
+      "arrays_expandable": "All arrays can contain any number of entries - template shows minimum structure",
+      "dynamic_relationships": "Relationship types can be family, friend, enemy, lover, mentor, rival, etc.",
+      "unlimited_modifications": "Physical modifications and personal items arrays can grow as needed",
+      "flexible_structure": "Import processes should expand arrays and adapt field counts dynamically"
+    },
+    "application_behavior": {
+      "empty_optional_fields": "Application will automatically ignore optional fields that are empty, null, or contain only placeholder values",
+      "unused_optional_fields": "Optional fields left as {{PLACEHOLDER}} values will be treated as unused and ignored",
+      "processing_logic": "Only populated optional fields with actual content will be processed by the application"
+    }
+  },
   "name": "{{CHARACTER_NAME}}",
-  "title": "{{CHARACTER_TITLE}}",
+  "title": {
+    "_optional": true,
+    "value": "{{CHARACTER_TITLE}}"
+  },
   "basic_info": {
-    "race": "{{RACE}}",
-    "gender": "{{GENDER}}",
+    "race": {
+      "_optional": true,
+      "value": "{{RACE}}"
+    },
+    "gender": {
+      "_optional": true,
+      "value": "{{GENDER}}"
+    },
     "age": "{{AGE}}",
-    "occupation": "{{OCCUPATION}}",
-    "origin": "{{ORIGIN_LOCATION}}"
+    "occupation": {
+      "_optional": true,
+      "value": "{{OCCUPATION}}"
+    },
+    "origin": {
+      "_optional": true,
+      "value": "{{ORIGIN_LOCATION}}"
+    }
   },
   "physical_description": {
-    "height": "{{HEIGHT}}",
-    "build": "{{BUILD}}",
+    "height": {
+      "_optional": true,
+      "value": "{{HEIGHT}}"
+    },
+    "build": {
+      "_optional": true,
+      "value": "{{BUILD}}"
+    },
     "hair": "{{HAIR_DESCRIPTION}}",
     "eyes": "{{EYE_DESCRIPTION}}",
-    "distinguishing_features": [
-      "{{FEATURE_1}}",
-      "{{FEATURE_2}}"
-    ],
-    "typical_clothing": "{{CLOTHING_DESCRIPTION}}"
+    "clothing": {
+      "_optional": true,
+      "value": "{{CLOTHING_DESCRIPTION}}"
+    }
   },
   "personality": {
     "core_traits": [
-      "{{TRAIT_1}}",
-      "{{TRAIT_2}}",
-      "{{TRAIT_3}}"
+      "{{TRAIT}}",
+      "{{TRAIT}}",
+      "{{TRAIT}}"
     ],
-    "values": [
-      "{{VALUE_1}}",
-      "{{VALUE_2}}"
-    ],
-    "fears": [
-      "{{FEAR_1}}",
-      "{{FEAR_2}}"
-    ],
-    "motivations": [
-      "{{MOTIVATION_1}}",
-      "{{MOTIVATION_2}}"
-    ]
+    "values": {
+      "_optional": true,
+      "_comment": "Array can expand - add as many values as needed",
+      "value": [
+        "{{VALUE}}",
+        "{{VALUE}}"
+      ]
+    },
+    "fears": {
+      "_optional": true,
+      "_comment": "Array can expand - add as many fears as needed",
+      "value": [
+        "{{FEAR}}",
+        "{{FEAR}}"
+      ]
+    },
+    "motivations": {
+      "_optional": true,
+      "_comment": "Array can expand - add as many motivations as needed",
+      "value": [
+        "{{MOTIVATION}}",
+        "{{MOTIVATION}}"
+      ]
+    }
   },
   "background": {
+    "_optional": true,
     "childhood": "{{CHILDHOOD_BACKGROUND}}",
     "education": "{{EDUCATION_BACKGROUND}}",
     "significant_events": [
-      "{{EVENT_1}}",
-      "{{EVENT_2}}"
+      {
+        "_comment": "Array can expand - add as many significant events as needed",
+        "event": "{{EVENT}}",
+        "impact": "{{EVENT_IMPACT}}"
+      }
     ],
     "current_situation": "{{CURRENT_SITUATION}}"
   },
   "abilities": {
+    "_optional": true,
     "skills": [
-      "{{SKILL_1}}",
-      "{{SKILL_2}}",
-      "{{SKILL_3}}"
+      {
+        "_comment": "Array can expand - add as many skills as needed",
+        "skill": "{{SKILL}}",
+        "proficiency": "{{SKILL_LEVEL}}"
+      }
     ],
     "magical_abilities": [
-      "{{MAGICAL_ABILITY_1}}",
-      "{{MAGICAL_ABILITY_2}}"
+      {
+        "_comment": "Array can expand - add as many magical abilities as needed",
+        "ability": "{{MAGICAL_ABILITY}}",
+        "strength": "{{ABILITY_STRENGTH}}"
+      }
     ],
     "weaknesses": [
-      "{{WEAKNESS_1}}",
-      "{{WEAKNESS_2}}"
+      {
+        "_comment": "Array can expand - add as many weaknesses as needed", 
+        "weakness": "{{WEAKNESS}}",
+        "severity": "{{WEAKNESS_IMPACT}}"
+      }
     ]
   },
   "relationships": {
-    "family": {
-      "{{FAMILY_MEMBER_1}}": "{{RELATIONSHIP_TYPE_1}}",
-      "{{FAMILY_MEMBER_2}}": "{{RELATIONSHIP_TYPE_2}}"
-    },
-    "friends": {
-      "{{FRIEND_1}}": "{{FRIENDSHIP_DESCRIPTION_1}}",
-      "{{FRIEND_2}}": "{{FRIENDSHIP_DESCRIPTION_2}}"
-    },
-    "enemies": {
-      "{{ENEMY_1}}": "{{ENEMY_DESCRIPTION_1}}"
-    }
+    "_optional": true,
+    "_comment": "Array can expand - add as many relationships as needed. Types include: family, friend, enemy, lover, mentor, rival, colleague, etc.",
+    "important_people": [
+      {
+        "name": "{{PERSON_NAME}}",
+        "relationship": "{{RELATIONSHIP_TYPE}}",
+        "description": "{{RELATIONSHIP_DESCRIPTION}}",
+        "closeness": "{{RELATIONSHIP_CLOSENESS}}",
+        "history": "{{RELATIONSHIP_HISTORY}}"
+      }
+    ]
   },
   "story_role": {
+    "_optional": true,
     "importance": "{{STORY_IMPORTANCE}}",
     "character_arc": "{{CHARACTER_ARC}}",
     "key_scenes": [
-      "{{KEY_SCENE_1}}",
-      "{{KEY_SCENE_2}}"
+      {
+        "_comment": "Array can expand - add as many key scenes as needed",
+        "scene": "{{KEY_SCENE}}",
+        "role_in_scene": "{{CHARACTER_ROLE_IN_SCENE}}"
+      }
     ],
     "growth_trajectory": "{{GROWTH_DESCRIPTION}}"
   },
   "dialogue_style": {
+    "_optional": true,
     "speech_patterns": [
-      "{{SPEECH_PATTERN_1}}",
-      "{{SPEECH_PATTERN_2}}"
+      {
+        "_comment": "Array can expand - add as many speech patterns as needed",
+        "pattern": "{{SPEECH_PATTERN}}",
+        "frequency": "{{PATTERN_FREQUENCY}}"
+      }
     ],
     "vocabulary": "{{VOCABULARY_LEVEL}}",
     "tone": "{{SPEAKING_TONE}}",
     "catchphrases": [
-      "{{CATCHPHRASE_1}}"
-    ]
-  },
-  "style_block": {
-    "description": "{{STYLE_BLOCK_DESCRIPTION}}",
+      {
+        "_comment": "Array can expand - add as many catchphrases as needed",
+        "phrase": "{{CATCHPHRASE}}",
+        "context": "{{WHEN_USED}}"
+      }
+    ],
     "voice_characteristics": [
-      "{{VOICE_CHARACTERISTIC_1}}",
-      "{{VOICE_CHARACTERISTIC_2}}"
+      "{{VOICE_CHARACTERISTIC}}",
+      "{{VOICE_CHARACTERISTIC}}"
     ],
     "emotional_range": "{{EMOTIONAL_RANGE}}",
     "interaction_style": "{{INTERACTION_STYLE}}"
+  },
+  "character_tier": {
+    "_optional": true,
+    "value": "{{CHARACTER_TIER}}",
+    "options": ["main", "supporting", "background"]
+  },
+  "emotional_framework": {
+    "_optional": true,
+    "typical_emotional_state": "{{TYPICAL_EMOTION}}",
+    "emotional_triggers": [
+      {
+        "_comment": "Array can expand - add as many triggers as needed",
+        "trigger": "{{TRIGGER}}",
+        "response": "{{TRIGGER_RESPONSE}}"
+      }
+    ],
+    "emotional_tells": {
+      "when_angry": "{{ANGRY_BEHAVIOR}}",
+      "when_nervous": "{{NERVOUS_BEHAVIOR}}",
+      "when_happy": "{{HAPPY_BEHAVIOR}}",
+      "when_sad": "{{SAD_BEHAVIOR}}",
+      "_comment": "Add more emotional states as needed"
+    },
+    "relationship_dynamics": {
+      "attachment_style": "{{ATTACHMENT_STYLE}}",
+      "conflict_resolution": "{{CONFLICT_APPROACH}}",
+      "intimacy_comfort": "{{INTIMACY_LEVEL}}"
+    }
+  },
+  "specialized_details": {
+    "_optional": true,
+    "_comment": "All arrays in this section can expand to accommodate any number of entries",
+    "physical_modifications": {
+      "_optional": true,
+      "tattoos": [
+        {
+          "_optional": true,
+          "_comment": "Array can expand - add as many tattoos as needed",
+          "location": "{{BODY_LOCATION}}",
+          "description": "{{ARTISTIC_DESCRIPTION}}",
+          "significance": "{{WHY_IT_MATTERS_TO_CHARACTER}}",
+          "style": "{{INK_STYLE}}",
+          "story_relevance": "{{NARRATIVE_IMPORTANCE}}",
+          "acquisition_story": "{{HOW_THEY_GOT_IT}}",
+          "visibility": "{{WHEN_VISIBLE_OR_HIDDEN}}"
+        }
+      ],
+      "scars": [
+        {
+          "_optional": true,
+          "_comment": "Array can expand - add as many scars as needed",
+          "location": "{{BODY_LOCATION}}",
+          "description": "{{APPEARANCE_DESCRIPTION}}",
+          "origin_story": "{{HOW_THEY_GOT_IT}}",
+          "significance": "{{EMOTIONAL_IMPORTANCE}}",
+          "visibility": "{{WHEN_VISIBLE_OR_HIDDEN}}",
+          "story_relevance": "{{NARRATIVE_IMPORTANCE}}"
+        }
+      ],
+      "piercings": [
+        {
+          "_optional": true,
+          "_comment": "Array can expand - add as many piercings as needed",
+          "location": "{{BODY_LOCATION}}",
+          "jewelry": "{{WHAT_THEY_WEAR}}",
+          "significance": "{{WHY_THEY_GOT_IT}}",
+          "story": "{{ACQUISITION_STORY}}"
+        }
+      ],
+      "other_modifications": [
+        {
+          "_optional": true,
+          "_comment": "Array can expand - add as many other modifications as needed",
+          "type": "{{MODIFICATION_TYPE}}",
+          "description": "{{FULL_DESCRIPTION}}",
+          "significance": "{{IMPORTANCE}}"
+        }
+      ]
+    },
+    "personal_items": [
+      {
+        "_optional": true,
+        "_comment": "Array can expand - add as many personal items as needed",
+        "name": "{{ITEM_NAME}}",
+        "description": "{{PHYSICAL_DESCRIPTION}}",
+        "significance": "{{WHY_IT_MATTERS}}",
+        "acquisition_story": "{{HOW_THEY_GOT_IT}}",
+        "condition": "{{CURRENT_STATE}}",
+        "story_role": "{{NARRATIVE_FUNCTION}}"
+      }
+    ]
   }
 }

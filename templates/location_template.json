@@ -1,0 +1,143 @@
+{
+  "template_info": {
+    "name": "Location Template",
+    "version": "2.0",
+    "description": "Unified template for single locations, areas, and multi-location regions",
+    "usage": "Can represent individual rooms, buildings, neighborhoods, or entire worlds"
+  },
+  "location_name": "{{LOCATION_NAME}}",
+  "location_id": "{{UNIQUE_LOCATION_ID}}",
+  "location_type": "{{ROOM_BUILDING_AREA_REGION_WORLD}}",
+  "canonical_tag": "{{HASHTAG_REFERENCE}}",
+  "overview": {
+    "size_description": "{{PHYSICAL_DIMENSIONS}}",
+    "primary_atmosphere": "{{EMOTIONAL_FEELING}}",
+    "narrative_significance": "{{STORY_IMPORTANCE}}",
+    "usage_frequency": "{{HOW_OFTEN_USED}}",
+    "population_optional": "{{POPULATION_IF_APPLICABLE}}"
+  },
+  "sub_locations_optional": [
+    {
+      "location_name": "{{SUB_LOCATION_NAME}}",
+      "location_type": "{{SUB_LOCATION_TYPE}}",
+      "description": "{{SUB_LOCATION_DESCRIPTION}}",
+      "features": ["{{FEATURE1}}", "{{FEATURE2}}"],
+      "inhabitants": ["{{INHABITANT1}}", "{{INHABITANT2}}"],
+      "access_method": "{{HOW_TO_REACH}}",
+      "cultural_notes_optional": "{{CULTURE_CUSTOMS}}"
+    }
+  ],
+  "geography_optional": {
+    "climate": "{{CLIMATE_DESCRIPTION}}",
+    "terrain": "{{TERRAIN_TYPE}}",
+    "magical_features_optional": ["{{MAGICAL_FEATURE1}}", "{{MAGICAL_FEATURE2}}"],
+    "natural_resources_optional": ["{{RESOURCE1}}", "{{RESOURCE2}}"]
+  },
+  "travel_connections_optional": {
+    "common_routes": ["{{ROUTE1}}", "{{ROUTE2}}"],
+    "transportation_methods": ["{{TRANSPORT1}}", "{{TRANSPORT2}}"],
+    "travel_time_to": {
+      "{{DESTINATION1}}": "{{TIME_TO_REACH}}",
+      "{{DESTINATION2}}": "{{TIME_TO_REACH}}"
+    }
+  },
+  "physical_structure": {
+    "layout_description": "{{FLOOR_PLAN_ARRANGEMENT}}",
+    "architectural_style": "{{BUILDING_STYLE}}",
+    "key_areas": [
+      {
+        "area_name": "{{ROOM_SPACE_NAME}}",
+        "detailed_description": "{{FULL_DESCRIPTION}}",
+        "purpose": "{{WHAT_ITS_FOR}}",
+        "emotional_significance": "{{MOOD_INFLUENCE}}",
+        "character_connections": "{{WHO_USES_IT}}"
+      }
+    ],
+    "notable_features": [
+      {
+        "feature": "{{SPECIFIC_FEATURE}}",
+        "description": "{{FEATURE_DESCRIPTION}}",
+        "story_relevance": "{{NARRATIVE_IMPORTANCE}}"
+      }
+    ]
+  },
+  "character_connections": {
+    "residents": ["{{RESIDENT1}}", "{{RESIDENT2}}"],
+    "frequent_visitors": ["{{VISITOR1}}", "{{VISITOR2}}"],
+    "occasional_visitors": ["{{OCCASIONAL1}}"],
+    "character_specific_spaces": {
+      "{{CHARACTER_NAME}}": {
+        "claimed_area": "{{THEIR_SPACE}}",
+        "emotional_relationship": "{{HOW_THEY_FEEL_ABOUT_IT}}",
+        "personal_touches": "{{WHAT_THEYVE_ADDED}}"
+      }
+    },
+    "character_memories": {
+      "{{CHARACTER_NAME}}": [
+        {
+          "memory": "{{SIGNIFICANT_EVENT}}",
+          "emotional_weight": "{{IMPORTANCE_LEVEL}}",
+          "location_impact": "{{HOW_IT_CHANGED_PLACE}}"
+        }
+      ]
+    }
+  },
+  "atmosphere_and_mood": {
+    "default_atmosphere": "{{TYPICAL_FEELING}}",
+    "mood_variations": {
+      "morning": "{{MORNING_ATMOSPHERE}}",
+      "afternoon": "{{AFTERNOON_ATMOSPHERE}}",
+      "evening": "{{EVENING_ATMOSPHERE}}",
+      "night": "{{NIGHT_ATMOSPHERE}}"
+    },
+    "seasonal_changes": "{{HOW_SEASONS_AFFECT_IT}}",
+    "weather_influence": "{{HOW_WEATHER_CHANGES_MOOD}}"
+  },
+  "sensory_environment": {
+    "typical_sounds": ["{{SOUND1}}", "{{SOUND2}}"],
+    "characteristic_smells": ["{{SMELL1}}", "{{SMELL2}}"],
+    "lighting_qualities": "{{NATURAL_ARTIFICIAL_LIGHTING}}",
+    "temperature_feel": "{{WARM_COOL_VARIABLE}}",
+    "texture_elements": ["{{SURFACE1}}", "{{MATERIAL1}}"]
+  },
+  "narrative_elements": {
+    "recurring_themes": ["{{THEME1}}", "{{THEME2}}"],
+    "symbolic_meaning": "{{WHAT_IT_REPRESENTS}}",
+    "story_events": [
+      {
+        "event": "{{SIGNIFICANT_SCENE}}",
+        "impact": "{{HOW_IT_CHANGED_LOCATION}}",
+        "emotional_resonance": "{{LINGERING_FEELINGS}}"
+      }
+    ],
+    "plot_relevance": "{{ROLE_IN_OVERALL_STORY}}",
+    "character_development_role": "{{HOW_IT_AFFECTS_CHARACTER_GROWTH}}"
+  },
+  "practical_details": {
+    "access_methods": ["{{HOW_TO_ENTER}}"],
+    "privacy_level": "{{PUBLIC_PRIVATE_SEMI_PRIVATE}}",
+    "security_aspects": "{{LOCKS_BARRIERS_OPENNESS}}",
+    "maintenance_state": "{{WELL_KEPT_WORN_DETERIORATING}}",
+    "furnishing_style": "{{FURNITURE_DECOR_DESCRIPTION}}",
+    "technology_present": ["{{TECH1}}", "{{TECH2}}"]
+  },
+  "continuity_tracking": {
+    "location_state_changes": [
+      {
+        "change": "{{WHAT_CHANGED}}",
+        "when": "{{SCENE_OR_EVENT}}",
+        "cause": "{{WHY_IT_CHANGED}}",
+        "impact": "{{ONGOING_EFFECTS}}"
+      }
+    ],
+    "seasonal_state": "{{CURRENT_SEASON_CONDITION}}",
+    "recent_events": ["{{RECENT_SCENE1}}", "{{RECENT_SCENE2}}"],
+    "ongoing_changes": ["{{GRADUAL_CHANGE1}}"]
+  },
+  "reference_connections": {
+    "related_locations": ["{{CONNECTED_LOCATION1}}"],
+    "character_profiles": ["{{CHARACTER1}}", "{{CHARACTER2}}"],
+    "significant_scenes": ["{{SCENE_ID1}}", "{{SCENE_ID2}}"],
+    "style_guide_references": ["{{STYLE_ELEMENT1}}"]
+  }
+}

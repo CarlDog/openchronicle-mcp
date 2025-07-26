@@ -1,4 +1,10 @@
 {
+  "_template_info": {
+    "description": "Story metadata template with optional enhanced features",
+    "required_fields": ["name", "title", "version", "description", "author", "settings"],
+    "optional_fields": ["character_organization", "narrative_framework", "scene_enhancement"],
+    "enhancement_note": "Enhanced organization features can be safely ignored if not needed"
+  },
   "name": "{{STORY_NAME}}",
   "title": "{{STORY_TITLE}}",
   "version": "1.0.0",
@@ -12,9 +18,30 @@
     "target_audience": "{{TARGET_AUDIENCE}}"
   },
   "directories": {
-    "canon": "Canonical story information and lore",
-    "characters": "Character definitions and profiles",
-    "memory": "Story-specific memory and context data"
+    "canon": "{{CANON_DIRECTORY_DESCRIPTION}}",
+    "characters": "{{CHARACTERS_DIRECTORY_DESCRIPTION}}",
+    "memory": "{{MEMORY_DIRECTORY_DESCRIPTION}}"
+  },
+  "character_organization": {
+    "_optional": true,
+    "_description": "Enhanced character organization - can be deleted if using simple flat structure",
+    "type": "{{ORGANIZATION_TYPE}}",
+    "description": "{{ORGANIZATION_DESCRIPTION}}",
+    "tiers": ["{{TIER1}}", "{{TIER2}}", "{{TIER3}}"]
+  },
+  "narrative_framework": {
+    "_optional": true,
+    "_description": "Advanced narrative tracking - can be ignored if not needed",
+    "emotional_tracking": "{{EMOTIONAL_TRACKING}}",
+    "consequence_tracking": "{{CONSEQUENCE_TRACKING}}",
+    "relationship_dynamics": "{{RELATIONSHIP_DYNAMICS}}"
+  },
+  "scene_enhancement": {
+    "_optional": true,
+    "_description": "Rich scene metadata options - can be deleted if using basic scene logging",
+    "emotional_beats": "{{EMOTIONAL_BEATS}}",
+    "character_state_tracking": "{{CHARACTER_STATE_TRACKING}}",
+    "narrative_consequences": "{{NARRATIVE_CONSEQUENCES}}"
   },
   "dependencies": [
     {

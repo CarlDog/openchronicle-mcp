@@ -44,6 +44,26 @@ storage/*/exports/
 *.jsonl
 *.log
 
+# Analysis and development folders
+analysis/
+logs/
+storage/test*/
+storage/integration_test/
+storage/performance/
+storage/runtime/
+storage/backups/
+storage/system_profile_*.json
+
+# Obsolete files
+*.old.ignoreme
+# Preserve foundational README for project history
+!README.md.old.ignoreme
+
+# Development notes and temporary files
+.github/*.txt
+.github/CHAOS_SAGA_PROTOTYPE_ANALYSIS.md
+.github/CLEAN_APPROACH_COMPLETE.md
+
 # Configuration backups
 config/models.json.backup.*
 

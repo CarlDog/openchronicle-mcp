@@ -1,0 +1,172 @@
+{
+  "project_configuration": {
+    "project_name": "{{PROJECT_NAME}}",
+    "project_tag": "{{PROJECT_HASHTAG}}",
+    "story_format": "{{NARRATIVE_STYLE}}",
+    "content_rating": "{{AGE_RATING_BOUNDARIES}}",
+    "tracking_mode": "active",
+    "canon_tracking": true,
+    "checksum_lock": true,
+    "passive_logging": true
+  },
+  "narrative_framework": {
+    "overall_tone": "{{STORY_TONE}}",
+    "core_themes": ["{{THEME1}}", "{{THEME2}}", "{{THEME3}}"],
+    "visual_boundary": "{{CONTENT_LIMITS}}",
+    "content_policies": [
+      "{{CONTENT_RULE1}}",
+      "{{CONTENT_RULE2}}"
+    ],
+    "emotional_boundaries": {
+      "intensity_limits": "{{HOW_INTENSE}}",
+      "trauma_handling": "{{TRAUMA_APPROACH}}",
+      "intimacy_guidelines": "{{INTIMACY_RULES}}"
+    }
+  },
+  "character_voice_framework": {
+    "voice_consistency_required": true,
+    "character_voice_guidelines": {
+      "{{CHARACTER_NAME}}": {
+        "speech_patterns": "{{HOW_THEY_TALK}}",
+        "vocabulary_level": "{{WORD_CHOICE}}",
+        "emotional_expression": "{{HOW_THEY_SHOW_FEELINGS}}",
+        "unique_phrases": ["{{CATCHPHRASE1}}", "{{MANNERISM1}}"],
+        "voice_evolution": "{{HOW_VOICE_CHANGES}}"
+      }
+    },
+    "dialogue_attribution_rules": [
+      "Clear speaker identification required",
+      "{{CUSTOM_ATTRIBUTION_RULE1}}",
+      "{{CUSTOM_ATTRIBUTION_RULE2}}"
+    ]
+  },
+  "narrative_rules": {
+    "aftershock_clause": {
+      "description": "Emotional scenes must have realistic consequences and follow-up",
+      "implementation": "{{HOW_TO_APPLY_AFTERSHOCK}}",
+      "examples": ["{{AFTERSHOCK_EXAMPLE1}}"]
+    },
+    "silence_clause": {
+      "description": "Non-verbal behavior and silences must have meaning",
+      "implementation": "{{HOW_TO_HANDLE_SILENCE}}",
+      "body_language_requirements": "{{BODY_LANGUAGE_RULES}}"
+    },
+    "banter_chain_attribution": {
+      "description": "Multi-character dialogue needs clear speaker tracking",
+      "implementation": "{{BANTER_RULES}}",
+      "dialogue_flow_requirements": "{{CONVERSATION_FLOW}}"
+    },
+    "emotional_continuity": {
+      "description": "Character emotions must follow realistic progression",
+      "implementation": "{{EMOTION_TRACKING_RULES}}",
+      "state_change_requirements": "{{STATE_CHANGE_RULES}}"
+    }
+  },
+  "scene_framework": {
+    "pacing_guidelines": {
+      "emotional_scenes": "{{EMOTIONAL_PACING}}",
+      "action_scenes": "{{ACTION_PACING}}",
+      "dialogue_scenes": "{{DIALOGUE_PACING}}",
+      "transition_scenes": "{{TRANSITION_PACING}}"
+    },
+    "scene_structure_requirements": [
+      "{{SCENE_RULE1}}",
+      "{{SCENE_RULE2}}"
+    ],
+    "emotional_intensity_scale": {
+      "low": "{{LOW_INTENSITY_DESCRIPTION}}",
+      "medium": "{{MEDIUM_INTENSITY_DESCRIPTION}}",
+      "high": "{{HIGH_INTENSITY_DESCRIPTION}}",
+      "climactic": "{{CLIMACTIC_INTENSITY_DESCRIPTION}}"
+    }
+  },
+  "relationship_guidelines": {
+    "relationship_development_rules": [
+      "{{RELATIONSHIP_RULE1}}",
+      "{{RELATIONSHIP_RULE2}}"
+    ],
+    "intimacy_progression": "{{HOW_INTIMACY_DEVELOPS}}",
+    "conflict_resolution_patterns": "{{CONFLICT_HANDLING}}",
+    "chemistry_requirements": "{{CHEMISTRY_GUIDELINES}}"
+  },
+  "world_building_consistency": {
+    "canon_protection_level": "strict",
+    "established_elements": [
+      "{{CANON_ELEMENT1}}",
+      "{{CANON_ELEMENT2}}"
+    ],
+    "modification_rules": [
+      "{{MODIFICATION_RULE1}}",
+      "{{MODIFICATION_RULE2}}"
+    ],
+    "continuity_requirements": "{{CONTINUITY_STANDARDS}}"
+  },
+  "technical_requirements": {
+    "scene_logging": "automatic",
+    "character_state_tracking": "required",
+    "timeline_maintenance": "active",
+    "emotional_state_continuity": "enforced",
+    "canon_checking": "pre_and_post_scene"
+  },
+  "style_preferences": {
+    "narrative_style": "{{PREFERRED_NARRATIVE_STYLE}}",
+    "description_density": "{{DESCRIPTION_LEVEL}}",
+    "dialogue_style": "{{DIALOGUE_APPROACH}}",
+    "sensory_detail_level": "{{SENSORY_RICHNESS}}",
+    "emotional_detail_level": "{{EMOTIONAL_DEPTH}}"
+  },
+  "ai_behavioral_guidelines": {
+    "character_portrayal": [
+      "Stay true to established character profiles",
+      "Maintain emotional consistency",
+      "{{CUSTOM_PORTRAYAL_RULE1}}"
+    ],
+    "scene_development": [
+      "Follow established pacing guidelines",
+      "Respect narrative structure requirements",
+      "{{CUSTOM_SCENE_RULE1}}"
+    ],
+    "content_creation": [
+      "Adhere to content boundaries",
+      "Maintain story tone and themes",
+      "{{CUSTOM_CONTENT_RULE1}}"
+    ],
+    "interaction_style": [
+      "Respond to user preferences",
+      "Respect established canon",
+      "{{CUSTOM_INTERACTION_RULE1}}"
+    ]
+  },
+  "quality_assurance": {
+    "pre_scene_checks": [
+      "Character state verification",
+      "Timeline consistency check",
+      "{{CUSTOM_PRE_CHECK1}}"
+    ],
+    "post_scene_checks": [
+      "Emotional continuity verification",
+      "Canon impact assessment",
+      "{{CUSTOM_POST_CHECK1}}"
+    ],
+    "review_triggers": [
+      "Major character development",
+      "Significant plot advancement",
+      "{{CUSTOM_TRIGGER1}}"
+    ]
+  },
+  "project_memory": {
+    "key_decisions": [
+      {
+        "decision": "{{IMPORTANT_DECISION}}",
+        "rationale": "{{WHY_DECIDED}}",
+        "impact": "{{ONGOING_EFFECT}}"
+      }
+    ],
+    "character_evolution_notes": [
+      "{{CHARACTER_NAME}}: {{EVOLUTION_NOTE}}"
+    ],
+    "world_development_log": [
+      "{{WORLD_CHANGE}}: {{CHANGE_IMPACT}}"
+    ]
+  }
+}

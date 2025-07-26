@@ -70,5 +70,47 @@
     "world_building": "{{WORLD_BUILDING_QUALITY}}",
     "educational_value": "{{EDUCATIONAL_VALUE}}",
     "entertainment_value": "{{ENTERTAINMENT_VALUE}}"
+  },
+  "emotional_intensity_scale": {
+    "low": "1-3 (calm, everyday interactions)",
+    "medium": "4-6 (tension, mild conflict, emotional moments)",
+    "high": "7-10 (intense conflict, emotional climaxes, major revelations)",
+    "target_range": "{{TARGET_INTENSITY_RANGE}}"
+  },
+  "scene_structure_guidelines": {
+    "scene_types": [
+      "dialogue_heavy",
+      "action_sequence", 
+      "emotional_unraveling",
+      "world_building",
+      "character_development",
+      "conflict_resolution"
+    ],
+    "pacing_rules": {
+      "tension_buildup": "{{TENSION_PACING}}",
+      "resolution_timing": "{{RESOLUTION_TIMING}}",
+      "emotional_beats_spacing": "{{EMOTIONAL_SPACING}}"
+    }
+  },
+  "emotional_continuity_rules": {
+    "aftershock_clause": "{{AFTERSHOCK_RULE}}",
+    "consequence_tracking": "{{CONSEQUENCE_APPROACH}}",
+    "character_state_persistence": "{{STATE_PERSISTENCE}}",
+    "emotional_memory": "{{EMOTIONAL_MEMORY_RULE}}"
+  },
+  "relationship_guidelines": {
+    "dynamic_evolution": "{{RELATIONSHIP_EVOLUTION}}",
+    "conflict_resolution_styles": [
+      "{{RESOLUTION_STYLE_1}}",
+      "{{RESOLUTION_STYLE_2}}"
+    ],
+    "intimacy_boundaries": "{{INTIMACY_BOUNDARIES}}",
+    "power_dynamics": "{{POWER_DYNAMICS_APPROACH}}"
+  },
+  "advanced_writing_rules": {
+    "visual_boundary_policy": "{{VISUAL_BOUNDARY}}",
+    "emotional_depth_requirements": "{{EMOTIONAL_DEPTH}}",
+    "consequence_weight": "{{CONSEQUENCE_WEIGHT}}",
+    "character_growth_pacing": "{{GROWTH_PACING}}"
   }
 }

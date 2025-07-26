@@ -1,0 +1,100 @@
+{
+  "conversation_metadata": {
+    "thread_id": "{{UNIQUE_THREAD_ID}}",
+    "thread_title": "{{CONVERSATION_TITLE}}",
+    "creation_date": "{{YYYY-MM-DD}}",
+    "thread_type": "{{CHARACTER_LOCATION_TOPIC}}",
+    "status": "active",
+    "thread_tags": ["{{TAG1}}", "{{TAG2}}"]
+  },
+  "conversation_context": {
+    "primary_focus": "{{MAIN_SUBJECT}}",
+    "characters_involved": ["{{CHARACTER1}}", "{{CHARACTER2}}"],
+    "location_context": "{{WHERE_CONVERSATION_HAPPENS}}",
+    "time_period": "{{WHEN_IN_STORY}}",
+    "emotional_context": "{{OVERALL_MOOD}}"
+  },
+  "organizational_structure": {
+    "conversation_series": "{{SERIES_NAME}}",
+    "parent_thread": "{{PARENT_THREAD_ID}}",
+    "related_threads": ["{{RELATED_ID1}}", "{{RELATED_ID2}}"],
+    "continuation_from": "{{PREVIOUS_THREAD_ID}}",
+    "continues_to": "{{NEXT_THREAD_ID}}"
+  },
+  "content_tracking": {
+    "key_developments": [
+      {
+        "development": "{{PLOT_DEVELOPMENT}}",
+        "characters_affected": ["{{CHARACTER1}}"],
+        "emotional_impact": "{{IMPACT_DESCRIPTION}}"
+      }
+    ],
+    "relationship_changes": [
+      {
+        "relationship": "{{CHARACTER_A}}_{{CHARACTER_B}}",
+        "change_type": "{{IMPROVEMENT_STRAIN_SHIFT}}",
+        "description": "{{CHANGE_DESCRIPTION}}"
+      }
+    ],
+    "canon_elements": [
+      "{{CANON_FACT1}}",
+      "{{CANON_FACT2}}"
+    ],
+    "world_building_additions": [
+      "{{WORLD_ELEMENT1}}"
+    ]
+  },
+  "extraction_data": {
+    "memorable_quotes": [
+      {
+        "character": "{{SPEAKER}}",
+        "quote": "{{MEMORABLE_LINE}}",
+        "context": "{{QUOTE_CONTEXT}}",
+        "significance": "{{WHY_IMPORTANT}}"
+      }
+    ],
+    "character_insights": [
+      {
+        "character": "{{CHARACTER_NAME}}",
+        "insight": "{{PERSONALITY_REVELATION}}",
+        "evidence": "{{CONVERSATION_EVIDENCE}}"
+      }
+    ],
+    "emotional_moments": [
+      {
+        "moment": "{{EMOTIONAL_PEAK}}",
+        "characters": ["{{AFFECTED_CHARACTER}}"],
+        "type": "{{EMOTION_TYPE}}",
+        "impact": "{{LASTING_EFFECT}}"
+      }
+    ]
+  },
+  "archive_processing": {
+    "extraction_status": "{{PENDING_EXTRACTED_ARCHIVED}}",
+    "raw_conversation_file": "{{RAW_FILE_REFERENCE}}",
+    "extracted_elements_file": "{{EXTRACTED_FILE_REFERENCE}}",
+    "integration_status": "{{INTEGRATION_PROGRESS}}",
+    "canon_integration": "{{CANON_STATUS}}"
+  },
+  "workflow_management": {
+    "review_needed": false,
+    "extraction_priority": "{{LOW_MEDIUM_HIGH}}",
+    "integration_notes": ["{{NOTE1}}", "{{NOTE2}}"],
+    "follow_up_actions": ["{{ACTION1}}", "{{ACTION2}}"],
+    "continuation_prompts": ["{{PROMPT1}}"]
+  },
+  "reference_connections": {
+    "character_profiles": ["{{CHARACTER1}}", "{{CHARACTER2}}"],
+    "scene_references": ["{{SCENE_ID1}}"],
+    "location_references": ["{{LOCATION1}}"],
+    "style_guide_elements": ["{{STYLE_ELEMENT1}}"],
+    "timeline_placement": "{{TIMELINE_REFERENCE}}"
+  },
+  "search_and_retrieval": {
+    "searchable_keywords": ["{{KEYWORD1}}", "{{KEYWORD2}}"],
+    "topic_categories": ["{{CATEGORY1}}", "{{CATEGORY2}}"],
+    "emotional_tags": ["{{EMOTION1}}", "{{EMOTION2}}"],
+    "character_focus_tags": ["{{CHAR_FOCUS1}}"],
+    "plot_relevance_tags": ["{{PLOT_TAG1}}"]
+  }
+}

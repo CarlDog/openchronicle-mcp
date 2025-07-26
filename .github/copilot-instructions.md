@@ -1,5 +1,13 @@
 # OpenChronicle Copilot Instructions
 
+## Development Environment
+**Platform**: Windows with PowerShell 5.1
+**Critical Requirements**:
+- **PowerShell Syntax**: Use `;` for command chaining, NOT `&&`
+- **Path Format**: Use Windows backslash paths in PowerShell contexts
+- **Test Patience**: 400+ tests take time - allow sufficient execution time
+- **File Operations**: Use PowerShell cmdlets (`Remove-Item`, `Get-ChildItem`) not Unix commands
+
 ## Architecture Overview
 OpenChronicle is a narrative AI engine with **13 core modules** using plugin-style model management. The `ModelManager` (`core/model_adapter.py`) orchestrates 15+ LLM providers with fallback chains and dynamic configuration loading.
 
@@ -35,15 +43,22 @@ scene_logger.save_scene(story_id, scene_data, memory_snapshot)
 ```
 
 ## Testing & Development Commands
-```bash
+```powershell
 # Quick validation
 python -c "from core.model_adapter import ModelManager; print('OK')"
 
-# Test with mocks only
+# Test with mocks only (FAST - minimal test subset)
 python main.py --test --max-iterations 1
+
+# Full test suite (SLOW - 400+ tests, allow 5-10 minutes)
+python -m pytest tests/ -v
 
 # Specific module testing
 python -m pytest tests/test_model_adapter.py::test_dynamic_model_management -v
+
+# PowerShell file operations (NOT Unix commands)
+Remove-Item "path\to\file" -Force
+Get-ChildItem "directory" | Measure-Object
 ```
 
 ## Docker Development
@@ -55,7 +70,18 @@ python -m pytest tests/test_model_adapter.py::test_dynamic_model_management -v
 - **Logging**: Import from `utilities/logging_system`, use `log_system_event(type, description)`
 - **Transformers**: Check `TRANSFORMERS_AVAILABLE` before import (graceful fallback)
 - **Async**: All model operations use async/await patterns with proper exception handling
-- **PowerShell**: Use semicolons (`;`) not `&&` for command chaining
+- **Clean Development**: Consolidate documentation, avoid file proliferation, maintain organized structure
+
+## Clean Development Guidelines
+- **Consolidate over create**: Merge related documentation into comprehensive guides
+- **Single source of truth**: Avoid duplicate information across multiple files
+- **Purposeful structure**: Every file should have a clear, unique purpose
+- **Regular cleanup**: Remove obsolete documentation and temporary files
+- **Extend over new**: Use existing files/functions rather than creating additional helper scripts or utilities
+- **Organized folders**: Keep ALL codebase folders clean and minimal. Including: **.github**, **.copilot**, **.vscode**, **files**
+  - **.copilot**: Contains architecture and development guidelines
+  - **.vscode**: Empty or minimal, only for essential scripts
+  - **files**: Should not contain temporary or obsolete files
 
 ## Key Architecture Files
 - `core/model_adapter.py` - Central orchestration (1500+ lines)

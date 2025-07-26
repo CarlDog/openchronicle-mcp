@@ -1,152 +1,167 @@
-# OpenChronicle Templates System
+# 📋 **OpenChronicle Template System Guide**
 
-The templates system provides standardized JSON templates for creating new storypacks with consistent structure and format. All templates use placeholder values that can be customized for each story.
+## **🎯 Overview**
+OpenChronicle templates provide flexible, import-adaptable character and scene definitions with granular optional controls. Templates maintain user choice while supporting sophisticated organizational features.
 
-## 📁 Expected Storypack Structure
+---
 
-Every storypack should follow this directory structure:
+## **📂 Template Files**
 
-```
-storypacks/
-└── your-story-name/
-    ├── meta.json                 # Story metadata (required)
-    ├── style_guide.json          # Writing guidelines (required)
-    ├── canon/                    # World-building files (required)
-    │   ├── locations.json        # Locations and geography
-    │   ├── history.json          # Historical events and lore
-    │   └── [other_canon].json    # Additional canon files as needed
-    ├── characters/               # Character definitions (required)
-    │   ├── character1.json       # Individual character files
-    │   ├── character2.json       # Follow character_template.json format
-    │   └── character3.json       # All characters in JSON format
-    └── memory/                   # Memory system files (required)
-        └── current_state.json    # Current story state
-```
+### **Core Templates:**
+- **`character_template.json`** - Comprehensive character profiles with expandable arrays
+- **`location_template.json`** - Unified location template for rooms, buildings, regions, or worlds
+- **`scene_template.json`** - Scene metadata with optional enhancements  
+- **`meta_template.json`** - Story metadata and organizational features
+- **`style_guide_template.json`** - Writing style and tone guidance
 
-## 🎯 Available Templates
+### **Supporting Templates:**
+- **`memory_template.json`** - Memory system structures
+- **`conversation_thread_template.json`** - Dialogue tracking
+- **`current_state_template.json`** - Story state snapshots
+- **`history_template.json`** - Historical event tracking
+- **`instructions_template.json`** - AI behavior guidance
 
-### Core Templates
-- **`meta_template.json`** - Story metadata and configuration
-- **`style_guide_template.json`** - Writing guidelines and character voice rules
-- **`character_template.json`** - Individual character definition format
-- **`current_state_template.json`** - Story memory state template
+---
 
-### Canon Templates  
-- **`locations_template.json`** - Locations and world geography
-- **`history_template.json`** - Historical events and world lore
+## **🔧 Key Features**
 
-### Reference Templates
-- **`memory_templates.json`** - Comprehensive memory system examples and patterns
-
-## 🚀 Using Templates
-
-### 1. Create Storypack Directory Structure
-```bash
-mkdir -p storypacks/my-story/{canon,characters,memory}
+### **1. Granular Optional Control**
+```json
+{
+  "required_field": "{{PLACEHOLDER}}",
+  "optional_section": {
+    "_optional": true,
+    "optional_field": {
+      "_optional": true,
+      "value": "{{PLACEHOLDER}}"
+    }
+  }
+}
 ```
 
-### 2. Copy and Customize Templates
-```bash
-# Copy core templates
-cp templates/meta_template.json storypacks/my-story/meta.json
-cp templates/style_guide_template.json storypacks/my-story/style_guide.json
-cp templates/current_state_template.json storypacks/my-story/memory/current_state.json
+### **2. Import Adaptability**
+- **Expandable Arrays:** All arrays can grow to accommodate unlimited entries
+- **Dynamic Relationships:** Supports family, friend, enemy, lover, mentor, rival, etc.
+- **Flexible Structure:** Import processes can expand arrays dynamically
+- **No Data Truncation:** Template shows minimum structure, not maximum
 
-# Copy canon templates
-cp templates/locations_template.json storypacks/my-story/canon/locations.json
-cp templates/history_template.json storypacks/my-story/canon/history.json
+### **3. Smart Application Processing**
+- **Ignores:** Empty strings, null values, unmodified placeholders
+- **Processes:** Only fields with actual content
+- **Validates:** Required fields must have meaningful values
 
-# Copy character template for each character
-cp templates/character_template.json storypacks/my-story/characters/protagonist.json
-cp templates/character_template.json storypacks/my-story/characters/mentor.json
+---
+
+## **📋 Character Template Structure**
+
+### **Required Fields (5):**
+- `name` - Character name
+- `basic_info.age` - Character age
+- `physical_description.hair` - Hair description
+- `physical_description.eyes` - Eye description  
+- `personality.core_traits` - Core personality traits (array)
+
+### **Optional Sections (12):**
+1. **`title`** - Character title/role
+2. **`basic_info`** - Race, gender, occupation, origin
+3. **`physical_description`** - Height, build, clothing
+4. **`personality`** - Values, fears, motivations
+5. **`background`** - Childhood, education, events, situation
+6. **`abilities`** - Skills, magical abilities, weaknesses
+7. **`relationships`** - Important people with relationship details
+8. **`story_role`** - Importance, arc, scenes, growth
+9. **`dialogue_style`** - Speech patterns, vocabulary, characteristics
+10. **`character_tier`** - Main/supporting/background classification
+11. **`emotional_framework`** - Emotional state, triggers, dynamics
+12. **`specialized_details`** - Physical modifications, personal items
+
+---
+
+## **🔄 Import Guidelines**
+
+### **Array Expansion Example:**
+```json
+// Template provides ONE relationship:
+"important_people": [
+  {
+    "name": "{{PERSON_NAME}}",
+    "relationship": "{{RELATIONSHIP_TYPE}}",
+    "description": "{{RELATIONSHIP_DESCRIPTION}}"
+  }
+]
+
+// Import should create MULTIPLE entries:
+"important_people": [
+  { "name": "Sarah", "relationship": "sister", "description": "Protective of her" },
+  { "name": "Marcus", "relationship": "enemy", "description": "Former friend turned rival" },
+  { "name": "Elena", "relationship": "lover", "description": "Secret romantic relationship" }
+  // ... unlimited relationships
+]
 ```
 
-### 3. Edit Template Files
-Replace all `{{PLACEHOLDER}}` values with your actual content:
-- `{{STORY_NAME}}` - Your story's internal name
-- `{{STORY_TITLE}}` - Display title
-- `{{CHARACTER_NAME}}` - Character names
-- `{{LOCATION_NAME}}` - Location names
-- And many more...
-
-### 4. Validate Your Storypack
-```bash
-python -c "from core.story_loader import load_storypack; print('✅ Success!' if load_storypack('my-story') else '❌ Failed')"
+### **Physical Modifications Scaling:**
+```json
+// Import supports unlimited modifications:
+"physical_modifications": {
+  "tattoos": [
+    { "location": "Right shoulder", "description": "Celtic knot", "significance": "Family memorial" },
+    { "location": "Left wrist", "description": "Infinity symbol", "significance": "Never give up" }
+    // ... all tattoos found in source data
+  ],
+  "scars": [ /* all scars */ ],
+  "piercings": [ /* all piercings */ ]
+}
 ```
 
-## 📋 Template Placeholder Conventions
+---
 
-### Naming Pattern
-- `{{UPPERCASE_WITH_UNDERSCORES}}` for all placeholders
-- Descriptive names that indicate the expected content
-- Numbered variants: `{{CHARACTER_1}}`, `{{CHARACTER_2}}`, etc.
+## **💡 Usage Examples**
 
-### Common Placeholders
-- **Story Level:** `{{STORY_NAME}}`, `{{STORY_TITLE}}`, `{{AUTHOR_NAME}}`
-- **Characters:** `{{CHARACTER_NAME}}`, `{{CHARACTER_TITLE}}`, `{{PERSONALITY_TRAIT}}`
-- **Locations:** `{{LOCATION_NAME}}`, `{{LOCATION_TYPE}}`, `{{LOCATION_DESCRIPTION}}`
-- **Dates:** `{{CREATION_DATE}}`, `{{LAST_MODIFIED_DATE}}`
-
-## ✅ Requirements
-
-### File Format Requirements
-- **All files must be valid JSON** - No YAML, TXT, or other formats
-- **UTF-8 encoding** for all text files
-- **Consistent naming** using lowercase with underscores
-
-### Required Files
-Every storypack must include:
-1. `meta.json` - Story metadata
-2. `style_guide.json` - Writing guidelines  
-3. At least one file in `canon/` directory
-4. At least one file in `characters/` directory
-5. `memory/current_state.json` - Initial memory state
-
-### Content Requirements
-- **100% original content** - No copyrighted material
-- **Appropriate for target audience** - Follow content guidelines
-- **Complete character definitions** - Include all required character fields
-- **Consistent world-building** - Maintain internal consistency
-
-## 🧪 Testing and Validation
-
-### Quick Validation
-```bash
-# Test story loading
-python -c "from core.story_loader import list_storypacks, load_storypack; print('Available:', list_storypacks()); load_storypack('your-story')"
-
-# Test character loading
-python -c "from core.character_style_manager import CharacterStyleManager; csm = CharacterStyleManager(); print('Characters:', csm.load_character_styles('storypacks/your-story'))"
-
-# Test canon loading  
-python -c "from core.context_builder import load_canon_snippets; print('Canon files:', len(load_canon_snippets('storypacks/your-story')))"
+### **Minimal Character (Required Only):**
+```json
+{
+  "name": "Alexandra Thompson",
+  "basic_info": { "age": "25" },
+  "physical_description": { "hair": "Brown", "eyes": "Green" },
+  "personality": { "core_traits": ["Creative", "Thoughtful", "Independent"] }
+}
 ```
 
-### Common Issues
-- **Missing required fields** - Check template completeness
-- **Invalid JSON syntax** - Validate JSON formatting
-- **Placeholder not replaced** - Search for remaining `{{}}` patterns
-- **File encoding issues** - Ensure UTF-8 encoding
+### **Enhanced Character (Optional Features):**
+```json
+{
+  "name": "Marcus Knight",
+  "character_tier": { "_optional": true, "value": "main" },
+  "relationships": {
+    "_optional": true,
+    "important_people": [
+      { "name": "Elena", "relationship": "lover", "description": "Secret romance" },
+      { "name": "Baron Aldric", "relationship": "enemy", "description": "Political rival" }
+    ]
+  },
+  "specialized_details": {
+    "_optional": true,
+    "physical_modifications": {
+      "scars": [
+        {
+          "location": "Left shoulder",
+          "description": "Jagged sword wound",
+          "origin_story": "Battle of Ashford Keep",
+          "significance": "Reminder of duty"
+        }
+      ]
+    }
+  }
+}
+```
 
-## 📚 Example
+---
 
-See `storypacks/demo-story/` for a complete, working example that follows all these conventions.
+## **🎉 Template Philosophy**
 
-## 🎨 Best Practices
+**✅ OPTIONAL:** Users decide which features to use - delete unwanted sections
+**✅ EXPANDABLE:** Import processes can scale to any character complexity
+**✅ CONSISTENT:** Uniform placeholder format and optional field patterns
+**✅ STORYTELLING-FOCUSED:** Every field serves narrative development needs
 
-### Organization
-- Use descriptive filenames for canon files
-- Name character files after the character
-- Keep related canon information in separate files
-
-### Content Quality
-- Write complete character backstories
-- Create rich, detailed world-building
-- Maintain consistent tone and style
-- Include character growth arcs
-
-### Maintenance
-- Update templates when adding new features
-- Keep placeholder names descriptive
-- Document any custom fields or extensions
-- Test templates with multiple story types
+The template system provides comprehensive character development tools while maintaining clean, consistent structure focused entirely on storytelling requirements!

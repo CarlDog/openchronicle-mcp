@@ -1,0 +1,151 @@
+{
+  "_template_info": {
+    "description": "Rich scene metadata template - all sections are optional enhancements",
+    "required_fields": ["scene_metadata"],
+    "optional_fields": ["emotional_tracking", "consequences_and_continuity", "atmosphere_and_mood", "dialogue_and_interaction", "multimedia_elements", "workflow_status", "memorable_content", "reference_links"],
+    "enhancement_note": "This entire template is optional - use basic scene logging if you prefer simplicity"
+  },
+  "scene_metadata": {
+    "scene_id": "{{SCENE_ID}}",
+    "date": "{{YYYY-MM-DD}}",
+    "time": "{{HH:MM}}",
+    "title": "{{SCENE_TITLE}}",
+    "chapter_label": "{{CHAPTER_REFERENCE}}",
+    "scene_type": "{{SCENE_TYPE}}",
+    "scene_tags": ["{{TAG1}}", "{{TAG2}}"],
+    "emotional_beats": ["{{BEAT1}}", "{{BEAT2}}"],
+    "location": "{{CANONICAL_LOCATION}}",
+    "characters_present": ["{{CHAR1}}", "{{CHAR2}}"],
+    "point_of_view": "{{POV_CHARACTER}}",
+    "narrative_distance": "{{FIRST_THIRD_OMNISCIENT}}"
+  },
+  "scene_summary": "{{ONE_PARAGRAPH_OVERVIEW}}",
+  "emotional_tracking": {
+    "_optional": true,
+    "_description": "Enhanced emotional analysis - can be deleted if not needed",
+    "character_state_changes": {
+      "{{CHARACTER_NAME}}": {
+        "starting_emotional_state": "{{START_EMOTION}}",
+        "ending_emotional_state": "{{END_EMOTION}}",
+        "emotional_arc": "{{HOW_THEY_CHANGE}}",
+        "character_growth": "{{DEVELOPMENT_MOMENT}}",
+        "relationship_shifts": "{{RELATIONSHIP_CHANGES}}"
+      }
+    },
+    "emotional_intensity": "{{LOW_MEDIUM_HIGH_CLIMACTIC}}",
+    "dominant_emotions": ["{{EMOTION1}}", "{{EMOTION2}}"],
+    "emotional_progression": "{{HOW_EMOTION_BUILDS}}"
+  },
+  "narrative_elements": {
+    "conflict_type": "{{INTERNAL_EXTERNAL_INTERPERSONAL}}",
+    "tension_level": "{{TENSION_DESCRIPTION}}",
+    "pacing": "{{SLOW_MEDIUM_FAST_VARIED}}",
+    "narrative_purpose": "{{WHY_THIS_SCENE_EXISTS}}",
+    "story_function": "{{PLOT_CHARACTER_THEME_WORLD}}"
+  },
+  "consequences_and_continuity": {
+    "_optional": true,
+    "_description": "Advanced continuity tracking - can be deleted if not needed",
+    "immediate_consequences": ["{{CONSEQUENCE1}}", "{{CONSEQUENCE2}}"],
+    "long_term_implications": ["{{IMPLICATION1}}", "{{IMPLICATION2}}"],
+    "canon_impact": "{{HOW_IT_CHANGES_STORY}}",
+    "timeline_placement": "{{TIMELINE_TAG}}",
+    "continuity_notes": ["{{CONTINUITY_CHECK1}}"],
+    "aftershock_required": "{{AFTERSHOCK_REQUIRED}}",
+    "aftershock_elements": ["{{WHAT_NEEDS_FOLLOW_UP}}"]
+  },
+  "atmosphere_and_mood": {
+    "_optional": true,
+    "_description": "Rich atmospheric details - can be deleted if not needed",
+    "overall_mood": "{{SCENE_ATMOSPHERE}}",
+    "environmental_factors": "{{WEATHER_LIGHTING_SOUNDS}}",
+    "symbolic_elements": ["{{SYMBOL1}}", "{{SYMBOL2}}"],
+    "sensory_details": {
+      "visual": "{{WHAT_CHARACTERS_SEE}}",
+      "auditory": "{{WHAT_THEY_HEAR}}",
+      "tactile": "{{WHAT_THEY_FEEL}}",
+      "olfactory": "{{WHAT_THEY_SMELL}}",
+      "emotional_atmosphere": "{{FEELING_IN_THE_AIR}}"
+    }
+  },
+  "dialogue_and_interaction": {
+    "_optional": true,
+    "_description": "Detailed dialogue analysis - can be deleted if not needed",
+    "key_dialogue_moments": [
+      {
+        "character": "{{SPEAKER}}",
+        "dialogue_type": "{{EXPOSITION_CONFLICT_REVELATION}}",
+        "quote": "{{MEMORABLE_LINE}}",
+        "subtext": "{{WHAT_THEY_REALLY_MEAN}}"
+      }
+    ],
+    "non_verbal_communication": [
+      {
+        "character": "{{CHARACTER}}",
+        "action": "{{BODY_LANGUAGE}}",
+        "meaning": "{{EMOTIONAL_SIGNIFICANCE}}"
+      }
+    ],
+    "silence_moments": [
+      {
+        "description": "{{SILENCE_DESCRIPTION}}",
+        "emotional_weight": "{{SILENCE_MEANING}}"
+      }
+    ]
+  },
+  "multimedia_elements": {
+    "_optional": true,
+    "_description": "Music and atmosphere cues - can be deleted if not used",
+    "music_cue_used": "{{MUSIC_CUE_USED}}",
+    "track_name": "{{SONG_TITLE}}",
+    "artist": "{{ARTIST}}",
+    "cue_character": "{{WHOSE_EMOTION}}",
+    "cue_timing": "{{WHEN_IN_SCENE}}",
+    "last_cue_scene": "{{PREVIOUS_SCENE_ID}}",
+    "visual_elements": ["{{IMAGE1}}", "{{DESCRIPTION1}}"],
+    "atmosphere_notes": "{{MOOD_SETTING_DETAILS}}"
+  },
+  "workflow_status": {
+    "_optional": true,
+    "_description": "Scene workflow tracking - can be deleted if not using workflow states",
+    "current_status": "{{CURRENT_STATUS}}",
+    "status_options": ["{{STATUS_OPTION1}}", "{{STATUS_OPTION2}}", "{{STATUS_OPTION3}}", "{{STATUS_OPTION4}}"],
+    "creation_date": "{{YYYY-MM-DD}}",
+    "last_modified": "{{YYYY-MM-DD}}",
+    "approval_status": "{{PENDING_APPROVED_NEEDS_CHANGES}}",
+    "review_notes": ["{{NOTE1}}", "{{NOTE2}}"],
+    "integration_status": "{{STANDALONE_INTEGRATED_DEPENDENT}}"
+  },
+  "memorable_content": {
+    "_optional": true,
+    "_description": "Content highlights - can be deleted if not needed",
+    "key_quotes": [
+      {
+        "character": "{{SPEAKER}}",
+        "quote": "{{DIALOGUE_LINE}}",
+        "context": "{{WHY_MEMORABLE}}"
+      }
+    ],
+    "narrative_moments": [
+      {
+        "moment": "{{INTERNAL_THOUGHT_OR_ACTION}}",
+        "significance": "{{WHY_IMPORTANT}}"
+      }
+    ],
+    "emotional_peaks": [
+      {
+        "peak_moment": "{{CLIMACTIC_MOMENT}}",
+        "emotional_impact": "{{READER_CHARACTER_IMPACT}}"
+      }
+    ]
+  },
+  "reference_links": {
+    "_optional": true,
+    "_description": "Cross-reference tracking - can be deleted if not using reference system",
+    "related_scenes": ["{{SCENE_ID1}}", "{{SCENE_ID2}}"],
+    "character_development_references": ["{{CHARACTER_ARC_NOTE}}"],
+    "world_building_references": ["{{WORLD_ELEMENT}}"],
+    "previous_scene": "{{PREVIOUS_SCENE_ID}}",
+    "next_scene": "{{NEXT_SCENE_ID}}"
+  }
+}
