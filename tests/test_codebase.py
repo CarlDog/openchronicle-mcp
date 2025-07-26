@@ -114,10 +114,10 @@ def test_import_dependencies():
                 log_print(f"[PASS] Successfully imported {module_name}")
             except ImportError as e:
                 log_print(f"[FAIL] Failed to import {module_name}: {e}", logging.ERROR)
-                return False
+                assert False, f"Failed to import {module_name}: {e}"
             except Exception as e:
                 log_print(f"[FAIL] Error importing {module_name}: {e}", logging.ERROR)
-                return False
+                assert False, f"Error importing {module_name}: {e}"
         
         # Test cross-module dependencies
         try:
@@ -126,14 +126,13 @@ def test_import_dependencies():
             log_print("[PASS] Cross-module dependencies work correctly")
         except Exception as e:
             log_print(f"[FAIL] Cross-module dependency error: {e}", logging.ERROR)
-            return False
+            assert False, f"Cross-module dependency error: {e}"
         
         log_print("[PASS] Import dependency validation complete")
-        return True
     except Exception as e:
         log_print(f"[FAIL] Import dependency error: {e}", logging.ERROR)
         log_print(traceback.format_exc(), logging.ERROR)
-        return False
+        assert False, f"Import dependency error: {e}"
 
 def test_test_coverage():
     """Validate that all core modules have corresponding test files."""
@@ -157,14 +156,13 @@ def test_test_coverage():
         
         if missing_tests:
             log_print(f"[FAIL] Missing test files: {missing_tests}", logging.ERROR)
-            return False
+            assert False, f"Missing test files: {missing_tests}"
         
         log_print("[PASS] Test coverage validation complete - all modules have tests")
-        return True
     except Exception as e:
         log_print(f"[FAIL] Test coverage validation error: {e}", logging.ERROR)
         log_print(traceback.format_exc(), logging.ERROR)
-        return False
+        assert False, f"Test coverage validation error: {e}"
 
 def test_code_quality():
     """Validate code quality and consistency across the codebase."""
@@ -218,14 +216,13 @@ def test_code_quality():
             log_print(f"[FAIL] Code quality issues found: {len(issues_found)}", logging.ERROR)
             for issue in issues_found:
                 log_print(f"  - {issue}", logging.ERROR)
-            return False
+            assert False, f"Code quality issues found: {issues_found}"
         
         log_print("[PASS] Code quality validation complete")
-        return True
     except Exception as e:
         log_print(f"[FAIL] Code quality validation error: {e}", logging.ERROR)
         log_print(traceback.format_exc(), logging.ERROR)
-        return False
+        assert False, f"Code quality validation error: {e}"
 
 def test_integration_workflow():
     """Test end-to-end integration workflow."""
@@ -245,7 +242,7 @@ def test_integration_workflow():
         storypacks = list_storypacks()
         if "demo-story" not in storypacks:
             log_print("[FAIL] Demo story not found in storypacks", logging.ERROR)
-            return False
+            assert False, "Demo story not found in storypacks"
         
         story = load_storypack("demo-story")
         log_print(f"[PASS] Story loading: {story['meta']['title']}")
@@ -256,7 +253,7 @@ def test_integration_workflow():
         for key in required_context_keys:
             if key not in context:
                 log_print(f"[FAIL] Missing context key: {key}", logging.ERROR)
-                return False
+                assert False, f"Missing context key: {key}"
         log_print("[PASS] Context building pipeline")
         
         # Test 2: Memory and scene logging integration
@@ -278,14 +275,13 @@ def test_integration_workflow():
             log_print(f"[PASS] Scene saving integration: {scene_id}")
         else:
             log_print("[FAIL] Scene saving failed", logging.ERROR)
-            return False
+            assert False, "Scene saving failed"
         
         log_print("[PASS] End-to-end integration workflow complete")
-        return True
     except Exception as e:
         log_print(f"[FAIL] Integration workflow error: {e}", logging.ERROR)
         log_print(traceback.format_exc(), logging.ERROR)
-        return False
+        assert False, f"Integration workflow error: {e}"
 
 def test_performance_baseline():
     """Test basic performance characteristics."""
@@ -315,11 +311,10 @@ def test_performance_baseline():
             log_print(f"[PASS] Context building performance: {context_time:.2f}s")
         
         log_print("[PASS] Performance baseline validation complete")
-        return True
     except Exception as e:
         log_print(f"[FAIL] Performance baseline error: {e}", logging.ERROR)
         log_print(traceback.format_exc(), logging.ERROR)
-        return False
+        assert False, f"Performance baseline error: {e}"
 
 def test_configuration_validation():
     """Validate configuration files and setup."""
@@ -335,7 +330,7 @@ def test_configuration_validation():
                 log_print("[WARN] Requirements.txt is empty", logging.WARNING)
         else:
             log_print("[FAIL] Requirements.txt not found", logging.ERROR)
-            return False
+            assert False, "Requirements.txt not found"
         
         # Test demo story configuration
         demo_story_path = os.path.join(project_root, 'storypacks', 'demo-story')
@@ -347,10 +342,10 @@ def test_configuration_validation():
                     log_print(f"[PASS] Demo story has {required_file}")
                 else:
                     log_print(f"[FAIL] Demo story missing {required_file}", logging.ERROR)
-                    return False
+                    assert False, f"Demo story missing {required_file}"
         else:
             log_print("[FAIL] Demo story not found", logging.ERROR)
-            return False
+            assert False, "Demo story not found"
         
         # Test Docker configuration
         dockerfile_path = os.path.join(project_root, 'Dockerfile')
@@ -367,11 +362,10 @@ def test_configuration_validation():
             log_print("[WARN] docker-compose.yaml not found", logging.WARNING)
         
         log_print("[PASS] Configuration validation complete")
-        return True
     except Exception as e:
         log_print(f"[FAIL] Configuration validation error: {e}", logging.ERROR)
         log_print(traceback.format_exc(), logging.ERROR)
-        return False
+        assert False, f"Configuration validation error: {e}"
 
 def run_pytest_suite():
     """Run the complete pytest suite and report results."""
