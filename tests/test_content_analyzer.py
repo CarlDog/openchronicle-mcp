@@ -24,6 +24,25 @@ def mock_model_manager():
     - Entities: Alice, forest, mysterious object
     - Routing: Use dialogue-focused model
     """)
+    
+    # Mock config attribute for content routing
+    manager.config = {
+        "content_routing": {
+            "safe_models": ["mock", "ollama"],
+            "creative_models": ["mock", "openai_gpt"],
+            "analysis_models": ["mock", "claude"],
+            "nsfw_models": ["ollama"]
+        }
+    }
+    
+    # Mock list_model_configs method
+    manager.list_model_configs.return_value = {
+        "mock": {"enabled": True},
+        "ollama": {"enabled": True},
+        "openai_gpt": {"enabled": True},
+        "claude": {"enabled": True}
+    }
+    
     return manager
 
 
@@ -148,7 +167,11 @@ class TestContentAnalyzer:
         
         result = content_analyzer.get_routing_recommendation(analysis)
         
-        assert result == "mock"  # Default fallback
+        assert isinstance(result, dict)
+        assert result["adapter"] == "mock"  # Default fallback
+        assert "max_tokens" in result
+        assert "temperature" in result
+        assert "content_filter" in result
     
     def test_get_routing_recommendation_with_analysis(self, content_analyzer):
         """Test routing recommendation with proper analysis."""
@@ -159,7 +182,11 @@ class TestContentAnalyzer:
         
         result = content_analyzer.get_routing_recommendation(analysis)
         
-        assert result == "advanced"
+        assert isinstance(result, dict)
+        assert result["adapter"] == "mock"  # Will use default adapter
+        assert result["temperature"] == 0.8  # Higher temperature for dialogue
+        assert "max_tokens" in result
+        assert "content_filter" in result
     
     @pytest.mark.asyncio
     async def test_error_handling_invalid_input(self, content_analyzer):
