@@ -1,75 +1,277 @@
 {
   "template_info": {
     "name": "OpenChronicle Dynamic Narrative Template",
-    "description": "Optional narrative progression and faction systems for sophisticated storytelling",
+    "description": "Adaptable narrative progression template for dynamic storytelling systems",
     "version": "1.0",
-    "purpose": "Provides dynamic encounter systems, faction networks, and narrative momentum mechanics"
+    "purpose": "Provides faction networks, encounter systems, and narrative momentum mechanics for complex storytelling",
+    "required_fields": [],
+    "optional_fields": "Any field marked with '_optional': true can be safely deleted",
+    "usage": "Delete entire fields/sections with '_optional': true, or just the '_optional' key to make field required",
+    "import_adaptability": {
+      "arrays_expandable": "All arrays can contain any number of entries - template shows minimum structure",
+      "dynamic_factions": "Faction networks can expand to accommodate any number of groups",
+      "unlimited_modifications": "All systems (encounters, tension, themes) can grow as needed",
+      "flexible_structure": "Import processes should expand arrays and adapt field counts dynamically"
+    },
+    "application_behavior": {
+      "empty_optional_fields": "Application will automatically ignore optional fields that are empty, null, or contain only placeholder values",
+      "unused_optional_fields": "Optional fields left as {{PLACEHOLDER}} values will be treated as unused and ignored",
+      "processing_logic": "Only populated optional fields with actual content will be processed by the application"
+    }
   },
   "faction_networks": {
     "_optional": true,
-    "factions": {
-      "{{FACTION_1_ID}}": {
-        "name": "{{FACTION_1_NAME}}",
-        "type": "{{POLITICAL_RELIGIOUS_ECONOMIC_MILITARY_CRIMINAL_CULTURAL}}",
-        "scope": "{{LOCAL_REGIONAL_GLOBAL_PLANAR}}",
-        "primary_region": "{{HOME_REGION}}",
-        "influence_regions": ["{{REGION_1}}", "{{REGION_2}}"],
+    "_comment": "Array can expand - add as many factions as needed",
+    "factions": [
+      {
+        "faction_id": "{{FACTION_ID}}",
+        "name": "{{FACTION_NAME}}",
+        "type": {
+          "_optional": true,
+          "value": "{{FACTION_TYPE}}"
+        },
+        "scope": {
+          "_optional": true,
+          "value": "{{SCOPE_LEVEL}}"
+        },
+        "primary_region": {
+          "_optional": true,
+          "value": "{{HOME_REGION}}"
+        },
+        "influence_regions": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many regions as needed",
+          "value": [
+            "{{REGION}}",
+            "{{REGION}}"
+          ]
+        },
         "core_beliefs": {
           "_optional": true,
-          "ideology": "{{FACTION_IDEOLOGY}}",
-          "goals": ["{{GOAL_1}}", "{{GOAL_2}}"],
-          "methods": ["{{METHOD_1}}", "{{METHOD_2}}"],
-          "taboos": ["{{TABOO_1}}", "{{TABOO_2}}"]
+          "ideology": {
+            "_optional": true,
+            "value": "{{FACTION_IDEOLOGY}}"
+          },
+          "goals": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many goals as needed",
+            "value": [
+              "{{GOAL}}",
+              "{{GOAL}}"
+            ]
+          },
+          "methods": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many methods as needed",
+            "value": [
+              "{{METHOD}}",
+              "{{METHOD}}"
+            ]
+          },
+          "taboos": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many taboos as needed",
+            "value": [
+              "{{TABOO}}",
+              "{{TABOO}}"
+            ]
+          }
         },
         "power_structure": {
           "_optional": true,
-          "leadership_type": "{{HIERARCHICAL_COUNCIL_DEMOCRATIC_THEOCRATIC}}",
-          "key_leaders": ["{{LEADER_1}}", "{{LEADER_2}}"],
-          "membership_size": "{{SMALL_MODERATE_LARGE_MASSIVE}}",
-          "resources": ["{{RESOURCE_1}}", "{{RESOURCE_2}}"],
-          "influence_level": "{{MINOR_MODERATE_MAJOR_DOMINANT}}"
+          "leadership_type": {
+            "_optional": true,
+            "value": "{{LEADERSHIP_TYPE}}"
+          },
+          "key_leaders": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many leaders as needed",
+            "value": [
+              "{{LEADER}}",
+              "{{LEADER}}"
+            ]
+          },
+          "membership_size": {
+            "_optional": true,
+            "value": "{{MEMBERSHIP_SIZE}}"
+          },
+          "resources": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many resources as needed",
+            "value": [
+              "{{RESOURCE}}",
+              "{{RESOURCE}}"
+            ]
+          },
+          "influence_level": {
+            "_optional": true,
+            "value": "{{INFLUENCE_LEVEL}}"
+          }
         },
         "relationships": {
           "_optional": true,
-          "{{OTHER_FACTION_1}}": {
-            "relationship_type": "{{ALLIED_FRIENDLY_NEUTRAL_HOSTILE_ENEMY}}",
-            "relationship_strength": "{{WEAK_MODERATE_STRONG}}",
-            "history": "{{RELATIONSHIP_HISTORY}}",
-            "current_issues": ["{{ISSUE_1}}", "{{ISSUE_2}}"],
-            "potential_changes": ["{{CHANGE_1}}", "{{CHANGE_2}}"]
-          }
+          "_comment": "Array can expand - add relationships with as many other factions as needed",
+          "value": [
+            {
+              "other_faction": "{{OTHER_FACTION}}",
+              "relationship_type": "{{RELATIONSHIP_TYPE}}",
+              "relationship_strength": {
+                "_optional": true,
+                "value": "{{RELATIONSHIP_STRENGTH}}"
+              },
+              "history": {
+                "_optional": true,
+                "value": "{{RELATIONSHIP_HISTORY}}"
+              },
+              "current_issues": {
+                "_optional": true,
+                "_comment": "Array can expand - add as many issues as needed",
+                "value": [
+                  "{{ISSUE}}",
+                  "{{ISSUE}}"
+                ]
+              },
+              "potential_changes": {
+                "_optional": true,
+                "_comment": "Array can expand - add as many potential changes as needed",
+                "value": [
+                  "{{CHANGE}}",
+                  "{{CHANGE}}"
+                ]
+              }
+            }
+          ]
         },
         "story_hooks": {
           "_optional": true,
-          "recruitment_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"],
-          "internal_conflicts": ["{{CONFLICT_1}}", "{{CONFLICT_2}}"],
-          "external_pressures": ["{{PRESSURE_1}}", "{{PRESSURE_2}}"],
-          "secrets": ["{{SECRET_1}}", "{{SECRET_2}}"]
+          "recruitment_opportunities": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many opportunities as needed",
+            "value": [
+              "{{OPPORTUNITY}}",
+              "{{OPPORTUNITY}}"
+            ]
+          },
+          "internal_conflicts": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many conflicts as needed",
+            "value": [
+              "{{CONFLICT}}",
+              "{{CONFLICT}}"
+            ]
+          },
+          "external_pressures": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many pressures as needed",
+            "value": [
+              "{{PRESSURE}}",
+              "{{PRESSURE}}"
+            ]
+          },
+          "secrets": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many secrets as needed",
+            "value": [
+              "{{SECRET}}",
+              "{{SECRET}}"
+            ]
+          }
         }
       }
-    },
+    ],
     "faction_interactions": {
       "_optional": true,
       "alliance_webs": {
-        "{{ALLIANCE_1_ID}}": {
-          "name": "{{ALLIANCE_1_NAME}}",
-          "member_factions": ["{{FACTION_1}}", "{{FACTION_2}}"],
-          "purpose": "{{ALLIANCE_PURPOSE}}",
-          "stability": "{{STABLE_FRAGILE_DETERIORATING_STRENGTHENING}}",
-          "opposing_alliances": ["{{OPPOSING_ALLIANCE_1}}"],
-          "story_potential": ["{{POTENTIAL_1}}", "{{POTENTIAL_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many alliances as needed",
+        "value": [
+          {
+            "alliance_id": "{{ALLIANCE_ID}}",
+            "name": "{{ALLIANCE_NAME}}",
+            "member_factions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many member factions as needed",
+              "value": [
+                "{{FACTION}}",
+                "{{FACTION}}"
+              ]
+            },
+            "purpose": {
+              "_optional": true,
+              "value": "{{ALLIANCE_PURPOSE}}"
+            },
+            "stability": {
+              "_optional": true,
+              "value": "{{STABLE_FRAGILE_DETERIORATING_STRENGTHENING}}"
+            },
+            "opposing_alliances": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many opposing alliances as needed",
+              "value": [
+                "{{OPPOSING_ALLIANCE}}",
+                "{{OPPOSING_ALLIANCE}}"
+              ]
+            },
+            "story_potential": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many story potentials as needed",
+              "value": [
+                "{{POTENTIAL}}",
+                "{{POTENTIAL}}"
+              ]
+            }
+          }
+        ]
       },
       "conflict_zones": {
-        "{{CONFLICT_1_ID}}": {
-          "name": "{{CONFLICT_1_NAME}}",
-          "involved_factions": ["{{FACTION_1}}", "{{FACTION_2}}"],
-          "conflict_type": "{{TERRITORIAL_IDEOLOGICAL_RESOURCE_PERSONAL}}",
-          "intensity": "{{COLD_WAR_SKIRMISHES_OPEN_WARFARE}}",
-          "affected_regions": ["{{REGION_1}}", "{{REGION_2}}"],
-          "escalation_triggers": ["{{TRIGGER_1}}", "{{TRIGGER_2}}"],
-          "resolution_opportunities": ["{{RESOLUTION_1}}", "{{RESOLUTION_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many conflict zones as needed",
+        "value": [
+          {
+            "conflict_id": "{{CONFLICT_ID}}",
+            "name": "{{CONFLICT_NAME}}",
+            "involved_factions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many involved factions as needed",
+              "value": [
+                "{{FACTION}}",
+                "{{FACTION}}"
+              ]
+            },
+            "conflict_type": {
+              "_optional": true,
+              "value": "{{TERRITORIAL_IDEOLOGICAL_RESOURCE_PERSONAL}}"
+            },
+            "intensity": {
+              "_optional": true,
+              "value": "{{COLD_WAR_SKIRMISHES_OPEN_WARFARE}}"
+            },
+            "affected_regions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many affected regions as needed",
+              "value": [
+                "{{REGION}}",
+                "{{REGION}}"
+              ]
+            },
+            "escalation_triggers": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many escalation triggers as needed",
+              "value": [
+                "{{TRIGGER}}",
+                "{{TRIGGER}}"
+              ]
+            },
+            "resolution_opportunities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many resolution opportunities as needed",
+              "value": [
+                "{{OPPORTUNITY}}",
+                "{{OPPORTUNITY}}"
+              ]
+            }
+          }
+        ]
       }
     }
   },
@@ -78,67 +280,251 @@
     "encounter_triggers": {
       "_optional": true,
       "seasonal_encounters": {
-        "{{SEASON_ID}}": {
-          "common_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "uncommon_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "rare_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "unique_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many seasonal encounter sets as needed",
+        "value": [
+          {
+            "season_id": "{{SEASON_ID}}",
+            "common_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many common encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            },
+            "uncommon_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many uncommon encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            },
+            "rare_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many rare encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            },
+            "unique_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many unique encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            }
+          }
+        ]
       },
       "temporal_triggers": {
+        "_optional": true,
         "moon_phase_encounters": {
           "_optional": true,
-          "new_moon": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "full_moon": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "blood_moon": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"]
+          "new_moon": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many new moon encounters as needed",
+            "value": [
+              "{{ENCOUNTER}}",
+              "{{ENCOUNTER}}"
+            ]
+          },
+          "full_moon": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many full moon encounters as needed",
+            "value": [
+              "{{ENCOUNTER}}",
+              "{{ENCOUNTER}}"
+            ]
+          },
+          "blood_moon": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many blood moon encounters as needed",
+            "value": [
+              "{{ENCOUNTER}}",
+              "{{ENCOUNTER}}"
+            ]
+          }
         },
         "time_of_day_modifiers": {
           "_optional": true,
-          "dawn": ["{{MODIFIER_1}}", "{{MODIFIER_2}}"],
-          "midday": ["{{MODIFIER_1}}", "{{MODIFIER_2}}"],
-          "dusk": ["{{MODIFIER_1}}", "{{MODIFIER_2}}"],
-          "midnight": ["{{MODIFIER_1}}", "{{MODIFIER_2}}"]
+          "dawn": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many dawn modifiers as needed",
+            "value": [
+              "{{MODIFIER}}",
+              "{{MODIFIER}}"
+            ]
+          },
+          "midday": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many midday modifiers as needed",
+            "value": [
+              "{{MODIFIER}}",
+              "{{MODIFIER}}"
+            ]
+          },
+          "dusk": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many dusk modifiers as needed",
+            "value": [
+              "{{MODIFIER}}",
+              "{{MODIFIER}}"
+            ]
+          },
+          "midnight": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many midnight modifiers as needed",
+            "value": [
+              "{{MODIFIER}}",
+              "{{MODIFIER}}"
+            ]
+          }
         }
       },
       "magical_surge_encounters": {
         "_optional": true,
-        "leyline_surge": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-        "nexus_activation": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-        "magical_storm": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-        "dimensional_breach": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"]
+        "leyline_surge": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many leyline surge encounters as needed",
+          "value": [
+            "{{ENCOUNTER}}",
+            "{{ENCOUNTER}}"
+          ]
+        },
+        "nexus_activation": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many nexus activation encounters as needed",
+          "value": [
+            "{{ENCOUNTER}}",
+            "{{ENCOUNTER}}"
+          ]
+        },
+        "magical_storm": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many magical storm encounters as needed",
+          "value": [
+            "{{ENCOUNTER}}",
+            "{{ENCOUNTER}}"
+          ]
+        },
+        "dimensional_breach": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many dimensional breach encounters as needed",
+          "value": [
+            "{{ENCOUNTER}}",
+            "{{ENCOUNTER}}"
+          ]
+        }
       },
       "regional_encounters": {
-        "{{REGION_ID}}": {
-          "environmental_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "cultural_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "faction_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "unique_regional_events": ["{{EVENT_1}}", "{{EVENT_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many regional encounter sets as needed",
+        "value": [
+          {
+            "region_id": "{{REGION_ID}}",
+            "environmental_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many environmental encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            },
+            "cultural_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many cultural encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            },
+            "faction_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many faction encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            },
+            "unique_regional_events": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many unique regional events as needed",
+              "value": [
+                "{{EVENT}}",
+                "{{EVENT}}"
+              ]
+            }
+          }
+        ]
       }
     },
     "encounter_escalation": {
       "_optional": true,
       "escalation_patterns": {
-        "{{PATTERN_1_ID}}": {
-          "name": "{{PATTERN_1_NAME}}",
-          "trigger_conditions": ["{{CONDITION_1}}", "{{CONDITION_2}}"],
-          "escalation_stages": [
-            {
-              "stage": 1,
-              "description": "{{STAGE_1_DESCRIPTION}}",
-              "encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-              "duration": "{{STAGE_DURATION}}"
+        "_optional": true,
+        "_comment": "Array can expand - add as many escalation patterns as needed",
+        "value": [
+          {
+            "pattern_id": "{{PATTERN_ID}}",
+            "name": {
+              "_optional": true,
+              "value": "{{PATTERN_NAME}}"
             },
-            {
-              "stage": 2,
-              "description": "{{STAGE_2_DESCRIPTION}}",
-              "encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-              "duration": "{{STAGE_DURATION}}"
+            "trigger_conditions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many trigger conditions as needed",
+              "value": [
+                "{{CONDITION}}",
+                "{{CONDITION}}"
+              ]
+            },
+            "escalation_stages": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many escalation stages as needed",
+              "value": [
+                {
+                  "stage": "{{STAGE_NUMBER}}",
+                  "description": {
+                    "_optional": true,
+                    "value": "{{STAGE_DESCRIPTION}}"
+                  },
+                  "encounters": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many encounters as needed",
+                    "value": [
+                      "{{ENCOUNTER}}",
+                      "{{ENCOUNTER}}"
+                    ]
+                  },
+                  "duration": {
+                    "_optional": true,
+                    "value": "{{STAGE_DURATION}}"
+                  }
+                }
+              ]
+            },
+            "resolution_conditions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many resolution conditions as needed",
+              "value": [
+                "{{RESOLUTION}}",
+                "{{RESOLUTION}}"
+              ]
+            },
+            "consequences": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many consequences as needed",
+              "value": [
+                "{{CONSEQUENCE}}",
+                "{{CONSEQUENCE}}"
+              ]
             }
-          ],
-          "resolution_conditions": ["{{RESOLUTION_1}}", "{{RESOLUTION_2}}"],
-          "consequences": ["{{CONSEQUENCE_1}}", "{{CONSEQUENCE_2}}"]
-        }
+          }
+        ]
       }
     }
   },
@@ -147,113 +533,438 @@
     "tension_systems": {
       "_optional": true,
       "tension_categories": {
+        "_optional": true,
         "political": {
-          "low_tension": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "moderate_tension": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "high_tension": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "crisis_point": ["{{EVENT_1}}", "{{EVENT_2}}"]
+          "_optional": true,
+          "low_tension": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many low tension events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "moderate_tension": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many moderate tension events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "high_tension": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many high tension events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "crisis_point": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many crisis point events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          }
         },
         "magical": {
-          "stable": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "fluctuating": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "unstable": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "chaotic": ["{{EVENT_1}}", "{{EVENT_2}}"]
+          "_optional": true,
+          "stable": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many stable magical events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "fluctuating": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many fluctuating magical events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "unstable": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many unstable magical events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "chaotic": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many chaotic magical events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          }
         },
         "social": {
-          "harmonious": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "strained": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "conflict": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "breakdown": ["{{EVENT_1}}", "{{EVENT_2}}"]
+          "_optional": true,
+          "harmonious": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many harmonious social events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "strained": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many strained social events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "conflict": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many conflict social events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "breakdown": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many breakdown social events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          }
         }
       },
       "tension_modifiers": {
         "_optional": true,
         "character_actions": {
-          "diplomatic": "{{TENSION_REDUCTION_AMOUNT}}",
-          "aggressive": "{{TENSION_INCREASE_AMOUNT}}",
-          "neutral": "{{NO_CHANGE}}",
-          "chaotic": "{{UNPREDICTABLE_CHANGE}}"
+          "_optional": true,
+          "diplomatic": {
+            "_optional": true,
+            "value": "{{TENSION_REDUCTION_AMOUNT}}"
+          },
+          "aggressive": {
+            "_optional": true,
+            "value": "{{TENSION_INCREASE_AMOUNT}}"
+          },
+          "neutral": {
+            "_optional": true,
+            "value": "{{NO_CHANGE}}"
+          },
+          "chaotic": {
+            "_optional": true,
+            "value": "{{UNPREDICTABLE_CHANGE}}"
+          }
         },
         "external_events": {
-          "natural_disasters": "{{TENSION_MODIFIER}}",
-          "magical_phenomena": "{{TENSION_MODIFIER}}",
-          "political_upheaval": "{{TENSION_MODIFIER}}",
-          "economic_changes": "{{TENSION_MODIFIER}}"
+          "_optional": true,
+          "natural_disasters": {
+            "_optional": true,
+            "value": "{{TENSION_MODIFIER}}"
+          },
+          "magical_phenomena": {
+            "_optional": true,
+            "value": "{{TENSION_MODIFIER}}"
+          },
+          "political_upheaval": {
+            "_optional": true,
+            "value": "{{TENSION_MODIFIER}}"
+          },
+          "economic_changes": {
+            "_optional": true,
+            "value": "{{TENSION_MODIFIER}}"
+          }
         }
       }
     },
     "consequence_cascades": {
       "_optional": true,
       "cascade_triggers": {
-        "{{TRIGGER_1_ID}}": {
-          "name": "{{TRIGGER_1_NAME}}",
-          "trigger_event": "{{INITIAL_EVENT}}",
-          "affected_systems": ["{{SYSTEM_1}}", "{{SYSTEM_2}}"],
-          "cascade_stages": [
-            {
-              "stage": 1,
-              "timing": "{{IMMEDIATE_DELAYED_LONGTERM}}",
-              "effects": ["{{EFFECT_1}}", "{{EFFECT_2}}"],
-              "affected_regions": ["{{REGION_1}}", "{{REGION_2}}"],
-              "affected_factions": ["{{FACTION_1}}", "{{FACTION_2}}"]
+        "_optional": true,
+        "_comment": "Array can expand - add as many cascade triggers as needed",
+        "value": [
+          {
+            "trigger_id": "{{TRIGGER_ID}}",
+            "name": {
+              "_optional": true,
+              "value": "{{TRIGGER_NAME}}"
+            },
+            "trigger_event": {
+              "_optional": true,
+              "value": "{{INITIAL_EVENT}}"
+            },
+            "affected_systems": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many affected systems as needed",
+              "value": [
+                "{{SYSTEM}}",
+                "{{SYSTEM}}"
+              ]
+            },
+            "cascade_stages": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many cascade stages as needed",
+              "value": [
+                {
+                  "stage": "{{STAGE_NUMBER}}",
+                  "timing": {
+                    "_optional": true,
+                    "value": "{{IMMEDIATE_DELAYED_LONGTERM}}"
+                  },
+                  "effects": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many effects as needed",
+                    "value": [
+                      "{{EFFECT}}",
+                      "{{EFFECT}}"
+                    ]
+                  },
+                  "affected_regions": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many affected regions as needed",
+                    "value": [
+                      "{{REGION}}",
+                      "{{REGION}}"
+                    ]
+                  },
+                  "affected_factions": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many affected factions as needed",
+                    "value": [
+                      "{{FACTION}}",
+                      "{{FACTION}}"
+                    ]
+                  }
+                }
+              ]
+            },
+            "mitigation_opportunities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many mitigation opportunities as needed",
+              "value": [
+                "{{OPPORTUNITY}}",
+                "{{OPPORTUNITY}}"
+              ]
+            },
+            "amplification_risks": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many amplification risks as needed",
+              "value": [
+                "{{RISK}}",
+                "{{RISK}}"
+              ]
             }
-          ],
-          "mitigation_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"],
-          "amplification_risks": ["{{RISK_1}}", "{{RISK_2}}"]
-        }
+          }
+        ]
       }
     }
   },
   "thematic_progression": {
     "_optional": true,
     "story_themes": {
-      "{{THEME_1_ID}}": {
-        "name": "{{THEME_1_NAME}}",
-        "description": "{{THEME_DESCRIPTION}}",
-        "progression_stages": [
-          {
-            "stage": "introduction",
-            "events": ["{{EVENT_1}}", "{{EVENT_2}}"],
-            "character_moments": ["{{MOMENT_1}}", "{{MOMENT_2}}"]
+      "_optional": true,
+      "_comment": "Array can expand - add as many story themes as needed",
+      "value": [
+        {
+          "theme_id": "{{THEME_ID}}",
+          "name": {
+            "_optional": true,
+            "value": "{{THEME_NAME}}"
           },
-          {
-            "stage": "development",
-            "events": ["{{EVENT_1}}", "{{EVENT_2}}"],
-            "character_moments": ["{{MOMENT_1}}", "{{MOMENT_2}}"]
+          "description": {
+            "_optional": true,
+            "value": "{{THEME_DESCRIPTION}}"
           },
-          {
-            "stage": "climax",
-            "events": ["{{EVENT_1}}", "{{EVENT_2}}"],
-            "character_moments": ["{{MOMENT_1}}", "{{MOMENT_2}}"]
+          "progression_stages": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many progression stages as needed",
+            "value": [
+              {
+                "stage": "introduction",
+                "events": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many events as needed",
+                  "value": [
+                    "{{EVENT}}",
+                    "{{EVENT}}"
+                  ]
+                },
+                "character_moments": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many character moments as needed",
+                  "value": [
+                    "{{MOMENT}}",
+                    "{{MOMENT}}"
+                  ]
+                }
+              },
+              {
+                "stage": "development",
+                "events": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many events as needed",
+                  "value": [
+                    "{{EVENT}}",
+                    "{{EVENT}}"
+                  ]
+                },
+                "character_moments": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many character moments as needed",
+                  "value": [
+                    "{{MOMENT}}",
+                    "{{MOMENT}}"
+                  ]
+                }
+              },
+              {
+                "stage": "climax",
+                "events": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many events as needed",
+                  "value": [
+                    "{{EVENT}}",
+                    "{{EVENT}}"
+                  ]
+                },
+                "character_moments": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many character moments as needed",
+                  "value": [
+                    "{{MOMENT}}",
+                    "{{MOMENT}}"
+                  ]
+                }
+              },
+              {
+                "stage": "resolution",
+                "events": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many events as needed",
+                  "value": [
+                    "{{EVENT}}",
+                    "{{EVENT}}"
+                  ]
+                },
+                "character_moments": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many character moments as needed",
+                  "value": [
+                    "{{MOMENT}}",
+                    "{{MOMENT}}"
+                  ]
+                }
+              }
+            ]
           },
-          {
-            "stage": "resolution",
-            "events": ["{{EVENT_1}}", "{{EVENT_2}}"],
-            "character_moments": ["{{MOMENT_1}}", "{{MOMENT_2}}"]
+          "supporting_elements": {
+            "_optional": true,
+            "symbolic_encounters": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many symbolic encounters as needed",
+              "value": [
+                "{{ENCOUNTER}}",
+                "{{ENCOUNTER}}"
+              ]
+            },
+            "environmental_reflections": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many environmental reflections as needed",
+              "value": [
+                "{{REFLECTION}}",
+                "{{REFLECTION}}"
+              ]
+            },
+            "character_arc_ties": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many character arc ties as needed",
+              "value": [
+                "{{TIE}}",
+                "{{TIE}}"
+              ]
+            }
           }
-        ],
-        "supporting_elements": {
-          "_optional": true,
-          "symbolic_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-          "environmental_reflections": ["{{REFLECTION_1}}", "{{REFLECTION_2}}"],
-          "character_arc_ties": ["{{TIE_1}}", "{{TIE_2}}"]
         }
-      }
+      ]
     },
     "emotional_rhythms": {
       "_optional": true,
       "rhythm_patterns": {
+        "_optional": true,
         "tension_and_release": {
-          "build_up_events": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "peak_moments": ["{{MOMENT_1}}", "{{MOMENT_2}}"],
-          "relief_scenes": ["{{SCENE_1}}", "{{SCENE_2}}"],
-          "reflection_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"]
+          "_optional": true,
+          "build_up_events": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many build up events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "peak_moments": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many peak moments as needed",
+            "value": [
+              "{{MOMENT}}",
+              "{{MOMENT}}"
+            ]
+          },
+          "relief_scenes": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many relief scenes as needed",
+            "value": [
+              "{{SCENE}}",
+              "{{SCENE}}"
+            ]
+          },
+          "reflection_opportunities": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many reflection opportunities as needed",
+            "value": [
+              "{{OPPORTUNITY}}",
+              "{{OPPORTUNITY}}"
+            ]
+          }
         },
         "hope_and_despair": {
-          "hope_building": ["{{EVENT_1}}", "{{EVENT_2}}"],
-          "setbacks": ["{{SETBACK_1}}", "{{SETBACK_2}}"],
-          "perseverance_moments": ["{{MOMENT_1}}", "{{MOMENT_2}}"],
-          "triumph_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"]
+          "_optional": true,
+          "hope_building": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many hope building events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "setbacks": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many setbacks as needed",
+            "value": [
+              "{{SETBACK}}",
+              "{{SETBACK}}"
+            ]
+          },
+          "perseverance_moments": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many perseverance moments as needed",
+            "value": [
+              "{{MOMENT}}",
+              "{{MOMENT}}"
+            ]
+          },
+          "triumph_opportunities": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many triumph opportunities as needed",
+            "value": [
+              "{{OPPORTUNITY}}",
+              "{{OPPORTUNITY}}"
+            ]
+          }
         }
       }
     }

@@ -1,81 +1,250 @@
 {
   "template_info": {
-    "name": "OpenChronicle World Systems Template",
-    "description": "Optional world-building enhancements for sophisticated storytelling environments",
+    "name": "OpenChronicle World Template",
+    "description": "Adaptable world-building template for comprehensive storytelling environments",
     "version": "1.0",
-    "purpose": "Provides optional magical geography, calendar systems, and regional characteristics"
+    "purpose": "Provides comprehensive world creation with regional structures, magical systems, and temporal mechanics",
+    "required_fields": ["world_overview.world_name"],
+    "optional_fields": "Any field marked with '_optional': true can be safely deleted",
+    "usage": "Delete entire fields/sections with '_optional': true, or just the '_optional' key to make field required",
+    "import_adaptability": {
+      "arrays_expandable": "All arrays can contain any number of entries - template shows minimum structure",
+      "dynamic_regions": "Regional structure can expand to accommodate any number of areas",
+      "unlimited_modifications": "All systems (magical, temporal, cultural) can grow as needed",
+      "flexible_structure": "Import processes should expand arrays and adapt field counts dynamically"
+    },
+    "application_behavior": {
+      "empty_optional_fields": "Application will automatically ignore optional fields that are empty, null, or contain only placeholder values",
+      "unused_optional_fields": "Optional fields left as {{PLACEHOLDER}} values will be treated as unused and ignored",
+      "processing_logic": "Only populated optional fields with actual content will be processed by the application"
+    }
   },
   "world_overview": {
-    "_optional": true,
     "world_name": "{{WORLD_NAME}}",
-    "world_type": "{{FANTASY_MODERN_SCIFI_HISTORICAL}}",
-    "core_themes": ["{{THEME_1}}", "{{THEME_2}}"],
-    "magical_level": "{{NONE_LOW_MODERATE_HIGH_REALITY_BENDING}}"
+    "world_type": {
+      "_optional": true,
+      "value": "{{WORLD_TYPE}}"
+    },
+    "core_themes": {
+      "_optional": true,
+      "_comment": "Array can expand - add as many themes as needed",
+      "value": [
+        "{{THEME}}",
+        "{{THEME}}"
+      ]
+    },
+    "power_level": {
+      "_optional": true,
+      "value": "{{POWER_LEVEL_DESCRIPTION}}"
+    }
   },
   "regional_structure": {
     "_optional": true,
-    "regions": {
-      "{{REGION_1_ID}}": {
-        "name": "{{REGION_1_NAME}}",
-        "description": "{{REGION_1_DESCRIPTION}}",
-        "climate": "{{TEMPERATE_COLD_HOT_TROPICAL_MAGICAL}}",
-        "predominant_races": ["{{RACE_1}}", "{{RACE_2}}"],
-        "notable_cities": ["{{CITY_1}}", "{{CITY_2}}"],
-        "ports_and_access": ["{{PORT_1}}", "{{ACCESS_ROUTE_1}}"],
-        "regional_characteristics": {
+    "_comment": "Array can expand - add as many regions as needed",
+    "regions": [
+      {
+        "region_id": "{{REGION_ID}}",
+        "name": "{{REGION_NAME}}",
+        "description": "{{REGION_DESCRIPTION}}",
+        "climate": {
           "_optional": true,
-          "atmosphere": "{{REGIONAL_MOOD_AND_FEEL}}",
-          "natural_features": ["{{FEATURE_1}}", "{{FEATURE_2}}"],
-          "cultural_elements": ["{{CULTURE_1}}", "{{CULTURE_2}}"],
-          "economic_focus": "{{TRADE_AGRICULTURE_MILITARY_MAGICAL}}"
+          "value": "{{CLIMATE_DESCRIPTION}}"
+        },
+        "predominant_groups": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many groups as needed",
+          "value": [
+            "{{GROUP}}",
+            "{{GROUP}}"
+          ]
+        },
+        "notable_locations": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many locations as needed",
+          "value": [
+            "{{LOCATION}}",
+            "{{LOCATION}}"
+          ]
+        },
+        "access_points": {
+          "_optional": true,
+          "_comment": "Array can expand - add as many access points as needed",
+          "value": [
+            "{{ACCESS_POINT}}",
+            "{{ACCESS_POINT}}"
+          ]
+        },
+        "characteristics": {
+          "_optional": true,
+          "atmosphere": {
+            "_optional": true,
+            "value": "{{REGIONAL_ATMOSPHERE}}"
+          },
+          "natural_features": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many features as needed",
+            "value": [
+              "{{FEATURE}}",
+              "{{FEATURE}}"
+            ]
+          },
+          "cultural_elements": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many elements as needed",
+            "value": [
+              "{{ELEMENT}}",
+              "{{ELEMENT}}"
+            ]
+          },
+          "economic_focus": {
+            "_optional": true,
+            "value": "{{ECONOMIC_DESCRIPTION}}"
+          }
         },
         "connections": {
           "_optional": true,
-          "borders": ["{{ADJACENT_REGION_1}}", "{{ADJACENT_REGION_2}}"],
-          "trade_routes": ["{{ROUTE_1}}", "{{ROUTE_2}}"],
-          "political_relationships": {
-            "{{OTHER_REGION_1}}": "{{ALLIED_NEUTRAL_HOSTILE_COMPLEX}}",
-            "{{OTHER_REGION_2}}": "{{RELATIONSHIP_TYPE}}"
+          "borders": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many borders as needed",
+            "value": [
+              "{{ADJACENT_REGION}}",
+              "{{ADJACENT_REGION}}"
+            ]
+          },
+          "trade_routes": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many routes as needed",
+            "value": [
+              "{{ROUTE}}",
+              "{{ROUTE}}"
+            ]
+          },
+          "relationships": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many relationships as needed",
+            "value": [
+              {
+                "other_region": "{{OTHER_REGION}}",
+                "relationship_type": "{{RELATIONSHIP_TYPE}}"
+              }
+            ]
           }
         }
       }
-    }
+    ]
   },
-  "magical_geography": {
+  "power_systems": {
     "_optional": true,
-    "leyline_network": {
+    "energy_network": {
       "_optional": true,
-      "leylines": {
-        "{{LEYLINE_1_ID}}": {
-          "name": "{{LEYLINE_1_NAME}}",
-          "element_type": "{{FIRE_WATER_EARTH_AIR_SPIRIT_DEATH_LIFE}}",
-          "stability": "{{STABLE_VOLATILE_BROKEN_SURGING}}",
-          "path_regions": ["{{REGION_1}}", "{{REGION_2}}"],
-          "nexus_points": ["{{NEXUS_1}}", "{{NEXUS_2}}"],
-          "magical_effects": ["{{EFFECT_1}}", "{{EFFECT_2}}"]
+      "_comment": "Array can expand - add as many energy lines as needed",
+      "energy_lines": [
+        {
+          "line_id": "{{LINE_ID}}",
+          "name": "{{LINE_NAME}}",
+          "element_type": {
+            "_optional": true,
+            "value": "{{ELEMENT_TYPE}}"
+          },
+          "stability": {
+            "_optional": true,
+            "value": "{{STABILITY_LEVEL}}"
+          },
+          "path_regions": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many regions as needed",
+            "value": [
+              "{{REGION}}",
+              "{{REGION}}"
+            ]
+          },
+          "convergence_points": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many points as needed",
+            "value": [
+              "{{POINT}}",
+              "{{POINT}}"
+            ]
+          },
+          "effects": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many effects as needed",
+            "value": [
+              "{{EFFECT}}",
+              "{{EFFECT}}"
+            ]
+          }
         }
-      },
-      "nexus_points": {
+      ],
+      "convergence_points": {
         "_optional": true,
-        "{{NEXUS_1_ID}}": {
-          "name": "{{NEXUS_1_NAME}}",
-          "location": "{{NEXUS_1_LOCATION}}",
-          "convergence_type": "{{LEYLINE_INTERSECTION_TYPE}}",
-          "power_level": "{{MINOR_MODERATE_MAJOR_LEGENDARY}}",
-          "effects": ["{{NEXUS_EFFECT_1}}", "{{NEXUS_EFFECT_2}}"],
-          "guardians_or_inhabitants": ["{{GUARDIAN_1}}", "{{GUARDIAN_2}}"]
-        }
+        "_comment": "Array can expand - add as many convergence points as needed",
+        "value": [
+          {
+            "point_id": "{{POINT_ID}}",
+            "name": "{{POINT_NAME}}",
+            "location": "{{POINT_LOCATION}}",
+            "convergence_type": {
+              "_optional": true,
+              "value": "{{CONVERGENCE_TYPE}}"
+            },
+            "power_level": {
+              "_optional": true,
+              "value": "{{POWER_LEVEL}}"
+            },
+            "effects": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many effects as needed",
+              "value": [
+                "{{EFFECT}}",
+                "{{EFFECT}}"
+              ]
+            },
+            "guardians": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many guardians as needed",
+              "value": [
+                "{{GUARDIAN}}",
+                "{{GUARDIAN}}"
+              ]
+            }
+          }
+        ]
       },
       "surge_zones": {
         "_optional": true,
-        "{{SURGE_ZONE_1_ID}}": {
-          "name": "{{SURGE_ZONE_1_NAME}}",
-          "location": "{{SURGE_ZONE_LOCATION}}",
-          "surge_type": "{{MAGICAL_BREACH_ELEMENTAL_TEMPORAL_DIMENSIONAL}}",
-          "frequency": "{{CONSTANT_PERIODIC_RARE_TRIGGERED}}",
-          "effects": ["{{SURGE_EFFECT_1}}", "{{SURGE_EFFECT_2}}"],
-          "dangers": ["{{DANGER_1}}", "{{DANGER_2}}"]
-        }
+        "_comment": "Array can expand - add as many surge zones as needed",
+        "value": [
+          {
+            "zone_id": "{{ZONE_ID}}",
+            "name": "{{ZONE_NAME}}",
+            "location": "{{ZONE_LOCATION}}",
+            "surge_type": {
+              "_optional": true,
+              "value": "{{SURGE_TYPE}}"
+            },
+            "frequency": {
+              "_optional": true,
+              "value": "{{FREQUENCY}}"
+            },
+            "effects": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many effects as needed",
+              "value": [
+                "{{EFFECT}}",
+                "{{EFFECT}}"
+              ]
+            },
+            "dangers": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many dangers as needed",
+              "value": [
+                "{{DANGER}}",
+                "{{DANGER}}"
+              ]
+            }
+          }
+        ]
       }
     }
   },
@@ -83,98 +252,309 @@
     "_optional": true,
     "calendar_structure": {
       "_optional": true,
-      "year_length": "{{DAYS_PER_YEAR}}",
+      "year_length": {
+        "_optional": true,
+        "value": "{{YEAR_LENGTH}}"
+      },
       "seasons": {
-        "{{SEASON_1_ID}}": {
-          "name": "{{SEASON_1_NAME}}",
-          "duration": "{{SEASON_1_DURATION}}",
-          "months": ["{{MONTH_1}}", "{{MONTH_2}}"],
-          "characteristics": "{{SEASON_1_DESCRIPTION}}",
-          "magical_influence": "{{SEASON_1_MAGIC}}",
-          "regional_strength": ["{{STRONG_REGION_1}}", "{{STRONG_REGION_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many seasons as needed",
+        "value": [
+          {
+            "season_id": "{{SEASON_ID}}",
+            "name": "{{SEASON_NAME}}",
+            "duration": {
+              "_optional": true,
+              "value": "{{SEASON_DURATION}}"
+            },
+            "months": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many months as needed",
+              "value": [
+                "{{MONTH}}",
+                "{{MONTH}}"
+              ]
+            },
+            "characteristics": {
+              "_optional": true,
+              "value": "{{SEASON_DESCRIPTION}}"
+            },
+            "special_influence": {
+              "_optional": true,
+              "value": "{{SPECIAL_INFLUENCE}}"
+            },
+            "strongest_regions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many regions as needed",
+              "value": [
+                "{{REGION}}",
+                "{{REGION}}"
+              ]
+            }
+          }
+        ]
       },
       "months": {
-        "{{MONTH_1_ID}}": {
-          "name": "{{MONTH_1_NAME}}",
-          "days": "{{DAYS_IN_MONTH}}",
-          "season": "{{PARENT_SEASON}}",
-          "description": "{{MONTH_1_DESCRIPTION}}",
-          "cultural_significance": "{{MONTH_1_CULTURE}}"
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many months as needed",
+        "value": [
+          {
+            "month_id": "{{MONTH_ID}}",
+            "name": "{{MONTH_NAME}}",
+            "days": {
+              "_optional": true,
+              "value": "{{DAYS_IN_MONTH}}"
+            },
+            "season": {
+              "_optional": true,
+              "value": "{{PARENT_SEASON}}"
+            },
+            "description": {
+              "_optional": true,
+              "value": "{{MONTH_DESCRIPTION}}"
+            },
+            "cultural_significance": {
+              "_optional": true,
+              "value": "{{CULTURAL_SIGNIFICANCE}}"
+            }
+          }
+        ]
       }
     },
     "celestial_bodies": {
       "_optional": true,
-      "{{CELESTIAL_1_ID}}": {
-        "name": "{{CELESTIAL_1_NAME}}",
-        "type": "{{SUN_MOON_PLANET_STAR_MAGICAL}}",
-        "cycle_length": "{{CYCLE_DURATION}}",
-        "influence": "{{MAGICAL_TIDAL_EMOTIONAL_SPIRITUAL}}",
-        "special_events": ["{{EVENT_1}}", "{{EVENT_2}}"],
-        "cultural_significance": "{{CELESTIAL_1_CULTURE}}"
-      }
+      "_comment": "Array can expand - add as many celestial bodies as needed",
+      "value": [
+        {
+          "body_id": "{{BODY_ID}}",
+          "name": "{{BODY_NAME}}",
+          "type": {
+            "_optional": true,
+            "value": "{{BODY_TYPE}}"
+          },
+          "cycle_length": {
+            "_optional": true,
+            "value": "{{CYCLE_DURATION}}"
+          },
+          "influence": {
+            "_optional": true,
+            "value": "{{INFLUENCE_TYPE}}"
+          },
+          "special_events": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many events as needed",
+            "value": [
+              "{{EVENT}}",
+              "{{EVENT}}"
+            ]
+          },
+          "cultural_significance": {
+            "_optional": true,
+            "value": "{{CULTURAL_SIGNIFICANCE}}"
+          }
+        }
+      ]
     },
     "special_days": {
       "_optional": true,
-      "{{SPECIAL_DAY_1_ID}}": {
-        "name": "{{SPECIAL_DAY_1_NAME}}",
-        "frequency": "{{ANNUAL_RARE_CYCLICAL}}",
-        "description": "{{SPECIAL_DAY_DESCRIPTION}}",
-        "effects": ["{{EFFECT_1}}", "{{EFFECT_2}}"],
-        "cultural_impact": "{{CELEBRATION_FEAR_REVERENCE_CHAOS}}",
-        "story_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"]
-      }
+      "_comment": "Array can expand - add as many special days as needed",
+      "value": [
+        {
+          "day_id": "{{DAY_ID}}",
+          "name": "{{DAY_NAME}}",
+          "frequency": {
+            "_optional": true,
+            "value": "{{FREQUENCY}}"
+          },
+          "description": "{{DAY_DESCRIPTION}}",
+          "effects": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many effects as needed",
+            "value": [
+              "{{EFFECT}}",
+              "{{EFFECT}}"
+            ]
+          },
+          "cultural_impact": {
+            "_optional": true,
+            "value": "{{CULTURAL_IMPACT}}"
+          },
+          "story_opportunities": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many opportunities as needed",
+            "value": [
+              "{{OPPORTUNITY}}",
+              "{{OPPORTUNITY}}"
+            ]
+          }
+        }
+      ]
     }
   },
   "cultural_systems": {
     "_optional": true,
-    "festivals_and_celebrations": {
+    "celebrations": {
       "_optional": true,
-      "universal_festivals": {
-        "{{UNIVERSAL_FESTIVAL_1_ID}}": {
-          "name": "{{UNIVERSAL_FESTIVAL_1_NAME}}",
-          "date": "{{FESTIVAL_DATE}}",
-          "description": "{{FESTIVAL_DESCRIPTION}}",
-          "significance": "{{CULTURAL_SIGNIFICANCE}}",
-          "activities": ["{{ACTIVITY_1}}", "{{ACTIVITY_2}}"],
-          "story_hooks": ["{{HOOK_1}}", "{{HOOK_2}}"]
-        }
-      },
-      "regional_festivals": {
-        "{{REGION_ID}}": {
-          "{{REGIONAL_FESTIVAL_1_ID}}": {
-            "name": "{{REGIONAL_FESTIVAL_1_NAME}}",
-            "date": "{{FESTIVAL_DATE}}",
-            "description": "{{FESTIVAL_DESCRIPTION}}",
-            "unique_elements": ["{{ELEMENT_1}}", "{{ELEMENT_2}}"],
-            "participants": ["{{PARTICIPANT_TYPE_1}}", "{{PARTICIPANT_TYPE_2}}"],
-            "narrative_potential": ["{{POTENTIAL_1}}", "{{POTENTIAL_2}}"]
+      "universal_celebrations": {
+        "_optional": true,
+        "_comment": "Array can expand - add as many universal celebrations as needed",
+        "value": [
+          {
+            "celebration_id": "{{CELEBRATION_ID}}",
+            "name": "{{CELEBRATION_NAME}}",
+            "date": {
+              "_optional": true,
+              "value": "{{CELEBRATION_DATE}}"
+            },
+            "description": "{{CELEBRATION_DESCRIPTION}}",
+            "significance": {
+              "_optional": true,
+              "value": "{{CULTURAL_SIGNIFICANCE}}"
+            },
+            "activities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many activities as needed",
+              "value": [
+                "{{ACTIVITY}}",
+                "{{ACTIVITY}}"
+              ]
+            },
+            "story_hooks": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many hooks as needed",
+              "value": [
+                "{{HOOK}}",
+                "{{HOOK}}"
+              ]
+            }
           }
-        }
+        ]
+      },
+      "regional_celebrations": {
+        "_optional": true,
+        "_comment": "Array can expand - add celebrations for as many regions as needed",
+        "value": [
+          {
+            "region_id": "{{REGION_ID}}",
+            "celebrations": {
+              "_comment": "Array can expand - add as many celebrations as needed",
+              "value": [
+                {
+                  "celebration_id": "{{CELEBRATION_ID}}",
+                  "name": "{{CELEBRATION_NAME}}",
+                  "date": {
+                    "_optional": true,
+                    "value": "{{CELEBRATION_DATE}}"
+                  },
+                  "description": "{{CELEBRATION_DESCRIPTION}}",
+                  "unique_elements": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many elements as needed",
+                    "value": [
+                      "{{ELEMENT}}",
+                      "{{ELEMENT}}"
+                    ]
+                  },
+                  "participants": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many participant types as needed",
+                    "value": [
+                      "{{PARTICIPANT_TYPE}}",
+                      "{{PARTICIPANT_TYPE}}"
+                    ]
+                  },
+                  "narrative_potential": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many potentials as needed",
+                    "value": [
+                      "{{POTENTIAL}}",
+                      "{{POTENTIAL}}"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
       }
     },
     "trade_and_economy": {
       "_optional": true,
       "currency_systems": {
         "_optional": true,
-        "{{CURRENCY_1_ID}}": {
-          "name": "{{CURRENCY_1_NAME}}",
-          "type": "{{COIN_BARTER_MAGICAL_DIGITAL}}",
-          "regions_accepted": ["{{REGION_1}}", "{{REGION_2}}"],
-          "special_properties": ["{{PROPERTY_1}}", "{{PROPERTY_2}}"]
-        }
+        "_comment": "Array can expand - add as many currency systems as needed",
+        "value": [
+          {
+            "currency_id": "{{CURRENCY_ID}}",
+            "name": "{{CURRENCY_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{CURRENCY_TYPE}}"
+            },
+            "regions_accepted": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many regions as needed",
+              "value": [
+                "{{REGION}}",
+                "{{REGION}}"
+              ]
+            },
+            "special_properties": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many properties as needed",
+              "value": [
+                "{{PROPERTY}}",
+                "{{PROPERTY}}"
+              ]
+            }
+          }
+        ]
       },
       "trade_routes": {
         "_optional": true,
-        "{{TRADE_ROUTE_1_ID}}": {
-          "name": "{{TRADE_ROUTE_1_NAME}}",
-          "path": ["{{LOCATION_1}}", "{{LOCATION_2}}", "{{LOCATION_3}}"],
-          "primary_goods": ["{{GOOD_1}}", "{{GOOD_2}}"],
-          "dangers": ["{{DANGER_1}}", "{{DANGER_2}}"],
-          "travel_time": "{{DURATION}}",
-          "story_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"]
-        }
+        "_comment": "Array can expand - add as many trade routes as needed",
+        "value": [
+          {
+            "route_id": "{{ROUTE_ID}}",
+            "name": "{{ROUTE_NAME}}",
+            "path": {
+              "_comment": "Array can expand - add as many locations as needed",
+              "value": [
+                "{{LOCATION}}",
+                "{{LOCATION}}",
+                "{{LOCATION}}"
+              ]
+            },
+            "primary_goods": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many goods as needed",
+              "value": [
+                "{{GOOD}}",
+                "{{GOOD}}"
+              ]
+            },
+            "dangers": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many dangers as needed",
+              "value": [
+                "{{DANGER}}",
+                "{{DANGER}}"
+              ]
+            },
+            "travel_time": {
+              "_optional": true,
+              "value": "{{DURATION}}"
+            },
+            "story_opportunities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many opportunities as needed",
+              "value": [
+                "{{OPPORTUNITY}}",
+                "{{OPPORTUNITY}}"
+              ]
+            }
+          }
+        ]
       }
     }
   },
@@ -182,39 +562,73 @@
     "_optional": true,
     "weather_patterns": {
       "_optional": true,
-      "{{WEATHER_PATTERN_1_ID}}": {
-        "name": "{{WEATHER_PATTERN_1_NAME}}",
-        "type": "{{NATURAL_MAGICAL_SUPERNATURAL}}",
-        "affected_regions": ["{{REGION_1}}", "{{REGION_2}}"],
-        "frequency": "{{COMMON_SEASONAL_RARE_TRIGGERED}}",
-        "effects": ["{{EFFECT_1}}", "{{EFFECT_2}}"],
-        "story_impact": ["{{IMPACT_1}}", "{{IMPACT_2}}"]
-      }
+      "_comment": "Array can expand - add as many weather patterns as needed",
+      "value": [
+        {
+          "pattern_id": "{{PATTERN_ID}}",
+          "name": "{{PATTERN_NAME}}",
+          "type": {
+            "_optional": true,
+            "value": "{{PATTERN_TYPE}}"
+          },
+          "affected_regions": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many regions as needed",
+            "value": [
+              "{{REGION}}",
+              "{{REGION}}"
+            ]
+          },
+          "frequency": {
+            "_optional": true,
+            "value": "{{FREQUENCY}}"
+          },
+          "effects": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many effects as needed",
+            "value": [
+              "{{EFFECT}}",
+              "{{EFFECT}}"
+            ]
+          },
+          "story_impact": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many impacts as needed",
+            "value": [
+              "{{IMPACT}}",
+              "{{IMPACT}}"
+            ]
+          }
+        }
+      ]
     },
     "natural_phenomena": {
       "_optional": true,
-      "{{PHENOMENON_1_ID}}": {
-        "name": "{{PHENOMENON_1_NAME}}",
-        "type": "{{GEOLOGICAL_MAGICAL_CELESTIAL_TEMPORAL}}",
-        "location": "{{PHENOMENON_LOCATION}}",
-        "description": "{{PHENOMENON_DESCRIPTION}}",
-        "effects_on_inhabitants": ["{{EFFECT_1}}", "{{EFFECT_2}}"],
-        "narrative_significance": "{{SIGNIFICANCE_DESCRIPTION}}"
-      }
-    }
-  },
-  "integration_notes": {
-    "_optional": true,
-    "engine_compatibility": {
-      "timeline_builder": "Calendar and temporal systems integrate with story progression",
-      "memory_manager": "Regional and cultural information enhances character context",
-      "scene_logger": "Environmental and cultural details enrich scene descriptions",
-      "narrative_dice_engine": "Magical geography and temporal cycles can influence random events"
-    },
-    "usage_guidelines": {
-      "implementation": "All sections are optional - use only what enhances your specific story",
-      "customization": "Expand arrays and add regions/systems as needed for your world",
-      "complexity_management": "Start with basic regional structure, add magical/temporal systems gradually"
+      "_comment": "Array can expand - add as many phenomena as needed",
+      "value": [
+        {
+          "phenomenon_id": "{{PHENOMENON_ID}}",
+          "name": "{{PHENOMENON_NAME}}",
+          "type": {
+            "_optional": true,
+            "value": "{{PHENOMENON_TYPE}}"
+          },
+          "location": "{{PHENOMENON_LOCATION}}",
+          "description": "{{PHENOMENON_DESCRIPTION}}",
+          "effects_on_inhabitants": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many effects as needed",
+            "value": [
+              "{{EFFECT}}",
+              "{{EFFECT}}"
+            ]
+          },
+          "narrative_significance": {
+            "_optional": true,
+            "value": "{{SIGNIFICANCE_DESCRIPTION}}"
+          }
+        }
+      ]
     }
   }
 }

@@ -3,184 +3,714 @@
     "name": "OpenChronicle Content Tables Template",
     "description": "Optional procedural content generation systems for sophisticated storytelling",
     "version": "1.0",
-    "purpose": "Provides hierarchical loot tables, regional bestiaries, and encounter content systems"
+    "purpose": "Provides hierarchical loot tables, regional bestiaries, and encounter content systems",
+    "required_fields": [],
+    "optional_fields": "Any field marked with '_optional': true can be safely deleted",
+    "usage": "Delete entire fields/sections with '_optional': true, or just the '_optional' key to make field required",
+    "import_adaptability": {
+      "arrays_expandable": "All arrays can contain any number of entries - template shows minimum structure",
+      "content_scaling": "Loot tables, creature lists, and encounters can expand infinitely",
+      "rarity_systems": "All rarity tiers (common/uncommon/rare/unique) can accommodate unlimited entries",
+      "flexible_structure": "Import processes should expand arrays and adapt field counts dynamically"
+    },
+    "application_behavior": {
+      "empty_optional_fields": "Application will automatically ignore optional fields that are empty, null, or contain only placeholder values",
+      "unused_optional_fields": "Optional fields left as {{PLACEHOLDER}} values will be treated as unused and ignored",
+      "processing_logic": "Only populated optional fields with actual content will be processed by the application"
+    }
   },
   "loot_and_rewards": {
     "_optional": true,
     "universal_loot_tables": {
       "_optional": true,
       "common_items": {
-        "{{COMMON_ITEM_1_ID}}": {
-          "name": "{{COMMON_ITEM_1_NAME}}",
-          "type": "{{WEAPON_ARMOR_TOOL_CONSUMABLE_TRINKET}}",
-          "description": "{{ITEM_DESCRIPTION}}",
-          "mechanical_properties": ["{{PROPERTY_1}}", "{{PROPERTY_2}}"],
-          "narrative_significance": "{{STORY_RELEVANCE}}",
-          "regional_variants": {
-            "_optional": true,
-            "{{REGION_ID}}": "{{REGIONAL_VARIATION_DESCRIPTION}}"
+        "_optional": true,
+        "_comment": "Array can expand - add as many common items as needed",
+        "value": [
+          {
+            "item_id": "{{ITEM_ID}}",
+            "name": "{{ITEM_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{WEAPON_ARMOR_TOOL_CONSUMABLE_TRINKET}}"
+            },
+            "description": {
+              "_optional": true,
+              "value": "{{ITEM_DESCRIPTION}}"
+            },
+            "mechanical_properties": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many properties as needed",
+              "value": [
+                "{{PROPERTY}}",
+                "{{PROPERTY}}"
+              ]
+            },
+            "narrative_significance": {
+              "_optional": true,
+              "value": "{{STORY_RELEVANCE}}"
+            },
+            "regional_variants": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many regional variants as needed",
+              "value": [
+                {
+                  "region_id": "{{REGION_ID}}",
+                  "variant_description": "{{REGIONAL_VARIATION_DESCRIPTION}}"
+                }
+              ]
+            }
           }
-        }
+        ]
       },
       "uncommon_items": {
-        "{{UNCOMMON_ITEM_1_ID}}": {
-          "name": "{{UNCOMMON_ITEM_1_NAME}}",
-          "type": "{{ITEM_TYPE}}",
-          "description": "{{ITEM_DESCRIPTION}}",
-          "special_properties": ["{{PROPERTY_1}}", "{{PROPERTY_2}}"],
-          "acquisition_methods": ["{{METHOD_1}}", "{{METHOD_2}}"],
-          "story_hooks": ["{{HOOK_1}}", "{{HOOK_2}}"],
-          "cultural_significance": "{{CULTURAL_MEANING}}"
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many uncommon items as needed",
+        "value": [
+          {
+            "item_id": "{{ITEM_ID}}",
+            "name": "{{ITEM_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{ITEM_TYPE}}"
+            },
+            "description": {
+              "_optional": true,
+              "value": "{{ITEM_DESCRIPTION}}"
+            },
+            "special_properties": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many special properties as needed",
+              "value": [
+                "{{PROPERTY}}",
+                "{{PROPERTY}}"
+              ]
+            },
+            "acquisition_methods": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many acquisition methods as needed",
+              "value": [
+                "{{METHOD}}",
+                "{{METHOD}}"
+              ]
+            },
+            "story_hooks": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many story hooks as needed",
+              "value": [
+                "{{HOOK}}",
+                "{{HOOK}}"
+              ]
+            },
+            "cultural_significance": {
+              "_optional": true,
+              "value": "{{CULTURAL_MEANING}}"
+            }
+          }
+        ]
       },
       "rare_items": {
-        "{{RARE_ITEM_1_ID}}": {
-          "name": "{{RARE_ITEM_1_NAME}}",
-          "type": "{{ITEM_TYPE}}",
-          "description": "{{ITEM_DESCRIPTION}}",
-          "magical_properties": ["{{PROPERTY_1}}", "{{PROPERTY_2}}"],
-          "history": "{{ITEM_BACKSTORY}}",
-          "requirements": ["{{REQUIREMENT_1}}", "{{REQUIREMENT_2}}"],
-          "consequences_of_use": ["{{CONSEQUENCE_1}}", "{{CONSEQUENCE_2}}"],
-          "legend_status": "{{LEGEND_LEVEL}}"
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many rare items as needed",
+        "value": [
+          {
+            "item_id": "{{ITEM_ID}}",
+            "name": "{{ITEM_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{ITEM_TYPE}}"
+            },
+            "description": {
+              "_optional": true,
+              "value": "{{ITEM_DESCRIPTION}}"
+            },
+            "magical_properties": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many magical properties as needed",
+              "value": [
+                "{{PROPERTY}}",
+                "{{PROPERTY}}"
+              ]
+            },
+            "history": {
+              "_optional": true,
+              "value": "{{ITEM_BACKSTORY}}"
+            },
+            "requirements": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many requirements as needed",
+              "value": [
+                "{{REQUIREMENT}}",
+                "{{REQUIREMENT}}"
+              ]
+            },
+            "consequences_of_use": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many consequences as needed",
+              "value": [
+                "{{CONSEQUENCE}}",
+                "{{CONSEQUENCE}}"
+              ]
+            },
+            "legend_status": {
+              "_optional": true,
+              "value": "{{LEGEND_LEVEL}}"
+            }
+          }
+        ]
       },
       "unique_items": {
-        "{{UNIQUE_ITEM_1_ID}}": {
-          "name": "{{UNIQUE_ITEM_1_NAME}}",
-          "type": "{{ARTIFACT_RELIC_LEGENDARY_CURSED}}",
-          "description": "{{ITEM_DESCRIPTION}}",
-          "extraordinary_properties": ["{{PROPERTY_1}}", "{{PROPERTY_2}}"],
-          "creation_story": "{{ORIGIN_TALE}}",
-          "current_location": "{{LOCATION_OR_HOLDER}}",
-          "seekers": ["{{SEEKER_1}}", "{{SEEKER_2}}"],
-          "plot_significance": "{{MAJOR_STORY_ROLE}}",
-          "world_impact": ["{{IMPACT_1}}", "{{IMPACT_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many unique items as needed",
+        "value": [
+          {
+            "item_id": "{{ITEM_ID}}",
+            "name": "{{ITEM_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{ARTIFACT_RELIC_LEGENDARY_CURSED}}"
+            },
+            "description": {
+              "_optional": true,
+              "value": "{{ITEM_DESCRIPTION}}"
+            },
+            "extraordinary_properties": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many extraordinary properties as needed",
+              "value": [
+                "{{PROPERTY}}",
+                "{{PROPERTY}}"
+              ]
+            },
+            "creation_story": {
+              "_optional": true,
+              "value": "{{ORIGIN_TALE}}"
+            },
+            "current_location": {
+              "_optional": true,
+              "value": "{{LOCATION_OR_HOLDER}}"
+            },
+            "seekers": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many seekers as needed",
+              "value": [
+                "{{SEEKER}}",
+                "{{SEEKER}}"
+              ]
+            },
+            "plot_significance": {
+              "_optional": true,
+              "value": "{{MAJOR_STORY_ROLE}}"
+            },
+            "world_impact": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many world impacts as needed",
+              "value": [
+                "{{IMPACT}}",
+                "{{IMPACT}}"
+              ]
+            }
+          }
+        ]
       }
     },
     "regional_loot_specialties": {
       "_optional": true,
-      "{{REGION_ID}}": {
-        "regional_materials": ["{{MATERIAL_1}}", "{{MATERIAL_2}}"],
-        "crafting_traditions": ["{{TRADITION_1}}", "{{TRADITION_2}}"],
-        "signature_items": ["{{SIGNATURE_1}}", "{{SIGNATURE_2}}"],
-        "trade_goods": ["{{TRADE_GOOD_1}}", "{{TRADE_GOOD_2}}"],
-        "forbidden_items": ["{{FORBIDDEN_1}}", "{{FORBIDDEN_2}}"]
-      }
+      "_comment": "Array can expand - add as many regional specialties as needed",
+      "value": [
+        {
+          "region_id": "{{REGION_ID}}",
+          "regional_materials": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many regional materials as needed",
+            "value": [
+              "{{MATERIAL}}",
+              "{{MATERIAL}}"
+            ]
+          },
+          "crafting_traditions": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many crafting traditions as needed",
+            "value": [
+              "{{TRADITION}}",
+              "{{TRADITION}}"
+            ]
+          },
+          "signature_items": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many signature items as needed",
+            "value": [
+              "{{SIGNATURE}}",
+              "{{SIGNATURE}}"
+            ]
+          },
+          "trade_goods": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many trade goods as needed",
+            "value": [
+              "{{TRADE_GOOD}}",
+              "{{TRADE_GOOD}}"
+            ]
+          },
+          "forbidden_items": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many forbidden items as needed",
+            "value": [
+              "{{FORBIDDEN}}",
+              "{{FORBIDDEN}}"
+            ]
+          }
+        }
+      ]
     },
     "narrative_reward_systems": {
       "_optional": true,
       "achievement_rewards": {
-        "{{ACHIEVEMENT_1_ID}}": {
-          "achievement_name": "{{ACHIEVEMENT_NAME}}",
-          "trigger_conditions": ["{{CONDITION_1}}", "{{CONDITION_2}}"],
-          "reward_type": "{{ITEM_ABILITY_KNOWLEDGE_RELATIONSHIP}}",
-          "reward_description": "{{REWARD_DETAILS}}",
-          "ongoing_benefits": ["{{BENEFIT_1}}", "{{BENEFIT_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many achievement rewards as needed",
+        "value": [
+          {
+            "achievement_id": "{{ACHIEVEMENT_ID}}",
+            "achievement_name": {
+              "_optional": true,
+              "value": "{{ACHIEVEMENT_NAME}}"
+            },
+            "trigger_conditions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many trigger conditions as needed",
+              "value": [
+                "{{CONDITION}}",
+                "{{CONDITION}}"
+              ]
+            },
+            "reward_type": {
+              "_optional": true,
+              "value": "{{ITEM_ABILITY_KNOWLEDGE_RELATIONSHIP}}"
+            },
+            "reward_description": {
+              "_optional": true,
+              "value": "{{REWARD_DETAILS}}"
+            },
+            "ongoing_benefits": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many ongoing benefits as needed",
+              "value": [
+                "{{BENEFIT}}",
+                "{{BENEFIT}}"
+              ]
+            }
+          }
+        ]
       },
       "relationship_rewards": {
-        "{{RELATIONSHIP_1_ID}}": {
-          "relationship_type": "{{FACTION_INDIVIDUAL_COMMUNITY}}",
-          "relationship_level": "{{UNKNOWN_NEUTRAL_FRIENDLY_TRUSTED_BELOVED}}",
-          "available_rewards": ["{{REWARD_1}}", "{{REWARD_2}}"],
-          "special_privileges": ["{{PRIVILEGE_1}}", "{{PRIVILEGE_2}}"],
-          "story_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many relationship rewards as needed",
+        "value": [
+          {
+            "relationship_id": "{{RELATIONSHIP_ID}}",
+            "relationship_type": {
+              "_optional": true,
+              "value": "{{FACTION_INDIVIDUAL_COMMUNITY}}"
+            },
+            "relationship_level": {
+              "_optional": true,
+              "value": "{{UNKNOWN_NEUTRAL_FRIENDLY_TRUSTED_BELOVED}}"
+            },
+            "available_rewards": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many available rewards as needed",
+              "value": [
+                "{{REWARD}}",
+                "{{REWARD}}"
+              ]
+            },
+            "special_privileges": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many special privileges as needed",
+              "value": [
+                "{{PRIVILEGE}}",
+                "{{PRIVILEGE}}"
+              ]
+            },
+            "story_opportunities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many story opportunities as needed",
+              "value": [
+                "{{OPPORTUNITY}}",
+                "{{OPPORTUNITY}}"
+              ]
+            }
+          }
+        ]
       }
     }
   },
   "creature_systems": {
     "_optional": true,
     "regional_bestiaries": {
-      "{{REGION_ID}}": {
-        "common_creatures": {
-          "{{CREATURE_1_ID}}": {
-            "name": "{{CREATURE_1_NAME}}",
-            "type": "{{NATURAL_MAGICAL_SUPERNATURAL_CONSTRUCT}}",
-            "habitat": "{{PREFERRED_ENVIRONMENT}}",
-            "behavior": "{{BEHAVIOR_DESCRIPTION}}",
-            "threat_level": "{{HARMLESS_MINOR_MODERATE_DANGEROUS}}",
-            "narrative_role": "{{ATMOSPHERIC_CHALLENGE_ALLY_NEUTRAL}}",
-            "story_hooks": ["{{HOOK_1}}", "{{HOOK_2}}"],
-            "cultural_significance": "{{CULTURAL_MEANING}}"
-          }
-        },
-        "uncommon_creatures": {
-          "{{CREATURE_1_ID}}": {
-            "name": "{{CREATURE_1_NAME}}",
-            "type": "{{CREATURE_TYPE}}",
-            "rarity_reason": "{{WHY_UNCOMMON}}",
-            "special_abilities": ["{{ABILITY_1}}", "{{ABILITY_2}}"],
-            "encounter_conditions": ["{{CONDITION_1}}", "{{CONDITION_2}}"],
-            "behavioral_patterns": "{{ADVANCED_BEHAVIOR}}",
-            "legend_status": "{{LOCAL_REGIONAL_MYTHICAL}}",
-            "story_potential": ["{{POTENTIAL_1}}", "{{POTENTIAL_2}}"]
-          }
-        },
-        "rare_creatures": {
-          "{{CREATURE_1_ID}}": {
-            "name": "{{CREATURE_1_NAME}}",
-            "type": "{{CREATURE_TYPE}}",
-            "uniqueness": "{{WHAT_MAKES_RARE}}",
-            "extraordinary_abilities": ["{{ABILITY_1}}", "{{ABILITY_2}}"],
-            "appearance_triggers": ["{{TRIGGER_1}}", "{{TRIGGER_2}}"],
-            "intelligence_level": "{{ANIMAL_HUMAN_SUPERHUMAN}}",
-            "motivations": ["{{MOTIVATION_1}}", "{{MOTIVATION_2}}"],
-            "historical_encounters": ["{{ENCOUNTER_1}}", "{{ENCOUNTER_2}}"],
-            "prophecy_connections": ["{{PROPHECY_1}}", "{{PROPHECY_2}}"]
-          }
-        },
-        "unique_creatures": {
-          "{{CREATURE_1_ID}}": {
-            "name": "{{CREATURE_1_NAME}}",
-            "title": "{{LEGENDARY_TITLE}}",
-            "nature": "{{ANCIENT_DIVINE_CURSED_CREATED}}",
-            "legendary_abilities": ["{{ABILITY_1}}", "{{ABILITY_2}}"],
-            "world_impact": "{{REGIONAL_GLOBAL_PLANAR}}",
-            "current_status": "{{ACTIVE_SLEEPING_BOUND_DEAD_TRANSFORMED}}",
-            "awakening_conditions": ["{{CONDITION_1}}", "{{CONDITION_2}}"],
-            "goals_and_agenda": ["{{GOAL_1}}", "{{GOAL_2}}"],
-            "allies_and_enemies": {
-              "allies": ["{{ALLY_1}}", "{{ALLY_2}}"],
-              "enemies": ["{{ENEMY_1}}", "{{ENEMY_2}}"]
-            },
-            "plot_significance": "{{CENTRAL_MAJOR_SUPPORTING_BACKGROUND}}"
+      "_optional": true,
+      "_comment": "Array can expand - add as many regional bestiaries as needed",
+      "value": [
+        {
+          "region_id": "{{REGION_ID}}",
+          "common_creatures": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many common creatures as needed",
+            "value": [
+              {
+                "creature_id": "{{CREATURE_ID}}",
+                "name": "{{CREATURE_NAME}}",
+                "type": {
+                  "_optional": true,
+                  "value": "{{NATURAL_MAGICAL_SUPERNATURAL_CONSTRUCT}}"
+                },
+                "habitat": {
+                  "_optional": true,
+                  "value": "{{PREFERRED_ENVIRONMENT}}"
+                },
+                "behavior": {
+                  "_optional": true,
+                  "value": "{{BEHAVIOR_DESCRIPTION}}"
+                },
+                "threat_level": {
+                  "_optional": true,
+                  "value": "{{HARMLESS_MINOR_MODERATE_DANGEROUS}}"
+                },
+                "narrative_role": {
+                  "_optional": true,
+                  "value": "{{ATMOSPHERIC_CHALLENGE_ALLY_NEUTRAL}}"
+                },
+                "story_hooks": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many story hooks as needed",
+                  "value": [
+                    "{{HOOK}}",
+                    "{{HOOK}}"
+                  ]
+                },
+                "cultural_significance": {
+                  "_optional": true,
+                  "value": "{{CULTURAL_MEANING}}"
+                }
+              }
+            ]
+          },
+          "uncommon_creatures": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many uncommon creatures as needed",
+            "value": [
+              {
+                "creature_id": "{{CREATURE_ID}}",
+                "name": "{{CREATURE_NAME}}",
+                "type": {
+                  "_optional": true,
+                  "value": "{{CREATURE_TYPE}}"
+                },
+                "rarity_reason": {
+                  "_optional": true,
+                  "value": "{{WHY_UNCOMMON}}"
+                },
+                "special_abilities": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many special abilities as needed",
+                  "value": [
+                    "{{ABILITY}}",
+                    "{{ABILITY}}"
+                  ]
+                },
+                "encounter_conditions": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many encounter conditions as needed",
+                  "value": [
+                    "{{CONDITION}}",
+                    "{{CONDITION}}"
+                  ]
+                },
+                "behavioral_patterns": {
+                  "_optional": true,
+                  "value": "{{ADVANCED_BEHAVIOR}}"
+                },
+                "legend_status": {
+                  "_optional": true,
+                  "value": "{{LOCAL_REGIONAL_MYTHICAL}}"
+                },
+                "story_potential": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many story potentials as needed",
+                  "value": [
+                    "{{POTENTIAL}}",
+                    "{{POTENTIAL}}"
+                  ]
+                }
+              }
+            ]
+          },
+          "rare_creatures": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many rare creatures as needed",
+            "value": [
+              {
+                "creature_id": "{{CREATURE_ID}}",
+                "name": "{{CREATURE_NAME}}",
+                "type": {
+                  "_optional": true,
+                  "value": "{{CREATURE_TYPE}}"
+                },
+                "uniqueness": {
+                  "_optional": true,
+                  "value": "{{WHAT_MAKES_RARE}}"
+                },
+                "extraordinary_abilities": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many extraordinary abilities as needed",
+                  "value": [
+                    "{{ABILITY}}",
+                    "{{ABILITY}}"
+                  ]
+                },
+                "appearance_triggers": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many appearance triggers as needed",
+                  "value": [
+                    "{{TRIGGER}}",
+                    "{{TRIGGER}}"
+                  ]
+                },
+                "intelligence_level": {
+                  "_optional": true,
+                  "value": "{{ANIMAL_HUMAN_SUPERHUMAN}}"
+                },
+                "motivations": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many motivations as needed",
+                  "value": [
+                    "{{MOTIVATION}}",
+                    "{{MOTIVATION}}"
+                  ]
+                },
+                "historical_encounters": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many historical encounters as needed",
+                  "value": [
+                    "{{ENCOUNTER}}",
+                    "{{ENCOUNTER}}"
+                  ]
+                },
+                "prophecy_connections": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many prophecy connections as needed",
+                  "value": [
+                    "{{PROPHECY}}",
+                    "{{PROPHECY}}"
+                  ]
+                }
+              }
+            ]
+          },
+          "unique_creatures": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many unique creatures as needed",
+            "value": [
+              {
+                "creature_id": "{{CREATURE_ID}}",
+                "name": "{{CREATURE_NAME}}",
+                "title": {
+                  "_optional": true,
+                  "value": "{{LEGENDARY_TITLE}}"
+                },
+                "nature": {
+                  "_optional": true,
+                  "value": "{{ANCIENT_DIVINE_CURSED_CREATED}}"
+                },
+                "legendary_abilities": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many legendary abilities as needed",
+                  "value": [
+                    "{{ABILITY}}",
+                    "{{ABILITY}}"
+                  ]
+                },
+                "world_impact": {
+                  "_optional": true,
+                  "value": "{{REGIONAL_GLOBAL_PLANAR}}"
+                },
+                "current_status": {
+                  "_optional": true,
+                  "value": "{{ACTIVE_SLEEPING_BOUND_DEAD_TRANSFORMED}}"
+                },
+                "awakening_conditions": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many awakening conditions as needed",
+                  "value": [
+                    "{{CONDITION}}",
+                    "{{CONDITION}}"
+                  ]
+                },
+                "goals_and_agenda": {
+                  "_optional": true,
+                  "_comment": "Array can expand - add as many goals as needed",
+                  "value": [
+                    "{{GOAL}}",
+                    "{{GOAL}}"
+                  ]
+                },
+                "allies_and_enemies": {
+                  "_optional": true,
+                  "allies": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many allies as needed",
+                    "value": [
+                      "{{ALLY}}",
+                      "{{ALLY}}"
+                    ]
+                  },
+                  "enemies": {
+                    "_optional": true,
+                    "_comment": "Array can expand - add as many enemies as needed",
+                    "value": [
+                      "{{ENEMY}}",
+                      "{{ENEMY}}"
+                    ]
+                  }
+                },
+                "plot_significance": {
+                  "_optional": true,
+                  "value": "{{CENTRAL_MAJOR_SUPPORTING_BACKGROUND}}"
+                }
+              }
+            ]
           }
         }
-      }
+      ]
     },
     "thematic_creature_groups": {
       "_optional": true,
-      "{{THEME_1_ID}}": {
-        "theme_name": "{{THEME_NAME}}",
-        "theme_description": "{{THEME_DESCRIPTION}}",
-        "creatures": ["{{CREATURE_1}}", "{{CREATURE_2}}"],
-        "shared_characteristics": ["{{CHARACTERISTIC_1}}", "{{CHARACTERISTIC_2}}"],
-        "narrative_function": "{{STORY_PURPOSE}}",
-        "encounter_contexts": ["{{CONTEXT_1}}", "{{CONTEXT_2}}"]
-      }
+      "_comment": "Array can expand - add as many thematic creature groups as needed",
+      "value": [
+        {
+          "theme_id": "{{THEME_ID}}",
+          "theme_name": {
+            "_optional": true,
+            "value": "{{THEME_NAME}}"
+          },
+          "theme_description": {
+            "_optional": true,
+            "value": "{{THEME_DESCRIPTION}}"
+          },
+          "creatures": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many creatures as needed",
+            "value": [
+              "{{CREATURE}}",
+              "{{CREATURE}}"
+            ]
+          },
+          "shared_characteristics": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many shared characteristics as needed",
+            "value": [
+              "{{CHARACTERISTIC}}",
+              "{{CHARACTERISTIC}}"
+            ]
+          },
+          "narrative_function": {
+            "_optional": true,
+            "value": "{{STORY_PURPOSE}}"
+          },
+          "encounter_contexts": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many encounter contexts as needed",
+            "value": [
+              "{{CONTEXT}}",
+              "{{CONTEXT}}"
+            ]
+          }
+        }
+      ]
     },
     "creature_interaction_systems": {
       "_optional": true,
       "social_creatures": {
-        "{{CREATURE_ID}}": {
-          "communication_methods": ["{{METHOD_1}}", "{{METHOD_2}}"],
-          "diplomacy_potential": "{{NONE_LIMITED_MODERATE_HIGH}}",
-          "alliance_possibilities": ["{{POSSIBILITY_1}}", "{{POSSIBILITY_2}}"],
-          "cultural_protocols": ["{{PROTOCOL_1}}", "{{PROTOCOL_2}}"],
-          "trade_or_exchange": ["{{EXCHANGE_1}}", "{{EXCHANGE_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many social creatures as needed",
+        "value": [
+          {
+            "creature_id": "{{CREATURE_ID}}",
+            "communication_methods": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many communication methods as needed",
+              "value": [
+                "{{METHOD}}",
+                "{{METHOD}}"
+              ]
+            },
+            "diplomacy_potential": {
+              "_optional": true,
+              "value": "{{NONE_LIMITED_MODERATE_HIGH}}"
+            },
+            "alliance_possibilities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many alliance possibilities as needed",
+              "value": [
+                "{{POSSIBILITY}}",
+                "{{POSSIBILITY}}"
+              ]
+            },
+            "cultural_protocols": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many cultural protocols as needed",
+              "value": [
+                "{{PROTOCOL}}",
+                "{{PROTOCOL}}"
+              ]
+            },
+            "trade_or_exchange": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many trade or exchange options as needed",
+              "value": [
+                "{{EXCHANGE}}",
+                "{{EXCHANGE}}"
+              ]
+            }
+          }
+        ]
       },
       "territorial_dynamics": {
-        "{{TERRITORY_1_ID}}": {
-          "controlling_creature": "{{CREATURE_NAME}}",
-          "territory_boundaries": "{{BOUNDARY_DESCRIPTION}}",
-          "territorial_behavior": "{{BEHAVIOR_DESCRIPTION}}",
-          "intrusion_consequences": ["{{CONSEQUENCE_1}}", "{{CONSEQUENCE_2}}"],
-          "coexistence_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many territorial dynamics as needed",
+        "value": [
+          {
+            "territory_id": "{{TERRITORY_ID}}",
+            "controlling_creature": {
+              "_optional": true,
+              "value": "{{CREATURE_NAME}}"
+            },
+            "territory_boundaries": {
+              "_optional": true,
+              "value": "{{BOUNDARY_DESCRIPTION}}"
+            },
+            "territorial_behavior": {
+              "_optional": true,
+              "value": "{{BEHAVIOR_DESCRIPTION}}"
+            },
+            "intrusion_consequences": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many intrusion consequences as needed",
+              "value": [
+                "{{CONSEQUENCE}}",
+                "{{CONSEQUENCE}}"
+              ]
+            },
+            "coexistence_opportunities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many coexistence opportunities as needed",
+              "value": [
+                "{{OPPORTUNITY}}",
+                "{{OPPORTUNITY}}"
+              ]
+            }
+          }
+        ]
       }
     }
   },
@@ -189,61 +719,268 @@
     "encounter_types": {
       "_optional": true,
       "exploration_encounters": {
-        "{{ENCOUNTER_1_ID}}": {
-          "name": "{{ENCOUNTER_1_NAME}}",
-          "type": "{{DISCOVERY_OBSTACLE_MYSTERY_WONDER}}",
-          "description": "{{ENCOUNTER_DESCRIPTION}}",
-          "required_setup": ["{{SETUP_1}}", "{{SETUP_2}}"],
-          "participant_roles": ["{{ROLE_1}}", "{{ROLE_2}}"],
-          "potential_outcomes": ["{{OUTCOME_1}}", "{{OUTCOME_2}}"],
-          "follow_up_opportunities": ["{{OPPORTUNITY_1}}", "{{OPPORTUNITY_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many exploration encounters as needed",
+        "value": [
+          {
+            "encounter_id": "{{ENCOUNTER_ID}}",
+            "name": "{{ENCOUNTER_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{DISCOVERY_OBSTACLE_MYSTERY_WONDER}}"
+            },
+            "description": {
+              "_optional": true,
+              "value": "{{ENCOUNTER_DESCRIPTION}}"
+            },
+            "required_setup": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many setup requirements as needed",
+              "value": [
+                "{{SETUP}}",
+                "{{SETUP}}"
+              ]
+            },
+            "participant_roles": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many participant roles as needed",
+              "value": [
+                "{{ROLE}}",
+                "{{ROLE}}"
+              ]
+            },
+            "potential_outcomes": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many potential outcomes as needed",
+              "value": [
+                "{{OUTCOME}}",
+                "{{OUTCOME}}"
+              ]
+            },
+            "follow_up_opportunities": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many follow-up opportunities as needed",
+              "value": [
+                "{{OPPORTUNITY}}",
+                "{{OPPORTUNITY}}"
+              ]
+            }
+          }
+        ]
       },
       "social_encounters": {
-        "{{ENCOUNTER_1_ID}}": {
-          "name": "{{ENCOUNTER_1_NAME}}",
-          "type": "{{NEGOTIATION_CELEBRATION_CONFLICT_CEREMONY}}",
-          "participants": ["{{PARTICIPANT_1}}", "{{PARTICIPANT_2}}"],
-          "context": "{{ENCOUNTER_CONTEXT}}",
-          "stakes": ["{{STAKE_1}}", "{{STAKE_2}}"],
-          "success_criteria": ["{{CRITERIA_1}}", "{{CRITERIA_2}}"],
-          "failure_consequences": ["{{CONSEQUENCE_1}}", "{{CONSEQUENCE_2}}"],
-          "relationship_impacts": ["{{IMPACT_1}}", "{{IMPACT_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many social encounters as needed",
+        "value": [
+          {
+            "encounter_id": "{{ENCOUNTER_ID}}",
+            "name": "{{ENCOUNTER_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{NEGOTIATION_CELEBRATION_CONFLICT_CEREMONY}}"
+            },
+            "participants": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many participants as needed",
+              "value": [
+                "{{PARTICIPANT}}",
+                "{{PARTICIPANT}}"
+              ]
+            },
+            "context": {
+              "_optional": true,
+              "value": "{{ENCOUNTER_CONTEXT}}"
+            },
+            "stakes": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many stakes as needed",
+              "value": [
+                "{{STAKE}}",
+                "{{STAKE}}"
+              ]
+            },
+            "success_criteria": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many success criteria as needed",
+              "value": [
+                "{{CRITERIA}}",
+                "{{CRITERIA}}"
+              ]
+            },
+            "failure_consequences": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many failure consequences as needed",
+              "value": [
+                "{{CONSEQUENCE}}",
+                "{{CONSEQUENCE}}"
+              ]
+            },
+            "relationship_impacts": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many relationship impacts as needed",
+              "value": [
+                "{{IMPACT}}",
+                "{{IMPACT}}"
+              ]
+            }
+          }
+        ]
       },
       "magical_encounters": {
-        "{{ENCOUNTER_1_ID}}": {
-          "name": "{{ENCOUNTER_1_NAME}}",
-          "type": "{{PHENOMENON_RITUAL_ARTIFACT_ENTITY}}",
-          "magical_nature": "{{MAGICAL_DESCRIPTION}}",
-          "interaction_methods": ["{{METHOD_1}}", "{{METHOD_2}}"],
-          "magical_requirements": ["{{REQUIREMENT_1}}", "{{REQUIREMENT_2}}"],
-          "magical_risks": ["{{RISK_1}}", "{{RISK_2}}"],
-          "transformation_potential": ["{{POTENTIAL_1}}", "{{POTENTIAL_2}}"],
-          "knowledge_gained": ["{{KNOWLEDGE_1}}", "{{KNOWLEDGE_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many magical encounters as needed",
+        "value": [
+          {
+            "encounter_id": "{{ENCOUNTER_ID}}",
+            "name": "{{ENCOUNTER_NAME}}",
+            "type": {
+              "_optional": true,
+              "value": "{{PHENOMENON_RITUAL_ARTIFACT_ENTITY}}"
+            },
+            "magical_nature": {
+              "_optional": true,
+              "value": "{{MAGICAL_DESCRIPTION}}"
+            },
+            "interaction_methods": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many interaction methods as needed",
+              "value": [
+                "{{METHOD}}",
+                "{{METHOD}}"
+              ]
+            },
+            "magical_requirements": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many magical requirements as needed",
+              "value": [
+                "{{REQUIREMENT}}",
+                "{{REQUIREMENT}}"
+              ]
+            },
+            "magical_risks": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many magical risks as needed",
+              "value": [
+                "{{RISK}}",
+                "{{RISK}}"
+              ]
+            },
+            "transformation_potential": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many transformation potentials as needed",
+              "value": [
+                "{{POTENTIAL}}",
+                "{{POTENTIAL}}"
+              ]
+            },
+            "knowledge_gained": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many knowledge gains as needed",
+              "value": [
+                "{{KNOWLEDGE}}",
+                "{{KNOWLEDGE}}"
+              ]
+            }
+          }
+        ]
       }
     },
     "encounter_modifiers": {
       "_optional": true,
       "environmental_modifiers": {
+        "_optional": true,
         "weather_effects": {
-          "{{WEATHER_TYPE}}": ["{{MODIFIER_1}}", "{{MODIFIER_2}}"]
+          "_optional": true,
+          "_comment": "Array can expand - add as many weather effect types as needed",
+          "value": [
+            {
+              "weather_type": "{{WEATHER_TYPE}}",
+              "modifiers": {
+                "_optional": true,
+                "_comment": "Array can expand - add as many modifiers as needed",
+                "value": [
+                  "{{MODIFIER}}",
+                  "{{MODIFIER}}"
+                ]
+              }
+            }
+          ]
         },
         "time_of_day_effects": {
-          "{{TIME_PERIOD}}": ["{{MODIFIER_1}}", "{{MODIFIER_2}}"]
+          "_optional": true,
+          "_comment": "Array can expand - add as many time period effects as needed",
+          "value": [
+            {
+              "time_period": "{{TIME_PERIOD}}",
+              "modifiers": {
+                "_optional": true,
+                "_comment": "Array can expand - add as many modifiers as needed",
+                "value": [
+                  "{{MODIFIER}}",
+                  "{{MODIFIER}}"
+                ]
+              }
+            }
+          ]
         },
         "magical_field_effects": {
-          "{{FIELD_TYPE}}": ["{{MODIFIER_1}}", "{{MODIFIER_2}}"]
+          "_optional": true,
+          "_comment": "Array can expand - add as many magical field types as needed",
+          "value": [
+            {
+              "field_type": "{{FIELD_TYPE}}",
+              "modifiers": {
+                "_optional": true,
+                "_comment": "Array can expand - add as many modifiers as needed",
+                "value": [
+                  "{{MODIFIER}}",
+                  "{{MODIFIER}}"
+                ]
+              }
+            }
+          ]
         }
       },
       "cultural_modifiers": {
-        "{{CULTURE_ID}}": {
-          "cultural_lens": ["{{LENS_1}}", "{{LENS_2}}"],
-          "modified_interactions": ["{{INTERACTION_1}}", "{{INTERACTION_2}}"],
-          "cultural_taboos": ["{{TABOO_1}}", "{{TABOO_2}}"],
-          "cultural_advantages": ["{{ADVANTAGE_1}}", "{{ADVANTAGE_2}}"]
-        }
+        "_optional": true,
+        "_comment": "Array can expand - add as many cultural modifier sets as needed",
+        "value": [
+          {
+            "culture_id": "{{CULTURE_ID}}",
+            "cultural_lens": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many cultural lenses as needed",
+              "value": [
+                "{{LENS}}",
+                "{{LENS}}"
+              ]
+            },
+            "modified_interactions": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many modified interactions as needed",
+              "value": [
+                "{{INTERACTION}}",
+                "{{INTERACTION}}"
+              ]
+            },
+            "cultural_taboos": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many cultural taboos as needed",
+              "value": [
+                "{{TABOO}}",
+                "{{TABOO}}"
+              ]
+            },
+            "cultural_advantages": {
+              "_optional": true,
+              "_comment": "Array can expand - add as many cultural advantages as needed",
+              "value": [
+                "{{ADVANTAGE}}",
+                "{{ADVANTAGE}}"
+              ]
+            }
+          }
+        ]
       }
     }
   },
@@ -251,35 +988,127 @@
     "_optional": true,
     "knowledge_fragments": {
       "_optional": true,
-      "{{KNOWLEDGE_1_ID}}": {
-        "name": "{{KNOWLEDGE_1_NAME}}",
-        "type": "{{HISTORICAL_MAGICAL_CULTURAL_PERSONAL}}",
-        "significance": "{{LOCAL_REGIONAL_GLOBAL_COSMIC}}",
-        "discovery_methods": ["{{METHOD_1}}", "{{METHOD_2}}"],
-        "prerequisites": ["{{PREREQUISITE_1}}", "{{PREREQUISITE_2}}"],
-        "revelation_impact": ["{{IMPACT_1}}", "{{IMPACT_2}}"],
-        "related_knowledge": ["{{RELATED_1}}", "{{RELATED_2}}"],
-        "narrative_consequences": ["{{CONSEQUENCE_1}}", "{{CONSEQUENCE_2}}"]
-      }
+      "_comment": "Array can expand - add as many knowledge fragments as needed",
+      "value": [
+        {
+          "knowledge_id": "{{KNOWLEDGE_ID}}",
+          "name": "{{KNOWLEDGE_NAME}}",
+          "type": {
+            "_optional": true,
+            "value": "{{HISTORICAL_MAGICAL_CULTURAL_PERSONAL}}"
+          },
+          "significance": {
+            "_optional": true,
+            "value": "{{LOCAL_REGIONAL_GLOBAL_COSMIC}}"
+          },
+          "discovery_methods": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many discovery methods as needed",
+            "value": [
+              "{{METHOD}}",
+              "{{METHOD}}"
+            ]
+          },
+          "prerequisites": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many prerequisites as needed",
+            "value": [
+              "{{PREREQUISITE}}",
+              "{{PREREQUISITE}}"
+            ]
+          },
+          "revelation_impact": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many revelation impacts as needed",
+            "value": [
+              "{{IMPACT}}",
+              "{{IMPACT}}"
+            ]
+          },
+          "related_knowledge": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many related knowledge pieces as needed",
+            "value": [
+              "{{RELATED}}",
+              "{{RELATED}}"
+            ]
+          },
+          "narrative_consequences": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many narrative consequences as needed",
+            "value": [
+              "{{CONSEQUENCE}}",
+              "{{CONSEQUENCE}}"
+            ]
+          }
+        }
+      ]
     },
     "mystery_elements": {
       "_optional": true,
-      "{{MYSTERY_1_ID}}": {
-        "mystery_name": "{{MYSTERY_1_NAME}}",
-        "mystery_type": "{{DISAPPEARANCE_ORIGIN_PURPOSE_IDENTITY}}",
-        "complexity_level": "{{SIMPLE_MODERATE_COMPLEX_LAYERED}}",
-        "clue_trail": [
-          {
-            "clue_stage": 1,
-            "clue_description": "{{CLUE_1_DESCRIPTION}}",
-            "discovery_location": "{{CLUE_1_LOCATION}}",
-            "discovery_method": "{{CLUE_1_METHOD}}"
+      "_comment": "Array can expand - add as many mystery elements as needed",
+      "value": [
+        {
+          "mystery_id": "{{MYSTERY_ID}}",
+          "mystery_name": {
+            "_optional": true,
+            "value": "{{MYSTERY_NAME}}"
+          },
+          "mystery_type": {
+            "_optional": true,
+            "value": "{{DISAPPEARANCE_ORIGIN_PURPOSE_IDENTITY}}"
+          },
+          "complexity_level": {
+            "_optional": true,
+            "value": "{{SIMPLE_MODERATE_COMPLEX_LAYERED}}"
+          },
+          "clue_trail": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many clue stages as needed",
+            "value": [
+              {
+                "clue_stage": "{{STAGE_NUMBER}}",
+                "clue_description": {
+                  "_optional": true,
+                  "value": "{{CLUE_DESCRIPTION}}"
+                },
+                "discovery_location": {
+                  "_optional": true,
+                  "value": "{{CLUE_LOCATION}}"
+                },
+                "discovery_method": {
+                  "_optional": true,
+                  "value": "{{CLUE_METHOD}}"
+                }
+              }
+            ]
+          },
+          "red_herrings": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many red herrings as needed",
+            "value": [
+              "{{RED_HERRING}}",
+              "{{RED_HERRING}}"
+            ]
+          },
+          "revelation_conditions": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many revelation conditions as needed",
+            "value": [
+              "{{CONDITION}}",
+              "{{CONDITION}}"
+            ]
+          },
+          "solution_consequences": {
+            "_optional": true,
+            "_comment": "Array can expand - add as many solution consequences as needed",
+            "value": [
+              "{{CONSEQUENCE}}",
+              "{{CONSEQUENCE}}"
+            ]
           }
-        ],
-        "red_herrings": ["{{RED_HERRING_1}}", "{{RED_HERRING_2}}"],
-        "revelation_conditions": ["{{CONDITION_1}}", "{{CONDITION_2}}"],
-        "solution_consequences": ["{{CONSEQUENCE_1}}", "{{CONSEQUENCE_2}}"]
-      }
+        }
+      ]
     }
   },
   "integration_notes": {

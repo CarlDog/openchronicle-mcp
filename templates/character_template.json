@@ -1,6 +1,9 @@
 {
-  "_template_info": {
+  "template_info": {
+    "name": "OpenChronicle Character Template",
     "description": "Adaptable character profile template for import and manual creation",
+    "version": "1.0",
+    "purpose": "Provides comprehensive character creation with expandable arrays and optional field management",
     "required_fields": ["name", "basic_info.age", "physical_description.hair", "physical_description.eyes", "personality.core_traits"],
     "optional_fields": "Any field marked with '_optional': true can be safely deleted",
     "usage": "Delete entire fields/sections with '_optional': true, or just the '_optional' key to make field required",
