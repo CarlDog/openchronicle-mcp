@@ -32,7 +32,7 @@ OpenChronicle stores the following data **locally on your device**:
 - **Stories:** `storage/{story-name}/openchronicle.db` (SQLite database)
 - **Configuration:** `config/` directory
 - **Logs:** `logs/` directory (configurable, can be disabled)
-- **Templates:** `templates/` and `storypacks/` directories
+- **Templates:** `templates/` and `storage/storypacks/` directories
 
 ---
 

@@ -1,7 +1,7 @@
 import os
 import json
 
-STORYPACKS_DIR = os.path.join(os.getcwd(), "storypacks")
+STORYPACKS_DIR = os.path.join(os.getcwd(), "storage", "storypacks")
 
 
 def list_storypacks():

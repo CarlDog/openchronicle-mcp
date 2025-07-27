@@ -20,7 +20,7 @@ This directory contains essential documentation, examples, and patterns to enhan
 ├── examples/                         # Complete working examples
 │   ├── dynamic_model_management.py   # Dynamic model management examples
 │   ├── transformer_content_analysis.py # Transformer-based content analysis examples
-│   └── storypacks/                   # Example story packages
+│   └── storage/storypacks/           # Example story packages
 │       └── fantasy-tavern/           # Fantasy tavern story example
 │           ├── meta.yaml             # Story metadata
 │           ├── style_guide.md        # Narrative style guide
@@ -138,7 +138,7 @@ This directory automatically enhances Copilot's suggestions by providing:
 - Transformer-based content analysis patterns and examples
 
 ### For Story Creation
-- Use `examples/storypacks/fantasy-tavern/` as a complete template
+- Use `storage/temp/demo/demo-story/` as a complete template
 - Adapt `meta.yaml` for your story's metadata requirements
 - Reference `style_guide.md` for narrative formatting standards
 - Use character and canon examples as structural templates
@@ -193,7 +193,7 @@ This directory automatically enhances Copilot's suggestions by providing:
 - **Content**: Advanced token handling patterns
 - **Usage**: Implement efficient LLM interactions
 
-### `examples/storypacks/fantasy-tavern/`
+### `storage/temp/demo/demo-story/`
 - **Purpose**: Complete storypack example
 - **Content**: All components of a working story
 - **Usage**: Template for creating new stories

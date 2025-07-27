@@ -66,7 +66,7 @@ def log_print(message, level=logging.INFO):
 
 def test_project_structure():
     """Validate overall project structure and architecture."""
-    expected_dirs = ['core', 'storage', 'storypacks', 'tests']
+    expected_dirs = ['core', 'storage', 'templates', 'tests']
     expected_files = ['main.py', 'requirements.txt', 'README.md', 'LICENSE.md', 'Dockerfile', 'docker-compose.yaml']
     
     # Check project root structure
@@ -333,7 +333,7 @@ def test_configuration_validation():
             assert False, "Requirements.txt not found"
         
         # Test demo story configuration
-        demo_story_path = os.path.join(project_root, 'storypacks', 'demo-story')
+        demo_story_path = os.path.join(project_root, 'storage', 'temp', 'demo', 'demo-story')
         if os.path.exists(demo_story_path):
             required_demo_files = ['meta.json', 'characters', 'canon', 'memory']
             for required_file in required_demo_files:

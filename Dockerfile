@@ -26,7 +26,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 COPY core/ /app-template/core/
 COPY config/ /app-template/config/
 COPY templates/ /app-template/templates/
-COPY storypacks/ /app-template/storypacks/
+COPY storage/ /app-template/storage/
 COPY utilities/ /app-template/utilities/
 COPY tests/ /app-template/tests/
 COPY main.py /app-template/

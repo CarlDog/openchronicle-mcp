@@ -52,7 +52,7 @@
 
   "project_structure": {
     "core": "20 foundational Python modules including 7 advanced character AI engines",
-    "storypacks": "Per-story folders with canon, characters, memory, and style guides (JSON format)",
+    "storypacks": "Per-story folders with canon, characters, memory, and style guides (JSON format) - now located in storage/storypacks/",
     "templates": "Comprehensive JSON templates for creating new storypacks",
     "storage": "SQLite databases per story, with exports and backups folders",
     "config": "Model configuration with 12+ LLM providers",

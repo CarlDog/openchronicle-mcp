@@ -41,6 +41,6 @@ OpenChronicle is a local-first storytelling engine. This software enables the cr
 
 ## 🧾 Note on Story Content Licensing
 
-Story content, world files, and scene data included in this repository (e.g., `/storypacks/`, `/canon/`) may be licensed separately under Creative Commons.
+Story content, world files, and scene data included in this repository (e.g., `/storage/storypacks/`, `/storage/temp/demo/`) may be licensed separately under Creative Commons.
 
 See `LICENSE-content.md` for details.

@@ -20,7 +20,8 @@ Licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 In
 
 ## 🗂️ This License Applies To:
 All example and included story content located in:
-- `/storypacks/`
+- `/storage/storypacks/`
+- `/storage/temp/demo/`
 - `/canon/`
 - `/examples/`
 

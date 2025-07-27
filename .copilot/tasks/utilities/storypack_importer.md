@@ -1,4 +1,4 @@
-# 📦 Storypack Importer and Auto-Converter Utility
+# Help users migrate existing work into OpenChronicle's storypack format. Accept legacy config files, Markdown scripts, character outlines, and even EPUBs or raw dialogue logs. Parse, organize, and scaffold a compatible `/storage/storypacks/` directory structure with minimal manual effort. Storypack Importer and Auto-Converter Utility
 
 ## 📌 Purpose
 Help users migrate existing work into OpenChronicle’s storypack format. Accept legacy config files, Markdown scripts, character outlines, and even EPUBs or raw dialogue logs. Parse, organize, and scaffold a compatible `/storypacks/` directory structure with minimal manual effort.
@@ -38,7 +38,7 @@ Leverage local or cloud-based LLMs to enrich the import process:
 - [ ] Parse character profiles and world notes into OpenChronicle JSON structure
 - [ ] Segment Markdown or text into logical scenes or chapters
 - [ ] Use LLM(s) to assist with tagging, extraction, and auto-completion
-- [ ] Scaffold `/storypacks/<name>/` with:
+- [ ] - [ ] Scaffold `/storage/storypacks/<n>/` with:
   - `characters/`
   - `scenes/`
   - `world/`
