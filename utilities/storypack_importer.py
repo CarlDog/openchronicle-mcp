@@ -33,7 +33,7 @@ class StorypackImporter:
         self.root_dir = Path(__file__).parent.parent
         
         # Set default directories
-        self.source_dir = source_dir or self.root_dir / "analysis" / "import_staging"
+        self.source_dir = source_dir or self.root_dir / "import"
         self.output_dir = output_dir or self.root_dir / "storage" / "storypacks"
         self.templates_dir = self.root_dir / "templates"
         
@@ -156,7 +156,243 @@ class StorypackImporter:
             log_error(f"AI analysis test failed: {e}")
             return False
     
-    def discover_source_files(self) -> Dict[str, List[Path]]:
+    def scan_import_directory(self) -> Dict[str, Any]:
+        """
+        Scan the import directory for folders containing story content.
+        Check for existing storypacks to avoid duplicates.
+        
+        Returns:
+            Dictionary with import candidates and status information
+        """
+        if not self.source_dir.exists():
+            log_warning(f"Import directory does not exist: {self.source_dir}")
+            return {
+                "import_candidates": [],
+                "existing_storypacks": [],
+                "status": "no_import_directory"
+            }
+        
+        import_candidates = []
+        existing_storypacks = []
+        
+        # Scan for directories in the import folder
+        for item in self.source_dir.iterdir():
+            if item.is_dir():
+                candidate_name = item.name
+                
+                # Check if storypack already exists
+                existing_storypack_path = self.output_dir / candidate_name
+                
+                if existing_storypack_path.exists():
+                    # Check if it's a valid storypack (has meta.json)
+                    meta_file = existing_storypack_path / "meta.json"
+                    if meta_file.exists():
+                        existing_storypacks.append({
+                            "name": candidate_name,
+                            "path": str(existing_storypack_path),
+                            "source_path": str(item),
+                            "status": "exists_with_meta"
+                        })
+                        continue
+                
+                # Scan the candidate directory for content
+                discovered_files = self._discover_files_in_directory(item)
+                file_count = sum(len(files) for files in discovered_files.values())
+                
+                if file_count > 0:
+                    import_candidates.append({
+                        "name": candidate_name,
+                        "source_path": str(item),
+                        "discovered_files": discovered_files,
+                        "file_count": file_count,
+                        "status": "ready_for_import"
+                    })
+        
+        result = {
+            "import_candidates": import_candidates,
+            "existing_storypacks": existing_storypacks,
+            "total_candidates": len(import_candidates),
+            "total_existing": len(existing_storypacks),
+            "status": "scan_complete"
+        }
+        
+        log_system_event("storypack_importer", "Import directory scan completed", {
+            "candidates_found": len(import_candidates),
+            "existing_storypacks": len(existing_storypacks),
+            "import_directory": str(self.source_dir)
+        })
+        
+        return result
+
+    def _discover_files_in_directory(self, directory: Path) -> Dict[str, List[Path]]:
+        """
+        Discover and categorize files in a specific directory.
+        
+        Args:
+            directory: Directory to scan
+            
+        Returns:
+            Dictionary mapping content categories to lists of file paths
+        """
+        discovered_files = {category: [] for category in self.content_categories.keys()}
+        discovered_files['uncategorized'] = []
+        
+        # Scan for files recursively
+        for file_path in directory.rglob("*"):
+            if file_path.is_file() and file_path.suffix.lower() in self.supported_extensions:
+                category = self._categorize_file(file_path)
+                discovered_files[category].append(file_path)
+        
+        return discovered_files
+
+    def check_storypack_exists(self, storypack_name: str) -> Dict[str, Any]:
+        """
+        Check if a storypack with the given name already exists.
+        
+        Args:
+            storypack_name: Name of the storypack to check
+            
+        Returns:
+            Dictionary with existence status and details
+        """
+        storypack_path = self.output_dir / storypack_name
+        
+        if not storypack_path.exists():
+            return {
+                "exists": False,
+                "name": storypack_name,
+                "path": str(storypack_path),
+                "status": "available"
+            }
+        
+        # Check if it's a valid storypack
+        meta_file = storypack_path / "meta.json"
+        readme_file = storypack_path / "README.md"
+        
+        # Count content files
+        content_files = []
+        for content_dir in ['characters', 'locations', 'lore', 'narrative']:
+            content_path = storypack_path / content_dir
+            if content_path.exists():
+                content_files.extend(list(content_path.glob("*.json")))
+        
+        return {
+            "exists": True,
+            "name": storypack_name,
+            "path": str(storypack_path),
+            "has_meta": meta_file.exists(),
+            "has_readme": readme_file.exists(),
+            "content_files": len(content_files),
+            "status": "exists_complete" if meta_file.exists() else "exists_incomplete"
+        }
+
+    def import_from_directory(self, directory_name: str, import_mode: str = "basic") -> Dict[str, Any]:
+        """
+        Import a specific directory from the import folder as a storypack.
+        
+        Args:
+            directory_name: Name of the directory in the import folder
+            import_mode: 'basic' or 'ai'
+            
+        Returns:
+            Dictionary containing import results
+        """
+        source_path = self.source_dir / directory_name
+        
+        if not source_path.exists() or not source_path.is_dir():
+            return {
+                "success": False,
+                "error": f"Directory '{directory_name}' not found in import folder",
+                "source_path": str(source_path)
+            }
+        
+        # Check if storypack already exists
+        existing_check = self.check_storypack_exists(directory_name)
+        if existing_check["exists"]:
+            return {
+                "success": False,
+                "error": f"Storypack '{directory_name}' already exists",
+                "existing_storypack": existing_check,
+                "action_required": "rename_source_or_remove_existing"
+            }
+        
+        # Temporarily set source directory to the specific import folder
+        original_source = self.source_dir
+        self.source_dir = source_path
+        
+        try:
+            if import_mode == "ai":
+                # Run AI import (async method needs special handling)
+                return {
+                    "success": False,
+                    "error": "AI import requires async execution - use run_ai_import_from_directory",
+                    "suggested_method": "run_ai_import_from_directory"
+                }
+            else:
+                # Run basic import
+                result = self.run_basic_import(directory_name)
+                
+                if result["success"]:
+                    log_system_event("storypack_importer", "Directory import completed", {
+                        "directory_name": directory_name,
+                        "import_mode": import_mode,
+                        "storypack_path": result["storypack_path"]
+                    })
+                
+                return result
+                
+        finally:
+            # Restore original source directory
+            self.source_dir = original_source
+
+    async def run_ai_import_from_directory(self, directory_name: str) -> Dict[str, Any]:
+        """
+        Run AI import for a specific directory from the import folder.
+        
+        Args:
+            directory_name: Name of the directory in the import folder
+            
+        Returns:
+            Dictionary containing import results
+        """
+        source_path = self.source_dir / directory_name
+        
+        if not source_path.exists() or not source_path.is_dir():
+            return {
+                "success": False,
+                "error": f"Directory '{directory_name}' not found in import folder",
+                "source_path": str(source_path)
+            }
+        
+        # Check if storypack already exists
+        existing_check = self.check_storypack_exists(directory_name)
+        if existing_check["exists"]:
+            return {
+                "success": False,
+                "error": f"Storypack '{directory_name}' already exists",
+                "existing_storypack": existing_check,
+                "action_required": "rename_source_or_remove_existing"
+            }
+        
+        # Temporarily set source directory to the specific import folder
+        original_source = self.source_dir
+        self.source_dir = source_path
+        
+        try:
+            result = await self.run_ai_import(directory_name)
+            
+            if result["success"]:
+                log_system_event("storypack_importer", "AI directory import completed", {
+                    "directory_name": directory_name,
+                    "storypack_path": result["storypack_path"],
+                    "files_processed": result.get("files_processed", 0)
+                })
+            
+            return result
+            
+        finally:
+            # Restore original source directory
+            self.source_dir = original_source
         """
         Discover and categorize source files in the staging directory.
         
@@ -811,6 +1047,30 @@ Happy storytelling!
             "directories_documented": created_dirs
         })
     
+    def discover_source_files(self) -> Dict[str, List[Path]]:
+        """
+        Discover and categorize source files in the current source directory.
+        This is a wrapper around _discover_files_in_directory for backwards compatibility.
+        
+        Returns:
+            Dictionary mapping content categories to lists of file paths
+        """
+        if not self.source_dir.exists():
+            self.logger.warning(f"Source directory does not exist: {self.source_dir}")
+            return {category: [] for category in self.content_categories.keys()}
+        
+        discovered_files = self._discover_files_in_directory(self.source_dir)
+        
+        # Log discovery results
+        total_files = sum(len(files) for files in discovered_files.values())
+        log_system_event("storypack_importer", "File discovery completed", {
+            "total_files": total_files,
+            "categories": {cat: len(files) for cat, files in discovered_files.items()},
+            "source_directory": str(self.source_dir)
+        })
+        
+        return discovered_files
+    
 
 # Convenience function for quick testing
 def quick_import_test(storypack_name: str = "test_import") -> Dict[str, Any]:
@@ -855,12 +1115,18 @@ Examples:
     
   Preview mode:
     python -m utilities.storypack_importer "C:/my_story" "preview" --preview
+    
+  Scan import directory:
+    python -m utilities.storypack_importer "" "" --scan
+    
+  Import from import directory:
+    python -m utilities.storypack_importer "" "my_story_folder" --import-dir --basic
         """
     )
     
-    parser.add_argument("source_directory", 
+    parser.add_argument("source_directory", nargs="?", default="",
                        help="Source directory containing story files")
-    parser.add_argument("storypack_name", 
+    parser.add_argument("storypack_name", nargs="?", default="",
                        help="Name for the new storypack")
     
     # Import mode options
@@ -871,6 +1137,12 @@ Examples:
                            help="AI-powered import (full content analysis)")
     mode_group.add_argument("--preview", action="store_true",
                            help="Preview mode (show what would be imported)")
+    mode_group.add_argument("--scan", action="store_true",
+                           help="Scan import directory for available imports")
+    
+    # Special modes
+    parser.add_argument("--import-dir", action="store_true",
+                       help="Import a specific directory from import folder (use with --basic or --ai)")
     
     # Optional parameters
     parser.add_argument("--verbose", "-v", action="store_true",
@@ -881,14 +1153,27 @@ Examples:
     args = parser.parse_args()
     
     # Validate arguments
-    source_path = Path(args.source_directory)
-    if not source_path.exists():
-        print(f"Error: Source directory '{args.source_directory}' does not exist")
-        sys.exit(1)
-    
-    if not source_path.is_dir():
-        print(f"Error: '{args.source_directory}' is not a directory")
-        sys.exit(1)
+    if args.scan:
+        # Scan mode doesn't need source directory validation
+        pass
+    elif args.import_dir:
+        # Import directory mode needs storypack name and either --basic or --ai
+        if not args.storypack_name or args.storypack_name == "":
+            print("Error: Directory name required for --import-dir mode")
+            sys.exit(1)
+        if not (args.basic or args.ai):
+            print("Error: --import-dir mode requires either --basic or --ai")
+            sys.exit(1)
+    else:
+        # Other modes need source directory validation
+        source_path = Path(args.source_directory)
+        if not source_path.exists():
+            print(f"Error: Source directory '{args.source_directory}' does not exist")
+            sys.exit(1)
+        
+        if not source_path.is_dir():
+            print(f"Error: '{args.source_directory}' is not a directory")
+            sys.exit(1)
     
     # Run the import
     try:
@@ -909,6 +1194,102 @@ async def _run_cli_import(args):
     
     print("OpenChronicle Storypack Importer")
     print("=" * 40)
+    
+    if args.scan:
+        print("Mode: SCAN (discover available imports)")
+        print()
+        
+        # Initialize importer with default import directory
+        print("Scanning import directory...")
+        importer = StorypackImporter()
+        scan_result = importer.scan_import_directory()
+        
+        if scan_result["status"] == "no_import_directory":
+            print("❌ Import directory does not exist")
+            print(f"Expected location: {importer.source_dir}")
+            print("Create the 'import' directory and add story folders to it.")
+            return
+        
+        print(f"Found {scan_result['total_candidates']} import candidates")
+        print(f"Found {scan_result['total_existing']} existing storypacks")
+        print()
+        
+        if scan_result["import_candidates"]:
+            print("📁 AVAILABLE FOR IMPORT:")
+            for candidate in scan_result["import_candidates"]:
+                print(f"  ✓ {candidate['name']} ({candidate['file_count']} files)")
+                print(f"    Path: {candidate['source_path']}")
+        else:
+            print("📁 No import candidates found")
+        
+        if scan_result["existing_storypacks"]:
+            print("\n⚠️  ALREADY IMPORTED (skipped):")
+            for existing in scan_result["existing_storypacks"]:
+                print(f"  ⚠️  {existing['name']} (already exists)")
+                print(f"    Storypack: {existing['path']}")
+                print(f"    Source: {existing['source_path']}")
+        
+        print("\nTo import a candidate:")
+        print("  python -m utilities.storypack_importer \"\" \"folder_name\" --import-dir --basic")
+        print("  python -m utilities.storypack_importer \"\" \"folder_name\" --import-dir --ai")
+        
+        return
+    
+    elif args.import_dir:
+        print(f"Mode: IMPORT DIRECTORY")
+        print(f"Directory: {args.storypack_name}")
+        
+        if args.basic:
+            print("Import Mode: BASIC")
+        elif args.ai:
+            print("Import Mode: AI-POWERED")
+        else:
+            print("Error: --import-dir requires either --basic or --ai")
+            sys.exit(1)
+        
+        print()
+        
+        # Initialize importer
+        print("Initializing importer...")
+        importer = StorypackImporter()
+        
+        # Check if directory exists in import folder
+        import_path = importer.source_dir / args.storypack_name
+        if not import_path.exists():
+            print(f"❌ Directory '{args.storypack_name}' not found in import folder")
+            print(f"Expected location: {import_path}")
+            # Show available directories
+            scan_result = importer.scan_import_directory()
+            if scan_result["import_candidates"]:
+                print(f"\nAvailable directories:")
+                for candidate in scan_result["import_candidates"]:
+                    print(f"  - {candidate['name']}")
+            sys.exit(1)
+        
+        # Run the import
+        if args.basic:
+            print("Starting basic import from directory...")
+            result = importer.import_from_directory(args.storypack_name, "basic")
+        else:  # args.ai
+            print("Starting AI import from directory...")
+            result = await importer.run_ai_import_from_directory(args.storypack_name)
+        
+        if result["success"]:
+            print(f"✅ Import completed successfully!")
+            print(f"  Storypack: {result['storypack_path']}")
+            if "files_processed" in result:
+                print(f"  Files processed: {result['files_processed']}")
+        else:
+            print(f"❌ Import failed: {result.get('error', 'Unknown error')}")
+            if "existing_storypack" in result:
+                existing = result["existing_storypack"]
+                print(f"  Existing storypack found at: {existing['path']}")
+                print(f"  Status: {existing['status']}")
+            sys.exit(1)
+        
+        return
+    
+    # Original modes (basic, ai, preview) - handle as before
     print(f"Source: {args.source_directory}")
     print(f"Storypack: {args.storypack_name}")
     

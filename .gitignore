@@ -488,6 +488,10 @@ temp_test*.py
 storage/storypacks/test_*
 storage/storypacks/*test*
 storage/storypacks/cli_test*
+
+# Storage directory - ignore all storypacks except demo-story
+storage/storypacks/*
+!storage/storypacks/demo-story/
 test_cleanup_*
 temp_storypack_*
 
