@@ -132,7 +132,7 @@ Optimizes SQLite databases with analysis and maintenance features.
 python utilities/optimize_database.py
 
 # Analyze specific database
-python utilities/optimize_database.py --database storage/demo-story/story.db --analyze-only
+python utilities/optimize_database.py --database storage/storypacks/demo-story/story.db --analyze-only
 
 # Dry run mode
 python utilities/optimize_database.py --dry-run

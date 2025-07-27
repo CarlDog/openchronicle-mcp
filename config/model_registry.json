@@ -23,7 +23,7 @@
       "recommendation_confidence_threshold": 0.75,
       "auto_switch_on_failure": true,
       "preserve_user_overrides": true,
-      "runtime_state_file": "storage/runtime/runtime_state.json"
+      "runtime_state_file": "storage/data/runtime/runtime_state.json"
     }
   },
   "environment_config": {

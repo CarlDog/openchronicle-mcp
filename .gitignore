@@ -47,12 +47,11 @@ storage/*/exports/
 # Analysis and development folders
 analysis/
 logs/
-storage/test*/
-storage/integration_test/
-storage/performance/
-storage/runtime/
+storage/temp/
+storage/data/performance/
+storage/data/runtime/
+storage/data/profiles/
 storage/backups/
-storage/system_profile_*.json
 
 # Obsolete files
 *.old.ignoreme

@@ -333,7 +333,7 @@ def test_configuration_validation():
             assert False, "Requirements.txt not found"
         
         # Test demo story configuration
-        demo_story_path = os.path.join(project_root, 'storage', 'temp', 'demo', 'demo-story')
+        demo_story_path = os.path.join(project_root, 'storage', 'storypacks', 'demo-story')
         if os.path.exists(demo_story_path):
             required_demo_files = ['meta.json', 'characters', 'canon', 'memory']
             for required_file in required_demo_files:

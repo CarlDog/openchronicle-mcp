@@ -530,7 +530,7 @@ class SystemProfiler:
         """Save profiling results to JSON file."""
         if not filepath:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filepath = f"storage/system_profile_{timestamp}.json"
+            filepath = f"storage/data/profiles/system_profile_{timestamp}.json"
         
         # Ensure directory exists
         os.makedirs(os.path.dirname(filepath), exist_ok=True)

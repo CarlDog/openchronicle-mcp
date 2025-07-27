@@ -138,7 +138,7 @@ This directory automatically enhances Copilot's suggestions by providing:
 - Transformer-based content analysis patterns and examples
 
 ### For Story Creation
-- Use `storage/temp/demo/demo-story/` as a complete template
+- Use `storage/storypacks/demo-story/` as a complete template
 - Adapt `meta.yaml` for your story's metadata requirements
 - Reference `style_guide.md` for narrative formatting standards
 - Use character and canon examples as structural templates
@@ -193,7 +193,7 @@ This directory automatically enhances Copilot's suggestions by providing:
 - **Content**: Advanced token handling patterns
 - **Usage**: Implement efficient LLM interactions
 
-### `storage/temp/demo/demo-story/`
+### `storage/storypacks/demo-story/`
 - **Purpose**: Complete storypack example
 - **Content**: All components of a working story
 - **Usage**: Template for creating new stories

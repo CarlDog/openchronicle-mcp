@@ -144,7 +144,7 @@ class PerformanceMonitor:
     and provides optimization recommendations.
     """
     
-    def __init__(self, storage_path: str = "storage/performance"):
+    def __init__(self, storage_path: str = "storage/data/performance"):
         self.storage_path = Path(storage_path)
         self.storage_path.mkdir(parents=True, exist_ok=True)
         
