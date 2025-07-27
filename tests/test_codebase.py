@@ -23,46 +23,33 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-# Global logger for test output
-logger = None
+# Import centralized logging
+from utilities.logging_system import get_logger, log_system_event
 
 def setup_logging(log_file=None, verbose=False):
-    """Setup logging configuration."""
-    global logger
-    logger = logging.getLogger('test_codebase')
-    logger.setLevel(logging.INFO)
+    """Setup logging configuration using centralized system."""
+    logger = get_logger()
     
-    # Clear any existing handlers
-    logger.handlers.clear()
-    
-    # Create formatter
-    formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    
-    # Always add file handler if log_file is specified
-    if log_file:
-        file_handler = logging.FileHandler(log_file, mode='w', encoding='utf-8')
-        file_handler.setLevel(logging.INFO)
-        file_handler.setFormatter(formatter)
-        logger.addHandler(file_handler)
-    
-    # Add console handler only if verbose mode
-    if verbose:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+    # Log the test session start
+    log_system_event("test_codebase", "Comprehensive codebase test started", {
+        "log_file": log_file,
+        "verbose": verbose,
+        "project_root": project_root
+    })
     
     return logger
 
 def log_print(message, level=logging.INFO):
-    """Print message to both console and log file."""
-    if logger:
-        logger.log(level, message)
+    """Print message using centralized logging system."""
+    logger = get_logger()
+    if level == logging.INFO:
+        logger.info(f"[TEST] {message}")
+    elif level == logging.WARNING:
+        logger.warning(f"[TEST] {message}")
+    elif level == logging.ERROR:
+        logger.error(f"[TEST] {message}")
     else:
-        print(message)
+        logger.debug(f"[TEST] {message}")
 
 def test_project_structure():
     """Validate overall project structure and architecture."""

@@ -18,12 +18,30 @@ class OpenChronicleLogger:
     def __init__(self, name: str = "openchronicle", log_dir: Optional[Path] = None):
         self.name = name
         self.root_dir = Path(__file__).parent.parent
-        self.log_dir = log_dir or self.root_dir / "logs"
+        
+        # Determine log directory based on context
+        if log_dir:
+            self.log_dir = log_dir
+        else:
+            # Use tests/logs for test context, logs for production
+            if self._is_test_context():
+                self.log_dir = self.root_dir / "tests" / "logs"
+            else:
+                self.log_dir = self.root_dir / "logs"
+        
         self.log_dir.mkdir(exist_ok=True)
         
         # Create loggers
         self.logger = self._setup_logger()
         self.maintenance_logger = self._setup_maintenance_logger()
+    
+    def _is_test_context(self) -> bool:
+        """Detect if we're running in a test context."""
+        import sys
+        # Check if pytest is running or if we're in a test directory context
+        return ('pytest' in sys.modules or 
+                'unittest' in sys.modules or
+                any('test' in module for module in sys.modules))
         
     def _setup_logger(self) -> logging.Logger:
         """Set up main application logger."""
@@ -102,7 +120,7 @@ class OpenChronicleLogger:
         """Log critical message."""
         self.logger.critical(message, **kwargs)
     
-    def log_maintenance_action(self, action: str, details: Dict[str, Any] = None, status: str = "success"):
+    def log_maintenance_action(self, action: str, details: Optional[Dict[str, Any]] = None, status: str = "success"):
         """Log maintenance action with structured data."""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -118,7 +136,7 @@ class OpenChronicleLogger:
         self.logger.info(f"Maintenance: {action} - {status}")
     
     def log_model_interaction(self, story_id: str, model: str, prompt_length: int, 
-                             response_length: int, metadata: Dict[str, Any] = None):
+                             response_length: int, metadata: Optional[Dict[str, Any]] = None):
         """Log model interaction for analytics."""
         log_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -134,7 +152,7 @@ class OpenChronicleLogger:
         with open(model_log_path, 'a') as f:
             f.write(json.dumps(log_entry) + '\n')
     
-    def log_error_with_context(self, error: Exception, context: Dict[str, Any] = None):
+    def log_error_with_context(self, error: Exception, context: Optional[Dict[str, Any]] = None):
         """Log error with additional context."""
         error_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -151,7 +169,7 @@ class OpenChronicleLogger:
         # Also log to main logger
         self.logger.error(f"Error: {error_entry['error_type']}: {error_entry['error_message']}")
     
-    def log_system_event(self, event_type: str, description: str, data: Dict[str, Any] = None):
+    def log_system_event(self, event_type: str, description: str, data: Optional[Dict[str, Any]] = None):
         """Log system events (startup, shutdown, configuration changes, etc.)."""
         event_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -239,20 +257,20 @@ def log_warning(message: str, **kwargs):
     """Log warning message."""
     get_logger().warning(message, **kwargs)
 
-def log_maintenance_action(action: str, details: Dict[str, Any] = None, status: str = "success"):
+def log_maintenance_action(action: str, details: Optional[Dict[str, Any]] = None, status: str = "success"):
     """Log maintenance action."""
     get_logger().log_maintenance_action(action, details, status)
 
 def log_model_interaction(story_id: str, model: str, prompt_length: int, 
-                         response_length: int, metadata: Dict[str, Any] = None):
+                         response_length: int, metadata: Optional[Dict[str, Any]] = None):
     """Log model interaction."""
     get_logger().log_model_interaction(story_id, model, prompt_length, response_length, metadata)
 
-def log_system_event(event_type: str, description: str, data: Dict[str, Any] = None):
+def log_system_event(event_type: str, description: str, data: Optional[Dict[str, Any]] = None):
     """Log system event."""
     get_logger().log_system_event(event_type, description, data)
 
-def log_error_with_context(error: Exception, context: Dict[str, Any] = None):
+def log_error_with_context(error: Exception, context: Optional[Dict[str, Any]] = None):
     """Log error with context."""
     get_logger().log_error_with_context(error, context)
 
