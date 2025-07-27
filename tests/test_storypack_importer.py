@@ -15,6 +15,9 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 
+# Import OpenChronicle utilities
+from utilities.logging_system import log_info, log_warning, log_error, log_system_event
+
 # Import the system under test
 from utilities.storypack_importer import StorypackImporter, quick_import_test
 
@@ -29,19 +32,42 @@ def track_storypack(storypack_path):
     path = Path(storypack_path)
     if path not in _created_storypacks:
         _created_storypacks.append(path)
+        log_system_event("test_storypack_tracking", "Tracked storypack for cleanup", {
+            "storypack_path": str(path),
+            "total_tracked": len(_created_storypacks)
+        })
 
 
 def cleanup_tracked_storypacks():
     """Clean up only the storypacks we explicitly created."""
     global _created_storypacks
+    
+    log_system_event("test_cleanup", "Starting tracked storypack cleanup", {
+        "storypacks_to_clean": len(_created_storypacks)
+    })
+    
+    cleaned_count = 0
+    failed_count = 0
+    
     for storypack_path in _created_storypacks:
         if storypack_path.exists():
             try:
                 shutil.rmtree(storypack_path)
-                print(f"Cleaned up tracked storypack: {storypack_path.name}")
+                log_info(f"Cleaned up tracked storypack: {storypack_path.name}")
+                cleaned_count += 1
             except Exception as e:
-                print(f"Warning: Could not clean up {storypack_path.name}: {e}")
+                log_warning(f"Could not clean up storypack {storypack_path.name}: {e}")
+                failed_count += 1
+        else:
+            log_info(f"Storypack already removed: {storypack_path.name}")
+    
     _created_storypacks.clear()
+    
+    log_system_event("test_cleanup", "Completed tracked storypack cleanup", {
+        "cleaned_count": cleaned_count,
+        "failed_count": failed_count,
+        "total_processed": cleaned_count + failed_count
+    })
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -129,6 +155,12 @@ class TestStorypackImporter:
         """Test basic storypack import functionality."""
         storypack_name = "test_basic_import"
         
+        log_system_event("test_start", "Starting basic import test", {
+            "test_name": "test_basic_import",
+            "storypack_name": storypack_name,
+            "source_dir": str(temp_source_dir)
+        })
+        
         result = importer.run_basic_import(storypack_name)
         
         # Track the created storypack for cleanup
@@ -151,11 +183,22 @@ class TestStorypackImporter:
         assert len(discovered["characters"]) == 2
         assert len(discovered["locations"]) == 1
         assert len(discovered["lore"]) == 1
+        
+        log_system_event("test_end", "Completed basic import test", {
+            "test_name": "test_basic_import",
+            "result_success": result["success"],
+            "storypack_created": str(storypack_path)
+        })
     
     @pytest.mark.asyncio
     async def test_ai_import(self, importer):
         """Test AI-powered storypack import."""
         storypack_name = "test_ai_import"
+        
+        log_system_event("test_start", "Starting AI import test", {
+            "test_name": "test_ai_import",
+            "storypack_name": storypack_name
+        })
         
         # Mock AI capabilities to avoid external dependencies
         with patch.object(importer, 'test_ai_capabilities', return_value=True), \
@@ -186,6 +229,12 @@ class TestStorypackImporter:
             assert "files_processed" in result
             assert "analysis_results" in result
             assert "metadata" in result
+            
+            log_system_event("test_end", "Completed AI import test", {
+                "test_name": "test_ai_import",
+                "result_success": result["success"],
+                "storypack_created": str(storypack_path)
+            })
     
     def test_get_import_summary(self, importer):
         """Test import summary generation."""
