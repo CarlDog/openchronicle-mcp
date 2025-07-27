@@ -15,7 +15,8 @@
     "application_behavior": {
       "empty_optional_fields": "Application will automatically ignore optional fields that are empty, null, or contain only placeholder values",
       "unused_optional_fields": "Optional fields left as {{PLACEHOLDER}} values will be treated as unused and ignored",
-      "processing_logic": "Only populated optional fields with actual content will be processed by the application"
+      "processing_logic": "Only populated optional fields with actual content will be processed by the application",
+      "conditional_requirements": "Identifier fields (name, arc_name, etc.) are required only when their containing object is used. Whole sections can be deleted if unused."
     }
   },
   "factions": {

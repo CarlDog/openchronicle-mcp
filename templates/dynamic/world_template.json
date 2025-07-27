@@ -4,7 +4,7 @@
     "description": "Geography, regions, and cultural foundations for storytelling environments",
     "version": "1.0",
     "purpose": "Provides physical world structure with regions, cultural elements, and environmental features",
-    "required_fields": ["world_overview.world_name"],
+    "required_fields": [],
     "optional_fields": "Any field marked with '_optional': true can be safely deleted",
     "usage": "Delete entire fields/sections with '_optional': true, or just the '_optional' key to make field required",
     "import_adaptability": {
@@ -15,11 +15,15 @@
     "application_behavior": {
       "empty_optional_fields": "Application will automatically ignore optional fields that are empty, null, or contain only placeholder values",
       "unused_optional_fields": "Optional fields left as {{PLACEHOLDER}} values will be treated as unused and ignored",
-      "processing_logic": "Only populated optional fields with actual content will be processed by the application"
+      "processing_logic": "Only populated optional fields with actual content will be processed by the application",
+      "conditional_requirements": "Identifier fields (name, region_id, etc.) are required only when their containing object is used. Whole sections can be deleted if unused."
     }
   },
   "world_overview": {
-    "world_name": "{{WORLD_NAME}}",
+    "world_name": {
+      "_optional": true,
+      "value": "{{WORLD_NAME}}"
+    },
     "world_type": {
       "_optional": true,
       "value": "{{FANTASY_SCIFI_MODERN_HISTORICAL}}"
