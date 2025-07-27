@@ -10,6 +10,7 @@ and template processing.
 import os
 import json
 import shutil
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime, UTC
@@ -284,12 +285,18 @@ class StorypackImporter:
         
         return is_ready, issues
     
-    def create_storypack_structure(self, storypack_name: str) -> Path:
+    def create_storypack_structure(self, storypack_name: str, discovered_content: Optional[Dict] = None) -> Path:
         """
-        Create the basic directory structure for a new storypack.
+        Create the optimal directory structure for a new storypack.
+        
+        Structure:
+        - Root files: meta.json, README.md, style_guide.json (optional), instructions.json (optional)
+        - Content directories: characters/, locations/, lore/, narrative/ (created based on discovered content)
+        - Individual files within each content directory for maximum flexibility
         
         Args:
             storypack_name: Name of the storypack to create
+            discovered_content: Optional dict of discovered content categories
             
         Returns:
             Path to the created storypack directory
@@ -299,15 +306,35 @@ class StorypackImporter:
         # Create main directory
         storypack_path.mkdir(parents=True, exist_ok=True)
         
-        # Create subdirectories
-        subdirs = ['characters', 'canon', 'memory']
-        for subdir in subdirs:
-            (storypack_path / subdir).mkdir(exist_ok=True)
+        # Content directories - create based on discovered content and core categories
+        content_dirs = ['characters', 'locations', 'lore', 'narrative']
+        created_dirs = []
+        
+        for category in content_dirs:
+            dir_path = storypack_path / category
+            
+            # Always create core directories (characters, locations, lore)
+            # Create narrative only if we have content for it
+            if category in ['characters', 'locations', 'lore']:
+                dir_path.mkdir(exist_ok=True)
+                created_dirs.append(category)
+                
+                # Add helpful README for empty directories
+                if not discovered_content or category not in discovered_content or not discovered_content[category]:
+                    self._create_directory_readme(dir_path, category)
+                    
+            elif discovered_content and category in discovered_content and discovered_content[category]:
+                dir_path.mkdir(exist_ok=True)
+                created_dirs.append(category)
+        
+        # Create the main storypack README
+        self._create_storypack_readme(storypack_path, created_dirs)
         
         log_system_event("storypack_importer", "Storypack structure created", {
             "storypack_name": storypack_name,
             "storypack_path": str(storypack_path),
-            "subdirectories": subdirs
+            "subdirectories": created_dirs,
+            "structure_type": "optimized_individual_files"
         })
         
         return storypack_path
@@ -372,7 +399,7 @@ class StorypackImporter:
         templates = self.load_templates()
         
         # Create storypack structure
-        storypack_path = self.create_storypack_structure(storypack_name)
+        storypack_path = self.create_storypack_structure(storypack_name, discovered_files)
         
         # Create basic meta.json from template
         if 'meta_template' in templates:
@@ -559,7 +586,7 @@ class StorypackImporter:
                 metadata = await self.content_analyzer.generate_import_metadata(all_content, storypack_name)
             
             # Create storypack structure
-            storypack_path = self.create_storypack_structure(storypack_name)
+            storypack_path = self.create_storypack_structure(storypack_name, {"discovered": True})
             
             # Save analysis results
             analysis_file = storypack_path / "import_analysis.json"
@@ -607,6 +634,183 @@ class StorypackImporter:
                 "storypack_name": storypack_name
             }
 
+    def _create_directory_readme(self, dir_path: Path, category: str) -> None:
+        """
+        Create a helpful README file for empty content directories.
+        
+        Args:
+            dir_path: Path to the directory
+            category: Category name for the directory
+        """
+        readme_content = f"""# {category.title()}
+
+This directory contains {category} for your storypack.
+
+## File Organization
+- **Individual files**: Create separate JSON files for each {category[:-1] if category.endswith('s') else category}
+- **Naming**: Use descriptive names like `sarah_chen.json`, `crystal_city.json`, or `magic_system.json`
+- **Templates**: Use the appropriate OpenChronicle template for consistency
+
+## Content Guidelines
+"""
+        
+        if category == "characters":
+            readme_content += """- Each character should have their own JSON file
+- Include personality, background, relationships, and development arcs
+- Use the character_template.json structure for consistency
+- Example: `protagonist.json`, `villain.json`, `wise_mentor.json`
+"""
+        elif category == "locations":
+            readme_content += """- Create individual files for significant places
+- Include atmosphere, notable features, and story connections
+- Use the location_template.json structure for consistency
+- Example: `tavern.json`, `castle_throne_room.json`, `mysterious_forest.json`
+"""
+        elif category == "lore":
+            readme_content += """- Organize world-building elements into logical files
+- Include magic systems, histories, cultures, and significant items
+- Use world_template.json or content_template.json structures
+- Example: `magic_system.json`, `ancient_history.json`, `legendary_weapons.json`
+- **Items**: Legendary weapons, artifacts, and significant objects belong here
+"""
+        elif category == "narrative":
+            readme_content += """- Structure your story elements and plot progression
+- Include acts, scenes, chapters, and plot threads
+- Use narrative_template.json and scene_template.json structures
+- Example: `main_plot.json`, `character_arcs.json`, `act_1_setup.json`
+"""
+        
+        readme_content += """
+## Getting Started
+1. Create your first file using the appropriate template
+2. Fill in the required fields and customize as needed
+3. Add more files as your content grows
+
+For more information, see the main storypack README.md file.
+"""
+        
+        readme_path = dir_path / "README.md"
+        readme_path.write_text(readme_content, encoding='utf-8')
+        
+    def _create_storypack_readme(self, storypack_path: Path, created_dirs: List[str]) -> None:
+        """
+        Create the main README file for the storypack.
+        
+        Args:
+            storypack_path: Path to the storypack directory
+            created_dirs: List of directories that were created
+        """
+        storypack_name = storypack_path.name
+        
+        readme_content = f"""# {storypack_name}
+
+Welcome to your OpenChronicle storypack! This collection contains all the elements needed to build and run narrative experiences.
+
+## Storypack Structure
+
+### Root Files
+- **meta.json**: Core storypack metadata and configuration
+- **README.md**: This documentation file
+- **style_guide.json** *(optional)*: Writing style and tone guidelines
+- **instructions.json** *(optional)*: AI behavior instructions
+- **content.json** *(optional)*: Generated content and item catalogs
+
+### Content Directories
+"""
+        
+        for directory in created_dirs:
+            if directory == "characters":
+                readme_content += """
+#### characters/
+Individual character files with personalities, backgrounds, and development arcs.
+- **Purpose**: Store each character in a separate JSON file
+- **Template**: character_template.json
+- **Examples**: `hero.json`, `villain.json`, `wise_mentor.json`
+- **Content**: Personality traits, backstory, relationships, character development
+"""
+            elif directory == "locations":
+                readme_content += """
+#### locations/
+Individual location files for places in your world.
+- **Purpose**: Store each significant location in a separate JSON file  
+- **Template**: location_template.json
+- **Examples**: `tavern.json`, `castle.json`, `mysterious_forest.json`
+- **Content**: Atmosphere, notable features, story connections
+"""
+            elif directory == "lore":
+                readme_content += """
+#### lore/
+World-building elements including magic systems, histories, cultures, and items.
+- **Purpose**: Store world-building elements in organized files
+- **Templates**: world_template.json, content_template.json
+- **Examples**: `magic_system.json`, `ancient_history.json`, `legendary_weapons.json`
+- **Content**: Magic systems, historical events, cultures, significant items
+- **Items**: This is where legendary weapons, artifacts, and important objects belong
+"""
+            elif directory == "narrative":
+                readme_content += """
+#### narrative/
+Story structure elements including acts, scenes, and plot progression.
+- **Purpose**: Organize story structure and plot elements
+- **Templates**: narrative_template.json, scene_template.json
+- **Examples**: `main_plot.json`, `character_arcs.json`, `act_1_setup.json`
+- **Content**: Plot progression, story acts, character development arcs
+"""
+        
+        readme_content += """
+## File Organization Principles
+
+### Individual Files Approach
+- **Flexibility**: Each element (character, location, lore item) gets its own file
+- **Discoverability**: Easy to browse and find content in file explorers
+- **Version Control**: Git-friendly with clean diffs and collaboration
+- **Modularity**: Edit one element without affecting others
+
+### Content Categories
+- **Characters**: People, beings, and entities in your story
+- **Locations**: Places, buildings, and geographical areas
+- **Lore**: World-building elements, items, magic systems, and background information
+- **Narrative**: Story structure, plot progression, and scene organization
+
+### Where Things Go
+- **Legendary Items**: Place in `lore/` (e.g., `lore/excalibur.json`)
+- **Personal Items**: Reference in character files' `personal_items` array
+- **Location Items**: Include in location files' `notable_features`
+- **Plot Elements**: Organize in `narrative/` directory
+
+## Getting Started
+
+1. **Review Templates**: Check the `templates/` directory for JSON structures
+2. **Start Small**: Begin with a few characters and locations
+3. **Expand Gradually**: Add lore and narrative elements as your world grows
+4. **Stay Organized**: Use descriptive filenames and consistent structures
+
+## OpenChronicle Integration
+
+This storypack is designed to work seamlessly with OpenChronicle's narrative AI engine:
+- **Templates**: Follow OpenChronicle template structures for compatibility
+- **Content Analysis**: AI can analyze and enhance your content
+- **Story Generation**: Structured content enables rich narrative experiences
+- **Memory Integration**: Characters and lore integrate with AI memory systems
+
+## Need Help?
+
+- **Templates**: See `templates/` directory for JSON structures
+- **Documentation**: Check OpenChronicle documentation
+- **Examples**: Look at existing storypacks for inspiration
+
+Happy storytelling!
+"""
+        
+        readme_path = storypack_path / "README.md"
+        readme_path.write_text(readme_content, encoding='utf-8')
+        
+        log_system_event("storypack_importer", "Documentation created", {
+            "storypack_name": storypack_name,
+            "readme_created": str(readme_path),
+            "directories_documented": created_dirs
+        })
+    
 
 # Convenience function for quick testing
 def quick_import_test(storypack_name: str = "test_import") -> Dict[str, Any]:

@@ -383,9 +383,11 @@ class TestStorageAndCleanup:
         # Verify directory structure (based on create_storypack_structure method)
         assert storypack_path.exists()
         assert (storypack_path / "meta.json").exists()
+        assert (storypack_path / "README.md").exists()
         assert (storypack_path / "characters").exists()
-        assert (storypack_path / "canon").exists()
-        assert (storypack_path / "memory").exists()
+        assert (storypack_path / "locations").exists()
+        assert (storypack_path / "lore").exists()
+        # narrative/ should only exist if there's narrative content
     
     def test_cleanup_tracking(self):
         """Test that our tracking system works correctly."""
