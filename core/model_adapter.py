@@ -303,6 +303,7 @@ class ModelManager:
         self.adapters: Dict[str, ModelAdapter] = {}
         self.default_adapter: Optional[str] = None
         self.global_config = self._load_global_config()
+        self.full_registry = self._load_full_registry()  # Store full registry for disabled adapter checks
         self.config = self._load_config()
         
         # Initialize performance monitoring
@@ -333,6 +334,20 @@ class ModelManager:
         except Exception as e:
             log_error(f"Failed to load global config from registry: {e}")
             raise
+
+    def _load_full_registry(self) -> Dict[str, Any]:
+        """Load the complete registry for checking disabled adapters."""
+        registry_file = os.path.join("config", "model_registry.json")
+        
+        if not os.path.exists(registry_file):
+            return {}
+        
+        try:
+            with open(registry_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            log_error(f"Failed to load full registry: {e}")
+            return {}
 
     def _process_global_config(self, registry: Dict[str, Any]) -> Dict[str, Any]:
         """Process registry format for global configuration."""
@@ -770,8 +785,32 @@ class ModelManager:
         """
         # Validate adapter exists in configuration
         if name not in self.config["adapters"]:
-            error_msg = f"Adapter '{name}' not found in configuration"
+            # Check if adapter exists in global registry but is disabled
+            disabled_reason = self._check_if_adapter_disabled(name)
+            if disabled_reason:
+                error_msg = disabled_reason
+            else:
+                # Check if it's a provider that needs to be in the model registry
+                available_adapters = list(self.config["adapters"].keys())
+                similar_adapters = [a for a in available_adapters if name.lower() in a.lower() or a.lower() in name.lower()]
+                
+                error_msg = f"Adapter '{name}' not found in configuration."
+                if similar_adapters:
+                    error_msg += f" Did you mean: {', '.join(similar_adapters)}?"
+                else:
+                    error_msg += f" Available adapters: {', '.join(sorted(available_adapters))}"
+            
             log_system_event("adapter_initialization_error", error_msg)
+            
+            # Store the failure reason for better error reporting later
+            self.disabled_adapters[name] = {
+                "type": "unknown",
+                "reason": error_msg,
+                "can_enable_later": True,
+                "recommendation": "Check configuration or enable in model registry",
+                "last_check": datetime.now(UTC).isoformat()
+            }
+            
             if graceful_degradation:
                 log_error(f"Skipping missing adapter: {name}")
                 return False
@@ -922,6 +961,40 @@ class ModelManager:
             else:
                 raise RuntimeError(final_error_msg)
     
+    def _check_if_adapter_disabled(self, adapter_name: str) -> Optional[str]:
+        """
+        Check if an adapter exists in the global registry but is disabled.
+        
+        Returns:
+            Error message if adapter is disabled, None if not found or enabled
+        """
+        try:
+            # Check all model categories in the full registry
+            for category in ["text_models", "image_models"]:
+                category_data = self.full_registry.get(category, {})
+                
+                # Check all priority levels
+                for priority_level in ["high_priority", "standard_priority", "primary", "testing"]:
+                    models = category_data.get(priority_level, [])
+                    
+                    for model in models:
+                        if model.get("name") == adapter_name:
+                            if not model.get("enabled", True):
+                                provider = model.get("provider", adapter_name)
+                                model_type = "text" if category == "text_models" else "image"
+                                
+                                recommendation = f"Enable in model registry: set 'enabled': true for '{adapter_name}'"
+                                if provider in ["openai", "anthropic", "groq", "gemini", "cohere", "mistral"]:
+                                    recommendation += f" and configure API key with: python utilities/api_key_manager.py --set {provider}"
+                                
+                                return f"Adapter '{adapter_name}' is disabled in model registry configuration. {recommendation}"
+            
+            return None  # Not found in registry
+            
+        except Exception as e:
+            log_error(f"Error checking disabled adapter status: {e}")
+            return None
+
     def _validate_adapter_prerequisites(self, name: str, adapter_config: Dict[str, Any], adapter_type: str) -> Dict[str, Any]:
         """
         Enhanced validation with smart API key validation and graceful skipping.
@@ -930,6 +1003,15 @@ class ModelManager:
             Dict with 'valid' (bool), 'reason' (str), 'can_enable_later' (bool), and 'recommendation' (str) keys
         """
         try:
+            # Check if adapter is explicitly disabled
+            if not adapter_config.get("enabled", True):
+                return {
+                    "valid": False,
+                    "reason": f"Adapter '{name}' is disabled in configuration",
+                    "can_enable_later": True,
+                    "recommendation": f"Enable '{name}' in model registry configuration or use: python utilities/api_key_manager.py --set {adapter_type}"
+                }
+            
             # Check for required Python packages first
             required_packages = {
                 "openai": ["openai"],
@@ -1665,7 +1747,16 @@ class ModelManager:
             if adapter_name not in self.adapters:
                 # Try to initialize the adapter
                 if not await self.initialize_adapter(adapter_name):
-                    raise RuntimeError(f"Failed to initialize adapter: {adapter_name}")
+                    # Get detailed failure reason from disabled_adapters
+                    failure_info = self.disabled_adapters.get(adapter_name, {})
+                    failure_reason = failure_info.get("reason", "Unknown initialization error")
+                    recommendation = failure_info.get("recommendation", "Check configuration")
+                    
+                    detailed_error = f"Failed to initialize adapter '{adapter_name}': {failure_reason}"
+                    if recommendation and recommendation != "Check configuration":
+                        detailed_error += f"\n💡 Solution: {recommendation}"
+                    
+                    raise RuntimeError(detailed_error)
             
             adapter = self.adapters[adapter_name]
             response = await adapter.generate_response(prompt, **kwargs)

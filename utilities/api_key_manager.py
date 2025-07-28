@@ -4,6 +4,8 @@ Provides secure storage for AI provider API keys with graceful fallback.
 """
 
 import getpass
+import re
+import json
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
@@ -40,6 +42,98 @@ PROVIDER_MAPPING = {
 def is_keyring_available() -> bool:
     """Check if keyring is available for secure storage."""
     return KEYRING_AVAILABLE
+
+
+def load_api_key_validation_patterns() -> Dict[str, Dict[str, Any]]:
+    """
+    Load API key validation patterns from model registry.
+    
+    Returns:
+        Dictionary with provider validation patterns
+    """
+    try:
+        registry_path = Path(__file__).parent.parent / "config" / "model_registry.json"
+        if not registry_path.exists():
+            log_error(f"Model registry not found at {registry_path}")
+            return {}
+        
+        with open(registry_path, 'r', encoding='utf-8') as f:
+            registry = json.load(f)
+        
+        patterns = {}
+        providers = registry.get("environment_config", {}).get("providers", {})
+        
+        for provider_name, provider_config in providers.items():
+            validation = provider_config.get("validation", {})
+            if validation.get("requires_api_key") and validation.get("api_key_format"):
+                patterns[provider_name] = {
+                    "pattern": validation["api_key_format"],
+                    "service_name": validation.get("service_name", provider_name.title()),
+                    "setup_url": validation.get("setup_url", ""),
+                    "description": validation.get("description", "")
+                }
+        
+        return patterns
+        
+    except Exception as e:
+        log_error(f"Failed to load validation patterns: {e}")
+        return {}
+
+
+def validate_api_key_format(provider: str, api_key: str) -> Dict[str, Any]:
+    """
+    Validate API key format against model registry patterns.
+    
+    Args:
+        provider: Provider name (e.g., 'openai', 'anthropic')
+        api_key: The API key to validate
+        
+    Returns:
+        Dictionary with validation results
+    """
+    patterns = load_api_key_validation_patterns()
+    
+    # Map provider aliases to main names
+    provider_map = {
+        "gemini": "google",
+        "azure": "openai"  # Azure uses similar format
+    }
+    main_provider = provider_map.get(provider.lower(), provider.lower())
+    
+    if main_provider not in patterns:
+        # No pattern available - basic length check only
+        return {
+            "valid": len(api_key) >= 10,
+            "reason": "No format pattern available - basic length check only" if len(api_key) >= 10 else "API key too short",
+            "suggestion": "Check provider documentation for correct format"
+        }
+    
+    pattern_info = patterns[main_provider]
+    pattern = pattern_info["pattern"]
+    
+    try:
+        matches = re.match(pattern, api_key)
+        if matches:
+            return {
+                "valid": True,
+                "reason": f"Valid {pattern_info['service_name']} API key format",
+                "pattern": pattern
+            }
+        else:
+            return {
+                "valid": False,
+                "reason": f"Invalid {pattern_info['service_name']} API key format",
+                "expected_pattern": pattern,
+                "setup_url": pattern_info.get("setup_url", ""),
+                "suggestion": f"Expected format matching: {pattern}"
+            }
+    except re.error as e:
+        log_error(f"Invalid regex pattern for {provider}: {e}")
+        return {
+            "valid": len(api_key) >= 10,
+            "reason": f"Pattern validation failed - using basic check: {e}",
+            "suggestion": "Check provider documentation for correct format"
+        }
 
 
 def get_api_key(provider: str) -> Optional[str]:
@@ -263,6 +357,29 @@ def prompt_and_store_key(provider: str) -> bool:
         if len(api_key) < 10:
             print("❌ API key seems too short. Please check and try again.")
             return False
+        
+        # Format validation using model registry patterns
+        validation_result = validate_api_key_format(provider, api_key)
+        if not validation_result["valid"]:
+            print(f"❌ {validation_result['reason']}")
+            if "expected_pattern" in validation_result:
+                print(f"   Expected pattern: {validation_result['expected_pattern']}")
+            if "setup_url" in validation_result and validation_result["setup_url"]:
+                print(f"   Get correct API key at: {validation_result['setup_url']}")
+            if "suggestion" in validation_result:
+                print(f"   {validation_result['suggestion']}")
+            
+            # Ask if they want to continue anyway
+            try:
+                continue_anyway = input("\nStore anyway? This may cause connection failures (y/N): ").strip().lower()
+                if continue_anyway not in ['y', 'yes']:
+                    print("❌ Cancelled - please get a valid API key")
+                    return False
+            except KeyboardInterrupt:
+                print("\n❌ Cancelled by user")
+                return False
+        else:
+            print(f"✅ {validation_result['reason']}")
         
         # Store the key
         success = set_api_key(provider, api_key)
