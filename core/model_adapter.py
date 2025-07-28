@@ -21,6 +21,46 @@ except ImportError:
 # Import logging system
 from utilities.logging_system import log_model_interaction, log_system_event, log_info, log_error
 
+# log_debug is not available in logging_system, use log_info instead
+def log_debug(message: str) -> None:
+    """Debug logging fallback to log_info."""
+    log_info(f"DEBUG: {message}")
+
+# Import keystore for secure API key retrieval
+try:
+    from utilities.simple_keystore import get_api_key
+except ImportError:
+    get_api_key = None
+
+def get_api_key_with_fallback(config: Dict[str, Any], provider: str, env_var: str) -> Optional[str]:
+    """
+    Get API key with fallback priority: config > keystore > environment variable
+    
+    Args:
+        config: Adapter configuration dictionary
+        provider: Provider name for keystore (e.g., 'openai', 'anthropic')
+        env_var: Environment variable name (e.g., 'OPENAI_API_KEY')
+    
+    Returns:
+        API key string or None if not found
+    """
+    # First priority: explicit config
+    api_key = config.get("api_key")
+    if api_key:
+        return api_key
+    
+    # Second priority: secure keystore
+    if get_api_key:
+        try:
+            keystore_key = get_api_key(provider)
+            if keystore_key:
+                return keystore_key
+        except Exception:
+            pass  # Fallback to environment variable
+    
+    # Third priority: environment variable
+    return os.getenv(env_var)
+
 class ModelAdapter(ABC):
     """Abstract base class for model adapters."""
     
@@ -83,7 +123,7 @@ class OpenAIAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any], model_manager=None):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("OPENAI_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "openai", "OPENAI_API_KEY")
         self.model_manager = model_manager
         self.base_url = self._get_base_url(config)
         self.client = None
@@ -2964,9 +3004,9 @@ class ModelManager:
                     "evidence": {
                         "top_models": top_models,
                         "data_points": sum(
-                            self.performance_monitor.get_adapter_statistics(name).get("total_operations", 0)
+                            (self.performance_monitor.get_adapter_statistics(name) or {}).get("total_operations", 0)
                             for name, _ in top_models
-                        )
+                        ) if self.performance_monitor else 0
                     }
                 })
             
@@ -3109,6 +3149,8 @@ class ModelManager:
         try:
             # Auto-disable consistently failing adapters
             for adapter_name in self.adapters:
+                if not self.performance_monitor:
+                    continue
                 stats = self.performance_monitor.get_adapter_statistics(adapter_name)
                 if stats and stats.get("success_rate", 1.0) < 0.3 and stats.get("total_operations", 0) > 5:
                     # Don't actually disable, just log the recommendation
@@ -3140,6 +3182,8 @@ class ModelManager:
     def _get_adapter_rank(self, adapter_name: str, criteria: str) -> Optional[int]:
         """Get the rank of an adapter for specific criteria."""
         try:
+            if not self.performance_monitor:
+                return None
             rankings = self.performance_monitor.get_model_rankings(criteria)
             for i, (name, _) in enumerate(rankings):
                 if name == adapter_name:
@@ -3581,7 +3625,7 @@ class AnthropicAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any], model_manager=None):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("ANTHROPIC_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "anthropic", "ANTHROPIC_API_KEY")
         self.model_manager = model_manager
         self.base_url = self._get_base_url(config)
         self.client = None
@@ -3662,7 +3706,7 @@ class GeminiAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("GOOGLE_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "google", "GOOGLE_API_KEY")
         self.client = None
     
     async def initialize(self) -> bool:
@@ -3671,9 +3715,9 @@ class GeminiAdapter(ModelAdapter):
             raise ValueError("Google API key required")
         
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=self.api_key)
-            self.client = genai.GenerativeModel(self.model_name)
+            import google.generativeai as genai  # type: ignore
+            genai.configure(api_key=self.api_key)  # type: ignore
+            self.client = genai.GenerativeModel(self.model_name)  # type: ignore
             self.initialized = True
             return True
         except ImportError:
@@ -3714,7 +3758,7 @@ class GroqAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("GROQ_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "groq", "GROQ_API_KEY")
         self.client = None
     
     async def initialize(self) -> bool:
@@ -3767,7 +3811,7 @@ class CohereAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("COHERE_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "cohere", "COHERE_API_KEY")
         self.client = None
     
     async def initialize(self) -> bool:
@@ -3776,7 +3820,7 @@ class CohereAdapter(ModelAdapter):
             raise ValueError("Cohere API key required")
         
         try:
-            import cohere
+            import cohere  # type: ignore
             self.client = cohere.AsyncClient(api_key=self.api_key)
             self.initialized = True
             return True
@@ -3817,7 +3861,7 @@ class MistralAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("MISTRAL_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "mistral", "MISTRAL_API_KEY")
         self.client = None
     
     async def initialize(self) -> bool:
@@ -3842,7 +3886,7 @@ class MistralAdapter(ModelAdapter):
             raise RuntimeError("Adapter not initialized")
         
         try:
-            from mistralai.models.chat_completion import ChatMessage
+            from mistralai.models.chat_completion import ChatMessage  # type: ignore
             response = await self.client.chat(  # type: ignore
                 model=self.model_name,
                 messages=[ChatMessage(role="user", content=prompt)],
@@ -3868,7 +3912,7 @@ class HuggingFaceAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("HUGGINGFACE_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "huggingface", "HUGGINGFACE_API_KEY")
         self.base_url = config.get("base_url", "https://api-inference.huggingface.co/models/")
         self.client = None
     
@@ -3926,7 +3970,7 @@ class AzureOpenAIAdapter(ModelAdapter):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("AZURE_OPENAI_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "azure", "AZURE_OPENAI_API_KEY")
         self.azure_endpoint = config.get("azure_endpoint") or os.getenv("AZURE_OPENAI_ENDPOINT")
         self.api_version = config.get("api_version", "2024-02-01")
         self.client = None
@@ -3994,7 +4038,11 @@ class TransformersAdapter(ModelAdapter):
     async def initialize(self) -> bool:
         """Initialize local transformers model."""
         try:
-            from transformers import pipeline
+            # Use correct import for pipeline
+            try:
+                from transformers.pipelines import pipeline
+            except ImportError:
+                from transformers import pipeline  # type: ignore
             import torch
             
             # Use CPU for maximum compatibility
@@ -4108,7 +4156,7 @@ class OpenAIImageAdapter(ImageAdapter):
     
     def __init__(self, config: Dict[str, Any], model_manager=None):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("OPENAI_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "openai", "OPENAI_API_KEY")
         self.model_manager = model_manager
         self.base_url = self._get_base_url(config)
         self.size = config.get("size", "1024x1024")
@@ -4195,7 +4243,7 @@ class StabilityAdapter(ImageAdapter):
     
     def __init__(self, config: Dict[str, Any], model_manager=None):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("STABILITY_API_KEY")
+        self.api_key = get_api_key_with_fallback(config, "stability", "STABILITY_API_KEY")
         self.model_manager = model_manager
         self.base_url = self._get_base_url(config)
         self.width = config.get("width", 1024)
@@ -4282,7 +4330,7 @@ class ReplicateAdapter(ImageAdapter):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.api_key = config.get("api_key") or os.getenv("REPLICATE_API_TOKEN")
+        self.api_key = get_api_key_with_fallback(config, "replicate", "REPLICATE_API_TOKEN")
         self.width = config.get("width", 1024)
         self.height = config.get("height", 1024)
         self.client = None
@@ -4293,8 +4341,8 @@ class ReplicateAdapter(ImageAdapter):
             raise ValueError("Replicate API token required")
         
         try:
-            import replicate
-            replicate.api_token = self.api_key
+            import replicate  # type: ignore
+            replicate.api_token = self.api_key  # type: ignore
             self.client = replicate
             self.initialized = True
             return True

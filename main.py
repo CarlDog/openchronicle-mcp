@@ -2,27 +2,48 @@ import asyncio
 import sys
 import argparse
 from pathlib import Path
-from core.story_loader import load_storypack
-from core.context_builder import build_context_with_analysis
-from core.memory_manager import (
-    load_current_memory, 
-    update_character_memory, 
-    add_recent_event,
-    add_memory_flag,
-    get_memory_summary
-)
-from core.scene_logger import save_scene
-from core.rollback_engine import get_rollback_candidates, rollback_to_scene
-from core.model_adapter import model_manager
-from core.content_analyzer import ContentAnalyzer
-from core.image_generation_engine import create_image_engine, ImageType
 
-# Add utilities to path for logging system
+# Add utilities to path for logging system  
 sys.path.append(str(Path(__file__).parent / "utilities"))
 from logging_system import log_model_interaction, log_system_event, log_info, log_error
+from simple_keystore import (
+    get_api_key, set_api_key, remove_api_key, list_stored_keys, 
+    prompt_and_store_key, get_keyring_info, is_keyring_available
+)
 
 # Global flag for emoji display (set by command line argument)
 USE_EMOJIS = True
+
+# Lazy imports to avoid full initialization for key management commands
+_imports_loaded = False
+
+def load_imports():
+    """Load heavy imports only when needed."""
+    global _imports_loaded
+    if _imports_loaded:
+        return
+    
+    global load_storypack, build_context_with_analysis, load_current_memory
+    global update_character_memory, add_recent_event, add_memory_flag, get_memory_summary
+    global save_scene, get_rollback_candidates, rollback_to_scene, model_manager
+    global ContentAnalyzer, create_image_engine, ImageType
+    
+    from core.story_loader import load_storypack
+    from core.context_builder import build_context_with_analysis
+    from core.memory_manager import (
+        load_current_memory, 
+        update_character_memory, 
+        add_recent_event,
+        add_memory_flag,
+        get_memory_summary
+    )
+    from core.scene_logger import save_scene
+    from core.rollback_engine import get_rollback_candidates, rollback_to_scene
+    from core.model_adapter import model_manager
+    from core.content_analyzer import ContentAnalyzer
+    from core.image_generation_engine import create_image_engine, ImageType
+    
+    _imports_loaded = True
 
 def emoji(text):
     """Return emoji text if emojis are enabled, otherwise return empty string."""
@@ -36,6 +57,7 @@ def status_icon(success=True):
 
 def print_memory_summary(story_id):
     """Print a summary of current memory state."""
+    load_imports()  # Ensure imports are loaded
     summary = get_memory_summary(story_id)
     print(f"\n{emoji('📚 ')}Memory Summary:")
     print(f"   Characters: {summary['character_count']}")
@@ -46,6 +68,7 @@ def print_memory_summary(story_id):
 
 def show_model_info():
     """Show information about available models."""
+    load_imports()  # Ensure imports are loaded
     print(f"\n{emoji('🤖 ')}Available Models:")
     for adapter_name in model_manager.get_available_adapters():
         try:
@@ -59,6 +82,7 @@ def show_model_info():
 
 async def switch_model():
     """Switch the active model adapter."""
+    load_imports()  # Ensure imports are loaded
     adapters = model_manager.get_available_adapters()
     print(f"\n{emoji('🔧 ')}Available Adapters:")
     for i, adapter in enumerate(adapters):
@@ -319,6 +343,17 @@ def parse_arguments():
                         help='Maximum iterations in non-interactive mode (default: 1)')
     parser.add_argument('--no-emojis', action='store_true',
                         help='Disable emoji output for professional/clean display')
+    
+    # API Key management commands
+    parser.add_argument('--set-key', type=str, metavar='PROVIDER',
+                        help='Store API key for provider (openai, anthropic, etc.)')
+    parser.add_argument('--list-keys', action='store_true',
+                        help='List stored API keys')
+    parser.add_argument('--remove-key', type=str, metavar='PROVIDER',
+                        help='Remove stored API key for provider')
+    parser.add_argument('--keyring-info', action='store_true',
+                        help='Show keyring backend information')
+    
     return parser.parse_args()
 
 async def run_non_interactive_mode(story_id: str, args, story):
@@ -414,6 +449,13 @@ async def main():
     # Set emoji preference from command line
     USE_EMOJIS = not args.no_emojis
     
+    # Handle API key management commands first (before heavy imports)
+    if handle_key_management_commands(args):
+        return  # Exit after handling key commands
+    
+    # Load heavy imports only after key management check
+    load_imports()
+    
     # Check for test mode
     if args.test:
         success = await run_quick_test()
@@ -450,6 +492,7 @@ async def main():
     print("   - Type 'models' to see available models")
     print("   - Type 'switch' to switch model")
     print("   - Type 'images' to access image generation")
+    print("   - Type 'keys' to manage API keys")
     print("   - Type 'quit' to exit")
     
     # Interactive mode
@@ -472,6 +515,9 @@ async def main():
             continue
         elif user_input.lower() == 'images':
             await show_image_commands(story_id)
+            continue
+        elif user_input.lower() == 'keys':
+            show_interactive_key_commands()
             continue
         elif not user_input:
             continue
@@ -527,6 +573,116 @@ async def main():
     
     print(f"\n{emoji('👋 ')}Story session ended.")
     await model_manager.shutdown()
+
+def handle_key_management_commands(args):
+    """Handle API key management commands."""
+    
+    if args.keyring_info:
+        show_keyring_info()
+        return True
+    
+    if args.list_keys:
+        show_stored_keys()
+        return True
+    
+    if args.set_key:
+        provider = args.set_key.lower()
+        success = prompt_and_store_key(provider)
+        if success:
+            print(f"\n{status_icon(True)} API key management completed successfully!")
+        else:
+            print(f"\n{status_icon(False)} API key setup failed.")
+        return True
+    
+    if args.remove_key:
+        provider = args.remove_key.lower()
+        success = remove_api_key(provider)
+        if success:
+            print(f"{status_icon(True)} API key removed for {provider}")
+        else:
+            print(f"{status_icon(False)} Failed to remove API key for {provider}")
+        return True
+    
+    return False
+
+def show_keyring_info():
+    """Show keyring backend information."""
+    info = get_keyring_info()
+    
+    print(f"\n{emoji('🔐 ')}Keyring Information:")
+    print(f"   Available: {info['available']}")
+    
+    if info['available']:
+        print(f"   Backend: {info['backend']}")
+        print(f"   Service: {info['service_name']}")
+        print(f"   Supported providers: {', '.join(info['supported_providers'])}")
+    else:
+        print(f"   Reason: {info['reason']}")
+        print(f"   Fix: {info['recommendation']}")
+
+def show_stored_keys():
+    """Show stored API keys."""
+    if not is_keyring_available():
+        print(f"{status_icon(False)} Keyring not available. Install with: pip install keyring")
+        return
+    
+    stored = list_stored_keys()
+    
+    if not stored:
+        print(f"\n{emoji('🔑 ')}No API keys stored in secure storage.")
+        print("Use --set-key PROVIDER to store API keys securely.")
+        return
+    
+    print(f"\n{emoji('🗄️ ')}Stored API Keys ({len(stored)}):")
+    for provider in sorted(stored):
+        print(f"   {emoji('✅ ')}{provider}")
+    
+    print(f"\nUse --remove-key PROVIDER to remove a key.")
+
+def show_interactive_key_commands():
+    """Show and handle interactive API key management."""
+    if not is_keyring_available():
+        print(f"{status_icon(False)} Secure storage not available.")
+        print("Install keyring: pip install keyring")
+        return
+    
+    print(f"\n{emoji('🔐 ')}API Key Management:")
+    print("1. Store new API key")
+    print("2. List stored keys") 
+    print("3. Remove API key")
+    print("4. Show keyring info")
+    print("5. Back to main menu")
+    
+    choice = input("Select option (1-5): ").strip()
+    
+    if choice == "1":
+        print("\nSupported providers: openai, anthropic, google, groq, cohere, mistral")
+        provider = input("Enter provider name: ").strip().lower()
+        if provider:
+            prompt_and_store_key(provider)
+    elif choice == "2":
+        show_stored_keys()
+    elif choice == "3":
+        stored = list_stored_keys()
+        if not stored:
+            print("No stored keys to remove.")
+            return
+        print(f"\nStored providers: {', '.join(stored)}")
+        provider = input("Enter provider to remove: ").strip().lower()
+        if provider in stored:
+            success = remove_api_key(provider)
+            if success:
+                print(f"{status_icon(True)} Removed API key for {provider}")
+            else:
+                print(f"{status_icon(False)} Failed to remove key")
+        else:
+            print(f"{status_icon(False)} Provider not found")
+    elif choice == "4":
+        show_keyring_info()
+    elif choice == "5":
+        return
+    else:
+        print(f"{status_icon(False)} Invalid choice.")
 
 if __name__ == "__main__":
     asyncio.run(main())
