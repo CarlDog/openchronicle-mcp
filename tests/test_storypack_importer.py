@@ -308,7 +308,7 @@ class TestStorypackImporterAI:
         mock_importer.content_analyzer.find_working_analysis_models = AsyncMock(
             return_value=[
                 {"name": "mock", "suitability_score": 0.9},
-                {"name": "test-sync", "suitability_score": 0.8}
+                {"name": "transformers", "suitability_score": 0.8}
             ]
         )
         mock_importer.content_analyzer.analyze_imported_content = AsyncMock(

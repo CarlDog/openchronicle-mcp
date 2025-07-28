@@ -8,6 +8,7 @@ import sys
 import pytest
 import tempfile
 import shutil
+import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -73,6 +74,25 @@ def clean_test_data():
     #             shutil.rmtree(item)
     #         else:
     #             item.unlink()
+
+
+@pytest.fixture
+def test_registry_path():
+    """Provide path to test-only registry with mock adapters."""
+    return Path(__file__).parent / "mocks" / "test_registry.json"
+
+
+@pytest.fixture
+def mock_model_manager(test_registry_path):
+    """Create ModelManager instance using test registry."""
+    from core.model_adapter import ModelManager
+    with patch.object(ModelManager, '_load_registry') as mock_load:
+        with open(test_registry_path, 'r') as f:
+            test_config = json.load(f)
+        mock_load.return_value = test_config
+        
+        manager = ModelManager()
+        return manager
 
 
 def pytest_runtest_setup(item):

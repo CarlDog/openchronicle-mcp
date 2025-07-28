@@ -1065,25 +1065,45 @@ Response (JSON only):"""
         content_flags = analysis.get("content_flags", [])
         token_priority = analysis.get("token_priority", "medium")
         
-        # Default routing - prioritize real AI models over mock
+        # Get default adapter from model manager or fall back to mock
+        default_adapter = "mock"  # Safe fallback
+        if hasattr(self, 'model_manager') and self.model_manager:
+            try:
+                # Try to get the configured default, or the first available adapter
+                if hasattr(self.model_manager, 'default_adapter') and self.model_manager.default_adapter:
+                    default_adapter = self.model_manager.default_adapter
+                elif hasattr(self.model_manager, 'get_available_adapters'):
+                    available = self.model_manager.get_available_adapters()
+                    if available:
+                        # Prefer non-mock adapters but use what's available
+                        non_mock = [a for a in available if not a.startswith('mock')]
+                        default_adapter = non_mock[0] if non_mock else available[0]
+            except Exception as e:
+                log_warning(f"Could not determine default adapter: {e}, using mock fallback")
+                default_adapter = "mock"
+        
+        # Default routing
         recommendation = {
-            "adapter": "ollama",  # Prefer local AI over mock
+            "adapter": default_adapter,
             "max_tokens": 1024,
             "temperature": 0.7,
             "content_filter": False
         }
-        
-        # Warn if we have to use mock as default (indicates no real AI available)
-        if not hasattr(self, 'model_manager') or not self.model_manager:
-            log_warning("CRITICAL: No ModelManager available - routing recommendation may default to mock adapter!")
-            recommendation["adapter"] = "mock"
         
         # Adjust based on content flags (list format)
         if ("nsfw" in content_flags or "explicit" in content_flags or 
             "suggestive" in content_flags or "mature" in content_flags or 
             "toxic_detected" in content_flags):
             recommendation["content_filter"] = True
-            recommendation["adapter"] = "ollama"  # Use local model for sensitive content
+            # For sensitive content, prefer local models
+            if hasattr(self, 'model_manager') and self.model_manager:
+                try:
+                    available = self.model_manager.get_available_adapters()
+                    local_adapters = [a for a in available if a in ['ollama', 'mock']]
+                    if local_adapters:
+                        recommendation["adapter"] = local_adapters[0]
+                except Exception:
+                    pass
         
         # Adjust token limits based on priority
         if token_priority == "high":

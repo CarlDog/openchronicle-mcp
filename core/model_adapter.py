@@ -256,103 +256,6 @@ class OllamaAdapter(ModelAdapter):
             "initialized": self.initialized
         }
 
-class MockAdapter(ModelAdapter):
-    """Mock adapter for testing."""
-    
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
-        self.responses = config.get("responses", [
-            "This is a mock response.",
-            "Another mock response for testing.",
-            "A third mock response to cycle through."
-        ])
-        self.response_index = 0
-    
-    async def initialize(self) -> bool:
-        """Initialize mock adapter."""
-        self.initialized = True
-        return True
-    
-    async def generate_response(self, prompt: str, **kwargs) -> str:
-        """Generate mock response."""
-        if not self.initialized:
-            raise RuntimeError("Adapter not initialized")
-        
-        # ALWAYS warn when mock adapter is used for generation
-        log_system_event("mock_adapter_usage", 
-                        "WARNING: Mock adapter generating simulated response - NOT real AI!")
-        
-        # Check if this is an analysis prompt
-        if "JSON format" in prompt and "content_type" in prompt:
-            # Generate mock analysis JSON
-            content_types = ["action", "dialogue", "description", "question", "command"]
-            entities = {
-                "characters": [],
-                "locations": [],
-                "items": [],
-                "emotions": ["curious", "determined", "excited"]
-            }
-            
-            # Extract some basic info from the prompt
-            if "sword" in prompt.lower():
-                entities["items"].append("sword")
-            if "dragon" in prompt.lower():
-                entities["characters"].append("dragon")
-            if "castle" in prompt.lower():
-                entities["locations"].append("castle")
-            if "forest" in prompt.lower():
-                entities["locations"].append("forest")
-            
-            # Determine content type
-            if "?" in prompt:
-                content_type = "question"
-            elif "say" in prompt.lower() or "hello" in prompt.lower():
-                content_type = "dialogue"
-            elif "look" in prompt.lower() or "see" in prompt.lower():
-                content_type = "description"
-            else:
-                content_type = "action"
-            
-            # Generate mock analysis
-            analysis = {
-                "content_type": content_type,
-                "intent": "User wants to interact with the story",
-                "entities": entities,
-                "content_flags": {
-                    "nsfw": False,
-                    "violence": "battle" in prompt.lower() or "fight" in prompt.lower(),
-                    "mature_themes": False,
-                    "emotional_intensity": "medium"
-                },
-                "required_canon": [],
-                "memory_triggers": [],
-                "response_style": "narrative",
-                "token_priority": "medium"
-            }
-            
-            return json.dumps(analysis, indent=2)
-        
-        # Regular story response
-        # Cycle through responses
-        response = self.responses[self.response_index % len(self.responses)]
-        self.response_index += 1
-        
-        # Add some variation based on prompt length
-        if len(prompt) > 500:
-            response += " [Extended response for longer prompt]"
-        
-        return response
-    
-    def get_model_info(self) -> Dict[str, Any]:
-        """Get mock model information."""
-        return {
-            "provider": "Mock",
-            "model_name": self.model_name,
-            "responses_count": len(self.responses),
-            "current_index": self.response_index,
-            "initialized": self.initialized
-        }
-
 class ModelManager:
     """Manages model adapters and provides unified access."""
     
@@ -606,6 +509,23 @@ class ModelManager:
                 
             provider = model_entry["name"]
             
+            # PRODUCTION SAFETY: Auto-disable mock adapters in production
+            # Mock adapters should only be available for testing
+            if provider in ["mock", "mock_image"]:
+                # Check if we're in a testing environment
+                import os
+                is_testing = (
+                    os.getenv("TESTING", "").lower() in ["true", "1", "yes"] or
+                    os.getenv("PYTEST_CURRENT_TEST") is not None or
+                    "pytest" in sys.modules or
+                    "test" in sys.argv[0].lower()
+                )
+                
+                if not is_testing:
+                    log_system_event("production_safety", 
+                                   f"Auto-disabling {provider} adapter - mock adapters not available in production")
+                    continue  # Skip mock adapters in production
+            
             try:
                 # Create adapter config directly from registry entry
                 # Determine the actual adapter type - prefer explicit type, otherwise use provider name
@@ -618,7 +538,10 @@ class ModelManager:
                 
                 adapter_config = {
                     "type": actual_type,
+                    "provider": model_entry.get("provider", provider),  # Add provider field for validation
                     "model_name": model_entry.get("model_name", provider),
+                    "enabled": model_entry.get("enabled", False),  # Copy enabled status from registry
+                    "priority": model_entry.get("priority", 999),  # Copy priority from registry
                     "temperature": model_entry.get("temperature", 0.7),
                     "supports_nsfw": model_entry.get("supports_nsfw", False),
                     "content_types": model_entry.get("content_types", ["general"]),
@@ -668,19 +591,13 @@ class ModelManager:
                 log_error(f"Failed to load model config for {provider}: {e}")
                 log_system_event("model_config_error", f"Failed to load model config for {provider}: {e}")
         
-        # Add mock adapter if no other adapters loaded
+        # NO AUTOMATIC MOCK ADAPTER - User must explicitly enable in registry
+        # Mock adapters should only be available when explicitly configured by the user
         if not adapters:
-            adapters["mock"] = {
-                "type": "mock",
-                "model_name": "mock-model",
-                "responses": [
-                    "The story continues with rich detail and engaging narrative.",
-                    "Your character moves forward, discovering new possibilities.",
-                    "The world around you shifts as the tale unfolds."
-                ]
-            }
-            log_system_event("model_config_fallback", "CRITICAL: No adapters loaded, using mock adapter as emergency fallback")
-            log_system_event("mock_adapter_warning", "Mock adapter provides simulated responses only - NOT for production use!")
+            log_system_event("no_adapters_loaded", 
+                           "No adapters loaded from configuration. Configure real AI services or explicitly enable mock adapters in the registry.")
+            log_system_event("production_safety", 
+                           "Production safety: Not auto-adding mock adapters. Add mock adapters to registry if desired for testing.")
         
         # Build fallback chains from registry
         fallback_chains = registry.get("fallback_chains", {})
@@ -706,21 +623,28 @@ class ModelManager:
                 }
             }
         
-        # Determine default adapter from registry format
-        default_adapter = "mock"
+        # Determine default adapter from registry format - NO MOCK FALLBACK
+        default_adapter = None
         if "defaults" in registry:
-            default_adapter = registry["defaults"].get("text_model", "mock")
+            default_adapter = registry["defaults"].get("text_model")
         elif "default_model" in registry:
             default_adapter = registry["default_model"]
         
-        # If the default adapter didn't load, find the first available one
+        # If the default adapter didn't load, find the first available one (excluding mock)
         if default_adapter not in adapters:
             if adapters:
-                default_adapter = list(adapters.keys())[0]
-                log_info(f"Default adapter not available, using '{default_adapter}'")
+                # Prefer non-mock adapters
+                non_mock_adapters = [name for name in adapters.keys() if not name.startswith("mock")]
+                if non_mock_adapters:
+                    default_adapter = non_mock_adapters[0]
+                    log_info(f"Default adapter not available, using first non-mock adapter '{default_adapter}'")
+                else:
+                    # Only use mock if user explicitly configured it and no other options
+                    default_adapter = list(adapters.keys())[0]
+                    log_info(f"Only mock adapters available, using '{default_adapter}'")
             else:
-                default_adapter = "mock"
-                log_info("No adapters loaded, defaulting to mock")
+                default_adapter = None
+                log_info("No adapters loaded, no default adapter available")
         
         config = {
             "default_adapter": default_adapter,
@@ -761,7 +685,7 @@ class ModelManager:
                             "last_validated": datetime.now(UTC).isoformat()
                         }
                 else:
-                    # Track as ready but not initialized
+                    # Track as validated and potentially usable
                     if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
                         self.api_key_status[adapter_type] = {
                             "available": True,
@@ -769,10 +693,16 @@ class ModelManager:
                             "recommendation": f"{adapter_type.title()} adapter ready for use",
                             "last_validated": datetime.now(UTC).isoformat()
                         }
-                        
-            log_info(f"Validated {len(self.config.get('adapters', {}))} configured adapters: "
-                    f"{len(self.disabled_adapters)} disabled, "
-                    f"{len(self.config.get('adapters', {})) - len(self.disabled_adapters)} ready")
+            
+            # Count only truly available adapters (not just configured ones)
+            available_count = len(self.get_available_adapters())
+            configured_count = len(self.config.get('adapters', {}))
+            disabled_count = len(self.disabled_adapters)
+            
+            log_info(f"Validated {configured_count} configured adapters: "
+                    f"{disabled_count} disabled, "
+                    f"{configured_count - disabled_count} passed validation, "
+                    f"{available_count} actually available")
                     
         except Exception as e:
             log_error(f"Error during adapter validation: {e}")
@@ -969,11 +899,15 @@ class ModelManager:
                 "cohere": ["cohere"],
                 "mistral": ["mistralai"],
                 "huggingface": ["transformers", "torch"],
+                "transformers": ["transformers", "torch"],  # Add transformers type
                 "stability": ["stability_sdk"],
                 "replicate": ["replicate"]
             }
             
-            packages = required_packages.get(adapter_type, [])
+            # For validation purposes, use the provider field if it exists (for openai_dalle -> openai)
+            validation_type = adapter_config.get("provider", adapter_type)
+            
+            packages = required_packages.get(validation_type, [])
             for package in packages:
                 try:
                     __import__(package)
@@ -985,21 +919,43 @@ class ModelManager:
                         "recommendation": f"Install with: pip install {package}"
                     }
             
-            # Smart API key validation for API-based adapters
-            if adapter_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
-                api_validation = self._validate_api_key_smart(name, adapter_config, adapter_type)
+            # Smart API key validation for API-based adapters - use validation_type
+            if validation_type in ["openai", "anthropic", "gemini", "groq", "cohere", "mistral"]:
+                api_validation = self._validate_api_key_smart(name, adapter_config, validation_type)
                 if not api_validation["valid"]:
                     return api_validation
             
-            # Check for network connectivity (for non-local adapters)
-            if adapter_type not in ["mock", "mock_image"]:
-                base_url = adapter_config.get("base_url")
-                if base_url and not self._test_connectivity(base_url):
+            # Check for network connectivity and service availability for ALL adapters
+            # This ensures we don't claim capabilities when services aren't actually working
+            base_url = adapter_config.get("base_url")
+            if base_url:
+                if not self._test_connectivity(base_url):
                     return {
                         "valid": False,
                         "reason": f"Cannot connect to {base_url}",
                         "can_enable_later": True,
                         "recommendation": "Check network connectivity and service status"
+                    }
+            
+            # For Ollama specifically, test the default URL and verify it has models
+            elif validation_type == "ollama":
+                provider_config = self.global_config.get("environment_config", {}).get("providers", {}).get("ollama", {})
+                default_base_url = provider_config.get("default_base_url", "http://localhost:11434")
+                if not self._test_connectivity(default_base_url):
+                    return {
+                        "valid": False,
+                        "reason": f"Ollama service not available at {default_base_url}",
+                        "can_enable_later": True,
+                        "recommendation": "Start Ollama service or check if it's running on a different port"
+                    }
+                
+                # Additional check: ensure Ollama has models available
+                if not self._test_ollama_models(default_base_url):
+                    return {
+                        "valid": False,
+                        "reason": f"Ollama service running but no models installed",
+                        "can_enable_later": True,
+                        "recommendation": "Install models with: ollama pull llama2 (or similar)"
                     }
             
             return {
@@ -1017,7 +973,7 @@ class ModelManager:
                 "recommendation": "Check system configuration and try again"
             }
     
-    def _validate_api_key_smart(self, name: str, adapter_config: Dict[str, Any], adapter_type: str) -> Dict[str, Any]:
+    def _validate_api_key_smart(self, name: str, adapter_config: Dict[str, Any], provider_type: str) -> Dict[str, Any]:
         """
         Registry-driven API key validation that works with any provider defined in the model registry.
         
@@ -1025,12 +981,20 @@ class ModelManager:
             Dict with validation result including recommendations for missing/invalid keys
         """
         # Get provider validation config from registry
-        provider_config = self.global_config.get("environment_config", {}).get("providers", {}).get(adapter_type)
+        provider_config = self.global_config.get("environment_config", {}).get("providers", {}).get(provider_type)
         if not provider_config:
-            return {"valid": True, "reason": "No validation config found", "can_enable_later": False, "recommendation": "Local adapter ready"}
+            # For standalone-first architecture: if we don't have validation config, 
+            # we can't verify the adapter actually works
+            return {
+                "valid": False, 
+                "reason": f"No validation configuration found for provider type: {provider_type}", 
+                "can_enable_later": True, 
+                "recommendation": f"Add validation config for {provider_type} in model registry"
+            }
         
         validation_config = provider_config.get("validation", {})
         if not validation_config.get("requires_api_key", False):
+            # Even local adapters need connectivity validation (handled in _validate_adapter_prerequisites)
             return {"valid": True, "reason": "No API key required", "can_enable_later": False, "recommendation": "Local adapter ready"}
         
         # Check if API key is provided
@@ -1042,11 +1006,11 @@ class ModelManager:
         if not api_key:
             env_var_info = f" ({api_key_env})" if api_key_env else ""
             setup_url = validation_config.get("setup_url", "provider's website")
-            service_name = validation_config.get("service_name", adapter_type.title())
+            service_name = validation_config.get("service_name", provider_type.title())
             
             return {
                 "valid": False,
-                "reason": f"Missing API key for {adapter_type}",
+                "reason": f"Missing API key for {provider_type}",
                 "can_enable_later": True,
                 "recommendation": f"Set {api_key_env or 'API key'} environment variable or add api_key to config. Get your key at: {setup_url} for {service_name}"
             }
@@ -1057,14 +1021,14 @@ class ModelManager:
             setup_url = validation_config.get("setup_url", "provider's website")
             return {
                 "valid": False,
-                "reason": f"Invalid API key format for {adapter_type}",
+                "reason": f"Invalid API key format for {provider_type}",
                 "can_enable_later": True,
                 "recommendation": f"Check your API key format. Expected pattern: {api_key_format}. Get a valid key at: {setup_url}"
             }
         
         # Test API key with provider's health endpoint
         try:
-            is_valid, error_msg = self._test_api_key_generic(api_key, adapter_type, provider_config, validation_config)
+            is_valid, error_msg = self._test_api_key_generic(api_key, provider_type, provider_config, validation_config)
             if not is_valid:
                 setup_url = validation_config.get("setup_url", "provider's website")
                 return {
@@ -1075,7 +1039,7 @@ class ModelManager:
                 }
         except Exception as e:
             # If API test fails due to network/other issues, allow the adapter but log the issue
-            log_error(f"Could not validate {adapter_type} API key due to network error: {e}")
+            log_error(f"Could not validate {provider_type} API key due to network error: {e}")
             return {
                 "valid": True,
                 "reason": f"API key present but could not validate due to network error",
@@ -1083,7 +1047,7 @@ class ModelManager:
                 "recommendation": "Network validation failed, proceeding with provided API key"
             }
         
-        service_name = validation_config.get("service_name", adapter_type.title())
+        service_name = validation_config.get("service_name", provider_type.title())
         return {
             "valid": True,
             "reason": "API key validated successfully",
@@ -1463,35 +1427,53 @@ class ModelManager:
         1. No external adapters are working (all in disabled_adapters)
         2. No valid API keys for external services
         3. Network connectivity issues
-        4. Only mock/local adapters are initialized
+        4. Only mock/local adapters are available
         
         Returns:
             True if we should operate in standalone mode, False otherwise
         """
-        # Count working external adapters (non-mock, non-local)
+        # Count available external vs local adapters (check configured, not just initialized)
         external_adapters = 0
         local_adapters = 0
         
-        for name, adapter in self.adapters.items():
+        # Check all configured adapters, not just initialized ones
+        for name, adapter_config in self.config.get("adapters", {}).items():
+            # Skip disabled adapters
             if name in self.disabled_adapters:
                 continue
-                
-            adapter_config = self.config.get("adapters", {}).get(name, {})
-            adapter_type = adapter_config.get("type", name)
             
-            if adapter_type in ["mock", "mock_image", "local", "transformers"]:
+            # Skip mock adapters (they shouldn't count for production mode detection)
+            adapter_type = adapter_config.get("type", name)
+            if adapter_type in ["mock", "mock_image"]:
+                continue  # Mock adapters don't count for mode detection
+                
+            # Check if adapter is enabled
+            if not adapter_config.get("enabled", False):
+                continue
+            
+            if adapter_type in ["local", "transformers"]:
                 local_adapters += 1
             elif adapter_type == "ollama":
                 # Ollama is local but requires service to be running
-                # Consider it local if it's working, external if disabled
+                # Count as local if not disabled
                 if name not in self.disabled_adapters:
                     local_adapters += 1
             else:
                 external_adapters += 1
         
         # We're in standalone mode if:
-        # 1. No external adapters are working, OR
-        # 2. We have no working adapters at all, OR  
+        # 1. No external adapters are available, OR
+        # 2. Only local adapters are available
+        if external_adapters == 0:
+            if local_adapters > 0:
+                log_system_event("standalone_mode_detected", 
+                               f"Standalone mode: {local_adapters} local adapters available, {external_adapters} external")
+            else:
+                log_system_event("standalone_mode_detected", 
+                               "Standalone mode: No working adapters detected")
+            return True
+        
+        return False  
         # 3. Only local/mock adapters are working
         if external_adapters == 0:
             if local_adapters > 0:
@@ -1505,14 +1487,35 @@ class ModelManager:
         return False
 
     def _test_connectivity(self, base_url: str, timeout: float = 5.0) -> bool:
-        """Test basic connectivity to a URL."""
+        """Test basic connectivity to a URL - strict validation for standalone-first architecture."""
         try:
             if httpx is None:
-                return True  # Assume connectivity if httpx not available
+                log_debug(f"httpx not available - cannot test connectivity to {base_url}")
+                return False  # Fail strictly if we can't test connectivity
             with httpx.Client(timeout=timeout) as client:
                 response = client.get(base_url, timeout=timeout)
                 return response.status_code < 500  # Accept any non-server-error status
-        except Exception:
+        except Exception as e:
+            log_debug(f"Connectivity test failed for {base_url}: {e}")
+            return False
+    
+    def _test_ollama_models(self, base_url: str, timeout: float = 5.0) -> bool:
+        """Test if Ollama has any models installed - strict validation for standalone-first."""
+        try:
+            if httpx is None:
+                log_debug(f"httpx not available - cannot test Ollama models at {base_url}")
+                return False
+            
+            models_url = f"{base_url.rstrip('/')}/api/tags"
+            with httpx.Client(timeout=timeout) as client:
+                response = client.get(models_url, timeout=timeout)
+                if response.status_code == 200:
+                    data = response.json()
+                    models = data.get("models", [])
+                    return len(models) > 0  # Must have at least one model
+                return False
+        except Exception as e:
+            log_debug(f"Ollama models test failed for {base_url}: {e}")
             return False
     
     def _create_adapter_instance(self, adapter_type: str, adapter_config: Dict[str, Any]):
@@ -1521,8 +1524,6 @@ class ModelManager:
             return OpenAIAdapter(adapter_config, self)
         elif adapter_type == "ollama":
             return OllamaAdapter(adapter_config, self)
-        elif adapter_type == "mock":
-            return MockAdapter(adapter_config)
         elif adapter_type == "anthropic":
             return AnthropicAdapter(adapter_config, self)
         elif adapter_type == "gemini":
@@ -1537,14 +1538,14 @@ class ModelManager:
             return HuggingFaceAdapter(adapter_config)
         elif adapter_type == "azure_openai":
             return AzureOpenAIAdapter(adapter_config)
+        elif adapter_type == "transformers":
+            return TransformersAdapter(adapter_config, self)
         elif adapter_type == "openai_image":
             return OpenAIImageAdapter(adapter_config, self)
         elif adapter_type == "stability":
             return StabilityAdapter(adapter_config, self)
         elif adapter_type == "replicate":
             return ReplicateAdapter(adapter_config)
-        elif adapter_type == "mock_image":
-            return MockImageAdapter(adapter_config)
         else:
             raise ValueError(f"Unknown adapter type: {adapter_type}")
     
@@ -1573,7 +1574,10 @@ class ModelManager:
     
     async def generate_response(self, prompt: str, adapter_name: Optional[str] = None, story_id: Optional[str] = None, **kwargs) -> str:
         """Generate response using specified or default adapter with fallback support."""
-        adapter_name = adapter_name or self.default_adapter or "mock"
+        adapter_name = adapter_name or self.default_adapter
+        
+        if not adapter_name:
+            raise RuntimeError("No adapter specified and no default adapter available. Configure AI services or specify an adapter.")
         
         # Start performance tracking
         async with self.track_model_operation(adapter_name, "generate", prompt_length=len(prompt)) as tracker:
@@ -1642,7 +1646,7 @@ class ModelManager:
         Get list of actually available and working adapters (standalone-first architecture).
         
         Only returns adapters that are:
-        1. Successfully initialized (in self.adapters)
+        1. Successfully initialized (in self.adapters) OR configured and validated
         2. Not in disabled_adapters
         3. Match standalone mode requirements
         
@@ -1660,8 +1664,10 @@ class ModelManager:
         
         available = []
         
-        # Only include adapters that are actually initialized and not disabled
-        for name in self.adapters.keys():
+        # Check both initialized adapters and configured (validated) adapters
+        all_adapter_names = set(self.adapters.keys()) | set(self.config.get("adapters", {}).keys())
+        
+        for name in all_adapter_names:
             # Skip disabled adapters
             if name in self.disabled_adapters:
                 continue
@@ -1669,6 +1675,19 @@ class ModelManager:
             # Get adapter type from config
             adapter_config = self.config.get("adapters", {}).get(name, {})
             adapter_type = adapter_config.get("type", name)
+            
+            # Skip mock adapters in production unless explicitly allowed
+            if adapter_type in ["mock", "mock_image"]:
+                # Check if we're in a testing environment
+                import os
+                is_testing = (
+                    os.getenv("TESTING", "").lower() in ["true", "1", "yes"] or
+                    os.getenv("PYTEST_CURRENT_TEST") is not None or
+                    "pytest" in sys.modules or
+                    "test" in sys.argv[0].lower()
+                )
+                if not is_testing:
+                    continue  # Skip mock adapters in production
             
             if standalone_mode:
                 # In standalone mode, only include local/mock adapters
@@ -1681,24 +1700,11 @@ class ModelManager:
                 # In normal mode, include all working (non-disabled) adapters
                 available.append(name)
         
-        # Fallback: ensure mock adapters are available if no others work
+        # NO AUTOMATIC MOCK FALLBACK - User must explicitly enable mock adapters
+        # This ensures production safety and transparency about available AI capabilities
         if not available:
-            # Look for mock adapters in config that we can enable
-            for name, config in self.config.get("adapters", {}).items():
-                if config.get("type") in ["mock", "mock_image"]:
-                    if standalone_mode or not available:
-                        # Initialize mock adapter if not already done
-                        if name not in self.adapters:
-                            try:
-                                adapter = self._create_adapter_instance(config.get("type"), config)
-                                self.adapters[name] = adapter
-                                log_system_event("standalone_fallback", 
-                                                f"Initialized {name} as standalone fallback")
-                            except Exception as e:
-                                log_error(f"Failed to initialize fallback adapter {name}: {e}")
-                                continue
-                        available.append(name)
-                        break  # Only need one mock adapter
+            log_system_event("no_adapters_available", 
+                           "No AI adapters available. Configure API keys, enable local services, or explicitly enable mock adapters if desired.")
         
         return available
     
@@ -3974,6 +3980,113 @@ class AzureOpenAIAdapter(ModelAdapter):
             "initialized": self.initialized
         }
 
+class TransformersAdapter(ModelAdapter):
+    """Local Transformers adapter for standalone text generation."""
+    
+    def __init__(self, config: Dict[str, Any], model_manager=None):
+        super().__init__(config)
+        self.model_manager = model_manager
+        self.generator = None
+        self.model_id = config.get("model_name", "gpt2")
+        self.max_length = config.get("max_length", 512)
+        self.device = -1  # CPU by default for broad compatibility
+        
+    async def initialize(self) -> bool:
+        """Initialize local transformers model."""
+        try:
+            from transformers import pipeline
+            import torch
+            
+            # Use CPU for maximum compatibility
+            self.device = -1
+            
+            log_info(f"Initializing local transformers model: {self.model_id}")
+            
+            # Suppress model loading output
+            import warnings
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                
+                # Create text generation pipeline
+                self.generator = pipeline(
+                    'text-generation',
+                    model=self.model_id,
+                    device=self.device,
+                    truncation=True,
+                    pad_token_id=50256,  # GPT-2 EOS token
+                    max_length=self.max_length
+                )
+            
+            self.initialized = True
+            log_info(f"Successfully initialized transformers model: {self.model_id}")
+            return True
+            
+        except ImportError as e:
+            log_error(f"Transformers library not available: {e}")
+            return False
+        except Exception as e:
+            log_error(f"Failed to initialize transformers adapter: {e}")
+            return False
+    
+    async def generate_response(self, prompt: str, **kwargs) -> str:
+        """Generate response using local transformers model."""
+        if not self.initialized or not self.generator:
+            raise RuntimeError("Transformers adapter not initialized")
+        
+        try:
+            # Configure generation parameters
+            max_new_tokens = min(kwargs.get("max_tokens", 150), 300)  # Reasonable limit
+            temperature = kwargs.get("temperature", 0.7)
+            do_sample = temperature > 0.0
+            
+            # Generate response
+            result = self.generator(
+                prompt,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature if do_sample else 1.0,
+                do_sample=do_sample,
+                truncation=True,
+                pad_token_id=50256,
+                num_return_sequences=1,
+                return_full_text=False  # Only return generated text
+            )
+            
+            if result and len(result) > 0:
+                generated_text = result[0]['generated_text']
+                # Clean up the response
+                generated_text = generated_text.strip()
+                return generated_text
+            else:
+                return ""
+                
+        except Exception as e:
+            log_error(f"Transformers generation failed: {e}")
+            raise RuntimeError(f"Transformers generation failed: {e}")
+    
+    async def health_check(self) -> bool:
+        """Check if transformers model is healthy."""
+        if not self.initialized or not self.generator:
+            return False
+        
+        try:
+            # Quick test generation
+            test_result = self.generator("Test", max_new_tokens=5, do_sample=False, return_full_text=False)
+            return len(test_result) > 0
+        except Exception:
+            return False
+    
+    def get_model_info(self) -> Dict[str, Any]:
+        """Get adapter information."""
+        return {
+            "provider": "Transformers (Local)",
+            "model_name": self.model_id,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "initialized": self.initialized,
+            "device": "CPU" if self.device == -1 else f"CUDA:{self.device}",
+            "description": "Local text generation using Hugging Face Transformers"
+        }
+
 # ================================
 # IMAGE GENERATION ADAPTERS
 # ================================
@@ -4216,41 +4329,5 @@ class ReplicateAdapter(ImageAdapter):
             "model_name": self.model_name,
             "width": self.width,
             "height": self.height,
-            "initialized": self.initialized
-        }
-
-class MockImageAdapter(ImageAdapter):
-    """Mock image adapter for testing."""
-    
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
-        self.responses = config.get("responses", [
-            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzNzNkYyIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zNWVtIj5Nb2NrIEltYWdlPC90ZXh0Pgo8L3N2Zz4K"
-        ])
-        self.response_index = 0
-    
-    async def initialize(self) -> bool:
-        """Initialize mock image adapter."""
-        self.initialized = True
-        return True
-    
-    async def generate_image(self, prompt: str, **kwargs) -> str:
-        """Generate mock image."""
-        if not self.initialized:
-            raise RuntimeError("Adapter not initialized")
-        
-        # Cycle through responses
-        response = self.responses[self.response_index % len(self.responses)]
-        self.response_index += 1
-        
-        return response
-    
-    def get_model_info(self) -> Dict[str, Any]:
-        """Get mock image model information."""
-        return {
-            "provider": "Mock",
-            "model_name": self.model_name,
-            "responses_count": len(self.responses),
-            "current_index": self.response_index,
             "initialized": self.initialized
         }

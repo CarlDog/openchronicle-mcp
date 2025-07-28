@@ -35,6 +35,12 @@ def mock_model_manager():
         }
     }
     
+    # Mock default adapter (for testing, should be mock)
+    manager.default_adapter = "mock"
+    
+    # Mock get_available_adapters to return mock as the only available adapter
+    manager.get_available_adapters.return_value = ["mock"]
+    
     # Mock list_model_configs method
     manager.list_model_configs.return_value = {
         "mock": {"enabled": True},

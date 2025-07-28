@@ -7,8 +7,8 @@
     "maintainer": "OpenChronicle Team"
   },
   "defaults": {
-    "text_model": "ollama",
-    "analyzer_model": "ollama",
+    "text_model": "transformers",
+    "analyzer_model": "transformers",
     "image_model": "openai_dalle"
   },
   "global_settings": {
@@ -177,6 +177,18 @@
           "service_name": "Stability AI",
           "description": "Access to Stable Diffusion and other image models"
         }
+      },
+      "transformers": {
+        "base_url_env": null,
+        "default_base_url": null,
+        "api_key_env": null,
+        "timeout": 30,
+        "health_check_enabled": true,
+        "validation": {
+          "requires_api_key": false,
+          "service_name": "Local Transformers",
+          "description": "Local text generation using Hugging Face Transformers library"
+        }
       }
     },
     "defaults": {
@@ -204,7 +216,7 @@
       {
         "name": "ollama",
         "provider": "ollama",
-        "enabled": true,
+        "enabled": false,
         "priority": 1,
         "model_name": "neural-chat:latest",
         "supports_nsfw": true,
@@ -219,8 +231,7 @@
         "description": "Local Ollama models - privacy-focused, supports NSFW",
         "fallbacks": [
           "groq",
-          "anthropic",
-          "mock"
+          "anthropic"
         ],
         "config": {
           "max_tokens": 4096,
@@ -248,7 +259,7 @@
       {
         "name": "openai",
         "provider": "openai",
-        "enabled": true,
+        "enabled": false,
         "priority": 2,
         "model_name": "gpt-4o-mini",
         "supports_nsfw": false,
@@ -264,14 +275,13 @@
         "fallbacks": [
           "anthropic",
           "groq",
-          "ollama",
-          "mock"
+          "ollama"
         ]
       },
       {
         "name": "anthropic",
         "provider": "anthropic",
-        "enabled": true,
+        "enabled": false,
         "priority": 3,
         "model_name": "claude-3-5-sonnet-20241022",
         "supports_nsfw": false,
@@ -286,8 +296,7 @@
         "description": "Anthropic Claude models - excellent for analysis and creative writing",
         "fallbacks": [
           "groq",
-          "ollama",
-          "mock"
+          "ollama"
         ]
       }
     ],
@@ -295,7 +304,7 @@
       {
         "name": "groq",
         "provider": "groq",
-        "enabled": true,
+        "enabled": false,
         "priority": 4,
         "model_name": "llama-3.1-70b-versatile",
         "supports_nsfw": false,
@@ -307,8 +316,7 @@
         ],
         "description": "Groq fast inference - good for quick responses",
         "fallbacks": [
-          "ollama",
-          "mock"
+          "ollama"
         ],
         "config": {
           "timeout": 15
@@ -317,7 +325,7 @@
       {
         "name": "gemini",
         "provider": "gemini",
-        "enabled": true,
+        "enabled": false,
         "priority": 5,
         "model_name": "gemini-1.5-flash",
         "supports_nsfw": false,
@@ -329,14 +337,13 @@
         ],
         "description": "Google Gemini models - good for analysis and general tasks",
         "fallbacks": [
-          "ollama",
-          "mock"
+          "ollama"
         ]
       },
       {
         "name": "cohere",
         "provider": "cohere",
-        "enabled": true,
+        "enabled": false,
         "priority": 6,
         "model_name": "command-r-plus",
         "supports_nsfw": false,
@@ -346,14 +353,13 @@
         ],
         "description": "Cohere Command models - good for creative tasks",
         "fallbacks": [
-          "ollama",
-          "mock"
+          "ollama"
         ]
       },
       {
         "name": "mistral",
         "provider": "mistral",
-        "enabled": true,
+        "enabled": false,
         "priority": 7,
         "model_name": "mistral-large-latest",
         "supports_nsfw": false,
@@ -365,9 +371,28 @@
         ],
         "description": "Mistral AI models - European alternative",
         "fallbacks": [
-          "ollama",
-          "mock"
+          "ollama"
         ]
+      },
+      {
+        "name": "transformers",
+        "provider": "transformers",
+        "enabled": true,
+        "priority": 8,
+        "model_name": "gpt2",
+        "supports_nsfw": false,
+        "content_types": [
+          "general",
+          "creative",
+          "simple"
+        ],
+        "description": "Local text generation using Hugging Face Transformers - standalone functionality",
+        "fallbacks": [],
+        "config": {
+          "max_tokens": 150,
+          "temperature": 0.7,
+          "max_length": 512
+        }
       }
     ],
     "testing": [
@@ -389,12 +414,6 @@
         ],
         "description": "Mock model for testing and development - NOT FOR PRODUCTION USE",
         "fallbacks": []
-      },
-      {
-        "name": "test-sync",
-        "enabled": true,
-        "type": "mock",
-        "model_name": "test-sync"
       }
     ]
   },
@@ -403,7 +422,7 @@
       {
         "name": "openai_dalle",
         "provider": "openai",
-        "enabled": true,
+        "enabled": false,
         "priority": 1,
         "model_name": "dall-e-3",
         "supports_nsfw": false,
@@ -413,10 +432,7 @@
           "general_images"
         ],
         "description": "OpenAI DALL-E models - high quality image generation",
-        "fallbacks": [
-          "stability_ai",
-          "mock_image"
-        ],
+        "fallbacks": [],
         "config": {
           "size": "1024x1024",
           "quality": "standard",
@@ -437,9 +453,7 @@
           "artistic"
         ],
         "description": "Stability AI models - flexible image generation with style control",
-        "fallbacks": [
-          "mock_image"
-        ],
+        "fallbacks": [],
         "config": {
           "width": 1024,
           "height": 1024,
@@ -473,9 +487,7 @@
     "nsfw_content": {
       "allowed_models": [
         "ollama",
-        "stability_ai",
-        "mock",
-        "mock_image"
+        "stability_ai"
       ],
       "default_model": "ollama",
       "auto_select": true,
@@ -575,48 +587,44 @@
   },
   "fallback_chains": {
     "primary_text": [
+      "transformers",
       "ollama",
       "openai",
       "anthropic",
-      "groq",
-      "mock"
+      "groq"
     ],
     "nsfw_text": [
-      "ollama",
-      "mock"
+      "ollama"
     ],
     "analysis_text": [
       "anthropic",
       "openai",
       "gemini",
-      "mock"
+      "transformers"
     ],
     "creative_text": [
       "anthropic",
       "openai",
       "cohere",
       "ollama",
-      "mock"
+      "transformers"
     ],
     "fast_text": [
       "groq",
       "ollama",
       "openai",
-      "mock"
+      "transformers"
     ],
     "primary_image": [
       "openai_dalle",
-      "stability_ai",
-      "mock_image"
+      "stability_ai"
     ],
     "nsfw_image": [
-      "stability_ai",
-      "mock_image"
+      "stability_ai"
     ],
     "artistic_image": [
       "stability_ai",
-      "openai_dalle",
-      "mock_image"
+      "openai_dalle"
     ]
   },
   "performance_tuning": {

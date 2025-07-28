@@ -1,0 +1,151 @@
+{
+  "schema_version": "3.0.0",
+  "metadata": {
+    "name": "OpenChronicle Test Registry",
+    "description": "Mock adapters and testing configuration ONLY",
+    "last_updated": "2025-07-28",
+    "maintainer": "OpenChronicle Team",
+    "warning": "THIS REGISTRY IS FOR TESTING ONLY - CONTAINS MOCK ADAPTERS"
+  },
+  "defaults": {
+    "text_model": "mock",
+    "analyzer_model": "mock", 
+    "image_model": "mock_image"
+  },
+  "global_settings": {
+    "enable_fallbacks": true,
+    "enable_health_checks": false,
+    "enable_logging": true,
+    "testing_mode": true
+  },
+  "text_models": {
+    "testing": [
+      {
+        "name": "mock",
+        "provider": "mock",
+        "enabled": true,
+        "priority": 1,
+        "model_name": "mock-model",
+        "supports_nsfw": true,
+        "content_types": [
+          "general",
+          "fantasy",
+          "sci-fi", 
+          "mystery",
+          "creative",
+          "mature",
+          "testing"
+        ],
+        "description": "Mock model for testing and development - NOT FOR PRODUCTION USE",
+        "fallbacks": [],
+        "config": {
+          "max_tokens": 2048,
+          "temperature": 0.7,
+          "responses": [
+            "The story continues with rich detail and engaging narrative.",
+            "Your character moves forward, discovering new possibilities.",
+            "The world around you shifts as the tale unfolds.",
+            "An unexpected development changes everything.",
+            "The path ahead becomes clearer as you proceed."
+          ]
+        }
+      },
+      {
+        "name": "test-sync",
+        "enabled": true,
+        "type": "mock", 
+        "model_name": "test-sync",
+        "description": "Synchronous test adapter for unit testing",
+        "config": {
+          "responses": ["Test response for synchronous operations"]
+        }
+      }
+    ]
+  },
+  "image_models": {
+    "testing": [
+      {
+        "name": "mock_image",
+        "provider": "mock", 
+        "enabled": true,
+        "priority": 1,
+        "model_name": "mock-image-model",
+        "supports_nsfw": true,
+        "content_types": [
+          "character_portraits",
+          "scene_images",
+          "general_images", 
+          "testing"
+        ],
+        "description": "Mock image generator for testing and development - NOT FOR PRODUCTION USE",
+        "fallbacks": [],
+        "config": {
+          "size": "1024x1024",
+          "responses": [
+            "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iIzMzNzNkYyIvPgogIDx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSJ3aGl0ZSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zNWVtIj5Nb2NrIEltYWdlPC90ZXh0Pgo8L3N2Zz4K"
+          ]
+        }
+      }
+    ]
+  },
+  "content_routing": {
+    "nsfw_content": {
+      "allowed_models": ["mock"],
+      "default_model": "mock",
+      "auto_select": true
+    },
+    "safe_content": {
+      "allowed_models": ["mock"], 
+      "default_model": "mock",
+      "auto_select": true
+    },
+    "analysis_tasks": {
+      "allowed_models": ["mock"],
+      "default_model": "mock",
+      "auto_select": true
+    },
+    "creative_tasks": {
+      "allowed_models": ["mock"],
+      "default_model": "mock", 
+      "auto_select": true
+    },
+    "fast_responses": {
+      "allowed_models": ["mock"],
+      "default_model": "mock",
+      "auto_select": true
+    }
+  },
+  "fallback_chains": {
+    "primary_text": ["mock"],
+    "nsfw_text": ["mock"],
+    "analysis_text": ["mock"],
+    "creative_text": ["mock"],
+    "fast_text": ["mock"],
+    "primary_image": ["mock_image"],
+    "nsfw_image": ["mock_image"],
+    "artistic_image": ["mock_image"]
+  },
+  "performance_tuning": {
+    "concurrent_limits": {
+      "mock": 10,
+      "mock_image": 5
+    },
+    "rate_limits": {
+      "mock": {
+        "requests_per_minute": 1000,
+        "tokens_per_minute": 100000
+      },
+      "mock_image": {
+        "requests_per_minute": 100,
+        "images_per_minute": 50
+      }
+    },
+    "health_checks": {
+      "enabled": false,
+      "interval_seconds": 600,
+      "timeout_seconds": 5,
+      "failure_threshold": 10,
+      "success_threshold": 1
+    }
+  }
+}
