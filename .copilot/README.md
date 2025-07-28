@@ -7,7 +7,7 @@ This directory contains essential documentation, examples, and patterns to enhan
 ```
 .copilot/
 ├── README.md                          # This file - overview and usage guide
-├── context.json                       # Unified project context and status (PRIMARY REFERENCE)
+├── project_status.json                # SINGLE SOURCE OF TRUTH for all project status
 ├── development_config.md              # Development environment and command patterns
 ├── development_alignment_checklist.md # Configuration synchronization checklist
 ├── architecture/                      # System architecture documentation
@@ -153,9 +153,9 @@ This directory automatically enhances Copilot's suggestions by providing:
 ## 📋 Key Files
 
 ### 🎯 **Primary References**
-- **`context.json`** - Complete project status, goals, and current development phase
-- **`tasks/task_registry.json`** - Master registry of all 15 development tasks with priorities and dependencies
-- **`tasks/mvp_roadmap.md`** - 4-week roadmap to MVP v0.1.0 release (Target: August 15, 2025)
+- **`project_status.json`** - SINGLE SOURCE OF TRUTH for complete project status including all 22 core modules, sprint progress, achievements, and metrics
+- **`development_config.md`** - Development environment setup and command patterns  
+- **`development_alignment_checklist.md`** - Configuration synchronization checklist
 
 ### 🔧 **Development Resources**  
 - **`technical_improvements.md`** - Core module enhancements and performance optimizations

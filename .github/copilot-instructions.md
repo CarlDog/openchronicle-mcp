@@ -74,16 +74,32 @@ Get-ChildItem "directory" | Measure-Object
 - **Async**: All model operations use async/await patterns with proper exception handling
 - **Clean Development**: Consolidate documentation, avoid file proliferation, maintain organized structure
 
-## Clean Development Guidelines
-- **Consolidate over create**: Merge related documentation into comprehensive guides
-- **Single source of truth**: Avoid duplicate information across multiple files
-- **Purposeful structure**: Every file should have a clear, unique purpose
-- **Regular cleanup**: Remove obsolete documentation and temporary files
-- **Extend over new**: Use existing files/functions rather than creating additional helper scripts or utilities
-- **Organized folders**: Keep ALL codebase folders clean and minimal. Including: **.github**, **.copilot**, **.vscode**, **files**
-  - **.copilot**: Contains architecture and development guidelines
-  - **.vscode**: Empty or minimal, only for essential scripts
-  - **files**: Should not contain temporary or obsolete files
+## Project Status Tracking - MANDATORY SYSTEM
+
+**CRITICAL RULE**: OpenChronicle uses a **single source of truth** for all project status tracking.
+
+### **THE SYSTEM (follow exactly):**
+1. **`.copilot/project_status.json`** = ONLY place where project status is maintained
+2. **All other files** = Reference the JSON, NEVER duplicate status information
+3. **Status updates** = Update ONLY the JSON file, never scatter across multiple files
+4. **No exceptions** = Sprint docs, roadmaps, READMEs all reference the JSON
+
+### **When updating project status:**
+```bash
+# ✅ CORRECT: Update single source of truth
+Edit: .copilot/project_status.json
+
+# ❌ WRONG: Never update multiple files with same information
+Edit: sprint_action_items.md, mvp_roadmap.md, README.md, etc.
+```
+
+### **Reference pattern for other files:**
+```markdown
+## Current Status
+See `.copilot/project_status.json` for complete project status.
+```
+
+**VIOLATION WARNING**: Updating status in multiple files violates clean development principles and creates maintenance debt. Always use the single source of truth system.
 
 ## Key Architecture Files
 - `core/model_adapter.py` - Central orchestration (1500+ lines)

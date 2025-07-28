@@ -37,7 +37,7 @@ tasks/
 - Character consistency engine
 - Character interaction dynamics
 - Emotional stability and gratification loop prevention
-- Storypack importer and auto-converter
+- Storypack importer (see `.copilot/project_status.json` for current status)
 
 ### 📋 Medium Priority
 - Character Q&A mode

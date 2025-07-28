@@ -17,17 +17,17 @@ The `import/` directory provides a safe, organized way to prepare story content 
 
 ### Scan for Available Imports
 ```bash
-python -m utilities.storypack_importer "" "" --scan
+python -m utilities.storypack_importer --scan
 ```
 
 ### Import a Specific Directory (Basic Mode)
 ```bash
-python -m utilities.storypack_importer . "DirectoryName" --import-dir --basic
+python -m utilities.storypack_importer --import-dir "DirectoryName" --basic
 ```
 
 ### Import with AI Analysis
 ```bash
-python -m utilities.storypack_importer . "DirectoryName" --import-dir --ai
+python -m utilities.storypack_importer --import-dir "DirectoryName" --ai
 ```
 
 ## Directory Structure
@@ -78,9 +78,9 @@ import/
 ## Example Workflow
 
 1. Download or copy story content to `import/MyEpicTale/`
-2. Run `python -m utilities.storypack_importer "" "" --scan`
+2. Run `python -m utilities.storypack_importer --scan`
 3. See "MyEpicTale" listed as available for import
-4. Run `python -m utilities.storypack_importer . "MyEpicTale" --import-dir --basic`
+4. Run `python -m utilities.storypack_importer --import-dir "MyEpicTale" --basic`
 5. Story is imported to `storage/storypacks/MyEpicTale/`
 6. Future scans show "MyEpicTale" as already imported (safe from overwrites)
 
