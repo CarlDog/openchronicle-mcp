@@ -28,7 +28,7 @@ def log_debug(message: str) -> None:
 
 # Import keystore for secure API key retrieval
 try:
-    from utilities.simple_keystore import get_api_key
+    from utilities.api_key_manager import get_api_key
 except ImportError:
     get_api_key = None
 

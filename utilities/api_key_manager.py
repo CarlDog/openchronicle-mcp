@@ -1,6 +1,6 @@
 """
-Simple API key storage using OS keyring.
-Provides secure storage for API keys with graceful fallback.
+API key management using OS keyring.
+Provides secure storage for AI provider API keys with graceful fallback.
 """
 
 import getpass
