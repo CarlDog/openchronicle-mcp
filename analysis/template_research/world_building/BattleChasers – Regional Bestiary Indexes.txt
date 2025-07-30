@@ -1,0 +1,85 @@
+[BATTLECHASERS – REGIONAL BESTIARY INDEXES]
+
+**Legend:**  
+(C) – Commonly encountered creature  
+(U) – Uncommon or situational presence  
+(R) – Rare and dangerous  
+(X) – Unique, legendary, or location-defining entity
+
+---
+
+## AELRETH – THE SHATTERED KINGDOM
+
+(C) Covenboars – Intent-scenting familiars  
+(C) Lantern Owls – Light-eyed watchers  
+(U) Hollowhart Stags – Ghost-antler misleaders  
+(U) Witherkin – Forest-infected humanoids  
+(R) Whisperwights – Born from buried secrets  
+(X) The Thornwood Pact – Sentient forest seeking a new ruler
+
+---
+
+## OLORIN – KINGDOM OF WHISPERS
+
+(C) Inkdrakes – Script-bound wyrmlings  
+(C) Shadow Echoes – Minor illusion-predators  
+(U) Cicatrix – Scar-born ritual revenants  
+(U) Mirrormaws – Voice-thieving mimics  
+(R) Whisperwights – Arcane residue coalescence  
+(X) The Archivore – Living library that devours forgotten knowledge
+
+---
+
+## EMBERWAKE – THE SKYFORGED REACH
+
+(C) Volclings – Lava-sprites, volatile and playful  
+(C) Skyrazors – Winged disruptors of flight and spell  
+(U) Flamebeasts – Elemental serpents born of forge magic  
+(U) Ashmanes – Fire-blooded tracking hounds  
+(R) Ashwights – Undead with firebound oaths  
+(X) The Cinder Sovereign – Smoldering entity bound in Ashhollow’s core
+
+---
+
+## VEYRA ISLES – THE TIDES OF PROPHECY
+
+(C) Saltgrims – Coral-encrusted undead  
+(C) Driftwhales – Peaceful leviathans of the deep  
+(U) Tideblight Sirens – Mind-infecting sea-spawn  
+(U) Coral Phantoms – Animated reef spirits  
+(R) Deepcallers – Storm-singing leviathan spawn  
+(X) The Mawchain’s Heart – Living ship at the flotilla’s center
+
+---
+
+## CINDRAL’S FALL – THE BROKEN EMPIRE
+
+(C) Relictors – Memory-fueled statues  
+(C) Vaultspawn – Manifest oaths from ruined tombs  
+(U) Ashmanes – Roaming noble-bound beasts  
+(U) Crownlurks – Parasites of ambition  
+(R) Whisperwights – Born of imperial secrets  
+(X) The False Empress – Illusion-wielding undead sovereign haunting Halcyn
+
+---
+
+## THE REACH BELOW – THE ROOTED REALM
+
+(C) Shiverworms – Luminescent prophecy serpents  
+(C) Glowroaches – Ambient light-shedding scavengers  
+(U) Gravemyces – Fungal hive mimics  
+(U) The Latchling – Map-selling cryptid in child form  
+(R) Deepbind Phantoms – Knights lost to root symbiosis  
+(X) Mother Below – Slumbering root goddess beneath Drogwell
+
+---
+
+## MULTI-REGIONAL / WANDERING BEASTS
+
+(U) Witherkin – Also found in ancient woods  
+(R) Whisperwights – Occur near fractured ley points  
+(R) Starfallen – Appear post-celestial events  
+(X) Lilith, The Dark Queen – Shadow-sculptor and soulbound seductress  
+(X) The Shatterwolf – Grief-hunting elemental beast  
+(X) Thornwing Sovereign – Dragon hiding in mortal skin
+

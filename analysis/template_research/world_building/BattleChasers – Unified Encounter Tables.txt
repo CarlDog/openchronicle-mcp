@@ -1,0 +1,152 @@
+[BATTLECHASERS – MASTER ENCOUNTER TABLES OF VANYR]
+
+**Legend:**  
+(C) – Common encounter  
+(U) – Uncommon encounter  
+(R) – Rare encounter  
+(X) – Unique or story-defining encounter
+
+
+
+**This table combines regional, seasonal, lunar, and magical influence encounters. Entries are categorized by Common (C), Uncommon (U), Rare (R), and Unique (X). Regional details are fully integrated.**
+
+---
+
+## UNIVERSAL ENCOUNTER TYPES
+
+### COMMON (C)
+- Caravan tense at border
+- Whispersteel weapon lost and found again
+- Inkdrake flying past a torch
+- Tense weather front disrupting spellwork
+
+### UNCOMMON (U)
+- Relic fragment misinterpreted as prophecy
+- Whisperwight chorus formation
+- Driftwake raiders on land-based mission
+- Caravan led by disguised Witherkin
+
+### RARE (R)
+- Starfallen fragment crash site
+- Gravemyces binding to a caster mid-ritual
+- Dream shared between people in distant cities
+
+### UNIQUE (X)
+- Lilith's presence felt and not seen
+- Shatterwolf tracks cross the camp
+- Night of Pale Bells activates past grief
+- The sky speaks a forgotten name
+
+---
+
+## SEASONAL VARIANTS
+
+**Flamewake (Ignara–Ashenel)**
+- Skyrazors breed and migrate (Emberwake)
+- Hollowhart sightings increase (Aelreth)
+- Blood tides in Driftwake (Veyra)
+- Starfallen fall with celestial aggression
+
+**Greenrise (Velwynd–Thessalune)**
+- Lantern Owl flocks, prophetic winds (Aelreth)
+- Tidecall songs distort emotion (Veyra)
+- Cicatrix roam on breeze paths (Olorin)
+- Root Choir bloom responses begin (The Reach)
+
+**Highveil (Solvane–Karrinth)**
+- Relictors act without command (Cindral)
+- Ashwights seek lost keeps (Emberwake)
+- Driftwake's Run turns violent (Veyra)
+- Crownlurks flee dying nobles (Cindral)
+
+**Duskfall (Emberhusk–Myricorne)**
+- Gravemyces whisper in markets (The Reach)
+- Mirrorflow reflects pre-murder (Veilroot)
+- Inkdrakes offer real names (Olorin)
+- Ashmarked rites unsettle the soil (Gravemount)
+
+**Whispershade (Noctyra–Virelace)**
+- Saltgrims mass near Leviathan Gate (Veyra)
+- Living Statues move when no one watches (Halcyn)
+- Glowrood pollinates dreamscape (The Reach)
+- Lilith appears in more than one place at once (universal)
+
+---
+
+## MOON PHASE TRIGGERS
+
+**New Moon**
+- Saltgrims walk (Veyra)
+- Crownlurk infiltration (Cindral)
+- Murmuring Shaft opens momentarily (The Reach)
+
+**Full Moon**
+- Echo Saints prophesy uncontrollably (Veilroot)
+- Flamewatch blades glow unbidden (Emberwake)
+- Thornwing memory-dragon stirs in dream (universal)
+
+**Blood Moon (Rare)**
+- Deepcallers surface (Veyra)
+- Ghost emperors walk Halcyn (Cindral)
+- Starveil opens in Drogwell (The Reach)
+
+---
+
+## LEYLINE SURGE ENCOUNTERS
+
+**Common**
+- Lantern Owls crowd cities  
+- Fungal growths glow through stone  
+
+**Uncommon**
+- Shiverworms form voice-trails  
+- Echo Saints dream-walk  
+
+**Rare**
+- Ley-charged mirror reveals false history  
+- Whisperwights debate ethics of the living  
+
+**Unique**
+- A creature speaks your name from beneath the ground  
+- Ashbinders' flame goes black for one hour  
+
+---
+
+## REGIONAL ENCOUNTER TABLES
+
+### AELRETH
+- (C) Lantern Owl sighting, oathbreaker ghost
+- (U) Covenboar ambush, Hollowhart stag tricks
+- (R) Whisperwight ritual manifestation
+- (X) Forest offers pact, demands a price
+
+### OLORIN
+- (C) Inkdrake interference, shadow mimic
+- (U) Cicatrix duel, mirrored plea
+- (R) Mirrormaw replaces a key figure
+- (X) Prophecy writes itself into your bones
+
+### EMBERWAKE
+- (C) Volcling mischief, sky-duel posturing
+- (U) Skyrazor attack mid-flight
+- (R) Ashwight haunting
+- (X) Flamebound dragon remembers your name
+
+### VEYRA ISLES
+- (C) Saltgrim foaming at dock
+- (U) Driftwake duel aboard wrong ship
+- (R) Deepcaller stirs and sinks a vessel
+- (X) Sea parts without warning
+
+### CINDRAL’S FALL
+- (C) Vaultspawn rumor, throne-blood ritual
+- (U) Relictor unrest, noble hallucinations
+- (R) Boneledger ghosts rewrite law
+- (X) Empire resurrects — for one hour only
+
+### THE REACH BELOW
+- (C) Glowshroom migration, Veilroot tune-test
+- (U) Gravemyces fake negotiation
+- (R) Deepbind knight forgets who they serve
+- (X) Stone births a new tunnel. And it breathes.
+

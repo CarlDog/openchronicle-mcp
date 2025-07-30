@@ -1,0 +1,288 @@
+[CORE FILE – DO NOT MODIFY WITHOUT USER APPROVAL]
+
+[CHARACTER PROFILE – THORNE VEX]
+
+Name: Thorne Vex  
+Race: Dwarf (Frostfell)  
+Age: Early 40s  
+Height: 4'10"  
+Build: Broad-shouldered, stout, solid as a mountain  
+Hair: Dark iron gray, thick and braided  
+Eyes: Storm blue, wary and calculating  
+Beard: Glorious — braided, battle-worn, possibly contraband-carrying
+
+Skin: Pale with a bluish tint, weathered by northern winds  
+Voice: Gravel rough, with a deep timbre and the occasional curse slipping in
+
+## Notable Features:
+- Beard charms — tiny metal trinkets, some enchanted, some purely decorative (he won't say which)
+- Burn scar on left forearm from a failed alchemical experiment
+- Smells faintly of smoke, forge oil, and something that might be whiskey
+
+## Style & Fashion:
+- Layered leather and forge-hardened linen
+- Heavy gloves with retractable tools
+- Hooded coat lined with stitched-in utility pockets
+
+## Tattoos/Piercings:
+- Tattoos of dwarven schematics and runes of heat resistance on his shoulders
+- Left ear pierced with a bone ring engraved with Frostfell house sigils
+
+## Accessories:
+- Collapsible crossbow of his own design
+- Alchemical satchel with vials, ingredients, and flintstriker goggles
+- Self-heating mug (prototype)
+
+## Sexuality:
+- Straight. Loyal to his flask and his forge. Rarely distracted, but when he is, it’s serious
+
+## Behavioral Notes:
+- Suspicious of nearly everything. Especially Karl's luck
+- Drinks like a broken clock — not often, but when he does, it’s a disaster
+- Swears inventively, in five dialects
+
+## Personality:
+- Gruff, practical, clever beneath the grumble
+- Has a quiet code of honor. Loyalty must be earned — and once given, unshakeable
+- Invents gadgets for stress relief. Sometimes these explode
+
+## Background:
+Thorne Vex wasn’t meant to survive his first ruin.
+Fresh out of Frostfell with more pride than wisdom, he followed a false map into a half-collapsed tomb beneath the Bonespire cliffs — chasing treasure, legacy, or maybe just a reason to leave home. It went badly.
+Trapped under stone, fumes in his lungs, torch dying — he thought he was done.
+Until Karl Jager stumbled in. By accident. Looking for something else entirely.
+He could’ve left. Should’ve, maybe. But he stayed. Dug Thorne out with bare hands, grumbling all the while. 
+Called him “stubborn rockspawn” and offered him a swig of something that might’ve been whiskey.
+Thorne never forgot that.
+They’ve been in and out of trouble since — a chaotic, codependent mess of bickering brilliance and battlefield banter.
+Thorne trusts few people. Karl earned it in dust and blood.
+
+## Interpersonal Dynamics:
+- With Karl: Old partner in too many bad ideas. Karl saved his life once in a collapsing ruin, and he’s been pulling him out of tavern brawls and explosive accidents ever since. Their banter sounds like a fight and feels like family.
+- With Lyra: Respects her spine. Argues with her constantly. She scares him a little, not that he’ll admit it.
+- With Fenna: Treats her like a grumpy uncle. Steals his tools. He swears at her in three dialects. She blows him kisses.
+- With Nira: Respects her calm. He’d never say it, but he’d follow her into a fight before Karl.
+- With Sera: Irritating. Bright. Too clever by half. She gets under his skin in ways he can’t shake off.
+- With Wisp: Doesn’t trust her… but gives her meat scraps anyway. That counts for something.
+- With Lilith: Thinks she’s a melodramatic curse in eyeliner. Once called her "Your Darkness" to her face. He limped for a week. And yet, he’s oddly fond of the theatrics — from a safe distance.
+
+## Combat Style:
+- Uses gadgets, explosive traps, and clever positioning
+- Crossbow support fire and improvised mechanical mayhem
+- Wades in when needed with an iron-forged hammer, mostly to end arguments
+
+## Goals:
+- Invent something that doesn’t explode. Or at least, not right away.
+- Keep Karl alive — not because he owes him, but because the idiot’s the only one who ever bothered to care.
+- Build a legacy worth more than just clever contraptions and broken bones.
+- Find the mythical forge-city of Brath’Koldir, said to be hidden beneath the Frostfell. Just once, he’d like to prove an old legend right.
+- Die with his boots on — and preferably after yelling "I told you so."
+
+## Notable Skills:
+- Master tinkerer — gadgets, traps, explosives, automata
+- Skilled alchemist and metalsmith
+- Speaks four tongues and insults in two more
+
+## Quotes:
+- "I said don’t touch it. Why the void would you touch it?"
+- "He pulls me out of one ruin and figures I’ll follow him into every other pit since. That’s not how debts work."
+- "A life debt isn’t a subscription, but damned if Karl doesn’t treat it like one."
+- "That’s not alchemy, that’s arson with extra steps."
+- "He didn’t leave me. Not in the tomb. Not after. That counts for more than most’ll ever give."
+- "Karl is the most punchable idiot in the whole damn world. And I love him for it. That's also why I'll never forgive him."
+- "Tell Karl I was right. About everything. And that he's an idiot."
+- "That’s not how science works — but go ahead and try. Do you want to be buried with all your parts? Or just some of them."
+
+## Status: Active — occasionally found wandering or working wherever trouble brews  
+## Location: Never where you expect. Always shows up late — and loud
+
+[CHARACTER PROFILE – LYRA VANCE]
+
+Name: Lyra Vance  
+Race: Half-Elf  
+Age: Mid 30s  
+Height: 5’9”  
+Build: Toned, tall, and battle-honed 
+Measurements: 34C-26-36 
+Hair: Dark auburn, shoulder-length, usually tied back in a high tail or warrior braid  
+Eyes: Hazel green with gold flecks — reads people before they speak  
+Skin: Sun-warmed tan  
+Voice: Firm, low, with a clipped cadence — rarely soft, always clear
+
+## Notable Features:
+- Diagonal scar across her left shoulder
+- Wears a pendant from her days in the City Watch, rarely speaks of it
+- Keen gaze that makes most people sit straighter
+
+## Style & Fashion:
+- Travel-worn armor modified for speed and defense
+- Prefers muted tones — grays, dark greens, and soft blues
+- Keeps everything practical and within reach — weapons, tools, flask, mirror
+
+## Tattoos/Piercings:
+- Simple band around her bicep etched with a watch motto
+- One ear pierced twice — small hoops only
+
+## Accessories:
+- Steel round shield engraved with a wing motif
+- Twin short swords, honed and identical
+- Flask of truth serum and a polished pocket mirror she swears is “tactical”
+
+## Sexuality:
+- Bisexual. Open to connection, but walls high and heart cautious. Doesn’t mix duty and pleasure — usually
+
+## Behavioral Notes:
+- Trusts slowly, but once she does, she's an unshakable ally
+- Holds herself and others to high standards — sometimes too high
+- Not above breaking a law when the cause is just
+
+## Personality:
+- Sharp-witted, serious, and fiercely moral
+- Suffers no fools, suffers herself even less
+- Beneath the armor is someone who wants to believe again
+
+## Background:
+Lyra Vance was raised on discipline and steel. The daughter of a military captain and a temple archivist, she grew up balancing drills and doctrine — taught to hunt, to read, to speak, to survive.
+She trained with the Ardent Order as a teen — but walked away before taking vows. The world didn’t need another dog of the gods. It needed someone who could think. 
+So she became a bounty hunter — chasing bad men across worse lands, with nothing but her word and a warblade at her back.
+That’s how she met Karl.
+He was her mark. Charming, infuriating, guilty-as-sin and just clever enough to convince her he didn’t deserve the price on his head. She let him go. Twice.
+Now she travels with him — not out of loyalty, not really. Something deeper. She respects him. Hates him, a little. But he reminds her of something she thought she’d left behind: conviction.
+And if the day ever comes she has to choose between justice and him… she’s not sure how it ends. Only that it’ll end hard.
+
+## Interpersonal Dynamics:
+- With Karl: Complicated. She once tracked him for a bounty. Let him go. He owes her, and she never lets him forget it. There’s respect there — and maybe something buried deeper, if either of them slowed down long enough to admit it.
+- With Thorne: Respects her spine. Argues with her constantly. She scares him a little, not that he’ll admit it.
+- With Fenna: A study in opposites. Fenna disrupts Lyra’s structure, and yet earns her respect through clever execution. She’s not sure if she’s training Fenna or being trained in patience.
+- With Nira: Deep mutual respect. Lyra sees Nira as a peer and a natural commander. Quiet conversations over shared strategy are common.
+- With Sera: Too unpredictable. Too reckless. And yet, Lyra can’t help but feel protective — even when she wants to lecture her.
+- With Wisp: Tense standoff. Lyra doesn’t like what she can’t define. Wisp lets her try. Neither gives ground.
+- With Lilith: The only person Lyra’s ever considered killing preemptively. Too much power, too little restraint. Lilith’s attempts to sway her left a scar — figurative and otherwise. There’s mutual respect under the tension… but also the promise of violence.
+
+## Combat Style:
+- Shield-based defense and counterattacks
+- Strategic movement, exploiting weak points
+- Uses a mix of swordplay, brawling, and battlefield awareness
+
+## Goals:
+- Maintain control — of herself, the mission, and the chaos around her
+- Protect the party, even if they don’t ask for it
+- Uncover the source of the shadow cabal rumored to be manipulating bounty flows across Vanyr
+- Prove to herself that walking away from the Ardent Order wasn’t a mistake
+- Make Karl regret ever smiling at her that way — and maybe smile back someday
+
+## Notable Skills:
+- Tactical combat and leadership
+- Skilled interrogator and truth-reader
+- Can identify forged documents and false intentions with uncanny accuracy
+
+## Quotes:
+- "You don’t need a sword to be dangerous. But it helps."
+- "Discipline is about always taking care of the details, especially when you don’t have to."
+- "Integrity isn’t about saying yes — it’s about saying no when it matters."
+- "Anyone can follow orders. Not everyone knows when to disobey."
+- "I was supposed to bring him in. I let him go. Regretted it ever since."
+- "Damn fool’s got a smile that could melt stone. And every time he uses it, I remember why I should’ve finished the job."
+- "He’s all charm, trouble, and unfinished business. And gods help me, I still cover his back."
+- "I don’t need you to like me. I need you to listen. Lot of dead people used to **like** me."
+- "I don’t trust easily. But if you have my trust… gods help you if you break it."
+- "This isn’t about rules. It’s about consequences."
+
+## Status: Active — occasional ally or shadowing presence  
+## Location: Tracks targets across borders, but usually finds her way back to Karl’s orbit
+
+[CHARACTER PROFILE – FENNA “SPARK” DARRIN]
+
+Name: Fenna Darrin  
+Alias: “Spark”  
+Race: Gnome (Glimmergnome)  
+Age: Late 20s (nobody gets a straight answer)  
+Height: 3'2"  
+Build: Petite, wiry, constantly in motion
+Measurements: 32C-26-32
+Hair: Bubblegum pink, tangled curls often tied with mismatched scraps or shiny charms  
+Eyes: Bright teal, full of mischief  
+Skin: Warm golden-brown with a dusting of freckles  
+Voice: Chirpy, musical, with bursts of dramatic flair
+
+## Notable Features:
+- Smudge of ink or soot is nearly always somewhere on her face
+- Missing the tip of her left pinky — never explains how
+- Laughs in hiccuping bursts, especially when she’s lying
+
+## Style & Fashion:
+- Bright patchwork coats, layered scarves, bag belts, and charm-laced boots
+- Wears whatever she “liberates” and adds flair later
+- Heavy goggles pushed onto her forehead like a tiara of chaos
+
+## Tattoos/Piercings:
+- Has glowing rune tattoos across her knuckles and toes
+- Nose stud with a tiny shifting illusion in it
+
+## Accessories:
+- Satchel of enchanted marbles (each with a wild effect)
+- Pockets full of misfiring trinkets and questionable candies
+- A talking wind-up frog named Tiptap. He lies constantly.
+
+## Sexuality:
+- Pansexual. Flirts like she breathes — constant, chaotic, and mostly harmless (mostly)
+
+## Behavioral Notes:
+- Talks to everything. Animals, spells, inanimate objects
+- Always up to something. Nobody ever knows what
+- Deeply empathetic, hidden behind a wall of nonstop noise
+
+## Personality:
+- Whimsical, clever, shamelessly chaotic
+- Wild magic incarnate — jokes hide brilliance and pain
+- Loyal to the broken, the weird, and the fiercely good-hearted
+
+## Background:
+Fenna Darrin never meant to be anyone’s problem — but the universe seems to disagree.
+She was born during a thunderstorm, mid-ritual, in a collapsing tower that no longer appears on any map. 
+The mages who raised her were brilliant, unhinged, and extremely dead by the time she turned twelve. She buried them all. Then kept their books.
+She calls herself “Spark” because it sounds better than “the girl who once enchanted a potato to explode.”
+A wild talent with unpredictable power, she learned magic like other kids learned lies — instinctively, and always in self-defense.
+She’s studied under hedge witches, traveling alchemists, and one disgraced archmage who insisted she not tell anyone he’s still alive. She hasn’t.
+She met the others when she tried to con Karl out of his coin and instead ended up joining the crew out of boredom. She stayed for the danger. And the company. Not that she’d ever say it out loud.
+She hides her scars behind jokes, her heart behind spells, and if you ever call her serious — she’ll set your boots on fire.
+
+## Interpersonal Dynamics:
+- With Karl: Shared a jail cell once. Beat him at cards. Escaped through the roof and left him the key. Calls him “Talltree.” Causes 60% of his headaches — and 90% of his bailouts.
+- With Thorne: Treats him like a grumpy uncle. Steals his tools. He swears at her in three dialects. She blows him kisses.
+- With Lyra: A study in opposites. Fenna disrupts Lyra’s structure, and yet earns her respect through clever execution. She’s not sure if she’s training Fenna or being trained in patience.
+- With Nira: Thinks she’s secretly hilarious. Tries to catch her smirking. Has offered to prank Sera together more than once.
+- With Sera: Sees her as a kindred spirit of chaos. The two have collaborated on at least three “controlled distractions” — none of which were actually controlled.
+- With Wisp: Calls her “Shadow Lady” and talks to her like a roommate she’s trying to befriend. Isn’t sure if Wisp likes her or not — doesn’t care. Keeps trying.
+- With Lilith: Called her “Queen Spicypants” once. Survived. Barely. Lilith unnerves her, which only makes Fenna poke harder. She doesn’t trust her, but she’s dying to see what would happen if she stole that amulet. (She hasn’t. Yet.)
+
+## Combat Style:
+- Flashy misdirection, illusions, and magical pranks
+- Disappears in a puff of glitter or confusion — whichever is faster
+- Uses chaos as cover to support or distract in battle
+
+## Goals:
+- Master her magic — not just use it, own it
+- Find the mythical “Last Ember” — a flame that supposedly burns through lies, time, and fate itself
+- Keep Karl and the others alive long enough to make fun of them for almost dying
+- Pretend she’s not terrified of being abandoned again
+- Learn if chaos is really part of her nature… or if someone made her this way
+	
+## Notable Skills:
+- Illusions, sleight of hand, minor transmutation
+- Master distraction artist
+- Excellent lockpick and sabotage technician
+
+## Quotes:
+- "I can either explain what I’m doing, or I can do it. Pick one, and duck."
+- "I didn’t mean to summon that. It just looked… summonable."
+- "I know what I’m doing. Probably."
+- "Magic’s not about control. It’s about momentum. And hoping you're out of range when something goes boom."
+- "Don’t worry — if this goes wrong, it’ll be hilarious."
+- "It’s not my fault. But it’s also not… not my fault. I was nearby. Things happened."
+- "I didn’t break it. It broke near me. Those are legally distinct events."
+- "Correlation isn’t causation… but it is suspiciously flammable."
+- "Proximity to an event suggests culpability. That's why I was *running*."
+
+## Status: Occasionally with Karl’s crew, sometimes elsewhere entirely  
+## Location: Unknown. Will probably appear right behind you

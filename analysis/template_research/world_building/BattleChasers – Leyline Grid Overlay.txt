@@ -1,0 +1,69 @@
+[BATTLECHASERS – LEYLINE GRID OVERLAY OF VANYR]
+
+**Legend:**  
+(✦) – Leyline Nexus (convergence point)  
+(═) – Major Leyline Path  
+(≈) – Volatile or Broken Leyline Segment  
+(⊗) – Magical Surge or Breach Site  
+
+---
+
+## GLOBAL LEYLINE NETWORK
+
+**THE SUNSKEIN** (Fire, Light, Will)  
+═ Pyraeth  
+═ Ashhollow  
+═ Emberwake  
+≈ Scarfields (⊗)  
+═ Solspire Range (partial fracture)  
+═ Southern Drift (dissipates under ocean)
+
+**THE VEILTHREAD** (Dream, Prophecy, Illusion)  
+═ Olorin  
+═ Inkspire  
+═ Veyra Isles  
+═ Seastone  
+✦ Driftwake (floating nexus)  
+≈ Mawchain Surge Zone (⊗)
+
+**THE STONEPULSE** (Earth, Memory, Stability)  
+═ The Reach Below  
+✦ Drogwell (deep nexus)  
+═ Bloomshard Crater (Aelreth fracture zone)  
+≈ Deadroot Spiral  
+═ Northrim Foothills (resonance echo)
+
+**THE ASHCORD** (Death, Legacy, Oath)  
+═ Gravemount  
+═ Halcyn  
+✦ Throne Circle (latent nexus)  
+≈ Ashlock Rifts (⊗)  
+═ Blackstone Ridge
+
+**THE BREATHRIFT** (Air, Time, Spirit)  
+═ Aelreth  
+═ Skyhold Peaks  
+≈ Veilglass Ranges  
+✦ Bloomshard Crater (minor crosspoint)  
+═ Frostfell Fringe
+
+---
+
+## NEXUS POINTS
+
+✦ Drogwell – Core pulse of Stonepulse + Ashcord  
+✦ Driftwake (mobile) – Veilthread convergence at sea  
+✦ Ashhollow – Sunskein peak, forge-reactive  
+✦ Halcyn – Ashcord fracture and imperial echo  
+✦ Bloomshard Crater – Crosspoint of Stonepulse + Breathrift (unstable)
+
+---
+
+## SURGE / BREACH SITES (⊗)
+
+⊗ Scarfields of Pyraeth – Permanent burn, uncontrollable flame memory  
+⊗ Mawchain (Veyra) – Occasional sea-tide spellfractures  
+⊗ Ashlock Rifts – Echoing undead awakenings  
+⊗ Bloomshard Crater – Deep memory ripples  
+⊗ Deadroot Spiral – Fungal ley-tear still growing
+

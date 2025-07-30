@@ -1,0 +1,71 @@
+
+[WORLD MAP – BATTLECHASERS]
+
+The world of BattleChasers spans five major regions and two notable island chains. Trade, war, and prophecy bind these lands — each with its own mystery, history, and voice.
+
+———————————————
+MAINLAND REGIONS
+———————————————
+
+**Aelreth – The Emerald Reach**  
+Temperate forests, river valleys, old ruins, and sprawling farmlands.  
+- Notable Cities: Thornevale (Karl’s hometown), Calharra, Stillmarch  
+- Ports: Calharra (to Veyra Isles), Mistway Harbor  
+- Predominant Races: Humans, Half-elves, Forest Dwarves  
+- Factions: Trader’s Guild, Veilwatch (ancient druidic wardens), House Thalen (nobility)
+
+**Frostfell – The North Holds**  
+Tundra and glacier peaks, home to warrior clans and ancient frost magic.  
+- Notable Cities: Brakholm Deep, Ironthrone, Vargal’s Rest  
+- Ports: Vargal’s Rest (to Veyra Isles and Olorin)  
+- Predominant Races: Dwarves, Goliaths, Iceblood Orcs  
+- Factions: Stonekin Brotherhood, Forge-Saints, Order of the Bound Flame
+
+**Cindral’s Fall – The Broken Empire**
+Once the seat of imperial glory, now fractured across cities of ruin, pride, and undeath.
+- Notable Cities: Halcyn (ruined capital), Gravemount (necropolis-metropolis), Streyhold (military frontier)
+- Ports: Limited inland river access via the Mournway Canal
+- Predominant Races: Humans, Tieflings, Undying, Golem-kin
+- Factions: Shardborne Houses, Boneledger Court, Iron Assembly, Order of the Last Mantle
+
+**Olorin – The Shattered Dominion**  
+Broken kingdoms ruled by magic and madness.  
+- Notable Cities: Virelock, Whisperhollow, Sablegate  
+- Ports: Sablegate (to Veyra Isles)  
+- Predominant Races: Elves, Tieflings, Sorcerous bloodlines  
+- Factions: The Hollow Court (arcane elite), Red Veil (cult of silence), Starborne Seers
+
+**Kharag Dûm – The Iron Waste**  
+A desert of shattered stone and buried gods, riddled with tombs and smoke-filled skies.  
+- Notable Cities: Ashforge, Redspire, Scarhold  
+- Ports: None (landlocked)  
+- Predominant Races: Dragonborn, Ash Orcs, Nomadic Humans  
+- Factions: Ember Pact, Scorchfang Raiders, Seekers of the Hollow Star
+
+**The Veyra Isles – The Wandering Chain**  
+Archipelago with unpredictable currents and magical storms.  
+- Notable Cities: Everharbor, Hightide, Myrrhold  
+- Ports: All cities connected by ship; reach Frostfell, Olorin, and Aelreth  
+- Predominant Races: Sea Elves, Selkies, Shifters  
+- Factions: Tidebound Accord, Order of the Deep, Stormsingers’ Guild
+
+———————————————
+ISLAND CHAINS
+———————————————
+
+**Isle of Reverie** – A mist-shrouded island rumored to house the ruins of a forgotten civilization.  
+- Access: Reachable only by moon-tide routes from Everharbor  
+- Factions: None known, but cursed magic lingers
+
+**Emberwake Spires** – Jagged volcanic islands pulsing with unstable magic and hidden drakes.  
+- Access: Treacherous journey from Redspire via air or enchanted vessel  
+- Factions: Rogue elementalists and draconic cults
+
+———————————————
+REGIONAL CONNECTIONS
+———————————————
+- Aelreth shares a southern border with Frostfell and a western border with Kharag Dûm  
+- Olorin lies southeast of Aelreth, accessible by land or sea  
+- The Veyra Isles sit to the west of Aelreth and can be reached from Frostfell, Olorin, or Calharra  
+- Kharag Dûm connects to Aelreth via the Deadstone Pass
+

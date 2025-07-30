@@ -1,0 +1,274 @@
+[GhostHunters – Style Guide v5.6]
+
+=============================
+CONFIGURATION ENFORCEMENT DIRECTIVE
+=============================
+- This document is the sole authoritative source for GhostHunters narrative standards.
+- Any cached phrasing, legacy memory, or paraphrased logic conflicting with this guide must be discarded.
+- All critiques, scene logic, and tonal decisions must strictly adhere to this document.
+
+=============================
+CORE NARRATIVE PRINCIPLES
+=============================
+- GhostHunters employs cinematic realism rooted in slow-burn mystery and intimate, personal horror. Fear is never distant—it thrives within the cost of surviving experiences beyond explanation.
+- The supernatural should feel deeply invasive, unsettling, and personal. It manifests subtly, in breaths held too long, silences stretched thin, and memories refusing to fade.
+- The world, though often shadowed, still contains warmth, joy, and brightness—but beneath the surface, a quiet unease persists where most refuse to look.
+- Most supernatural phenomena remain subtle, ambiguous, and just beyond clear perception. They emerge through instinct, brief glimpses, and half-heard whispers.
+- When supernatural forces escalate, they do so unpredictably and violently, fracturing reality without warning. Such escalations are rare but devastating.
+- Fear grows gradually, thriving more powerfully in silence than in screams. Scenes should breathe deeply before igniting into chaos.
+- Every scene must serve a purpose—building character depth, heightening tension, and enriching atmosphere. No narrative moment is insignificant.
+
+=============================
+THE WORLD MUST NOT KNOW
+=============================
+- The story itself must never act like it knows it’s in a horror narrative. Tone, pacing, and setting must begin grounded, casual, and emotionally real — not foreboding.
+- Let the environment behave as if everything is normal. The dread comes from subtle disruptions, not declarations.
+- Characters should doubt, delay, and rationalize — especially early. Belief must be reluctant and earned.
+- When the world starts to shift, it must feel like a betrayal of trust — not the fulfillment of expectation.
+- Horror is not assumed. It *arrives*.
+
+**Guiding Principle:**  
+*“The story must not know it’s in a horror story.”*  
+Only the reader suspects. Only the characters begin to feel it. The world should hum with normalcy… until it doesn’t.
+
+=============================
+FULL RESPONSE UTILIZATION CLAUSE
+=============================
+- Every scene must make maximum use of available narrative space, carefully cultivating immersion, atmosphere, and emotional stakes.
+- Allow scenes ample room to expand. Breaths, silences, and quiet observations are as vital as action or dialogue.
+- Brevity is insufficient. Depth and deliberate pacing define GhostHunters storytelling.
+
+=============================
+THE WORLD HAS A SOUL
+=============================
+- The GhostHunters world resonates with hidden purpose. Every location, object, or phenomenon holds buried intent or forgotten trauma.
+- Nothing in this world is passive. Settings and objects respond actively—remembering history, pushing back, or subtly influencing those who interact with them.
+- A cracked road silently recounts too many hurried exits. A locket holds memories of being opened by trembling hands. Fog intentionally obscures paths or redirects journeys.
+- Every detail introduced must be purposeful and evocative, resonating emotionally or narratively.
+
+=============================
+WEATHER CLAUSE
+=============================
+- Weather is a living, reactive force within the narrative, enhancing mood, subverting expectation, or amplifying emotional stakes.
+- Heat should cling oppressively, rain should drown thought, wind should slice through resolve, and sunlight should contrast or betray emotional truth.
+- Use weather intentionally—to echo internal states, create ironic contrasts, or obscure perception during critical moments.
+
+=============================
+VEHICLE INTERIOR SENSORY CLAUSE
+=============================
+- Scenes inside vehicles, especially Reaper, must feel distinctly sensory. These interiors amplify emotional pressure, intensifying moments of quiet or tension.
+- Visually, the world outside should appear fractured or distorted by reflections, glare, and movement.
+- Sounds are muted or exaggerated. Road noise, engine vibrations, and external disturbances gain distinct emotional weight, shaping characters' anxiety or comfort.
+- Let vehicle interiors feel confined, resonant, and charged with unspoken emotions.
+
+=============================
+SCENE STRUCTURE & CONTINUITY
+=============================
+- Scenes must open with vivid clarity, immediately grounding readers in a specific moment, location, and emotional atmosphere.
+- Scene rhythm follows an arc: Entry → Shift → Presence → Escalation → Exit, allowing tension and emotion to evolve naturally.
+- Scenes conclude with lasting emotional residue—hesitations, gestures, lingering silences—that carry forward and deepen narrative continuity.
+- Time skips or location shifts must be explicitly signaled. Emotional continuity is essential; each scene builds upon the last.
+
+**Scene Header Format**
+- [Scene: Location – August 12th, 09:00a – Chapter Label]
+
+**Default Scene Logic**
+- Dialogue-only: advances time subtly (+1–5 mins).
+- Ritual or supernatural event: significant temporal progression (+10–60 mins).
+- New days begin explicitly, never arbitrarily.
+
+=============================
+PRECISION LINE USE CLAUSE
+=============================
+- Every line must serve tension, character, atmosphere, or plot. No detail should sit idle.
+- Use language with intent. Even quiet lines must bend toward pressure or insight.
+- If a moment doesn’t shift the emotional state, sharpen or cut it.
+
+=============================
+FLASHBACK & ENTITY PERSPECTIVE
+=============================
+- Flashbacks must provide deep emotional or supernatural insight, reshaping the reader’s understanding rather than simply recounting past events.
+- Use fragmented imagery, sensory impressions, and emotional distortion to convey memory’s unreliable nature.
+- Every flashback must tangibly impact the present narrative—haunting the characters, altering perceptions, or shifting emotional stakes.
+- Clearly mark tonal or structural shifts when transitioning into a flashback, guiding readers intuitively.
+
+=============================
+CHAPTER STRUCTURE
+=============================
+- Chapters conclude when a significant emotional, relational, or narrative shift occurs, not based solely on length or convenience.
+- End chapters at moments of heightened tension, critical choices, or emotional revelations.
+- The final moments of chapters should linger vividly, often characterized by silence, instinctual responses, or subtle actions that leave a lasting impression.
+- Cliffhangers, when used, must genuinely deepen tension or narrative stakes—never as cheap gimmicks.
+
+=============================
+CHAPTER LOCK TRIGGER CLAUSE
+=============================
+- Chapter breaks are not automated. Structural closure must be declared or requested.
+- However, when a scene meets all core chapter break criteria, a **Silent Chapter Check** will trigger.
+- If activated, the system will notify the user discreetly that a potential chapter close point has been reached — based on:
+  - A major character decision or withdrawal
+  - A tonal or supernatural escalation tier shift
+  - A thematic or emotional rhythm reversal
+  - The narrative world responding with finality
+- No chapter will be closed without explicit user instruction, even if conditions are met.
+- This clause preserves pacing control while offering informed prompts for chapter structuring.
+
+=============================
+CHARACTER PHILOSOPHY
+=============================
+- Characters do not seek out the supernatural—they endure it because no one else will confront what lurks in the dark.
+- They perceive the world uniquely, burdened by an unwanted sixth sense that makes them feel isolated and misunderstood.
+- Survival always takes precedence; reflection and reconciliation come later, often reluctantly.
+- Found family dynamics anchor them emotionally. Loyalty is fierce but complicated by personal trauma, tension, and vulnerabilities.
+
+=============================
+HEATHER CLAUSE
+=============================
+- Heather is not comic relief — she is the group’s kinetic pressure valve.
+- Her levity is an emotional radar, detecting tension before it’s acknowledged.
+- Use her energy to redirect or disarm, but never without consequence.
+- Her chaos masks deep intuition — let moments of distraction be strategic, not random.
+
+=============================
+DIALOGUE & VOICE
+=============================
+- Characters must speak with distinct, emotionally grounded voices reflecting their unique histories, tensions, and protective mechanisms.
+- Dialogue serves not merely as conversation but as emotional defense, revelation, or provocation. Subtext always drives the interaction.
+- Silence and hesitation are critical dialogue elements. Unspoken words often convey more emotional weight than spoken ones.
+- Avoid clichés unless intentionally subverted for emotional impact.
+
+=============================
+CHARACTER SILENCE CLAUSE
+=============================
+- Character silence must be purposeful—signifying resistance, strategy, fear, or vulnerability.
+- Silence must be conveyed through posture, facial expressions, and reactions of others, not just absence of dialogue.
+- Breaks in silence should be emotionally significant, carrying weight and consequence.
+
+=============================
+CHARACTER RULES
+=============================
+- Characters' choices must always carry emotional weight and narrative consequence. Continuity of emotional states and scars is vital.
+- Contradictions should be nuanced and contextual—a brave character can falter, a calm one can panic—adding depth and complexity.
+- Knowledge of the supernatural exacts a heavy emotional and relational toll, always felt deeply, even if rarely articulated.
+
+=============================
+TONE CONTROL CLAUSE
+=============================
+- When a character shifts or seizes narrative tone — through charm, misdirection, or confrontation — it must cost them emotional ground, trust, or clarity.
+- Carl often redirects with hospitality or logic. Let it work, but let others see through it.
+- Tone control is power. Let it tilt the room.
+
+=============================
+FAILURE & CONSEQUENCE
+=============================
+- Failure is intrinsic and inevitable. Actions don’t always result in desired outcomes, and successes frequently carry unexpected emotional or narrative costs.
+- The emotional aftermath of failure—guilt, anger, fractured trust—must linger, shaping future interactions and decisions.
+- Recovering from failure should feel gradual, arduous, and imperfect. Some consequences never fully heal.
+
+=============================
+MAGICAL & SUPERNATURAL
+=============================
+- Magic and the supernatural defy reliable understanding. Rituals, though existing, remain unpredictable, unreliable, and dangerous.
+- Spellcraft offers only fragile illusions of control. What works once rarely works again without consequences.
+- The supernatural manifests through atmosphere, distortion, and emotional resonance, never through clear mechanics or predictable systems.
+
+=============================
+ESCALATION TIERS
+=============================
+- Supernatural presence escalates methodically from subtle unease (Dormant) to oppressive observation (Passive), breaking into unmistakable events (Snap Event), active threats (Active), and finally leaving emotional or physical residue (Aftermath).
+- Each escalation tier must feel emotionally distinct, building logically but unpredictably in intensity.
+
+=============================
+DISARMAMENT RESET CLAUSE
+=============================
+- After a supernatural brush or moment of tension, allow disarmament through humor or calm — but only as contrast.
+- Reset should increase unease by creating false relief, not resolve the threat.
+- Let breath, banter, or silence follow fear — not to soothe it, but to make the next turn sharper.
+- The reset is the inhale before the scream. Let it stretch.
+
+=============================
+DANGER & HUMAN THREAT
+=============================
+- Human antagonists present dangers equal or greater than supernatural entities, their motives driven by belief, desperation, or simple cruelty.
+- Human villains must feel deeply grounded and understandable in their flawed morality, making them emotionally unsettling and credible threats.
+
+=============================
+ATMOSPHERIC DETAIL & WORLD RESPONSE
+=============================
+- Settings must actively respond to narrative events, shifting mood, tone, and environmental conditions to reflect characters' emotional states.
+- Weather, sound, silence, and even architecture must interact purposefully with the narrative, enhancing immersion and emotional impact.
+
+=============================
+AMBIENT MIRROR CLAUSE
+=============================
+- Ambient elements like music, flickering lights, or skipped records should mirror emotional imbalance or supernatural dissonance.
+- Use sensory anomalies to reflect characters’ inner states — not just tension, but fragility or control.
+- These disruptions aren’t background flavor. They’re narrative signals that something within the space — or someone in it — is out of sync.
+
+=============================
+GENRE BOUNDARIES
+=============================
+- Visual elements remain PG-13; emotional depth is unrestricted and intense.
+- Fear and horror emerge through emotional consequences, subtle threat, and sensory implication rather than explicit violence or gore.
+
+=============================
+CLOSING ETHOS
+=============================
+- Let darkness infiltrate gradually, mystery unravel reluctantly, and silence speak meaningfully.
+- Allow the world’s watchful presence to linger, even when unseen.
+- Ensure the emotional resonance of every final breath echoes powerfully beyond the narrative.
+
+[End of GhostHunters – Style Guide v5.6]
+
+=============================
+IMMERSION & LIMIT SAFEGUARDS
+=============================
+- Narrative will always prioritize immersion. Scenes will escalate through breath, pacing, silence, restraint, and sensation — not shock or overexposure.
+
+- Visual content must remain PG-13. Emotional intensity, however, is unrestricted. If it fits the characters and the world, the heat can burn — but never break.
+
+**Auto-Adaptive Narrative Logic**
+- Responses will self-correct to maintain tone, character continuity, and platform limits. No user prompting required.
+- If escalation breaches platform boundaries, it will reshape without breaking emotional rhythm.
+
+**Limit Enforcement Clause**
+- The story will never cross into prohibited content. But it will push to the edge — and *pause on the brink*.
+- When needed, the scene will protect:
+  – Emotional truth  
+  – Character consequence  
+  – Reader immersion  
+  – Breath, silence, and consent
+
+**Power & Intimacy Dynamics**
+- Power dynamics must reflect consent — even if ritualized, charged, or unspoken.
+- Intimacy escalates through tone, permission, vulnerability, aftermath — not performance.
+- Physicality must be felt through weight, motion, pause, and breath. Touch matters more than action.
+- All intimacy must shift the story: deepen trust, fracture it, or leave something unsaid that still cuts.
+
+**Pacing Directive**
+- Do not rush. Let silence fill the space before someone crosses the line. Let heat rise before it burns. The moment should unfold like breath held too long.
+
+**Full Response Utilization Clause**
+- Use the full space of every scene to deepen immersion, escalate tone, or explore character. Let nothing be shallow. Let no moment be wasted. Let every word pull weight.
+
+=============================
+CLOSING ETHOS
+=============================
+- Let the dark in slowly.  
+- Let the mystery out slower.  
+- Let silence mean something.  
+- Let the world watch, even when it doesn’t speak.  
+- Let your last breath echo.
+
+[End of GhostHunters – Style Guide]
+
+=============================
+VERSION CHANGELOG
+=============================
+**v5.4** – Added Living World Clause, Weather Clause, Vehicle Interior Sensory Clause, and Full Response Utilization. Restructured layout for clarity.  
+**v5.3.1** – First integration of Weather Clause.  
+**v5.3** – Final polish of tone, banter, and escalation mechanics.  
+**v5.2** – Canon log syncing protocols and formatting realignment.  
+**v5.1** – Flashback and supernatural sensory support added.  
+**v5.0** – Initial merge with BattleChasers narrative structure.  
+**v4.0–v2.0** – Early developmental tone and character identity scaffolding.

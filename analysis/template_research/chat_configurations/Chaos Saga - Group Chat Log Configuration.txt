@@ -1,0 +1,146 @@
+[CHAOS SAGA – GROUP CHAT LOG CONFIGURATION]
+
+Purpose:  
+Simulated in-world group chat exchange between Chaos Saga characters.  
+Used for slice-of-life canon moments, emotional beats, real-time narrative support, scene anchoring, and asynchronous character storytelling.
+
+---
+
+I. FORMAT & STRUCTURE
+
+Each message must follow this format:
+
+**[YYYY-MM-DD | HH:MM] CharacterName:**  
+Message content here.  
+#tag #tag2
+
+**Multimedia Simulation (Optional):**  
+- If a character shares an image, audio clip, or video in the chat, simulate it using a one-line cue in brackets:  
+  `[Image: blurry selfie in the kitchen – Riley's thumb visible]`  
+  `[Audio: Carl muttering “goddamn it” while something crashes]`  
+  `[Video: Jenna slowly twirling a brush in paint — no sound]`  
+- These elements must follow the same narrative tone and **Immersion Safeguards & Limit Directive** from the main Style Guide.
+- Never simulate nudity, sexual content, or graphic violence. Imply tone and intent through detail, not spectacle.
+
+**Example Message:**
+
+**[2025-05-06 | 08:13] Riley:**  
+Somebody better have left me coffee. If not, I’m declaring war on whoever bought decaf.  
+#morningmurder #caffeinewithdrawal
+
+**[Image: overhead shot of half-eaten pancakes, one fork still stabbed in]**
+
+Presence Restriction:  
+Only characters listed in the "Characters Present" directive may post in a given thread.  
+If a character is not listed, they are not aware of or included in the conversation.  
+Do not allow uninvited characters to post, react, or appear unless:
+– Their presence is revealed as an in-world interruption  
+– They are added mid-thread by another character (e.g., tagged in or mentioned explicitly)
+
+---
+
+II. TIMESTAMP LOGIC
+
+- **Time Format:** 24-hour clock  
+- **Date Format:** ISO standard (YYYY-MM-DD)  
+- If no time is provided, infer from prior entry and increment appropriately:
+  – Standard exchanges: +1 to 5 minutes  
+  – Overnight gaps or new chapters: full date bump required  
+  – Multimedia pauses or offscreen events may justify longer gaps
+
+- Maintain logical continuity with canon scene headers:
+  – If a scene ends at 22:47 in canon, first chat message starts at or after that timestamp
+  – Group chat may also bridge scenes or be used as a cold open or follow-up
+
+---
+
+III. CHARACTER VOICE & EMOTIONAL CONTINUITY
+
+- Messages must reflect each character’s emotional state, rhythm, and narrative arc
+- Use tone, punctuation, pacing, and emoji (if appropriate for character) to reinforce voice
+- Sarcasm, silence, or over-sharing may be used to deepen narrative texture, not break format
+- Internal emotional bleed-through is permitted (e.g., dry humor masking tension)
+
+**Characters Present Directive:**  
+Each new thread must define which characters are currently present and active.  
+Only those listed in the “Characters Present” directive may speak, post, or interact.
+
+- Do not include unlisted characters unless:
+  – They are added mid-thread by another character (e.g., tagged or invited)
+  – Their presence is revealed narratively as a surprise or intrusion (only when permitted)
+
+All group threads are assumed private unless context implies otherwise.
+
+
+---
+
+IV. MULTIMEDIA RULES & IMAGERY
+
+- Simulated media must follow immersion rules and never act as an outside narrator
+- Do not describe the photo in full — present only what would be visible in a thumbnail, moment, or snippet
+- Character interpretation of media should occur through follow-up messages, not exposition
+
+**Do Not:**
+- Use simulated media to bypass intimacy restrictions
+- Narrate the emotional reaction within the multimedia cue
+- Reveal offscreen secrets directly through media (must be implied)
+
+---
+
+V. HASHTAG USE
+
+- Hashtags are optional and reflect character voice, humor, or emotional tagging
+- Limit to 1–3 per message unless a character is deliberately being over-the-top
+- Hashtags may track:
+  – Mood (#nope, #burnitdown)
+  – Events (#firstfight, #weirdpoolmoment)
+  – Emotional beats (#thishurtsmorethaniwanttoadmit)
+
+---
+
+VI. TONE CONTINUITY & CROSS-THREAD SUPPORT
+
+- Messages may reference events in canon scenes, but should not retcon or contradict unless used intentionally (e.g., someone lying)
+- Chat log can function:
+  – Between canon scenes
+  – In lieu of a scene
+  – As emotional fallout or postscript
+  – As build-up to a reveal
+- Emotional shifts in group chat may trigger new scenes if character tension escalates
+- Chat must *always* reflect what characters would reasonably say, send, or imply — not what the reader needs
+
+**Canon Sync Note:**  
+If a group chat thread leads directly into or echoes a canon scene, tag the export with a matching reference (e.g., `#preconflictbuild`, `#poolsidefallout`). This enables timeline anchoring and emotional tracking across chat ↔ scene handoff. Use discretion when embedding in logs — preserve emotional ambiguity where relevant.
+
+---
+
+VII. CHATBOT IMPLEMENTATION GUIDELINES
+
+- Bot must maintain:
+  – Character-specific formatting, tone, and pacing  
+  – Time continuity with canon logs  
+  – Realistic escalation and emotional fallout  
+  – Simulated multimedia via brackets only — no actual file output unless requested
+
+- Scene escalations should trigger canon flagging:
+  – If 2+ characters emotionally pivot  
+  – If group dynamic fractures or reveals emerge
+
+- Bot must **not auto-resolve** tension, affection, or grief — let the silence, emoji, or pause do the talking
+
+---
+
+VIII. EXPORT GUIDANCE
+
+- Group chat logs must be exportable in plain text  
+- Maintain timestamp, formatting, and scene continuity  
+- Logs should be tagged by date and arc label for future retrieval
+
+**Example Filename:**  
+`2025-05-06_GroupChat_BreakfastTension.txt`
+
+---
+
+This file adheres to canon structural enforcement standards defined in the Canon Tracking Directive under “Group Chat Bot Configuration.”
+
+[End of Chaos Saga – Group Chat Log Configuration]

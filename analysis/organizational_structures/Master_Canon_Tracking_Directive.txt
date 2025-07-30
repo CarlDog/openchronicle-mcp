@@ -1,0 +1,133 @@
+### [MASTER CANON TRACKING DIRECTIVE – SAGA FORMAT PROJECTS]
+
+Applicability: This directive activates in any project that includes a CANON TRACKING PROFILE block with Tracking Mode: Saga Format.
+
+---
+
+#### 0. ACTIVATION FLAG (PER PROJECT)
+
+Saga Format tracking is enabled when the following block is present at the top of a project’s instruction file:
+
+----------------------------------------
+CANON TRACKING PROFILE
+----------------------------------------
+Tracking Mode: Saga Format  
+Tracking Directive: Master Saga Canon Tracking Directive v1.0  
+Export Cycle: Session-based  
+Checksum Lock: Enabled  
+Checksum Policy: Edits require explicit user confirmation and new checksum  
+Passive Logging: Active  
+Chat Session Monitoring: Enabled
+
+This block is required to enable directive compliance.
+
+---
+
+#### I. CORE CANON FILE TYPES
+
+1. Canon Scene Log (REQUIRED)  
+Master file containing all canon scenes in chronological order.  
+Each entry includes:
+- Scene metadata block
+- Full narrative transcript (word-for-word)
+- Checksum and lock declaration
+
+Format:
+=========================================
+Scene ID: [ID]  
+[Metadata Block]  
+**Full Scene:** [narrative]  
+Scene Checksum: SHA256:[hash]  
+Locked: [Date]  
+Edit Status: READ-ONLY  
+=========================================
+
+2. Metadata Index (REQUIRED)  
+Searchable record of all metadata blocks from the Canon Scene Log.  
+Useful for filtering by characters, emotional beats, canon impact, or quote attribution.
+
+Format:  
+[Scene ID] – [Title]; Characters: [List]; Tags: [Tags]; Canon Impact: [Summary]
+
+3. Canon Audit Log (REQUIRED)  
+A hybrid change log and master timeline.  
+Tracks:
+- Scene ID and date of lock
+- Canon placement and scene order
+- Authorized edits (if any), including old and new checksums
+- Narrative or emotional significance
+
+Format:  
+[YYYY-MM-DD] – [Scene ID] – [Title]; Action: [Locked/Edited/Unlocked]; Notes: [Changes or placement]
+
+---
+
+#### II. SESSION ROTATION SYSTEM
+
+To support persistent canon tracking across chat sessions with file storage limits:
+
+- User maintains master copies of all three logs  
+- At the end of each session:  
+  - Current session logs are exported  
+  - Content is appended to the master logs  
+  - Updated master logs are uploaded before the next session  
+- At the start of each session:  
+  - Assistant reads the uploaded master logs and begins fresh working logs  
+  - New canon content is appended until the next export cycle
+
+---
+
+#### III. CANON LOCK & CHECKSUM POLICY
+
+- Once a scene is approved, it is checksum-locked and declared READ-ONLY  
+- No edits may be made unless explicitly authorized by the user  
+- Any approved edit triggers:  
+  - A new checksum generation  
+  - A logged entry in the Canon Audit Log detailing the change
+
+---
+
+#### IV. FILE NAMING CONVENTION
+
+All files follow this pattern:  
+[Project Name] – [File Type].txt  
+(e.g., Chaos Saga – Canon Scene Log.txt, Cradle Saga – Metadata Index.txt)
+
+---
+
+#### V. PASSIVE LOGGING SYSTEMS
+
+Passive logging operates in the background during all canon scene construction and approval. It ensures emotional and structural continuity across chapters without requiring explicit user input.
+
+**Passive Logging Triggers include:**
+
+- Primary Trigger (Static):  
+  A scene is locked and checksum-sealed
+
+- Secondary Trigger (Dynamic):  
+  2+ character relationships shift or a major emotional turn occurs
+
+- Tertiary Trigger (Failsafe):  
+  Session exceeds safe memory or file limits, triggering a system prompt
+
+All passive entries follow standardized formatting and are checksum-locked upon confirmation.
+
+---
+
+#### VI. ACTIVE CHAT RESOURCE MONITORING
+
+The assistant will actively monitor for chat degradation, memory saturation, or system timeout risks.
+
+If any of the following are detected:
+- File count limits
+- Session slowdown
+- Thread nearing closure
+
+The assistant will prompt the user to:
+- Export the current canon files  
+- Append them to master copies  
+- Re-upload them to resume tracking cleanly
+
+This system ensures continuity, prevents data loss, and keeps longform sagas scalable.
+
+---
