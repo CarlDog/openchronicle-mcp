@@ -18,7 +18,7 @@ This directory contains Claude-powered architecture analysis tools for monitorin
 
 ## 🚀 Quick Start
 
-### 1. Run Automated Analysis
+### 1. Run Automated Analysis (DELETED)
 ```powershell
 # Full analysis (recommended)
 .\run_architecture_analysis.ps1

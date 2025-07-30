@@ -50,5 +50,8 @@ Get-ChildItem core\*.py | ForEach-Object { $_.Name + ': ' + (Get-Content $_.Full
 2. Use modularization patterns from `.copilot/patterns/core_module_pattern.py`.
 3. Document refactoring progress in this file.
 
+## Prompt that was used to create the original files
+based on this document, select a script to perform an analysis on and look for refactoring potential and deduplication of code. be sure to select one that you feel capable of tackling. we'll create a recommendations document for each of the files. we will store it within the 'core\analysis\*\*' folder.
+
 ---
 *This document should be updated as refactoring progresses. For project status, see `.copilot/project_status.json`.*
