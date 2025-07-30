@@ -1,0 +1,186 @@
+# OpenChronicle Core Architecture Analysis Suite
+## Advanced Code Intelligence & Refactoring Dashboard
+
+This prompt generates comprehensive architectural insights for the OpenChronicle core modules using Claude's advanced analysis capabilities.
+
+### Analysis Scope
+Update the following analysis files with deep, actionable intelligence:
+
+---
+
+## 1. Core Method Inventory (`core\analysis\claude\core_method_inventory.md`)
+
+**Enhanced Analysis Objectives:**
+- **Architectural Pattern Recognition**: Identify design patterns, anti-patterns, and architectural smells
+- **Cross-Module Dependency Mapping**: Trace method dependencies and circular references
+- **Semantic Clustering**: Group related functionality across modules using semantic similarity
+- **Interface Standardization**: Identify inconsistent method signatures for similar operations
+- **Abstraction Opportunities**: Spot common base class candidates and shared behavior patterns
+
+**Analysis Requirements:**
+```markdown
+Header: `Last refreshed: [YYYY-MM-DD HH:mm:ss]`
+
+For each core module:
+1. **Class Architecture**:
+   - Complete method signatures with type hints
+   - Docstring-derived one-line summaries
+   - Method complexity estimates (parameters, return types, async patterns)
+   - Public vs private method ratios
+   - Constructor patterns and dependency injection points
+
+2. **Cross-Module Analysis**:
+   - Shared method name frequency analysis
+   - Similar parameter patterns across classes
+   - Common return type patterns
+   - Async/sync method distribution
+   - Error handling pattern consistency
+
+3. **Semantic Groupings**:
+   - Memory-related operations (across all modules)
+   - Configuration/initialization patterns
+   - Data validation and transformation methods
+   - Logging and debugging utilities
+   - File I/O and persistence operations
+
+4. **Integration Points**:
+   - Methods that call other core modules
+   - Shared utility imports from utilities/
+   - Database interaction patterns
+   - Model adapter integration points
+
+5. **Consolidation Candidates**:
+   - Duplicate method implementations
+   - Similar logic with different names
+   - Utility methods that could be extracted
+   - Common validation/sanitization patterns
+```
+
+---
+
+## 2. Core Refactor Priority Analysis (`core\analysis\claude\core_refactor_priority.md`)
+
+**Enhanced Metrics & Intelligence:**
+- **Multi-Dimensional Complexity Analysis**: Beyond line count - cyclomatic, cognitive, and architectural complexity
+- **Technical Debt Quantification**: Identify and score specific debt patterns
+- **Modularization Roadmap**: Specific extraction strategies with dependency impact analysis
+- **Performance Impact Assessment**: Identify hot paths and optimization opportunities
+- **Testing Coverage Gaps**: Correlate complexity with testing needs
+
+**Analysis Requirements:**
+```markdown
+Header: `Last refreshed: [YYYY-MM-DD HH:mm:ss]`
+
+1. **Comprehensive Metrics Table**:
+   | Module | Lines | Classes | Methods | Complexity | Coupling | Cohesion | Priority |
+   |--------|-------|---------|---------|------------|----------|----------|----------|
+   
+2. **Per-Module Deep Dive** (for each high-priority file):
+   - **Largest Classes/Functions**: Name, line count, responsibility
+   - **Complexity Hotspots**: Methods with high cyclomatic complexity
+   - **Coupling Analysis**: Import dependencies, method call patterns
+   - **Cohesion Assessment**: Single responsibility violations
+   - **Technical Debt Patterns**: Long parameter lists, deeply nested code, magic numbers
+   - **Specific Refactoring Plan**: Step-by-step extraction strategy
+
+3. **Architectural Recommendations**:
+   - **Base Class Extraction**: Common interfaces and abstract base classes
+   - **Utility Module Candidates**: Shared functionality to extract
+   - **Plugin Architecture**: Extension point opportunities
+   - **Configuration Consolidation**: Settings and registry improvements
+   - **Async Pattern Standardization**: Consistent async/await usage
+
+4. **Dependency Impact Analysis**:
+   - **High-Risk Refactors**: Changes that affect multiple modules
+   - **Safe Extractions**: Low-impact utility extractions
+   - **Sequential Refactor Plan**: Optimal order to minimize disruption
+```
+
+---
+
+## 3. New File: Architecture Health Dashboard (`core\analysis\claude\architecture_health.md`)
+
+**Real-Time Architecture Monitoring:**
+```markdown
+Header: `Last refreshed: [YYYY-MM-DD HH:mm:ss]`
+
+1. **Architecture Quality Metrics**:
+   - **Modularity Score**: Based on coupling/cohesion analysis
+   - **Pattern Consistency**: Design pattern adherence across modules
+   - **Dependency Health**: Circular dependencies, fan-out metrics
+   - **Interface Standardization**: Consistency in method signatures
+   - **Documentation Coverage**: Docstring completeness and quality
+
+2. **Technical Debt Heatmap**:
+   - **Critical Issues**: Immediate refactoring needs
+   - **High-Impact Opportunities**: Big wins with manageable effort
+   - **Maintenance Burden**: Files requiring frequent changes
+   - **Testing Gaps**: Complex code without adequate test coverage
+
+3. **Evolution Tracking**:
+   - **Growth Patterns**: Module size trends over time
+   - **Complexity Trajectory**: Increasing complexity indicators
+   - **Refactoring Progress**: Completed vs planned improvements
+```
+
+---
+
+## Execution Commands
+
+**PowerShell Line Count Analysis:**
+```powershell
+Get-ChildItem core\*.py | ForEach-Object { 
+    $content = Get-Content $_.FullName
+    $lines = ($content | Measure-Object -Line).Lines
+    $classes = ($content | Select-String "^class ").Count
+    $methods = ($content | Select-String "^\s+def ").Count
+    $async_methods = ($content | Select-String "^\s+async def ").Count
+    
+    [PSCustomObject]@{
+        File = $_.Name
+        Lines = $lines
+        Classes = $classes
+        Methods = $methods
+        AsyncMethods = $async_methods
+        Ratio = [math]::Round($methods / [math]::Max($lines, 1), 3)
+    }
+} | Format-Table -AutoSize
+```
+
+**Complexity Analysis:**
+```powershell
+# Install radon if not available
+python -m pip install radon
+
+# Generate complexity metrics
+python -m radon cc core --total-average --show-complexity
+
+# Maintainability index
+python -m radon mi core --show
+```
+
+**Dependency Analysis:**
+```powershell
+# Analyze import patterns
+Get-ChildItem core\*.py | ForEach-Object {
+    $imports = Get-Content $_.FullName | Select-String "^(from|import)" | Where-Object { $_ -match "core\.|utilities\." }
+    Write-Host "$($_.Name): $($imports.Count) internal dependencies"
+    $imports | ForEach-Object { Write-Host "  $_" }
+}
+```
+
+## Success Criteria
+
+**Each analysis should provide:**
+1. **Immediate Actionables**: Specific refactoring tasks ready for implementation
+2. **Risk Assessment**: Impact analysis for proposed changes
+3. **Progress Tracking**: Measurable improvements over time
+4. **Decision Support**: Data-driven architecture decisions
+5. **Code Quality Trends**: Evolution patterns and early warning indicators
+
+**Output Quality Standards:**
+- All recommendations must be specific and actionable
+- Include before/after complexity estimates
+- Provide implementation effort estimates (hours/days)
+- Cross-reference with OpenChronicle coding patterns
+- Maintain consistency with existing architecture decisions
