@@ -45,7 +45,8 @@ storage/*/exports/
 *.log
 
 # Analysis and development folders
-analysis/
+!core/analysis/
+!core/analysis/**
 logs/
 storage/temp/
 storage/data/performance/
