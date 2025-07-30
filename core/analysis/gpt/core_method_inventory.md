@@ -1,4 +1,4 @@
-# Core Module Method & Function Overview
+# Core Method Inventory
 
 This document lists all classes, methods, and functions found in each file within the `core` directory. Use this as a reference for identifying shared logic, refactoring opportunities, and candidates for centralized helpers.
 

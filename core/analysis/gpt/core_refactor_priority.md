@@ -1,4 +1,4 @@
-# Core Module Refactoring Candidates
+# Core Refactor Priority
 
 This document provides a line count overview of all scripts in the `core` directory and highlights candidates for refactoring and extraction into smaller scripts. Large files are more likely to benefit from modularization, improved maintainability, and easier testing.
 
