@@ -469,7 +469,7 @@ class TimelineBuilder:
                 'audit_timestamp': datetime.now(UTC).isoformat()
             }
     
-    def generate_auto_summary(self, scene_range: Tuple[int, int] = None, 
+    def generate_auto_summary(self, scene_range: Optional[Tuple[int, int]] = None, 
                               summary_type: str = "narrative") -> Dict[str, Any]:
         """
         Generate auto-summaries for long-term memory compaction.

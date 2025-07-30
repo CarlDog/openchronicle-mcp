@@ -1,0 +1,122 @@
+name: Local Dev Only
+version: 1.0.0
+schema: v1
+
+models:
+  - name: WizardCoder (34B Q5)
+    provider: ollama
+    model: wizardcoder:34b-python-q5_K_S
+    apiBase: http://localhost:11434
+
+  - name: DeepSeek (6.7B Instruct)
+    provider: ollama
+    model: deepseek-coder:6.7b-instruct
+    apiBase: http://localhost:11434
+
+  - name: Mixtral (Instruct)
+    provider: ollama
+    model: mixtral:instruct
+    apiBase: http://localhost:11434
+
+  - name: CodeLlama (13B Instruct)
+    provider: ollama
+    model: codellama:13b-instruct
+    apiBase: http://localhost:11434
+
+  - name: Mistral (Default)
+    provider: ollama
+    model: mistral:latest
+    apiBase: http://localhost:11434
+
+tabAutocompleteModel:
+  provider: ollama
+  model: codellama:13b-instruct
+  apiBase: http://localhost:11434
+
+embeddingsProvider:
+  provider: ollama
+  model: nomic-embed-text:latest
+  apiBase: http://localhost:11434
+
+context:
+  - provider: codebase
+  - provider: folder
+    params:
+      folders:
+        - .
+      exclude:
+        - node_modules
+        - __pycache__
+        - dist
+        - build
+        - .venv
+        - .mypy_cache
+      chunkSize: 128
+      overlap: 48
+      watch: true
+  - provider: search
+    params:
+      maxResults: 10
+      minRelevance: 0.7
+  - provider: diff
+  - provider: codebase
+    params:
+      chunkSize: 128
+      overlap: 48
+customCommands:
+  - name: refactor
+    prompt: >
+      Refactor this code to improve modularity, reduce repetition, and follow OpenChronicle conventions.
+      Suggest splitting logic into helpers or service modules. Return refactored code + brief explanation.
+    description: Deep refactor with WizardCoder
+
+  - name: dedupe
+    prompt: >
+      Identify duplicated logic in this code and recommend how to consolidate it into shared functions or modules.
+      Highlight any repeated patterns or structures.
+    description: Detect and clean up duplication
+
+  - name: usage-patterns
+    prompt: >
+      Search the codebase for examples where this function, class, or method is used.
+      Summarize how it is typically called or extended.
+    description: Analyze usage patterns across files
+
+  - name: dependency-map
+    prompt: >
+      Identify what other parts of the codebase depend on this code.
+      Include direct imports, function calls, or subclassing relationships.
+    description: Trace code dependencies
+
+  - name: write-test
+    prompt: >
+      Write a complete Pytest-style test for this code.
+      Include mocks, edge cases, and validation against expected outputs.
+    description: Generate a solid test case
+
+  - name: summarize
+    prompt: >
+      Summarize what this code does and how it fits into the overall architecture.
+      Include function/class purpose, key behaviors, and side effects.
+    description: Explain what this code does
+
+slashCommands:
+  - name: refactor
+    description: Refactor using WizardCoder
+
+  - name: dedupe
+    description: Find duplicate logic and suggest consolidation
+
+  - name: usage-patterns
+    description: Find how this code is used across the codebase
+
+  - name: dependency-map
+    description: Show what files depend on this code
+
+  - name: comment
+    description: Write comments for selected code
+
+  - name: cmd
+    description: Generate a shell command
+
+allowAnonymousTelemetry: false

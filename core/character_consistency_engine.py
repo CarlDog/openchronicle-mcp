@@ -194,7 +194,7 @@ class CharacterConsistencyEngine:
         
         self.motivation_anchors[char_name].extend(anchors)
     
-    def get_motivation_prompt(self, char_name: str, context_type: str = None) -> str:
+    def get_motivation_prompt(self, char_name: str, context_type: Optional[str] = None) -> str:
         """Generate motivation anchoring prompt for character consistency."""
         if char_name not in self.motivation_anchors:
             return ""
@@ -234,7 +234,7 @@ class CharacterConsistencyEngine:
         return "\\n".join(prompt_parts)
     
     def analyze_behavioral_consistency(self, char_name: str, scene_output: str, 
-                                     scene_id: str, context: Dict[str, Any] = None) -> List[ConsistencyViolation]:
+                                     scene_id: str, context: Optional[Dict[str, Any]] = None) -> List[ConsistencyViolation]:
         """Analyze scene output for behavioral consistency violations."""
         violations = []
         
@@ -266,7 +266,7 @@ class CharacterConsistencyEngine:
         return violations
     
     def _check_motivation_violations(self, char_name: str, scene_output: str, 
-                                   scene_id: str, context: Dict[str, Any] = None) -> List[ConsistencyViolation]:
+                                   scene_id: str, context: Optional[Dict[str, Any]] = None) -> List[ConsistencyViolation]:
         """Check for violations against motivation anchors."""
         violations = []
         anchors = self.motivation_anchors.get(char_name, [])
@@ -279,7 +279,7 @@ class CharacterConsistencyEngine:
         return violations
     
     def _check_anchor_violation(self, char_name: str, anchor: MotivationAnchor, 
-                              scene_output: str, scene_id: str, context: Dict[str, Any] = None) -> Optional[ConsistencyViolation]:
+                              scene_output: str, scene_id: str, context: Optional[Dict[str, Any]] = None) -> Optional[ConsistencyViolation]:
         """Check if scene output violates a specific motivation anchor."""
         output_lower = scene_output.lower()
         
@@ -344,7 +344,7 @@ class CharacterConsistencyEngine:
         return None
     
     def _check_trait_violations(self, char_name: str, scene_output: str, 
-                              scene_id: str, context: Dict[str, Any] = None) -> List[ConsistencyViolation]:
+                              scene_id: str, context: Optional[Dict[str, Any]] = None) -> List[ConsistencyViolation]:
         """Check for violations against locked traits."""
         violations = []
         locked_traits = self.locked_traits.get(char_name, set())
@@ -390,7 +390,7 @@ class CharacterConsistencyEngine:
         return violations
     
     def _check_emotional_contradictions(self, char_name: str, scene_output: str, 
-                                      scene_id: str, context: Dict[str, Any] = None) -> List[ConsistencyViolation]:
+                                      scene_id: str, context: Optional[Dict[str, Any]] = None) -> List[ConsistencyViolation]:
         """Check for emotional contradictions within the scene."""
         violations = []
         

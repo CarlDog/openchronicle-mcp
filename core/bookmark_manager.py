@@ -6,7 +6,7 @@ Handles scene bookmarks and story navigation markers.
 import json
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 from .database import execute_query, execute_insert, execute_update, init_database
 
 class BookmarkManager:
@@ -16,8 +16,8 @@ class BookmarkManager:
         self.story_id = story_id
         init_database(story_id)
     
-    def create_bookmark(self, scene_id: str, label: str, description: str = None, 
-                       bookmark_type: str = "user", metadata: Dict[str, Any] = None) -> int:
+    def create_bookmark(self, scene_id: str, label: str, description: Optional[str] = None, 
+                       bookmark_type: str = "user", metadata: Optional[Dict[str, Any]] = None) -> int:
         """Create a new bookmark."""
         # Validate bookmark type
         valid_types = ["user", "auto", "chapter", "system"]
@@ -40,6 +40,9 @@ class BookmarkManager:
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (self.story_id, scene_id, label, description, bookmark_type, metadata_json))
         
+        if cursor is None:
+            raise RuntimeError("Failed to create bookmark")
+        
         return cursor
     
     def get_bookmark(self, bookmark_id: int) -> Optional[Dict[str, Any]]:
@@ -54,14 +57,14 @@ class BookmarkManager:
         
         return self._format_bookmark(rows[0])
     
-    def list_bookmarks(self, bookmark_type: str = None, scene_id: str = None, 
-                      limit: int = None) -> List[Dict[str, Any]]:
+    def list_bookmarks(self, bookmark_type: Optional[str] = None, scene_id: Optional[str] = None, 
+                      limit: Optional[int] = None) -> List[Dict[str, Any]]:
         """List bookmarks with optional filtering."""
         query = '''
             SELECT id, story_id, scene_id, label, description, bookmark_type, created_at, metadata
             FROM bookmarks WHERE story_id = ?
         '''
-        params = [self.story_id]
+        params: List[Union[str, int]] = [self.story_id]
         
         if bookmark_type:
             query += ' AND bookmark_type = ?'
@@ -80,8 +83,8 @@ class BookmarkManager:
         rows = execute_query(self.story_id, query, params)
         return [self._format_bookmark(row) for row in rows]
     
-    def update_bookmark(self, bookmark_id: int, label: str = None, description: str = None, 
-                       bookmark_type: str = None, metadata: Dict[str, Any] = None) -> bool:
+    def update_bookmark(self, bookmark_id: int, label: Optional[str] = None, description: Optional[str] = None, 
+                       bookmark_type: Optional[str] = None, metadata: Optional[Dict[str, Any]] = None) -> bool:
         """Update an existing bookmark."""
         # Get current bookmark
         current = self.get_bookmark(bookmark_id)
@@ -138,7 +141,7 @@ class BookmarkManager:
         
         return rowcount
     
-    def search_bookmarks(self, query: str, bookmark_type: str = None) -> List[Dict[str, Any]]:
+    def search_bookmarks(self, query: str, bookmark_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """Search bookmarks by label or description."""
         search_query = '''
             SELECT id, story_id, scene_id, label, description, bookmark_type, created_at, metadata
@@ -155,7 +158,7 @@ class BookmarkManager:
         rows = execute_query(self.story_id, search_query, params)
         return [self._format_bookmark(row) for row in rows]
     
-    def get_bookmarks_with_scenes(self, bookmark_type: str = None) -> List[Dict[str, Any]]:
+    def get_bookmarks_with_scenes(self, bookmark_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """Get bookmarks with their associated scene information."""
         query = '''
             SELECT b.id, b.story_id, b.scene_id, b.label, b.description, b.bookmark_type, 

@@ -74,8 +74,8 @@ class SavedSearch:
     name: str
     query: str
     description: str = ""
-    filters: Dict[str, str] = None
-    created_at: datetime = None
+    filters: Optional[Dict[str, str]] = None
+    created_at: Optional[datetime] = None
     last_used: Optional[datetime] = None
     use_count: int = 0
     
