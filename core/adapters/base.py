@@ -107,14 +107,16 @@ class ModelAdapter(ABC):
 
 class BaseAPIAdapter(ModelAdapter):
     """
-    Base adapter for API-based providers using template method pattern.
+    Base adapter for API-based providers using template method pattern with registry integration.
     
     This class eliminates ~90% of code duplication by providing common functionality
     that was previously copied across all adapter implementations:
     - API key resolution with fallback logic
     - Base URL configuration with environment variable support
+    - Registry-aware configuration loading
     - Standardized initialization pattern
     - Common error handling and logging
+    - Performance limits and validation from registry
     
     Subclasses only need to implement:
     - get_provider_name()
@@ -130,12 +132,21 @@ class BaseAPIAdapter(ModelAdapter):
         self.provider_name = self.get_provider_name()
         self.model_manager = model_manager
         
+        # Registry integration - use registry config if available
+        self.registry_manager = config.get("registry_manager")
+        self.provider_config = config.get("provider_config", {})
+        self.validation_rules = config.get("validation_rules", {})
+        self.performance_limits = config.get("performance_limits", {})
+        
         # Common setup using template pattern - eliminates duplication
         self.api_key = self._setup_api_key(config)
-        self.base_url = self._setup_base_url(config)
+        self.base_url = self._setup_base_url(config)  
+        self.timeout = config.get("timeout", self.provider_config.get("timeout", 30))
         self.client = None
         
         log_info(f"Initialized {self.provider_name} adapter for model {self.model_name}")
+        if self.registry_manager:
+            log_info(f"Registry-aware adapter for {self.provider_name} with enhanced configuration")
     
     def _setup_api_key(self, config: Dict[str, Any]) -> Optional[str]:
         """Common API key setup logic - used by ALL API adapters."""
@@ -196,17 +207,36 @@ class BaseAPIAdapter(ModelAdapter):
         Template method for initialization - subclasses implement _create_client only.
         
         This eliminates the duplicated initialization logic across all adapters.
+        Enhanced with registry-aware validation and health checks.
         """
         if self.requires_api_key() and not self.api_key:
             raise AdapterInitializationError(
                 self.provider_name,
                 "API key required but not available"
             )
-        
+
         try:
             self.client = await self._create_client()
+            
+            # Registry-aware validation
+            if self.registry_manager and hasattr(self.registry_manager, 'validate_adapter_config'):
+                is_valid, validation_message = await self.registry_manager.validate_adapter_config(self.provider_name, self.config)
+                if not is_valid:
+                    log_error(f"Registry validation failed for {self.provider_name}: {validation_message}")
+                    # Continue with initialization but log the issue
+            
             self.initialized = True
             log_info(f"{self.provider_name} adapter initialized successfully")
+            
+            # Registry-aware health check on initialization
+            if self.registry_manager and hasattr(self.registry_manager, 'should_health_check'):
+                if self.registry_manager.should_health_check(self.provider_name):
+                    try:
+                        await self._perform_health_check()
+                    except Exception as e:
+                        log_error(f"Health check failed for {self.provider_name}: {e}")
+                        # Continue with initialization even if health check fails
+            
             return True
             
         except ImportError as e:
@@ -234,6 +264,45 @@ class BaseAPIAdapter(ModelAdapter):
             
         return info
     
+    async def _perform_health_check(self) -> bool:
+        """
+        Basic health check - can be overridden by subclasses for provider-specific checks.
+        
+        Returns:
+            bool: True if healthy, False otherwise
+        """
+        try:
+            # Basic check - ensure client is initialized
+            if not self.client:
+                return False
+                
+            # For most providers, if we can initialize the client, we're healthy
+            # Subclasses can override for more sophisticated health checks
+            log_info(f"Health check passed for {self.provider_name}")
+            return True
+            
+        except Exception as e:
+            log_error(f"Health check failed for {self.provider_name}: {e}")
+            return False
+    
+    async def health_check(self) -> bool:
+        """Public health check method."""
+        return await self._perform_health_check()
+    
+    def get_performance_limits(self) -> Dict[str, Any]:
+        """Get performance limits from registry if available."""
+        if self.performance_limits:
+            return self.performance_limits
+        return {
+            "max_requests_per_minute": 60,
+            "max_tokens_per_request": self.max_tokens if hasattr(self, 'max_tokens') else 4096,
+            "timeout": self.timeout
+        }
+    
+    def get_validation_rules(self) -> Dict[str, Any]:
+        """Get validation rules from registry if available."""
+        return self.validation_rules if self.validation_rules else {}
+
     # Abstract methods that subclasses must implement
     @abstractmethod
     def get_provider_name(self) -> str:
