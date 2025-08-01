@@ -1,0 +1,74 @@
+{
+  "provider": "anthropic",
+  "display_name": "My Production Claude",
+  "description": "Production Claude configuration with custom settings",
+  "enabled": true,
+  "adapter_class": "AnthropicAdapter",
+  "api_config": {
+    "endpoint": "https://api.anthropic.com/v1/messages",
+    "model": "claude-3-5-sonnet-20241022",
+    "api_key_env": "ANTHROPIC_API_KEY",
+    "base_url_env": "ANTHROPIC_BASE_URL",
+    "default_base_url": "https://api.anthropic.com",
+    "timeout": 60,
+    "auth_header": "x-api-key",
+    "auth_format": "{api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json",
+      "anthropic-version": "2023-06-01"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "vision": true,
+    "models": [
+      "claude-3-5-sonnet-20241022",
+      "claude-3-5-haiku-20241022"
+    ]
+  },
+  "limits": {
+    "max_tokens": 8192,
+    "context_window": 200000,
+    "rate_limit_rpm": 1000,
+    "rate_limit_tpm": 40000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/v1/messages",
+    "method": "POST",
+    "interval": 300,
+    "timeout": 15,
+    "test_payload": {
+      "model": "claude-3-5-haiku-20241022",
+      "max_tokens": 10,
+      "messages": [{"role": "user", "content": "Hello"}]
+    }
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^sk-ant-[A-Za-z0-9\\-_]{90,}$",
+    "setup_url": "https://console.anthropic.com/account/keys"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 3.0,
+    "output_cost_per_1k": 15.0,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "openai",
+    "ollama"
+  ],
+  "performance": {
+    "priority": "quality",
+    "reasoning_capability": "excellent",
+    "recommended_for": [
+      "complex_analysis",
+      "creative_writing",
+      "code_generation",
+      "research_tasks"
+    ]
+  }
+}

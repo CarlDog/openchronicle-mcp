@@ -1,0 +1,67 @@
+{
+  "provider": "groq",
+  "display_name": "Groq - Mixtral 8x7B",
+  "description": "Ultra-fast Mixtral 8x7B inference via Groq",
+  "enabled": true,
+  "adapter_class": "GroqAdapter",
+  "api_config": {
+    "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+    "model": "mixtral-8x7b-32768",
+    "api_key_env": "GROQ_API_KEY",
+    "base_url_env": "GROQ_BASE_URL",
+    "default_base_url": "https://api.groq.com/openai/v1",
+    "timeout": 15,
+    "auth_header": "Authorization",
+    "auth_format": "Bearer {api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "ultra_fast_inference": true,
+    "models": [
+      "mixtral-8x7b-32768"
+    ]
+  },
+  "limits": {
+    "max_tokens": 8192,
+    "context_window": 32768,
+    "rate_limit_rpm": 30,
+    "rate_limit_tpm": 6000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/models",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^gsk_[A-Za-z0-9]{30,}$",
+    "setup_url": "https://console.groq.com/keys"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 0.27,
+    "output_cost_per_1k": 0.27,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "openai",
+    "anthropic"
+  ],
+  "performance": {
+    "priority": "speed",
+    "inference_speed": "ultra_fast",
+    "recommended_for": [
+      "rapid_prototyping",
+      "real_time_chat",
+      "development_testing",
+      "speed_critical_tasks"
+    ]
+  }
+}

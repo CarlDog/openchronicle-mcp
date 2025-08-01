@@ -1,0 +1,69 @@
+{
+  "provider": "openai",
+  "display_name": "OpenAI GPT-4o",
+  "description": "OpenAI's GPT-4o model with vision and advanced reasoning",
+  "enabled": true,
+  "adapter_class": "OpenAIAdapter",
+  "api_config": {
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "model": "gpt-4o",
+    "api_key_env": "OPENAI_API_KEY",
+    "base_url_env": "OPENAI_BASE_URL",
+    "default_base_url": "https://api.openai.com/v1",
+    "timeout": 30,
+    "auth_header": "Authorization",
+    "auth_format": "Bearer {api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "vision": true,
+    "reasoning": true,
+    "models": [
+      "gpt-4o",
+      "gpt-4o-2024-11-20"
+    ]
+  },
+  "limits": {
+    "max_tokens": 4096,
+    "context_window": 128000,
+    "rate_limit_rpm": 10000,
+    "rate_limit_tpm": 2000000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/v1/models",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^sk-[A-Za-z0-9]{20,}$",
+    "setup_url": "https://platform.openai.com/api-keys"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 2.5,
+    "output_cost_per_1k": 10.0,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "anthropic",
+    "ollama"
+  ],
+  "performance": {
+    "priority": "balanced",
+    "inference_speed": "fast",
+    "recommended_for": [
+      "general_purpose",
+      "vision_tasks",
+      "reasoning_tasks",
+      "function_calling"
+    ]
+  }
+}

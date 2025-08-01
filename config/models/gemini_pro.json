@@ -1,0 +1,65 @@
+{
+  "provider": "gemini",
+  "display_name": "Google Gemini Pro",
+  "description": "Google's Gemini Pro model with excellent context handling",
+  "enabled": true,
+  "adapter_class": "GeminiAdapter",
+  "api_config": {
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+    "model": "gemini-pro",
+    "api_key_env": "GOOGLE_API_KEY",
+    "base_url_env": "GEMINI_BASE_URL",
+    "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
+    "timeout": 30,
+    "auth_format": "?key={api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": false,
+    "function_calling": true,
+    "multimodal": false,
+    "models": [
+      "gemini-pro"
+    ]
+  },
+  "limits": {
+    "max_tokens": 30720,
+    "context_window": 1000000,
+    "rate_limit_rpm": 60,
+    "rate_limit_tpm": 32000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/models",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^[A-Za-z0-9]{20,}$",
+    "setup_url": "https://makersuite.google.com/app/apikey"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 0.35,
+    "output_cost_per_1k": 1.05,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "openai",
+    "anthropic"
+  ],
+  "performance": {
+    "priority": "context_efficiency",
+    "context_handling": "excellent",
+    "recommended_for": [
+      "long_conversations",
+      "document_analysis",
+      "context_heavy_tasks"
+    ]
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "provider": "ollama",
+  "display_name": "Ollama - Mistral 7B",
+  "description": "Local Mistral 7B model via Ollama",
+  "enabled": true,
+  "adapter_class": "OllamaAdapter",
+  "api_config": {
+    "endpoint": "http://localhost:11434/api/generate",
+    "model": "mistral:7b",
+    "api_key_env": null,
+    "base_url_env": "OLLAMA_HOST",
+    "default_base_url": "http://localhost:11434",
+    "timeout": 120,
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": false,
+    "local_execution": true,
+    "offline_capable": true,
+    "models": [
+      "mistral:7b",
+      "mistral:7b-instruct"
+    ]
+  },
+  "limits": {
+    "max_tokens": 4096,
+    "context_window": 8192,
+    "rate_limit_rpm": null,
+    "rate_limit_tpm": null,
+    "gpu_memory_gb": 8
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/api/tags",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 15
+  },
+  "validation": {
+    "requires_api_key": false,
+    "requires_gpu": false,
+    "min_ram_gb": 8,
+    "setup_url": "https://ollama.ai/"
+  },
+  "cost_tracking": {
+    "enabled": false,
+    "cost_per_1k": 0.0,
+    "currency": "USD",
+    "billing_unit": "local"
+  },
+  "fallback_chain": [
+    "openai",
+    "anthropic"
+  ],
+  "performance": {
+    "priority": "local_privacy",
+    "inference_speed": "fast",
+    "recommended_for": [
+      "local_development",
+      "privacy_sensitive_tasks",
+      "offline_usage"
+    ]
+  },
+  "local_config": {
+    "model_size": "7B",
+    "quantization": "Q4_0",
+    "context_length": 8192,
+    "rope_frequency_base": 10000
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "provider": "gemini",
+  "display_name": "Google Gemini 1.5 Flash",
+  "description": "Google's Gemini 1.5 Flash - fast and cost-effective",
+  "enabled": true,
+  "adapter_class": "GeminiAdapter",
+  "api_config": {
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+    "model": "gemini-1.5-flash",
+    "api_key_env": "GOOGLE_API_KEY",
+    "base_url_env": "GEMINI_BASE_URL",
+    "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
+    "timeout": 20,
+    "auth_format": "?key={api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "multimodal": true,
+    "models": [
+      "gemini-1.5-flash",
+      "gemini-1.5-flash-8b"
+    ]
+  },
+  "limits": {
+    "max_tokens": 8192,
+    "context_window": 1000000,
+    "rate_limit_rpm": 1000,
+    "rate_limit_tpm": 1000000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/models",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^[A-Za-z0-9]{20,}$",
+    "setup_url": "https://makersuite.google.com/app/apikey"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 0.075,
+    "output_cost_per_1k": 0.30,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "openai",
+    "anthropic"
+  ],
+  "performance": {
+    "priority": "speed_and_cost",
+    "inference_speed": "very_fast",
+    "recommended_for": [
+      "development",
+      "high_volume_tasks",
+      "cost_effective_usage",
+      "multimodal_tasks"
+    ]
+  }
+}

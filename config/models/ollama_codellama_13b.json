@@ -1,0 +1,77 @@
+{
+  "provider": "ollama",
+  "display_name": "Ollama - CodeLlama 13B",
+  "description": "Local CodeLlama 13B model for code generation",
+  "enabled": true,
+  "adapter_class": "OllamaAdapter",
+  "api_config": {
+    "endpoint": "http://localhost:11434/api/generate",
+    "model": "codellama:13b",
+    "api_key_env": null,
+    "base_url_env": "OLLAMA_HOST",
+    "default_base_url": "http://localhost:11434",
+    "timeout": 180,
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": false,
+    "code_generation": true,
+    "local_execution": true,
+    "offline_capable": true,
+    "models": [
+      "codellama:13b",
+      "codellama:13b-instruct",
+      "codellama:13b-code"
+    ]
+  },
+  "limits": {
+    "max_tokens": 4096,
+    "context_window": 16384,
+    "rate_limit_rpm": null,
+    "rate_limit_tpm": null,
+    "gpu_memory_gb": 16
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/api/tags",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 15
+  },
+  "validation": {
+    "requires_api_key": false,
+    "requires_gpu": true,
+    "min_ram_gb": 16,
+    "setup_url": "https://ollama.ai/"
+  },
+  "cost_tracking": {
+    "enabled": false,
+    "cost_per_1k": 0.0,
+    "currency": "USD",
+    "billing_unit": "local"
+  },
+  "fallback_chain": [
+    "openai",
+    "anthropic"
+  ],
+  "performance": {
+    "priority": "code_specialization",
+    "inference_speed": "moderate",
+    "recommended_for": [
+      "code_generation",
+      "code_completion",
+      "programming_assistance",
+      "local_development"
+    ]
+  },
+  "local_config": {
+    "model_size": "13B",
+    "quantization": "Q4_0",
+    "context_length": 16384,
+    "specialization": "code"
+  }
+}

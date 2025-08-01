@@ -1,0 +1,67 @@
+{
+  "provider": "openai",
+  "display_name": "OpenAI GPT-4 Turbo",
+  "description": "OpenAI's GPT-4 Turbo model for high-quality text generation",
+  "enabled": true,
+  "adapter_class": "OpenAIAdapter",
+  "api_config": {
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "model": "gpt-4-turbo",
+    "api_key_env": "OPENAI_API_KEY",
+    "base_url_env": "OPENAI_BASE_URL",
+    "default_base_url": "https://api.openai.com/v1",
+    "timeout": 30,
+    "auth_header": "Authorization",
+    "auth_format": "Bearer {api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "vision": true,
+    "models": [
+      "gpt-4-turbo",
+      "gpt-4-turbo-preview"
+    ]
+  },
+  "limits": {
+    "max_tokens": 4096,
+    "context_window": 128000,
+    "rate_limit_rpm": 3000,
+    "rate_limit_tpm": 150000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/v1/models",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^sk-[A-Za-z0-9]{20,}$",
+    "setup_url": "https://platform.openai.com/api-keys"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 10.0,
+    "output_cost_per_1k": 30.0,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "anthropic",
+    "ollama"
+  ],
+  "performance": {
+    "priority": "quality",
+    "inference_speed": "fast",
+    "recommended_for": [
+      "high_quality_generation",
+      "complex_reasoning",
+      "multimodal_tasks"
+    ]
+  }
+}

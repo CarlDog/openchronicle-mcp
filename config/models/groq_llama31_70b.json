@@ -1,0 +1,67 @@
+{
+  "provider": "groq",
+  "display_name": "Groq - Llama 3.1 70B",
+  "description": "Ultra-fast Llama 3.1 70B inference via Groq",
+  "enabled": true,
+  "adapter_class": "GroqAdapter",
+  "api_config": {
+    "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+    "model": "llama-3.1-70b-versatile",
+    "api_key_env": "GROQ_API_KEY",
+    "base_url_env": "GROQ_BASE_URL",
+    "default_base_url": "https://api.groq.com/openai/v1",
+    "timeout": 20,
+    "auth_header": "Authorization",
+    "auth_format": "Bearer {api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "ultra_fast_inference": true,
+    "models": [
+      "llama-3.1-70b-versatile"
+    ]
+  },
+  "limits": {
+    "max_tokens": 8192,
+    "context_window": 32768,
+    "rate_limit_rpm": 30,
+    "rate_limit_tpm": 6000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/models",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^gsk_[A-Za-z0-9]{30,}$",
+    "setup_url": "https://console.groq.com/keys"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 0.59,
+    "output_cost_per_1k": 0.79,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "openai",
+    "anthropic"
+  ],
+  "performance": {
+    "priority": "speed_and_quality",
+    "inference_speed": "ultra_fast",
+    "recommended_for": [
+      "complex_reasoning",
+      "real_time_applications",
+      "high_quality_generation",
+      "speed_critical_tasks"
+    ]
+  }
+}

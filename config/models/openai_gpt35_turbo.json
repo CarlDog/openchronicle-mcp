@@ -1,0 +1,68 @@
+{
+  "provider": "openai",
+  "display_name": "OpenAI GPT-3.5 Turbo",
+  "description": "OpenAI's cost-effective GPT-3.5 Turbo model",
+  "enabled": true,
+  "adapter_class": "OpenAIAdapter",
+  "api_config": {
+    "endpoint": "https://api.openai.com/v1/chat/completions",
+    "model": "gpt-3.5-turbo",
+    "api_key_env": "OPENAI_API_KEY",
+    "base_url_env": "OPENAI_BASE_URL",
+    "default_base_url": "https://api.openai.com/v1",
+    "timeout": 30,
+    "auth_header": "Authorization",
+    "auth_format": "Bearer {api_key}",
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "vision": false,
+    "models": [
+      "gpt-3.5-turbo",
+      "gpt-3.5-turbo-0125"
+    ]
+  },
+  "limits": {
+    "max_tokens": 4096,
+    "context_window": 16385,
+    "rate_limit_rpm": 10000,
+    "rate_limit_tpm": 2000000
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/v1/models",
+    "method": "GET",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": true,
+    "api_key_format": "^sk-[A-Za-z0-9]{20,}$",
+    "setup_url": "https://platform.openai.com/api-keys"
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "input_cost_per_1k": 0.5,
+    "output_cost_per_1k": 1.5,
+    "currency": "USD"
+  },
+  "fallback_chain": [
+    "anthropic",
+    "ollama"
+  ],
+  "performance": {
+    "priority": "cost_effective",
+    "inference_speed": "very_fast",
+    "recommended_for": [
+      "development",
+      "simple_tasks",
+      "cost_conscious_usage",
+      "high_volume"
+    ]
+  }
+}

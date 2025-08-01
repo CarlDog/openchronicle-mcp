@@ -1,0 +1,77 @@
+{
+  "provider": "transformers",
+  "display_name": "Local DialoGPT Medium",
+  "description": "Local conversational AI model via Hugging Face Transformers",
+  "enabled": true,
+  "adapter_class": "TransformersAdapter",
+  "api_config": {
+    "endpoint": null,
+    "model": "microsoft/DialoGPT-medium",
+    "api_key_env": null,
+    "base_url_env": null,
+    "default_base_url": null,
+    "timeout": 30,
+    "device": "auto",
+    "cache_dir": "./models/transformers",
+    "load_in_8bit": false,
+    "load_in_4bit": false
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": false,
+    "function_calling": false,
+    "local_execution": true,
+    "offline_capable": true,
+    "conversational": true,
+    "models": [
+      "microsoft/DialoGPT-medium"
+    ]
+  },
+  "limits": {
+    "max_tokens": 1024,
+    "context_window": 1024,
+    "rate_limit_rpm": null,
+    "rate_limit_tpm": null,
+    "gpu_memory_gb": 4
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": null,
+    "method": "model_check",
+    "interval": 300,
+    "timeout": 10
+  },
+  "validation": {
+    "requires_api_key": false,
+    "requires_gpu": false,
+    "min_ram_gb": 8,
+    "setup_url": "https://huggingface.co/transformers/"
+  },
+  "cost_tracking": {
+    "enabled": false,
+    "cost_per_1k": 0.0,
+    "currency": "USD",
+    "billing_unit": "local"
+  },
+  "fallback_chain": [
+    "openai",
+    "ollama"
+  ],
+  "performance": {
+    "priority": "privacy",
+    "execution_location": "local",
+    "recommended_for": [
+      "offline_development",
+      "privacy_sensitive_tasks",
+      "conversational_tasks",
+      "experimentation"
+    ]
+  },
+  "local_config": {
+    "auto_download": true,
+    "model_cache_size_gb": 5,
+    "enable_quantization": true,
+    "preferred_precision": "fp16",
+    "torch_dtype": "auto"
+  }
+}

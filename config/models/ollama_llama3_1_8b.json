@@ -1,0 +1,74 @@
+{
+  "provider": "ollama", 
+  "display_name": "Ollama - Llama 3.1 8B",
+  "description": "Local Llama 3.1 8B model via Ollama",
+  "enabled": true,
+  "adapter_class": "OllamaAdapter",
+  "api_config": {
+    "endpoint": "http://localhost:11434/api/generate",
+    "model": "llama3.1:8b",
+    "api_key_env": null,
+    "base_url_env": "OLLAMA_HOST",
+    "default_base_url": "http://localhost:11434",
+    "timeout": 120,
+    "extra_headers": {
+      "Content-Type": "application/json"
+    }
+  },
+  "capabilities": {
+    "text_generation": true,
+    "streaming": true,
+    "function_calling": true,
+    "local_execution": true,
+    "offline_capable": true,
+    "models": [
+      "llama3.1:8b",
+      "llama3.1:8b-instruct"
+    ]
+  },
+  "limits": {
+    "max_tokens": 4096,
+    "context_window": 128000,
+    "rate_limit_rpm": null,
+    "rate_limit_tpm": null,
+    "gpu_memory_gb": 10
+  },
+  "health_check": {
+    "enabled": true,
+    "endpoint": "/api/tags",
+    "method": "GET", 
+    "interval": 300,
+    "timeout": 15
+  },
+  "validation": {
+    "requires_api_key": false,
+    "requires_gpu": false,
+    "min_ram_gb": 10,
+    "setup_url": "https://ollama.ai/"
+  },
+  "cost_tracking": {
+    "enabled": false,
+    "cost_per_1k": 0.0,
+    "currency": "USD",
+    "billing_unit": "local"
+  },
+  "fallback_chain": [
+    "openai",
+    "anthropic"
+  ],
+  "performance": {
+    "priority": "local_privacy",
+    "inference_speed": "fast",
+    "recommended_for": [
+      "local_development",
+      "privacy_sensitive_tasks", 
+      "extended_conversations"
+    ]
+  },
+  "local_config": {
+    "model_size": "8B",
+    "quantization": "Q4_0",
+    "context_length": 128000,
+    "rope_frequency_base": 500000
+  }
+}
