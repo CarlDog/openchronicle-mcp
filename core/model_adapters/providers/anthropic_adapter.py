@@ -3,11 +3,13 @@ Anthropic Claude adapter implementation.
 
 Another example of the template pattern reducing adapter code from ~100 to ~30 lines.
 Shows consistency across different API providers.
+
+Following OpenChronicle naming convention: anthropic_adapter.py
 """
 
 from typing import Any
-from ..base import BaseAPIAdapter
-from ..exceptions import AdapterResponseError
+from ..api_adapter_base import BaseAPIAdapter
+from ..adapter_exceptions import AdapterResponseError
 
 
 class AnthropicAdapter(BaseAPIAdapter):
@@ -16,14 +18,8 @@ class AnthropicAdapter(BaseAPIAdapter):
     def get_provider_name(self) -> str:
         return "anthropic"
     
-    def requires_api_key(self) -> bool:
-        return True
-    
     def get_api_key_env_var(self) -> str:
         return "ANTHROPIC_API_KEY"
-    
-    def get_base_url_env_var(self) -> str:
-        return "ANTHROPIC_BASE_URL"
     
     def get_default_base_url(self) -> str:
         return "https://api.anthropic.com"
@@ -38,11 +34,10 @@ class AnthropicAdapter(BaseAPIAdapter):
     
     async def generate_response(self, prompt: str, **kwargs) -> str:
         """Generate response using Anthropic Claude API."""
-        if not self.initialized or not self.client:
-            raise RuntimeError("Adapter not initialized")
+        client = await self.get_client()
         
         try:
-            response = await self.client.messages.create(
+            response = await client.messages.create(
                 model=self.model_name,
                 max_tokens=kwargs.get("max_tokens", self.max_tokens),
                 temperature=kwargs.get("temperature", self.temperature),
@@ -51,10 +46,24 @@ class AnthropicAdapter(BaseAPIAdapter):
                 ]
             )
             
-            # Extract text content from the response
-            if response.content and len(response.content) > 0:
-                return response.content[0].text.strip()
-            return ""
+            content = response.content[0].text if response.content else ""
+            if not content:
+                raise AdapterResponseError(
+                    self.get_provider_name(),
+                    "Empty response received from Anthropic"
+                )
+            
+            return content.strip()
             
         except Exception as e:
-            raise AdapterResponseError(self.provider_name, f"Anthropic generation failed: {e}")
+            if "rate limit" in str(e).lower():
+                from ..adapter_exceptions import AdapterRateLimitError
+                raise AdapterRateLimitError(self.get_provider_name())
+            elif "timeout" in str(e).lower():
+                from ..adapter_exceptions import AdapterTimeoutError
+                raise AdapterTimeoutError(self.get_provider_name(), self.timeout)
+            else:
+                raise AdapterResponseError(
+                    self.get_provider_name(),
+                    f"Anthropic API request failed: {e}"
+                )
