@@ -19,7 +19,7 @@ except ImportError:
     httpx = None
 
 # Import logging system
-from utilities.logging_system import log_model_interaction, log_system_event, log_info, log_error
+from utilities.logging_system import log_model_interaction, log_system_event, log_info, log_error, log_warning
 
 # log_debug is not available in logging_system, use log_info instead
 def log_debug(message: str) -> None:
@@ -305,6 +305,13 @@ class ModelManager:
         self.global_config = self._load_global_config()
         self.full_registry = self._load_full_registry()  # Store full registry for disabled adapter checks
         self.config = self._load_config()
+        
+        # Set default adapter from config (Issue #2 fix)
+        self.default_adapter = self.config.get("default_adapter")
+        if self.default_adapter:
+            log_info(f"Default adapter set to: {self.default_adapter}")
+        else:
+            log_warning("No default adapter configured")
         
         # Initialize performance monitoring
         self.performance_monitor = None
@@ -698,8 +705,12 @@ class ModelManager:
                     default_adapter = list(adapters.keys())[0]
                     log_info(f"Only mock adapters available, using '{default_adapter}'")
             else:
-                default_adapter = None
-                log_info("No adapters loaded, no default adapter available")
+                # Issue #2 Fix: Always ensure transformers is available as fallback
+                log_warning("No adapters loaded, attempting to enable transformers as default fallback")
+                transformers_config = self._create_fallback_transformers_config()
+                adapters["transformers"] = transformers_config
+                default_adapter = "transformers"
+                log_info("Transformers adapter enabled as emergency fallback for basic functionality")
         
         config = {
             "default_adapter": default_adapter,
@@ -710,6 +721,27 @@ class ModelManager:
         
         log_info(f"Registry-only configuration loaded with {len(adapters)} adapters")
         return config
+    
+    def _create_fallback_transformers_config(self) -> Dict[str, Any]:
+        """Create emergency fallback transformers configuration (Issue #2 fix)."""
+        return {
+            "type": "transformers",
+            "provider": "transformers",
+            "model_name": "gpt2",
+            "max_tokens": 150,
+            "temperature": 0.7,
+            "max_length": 512,
+            "enabled": True,
+            "supports_nsfw": False,
+            "content_types": ["general", "creative", "simple"],
+            "description": "Emergency fallback transformers adapter for basic functionality",
+            "fallbacks": [],
+            "config": {
+                "max_tokens": 150,
+                "temperature": 0.7,
+                "max_length": 512
+            }
+        }
     
     def _validate_all_configured_adapters(self):
         """Validate all configured adapters and track their status without initializing them."""
@@ -1698,8 +1730,23 @@ class ModelManager:
         """Generate response using specified or default adapter with fallback support."""
         adapter_name = adapter_name or self.default_adapter
         
+        # Issue #2 Fix: Enhanced fallback logic
         if not adapter_name:
-            raise RuntimeError("No adapter specified and no default adapter available. Configure AI services or specify an adapter.")
+            # Try to find any available adapter as emergency fallback
+            available_adapters = [name for name in self.adapters.keys() if not name.startswith("mock")]
+            if available_adapters:
+                adapter_name = available_adapters[0]
+                log_warning(f"No default adapter specified, using emergency fallback: {adapter_name}")
+            elif "transformers" in self.config.get("adapters", {}):
+                # Try to initialize transformers as emergency fallback
+                await self.initialize_adapter_safe("transformers")
+                if "transformers" in self.adapters:
+                    adapter_name = "transformers"
+                    log_warning("Using transformers as emergency fallback adapter")
+                else:
+                    raise RuntimeError("No adapter specified and no default adapter available. Configure AI services or specify an adapter.")
+            else:
+                raise RuntimeError("No adapter specified and no default adapter available. Configure AI services or specify an adapter.")
         
         # Start performance tracking
         async with self.track_model_operation(adapter_name, "generate", prompt_length=len(prompt)) as tracker:
@@ -1713,6 +1760,11 @@ class ModelManager:
                 for attempt_adapter in chain:
                     try:
                         if attempt_adapter not in self.adapters:
+                            # Check if adapter is available in configuration first
+                            if attempt_adapter not in self.config["adapters"]:
+                                log_info(f"Skipping adapter '{attempt_adapter}' in fallback chain - not available in configuration")
+                                continue
+                                
                             # Try to initialize the adapter
                             if not await self.initialize_adapter(attempt_adapter):
                                 log_error(f"Failed to initialize adapter: {attempt_adapter}")
@@ -1902,15 +1954,40 @@ class ModelManager:
             if preferred_adapter in self.get_available_adapters():
                 return preferred_adapter
         
-        # Default routing
-        return routing_rules.get("default", self.default_adapter or "mock")
+        # Default routing - avoid mock fallback in production
+        default_fallback = self.default_adapter or "transformers"  # Use transformers instead of mock
+        return routing_rules.get("default", default_fallback)
     
     def get_fallback_chain(self, adapter_name: str) -> List[str]:
-        """Get the fallback chain for a specific adapter."""
+        """Get the fallback chain for a specific adapter, filtering out unavailable adapters."""
         if "fallback_chains" not in self.config:
             return [adapter_name]
         
-        return self.config["fallback_chains"].get(adapter_name, [adapter_name])
+        raw_chain = self.config["fallback_chains"].get(adapter_name, [adapter_name])
+        
+        # Filter out adapters that aren't available in configuration
+        available_chain = []
+        for adapter in raw_chain:
+            if adapter in self.config["adapters"]:
+                available_chain.append(adapter)
+            else:
+                log_info(f"Filtering out '{adapter}' from fallback chain for '{adapter_name}' - not available in configuration")
+        
+        # If no adapters left in chain, return the original adapter name or default
+        if not available_chain:
+            if adapter_name in self.config["adapters"]:
+                return [adapter_name]
+            else:
+                # Return a sensible default that should be available
+                default_fallback = self.default_adapter or "transformers"
+                if default_fallback in self.config["adapters"]:
+                    return [default_fallback]
+                else:
+                    # Last resort - return first available adapter
+                    available_adapters = list(self.config["adapters"].keys())
+                    return [available_adapters[0]] if available_adapters else [adapter_name]
+        
+        return available_chain
     
     async def generate_image(self, prompt: str, adapter_name: Optional[str] = None, **kwargs) -> str:
         """Generate image using specified or default image adapter."""

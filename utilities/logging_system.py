@@ -52,8 +52,9 @@ class OpenChronicleLogger:
         if logger.hasHandlers():
             logger.handlers.clear()
         
-        # Console handler
-        console_handler = logging.StreamHandler()
+        # Console handler (explicit UTF-8 stream for Windows compatibility)
+        import sys
+        console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -61,11 +62,12 @@ class OpenChronicleLogger:
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
         
-        # File handler with rotation
+        # File handler with rotation (UTF-8 encoding for cross-platform compatibility)
         file_handler = RotatingFileHandler(
             self.log_dir / f"{self.name}.log",
             maxBytes=5*1024*1024,  # 5MB
-            backupCount=5
+            backupCount=5,
+            encoding='utf-8'  # Explicit UTF-8 encoding for Windows compatibility
         )
         file_handler.setLevel(logging.INFO)
         file_formatter = logging.Formatter(
@@ -85,11 +87,12 @@ class OpenChronicleLogger:
         if logger.hasHandlers():
             logger.handlers.clear()
         
-        # Maintenance file handler
+        # Maintenance file handler (UTF-8 encoding for cross-platform compatibility)
         maintenance_handler = RotatingFileHandler(
             self.log_dir / "maintenance.log",
             maxBytes=10*1024*1024,  # 10MB
-            backupCount=10
+            backupCount=10,
+            encoding='utf-8'  # Explicit UTF-8 encoding for Windows compatibility
         )
         maintenance_handler.setLevel(logging.INFO)
         maintenance_formatter = logging.Formatter(

@@ -82,38 +82,59 @@ class ContentAnalyzer:
                 try:
                     device = 0 if torch.cuda.is_available() else -1
                     
+                    # Enhanced model loading with SSL/Network error handling
+                    def load_model_safely(task: str, model_name: str, description: str) -> Any:
+                        """Load transformer model with SSL/network error handling."""
+                        try:
+                            log_info(f"Loading {description} model: {model_name}")
+                            return pipeline(  # type: ignore
+                                task,
+                                model=model_name,
+                                device=device,
+                                truncation=True,
+                                max_length=512,
+                                top_k=1  # Only return top prediction
+                            )
+                        except Exception as model_error:
+                            error_msg = str(model_error).lower()
+                            if any(ssl_term in error_msg for ssl_term in ['ssl', 'certificate', 'handshake', 'network']):
+                                log_warning(f"SSL/Network error loading {description} model '{model_name}': {model_error}")
+                                log_warning(f"Enterprise firewall may be blocking access to huggingface.co")
+                            else:
+                                log_error(f"Error loading {description} model '{model_name}': {model_error}")
+                            return None
+                    
                     # NSFW Content Detection  
                     # Using a general text classification model fine-tuned for content safety
-                    self.nsfw_classifier = pipeline(  # type: ignore
+                    self.nsfw_classifier = load_model_safely(
                         "text-classification",
-                        model="unitary/toxic-bert",
-                        device=device,
-                        truncation=True,
-                        max_length=512,
-                        top_k=1  # Only return top prediction
+                        "unitary/toxic-bert",
+                        "NSFW content detection"
                     )
                     
                     # Sentiment Analysis
-                    # Use explicit Any casting to avoid type checker issues
-                    pipeline_func = cast(Any, pipeline)
-                    self.sentiment_classifier = pipeline_func(
-                        "sentiment-analysis",
-                        model="cardiffnlp/twitter-roberta-base-sentiment-latest",
-                        device=device,
-                        truncation=True,
-                        max_length=512,
-                        top_k=1  # Only return top prediction
+                    self.sentiment_classifier = load_model_safely(
+                        "sentiment-analysis", 
+                        "cardiffnlp/twitter-roberta-base-sentiment-latest",
+                        "sentiment analysis"
                     )
                     
                     # Emotion Detection
-                    self.emotion_classifier = pipeline(  # type: ignore
+                    self.emotion_classifier = load_model_safely(
                         "text-classification",
-                        model="j-hartmann/emotion-english-distilroberta-base",
-                        device=device,
-                        truncation=True,
-                        max_length=512,
-                        top_k=1  # Only return top prediction
+                        "j-hartmann/emotion-english-distilroberta-base", 
+                        "emotion detection"
                     )
+                    
+                    # Check if any models loaded successfully
+                    models_loaded = sum(1 for model in [self.nsfw_classifier, self.sentiment_classifier, self.emotion_classifier] if model is not None)
+                    if models_loaded == 0:
+                        log_warning("No transformer models could be loaded - falling back to keyword-based analysis")
+                        self.use_transformers = False
+                    else:
+                        log_info(f"Successfully loaded {models_loaded}/3 transformer models")
+                        if models_loaded < 3:
+                            log_info("Partial transformer functionality available - some analysis will use keyword fallbacks")
                     
                 finally:
                     # Restore stdout and stderr
@@ -123,12 +144,67 @@ class ContentAnalyzer:
             log_info("Transformer classifiers initialized successfully")
             
         except Exception as e:
-            log_error(f"Failed to initialize transformer classifiers: {e}")
+            # Enhanced error handling for Issue #4: SSL/Network Connectivity
+            error_msg = str(e).lower()
+            
+            if any(ssl_error in error_msg for ssl_error in ['ssl', 'certificate', 'handshake', 'network', 'connection']):
+                log_warning(f"Network/SSL issue detected while downloading transformer models: {e}")
+                log_warning("This is likely due to enterprise firewall/proxy settings blocking external AI model downloads")
+                log_warning("Falling back to keyword-based content analysis (transformers disabled)")
+                log_system_event("ssl_fallback_triggered", 
+                               f"SSL/Network error triggered transformer fallback: {type(e).__name__}")
+            else:
+                log_error(f"Failed to initialize transformer classifiers: {e}")
+                log_system_event("transformer_init_error", 
+                               f"Transformer initialization failed: {type(e).__name__}")
+            
+            # Graceful degradation: disable transformers and use keyword-based fallbacks
             self.use_transformers = False
             self.nsfw_classifier = None
             self.sentiment_classifier = None
             self.emotion_classifier = None
+            
+            # Log fallback strategy for user awareness
+            log_info("Content analysis will use keyword-based classification methods")
+            log_info("For full transformer support, ensure network access to huggingface.co or use local models")
         
+    def check_transformer_connectivity(self) -> Dict[str, Any]:
+        """
+        Diagnose transformer connectivity issues for SSL/Network troubleshooting.
+        
+        Returns:
+            Dictionary with connectivity status and recommendations
+        """
+        status = {
+            "transformers_available": TRANSFORMERS_AVAILABLE,
+            "transformers_enabled": self.use_transformers,
+            "models_loaded": {
+                "nsfw_classifier": self.nsfw_classifier is not None,
+                "sentiment_classifier": self.sentiment_classifier is not None,
+                "emotion_classifier": self.emotion_classifier is not None
+            },
+            "recommendations": []
+        }
+        
+        if not TRANSFORMERS_AVAILABLE:
+            status["recommendations"].append("Install transformers library: pip install transformers torch")
+            
+        if TRANSFORMERS_AVAILABLE and not self.use_transformers:
+            status["recommendations"].append("Transformers disabled due to initialization errors")
+            status["recommendations"].append("Check logs for SSL/network error details")
+            
+        models_failed = sum(1 for loaded in status["models_loaded"].values() if not loaded)
+        if models_failed > 0:
+            status["recommendations"].append(f"{models_failed}/3 transformer models failed to load")
+            status["recommendations"].append("This is likely due to SSL/network restrictions")
+            status["recommendations"].append("Solutions:")
+            status["recommendations"].append("  1. Configure corporate proxy settings")
+            status["recommendations"].append("  2. Whitelist huggingface.co in firewall")
+            status["recommendations"].append("  3. Use offline transformer models")
+            status["recommendations"].append("  4. Accept keyword-based fallback analysis")
+            
+        return status
+    
     def get_best_analysis_model(self, content_type: str = "general", allow_fallbacks: bool = True) -> str:
         """
         Get the best available model for content analysis with intelligent selection and fallback strategies.
