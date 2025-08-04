@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).parent.parent / "utilities"))
 from logging_system import log_system_event, log_info, log_warning, log_error
 
 from .memory_manager import load_current_memory
-from .content_analyzer import ContentAnalyzer
+from .content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
 from .character_style_manager import CharacterStyleManager
 from .character_consistency_engine import CharacterConsistencyEngine
 from .emotional_stability_engine import EmotionalStabilityEngine
