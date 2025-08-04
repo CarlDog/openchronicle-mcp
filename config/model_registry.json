@@ -414,6 +414,13 @@
         ],
         "description": "Mock model for testing and development - NOT FOR PRODUCTION USE",
         "fallbacks": []
+      },
+      {
+        "name": "dynamic_test",
+        "enabled": true,
+        "type": "test",
+        "model_name": "dynamic-model",
+        "description": "Dynamically added test model"
       }
     ]
   },
@@ -625,6 +632,9 @@
     "artistic_image": [
       "stability_ai",
       "openai_dalle"
+    ],
+    "dynamic_test": [
+      "dynamic_test"
     ]
   },
   "performance_tuning": {
