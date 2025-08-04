@@ -12,6 +12,7 @@ from .narrative_base import (
     EventProcessor,
     ValidationBase
 )
+from .narrative_state import NarrativeStateManager, NarrativeState
 
 __all__ = [
     "NarrativeComponent",
@@ -19,5 +20,7 @@ __all__ = [
     "ValidationResult", 
     "StateManager",
     "EventProcessor",
-    "ValidationBase"
+    "ValidationBase",
+    "NarrativeStateManager",
+    "NarrativeState"
 ]

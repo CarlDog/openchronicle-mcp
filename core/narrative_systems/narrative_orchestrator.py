@@ -1,17 +1,7 @@
 """
 OpenChronicle Core - Narrative Systems Orchestrator
 
-Main coordinator for all narrative systems including respo            log_system_event(
-                "narrative_orchestrator_init",
-                "ResponseOrchestrator initialized successfully"
-            )
-            
-            # Initialize mechanics orchestrator
-            self.mechanics_orchestrator = MechanicsOrchestrator()
-            log_system_event(
-                "narrative_orchestrator_init",
-                "MechanicsOrchestrator initialized successfully"
-            )gence,
+Main coordinator for all narrative systems including response intelligence,
 narrative mechanics, consistency validation, and emotional stability.
 
 This module follows the proven orchestrator pattern established in:
@@ -98,6 +88,8 @@ class NarrativeOrchestrator:
         self.mechanics_orchestrator = None
         self.consistency_orchestrator = None
         self.emotional_orchestrator = None
+        self.consistency_orchestrator = None
+        self.emotional_orchestrator = None
         
         # Initialize available orchestrators
         self._initialize_available_orchestrators()
@@ -120,6 +112,9 @@ class NarrativeOrchestrator:
             # Initialize response orchestrator
             from .response import ResponseOrchestrator
             from .mechanics import MechanicsOrchestrator
+            from .consistency import ConsistencyOrchestrator
+            from .emotional import EmotionalOrchestrator
+            
             response_dir = self.data_dir / "response"
             self.response_orchestrator = ResponseOrchestrator(
                 str(response_dir), 
@@ -128,7 +123,7 @@ class NarrativeOrchestrator:
             
             log_system_event(
                 "response_orchestrator_init",
-ResponseOrchestrator initialized successfully
+                "ResponseOrchestrator initialized successfully"
             )
             
             # Initialize mechanics orchestrator
@@ -136,13 +131,30 @@ ResponseOrchestrator initialized successfully
             log_system_event(
                 "narrative_orchestrator_init",
                 "MechanicsOrchestrator initialized successfully"
-
+            )
+            
+            # Initialize consistency orchestrator
+            consistency_config = self.config.get("consistency_settings", {})
+            self.consistency_orchestrator = ConsistencyOrchestrator(consistency_config)
+            log_system_event(
+                "consistency_orchestrator_init",
+                "ConsistencyOrchestrator initialized successfully"
+            )
+            
+            # Initialize emotional orchestrator
+            emotional_config = self.config.get("emotional_settings", {})
+            self.emotional_orchestrator = EmotionalOrchestrator(emotional_config)
+            log_system_event(
+                "emotional_orchestrator_init",
+                "EmotionalOrchestrator initialized successfully"
             )
             
         except Exception as e:
-            log_error(f"Error initializing response orchestrator: {e}")
+            log_error(f"Error initializing orchestrators: {e}")
             self.response_orchestrator = None
             self.mechanics_orchestrator = None
+            self.consistency_orchestrator = None
+            self.emotional_orchestrator = None
     
     def _load_configuration(self) -> Dict[str, Any]:
         """Load narrative system configuration."""
@@ -322,15 +334,75 @@ ResponseOrchestrator initialized successfully
     
     def _handle_consistency_operation(self, story_id: str, data: Dict[str, Any]) -> Any:
         """Handle consistency validation operations."""
-        # Placeholder for consistency orchestrator integration
-        log_info(f"Consistency operation for story {story_id}: {data.get('operation', 'unknown')}")
-        return {"status": "consistency_operation_placeholder", "data": data}
+        if self.consistency_orchestrator:
+            try:
+                operation_type = data.get('operation', 'unknown')
+                
+                if operation_type == 'validate_memory':
+                    result = self.consistency_orchestrator.validate_memory_consistency(
+                        story_id, data.get('memory_event', {})
+                    )
+                elif operation_type == 'add_memory':
+                    result = self.consistency_orchestrator.add_memory(
+                        story_id, data.get('memory_event', {})
+                    )
+                elif operation_type == 'get_memory_summary':
+                    result = self.consistency_orchestrator.get_character_memory_summary(
+                        story_id, data.get('character_id', '')
+                    )
+                else:
+                    result = {"status": "unknown_operation", "operation": operation_type}
+                
+                return {
+                    "status": "consistency_operation_complete",
+                    "success": True,
+                    "result": result
+                }
+                
+            except Exception as e:
+                log_error(f"Error in consistency operation: {e}")
+                return {"status": "consistency_operation_error", "error": str(e)}
+        else:
+            log_info(f"Consistency operation for story {story_id}: {data.get('operation', 'unknown')} (orchestrator not available)")
+            return {"status": "consistency_operation_unavailable", "data": data}
     
     def _handle_emotional_operation(self, story_id: str, data: Dict[str, Any]) -> Any:
         """Handle emotional stability operations."""
-        # Placeholder for emotional orchestrator integration
-        log_info(f"Emotional operation for story {story_id}: {data.get('operation', 'unknown')}")
-        return {"status": "emotional_operation_placeholder", "data": data}
+        if self.emotional_orchestrator:
+            try:
+                operation_type = data.get('operation', 'unknown')
+                
+                if operation_type == 'track_emotional_state':
+                    result = self.emotional_orchestrator.track_emotional_state(
+                        story_id, data.get('character_id', ''), data.get('emotional_data', {})
+                    )
+                elif operation_type == 'detect_emotional_loops':
+                    result = self.emotional_orchestrator.detect_emotional_loops(
+                        story_id, data.get('character_id', ''), data.get('dialogue_history', [])
+                    )
+                elif operation_type == 'analyze_emotional_stability':
+                    result = self.emotional_orchestrator.analyze_emotional_stability(
+                        story_id, data.get('character_id', '')
+                    )
+                elif operation_type == 'generate_anti_loop_prompt':
+                    result = self.emotional_orchestrator.generate_anti_loop_prompt(
+                        data.get('character_id', ''), data.get('detected_patterns', [])
+                    )
+                else:
+                    result = {"status": "unknown_operation", "operation": operation_type}
+                
+                return {
+                    "status": "emotional_operation_complete",
+                    "success": True,
+                    "result": result
+                }
+                
+            except Exception as e:
+                log_error(f"Error in emotional operation: {e}")
+                return {"status": "emotional_operation_error", "error": str(e)}
+        else:
+            log_info(f"Emotional operation for story {story_id}: {data.get('operation', 'unknown')} (orchestrator not available)")
+            return {"status": "emotional_operation_unavailable", "data": data}
     
     def get_system_status(self) -> Dict[str, Any]:
         """Get comprehensive narrative system status."""
