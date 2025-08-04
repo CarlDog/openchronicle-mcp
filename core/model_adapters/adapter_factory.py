@@ -13,7 +13,7 @@ from pathlib import Path
 
 from .api_adapter_base import BaseAPIAdapter, LocalModelAdapter
 from .adapter_exceptions import AdapterNotFoundError, AdapterInitializationError
-from ..model_registry.dynamic_registry_manager import DynamicRegistryManager
+from ..model_registry.registry_manager import RegistryManager
 
 logger = logging.getLogger(__name__)
 
@@ -27,21 +27,20 @@ class AdapterFactory:
     and enabling runtime provider management.
     
     Key Features:
-    - Content-driven provider discovery using DynamicRegistryManager
+    - Content-driven provider discovery using RegistryManager
     - Runtime provider addition/removal
     - Multi-model support per provider
     - Enhanced error handling and logging
     """
     
-    def __init__(self, models_dir: str = "config/models/", settings_file: str = "config/registry_settings.json"):
+    def __init__(self, registry_path: str = "config/model_registry.json"):
         """
-        Initialize the adapter factory with dynamic configuration.
+        Initialize the adapter factory with consolidated registry.
         
         Args:
-            models_dir: Directory containing individual provider config files
-            settings_file: Path to global registry settings
+            registry_path: Path to the main model registry configuration file
         """
-        self.registry = DynamicRegistryManager(models_dir, settings_file)
+        self.registry = RegistryManager(registry_path)
         self.providers: Dict[str, Type[BaseAPIAdapter]] = {}
         self.adapter_instances: Dict[str, BaseAPIAdapter] = {}
         

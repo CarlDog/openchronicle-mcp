@@ -17,10 +17,10 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.model_registry.dynamic_registry_manager import (
-    DynamicRegistryManager, 
-    ConfigurationError, 
-    ProviderNotFoundError
+from core.model_registry.registry_manager import (
+    RegistryManager as DynamicRegistryManager, 
+    # ConfigurationError, 
+    # ProviderNotFoundError
 )
 
 
@@ -146,7 +146,7 @@ class TestDynamicRegistryManager(unittest.TestCase):
         self.assertEqual(openai_models[0]["display_name"], "Test OpenAI GPT-4")
         
         # Test invalid provider
-        with self.assertRaises(ProviderNotFoundError):
+        with self.assertRaises(ValueError):  # Provider not found
             registry.get_provider_models("nonexistent_provider")
     
     def test_get_model_config(self):
@@ -159,7 +159,7 @@ class TestDynamicRegistryManager(unittest.TestCase):
         self.assertEqual(config["display_name"], "Test OpenAI GPT-4")
         
         # Test invalid config
-        with self.assertRaises(ProviderNotFoundError):
+        with self.assertRaises(ValueError):  # Provider not found
             registry.get_model_config("nonexistent_config")
     
     def test_enabled_providers(self):

@@ -1,310 +1,464 @@
 """
-Registry management for OpenChronicle model configuration.
+Dynamic Registry Manager for OpenChronicle Model Configuration
 
-This module consolidates registry loading functionality with clean separation of concerns.
-It provides centralized access to the sophisticated configuration system including
-provider settings, content routing, performance tuning, and intelligent routing capabilities.
-
-Following OpenChronicle naming convention: registry_manager.py
+This module implements dynamic discovery and management of AI provider
+configurations using individual JSON files in config/models/ directory.
 
 Key Features:
-- Centralized configuration loading from model_registry.json
-- Provider-specific configuration access
-- Content routing rules and fallback chains
-- Performance limits and health check settings
-- Intelligent routing configuration
-- Future-ready for modular registry structure
+- Content-driven processing (uses "provider" field, not filename)
+- Runtime provider addition/removal
+- Multi-model support per provider
+- Schema validation and error handling
+- Cross-platform safe filenames
+- Dynamic provider discovery
+- User freedom in naming files
 """
 
 import json
-import os
 import logging
-from typing import Dict, Any, List, Optional
 from pathlib import Path
-from datetime import datetime
+from typing import Dict, List, Any, Optional, Union
+from datetime import datetime, timezone
 
-from utilities.logging_system import log_system_event, log_info, log_error
+from utilities.logging_system import log_system_event, log_error, log_info, log_warning
 
-logger = logging.getLogger(__name__)
+# UTC for consistent timezone handling
+UTC = timezone.utc
+
+
+class ConfigurationError(Exception):
+    """Raised when configuration validation or loading fails."""
+    pass
+
+
+class ProviderNotFoundError(Exception):
+    """Raised when a requested provider configuration is not found."""
+    pass
 
 
 class RegistryManager:
     """
-    Manages model registry configuration with clean separation of concerns.
+    Manages dynamic discovery and loading of AI provider configurations.
     
-    This class consolidates registry management functionality, providing a focused
-    interface for configuration access. It supports the existing sophisticated
-    registry structure while maintaining clean organizational standards.
+    This class implements the core of Phase 2.0's dynamic configuration system,
+    providing content-driven discovery of provider configurations stored in
+    individual JSON files.
     """
     
-    def __init__(self, registry_path: str = "config/model_registry.json"):
-        self.registry_path = registry_path
-        self._registry: Optional[Dict[str, Any]] = None
-        self._last_loaded: Optional[datetime] = None
-        
-        # Load registry on initialization
-        self._load_registry()
-    
-    def _load_registry(self) -> None:
-        """Load the complete registry from disk."""
-        if not os.path.exists(self.registry_path):
-            raise FileNotFoundError(f"Model registry not found at {self.registry_path}")
-        
-        try:
-            with open(self.registry_path, "r", encoding="utf-8") as f:
-                self._registry = json.load(f)
-            
-            self._last_loaded = datetime.now()
-            log_system_event("registry_loaded", f"Registry loaded from {self.registry_path}")
-            
-            schema_version = self._registry.get('schema_version', 'unknown') if self._registry else 'unknown'
-            log_info(f"Loaded registry with schema version {schema_version}")
-            
-        except Exception as e:
-            log_error(f"Failed to load registry from {self.registry_path}: {e}")
-            raise
-    
-    def reload_if_changed(self) -> bool:
-        """Reload registry if the file has been modified."""
-        try:
-            file_mtime = datetime.fromtimestamp(os.path.getmtime(self.registry_path))
-            if self._last_loaded and file_mtime > self._last_loaded:
-                log_info("Registry file changed, reloading...")
-                self._load_registry()
-                return True
-            return False
-        except Exception as e:
-            log_error(f"Error checking registry file modification time: {e}")
-            return False
-    
-    def get_provider_config(self, provider: str) -> Dict[str, Any]:
+    def __init__(self, models_dir: str = "config/models/", settings_file: str = "config/registry_settings.json"):
         """
-        Get provider-specific configuration from environment_config.
+        Initialize the dynamic registry manager.
         
         Args:
-            provider: Provider name (e.g., 'openai', 'anthropic', 'ollama')
+            models_dir: Directory containing individual provider config files
+            settings_file: Path to global registry settings
+        """
+        self.models_dir = Path(models_dir)
+        self.settings_file = Path(settings_file)
+        self.providers = {}
+        self.model_configs = {}
+        self.global_settings = {}
+        self.last_scan_time = None
+        
+        # Ensure models directory exists
+        self.models_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Load initial configuration
+        self._load_global_settings()
+        self.discover_providers()
+        
+        log_system_event("dynamic_registry_init", f"Dynamic registry manager initialized with {len(self.providers)} providers")
+    
+    def _load_global_settings(self) -> Dict[str, Any]:
+        """Load global registry settings from configuration file."""
+        try:
+            if self.settings_file.exists():
+                with open(self.settings_file, 'r', encoding='utf-8') as f:
+                    self.global_settings = json.load(f)
+                log_info(f"Loaded global settings from {self.settings_file}")
+            else:
+                # Create default global settings
+                self.global_settings = self._create_default_global_settings()
+                self._save_global_settings()
+                log_info(f"Created default global settings at {self.settings_file}")
+            
+            return self.global_settings
+            
+        except Exception as e:
+            log_error(f"Failed to load global settings: {e}")
+            self.global_settings = self._create_default_global_settings()
+            return self.global_settings
+    
+    def _create_default_global_settings(self) -> Dict[str, Any]:
+        """Create default global registry settings."""
+        return {
+            "schema_version": "3.1.0",
+            "metadata": {
+                "name": "OpenChronicle Dynamic Model Registry",
+                "description": "Dynamic configuration system for AI models and providers",
+                "last_updated": datetime.now(UTC).isoformat(),
+                "maintainer": "OpenChronicle Team"
+            },
+            "defaults": {
+                "text_model": "transformers",
+                "analyzer_model": "transformers", 
+                "image_model": "openai_dalle"
+            },
+            "global_settings": {
+                "enable_fallbacks": True,
+                "enable_health_checks": True,
+                "enable_logging": True,
+                "intelligent_routing": {
+                    "enabled": True,
+                    "learning_mode": True,
+                    "user_feedback_weight": 0.3,
+                    "performance_history_days": 7,
+                    "recommendation_confidence_threshold": 0.75,
+                    "auto_switch_on_failure": True,
+                    "preserve_user_overrides": True,
+                    "runtime_state_file": "config/model_runtime_state.json"
+                }
+            }
+        }
+    
+    def _save_global_settings(self):
+        """Save global settings to configuration file."""
+        try:
+            with open(self.settings_file, 'w', encoding='utf-8') as f:
+                json.dump(self.global_settings, f, indent=2, ensure_ascii=False)
+            log_info(f"Saved global settings to {self.settings_file}")
+        except Exception as e:
+            log_error(f"Failed to save global settings: {e}")
+    
+    def discover_providers(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Scan models directory for provider JSON files and group by provider.
+        
+        This is the core of content-driven discovery - we examine the "provider"
+        field in each JSON file to determine grouping, not the filename.
+        
+        Returns:
+            Dictionary mapping provider names to lists of their model configurations
+        """
+        try:
+            discovered_providers = {}
+            discovered_models = {}
+            
+            if not self.models_dir.exists():
+                log_warning(f"Models directory {self.models_dir} does not exist")
+                return discovered_providers
+            
+            # Scan all JSON files in models directory
+            for json_file in self.models_dir.glob("*.json"):
+                try:
+                    model_config = self._load_model_config(json_file)
+                    
+                    if not model_config:
+                        continue
+                    
+                    # Content-driven processing: use "provider" field, not filename
+                    provider_name = model_config.get("provider")
+                    if not provider_name:
+                        log_warning(f"Config file {json_file} missing 'provider' field, skipping")
+                        continue
+                    
+                    # Group models by provider
+                    if provider_name not in discovered_providers:
+                        discovered_providers[provider_name] = []
+                    
+                    # Add model configuration to provider group
+                    model_config["config_file"] = str(json_file)
+                    model_config["config_name"] = json_file.stem
+                    discovered_providers[provider_name].append(model_config)
+                    
+                    # Also store by config name for direct access
+                    discovered_models[json_file.stem] = model_config
+                    
+                except Exception as e:
+                    log_error(f"Failed to process config file {json_file}: {e}")
+                    continue
+            
+            # Update internal state
+            self.providers = discovered_providers
+            self.model_configs = discovered_models
+            self.last_scan_time = datetime.now(UTC)
+            
+            # Log discovery results
+            total_models = sum(len(models) for models in discovered_providers.values())
+            log_system_event(
+                "provider_discovery_complete",
+                f"Discovered {len(discovered_providers)} providers with {total_models} model configurations"
+            )
+            
+            return discovered_providers
+            
+        except Exception as e:
+            log_error(f"Failed to discover providers: {e}")
+            return {}
+    
+    def _load_model_config(self, config_file: Path) -> Optional[Dict[str, Any]]:
+        """
+        Load and validate a single model configuration file.
+        
+        Args:
+            config_file: Path to the JSON configuration file
             
         Returns:
-            Provider configuration dictionary
+            Dictionary containing model configuration, or None if invalid
+        """
+        try:
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # Basic validation
+            if not self._validate_model_config(config, config_file):
+                return None
+            
+            return config
+            
+        except json.JSONDecodeError as e:
+            log_error(f"Invalid JSON in {config_file}: {e}")
+            return None
+        except Exception as e:
+            log_error(f"Failed to load config {config_file}: {e}")
+            return None
+    
+    def _validate_model_config(self, config: Dict[str, Any], config_file: Path) -> bool:
+        """
+        Validate that a model configuration contains required fields.
+        
+        Args:
+            config: Configuration dictionary to validate
+            config_file: Path to config file (for error reporting)
+            
+        Returns:
+            True if configuration is valid, False otherwise
+        """
+        required_fields = ["provider", "display_name", "enabled"]
+        
+        for field in required_fields:
+            if field not in config:
+                log_warning(f"Config {config_file} missing recommended field: {field}")
+        
+        # Validate provider name
+        if "provider" in config:
+            if not isinstance(config["provider"], str) or not config["provider"].strip():
+                log_error(f"Config {config_file} has invalid provider name")
+                return False
+        
+        # Validate enabled field if present
+        if "enabled" in config and not isinstance(config["enabled"], bool):
+            log_error(f"Config {config_file} has invalid 'enabled' field (must be boolean)")
+            return False
+        
+        return True
+    
+    def get_provider_models(self, provider_name: str) -> List[Dict[str, Any]]:
+        """
+        Get all model configurations for a specific provider.
+        
+        Args:
+            provider_name: Name of the provider
+            
+        Returns:
+            List of model configurations for the provider
             
         Raises:
-            ValueError: If provider not found in registry
+            ValueError: If provider is not found
         """
-        if not self._registry:
-            raise RuntimeError("Registry not loaded")
+        if provider_name not in self.providers:
+            raise ValueError(f"Provider '{provider_name}' not found")
         
-        env_config = self._registry.get("environment_config", {})
-        providers = env_config.get("providers", {})
-        
-        if provider not in providers:
-            available = list(providers.keys())
-            raise ValueError(f"Provider '{provider}' not found in registry. Available: {available}")
-        
-        return providers[provider]
+        return self.providers[provider_name]
     
-    def get_model_config(self, provider: str, model_name: str) -> Optional[Dict[str, Any]]:
+    def get_model_config(self, config_name: str) -> Dict[str, Any]:
         """
-        Get model-specific configuration.
+        Get a specific model configuration by its config name (filename without extension).
         
         Args:
-            provider: Provider name
-            model_name: Model name
+            config_name: Name of the configuration file (without .json extension)
             
         Returns:
-            Model configuration dictionary or None if not found
+            Model configuration dictionary
+            
+        Raises:
+            ValueError: If configuration is not found
+        """
+        if config_name not in self.model_configs:
+            raise ValueError(f"Model configuration '{config_name}' not found")
+        
+        return self.model_configs[config_name]
+    
+    def get_available_providers(self) -> List[str]:
+        """Get list of all discovered provider names."""
+        return list(self.providers.keys())
+    
+    def get_enabled_providers(self) -> List[str]:
+        """Get list of provider names that have at least one enabled model."""
+        enabled_providers = []
+        
+        for provider_name, models in self.providers.items():
+            if any(model.get("enabled", False) for model in models):
+                enabled_providers.append(provider_name)
+        
+        return enabled_providers
+    
+    def add_model_config(self, config_name: str, config: Dict[str, Any]) -> bool:
+        """
+        Add a new model configuration at runtime.
+        
+        Args:
+            config_name: Name for the configuration file (without .json extension)
+            config: Model configuration dictionary
+            
+        Returns:
+            True if configuration was added successfully, False otherwise
         """
         try:
-            provider_config = self.get_provider_config(provider)
-            models = provider_config.get("models", {})
-            return models.get(model_name)
+            # Validate configuration
+            if not self._validate_model_config(config, Path(config_name)):
+                return False
+            
+            # Create config file path
+            config_path = self.models_dir / f"{config_name}.json"
+            
+            # Check if file already exists
+            if config_path.exists():
+                log_warning(f"Configuration file {config_path} already exists, will overwrite")
+            
+            # Save configuration to file
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=2, ensure_ascii=False)
+            
+            # Re-discover providers to include new configuration
+            self.discover_providers()
+            
+            log_system_event("model_config_added", f"Added model configuration: {config_name}")
+            return True
+            
         except Exception as e:
-            log_error(f"Error getting model config for {provider}/{model_name}: {e}")
-            return None
+            log_error(f"Failed to add model configuration {config_name}: {e}")
+            return False
     
-    def get_validation_rules(self, provider: str) -> Optional[Dict[str, Any]]:
+    def remove_model_config(self, config_name: str) -> bool:
         """
-        Get validation rules for a provider.
+        Remove a model configuration at runtime.
         
         Args:
-            provider: Provider name
+            config_name: Name of the configuration to remove (without .json extension)
             
         Returns:
-            Validation rules dictionary or None if not found
+            True if configuration was removed successfully, False otherwise
         """
         try:
-            provider_config = self.get_provider_config(provider)
-            return provider_config.get("validation")
-        except Exception:
-            return None
-    
-    def get_health_check_config(self, provider: str) -> Optional[Dict[str, Any]]:
-        """
-        Get health check configuration for a provider.
-        
-        Args:
-            provider: Provider name
+            config_path = self.models_dir / f"{config_name}.json"
             
-        Returns:
-            Health check configuration or None if not found
-        """
-        try:
-            provider_config = self.get_provider_config(provider)
-            return provider_config.get("health_check")
-        except Exception:
-            return None
-    
-    def get_rate_limit_config(self, provider: str) -> Optional[Dict[str, Any]]:
-        """
-        Get rate limiting configuration for a provider.
-        
-        Args:
-            provider: Provider name
+            if not config_path.exists():
+                log_warning(f"Configuration file {config_path} does not exist")
+                return False
             
+            # Remove configuration file
+            config_path.unlink()
+            
+            # Re-discover providers to update internal state
+            self.discover_providers()
+            
+            log_system_event("model_config_removed", f"Removed model configuration: {config_name}")
+            return True
+            
+        except Exception as e:
+            log_error(f"Failed to remove model configuration {config_name}: {e}")
+            return False
+    
+    def refresh_providers(self) -> bool:
+        """
+        Refresh provider discovery (useful for detecting externally added configs).
+        
         Returns:
-            Rate limit configuration or None if not found
+            True if refresh was successful, False otherwise
         """
         try:
-            provider_config = self.get_provider_config(provider)
-            return provider_config.get("rate_limits")
-        except Exception:
-            return None
+            log_info("Refreshing provider discovery...")
+            self.discover_providers()
+            return True
+        except Exception as e:
+            log_error(f"Failed to refresh providers: {e}")
+            return False
     
-    def get_fallback_chain(self, provider: str) -> List[str]:
+    def get_fallback_chain(self, provider_name: str) -> List[str]:
         """
-        Get fallback chain for a provider.
+        Get fallback chain for a provider based on global settings and provider configs.
         
         Args:
-            provider: Provider name
+            provider_name: Name of the primary provider
             
         Returns:
             List of provider names in fallback order
         """
         try:
-            provider_config = self.get_provider_config(provider)
-            fallback_chain = provider_config.get("fallback_chain", [])
+            fallback_chain = [provider_name]
             
-            # Ensure primary provider is first in chain
-            if provider not in fallback_chain:
-                fallback_chain.insert(0, provider)
+            # Check if provider has specific fallback configuration
+            if provider_name in self.providers:
+                provider_models = self.providers[provider_name]
+                if provider_models:
+                    # Use fallback chain from first model config (they should be consistent)
+                    model_fallbacks = provider_models[0].get("fallback_chain", [])
+                    fallback_chain.extend(model_fallbacks)
+            
+            # Add global fallbacks if enabled
+            global_settings = self.global_settings.get("global_settings", {})
+            if global_settings.get("enable_fallbacks", True):
+                # Add all enabled providers as ultimate fallbacks (excluding primary)
+                enabled_providers = [p for p in self.get_enabled_providers() if p != provider_name]
+                for provider in enabled_providers:
+                    if provider not in fallback_chain:
+                        fallback_chain.append(provider)
             
             return fallback_chain
-        except Exception:
-            return [provider]  # Return single provider as fallback
-    
-    def get_content_routing_rules(self) -> Optional[Dict[str, Any]]:
-        """
-        Get content routing rules from registry.
-        
-        Returns:
-            Content routing rules or None if not found
-        """
-        if not self._registry:
-            return None
-        
-        return self._registry.get("content_routing")
-    
-    def get_routing_rule_for_content(self, content_type: str) -> Optional[Dict[str, Any]]:
-        """
-        Get routing rule for specific content type.
-        
-        Args:
-            content_type: Content type to route
             
-        Returns:
-            Routing rule or None if not found
-        """
-        routing_rules = self.get_content_routing_rules()
-        if not routing_rules:
-            return None
-        
-        return routing_rules.get("rules", {}).get(content_type)
-    
-    def get_available_providers(self) -> List[str]:
-        """
-        Get list of all available providers in registry.
-        
-        Returns:
-            List of provider names
-        """
-        if not self._registry:
-            return []
-        
-        env_config = self._registry.get("environment_config", {})
-        providers = env_config.get("providers", {})
-        return list(providers.keys())
-    
-    def get_available_models(self, provider: str) -> List[str]:
-        """
-        Get list of available models for a provider.
-        
-        Args:
-            provider: Provider name
-            
-        Returns:
-            List of model names
-        """
-        try:
-            provider_config = self.get_provider_config(provider)
-            models = provider_config.get("models", {})
-            return list(models.keys())
-        except Exception:
-            return []
-    
-    def validate_provider_model(self, provider: str, model_name: str) -> bool:
-        """
-        Validate that a provider/model combination is configured.
-        
-        Args:
-            provider: Provider name
-            model_name: Model name
-            
-        Returns:
-            True if valid combination
-        """
-        try:
-            available_models = self.get_available_models(provider)
-            return model_name in available_models
-        except Exception:
-            return False
-    
-    def get_registry_info(self) -> Dict[str, Any]:
-        """
-        Get registry information and statistics.
-        
-        Returns:
-            Registry information dictionary
-        """
-        if not self._registry:
-            return {"status": "not_loaded"}
-        
-        providers = self.get_available_providers()
-        total_models = sum(len(self.get_available_models(p)) for p in providers)
-        
-        return {
-            "status": "loaded",
-            "schema_version": self._registry.get("schema_version", "unknown"),
-            "last_loaded": self._last_loaded.isoformat() if self._last_loaded else None,
-            "registry_path": self.registry_path,
-            "total_providers": len(providers),
-            "total_models": total_models,
-            "providers": providers,
-            "has_content_routing": bool(self.get_content_routing_rules()),
-            "file_size": os.path.getsize(self.registry_path) if os.path.exists(self.registry_path) else 0
-        }
+        except Exception as e:
+            log_error(f"Failed to get fallback chain for {provider_name}: {e}")
+            return [provider_name]  # Return at least the primary provider
     
     def get_status(self) -> str:
-        """
-        Get simple status string.
-        
-        Returns:
-            Status string: 'loaded', 'not_loaded', or 'error'
-        """
-        if not self._registry:
-            return "not_loaded"
+        """Get registry status."""
         try:
-            # Quick validation
-            env_config = self._registry.get("environment_config", {})
-            providers = env_config.get("providers", {})
-            return "loaded" if providers else "error"
+            provider_count = len(self.providers)
+            config_count = len(self.model_configs)
+            if provider_count > 0 and config_count > 0:
+                return f"loaded ({provider_count} providers, {config_count} configs)"
+            elif provider_count > 0:
+                return f"loaded ({provider_count} providers, no configs)"
+            else:
+                return "empty"
         except Exception:
             return "error"
+    
+    @property
+    def models_dir_path(self) -> str:
+        """Return the models directory path for compatibility."""
+        return str(self.models_dir)
+
+
+# Convenience function for backward compatibility
+def load_dynamic_registry(models_dir: str = "config/models/") -> RegistryManager:
+    """
+    Load the dynamic registry manager with default settings.
+    
+    Args:
+        models_dir: Directory containing model configuration files
+        
+    Returns:
+        Initialized RegistryManager instance
+    """
+    return RegistryManager(models_dir)
+
+
+# Export main classes
+__all__ = [
+    "RegistryManager",
+    "ConfigurationError", 
+    "ProviderNotFoundError",
+    "load_dynamic_registry"
+]
