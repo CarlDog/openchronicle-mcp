@@ -40,7 +40,7 @@ def load_imports():
     from core.scene_logger import save_scene
     from core.rollback_engine import get_rollback_candidates, rollback_to_scene
     from core.model_manager_compat import ModelManager
-    from core.content_analyzer import ContentAnalyzer
+    from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
     from core.image_generation_engine import create_image_engine, ImageType
     
     # Create model manager instance

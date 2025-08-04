@@ -224,7 +224,7 @@ class AssertionHelpers:
 
 def create_mock_content_analyzer(use_transformers: bool = False):
     """Create a mock content analyzer for testing."""
-    from core.content_analyzer import ContentAnalyzer
+    from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
     
     mock_model_manager = MockModelManager()
     analyzer = ContentAnalyzer(mock_model_manager, use_transformers=use_transformers)

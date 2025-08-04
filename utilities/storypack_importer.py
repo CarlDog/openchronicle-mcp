@@ -18,7 +18,7 @@ from datetime import datetime, UTC
 # Import OpenChronicle infrastructure
 from utilities.logging_system import get_logger, log_system_event, log_error, log_info, log_warning
 from core.model_manager_compat import ModelManager
-from core.content_analyzer import ContentAnalyzer
+from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
 
 
 class StorypackImporter:

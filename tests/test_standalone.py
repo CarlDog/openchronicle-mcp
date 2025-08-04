@@ -21,7 +21,7 @@ from unittest.mock import patch, MagicMock
 
 # Test imports
 from core.model_manager_compat import ModelManager
-from core.content_analyzer import ContentAnalyzer
+from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
 import main
 
 

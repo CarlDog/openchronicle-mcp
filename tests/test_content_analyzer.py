@@ -8,7 +8,7 @@ import pytest
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 
-from core.content_analyzer import ContentAnalyzer
+from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
 from core.model_manager_compat import ModelManager
 
 

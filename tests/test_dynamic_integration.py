@@ -16,7 +16,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from core.model_manager_compat import ModelManager
-from core.content_analyzer import ContentAnalyzer
+from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
 from core.character_management import CharacterOrchestrator
 from core.token_manager import TokenManager
 from core.context_builder import build_context_with_dynamic_models

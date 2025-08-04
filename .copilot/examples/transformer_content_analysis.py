@@ -17,7 +17,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from core.content_analyzer import ContentAnalyzer
+from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
 from core.model_manager_compat import ModelManager
 
 
