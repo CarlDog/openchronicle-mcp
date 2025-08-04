@@ -1,0 +1,116 @@
+{
+  "schema_version": "3.1.0",
+  "metadata": {
+    "name": "OpenChronicle Dynamic Model Registry",
+    "description": "Dynamic configuration system for AI models and providers",
+    "last_updated": "2025-08-02",
+    "maintainer": "OpenChronicle Team"
+  },
+  "defaults": {
+    "text_model": "transformers",
+    "analyzer_model": "transformers",
+    "image_model": "openai_dalle"
+  },
+  "global_settings": {
+    "enable_fallbacks": true,
+    "enable_health_checks": true,
+    "enable_logging": true,
+    "intelligent_routing": {
+      "enabled": true,
+      "learning_mode": true,
+      "user_feedback_weight": 0.3,
+      "performance_history_days": 7,
+      "recommendation_confidence_threshold": 0.75,
+      "auto_switch_on_failure": true,
+      "preserve_user_overrides": true,
+      "runtime_state_file": "config/model_runtime_state.json"
+    }
+  },
+  "environment_config": {
+    "providers": {
+      "ollama": {
+        "base_url_env": "OLLAMA_HOST",
+        "default_base_url": "http://localhost:11434",
+        "api_key_env": null,
+        "timeout": 120,
+        "health_check_enabled": true,
+        "validation": {
+          "requires_api_key": false,
+          "health_endpoint": "/api/tags",
+          "method": "GET"
+        }
+      },
+      "openai": {
+        "base_url_env": "OPENAI_BASE_URL", 
+        "default_base_url": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY",
+        "timeout": 30,
+        "health_check_enabled": true,
+        "validation": {
+          "requires_api_key": true,
+          "health_endpoint": "/v1/models",
+          "method": "GET"
+        }
+      },
+      "anthropic": {
+        "base_url_env": "ANTHROPIC_BASE_URL",
+        "default_base_url": "https://api.anthropic.com",
+        "api_key_env": "ANTHROPIC_API_KEY",
+        "timeout": 30,
+        "health_check_enabled": true,
+        "validation": {
+          "requires_api_key": true,
+          "health_endpoint": "/v1/models",
+          "method": "GET"
+        }
+      },
+      "groq": {
+        "base_url_env": "GROQ_BASE_URL",
+        "default_base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "timeout": 30,
+        "health_check_enabled": true,
+        "validation": {
+          "requires_api_key": true,
+          "health_endpoint": "/v1/models",
+          "method": "GET"
+        }
+      },
+      "gemini": {
+        "base_url_env": "GEMINI_BASE_URL",
+        "default_base_url": "https://generativelanguage.googleapis.com/v1beta",
+        "api_key_env": "GEMINI_API_KEY",
+        "timeout": 30,
+        "health_check_enabled": true,
+        "validation": {
+          "requires_api_key": true,
+          "health_endpoint": "/v1beta/models",
+          "method": "GET"
+        }
+      },
+      "transformers": {
+        "base_url_env": null,
+        "default_base_url": null,
+        "api_key_env": null,
+        "timeout": 60,
+        "health_check_enabled": false,
+        "validation": {
+          "requires_api_key": false,
+          "health_endpoint": null,
+          "method": null
+        }
+      }
+    }
+  },
+  "migration_notes": {
+    "from_version": "3.0.0",
+    "migration_date": "2025-08-02",
+    "notes": [
+      "Migrated from monolithic model_registry.json to dynamic configuration system",
+      "Individual provider configurations now stored in config/models/ directory",
+      "Content-driven discovery uses 'provider' field, not filename",
+      "Support for multiple models per provider",
+      "Runtime provider addition/removal capabilities"
+    ]
+  }
+}
