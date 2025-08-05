@@ -138,13 +138,49 @@ class RegistryManager:
         }
     
     def _save_global_settings(self):
-        """Save global settings to configuration file."""
+        """Save global settings to configuration file with automatic backup."""
         try:
+            # Create backup before saving
+            if self.settings_file.exists():
+                backup_path = self._create_settings_backup()
+                if backup_path:
+                    log_info(f"Created settings backup: {backup_path.name}",
+                            context_tags=["registry", "backup"])
+            
+            # Save current settings
             with open(self.settings_file, 'w', encoding='utf-8') as f:
                 json.dump(self.global_settings, f, indent=2, ensure_ascii=False)
-            log_info(f"Saved global settings to {self.settings_file}")
+            
+            log_info(f"Saved global settings to {self.settings_file}",
+                    context_tags=["registry", "save"])
+            log_system_event("registry_settings_saved", 
+                           "Global registry settings saved with backup",
+                           {"settings_file": str(self.settings_file)})
+                           
         except Exception as e:
-            log_error(f"Failed to save global settings: {e}")
+            log_error(f"Failed to save global settings: {e}",
+                     context_tags=["registry", "error"])
+    
+    def _create_settings_backup(self) -> Optional[Path]:
+        """Create backup of current settings file."""
+        try:
+            backup_dir = self.settings_file.parent / "backups"
+            backup_dir.mkdir(exist_ok=True)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"registry_settings_{timestamp}.json"
+            backup_path = backup_dir / backup_filename
+            
+            # Copy current settings to backup
+            import shutil
+            shutil.copy2(self.settings_file, backup_path)
+            
+            return backup_path
+            
+        except Exception as e:
+            log_warning(f"Failed to create settings backup: {e}",
+                       context_tags=["registry", "backup", "error"])
+            return None
     
     def discover_providers(self) -> Dict[str, List[Dict[str, Any]]]:
         """

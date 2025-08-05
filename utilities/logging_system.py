@@ -9,8 +9,27 @@ import json
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union
 from logging.handlers import RotatingFileHandler
+
+
+class ContextualFormatter(logging.Formatter):
+    """Enhanced formatter that supports contextual tags in log messages."""
+    
+    def format(self, record):
+        """Format log record with contextual tags."""
+        # Add context tags if they exist in the record
+        context_tags = getattr(record, 'context_tags', '')
+        if context_tags and not context_tags.startswith(' ['):
+            context_tags = f' [{context_tags}]'
+        elif not context_tags:
+            context_tags = ''
+        
+        # Add the context_tags field to the record
+        record.context_tags = context_tags
+        
+        return super().format(record)
+
 
 class OpenChronicleLogger:
     """Centralized logging system for OpenChronicle."""
@@ -44,7 +63,7 @@ class OpenChronicleLogger:
                 any('test' in module for module in sys.modules))
         
     def _setup_logger(self) -> logging.Logger:
-        """Set up main application logger."""
+        """Set up main application logger with contextual formatting."""
         logger = logging.getLogger(self.name)
         logger.setLevel(logging.INFO)
         
@@ -56,8 +75,8 @@ class OpenChronicleLogger:
         import sys
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
-        console_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        console_formatter = ContextualFormatter(
+            '%(asctime)s - %(name)s - %(levelname)s%(context_tags)s - %(message)s'
         )
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
@@ -65,13 +84,13 @@ class OpenChronicleLogger:
         # File handler with rotation (UTF-8 encoding for cross-platform compatibility)
         file_handler = RotatingFileHandler(
             self.log_dir / f"{self.name}.log",
-            maxBytes=5*1024*1024,  # 5MB
-            backupCount=5,
-            encoding='utf-8'  # Explicit UTF-8 encoding for Windows compatibility
+            maxBytes=10*1024*1024,  # Increased to 10MB for better rotation
+            backupCount=10,         # Increased backup count
+            encoding='utf-8'
         )
         file_handler.setLevel(logging.INFO)
-        file_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+        file_formatter = ContextualFormatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d%(context_tags)s - %(message)s'
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -103,25 +122,54 @@ class OpenChronicleLogger:
         
         return logger
     
-    def info(self, message: str, **kwargs):
-        """Log info message."""
-        self.logger.info(message, **kwargs)
+    def info(self, message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None, 
+             model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+        """Log info message with optional context tags."""
+        self._log_with_context(logging.INFO, message, story_id, scene_id, model, context_tags, **kwargs)
     
-    def debug(self, message: str, **kwargs):
-        """Log debug message."""
-        self.logger.debug(message, **kwargs)
+    def debug(self, message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+              model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+        """Log debug message with optional context tags."""
+        self._log_with_context(logging.DEBUG, message, story_id, scene_id, model, context_tags, **kwargs)
     
-    def warning(self, message: str, **kwargs):
-        """Log warning message."""
-        self.logger.warning(message, **kwargs)
+    def warning(self, message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+                model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+        """Log warning message with optional context tags."""
+        self._log_with_context(logging.WARNING, message, story_id, scene_id, model, context_tags, **kwargs)
     
-    def error(self, message: str, **kwargs):
-        """Log error message."""
-        self.logger.error(message, **kwargs)
+    def error(self, message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+              model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+        """Log error message with optional context tags."""
+        self._log_with_context(logging.ERROR, message, story_id, scene_id, model, context_tags, **kwargs)
     
-    def critical(self, message: str, **kwargs):
-        """Log critical message."""
-        self.logger.critical(message, **kwargs)
+    def critical(self, message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+                 model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+        """Log critical message with optional context tags."""
+        self._log_with_context(logging.CRITICAL, message, story_id, scene_id, model, context_tags, **kwargs)
+    
+    def _log_with_context(self, level: int, message: str, story_id: Optional[str] = None, 
+                         scene_id: Optional[str] = None, model: Optional[str] = None,
+                         context_tags: Optional[Union[str, list]] = None, **kwargs):
+        """Log message with contextual tags."""
+        # Build context tags
+        tags = []
+        if story_id:
+            tags.append(f"story:{story_id}")
+        if scene_id:
+            tags.append(f"scene:{scene_id}")
+        if model:
+            tags.append(f"model:{model}")
+        if context_tags:
+            if isinstance(context_tags, str):
+                tags.append(context_tags)
+            elif isinstance(context_tags, list):
+                tags.extend(context_tags)
+        
+        # Create log record with context
+        extra = {'context_tags': ','.join(tags) if tags else ''}
+        extra.update(kwargs)
+        
+        self.logger.log(level, message, extra=extra)
     
     def log_maintenance_action(self, action: str, details: Optional[Dict[str, Any]] = None, status: str = "success"):
         """Log maintenance action with structured data."""
@@ -247,18 +295,30 @@ def setup_logging(log_dir: Optional[Path] = None) -> OpenChronicleLogger:
     _logger_instance = OpenChronicleLogger(log_dir=log_dir)
     return _logger_instance
 
-# Convenience functions
-def log_info(message: str, **kwargs):
-    """Log info message."""
-    get_logger().info(message, **kwargs)
+# Convenience functions with context support
+def log_info(message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+             model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+    """Log info message with optional context."""
+    get_logger().info(message, story_id=story_id, scene_id=scene_id, model=model, 
+                     context_tags=context_tags, **kwargs)
 
-def log_error(message: str, **kwargs):
-    """Log error message."""
-    get_logger().error(message, **kwargs)
+def log_error(message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+              model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+    """Log error message with optional context."""
+    get_logger().error(message, story_id=story_id, scene_id=scene_id, model=model,
+                      context_tags=context_tags, **kwargs)
 
-def log_warning(message: str, **kwargs):
-    """Log warning message."""
-    get_logger().warning(message, **kwargs)
+def log_warning(message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+                model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+    """Log warning message with optional context."""
+    get_logger().warning(message, story_id=story_id, scene_id=scene_id, model=model,
+                        context_tags=context_tags, **kwargs)
+
+def log_debug(message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+              model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+    """Log debug message with optional context."""
+    get_logger().debug(message, story_id=story_id, scene_id=scene_id, model=model,
+                      context_tags=context_tags, **kwargs)
 
 def log_maintenance_action(action: str, details: Optional[Dict[str, Any]] = None, status: str = "success"):
     """Log maintenance action."""
