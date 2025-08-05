@@ -9,6 +9,7 @@ testing is handled by dedicated test files.
 
 import sys
 import os
+import asyncio
 import traceback
 import logging
 import argparse
@@ -108,7 +109,7 @@ def test_import_dependencies():
         
         # Test cross-module dependencies
         try:
-            from core.context_builder import build_context
+            from core.context_systems.context_orchestrator import ContextOrchestrator
             from core.story_loader import load_storypack
             log_print("[PASS] Cross-module dependencies work correctly")
         except Exception as e:
@@ -218,7 +219,7 @@ def test_integration_workflow():
         
         # Test 1: Story loading and context building pipeline
         from core.story_loader import load_storypack, list_storypacks
-        from core.context_builder import build_context
+        from core.context_systems.context_orchestrator import ContextOrchestrator
         from core.database import init_database
         
         # Initialize database
@@ -235,7 +236,9 @@ def test_integration_workflow():
         log_print(f"[PASS] Story loading: {story['meta']['title']}")
         
         # Build context
-        context = build_context("Test user input", story)
+        # Test context building
+        orchestrator = ContextOrchestrator()
+        context = asyncio.run(orchestrator.build_simple_context(story))
         required_context_keys = ['prompt', 'memory', 'canon_used']
         for key in required_context_keys:
             if key not in context:
@@ -244,10 +247,13 @@ def test_integration_workflow():
         log_print("[PASS] Context building pipeline")
         
         # Test 2: Memory and scene logging integration
-        from core.memory_manager import load_current_memory, update_character_memory
+        # Test 2: Memory management integration
+        from core.memory_management import MemoryOrchestrator
         from core.scene_logger import save_scene
         
-        memory = load_current_memory("demo-story")
+        # Load and test memory functionality
+        memory_orchestrator = MemoryOrchestrator()
+        memory = asyncio.run(memory_orchestrator.load_current_memory("demo-story"))
         log_print("[PASS] Memory loading integration")
         
         # Save a test scene
@@ -288,8 +294,9 @@ def test_performance_baseline():
         
         # Test context building performance
         start_time = time.time()
-        from core.context_builder import build_context
-        context = build_context("Test input for performance", story)
+        from core.context_systems.context_orchestrator import ContextOrchestrator
+        orchestrator = ContextOrchestrator()
+        context = asyncio.run(orchestrator.build_simple_context(story))
         context_time = time.time() - start_time
         
         if context_time > 3.0:  # Should build context within 3 seconds

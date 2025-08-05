@@ -19,7 +19,7 @@ from core.model_management import ModelOrchestrator as ModelManager
 from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
 from core.character_management import CharacterOrchestrator
 from core.token_manager import TokenManager
-from core.context_builder import build_context_with_dynamic_models
+from core.context_systems.context_orchestrator import ContextOrchestrator
 from core.story_loader import load_storypack
 
 @pytest.mark.asyncio
@@ -101,8 +101,10 @@ async def test_dynamic_model_integration():
         story_data = load_storypack("demo-story")
         test_input = "Lyra decides to investigate the mysterious hooded figure"
         
-        context_result = await build_context_with_dynamic_models(
-            test_input, story_data, model_manager)
+        # Use new context orchestrator
+        orchestrator = ContextOrchestrator()
+        context_result = await orchestrator.build_context_with_analysis(
+            test_input, story_data)
         
         print(f"   Recommended model: {context_result['recommended_model']}")
         print(f"   Content type: {context_result['content_analysis'].get('content_type', 'unknown')}")

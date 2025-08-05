@@ -29,22 +29,50 @@ def load_imports():
     global ContentAnalyzer, create_image_engine, ImageType
     
     from core.story_loader import load_storypack
-    from core.context_builder import build_context_with_analysis
-    from core.memory_manager import (
-        load_current_memory, 
-        update_character_memory, 
-        add_recent_event,
-        add_memory_flag,
-        get_memory_summary
-    )
+    from core.context_systems import ContextOrchestrator
+    from core.memory_management import MemoryOrchestrator
+    from core.timeline_systems import TimelineOrchestrator
+    
+    # Create orchestrators
+    context_orchestrator = ContextOrchestrator()
+    memory_orchestrator = MemoryOrchestrator()
+    
+    # Timeline orchestrator will be created per story
+    
+    # Direct orchestrator methods - no compatibility layer needed
+    
+    # Memory functions via orchestrator
+    async def load_current_memory(story_id):
+        return await memory_orchestrator.load_current_memory(story_id)
+    
+    async def update_character_memory(story_id, character_name, updates):
+        return await memory_orchestrator.update_character_memory(story_id, character_name, updates)
+    
+    async def add_recent_event(story_id, event_description, importance=1.0):
+        return await memory_orchestrator.add_recent_event(story_id, event_description, importance)
+    
+    async def add_memory_flag(story_id, flag_name, description, flag_type="general"):
+        return await memory_orchestrator.add_memory_flag(story_id, flag_name, description, flag_type)
+    
+    async def get_memory_summary(story_id):
+        return await memory_orchestrator.get_memory_summary(story_id)
     from core.scene_logger import save_scene
-    from core.rollback_engine import get_rollback_candidates, rollback_to_scene
     from core.model_management import ModelOrchestrator
     from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
     from core.image_generation_engine import create_image_engine, ImageType
     
     # Create model manager instance
     model_manager = ModelOrchestrator()
+    
+    # Timeline functions via orchestrator (created per story)
+    async def get_rollback_candidates(story_id):
+        timeline_orchestrator = TimelineOrchestrator(story_id)
+        rollback_points = await timeline_orchestrator.list_rollback_points()
+        return rollback_points.get('rollback_points', [])
+    
+    async def rollback_to_scene(story_id, rollback_id):
+        timeline_orchestrator = TimelineOrchestrator(story_id)
+        return await timeline_orchestrator.rollback_to_point(rollback_id)
     
     _imports_loaded = True
 

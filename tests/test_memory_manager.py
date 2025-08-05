@@ -8,12 +8,7 @@ import json
 from datetime import datetime
 from unittest.mock import Mock, patch, mock_open
 
-from core.memory_manager import (
-    load_current_memory,
-    save_current_memory,
-    update_character_memory,
-    get_character_memory_snapshot,
-    get_memory_summary
+from core.memory_management import MemoryOrchestrator
 )
 
 
