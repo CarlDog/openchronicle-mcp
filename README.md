@@ -75,7 +75,7 @@ OpenChronicle supports multiple LLM backends. Edit `config/models.json` to set y
 
 ## 🤖 Model Adapter System
 
-OpenChronicle supports multiple LLM backends through a unified adapter system:
+OpenChronicle supports multiple LLM backends through a unified adapter system powered by the **ModelOrchestrator** architecture:
 
 ### Supported Models
 - **OpenAI**: GPT-4, GPT-4o-mini, GPT-3.5-turbo
@@ -84,7 +84,7 @@ OpenChronicle supports multiple LLM backends through a unified adapter system:
 
 ### Configuration
 
-OpenChronicle uses a comprehensive configuration system that eliminates hardcoded URLs and makes everything configurable through JSON and environment variables.
+OpenChronicle uses a comprehensive configuration system based on modular registry files that eliminates hardcoded URLs and makes everything configurable through JSON and environment variables.
 
 #### Environment Variables
 
@@ -160,8 +160,8 @@ from core.model_management import ModelOrchestrator
 import asyncio
 
 async def discover():
-    mm = ModelManager()
-    result = await mm.discover_ollama_models()
+    orchestrator = ModelOrchestrator()
+    result = await orchestrator.discover_ollama_models()
     print(f'Found {result[\"total_models\"]} models')
 
 asyncio.run(discover())
