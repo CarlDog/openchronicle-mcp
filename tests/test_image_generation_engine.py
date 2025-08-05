@@ -18,11 +18,11 @@ from pathlib import Path
 from unittest.mock import Mock, patch, AsyncMock
 import pytest
 
-from core.image_generation_engine import (
+from core.image_systems import (
     ImageGenerationEngine, ImageMetadata, create_image_engine,
     auto_generate_character_portrait, auto_generate_scene_image
 )
-from core.image_adapter import (
+from core.image_systems import (
     ImageAdapterRegistry, ImageGenerationRequest, ImageGenerationResult,
     ImageProvider, ImageSize, ImageType, OpenAIImageAdapter, MockImageAdapter,
     create_image_registry

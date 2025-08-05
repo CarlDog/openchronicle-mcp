@@ -1,0 +1,370 @@
+"""
+Manage# Import logging system with fallback
+import os
+import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'utilities'))
+try:
+    from logging_system import log_system_event, log_info, log_error
+except ImportError:
+    # Fallback for testing or when logging_system is not available
+    def log_system_event(event_type, description): print(f"EVENT [{event_type}]: {description}")
+    def log_info(message): print(f"INFO: {message}")
+    def log_error(message): print(f"ERROR: {message}")t Systems Orchestrator
+
+Unified management system that integrates token and bookmark management.
+Provides single entry point for all management operations with backward compatibility.
+"""
+
+import sys
+from typing import Dict, List, Optional, Any, Union
+from pathlib import Path
+
+# Add utilities to path for logging system
+sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
+from logging_system import log_system_event, log_info, log_error
+
+from .token import TokenManager
+from .bookmark import BookmarkManager
+from .shared import (
+    ManagementConfig, TokenManagerException, BookmarkManagerException,
+    ConfigValidator
+)
+
+
+class ManagementOrchestrator:
+    """
+    Unified management orchestrator for OpenChronicle Core.
+    
+    Integrates token management and bookmark management into a single API.
+    Provides backward compatibility with legacy token_manager.py and bookmark_manager.py.
+    """
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """Initialize the management orchestrator."""
+        try:
+            # Validate and set configuration
+            validated_config = ConfigValidator.validate_management_config(config or {})
+            self.config = ManagementConfig.from_dict(validated_config)
+            
+            # Initialize token management
+            self.token_manager = TokenManager(self.config.token_config)
+            
+            # Initialize bookmark managers (per story)
+            self.bookmark_managers: Dict[str, BookmarkManager] = {}
+            
+            log_system_event("management_orchestrator", "Management orchestrator initialized")
+            
+        except Exception as e:
+            log_error(f"Failed to initialize ManagementOrchestrator: {e}")
+            raise Exception(f"Management orchestrator initialization failed: {e}")
+    
+    # =====================================================================
+    # TOKEN MANAGEMENT INTERFACE
+    # =====================================================================
+    
+    def count_tokens(self, text: str, model: Optional[str] = None) -> int:
+        """Count tokens in text for specified model."""
+        return self.token_manager.count_tokens(text, model)
+    
+    def estimate_tokens(self, text: str, model: Optional[str] = None) -> int:
+        """Estimate tokens with padding factor."""
+        return self.token_manager.estimate_tokens(text, model)
+    
+    def select_optimal_model(self, text: str, requirements: Optional[Dict[str, Any]] = None) -> str:
+        """Select the optimal model for given text and requirements."""
+        return self.token_manager.select_optimal_model(text, requirements)
+    
+    def trim_context(self, text: str, max_tokens: int, model: Optional[str] = None,
+                    strategy: str = "truncate_middle") -> str:
+        """Trim context to fit within token limit."""
+        return self.token_manager.trim_context(text, max_tokens, model, strategy)
+    
+    def track_token_usage(self, model_name: str, prompt_tokens: int, response_tokens: int,
+                         usage_type=None, cost: Optional[float] = None,
+                         metadata: Optional[Dict[str, Any]] = None):
+        """Track token usage for analytics."""
+        return self.token_manager.track_token_usage(
+            model_name, prompt_tokens, response_tokens, usage_type, cost, metadata
+        )
+    
+    def get_token_usage_stats(self) -> Dict[str, Any]:
+        """Get comprehensive token usage statistics."""
+        return self.token_manager.get_usage_stats()
+    
+    def get_token_cost_analysis(self) -> Dict[str, Any]:
+        """Get detailed token cost analysis."""
+        return self.token_manager.get_cost_analysis()
+    
+    def recommend_model_switch(self, current_model: str, usage_pattern: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """Get model switch recommendations."""
+        return self.token_manager.recommend_model_switch(current_model, usage_pattern)
+    
+    # =====================================================================
+    # BOOKMARK MANAGEMENT INTERFACE
+    # =====================================================================
+    
+    def get_bookmark_manager(self, story_id: str) -> BookmarkManager:
+        """Get or create bookmark manager for a story."""
+        if story_id not in self.bookmark_managers:
+            self.bookmark_managers[story_id] = BookmarkManager(
+                story_id, self.config.bookmark_config
+            )
+        return self.bookmark_managers[story_id]
+    
+    def create_bookmark(self, story_id: str, scene_id: str, label: str,
+                       description: Optional[str] = None, bookmark_type: str = "user",
+                       metadata: Optional[Dict[str, Any]] = None) -> int:
+        """Create a new bookmark."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.create_bookmark(scene_id, label, description, bookmark_type, metadata)
+    
+    def get_bookmark(self, story_id: str, bookmark_id: int) -> Optional[Dict[str, Any]]:
+        """Get a bookmark by ID."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.get_bookmark(bookmark_id)
+    
+    def list_bookmarks(self, story_id: str, bookmark_type: Optional[str] = None,
+                      scene_id: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """List bookmarks with optional filtering."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.list_bookmarks(bookmark_type, scene_id, limit)
+    
+    def search_bookmarks(self, story_id: str, query: str, bookmark_type: Optional[str] = None,
+                        search_fields: Optional[List[str]] = None,
+                        limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Search bookmarks by label or description."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.search_bookmarks(query, bookmark_type, search_fields, limit)
+    
+    def get_chapter_structure(self, story_id: str) -> Dict[int, List[Dict[str, Any]]]:
+        """Get chapter structure from bookmarks organized by levels."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.get_chapter_structure()
+    
+    def auto_create_chapter_bookmark(self, story_id: str, scene_id: str, chapter_title: str,
+                                   chapter_level: int = 1) -> int:
+        """Automatically create a chapter bookmark."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.auto_create_chapter_bookmark(scene_id, chapter_title, chapter_level)
+    
+    # =====================================================================
+    # LEGACY COMPATIBILITY INTERFACE
+    # =====================================================================
+    
+    def get_token_count(self, text: str, model: str = None) -> int:
+        """Legacy method name compatibility for token counting."""
+        return self.count_tokens(text, model)
+    
+    def get_optimal_model(self, text: str) -> str:
+        """Legacy method name compatibility for model selection."""
+        return self.select_optimal_model(text)
+    
+    def trim_to_limit(self, text: str, limit: int, model: str = None) -> str:
+        """Legacy method name compatibility for context trimming."""
+        return self.trim_context(text, limit, model)
+    
+    def get_bookmarks_with_scenes(self, story_id: str, bookmark_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Legacy method: Get bookmarks with their associated scene information."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.get_bookmarks_with_scenes(bookmark_type)
+    
+    def get_bookmark_stats(self, story_id: str) -> Dict[str, Any]:
+        """Legacy method: Get bookmark statistics."""
+        manager = self.get_bookmark_manager(story_id)
+        return manager.get_stats()
+    
+    # =====================================================================
+    # UNIFIED OPERATIONS
+    # =====================================================================
+    
+    def analyze_story_content(self, story_id: str, content: str, model: Optional[str] = None) -> Dict[str, Any]:
+        """Analyze story content using both token and bookmark insights."""
+        try:
+            # Token analysis
+            token_count = self.count_tokens(content, model)
+            optimal_model = self.select_optimal_model(content)
+            
+            # Bookmark analysis
+            manager = self.get_bookmark_manager(story_id)
+            bookmarks = manager.list_bookmarks(limit=100)
+            chapter_structure = manager.get_chapter_structure()
+            
+            analysis = {
+                "content_analysis": {
+                    "token_count": token_count,
+                    "optimal_model": optimal_model,
+                    "estimated_cost": self.token_manager.cost_calculator.estimate_cost(optimal_model, token_count),
+                    "content_length": len(content),
+                    "complexity_score": self._calculate_complexity_score(content, token_count)
+                },
+                "bookmark_analysis": {
+                    "total_bookmarks": len(bookmarks),
+                    "chapter_count": sum(len(chapters) for chapters in chapter_structure.values()),
+                    "chapter_levels": len(chapter_structure),
+                    "recent_bookmarks": bookmarks[:5] if bookmarks else []
+                },
+                "recommendations": self._generate_content_recommendations(content, token_count, bookmarks)
+            }
+            
+            return analysis
+            
+        except Exception as e:
+            log_error(f"Story content analysis failed: {e}")
+            return {"error": str(e)}
+    
+    def optimize_story_navigation(self, story_id: str) -> Dict[str, Any]:
+        """Optimize story navigation structure."""
+        try:
+            manager = self.get_bookmark_manager(story_id)
+            
+            # Get current structure
+            timeline = manager.get_timeline_bookmarks()
+            chapters = manager.get_chapter_structure()
+            
+            # Analyze gaps and opportunities
+            optimization = {
+                "current_structure": {
+                    "timeline_length": len(timeline),
+                    "chapter_count": sum(len(level_chapters) for level_chapters in chapters.values()),
+                    "chapter_levels": len(chapters)
+                },
+                "recommendations": [],
+                "auto_improvements": []
+            }
+            
+            # Check for missing chapter markers
+            if len(timeline) > 20 and len(chapters.get(1, [])) < 3:
+                optimization["recommendations"].append("Consider adding more chapter bookmarks for better navigation")
+            
+            # Check for uneven chapter distribution
+            if timeline:
+                scenes_per_chapter = len(timeline) / max(len(chapters.get(1, [])), 1)
+                if scenes_per_chapter > 15:
+                    optimization["recommendations"].append("Chapters may be too long - consider subdividing")
+            
+            return optimization
+            
+        except Exception as e:
+            log_error(f"Story navigation optimization failed: {e}")
+            return {"error": str(e)}
+    
+    def get_management_stats(self) -> Dict[str, Any]:
+        """Get comprehensive management system statistics."""
+        try:
+            # Token stats
+            token_stats = self.get_token_usage_stats()
+            
+            # Bookmark stats for all managed stories
+            bookmark_stats = {}
+            total_bookmarks = 0
+            
+            for story_id, manager in self.bookmark_managers.items():
+                stats = manager.get_stats()
+                bookmark_stats[story_id] = stats
+                total_bookmarks += stats.get("total_bookmarks", 0)
+            
+            return {
+                "token_management": {
+                    "total_requests": token_stats.get("total_requests", 0),
+                    "total_tokens": token_stats.get("total_tokens", 0),
+                    "total_cost": token_stats.get("total_cost", 0),
+                    "active_models": len(token_stats.get("models", {}))
+                },
+                "bookmark_management": {
+                    "managed_stories": len(self.bookmark_managers),
+                    "total_bookmarks": total_bookmarks,
+                    "story_stats": bookmark_stats
+                },
+                "system_health": {
+                    "token_cache_size": len(self.token_manager.tokenizer.cache.cache),
+                    "bookmark_managers_active": len(self.bookmark_managers)
+                }
+            }
+            
+        except Exception as e:
+            log_error(f"Management stats collection failed: {e}")
+            return {"error": str(e)}
+    
+    def _calculate_complexity_score(self, content: str, token_count: int) -> float:
+        """Calculate content complexity score."""
+        # Simple complexity based on token density and structure
+        words = len(content.split())
+        if words == 0:
+            return 0.0
+        
+        token_per_word = token_count / words
+        sentence_count = content.count('.') + content.count('!') + content.count('?')
+        avg_sentence_length = words / max(sentence_count, 1)
+        
+        # Normalize to 0-1 scale
+        complexity = min(1.0, (token_per_word * 0.5) + (avg_sentence_length / 50))
+        return complexity
+    
+    def _generate_content_recommendations(self, content: str, token_count: int,
+                                        bookmarks: List[Dict[str, Any]]) -> List[str]:
+        """Generate recommendations based on content and bookmark analysis."""
+        recommendations = []
+        
+        # Token-based recommendations
+        if token_count > 4000:
+            recommendations.append("Consider splitting content into smaller sections for better processing")
+        
+        if token_count < 100:
+            recommendations.append("Content may be too brief for comprehensive analysis")
+        
+        # Bookmark-based recommendations
+        if len(bookmarks) == 0:
+            recommendations.append("Consider adding bookmarks to improve navigation")
+        
+        chapter_bookmarks = [b for b in bookmarks if b.get('bookmark_type') == 'chapter']
+        if len(bookmarks) > 10 and len(chapter_bookmarks) == 0:
+            recommendations.append("Add chapter bookmarks to organize your story structure")
+        
+        return recommendations
+    
+    # =====================================================================
+    # SYSTEM MANAGEMENT
+    # =====================================================================
+    
+    def clear_all_caches(self):
+        """Clear all system caches."""
+        self.token_manager.clear_caches()
+        log_system_event("management_orchestrator", "All caches cleared")
+    
+    def export_all_data(self) -> Dict[str, Any]:
+        """Export all management data."""
+        try:
+            # Export token data
+            token_data = self.token_manager.export_stats()
+            
+            # Export bookmark data for all stories
+            bookmark_data = {}
+            for story_id, manager in self.bookmark_managers.items():
+                bookmark_data[story_id] = manager.export_bookmarks()
+            
+            return {
+                "export_type": "management_orchestrator",
+                "token_management": token_data,
+                "bookmark_management": bookmark_data,
+                "system_config": self.config.to_dict()
+            }
+            
+        except Exception as e:
+            log_error(f"Data export failed: {e}")
+            raise Exception(f"Export failed: {e}")
+    
+    def update_config(self, new_config: Dict[str, Any]):
+        """Update system configuration."""
+        try:
+            validated_config = ConfigValidator.validate_management_config(new_config)
+            self.config = ManagementConfig.from_dict({**self.config.to_dict(), **validated_config})
+            
+            # Update token manager config if provided
+            if 'token_config' in new_config:
+                self.token_manager.update_config(new_config['token_config'])
+            
+            log_system_event("management_orchestrator", "Configuration updated")
+            
+        except Exception as e:
+            log_error(f"Config update failed: {e}")
+            raise Exception(f"Config update failed: {e}")

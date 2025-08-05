@@ -59,7 +59,7 @@ def load_imports():
     from core.scene_logger import save_scene
     from core.model_management import ModelOrchestrator
     from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
-    from core.image_generation_engine import create_image_engine, ImageType
+    from core.image_systems import create_image_engine, ImageType
     
     # Create model manager instance
     model_manager = ModelOrchestrator()
