@@ -61,9 +61,10 @@ def safe_teardown_temp_dir(temp_dir, original_cwd, engine=None):
     else:
         shutil.rmtree(temp_dir)
 
-from core.scene_logger import save_scene, load_scene, update_scene_label, get_scenes_by_label, get_labeled_scenes
+from core.scene_systems import SceneOrchestrator
+from core.scene_systems.scene_orchestrator import save_scene, load_scene, update_scene_label, get_scenes_by_label, get_labeled_scenes
 from core.management_systems import BookmarkManager
-from core.timeline_builder import TimelineBuilder
+from core.timeline_systems import TimelineOrchestrator
 from core.database import init_database
 
 class TestSceneLabeling(unittest.TestCase):
@@ -185,7 +186,7 @@ class TestSceneLabeling(unittest.TestCase):
     
     def test_token_usage_stats(self):
         """Test token usage statistics."""
-        from core.scene_logger import get_token_usage_stats
+        from core.scene_systems.scene_orchestrator import get_token_usage_stats
         
         # Create scene with token data
         save_scene(
@@ -205,7 +206,7 @@ class TestSceneLabeling(unittest.TestCase):
     
     def test_long_turn_detection(self):
         """Test long turn detection functionality."""
-        from core.scene_logger import get_scenes_with_long_turns
+        from core.scene_systems.scene_orchestrator import get_scenes_with_long_turns
         
         # Create a long turn scene
         save_scene(
@@ -222,7 +223,7 @@ class TestSceneLabeling(unittest.TestCase):
     
     def test_character_mood_timeline(self):
         """Test character mood timeline functionality."""
-        from core.scene_logger import get_character_mood_timeline
+        from core.scene_systems.scene_orchestrator import get_character_mood_timeline
         
         # Create scenes with character mood data
         save_scene(
@@ -254,7 +255,7 @@ class TestSceneLabeling(unittest.TestCase):
     
     def test_scene_summary_stats(self):
         """Test scene summary statistics."""
-        from core.scene_logger import get_scene_summary_stats
+        from core.scene_systems.scene_orchestrator import get_scene_summary_stats
         
         # Create scene with comprehensive tags
         save_scene(
@@ -530,7 +531,7 @@ class TestTimelineBuilder(unittest.TestCase):
             bookmark_type="chapter"
         )
         
-        self.timeline_builder = TimelineBuilder(self.test_story_id)
+        self.timeline_orchestrator = TimelineOrchestrator(self.test_story_id)
     
     def tearDown(self):
         """Clean up test environment."""

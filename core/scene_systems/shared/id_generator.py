@@ -6,7 +6,6 @@ backward compatibility with existing systems.
 """
 
 import time
-from typing import str
 
 class SceneIdGenerator:
     """Generates unique scene identifiers."""

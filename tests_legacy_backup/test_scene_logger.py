@@ -8,7 +8,7 @@ import json
 from unittest.mock import patch
 
 # Import scene logger functions
-from core.scene_logger import (
+from core.scene_systems.scene_orchestrator import (
     generate_scene_id,
     save_scene,
     load_scene,
@@ -21,9 +21,9 @@ from core.scene_logger import (
     update_scene_label,
     get_scenes_by_label,
     get_labeled_scenes,
-    rollback_to_scene,
     get_scene_summary_stats
 )
+from core.scene_systems import SceneOrchestrator
 
 
 class TestSceneGeneration:
@@ -150,32 +150,37 @@ class TestSceneRetrieval:
 class TestSceneRollback:
     """Test scene rollback functionality."""
     
-    @patch('core.scene_logger.load_scene')
-    def test_rollback_to_scene(self, mock_load_scene):
-        """Test rolling back to a specific scene."""
-        mock_scene_data = {
-            "scene_id": "scene_001",
-            "timestamp": "2024-01-01T12:00:00Z",
-            "input": "Hello",
-            "output": "Hi",
-            "memory": {},
-            "flags": [],
-            "canon_refs": [],
-            "scene_label": None,
-            "structured_tags": {}
-        }
-        mock_load_scene.return_value = mock_scene_data
-        
-        result = rollback_to_scene("test_story", "scene_001")
-        
-        # Function returns scene data for rebuilding state
-        assert isinstance(result, dict)
-        assert result["scene_id"] == "scene_001"
-        assert result["input"] == "Hello"
-        assert result["output"] == "Hi"
-        assert "memory" in result
-        assert "flags" in result
-        mock_load_scene.assert_called_once_with("test_story", "scene_001")
+    # NOTE: Rollback functionality moved to TimelineOrchestrator
+    # This test is commented out as rollback is no longer a scene-level operation
+    
+    # @patch('core.scene_logger.load_scene')
+    # def test_rollback_to_scene(self, mock_load_scene):
+    #     """Test rolling back to a specific scene."""
+    #     mock_scene_data = {
+    #         "scene_id": "scene_001",
+    #         "timestamp": "2024-01-01T12:00:00Z",
+    #         "input": "Hello",
+    #         "output": "Hi",
+    #         "memory": {},
+    #         "flags": [],
+    #         "canon_refs": [],
+    #         "scene_label": None,
+    #         "structured_tags": {}
+    #     }
+    #     mock_load_scene.return_value = mock_scene_data
+    #     
+    #     result = rollback_to_scene("test_story", "scene_001")
+    #     
+    #     # Function returns scene data for rebuilding state
+    #     assert isinstance(result, dict)
+    #     assert result["scene_id"] == "scene_001"
+    #     assert result["input"] == "Hello"
+    #     assert result["output"] == "Hi"
+    #     assert "memory" in result
+    #     assert "flags" in result
+    #     mock_load_scene.assert_called_once_with("test_story", "scene_001")
+
+    pass  # Placeholder for future timeline integration tests
 
 
 class TestSceneLabeling:
