@@ -9,7 +9,7 @@ Provides standardized data models for scene operations:
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 
 @dataclass
@@ -40,7 +40,7 @@ class StructuredTags:
     def _add_scene_metadata(self) -> None:
         """Add basic scene metadata."""
         if "timestamp" not in self.tags:
-            self.tags["timestamp"] = datetime.utcnow().isoformat()
+            self.tags["timestamp"] = datetime.now(timezone.utc).isoformat()
     
     def add_character_moods(self, memory_snapshot: Dict[str, Any]) -> None:
         """Extract and add character mood information."""
