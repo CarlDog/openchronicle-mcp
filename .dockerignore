@@ -40,7 +40,13 @@ venv.bak/
 *.swp
 *.swo
 *~
-.copilot/
+# Include essential copilot config, exclude development files
+.copilot/tasks/
+.copilot/patterns/
+.copilot/examples/
+.copilot/architecture/
+.copilot/config/
+.copilot/testing/
 
 # OS
 .DS_Store
@@ -73,13 +79,16 @@ logs/
 storage/
 !storage/.gitkeep
 
-# Documentation (keep only README.md)
-*.md
-!README.md
+# Documentation (include key docs in Docker)
 docs/
+documentation_archive_*/
+analysis/
 *.old
 *.ignoreme
-LICENSE*
+# Keep essential documentation
+!README.md
+!ARCHITECTURE_GUIDE.md
+!PROJECT_WORKFLOW_OVERVIEW.md
 
 # Docker
 Dockerfile*

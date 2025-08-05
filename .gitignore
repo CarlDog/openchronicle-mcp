@@ -48,11 +48,16 @@ storage/*/exports/
 !core/analysis/
 !core/analysis/**
 logs/
+tests/logs/
 storage/temp/
 storage/data/performance/
 storage/data/runtime/
 storage/data/profiles/
+storage/data/memory.db
 storage/backups/
+
+# Documentation archives
+documentation_archive_*/
 
 # Import staging directory - ignore contents but keep README
 import/*
