@@ -70,23 +70,30 @@ class TestSceneOrchestrator:
         assert hasattr(orchestrator, 'create_scene') or hasattr(orchestrator, 'save_scene'), \
             "Orchestrator should have scene creation method"
         
-        # If the method exists, test a basic call
-        # Note: This test will need to be updated based on actual API
+        # Test with actual scene orchestrator API parameters
         try:
-            # Try to call scene creation method with mock data
-            if hasattr(orchestrator, 'create_scene'):
-                result = orchestrator.create_scene(**sample_scene_data)
-            elif hasattr(orchestrator, 'save_scene'):
-                result = orchestrator.save_scene(**sample_scene_data)
+            # Use save_scene with correct parameters
+            if hasattr(orchestrator, 'save_scene'):
+                result = orchestrator.save_scene(
+                    user_input="Test user input",
+                    model_output=sample_scene_data.get('scene_content', 'Test scene content'),
+                    memory_snapshot={'location': sample_scene_data.get('location', 'test_location')},
+                    flags=sample_scene_data.get('tags', ['test']),
+                    scene_label=f"Scene {sample_scene_data.get('scene_number', 1)}"
+                )
+            elif hasattr(orchestrator, 'create_scene'):
+                # If create_scene exists, try that instead
+                result = orchestrator.create_scene(
+                    user_input="Test user input",
+                    model_output=sample_scene_data.get('scene_content', 'Test scene content')
+                )
             
             # Basic validation that something was returned
             assert result is not None, "Scene creation should return a result"
             
         except Exception as e:
-            # If method exists but fails, that's important information
-            pytest.fail(f"Scene creation method exists but failed: {e}")
-    
-    @pytest.mark.skipif(not SCENE_ORCHESTRATOR_AVAILABLE, reason="SceneOrchestrator not available")
+            # If method exists but fails, that's important information  
+            pytest.fail(f"Scene creation method exists but failed: {e}")    @pytest.mark.skipif(not SCENE_ORCHESTRATOR_AVAILABLE, reason="SceneOrchestrator not available")
     def test_orchestrator_error_handling(self, test_story_id):
         """Test orchestrator error handling."""
         # Test that orchestrator handles None story_id gracefully
@@ -182,6 +189,16 @@ class TestSceneOrchestrationMethods:
         if not has_mood_method:
             # Mood analysis might be internal to scene processing
             pytest.skip("Mood analysis appears to be internal")
+        
+        # If mood analysis method exists, test it with safe parameters
+        try:
+            if hasattr(orchestrator, 'analyze_mood'):
+                # Test with scene content from sample data
+                scene_content = sample_scene_data.get('scene_content', 'Test scene content with happy mood')
+                result = orchestrator.analyze_mood(scene_content)
+                assert result is not None, "Mood analysis should return a result"
+        except Exception as e:
+            pytest.fail(f"Mood analysis method exists but failed: {e}")
 
 
 @pytest.mark.integration
@@ -258,15 +275,17 @@ class TestSceneOrchestrationWithMocks:
             assert 'model_output' in scene
             assert 'memory_snapshot' in scene
     
-    def test_mock_database_integration(self, test_story_id):
+    @pytest.mark.asyncio
+    async def test_mock_database_integration(self, test_story_id):
         """Test orchestration with mock database."""
         mock_db = create_mock_database()
         
         # Test mock database operations
-        result = mock_db.execute_query("SELECT * FROM scenes WHERE story_id = ?", (test_story_id,))
+        result = await mock_db.execute_query("SELECT * FROM scenes WHERE story_id = ?", (test_story_id,))
         assert isinstance(result, list)
         
         # Test mock insert
-        insert_result = mock_db.execute_query("INSERT INTO scenes (story_id, content) VALUES (?, ?)", 
+        insert_result = await mock_db.execute_query("INSERT INTO scenes (story_id, content) VALUES (?, ?)", 
                                             (test_story_id, "test_content"))
-        assert insert_result[0]['success'] is True
+        assert insert_result[0]['affected_rows'] == 1
+        assert 'inserted_id' in insert_result[0]

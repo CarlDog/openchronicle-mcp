@@ -143,6 +143,27 @@ def model_orchestrator():
     return ModelOrchestrator()
 
 
+@pytest.fixture
+def sample_scene_data():
+    """Create sample scene data for testing."""
+    return {
+        'story_id': 'test_story_123',
+        'scene_content': 'The hero enters the dark forest, sensing danger lurking in the shadows.',
+        'character_ids': ['char_001', 'char_002'],
+        'location': 'Dark Forest',
+        'mood': 'tense',
+        'chapter': 3,
+        'scene_number': 7,
+        'timestamp': '2024-01-15T14:30:00Z',
+        'tags': ['adventure', 'danger', 'forest'],
+        'context_data': {
+            'weather': 'misty',
+            'time_of_day': 'afternoon',
+            'season': 'autumn'
+        }
+    }
+
+
 # ===== UTILITY FUNCTIONS =====
 
 def create_test_scene_data(scene_id: str = None, **kwargs) -> Dict[str, Any]:

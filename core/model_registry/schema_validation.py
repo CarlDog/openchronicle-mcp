@@ -49,8 +49,10 @@ class ProviderType(str, Enum):
     COHERE = "cohere"
     MISTRAL = "mistralai"
     GOOGLE = "google"
+    GEMINI = "gemini"  # Added for Gemini provider support
     AZURE_OPENAI = "azure_openai"
     HUGGINGFACE = "huggingface"
+    TRANSFORMERS = "transformers"  # Added for Transformers provider support
     MOCK = "mock"
 
 
@@ -156,7 +158,7 @@ class ModelRegistrySchema(BaseModel):
     
     metadata: MetadataConfig = Field(default_factory=MetadataConfig, description="Registry metadata")
     models: List[ModelConfig] = Field(..., min_length=1, description="List of model configurations")
-    content_routing: ContentRoutingConfig = Field(default_factory=ContentRoutingConfig, description="Content routing configuration")
+    content_routing: ContentRoutingConfig = Field(default_factory=lambda: ContentRoutingConfig(), description="Content routing configuration")
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig, description="Performance configuration")
     fallback_behavior: FallbackBehaviorConfig = Field(default_factory=FallbackBehaviorConfig, description="Fallback behavior configuration")
     
@@ -216,7 +218,7 @@ class ModelRegistrySchema(BaseModel):
 class ProviderConfig(BaseModel):
     """Schema for individual provider configuration files."""
     model_config = ConfigDict(
-        extra='forbid',
+        extra='allow',  # Allow additional fields for rich configurations
         str_strip_whitespace=True,
         validate_assignment=True
     )
@@ -229,6 +231,19 @@ class ProviderConfig(BaseModel):
     content_filter: bool = Field(default=True, description="Whether content filtering is enabled")
     rate_limits: Dict[str, int] = Field(default_factory=dict, description="Rate limit configuration")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+    
+    # Additional fields commonly found in model configs (all optional)
+    name: Optional[str] = Field(None, description="Model configuration name")
+    description: Optional[str] = Field(None, description="Model description")
+    adapter_class: Optional[str] = Field(None, description="Adapter class name")
+    capabilities: Optional[Dict[str, Any]] = Field(None, description="Model capabilities")
+    limits: Optional[Dict[str, Any]] = Field(None, description="Model limits and constraints")
+    health_check: Optional[Dict[str, Any]] = Field(None, description="Health check configuration")
+    validation: Optional[Dict[str, Any]] = Field(None, description="Validation requirements")
+    cost_tracking: Optional[Dict[str, Any]] = Field(None, description="Cost tracking configuration")
+    fallback_chain: Optional[List[str]] = Field(None, description="Fallback model chain")
+    performance: Optional[Dict[str, Any]] = Field(None, description="Performance characteristics")
+    local_config: Optional[Dict[str, Any]] = Field(None, description="Local deployment configuration")
     
     @field_validator('model_list')
     @classmethod
