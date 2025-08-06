@@ -107,6 +107,22 @@ class CharacterMemory:
     relationships: Dict[str, str] = field(default_factory=dict)
     arc_progress: Dict[str, Any] = field(default_factory=dict)
     dialogue_history: List[str] = field(default_factory=list)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'personality': self.personality,
+            'background': self.background,
+            'current_mood': self.current_mood,
+            'mood_history': [entry.__dict__ if hasattr(entry, '__dict__') else entry 
+                           for entry in self.mood_history],
+            'voice_profile': self.voice_profile.__dict__ if hasattr(self.voice_profile, '__dict__') else self.voice_profile,
+            'relationships': self.relationships,
+            'arc_progress': self.arc_progress,
+            'dialogue_history': self.dialogue_history
+        }
 
 
 @dataclass
@@ -126,6 +142,19 @@ class MemoryState:
     flags: List[MemoryFlag] = field(default_factory=list)
     recent_events: List[RecentEvent] = field(default_factory=list)
     metadata: MemoryMetadata = field(default_factory=lambda: MemoryMetadata(last_updated=datetime.now(UTC)))
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        return {
+            'characters': {name: char.to_dict() if hasattr(char, 'to_dict') else char.__dict__ 
+                          for name, char in self.characters.items()},
+            'world_state': self.world_state,
+            'flags': [flag.__dict__ if hasattr(flag, '__dict__') else flag 
+                     for flag in self.flags],
+            'recent_events': [event.__dict__ if hasattr(event, '__dict__') else event 
+                             for event in self.recent_events],
+            'metadata': self.metadata.__dict__ if hasattr(self.metadata, '__dict__') else self.metadata
+        }
 
 
 @dataclass

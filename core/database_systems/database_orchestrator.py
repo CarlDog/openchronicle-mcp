@@ -8,12 +8,14 @@ replacing the monolithic database.py module with organized components.
 from typing import Optional, Dict, Any, List, Tuple
 import sqlite3
 import os
+import asyncio
 from pathlib import Path
 
 from .connection import ConnectionManager
 from .operations import DatabaseOperations  
 from .fts import FTSManager
 from .migration import MigrationManager
+from .health_checker import DatabaseHealthChecker
 from .shared import DatabaseConfig, DatabaseStats
 
 
@@ -36,6 +38,7 @@ class DatabaseOrchestrator:
         self._operations = None
         self._fts_manager = None
         self._migration_manager = None
+        self._health_checker = None
         self._config = DatabaseConfig()
     
     @property
@@ -65,6 +68,13 @@ class DatabaseOrchestrator:
         if self._migration_manager is None:
             self._migration_manager = MigrationManager(self.connection_manager, self.operations)
         return self._migration_manager
+    
+    @property
+    def health_checker(self) -> DatabaseHealthChecker:
+        """Lazy-loaded health checker."""
+        if self._health_checker is None:
+            self._health_checker = DatabaseHealthChecker(self.connection_manager)
+        return self._health_checker
     
     # Main Database Operations API
     def init_database(self, story_id: str, is_test: Optional[bool] = None) -> bool:
@@ -128,6 +138,30 @@ class DatabaseOrchestrator:
     def ensure_db_dir(self, story_id: str, is_test: Optional[bool] = None) -> None:
         """Ensure database directory exists."""
         self.connection_manager.ensure_db_dir(story_id, is_test)
+    
+    # Health Check Operations API
+    async def startup_health_check(self) -> Dict[str, Any]:
+        """
+        Run comprehensive startup health check on all databases.
+        
+        Implements Week 4 startup health check requirements:
+        - Run PRAGMA integrity_check on all databases  
+        - Early detection of database corruption
+        - Connection validation and schema checks
+        
+        Returns:
+            Dict containing comprehensive health report
+        """
+        return await self.health_checker.startup_health_check()
+    
+    def get_all_databases(self) -> List[str]:
+        """
+        Get paths to all databases for health checks.
+        
+        Returns:
+            List of database file paths
+        """
+        return self.health_checker.get_all_databases()
     
     # Legacy compatibility methods (maintaining function signatures for seamless transition)
     def check_fts_support(self) -> bool:
@@ -202,3 +236,23 @@ def ensure_db_dir(story_id: str, is_test: Optional[bool] = None) -> None:
 def check_fts_support() -> bool:
     """Legacy compatibility function."""
     return database_orchestrator.check_fts_support()
+
+async def startup_health_check() -> Dict[str, Any]:
+    """
+    Legacy compatibility function for startup health check.
+    
+    Implementation as specified in Development Master Plan Phase 1 Week 4:
+    ```python
+    async def startup_health_check():
+        for db_path in self.get_all_databases():
+            async with aiosqlite.connect(db_path) as conn:
+                result = await conn.execute("PRAGMA integrity_check")
+                if result != "ok":
+                    log_error(f"Database corruption detected: {db_path}")
+    ```
+    """
+    return await database_orchestrator.startup_health_check()
+
+def get_all_databases() -> List[str]:
+    """Legacy compatibility function."""
+    return database_orchestrator.get_all_databases()

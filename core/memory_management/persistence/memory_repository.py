@@ -307,3 +307,18 @@ class MemoryRepository:
             ''', (story_id, max_snapshots))
         except Exception:
             pass  # Non-critical operation
+    
+    def create_default_memory_structure(self) -> Dict[str, Any]:
+        """Create default memory structure for backward compatibility."""
+        return {
+            'characters': {},
+            'world_state': {},
+            'flags': [],
+            'recent_events': [],
+            'metadata': {
+                'last_updated': datetime.now(UTC).isoformat(),
+                'version': '1.0',
+                'scene_count': 0,
+                'character_count': 0
+            }
+        }

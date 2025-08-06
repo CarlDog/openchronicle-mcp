@@ -3,6 +3,7 @@ tiktoken>=0.9.0                  # Token counting and management
 pyyaml>=6.0                      # YAML configuration files
 httpx>=0.28.0                    # HTTP client for API calls
 pytest>=8.0.0                    # Testing framework
+pytest-benchmark>=4.0.0         # Performance regression testing
 sqlalchemy>=2.0.0                # Database ORM
 aiosqlite>=0.21.0                # Async SQLite support
 psutil>=5.9.0                    # System and process utilities for profiling

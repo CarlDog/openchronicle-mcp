@@ -129,12 +129,14 @@ class MemoryOrchestrator:
         Maintains backward compatibility with original function signature.
         """
         try:
-            memory = self.repository.load_memory(story_id)
-            updated_memory = self.character_manager.update_character_memory(
-                memory, character_name, updates
-            )
-            self.repository.save_memory(story_id, updated_memory)
-            return updated_memory.to_dict()
+            # Use the character manager's update_character method
+            result = self.character_manager.update_character(story_id, character_name, updates)
+            if result.success:
+                # Return current memory state
+                return self.load_current_memory(story_id)
+            else:
+                self.logger.error(f"Character update failed: {result.warnings}")
+                return self.load_current_memory(story_id)
         except Exception as e:
             self.logger.error(f"Error updating character {character_name} for {story_id}: {e}")
             return self.load_current_memory(story_id)

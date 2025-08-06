@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Add utilities to path for logging system  
 sys.path.append(str(Path(__file__).parent / "utilities"))
-from logging_system import log_model_interaction, log_system_event, log_info, log_error
+from logging_system import log_model_interaction, log_system_event, log_info, log_error, log_warning
 from api_key_manager import (
     get_api_key, set_api_key, remove_api_key, list_stored_keys, 
     prompt_and_store_key, get_keyring_info, is_keyring_available
@@ -26,7 +26,7 @@ def load_imports():
     global load_storypack, build_context_with_analysis, load_current_memory
     global update_character_memory, add_recent_event, add_memory_flag, get_memory_summary
     global save_scene, get_rollback_candidates, rollback_to_scene, model_manager
-    global ContentAnalyzer, create_image_engine, ImageType
+    global ContentAnalyzer, create_image_engine, ImageType, startup_health_check
     
     from core.story_loader import load_storypack
     from core.context_systems import ContextOrchestrator
@@ -56,10 +56,21 @@ def load_imports():
     
     async def get_memory_summary(story_id):
         return await memory_orchestrator.get_memory_summary(story_id)
-    from core.scene_logger import save_scene
+    from core.scene_systems.scene_orchestrator import SceneOrchestrator
     from core.model_management import ModelOrchestrator
     from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
     from core.image_systems import create_image_engine, ImageType
+    from core.database_systems.database_orchestrator import startup_health_check
+    
+    # Scene orchestrator will be created per story
+    def save_scene(story_id, user_input, ai_response, memory_snapshot=None, analysis_data=None):
+        scene_orchestrator = SceneOrchestrator(story_id)
+        return scene_orchestrator.save_scene(
+            user_input=user_input,
+            model_output=ai_response,
+            memory_snapshot=memory_snapshot,
+            analysis_data=analysis_data
+        )
     
     # Create model manager instance
     model_manager = ModelOrchestrator()
@@ -473,6 +484,50 @@ async def process_story_input(story_id: str, user_input: str, story):
     print(f"{ai_response}")
     print(f"   Scene logged: {scene_id}")
 
+async def run_startup_health_check():
+    """
+    Run startup health check and handle results.
+    
+    Performs database integrity validation before main application operations.
+    Critical failures will terminate the application.
+    """
+    print(f"{emoji('🏥 ')}Running startup health check...")
+    
+    try:
+        # Run comprehensive health check
+        health_report = await startup_health_check()
+        
+        if health_report['overall_status'] == 'healthy':
+            print(f"{status_icon(True)} Health check passed - all systems healthy")
+            log_info("Startup health check passed - all systems healthy")
+            
+        elif health_report['overall_status'] == 'warning':
+            print(f"{status_icon(True)} Health check completed with {health_report['issues_found']} warnings")
+            print(f"   {emoji('⚠️ ')}Non-critical issues detected but startup can proceed")
+            log_warning(f"Startup health check completed with warnings: {health_report['issues_found']} issues")
+            
+        else:  # critical or error
+            print(f"{status_icon(False)} CRITICAL DATABASE ISSUES DETECTED")
+            print(f"   {emoji('🚨 ')}Found {health_report['issues_found']} critical issues")
+            print(f"   {emoji('💥 ')}Application startup cannot proceed safely")
+            
+            # Show critical issues
+            for db_id, db_info in health_report.get('databases', {}).items():
+                if db_info.get('status') in ['corrupt', 'error']:
+                    print(f"   • Database '{db_id}': {db_info['status']}")
+                    for issue in db_info.get('issues', []):
+                        print(f"     - {issue}")
+            
+            log_error(f"Startup health check failed: {health_report['issues_found']} critical issues detected")
+            print(f"\n{emoji('🔧 ')}Run 'python utilities/database_health_validator.py --detailed' for full diagnostic report")
+            sys.exit(1)
+            
+    except Exception as e:
+        print(f"{status_icon(False)} Health check failed with error: {str(e)}")
+        log_error(f"Startup health check failed with exception: {str(e)}")
+        print(f"   {emoji('⚠️ ')}Continuing with startup but database issues may exist")
+        # Don't exit on health check failure - allow manual recovery
+
 async def main():
     global USE_EMOJIS
     args = parse_arguments()
@@ -486,6 +541,9 @@ async def main():
     
     # Load heavy imports only after key management check
     load_imports()
+    
+    # Run startup health check before any database operations
+    await run_startup_health_check()
     
     # Check for test mode
     if args.test:
