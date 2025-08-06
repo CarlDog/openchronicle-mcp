@@ -452,3 +452,30 @@ class ModelOrchestrator(IModelOrchestrator):
             metadata=config.get('metadata', {})
         )
         return self._configuration_manager.add_model_configuration(model_config)
+    
+    # Standard API methods for compatibility
+    async def process_request(self, request: str, **kwargs) -> ModelResponse:
+        """Standard API method for processing requests."""
+        return await self.generate_response(request, **kwargs)
+    
+    def get_model_status(self, adapter_name: str = None) -> Dict[str, Any]:
+        """Standard API method for getting model status."""
+        if adapter_name:
+            status = self.get_adapter_status(adapter_name)
+            return {
+                'name': status.name,
+                'available': status.is_available,
+                'healthy': status.is_healthy,
+                'last_check': status.last_health_check.isoformat() if status.last_health_check else None,
+                'error_count': status.error_count,
+                'success_count': status.success_count,
+                'average_response_time': status.average_response_time
+            }
+        else:
+            # Return overall system status
+            return {
+                'adapters_count': len(self.adapters),
+                'available_configs': len(self.get_available_adapters()),
+                'system_healthy': True,
+                'last_check': datetime.now(UTC).isoformat()
+            }
