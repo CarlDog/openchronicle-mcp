@@ -12,7 +12,7 @@ import asyncio
 from .persistence.async_memory_repository import AsyncMemoryRepository
 from .character import CharacterManager, MoodTracker, VoiceManager
 from .context import ContextBuilder, WorldStateManager, SceneContextManager
-from .shared import MemorySnapshot, CharacterMemory, DatabaseManager
+from .shared import MemorySnapshot, CharacterMemory
 
 
 class AsyncMemoryOrchestrator:

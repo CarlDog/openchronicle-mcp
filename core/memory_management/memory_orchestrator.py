@@ -12,7 +12,7 @@ import logging
 from .persistence import MemoryRepository, MemorySerializer, SnapshotManager
 from .character import CharacterManager, MoodTracker, VoiceManager
 from .context import ContextBuilder, WorldStateManager, SceneContextManager
-from .shared import MemorySnapshot, CharacterMemory, DatabaseManager
+from .shared import MemorySnapshot, CharacterMemory
 
 
 class MemoryOrchestrator:
@@ -42,7 +42,7 @@ class MemoryOrchestrator:
         self.scene_manager = SceneContextManager()
         
         # Shared utilities
-        self.db_manager = DatabaseManager()
+        # self.db_manager = DatabaseManager()  # Not used, removed to avoid schema conflicts
         
         # Setup logging
         self.logger = logging.getLogger('openchronicle.memory')

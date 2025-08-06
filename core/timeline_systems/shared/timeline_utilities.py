@@ -9,6 +9,53 @@ import json
 from datetime import datetime, UTC
 from typing import Dict, List, Any, Optional
 
+class TimelineUtilities:
+    """Core timeline utility functions for navigation and state management."""
+    
+    @staticmethod
+    def build_timeline_from_scenes(scenes: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Build timeline entries from scene data."""
+        timeline = []
+        for scene in scenes:
+            timeline.append({
+                'type': 'scene',
+                'scene_id': scene.get('scene_id'),
+                'timestamp': scene.get('timestamp', datetime.now(UTC).isoformat()),
+                'description': scene.get('scene_label', 'Scene'),
+                'data': scene
+            })
+        return sorted(timeline, key=lambda x: x['timestamp'])
+    
+    @staticmethod
+    def find_scene_by_id(timeline: List[Dict[str, Any]], scene_id: str) -> Optional[Dict[str, Any]]:
+        """Find a specific scene in timeline."""
+        for entry in timeline:
+            if entry.get('type') == 'scene' and entry.get('scene_id') == scene_id:
+                return entry
+        return None
+    
+    @staticmethod
+    def get_scenes_in_range(timeline: List[Dict[str, Any]], start_time: str, end_time: str) -> List[Dict[str, Any]]:
+        """Get scenes within a time range."""
+        scenes = []
+        for entry in timeline:
+            if entry.get('type') == 'scene':
+                entry_time = entry.get('timestamp', '')
+                if start_time <= entry_time <= end_time:
+                    scenes.append(entry)
+        return scenes
+    
+    @staticmethod
+    def create_rollback_point(timeline: List[Dict[str, Any]], description: str = None) -> Dict[str, Any]:
+        """Create a rollback point from current timeline state."""
+        return {
+            'type': 'rollback_point',
+            'timestamp': datetime.now(UTC).isoformat(),
+            'description': description or 'Manual rollback point',
+            'timeline_snapshot': timeline.copy(),
+            'scene_count': len([e for e in timeline if e.get('type') == 'scene'])
+        }
+
 class TemporalStateManager:
     """Shared temporal state management utilities."""
     

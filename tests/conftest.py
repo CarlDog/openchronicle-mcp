@@ -1,158 +1,213 @@
 """
-OpenChronicle Test Configuration and Fixtures
+Pytest configuration and fixtures for OpenChronicle tests.
 
-Essential pytest configuration for testing the modular orchestrator architecture.
-Provides shared fixtures, utilities, and test environment setup.
+Provides common test setup, mock objects, and utility functions
+for both unit and integration tests.
 """
 
-import os
-import sys
+import pytest
+import asyncio
 import tempfile
 import shutil
-import pytest
+import os
+import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
+from unittest.mock import Mock, MagicMock, AsyncMock
 
-# Add core modules to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add the project root to the Python path
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
-# Import orchestrators for testing
+# Import core modules
 from core.scene_systems.scene_orchestrator import SceneOrchestrator
 from core.timeline_systems.timeline_orchestrator import TimelineOrchestrator
 from core.model_management.model_orchestrator import ModelOrchestrator
+from core.memory_management.memory_orchestrator import MemoryOrchestrator
+from core.context_systems.context_orchestrator import ContextOrchestrator
 
-# Import mock classes
+# Import enhanced mock adapters for isolated testing
 from tests.mocks.mock_adapters import MockModelOrchestrator, MockDatabaseManager
 
-# Test configuration
-TEST_CONFIG = {
-    'test_story_id': 'test_story_pytest',
-    'temp_dir_prefix': 'openchronicle_test_',
-    'mock_model_provider': 'mock_adapter',
-    'enable_logging': False,  # Disable logging during tests for cleaner output
-    'test_timeout': 30,  # 30 second timeout for individual tests
-}
+
+# ===== FIXTURES =====
 
 @pytest.fixture(scope="session")
-def test_config():
-    """Global test configuration."""
-    return TEST_CONFIG.copy()
+def event_loop():
+    """Create an instance of the default event loop for the test session."""
+    loop = asyncio.get_event_loop_policy().new_event_loop()
+    yield loop
+    loop.close()
+
 
 @pytest.fixture
 def temp_test_dir():
-    """Create temporary directory for test files."""
-    temp_dir = tempfile.mkdtemp(prefix=TEST_CONFIG['temp_dir_prefix'])
+    """Create a temporary directory for test files."""
+    temp_dir = tempfile.mkdtemp(prefix="opencronicle_test_")
     yield temp_dir
-    # Cleanup after test
-    shutil.rmtree(temp_dir, ignore_errors=True)
+    # Cleanup
+    if os.path.exists(temp_dir):
+        shutil.rmtree(temp_dir)
+
 
 @pytest.fixture
 def test_story_id():
-    """Standard test story ID for consistent testing."""
-    return TEST_CONFIG['test_story_id']
+    """Generate a unique story ID for testing."""
+    return f"test_story_{pytest.importorskip('uuid').uuid4().hex[:8]}"
+
 
 @pytest.fixture
 def clean_test_environment(temp_test_dir, test_story_id):
-    """Provide clean test environment with isolated storage."""
-    # Set up isolated test environment
-    original_cwd = os.getcwd()
-    os.chdir(temp_test_dir)
+    """Create a clean test environment with temporary storage."""
+    # Create test directories
+    test_storage = Path(temp_test_dir) / "storage"
+    test_storage.mkdir(exist_ok=True)
     
-    # Create test storage directories
-    os.makedirs('storage', exist_ok=True)
-    os.makedirs('logs', exist_ok=True)
+    # Create subdirectories
+    (test_storage / "characters").mkdir(exist_ok=True)
+    (test_storage / "scenes").mkdir(exist_ok=True)
+    (test_storage / "memory").mkdir(exist_ok=True)
+    (test_storage / "timeline").mkdir(exist_ok=True)
+    
+    # Set environment variables for test configuration
+    os.environ['OPENCHRONICLE_STORAGE_PATH'] = str(test_storage)
+    os.environ['OPENCHRONICLE_TEST_MODE'] = 'true'
     
     yield {
-        'temp_dir': temp_test_dir,
         'story_id': test_story_id,
-        'storage_dir': os.path.join(temp_test_dir, 'storage'),
-        'logs_dir': os.path.join(temp_test_dir, 'logs')
+        'storage_path': str(test_storage),
+        'temp_dir': temp_test_dir
     }
     
-    # Cleanup
-    os.chdir(original_cwd)
+    # Cleanup environment variables
+    os.environ.pop('OPENCHRONICLE_STORAGE_PATH', None)
+    os.environ.pop('OPENCHRONICLE_TEST_MODE', None)
 
-@pytest.fixture
-def scene_orchestrator(clean_test_environment):
-    """Initialize SceneOrchestrator for testing."""
-    try:
-        orchestrator = SceneOrchestrator(
-            story_id=clean_test_environment['story_id'],
-            config={'enable_logging': False}
-        )
-        yield orchestrator
-    except Exception as e:
-        pytest.skip(f"SceneOrchestrator not available: {e}")
-
-@pytest.fixture  
-def timeline_orchestrator(clean_test_environment):
-    """Initialize TimelineOrchestrator for testing."""
-    try:
-        orchestrator = TimelineOrchestrator(
-            story_id=clean_test_environment['story_id']
-        )
-        yield orchestrator
-    except Exception as e:
-        pytest.skip(f"TimelineOrchestrator not available: {e}")
-
-@pytest.fixture
-def model_orchestrator():
-    """Initialize ModelOrchestrator for testing."""
-    try:
-        orchestrator = ModelOrchestrator()
-        yield orchestrator
-    except Exception as e:
-        pytest.skip(f"ModelOrchestrator not available: {e}")
 
 @pytest.fixture
 def mock_model_orchestrator():
-    """Provide mock ModelOrchestrator for testing."""
-    orchestrator = MockModelOrchestrator()
-    yield orchestrator
+    """Create a mock model orchestrator for testing."""
+    orchestrator = MockModelOrchestrator(
+        simulate_failures=False,
+        enable_fallback=True,
+        max_retries=3
+    )
+    return orchestrator
+
 
 @pytest.fixture
 def mock_database_manager():
-    """Provide mock database manager for testing."""
-    db_manager = MockDatabaseManager()
-    yield db_manager
+    """Create a mock database manager for testing."""
+    db_manager = MockDatabaseManager(
+        simulate_delay=0.01,
+        simulate_failures=False,
+        failure_rate=0.05
+    )
+    return db_manager
+
 
 @pytest.fixture
-def sample_scene_data():
-    """Sample scene data for testing."""
-    return {
-        'user_input': 'The character enters the room cautiously.',
-        'model_output': 'The room was dimly lit, shadows dancing across the walls. The character took a tentative step forward, senses alert for any sign of danger.',
-        'memory_snapshot': {
-            'character_name': 'Alex',
-            'current_location': 'mysterious_room',
-            'emotional_state': 'cautious',
-            'health_status': 'healthy'
-        },
-        'flags': ['first_room_entry'],
-        'context_refs': ['room_description', 'character_background']
-    }
+def scene_orchestrator(clean_test_environment):
+    """Create a scene orchestrator for testing."""
+    story_id = clean_test_environment['story_id']
+    orchestrator = SceneOrchestrator(
+        story_id=story_id,
+        config={'enable_logging': False}
+    )
+    return orchestrator
+
+
+@pytest.fixture  
+def timeline_orchestrator(clean_test_environment):
+    """Create a timeline orchestrator for testing."""
+    story_id = clean_test_environment['story_id']
+    orchestrator = TimelineOrchestrator(story_id=story_id)
+    return orchestrator
+
 
 @pytest.fixture
-def sample_story_config():
-    """Sample story configuration for testing."""
-    return {
-        'story_id': 'test_story_pytest',
-        'title': 'Test Story',
-        'genre': 'adventure',
-        'characters': [
-            {
-                'name': 'Alex',
-                'role': 'protagonist',
-                'personality': 'cautious but determined'
-            }
-        ],
-        'settings': {
-            'world': 'modern_mystery',
-            'tone': 'suspenseful'
-        }
-    }
+def memory_orchestrator():
+    """Create a memory orchestrator for testing."""
+    return MemoryOrchestrator()
 
-# Test utilities
+
+@pytest.fixture
+def context_orchestrator():
+    """Create a context orchestrator for testing."""
+    return ContextOrchestrator()
+
+
+@pytest.fixture
+def model_orchestrator():
+    """Create a model orchestrator for testing."""
+    return ModelOrchestrator()
+
+
+# ===== UTILITY FUNCTIONS =====
+
+def create_test_scene_data(scene_id: str = None, **kwargs) -> Dict[str, Any]:
+    """Create test scene data with default values."""
+    if scene_id is None:
+        scene_id = f"test_scene_{pytest.importorskip('uuid').uuid4().hex[:8]}"
+    
+    default_data = {
+        'scene_id': scene_id,
+        'user_input': kwargs.get('user_input', 'Test user input'),
+        'model_output': kwargs.get('model_output', 'Test model output'),
+        'memory_snapshot': kwargs.get('memory_snapshot', {'characters': {}, 'location': 'test'}),
+        'flags': kwargs.get('flags', ['test']),
+        'context_refs': kwargs.get('context_refs', []),
+        'analysis_data': kwargs.get('analysis_data', {'mood': 'neutral', 'tokens': 50}),
+        'scene_label': kwargs.get('scene_label', 'test_scene'),
+        'model_name': kwargs.get('model_name', 'test_model'),
+        'timestamp': kwargs.get('timestamp', 1234567890)
+    }
+    
+    # Override with any provided kwargs
+    default_data.update(kwargs)
+    return default_data
+
+
+def create_test_character_data(character_name: str = None, **kwargs) -> Dict[str, Any]:
+    """Create test character data with default values."""
+    if character_name is None:
+        character_name = f"test_character_{pytest.importorskip('uuid').uuid4().hex[:8]}"
+    
+    default_data = {
+        'name': character_name,
+        'personality': kwargs.get('personality', 'Test personality'),
+        'background': kwargs.get('background', 'Test background'),
+        'current_state': kwargs.get('current_state', {
+            'emotional_state': 'neutral',
+            'physical_state': 'healthy',
+            'location': 'test_location'
+        }),
+        'relationships': kwargs.get('relationships', {}),
+        'goals': kwargs.get('goals', ['test_goal'])
+    }
+    
+    # Override with any provided kwargs
+    default_data.update(kwargs)
+    return default_data
+
+
+def create_test_memory_snapshot(**kwargs) -> Dict[str, Any]:
+    """Create test memory snapshot with default values."""
+    default_data = {
+        'characters': kwargs.get('characters', {}),
+        'world_state': kwargs.get('world_state', {'location': 'test_location'}),
+        'recent_events': kwargs.get('recent_events', []),
+        'flags': kwargs.get('flags', []),
+        'timestamp': kwargs.get('timestamp', 1234567890)
+    }
+    
+    # Override with any provided kwargs
+    default_data.update(kwargs)
+    return default_data
+
+
+# ===== TEST UTILITIES =====
+
 class TestUtils:
     """Utility functions for testing."""
     
@@ -226,130 +281,96 @@ class TestUtils:
             }
         }
     
-    def generate_test_context(self) -> Dict[str, Any]:
-        """Generate test context data for context orchestrator testing."""
-        return {
-            "context_id": f"test_context_{self.random.randint(1000, 9999)}",
-            "story_id": "test_story",
-            "prompt_data": {
-                "user_input": f"Test context input {self.random.randint(1, 100)}",
-                "system_context": "Test system context",
-                "memory_context": "Test memory context",
-                "character_context": "Test character context"
-            },
-            "optimization_data": {
-                "compressed": True,
-                "token_count": self.random.randint(100, 500),
-                "optimization_level": "standard"
-            },
-            "metadata": {
-                "created": "2025-01-01T12:00:00Z",
-                "context_type": "scene_generation"
-            }
-        }
-    
-    def generate_test_memory(self) -> Dict[str, Any]:
-        """Generate test memory data for memory orchestrator testing."""
-        return {
-            "memory_id": f"test_memory_{self.random.randint(1000, 9999)}",
-            "story_id": "test_story",
-            "character_states": {
-                "main_character": {
-                    "name": "Test Character",
-                    "traits": ["brave", "curious"],
-                    "current_state": "active",
-                    "memory_fragments": [
-                        {
-                            "fragment_id": f"fragment_{i}",
-                            "content": f"Memory fragment {i}",
-                            "importance": self.random.choice(["high", "medium", "low"])
-                        }
-                        for i in range(1, 4)
-                    ]
-                }
-            },
-            "consistency_data": {
-                "validated": True,
-                "last_check": "2025-01-01T12:00:00Z",
-                "inconsistencies": []
-            },
-            "metadata": {
-                "created": "2025-01-01T12:00:00Z",
-                "last_updated": "2025-01-01T12:00:00Z"
-            }
-        }
-    
-    def generate_test_character(self) -> Dict[str, Any]:
-        """Generate test character data for character management testing."""
-        return {
-            "character_id": f"test_char_{self.random.randint(1000, 9999)}",
-            "name": f"Test Character {self.random.randint(1, 100)}",
-            "traits": self.random.sample(["brave", "curious", "wise", "funny", "mysterious"], 3),
-            "backstory": f"Test character backstory {self.random.randint(1, 100)}",
-            "current_state": {
-                "location": "test_location",
-                "mood": self.random.choice(["happy", "sad", "excited", "contemplative"]),
-                "relationships": {
-                    "other_character": "friendly"
-                }
-            },
-            "story_id": "test_story"
-        }
-    
-    def generate_test_memory_with_inconsistencies(self) -> Dict[str, Any]:
-        """Generate test memory data with potential inconsistencies for testing consistency engine."""
-        base_memory = self.generate_test_memory()
-        
-        # Add some inconsistencies for testing
-        base_memory["character_states"]["main_character"]["memory_fragments"].append({
-            "fragment_id": "inconsistent_fragment",
-            "content": "Character was in two places at once",  # Inconsistency
-            "importance": "high"
-        })
-        
-        base_memory["consistency_data"]["validated"] = False
-        base_memory["consistency_data"]["inconsistencies"] = [
-            {
-                "type": "location_conflict",
-                "description": "Character location inconsistency detected",
-                "fragments": ["fragment_1", "inconsistent_fragment"]
-            }
-        ]
-        
-        return base_memory
 
-@pytest.fixture
-def test_utils():
-    """Provide test utilities."""
-    return TestUtils()
+# ===== MOCK DATA GENERATORS =====
 
-# Pytest configuration
+class MockDataGenerator:
+    """Generate realistic mock data for testing."""
+    
+    @staticmethod
+    def generate_scene_sequence(count: int = 5) -> List[Dict[str, Any]]:
+        """Generate a sequence of related scenes."""
+        scenes = []
+        for i in range(count):
+            scenes.append(create_test_scene_data(
+                scene_id=f"scene_{i+1:03d}",
+                user_input=f"Scene {i+1} user input",
+                model_output=f"Scene {i+1} generated content with narrative elements.",
+                memory_snapshot={
+                    'scene_number': i+1,
+                    'character_state': 'active',
+                    'location': f'location_{i+1}'
+                },
+                flags=[f'flag_{i+1}'],
+                context_refs=[f'context_{i+1}'],
+                scene_label=f'scene_{i+1}'
+            ))
+        return scenes
+    
+    @staticmethod
+    def generate_character_sequence(count: int = 3) -> List[Dict[str, Any]]:
+        """Generate a sequence of related characters."""
+        characters = []
+        for i in range(count):
+            characters.append(create_test_character_data(
+                character_name=f"character_{i+1}",
+                personality=f"Personality {i+1}",
+                background=f"Background {i+1}",
+                current_state={
+                    'emotional_state': ['happy', 'sad', 'angry'][i % 3],
+                    'physical_state': 'healthy',
+                    'location': f'location_{i+1}'
+                }
+            ))
+        return characters
+    
+    @staticmethod
+    def generate_memory_sequence(count: int = 3) -> List[Dict[str, Any]]:
+        """Generate a sequence of memory snapshots."""
+        memories = []
+        for i in range(count):
+            memories.append(create_test_memory_snapshot(
+                characters={
+                    f"character_{j+1}": create_test_character_data(f"character_{j+1}")
+                    for j in range(i+1)
+                },
+                world_state={
+                    'location': f'location_{i+1}',
+                    'time_of_day': ['morning', 'afternoon', 'evening'][i % 3]
+                },
+                recent_events=[f"Event {j+1}" for j in range(i+1)],
+                flags=[f"flag_{j+1}" for j in range(i+1)]
+            ))
+        return memories
+
+
+# ===== CONFIGURATION =====
+
 def pytest_configure(config):
-    """Configure pytest for OpenChronicle testing."""
+    """Configure pytest with custom markers."""
     config.addinivalue_line(
-        "markers", "unit: Unit tests for individual orchestrators"
+        "markers", "integration: mark test as integration test"
     )
     config.addinivalue_line(
-        "markers", "integration: Integration tests between orchestrators"  
+        "markers", "unit: mark test as unit test"
     )
     config.addinivalue_line(
-        "markers", "workflow: End-to-end workflow tests"
+        "markers", "slow: mark test as slow running"
     )
     config.addinivalue_line(
-        "markers", "slow: Tests that take longer than 5 seconds"
-    )
-    config.addinivalue_line(
-        "markers", "requires_models: Tests requiring LLM model access"
-    )
-    config.addinivalue_line(
-        "markers", "mock_only: Tests using only mock data (no external dependencies)"
+        "markers", "mock_only: mark test as using only mock data"
     )
 
-# Session-level setup and teardown
-@pytest.fixture(scope="session", autouse=True)
-def setup_test_session():
-    """Set up test session."""
-    print("\n🧪 Starting OpenChronicle Test Suite")
-    print("📋 Testing modular orchestrator architecture")
-    yield
-    print("\n✅ OpenChronicle Test Suite Complete")
+
+def pytest_collection_modifyitems(config, items):
+    """Modify test collection to add default markers."""
+    for item in items:
+        # Add default markers based on test location
+        if "integration" in str(item.fspath):
+            item.add_marker(pytest.mark.integration)
+        elif "unit" in str(item.fspath):
+            item.add_marker(pytest.mark.unit)
+        
+        # Add slow marker for tests that might take time
+        if any(keyword in item.name.lower() for keyword in ['performance', 'stress', 'load']):
+            item.add_marker(pytest.mark.slow)

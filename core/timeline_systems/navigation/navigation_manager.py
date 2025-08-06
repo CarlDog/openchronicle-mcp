@@ -230,51 +230,189 @@ class NavigationManager:
             return {"error": str(e)}
     
     async def navigate(self, navigation_type: str, **kwargs) -> Dict[str, Any]:
-        """Main navigation interface for different types of navigation."""
+        """Navigate through timeline with various options."""
         try:
-            if navigation_type == "history":
-                return {"type": "history", "data": await self.get_navigation_history()}
-            
+            if navigation_type == "next":
+                return await self._navigate_next(kwargs.get('current_scene_id'))
+            elif navigation_type == "previous":
+                return await self._navigate_previous(kwargs.get('current_scene_id'))
+            elif navigation_type == "jump_to":
+                return await self._navigate_jump_to(kwargs.get('target_scene_id'))
             elif navigation_type == "search":
-                results = await self.find_scene_by_criteria(
-                    title_pattern=kwargs.get('title_pattern'),
-                    content_pattern=kwargs.get('content_pattern'),
-                    time_range=kwargs.get('time_range')
-                )
-                return {"type": "search", "results": results}
-            
-            elif navigation_type == "context":
-                scene_id = kwargs.get('scene_id')
-                if not scene_id:
-                    raise ValueError("scene_id required for context navigation")
-                
-                context = await self.get_scene_context(
-                    scene_id, kwargs.get('context_window', 3)
-                )
-                return {"type": "context", "data": context}
-            
-            elif navigation_type == "track":
-                from_scene = kwargs.get('from_scene')
-                to_scene = kwargs.get('to_scene')
-                if not from_scene or not to_scene:
-                    raise ValueError("from_scene and to_scene required for tracking")
-                
-                success = await self.track_navigation_path(
-                    from_scene, to_scene, kwargs.get('nav_type', 'manual')
-                )
-                return {"type": "track", "success": success}
-            
-            elif navigation_type == "statistics":
-                stats = await self.get_navigation_statistics()
-                return {"type": "statistics", "data": stats}
-            
+                return await self._navigate_search(kwargs.get('search_criteria', {}))
             else:
-                raise ValueError(f"Unknown navigation type: {navigation_type}")
+                return {"error": f"Unknown navigation type: {navigation_type}"}
+        except Exception as e:
+            return {"error": f"Navigation failed: {str(e)}"}
+    
+    async def build_navigation_structure(self, timeline_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Build navigation structure from timeline data."""
+        try:
+            entries = timeline_data.get('entries', [])
+            
+            # Build navigation metadata
+            navigation_structure = {
+                'total_entries': len(entries),
+                'scene_entries': len([e for e in entries if e.get('type') == 'scene']),
+                'bookmark_entries': len([e for e in entries if e.get('type') == 'bookmark']),
+                'navigation_points': [],
+                'current_position': 0
+            }
+            
+            # Extract navigation points
+            for i, entry in enumerate(entries):
+                if entry.get('type') == 'scene':
+                    navigation_structure['navigation_points'].append({
+                        'index': i,
+                        'scene_id': entry.get('scene_id'),
+                        'timestamp': entry.get('timestamp'),
+                        'label': entry.get('scene_label', f'Scene {i+1}'),
+                        'type': 'scene'
+                    })
+                elif entry.get('type') == 'bookmark':
+                    bookmark_data = entry.get('bookmark_data', {})
+                    navigation_structure['navigation_points'].append({
+                        'index': i,
+                        'scene_id': bookmark_data.get('scene_id'),
+                        'timestamp': entry.get('timestamp'),
+                        'label': bookmark_data.get('description', 'Bookmark'),
+                        'type': 'bookmark'
+                    })
+            
+            return navigation_structure
+            
+        except Exception as e:
+            return {
+                'total_entries': 0,
+                'scene_entries': 0,
+                'bookmark_entries': 0,
+                'navigation_points': [],
+                'current_position': 0,
+                'error': f'Failed to build navigation structure: {str(e)}'
+            }
+
+    async def _navigate_next(self, current_scene_id: Optional[str]) -> Dict[str, Any]:
+        """Navigate to next scene in timeline."""
+        try:
+            from core.database import execute_query, init_database
+            init_database(self.story_id)
+            
+            if not current_scene_id:
+                # Get first scene
+                first_scene = execute_query(self.story_id, '''
+                    SELECT scene_id, scene_title, timestamp FROM scenes 
+                    ORDER BY timestamp ASC LIMIT 1
+                ''')
+                if first_scene:
+                    return {
+                        "target_scene_id": first_scene[0][0],
+                        "navigation_type": "next",
+                        "status": "success"
+                    }
+                return {"error": "No scenes found"}
+            
+            # Find next scene after current
+            next_scene = execute_query(self.story_id, '''
+                SELECT scene_id, scene_title, timestamp FROM scenes 
+                WHERE timestamp > (SELECT timestamp FROM scenes WHERE scene_id = ?)
+                ORDER BY timestamp ASC LIMIT 1
+            ''', (current_scene_id,))
+            
+            if next_scene:
+                return {
+                    "target_scene_id": next_scene[0][0],
+                    "navigation_type": "next",
+                    "status": "success"
+                }
+            else:
+                return {"error": "No next scene found"}
                 
         except Exception as e:
-            from utilities.logging_system import log_system_event
-            log_system_event("error", f"Navigation operation failed: {e}")
-            return {"error": str(e), "navigation_type": navigation_type}
+            return {"error": f"Next navigation failed: {str(e)}"}
+    
+    async def _navigate_previous(self, current_scene_id: Optional[str]) -> Dict[str, Any]:
+        """Navigate to previous scene in timeline."""
+        try:
+            from core.database import execute_query, init_database
+            init_database(self.story_id)
+            
+            if not current_scene_id:
+                # Get last scene
+                last_scene = execute_query(self.story_id, '''
+                    SELECT scene_id, scene_title, timestamp FROM scenes 
+                    ORDER BY timestamp DESC LIMIT 1
+                ''')
+                if last_scene:
+                    return {
+                        "target_scene_id": last_scene[0][0],
+                        "navigation_type": "previous",
+                        "status": "success"
+                    }
+                return {"error": "No scenes found"}
+            
+            # Find previous scene before current
+            prev_scene = execute_query(self.story_id, '''
+                SELECT scene_id, scene_title, timestamp FROM scenes 
+                WHERE timestamp < (SELECT timestamp FROM scenes WHERE scene_id = ?)
+                ORDER BY timestamp DESC LIMIT 1
+            ''', (current_scene_id,))
+            
+            if prev_scene:
+                return {
+                    "target_scene_id": prev_scene[0][0],
+                    "navigation_type": "previous",
+                    "status": "success"
+                }
+            else:
+                return {"error": "No previous scene found"}
+                
+        except Exception as e:
+            return {"error": f"Previous navigation failed: {str(e)}"}
+    
+    async def _navigate_jump_to(self, target_scene_id: str) -> Dict[str, Any]:
+        """Jump to specific scene."""
+        try:
+            from core.database import execute_query, init_database
+            init_database(self.story_id)
+            
+            # Verify scene exists
+            scene = execute_query(self.story_id, '''
+                SELECT scene_id, scene_title, timestamp FROM scenes WHERE scene_id = ?
+            ''', (target_scene_id,))
+            
+            if scene:
+                return {
+                    "target_scene_id": target_scene_id,
+                    "navigation_type": "jump_to",
+                    "status": "success"
+                }
+            else:
+                return {"error": f"Scene {target_scene_id} not found"}
+                
+        except Exception as e:
+            return {"error": f"Jump navigation failed: {str(e)}"}
+    
+    async def _navigate_search(self, search_criteria: Dict[str, Any]) -> Dict[str, Any]:
+        """Search for scenes matching criteria."""
+        try:
+            results = await self.find_scene_by_criteria(
+                title_pattern=search_criteria.get('title'),
+                content_pattern=search_criteria.get('content'),
+                time_range=search_criteria.get('time_range')
+            )
+            
+            if results:
+                return {
+                    "target_scene_id": results[0]['scene_id'],
+                    "navigation_type": "search",
+                    "search_results": results,
+                    "status": "success"
+                }
+            else:
+                return {"error": "No scenes found matching search criteria"}
+                
+        except Exception as e:
+            return {"error": f"Search navigation failed: {str(e)}"}
     
     def _format_display_time(self, timestamp: str) -> str:
         """Format timestamp for display."""

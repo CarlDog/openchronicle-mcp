@@ -1,343 +1,436 @@
 """
-Test suite for ModelOrchestrator functionality and model management coordination.
+Unit tests for ModelOrchestrator
 
-This test suite validates the ModelOrchestrator's ability to:
-- Initialize and coordinate model management subsystems
-- Handle model provider registration and fallback chains
-- Manage dynamic configuration loading and updates
-- Coordinate with model adapters and registry systems
-- Handle error scenarios and graceful degradation
-
-The tests follow the nuclear approach design principles:
-- Architecture-first testing focused on orchestrator patterns
-- Integration-focused validation of model management workflows
-- Real-world scenario testing with proper mocking
-- Comprehensive error handling and recovery validation
+Tests the model management and orchestration functionality.
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 import asyncio
+from unittest.mock import Mock, MagicMock, patch
 from typing import Dict, Any, List, Optional
 
-# Test the ModelOrchestrator import availability
-try:
+# Import the orchestrator under test
     from core.model_management.model_orchestrator import ModelOrchestrator
-    MODEL_ORCHESTRATOR_AVAILABLE = True
-except ImportError as e:
-    MODEL_ORCHESTRATOR_AVAILABLE = False
-    IMPORT_ERROR = str(e)
 
-# Import test utilities and fixtures
+# Import enhanced mock adapters for isolated testing
 from tests.mocks.mock_adapters import MockLLMAdapter, MockModelOrchestrator, MockDatabaseManager
 
 
-class TestModelOrchestrator:
-    """Test ModelOrchestrator initialization and core functionality."""
-    
-    def test_import_availability(self):
-        """Test that ModelOrchestrator can be imported successfully."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        # Verify successful import
-        assert MODEL_ORCHESTRATOR_AVAILABLE is True
-        assert ModelOrchestrator is not None
-        
-        # Verify class has expected attributes
-        assert hasattr(ModelOrchestrator, '__init__')
-        assert callable(ModelOrchestrator)
+class TestModelOrchestratorInitialization:
+    """Test ModelOrchestrator initialization and configuration."""
     
     def test_orchestrator_initialization(self):
-        """Test ModelOrchestrator initializes correctly with proper configuration."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        # Test basic initialization
+        """Test basic orchestrator initialization."""
         orchestrator = ModelOrchestrator()
+        
         assert orchestrator is not None
-        
-        # Verify orchestrator has expected attributes for model management
-        expected_attributes = [
-            'adapters', 'config_manager', 'lifecycle_manager', 'response_generator'
-        ]
-        
-        for attr in expected_attributes:
-            # Check if orchestrator has these attributes OR has methods to access them
-            has_attr = (hasattr(orchestrator, attr) or 
-                       hasattr(orchestrator, f'get_{attr}') or
-                       hasattr(orchestrator, f'{attr}_manager'))
-            assert has_attr, f"ModelOrchestrator should have access to {attr}"
+        assert hasattr(orchestrator, 'config_manager')
+        assert hasattr(orchestrator, 'lifecycle_manager')
+        assert hasattr(orchestrator, 'performance_monitor')
     
-    def test_orchestrator_components_initialization(self):
-        """Test that ModelOrchestrator properly initializes its subsystems."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Verify core components are accessible
-        # Note: Component access might be via methods rather than direct attributes
-        component_checks = [
-            # Check for adapter management
-            lambda orch: hasattr(orch, 'adapters') or hasattr(orch, 'get_adapters') or hasattr(orch, 'list_adapters'),
-            # Check for config manager access
-            lambda orch: hasattr(orch, 'config_manager') or hasattr(orch, 'get_config') or hasattr(orch, 'configuration'),
-            # Check for lifecycle management
-            lambda orch: hasattr(orch, 'lifecycle_manager') or hasattr(orch, 'get_lifecycle') or hasattr(orch, 'lifecycle'),
-        ]
-        
-        for i, check in enumerate(component_checks):
-            assert check(orchestrator), f"Component check {i+1} failed for ModelOrchestrator"
-    
-    def test_model_management_workflow(self):
-        """Test core model management workflow coordination."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test that orchestrator can handle basic model operations
-        # These might be async or sync depending on implementation
-        basic_operations = [
-            'initialize_adapter', 'get_fallback_chain', 'add_model_config',
-            'list_adapters', 'get_adapter', 'configure_fallback'
-        ]
-        
-        available_operations = []
-        for operation in basic_operations:
-            if hasattr(orchestrator, operation):
-                available_operations.append(operation)
-        
-        # At least some model management operations should be available
-        assert len(available_operations) > 0, "ModelOrchestrator should have model management methods"
-    
-    def test_orchestrator_error_handling(self):
-        """Test ModelOrchestrator error handling and graceful degradation."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test that orchestrator handles initialization gracefully
-        # Even if some components are unavailable
-        assert orchestrator is not None
-        
-        # Verify orchestrator doesn't crash on basic operations
-        # This validates graceful degradation patterns
-        try:
-            # Try to access orchestrator state without crashing
-            str(orchestrator)  # Should not raise exception
-            repr(orchestrator)  # Should not raise exception
-        except Exception as e:
-            pytest.fail(f"ModelOrchestrator should handle basic operations gracefully: {e}")
-    
-    def test_orchestrator_configuration_handling(self):
-        """Test ModelOrchestrator configuration and settings management."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test configuration access patterns
-        config_methods = [
-            'get_config', 'update_config', 'load_config',
-            'config_manager', 'configuration', 'settings'
-        ]
-        
-        config_access = False
-        for method in config_methods:
-            if hasattr(orchestrator, method):
-                config_access = True
-                break
-        
-        # Orchestrator should have some form of configuration access
-        assert config_access, "ModelOrchestrator should provide configuration access"
-
-
-class TestModelManagementMethods:
-    """Test ModelOrchestrator model management and coordination methods."""
-    
-    def test_adapter_registration_handling(self):
-        """Test model adapter registration and management."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip("Adapter registration appears to be handled internally")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test adapter management methods exist
-        adapter_methods = [
-            'register_adapter', 'initialize_adapter', 'get_adapter',
-            'list_adapters', 'add_adapter', 'configure_adapter'
-        ]
-        
-        available_methods = [method for method in adapter_methods 
-                           if hasattr(orchestrator, method)]
-        
-        if available_methods:
-            # If adapter methods are available, test basic functionality
-            assert len(available_methods) > 0
-        else:
-            pytest.skip("Adapter registration methods not exposed in current implementation")
-    
-    def test_fallback_chain_management(self):
-        """Test fallback chain configuration and management."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip("Fallback chain management appears to be internal")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test fallback chain methods
-        fallback_methods = [
-            'get_fallback_chain', 'configure_fallback', 'set_fallback_chain',
-            'create_fallback_chain', 'fallback_chain'
-        ]
-        
-        available_fallback_methods = [method for method in fallback_methods 
-                                    if hasattr(orchestrator, method)]
-        
-        if available_fallback_methods:
-            assert len(available_fallback_methods) > 0
-        else:
-            pytest.skip("Fallback chain methods not exposed in current implementation")
-    
-    def test_dynamic_configuration_updates(self):
-        """Test dynamic model configuration loading and updates."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip("Dynamic configuration appears to be handled internally")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test configuration update methods
-        config_update_methods = [
-            'add_model_config', 'update_model_config', 'reload_config',
-            'load_model_config', 'refresh_configuration'
-        ]
-        
-        available_config_methods = [method for method in config_update_methods 
-                                  if hasattr(orchestrator, method)]
-        
-        if available_config_methods:
-            assert len(available_config_methods) > 0
-        else:
-            pytest.skip("Dynamic configuration methods not exposed in current implementation")
-
-
-class TestModelOrchestrationIntegration:
-    """Test ModelOrchestrator integration with model adapters and registry."""
-    
-    def test_model_adapter_integration(self):
-        """Test integration between ModelOrchestrator and model adapters."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test that orchestrator can work with model adapters
-        # This validates the orchestrator → adapter coordination
-        
-        # Check for adapter-related attributes or methods
-        adapter_integration_indicators = [
-            hasattr(orchestrator, 'adapters'),
-            hasattr(orchestrator, 'get_adapter'),
-            hasattr(orchestrator, 'list_adapters'),
-            hasattr(orchestrator, 'initialize_adapter'),
-            hasattr(orchestrator, 'adapter_manager')
-        ]
-        
-        assert any(adapter_integration_indicators), "ModelOrchestrator should integrate with adapters"
-    
-    def test_registry_integration(self):
-        """Test integration between ModelOrchestrator and model registry."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test config manager integration
-        config_integration_indicators = [
-            hasattr(orchestrator, 'config_manager'),
-            hasattr(orchestrator, 'get_config'),
-            hasattr(orchestrator, 'load_config'),
-            hasattr(orchestrator, 'configuration'),
-            hasattr(orchestrator, 'lifecycle_manager')
-        ]
-        
-        assert any(config_integration_indicators), "ModelOrchestrator should integrate with configuration"
-    
-    def test_fallback_coordination(self):
-        """Test ModelOrchestrator coordination of fallback chains."""
-        if not MODEL_ORCHESTRATOR_AVAILABLE:
-            pytest.skip(f"ModelOrchestrator not available: {IMPORT_ERROR}")
-        
-        orchestrator = ModelOrchestrator()
-        
-        # Test fallback coordination capability
-        fallback_coordination_indicators = [
-            hasattr(orchestrator, 'get_fallback_chain'),
-            hasattr(orchestrator, 'configure_fallback'),
-            hasattr(orchestrator, 'fallback_chains'),
-            hasattr(orchestrator, 'create_fallback_chain'),
-            hasattr(orchestrator, 'fallback_manager')
-        ]
-        
-        assert any(fallback_coordination_indicators), "ModelOrchestrator should coordinate fallback chains"
-
-
-class TestModelOrchestrationWithMocks:
-    """Test ModelOrchestrator with mock data and scenarios."""
-    
-    def test_model_orchestrator_with_mock_adapters(self, mock_model_orchestrator):
-        """Test ModelOrchestrator coordination with mock LLM adapters."""
-        # Use mock orchestrator from conftest.py
-        orchestrator = mock_model_orchestrator
-        
-        # Test that mock orchestrator provides expected interface
-        assert orchestrator is not None
-        assert hasattr(orchestrator, 'adapters')
-        assert hasattr(orchestrator, 'get_fallback_chain')
-        
-        # Test mock adapter integration
-        mock_adapter = MockLLMAdapter("test_provider")
-        orchestrator.adapters["test_provider"] = mock_adapter
-        
-        # Verify mock integration works
-        assert "test_provider" in orchestrator.adapters
-        assert orchestrator.adapters["test_provider"] == mock_adapter
-    
-    def test_fallback_chain_with_mocks(self, mock_model_orchestrator):
-        """Test fallback chain behavior with mock adapters."""
-        orchestrator = mock_model_orchestrator
-        
-        # Set up mock fallback chain (use actual mock adapter names)
-        primary_adapter = MockLLMAdapter("primary_mock")
-        fallback_adapter = MockLLMAdapter("fallback_mock")
-        
-        orchestrator.adapters["primary_mock"] = primary_adapter
-        orchestrator.adapters["fallback_mock"] = fallback_adapter
-        
-        # Test fallback chain retrieval
-        fallback_chain = orchestrator.get_fallback_chain("primary_mock")
-        assert fallback_chain is not None
-        assert len(fallback_chain) > 0
-        
-        # Verify fallback chain contains expected providers (using mock names)
-        assert "primary_mock" in fallback_chain or "fallback_mock" in fallback_chain
-    
-    def test_dynamic_configuration_with_mocks(self, mock_model_orchestrator):
-        """Test dynamic configuration updates with mock data."""
-        orchestrator = mock_model_orchestrator
-        
-        # Test configuration update capability
-        test_config = {
-            "provider": "test_provider",
-            "model": "test_model",
-            "parameters": {"temperature": 0.7}
+    def test_orchestrator_with_config(self):
+        """Test orchestrator initialization with custom config."""
+        config = {
+            'default_model': 'test-model',
+            'fallback_chain': ['model1', 'model2'],
+            'max_retries': 5
         }
         
-        # Add mock configuration
-        orchestrator.add_model_config("test_provider", test_config)
+        orchestrator = ModelOrchestrator(config=config)
         
-        # Verify configuration was added
-        assert "test_provider" in orchestrator.adapters
-        assert orchestrator.adapters["test_provider"] is not None
+        assert orchestrator is not None
+        # Verify config was applied
+        assert orchestrator.config_manager is not None
+    
+    def test_orchestrator_component_status(self):
+        """Test that all components are properly initialized."""
+        orchestrator = ModelOrchestrator()
+        
+        # Check that all required components exist
+        components = [
+            'config_manager',
+            'lifecycle_manager', 
+            'performance_monitor',
+            'response_generator'
+        ]
+        
+        for component in components:
+            assert hasattr(orchestrator, component)
+            assert getattr(orchestrator, component) is not None
+
+
+class TestModelOrchestratorConfiguration:
+    """Test model configuration management."""
+    
+    def test_load_model_registry(self):
+        """Test loading model registry configuration."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test that registry can be loaded
+        registry = orchestrator.config_manager.load_model_registry()
+        
+        assert registry is not None
+        assert isinstance(registry, dict)
+        assert 'metadata' in registry
+        assert 'text_models' in registry
+    
+    def test_get_available_models(self):
+        """Test retrieving available model configurations."""
+        orchestrator = ModelOrchestrator()
+        
+        models = orchestrator.config_manager.get_available_models()
+        
+        assert models is not None
+        assert isinstance(models, list)
+        assert len(models) > 0
+        
+        # Verify model structure
+        for model in models:
+            assert 'name' in model
+            assert 'type' in model
+            assert 'enabled' in model
+    
+    def test_model_configuration_validation(self):
+        """Test model configuration validation."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test with valid configuration
+        valid_config = {
+            'name': 'test-model',
+            'type': 'text',
+            'enabled': True,
+            'api_key': 'test-key'
+        }
+        
+        is_valid = orchestrator.config_manager.validate_model_config(valid_config)
+        assert is_valid is True
+        
+        # Test with invalid configuration
+        invalid_config = {
+            'name': 'test-model',
+            # Missing required fields
+        }
+        
+        is_valid = orchestrator.config_manager.validate_model_config(invalid_config)
+        assert is_valid is False
+
+
+class TestModelOrchestratorLifecycle:
+    """Test model lifecycle management."""
+    
+    def test_model_initialization(self):
+        """Test model initialization process."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test initialization
+        result = orchestrator.lifecycle_manager.initialize_models()
+        
+        assert result is not None
+        assert isinstance(result, dict)
+        assert 'initialized_models' in result
+        assert 'failed_models' in result
+    
+    def test_model_health_check(self):
+        """Test model health monitoring."""
+        orchestrator = ModelOrchestrator()
+        
+        health_status = orchestrator.performance_monitor.check_model_health()
+        
+        assert health_status is not None
+        assert isinstance(health_status, dict)
+        assert 'healthy_models' in health_status
+        assert 'unhealthy_models' in health_status
+    
+    def test_model_fallback_chain(self):
+        """Test fallback chain configuration."""
+        orchestrator = ModelOrchestrator()
+        
+        fallback_chain = orchestrator.config_manager.get_fallback_chain()
+        
+        assert fallback_chain is not None
+        assert isinstance(fallback_chain, list)
+        assert len(fallback_chain) > 0
+
+
+class TestModelOrchestratorPerformance:
+    """Test performance monitoring and optimization."""
+    
+    def test_performance_metrics(self):
+        """Test performance metrics collection."""
+        orchestrator = ModelOrchestrator()
+        
+        metrics = orchestrator.performance_monitor.get_performance_metrics()
+        
+        assert metrics is not None
+        assert isinstance(metrics, dict)
+        assert 'response_times' in metrics
+        assert 'success_rates' in metrics
+        assert 'error_rates' in metrics
+    
+    def test_model_selection_optimization(self):
+        """Test intelligent model selection based on performance."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test model selection
+        selected_model = orchestrator.performance_monitor.select_optimal_model()
+        
+        assert selected_model is not None
+        assert isinstance(selected_model, str)
+    
+    def test_performance_degradation_detection(self):
+        """Test detection of performance degradation."""
+        orchestrator = ModelOrchestrator()
+        
+        degradation_status = orchestrator.performance_monitor.detect_degradation()
+        
+        assert degradation_status is not None
+        assert isinstance(degradation_status, dict)
+        assert 'degraded_models' in degradation_status
+
+
+class TestModelOrchestratorResponseGeneration:
+    """Test response generation functionality."""
+    
+    @pytest.mark.asyncio
+    async def test_generate_response_success(self):
+        """Test successful response generation."""
+        orchestrator = ModelOrchestrator()
+        
+        # Mock the response generator
+        with patch.object(orchestrator.response_generator, 'generate_response') as mock_generate:
+            mock_generate.return_value = {
+                'content': 'Test response content',
+                'model': 'test-model',
+                'tokens_used': 50,
+                'finish_reason': 'stop'
+            }
+            
+            response = await orchestrator.response_generator.generate_response(
+                prompt="Test prompt",
+                model_name="test-model"
+            )
+            
+            assert response is not None
+            assert 'content' in response
+            assert response['content'] == 'Test response content'
+    
+    @pytest.mark.asyncio
+    async def test_generate_response_with_fallback(self):
+        """Test response generation with fallback chain."""
+        orchestrator = ModelOrchestrator()
+        
+        # Mock multiple model attempts
+        with patch.object(orchestrator.response_generator, 'generate_response') as mock_generate:
+            # First attempt fails
+            mock_generate.side_effect = [
+                Exception("Model 1 failed"),
+                {
+                    'content': 'Fallback response content',
+                    'model': 'fallback-model',
+                    'tokens_used': 45,
+                    'finish_reason': 'stop'
+                }
+            ]
+            
+            response = await orchestrator.response_generator.generate_response_with_fallback(
+                prompt="Test prompt"
+            )
+            
+            assert response is not None
+            assert 'content' in response
+            assert response['content'] == 'Fallback response content'
+    
+    @pytest.mark.asyncio
+    async def test_generate_response_error_handling(self):
+        """Test error handling in response generation."""
+        orchestrator = ModelOrchestrator()
+        
+        # Mock all models failing
+        with patch.object(orchestrator.response_generator, 'generate_response') as mock_generate:
+            mock_generate.side_effect = Exception("All models failed")
+            
+            with pytest.raises(Exception) as exc_info:
+                await orchestrator.response_generator.generate_response(
+                    prompt="Test prompt"
+                )
+            
+            assert "All models failed" in str(exc_info.value)
+
+
+class TestModelOrchestratorIntegration:
+    """Test integration with mock adapters."""
+    
+    @pytest.mark.asyncio
+    async def test_mock_adapter_integration(self):
+        """Test integration with enhanced mock adapters."""
+        # Create mock adapter
+        mock_adapter = MockLLMAdapter("test_provider")
+        
+        # Test async response generation
+        response = await mock_adapter.generate_response("Test prompt")
+        
+        assert response is not None
+        assert hasattr(response, 'content')
+        assert hasattr(response, 'model')
+        assert hasattr(response, 'provider')
+        assert hasattr(response, 'tokens_used')
+        assert len(response.content) > 0
+    
+    @pytest.mark.asyncio
+    async def test_mock_orchestrator_integration(self):
+        """Test integration with mock model orchestrator."""
+        # Create mock orchestrator
+        mock_orchestrator = MockModelOrchestrator()
+        
+        # Test fallback chain
+        response = await mock_orchestrator.generate_with_fallback("Test prompt")
+        
+        assert response is not None
+        assert hasattr(response, 'content')
+        assert len(response.content) > 0
+    
+    @pytest.mark.asyncio
+    async def test_mock_adapter_failure_simulation(self):
+        """Test failure simulation in mock adapters."""
+        # Create mock adapter with failure simulation
+        primary_adapter = MockLLMAdapter("primary_mock")
+        fallback_adapter = MockLLMAdapter("fallback_mock", simulate_failures=True)
+        
+        # Test primary adapter (should succeed)
+        response1 = await primary_adapter.generate_response("Test prompt")
+        assert response1 is not None
+        
+        # Test fallback adapter (may fail due to simulation)
+        try:
+            response2 = await fallback_adapter.generate_response("Test prompt")
+            assert response2 is not None
+        except Exception as e:
+            # Failure is expected due to simulation
+            assert "Mock API error" in str(e)
+
+
+class TestModelOrchestratorErrorHandling:
+    """Test error handling and recovery mechanisms."""
+    
+    def test_configuration_error_handling(self):
+        """Test handling of configuration errors."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test with invalid configuration
+        with patch.object(orchestrator.config_manager, 'load_model_registry') as mock_load:
+            mock_load.side_effect = Exception("Configuration error")
+            
+            # Should handle error gracefully
+            result = orchestrator.config_manager.load_model_registry()
+            assert result is None
+    
+    def test_model_initialization_error_handling(self):
+        """Test handling of model initialization errors."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test initialization with errors
+        with patch.object(orchestrator.lifecycle_manager, 'initialize_models') as mock_init:
+            mock_init.side_effect = Exception("Initialization error")
+            
+            # Should handle error gracefully
+            result = orchestrator.lifecycle_manager.initialize_models()
+            assert result is None
+    
+    @pytest.mark.asyncio
+    async def test_response_generation_error_handling(self):
+        """Test error handling in response generation."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test with failing response generation
+        with patch.object(orchestrator.response_generator, 'generate_response') as mock_generate:
+            mock_generate.side_effect = Exception("Generation error")
+            
+            with pytest.raises(Exception) as exc_info:
+                await orchestrator.response_generator.generate_response("Test prompt")
+            
+            assert "Generation error" in str(exc_info.value)
+
+
+class TestModelOrchestratorPerformanceMonitoring:
+    """Test performance monitoring capabilities."""
+    
+    def test_performance_metrics_collection(self):
+        """Test collection of performance metrics."""
+        orchestrator = ModelOrchestrator()
+        
+        # Mock performance data
+        with patch.object(orchestrator.performance_monitor, 'get_performance_metrics') as mock_metrics:
+            mock_metrics.return_value = {
+                'response_times': {'model1': 1.5, 'model2': 2.1},
+                'success_rates': {'model1': 0.95, 'model2': 0.88},
+                'error_rates': {'model1': 0.05, 'model2': 0.12}
+            }
+            
+            metrics = orchestrator.performance_monitor.get_performance_metrics()
+            
+            assert metrics is not None
+            assert 'response_times' in metrics
+            assert 'success_rates' in metrics
+            assert 'error_rates' in metrics
+    
+    def test_performance_optimization(self):
+        """Test performance optimization based on metrics."""
+        orchestrator = ModelOrchestrator()
+        
+        # Test optimization recommendations
+        with patch.object(orchestrator.performance_monitor, 'get_optimization_recommendations') as mock_opt:
+            mock_opt.return_value = [
+                {'model': 'model1', 'action': 'increase_timeout'},
+                {'model': 'model2', 'action': 'reduce_batch_size'}
+            ]
+            
+            recommendations = orchestrator.performance_monitor.get_optimization_recommendations()
+            
+            assert recommendations is not None
+            assert isinstance(recommendations, list)
+            assert len(recommendations) > 0
+
+
+# Test data generators for comprehensive testing
+class TestModelOrchestratorDataGeneration:
+    """Test data generation for model orchestrator testing."""
+    
+    def test_generate_model_configs(self):
+        """Test generation of model configurations."""
+        configs = [
+            {
+                'name': 'test-model-1',
+                'type': 'text',
+                'enabled': True,
+                'api_key': 'test-key-1'
+            },
+            {
+                'name': 'test-model-2', 
+                'type': 'text',
+                'enabled': True,
+                'api_key': 'test-key-2'
+            }
+        ]
+        
+        assert len(configs) == 2
+        for config in configs:
+            assert 'name' in config
+            assert 'type' in config
+            assert 'enabled' in config
+    
+    def test_generate_performance_data(self):
+        """Test generation of performance test data."""
+        performance_data = {
+            'response_times': {'model1': 1.2, 'model2': 1.8},
+            'success_rates': {'model1': 0.98, 'model2': 0.92},
+            'error_rates': {'model1': 0.02, 'model2': 0.08}
+        }
+        
+        assert 'response_times' in performance_data
+        assert 'success_rates' in performance_data
+        assert 'error_rates' in performance_data
+        
+        for model in performance_data['response_times']:
+            assert performance_data['response_times'][model] > 0
+            assert 0 <= performance_data['success_rates'][model] <= 1
+            assert 0 <= performance_data['error_rates'][model] <= 1

@@ -19,7 +19,6 @@ from .memory_models import (
     MemoryUpdateResult
 )
 
-from .database_manager import DatabaseManager
 from .memory_utilities import MemoryUtilities
 
 __all__ = [
@@ -38,6 +37,5 @@ __all__ = [
     'MemoryUpdateResult',
     
     # Utilities
-    'DatabaseManager',
     'MemoryUtilities'
 ]

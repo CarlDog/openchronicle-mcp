@@ -2,7 +2,7 @@
 
 **Date**: August 5, 2025  
 **Project**: OpenChronicle Core  
-**Branch**: integration/core-modules-overhaul  
+**Branch**: main  
 **Planning Horizon**: 6 months (August 2025 - February 2026)  
 **Document Version**: 1.0  
 

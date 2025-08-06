@@ -15,7 +15,7 @@ from pathlib import Path
 # Database imports from parent core directory
 sys.path.append(str(Path(__file__).parent.parent.parent))
 from core.database import execute_query, init_database
-from core.bookmark_manager import BookmarkManager
+from core.management_systems.bookmark.bookmark_manager import BookmarkManager
 from core.scene_logger import list_scenes, get_labeled_scenes
 
 # Add utilities to path for logging system  

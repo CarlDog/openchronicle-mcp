@@ -28,14 +28,17 @@ class DatabaseOperations:
                 # Create scenes table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS scenes (
-                        id TEXT PRIMARY KEY,
-                        title TEXT,
-                        content TEXT,
-                        characters TEXT,
-                        timestamp REAL,
-                        token_usage INTEGER,
-                        mood TEXT,
-                        scene_data TEXT
+                        scene_id TEXT PRIMARY KEY,
+                        timestamp TEXT,
+                        input TEXT,
+                        output TEXT,
+                        memory_snapshot TEXT,
+                        flags TEXT,
+                        canon_refs TEXT,
+                        analysis TEXT,
+                        scene_label TEXT,
+                        structured_tags TEXT,
+                        story_id TEXT
                     )
                 ''')
                 
@@ -56,13 +59,12 @@ class DatabaseOperations:
                 # Create memory table
                 cursor.execute('''
                     CREATE TABLE IF NOT EXISTS memory (
-                        id TEXT PRIMARY KEY,
+                        story_id TEXT,
                         type TEXT,
-                        content TEXT,
-                        characters TEXT,
-                        importance REAL,
-                        timestamp REAL,
-                        memory_data TEXT
+                        key TEXT,
+                        value TEXT,
+                        updated_at TEXT,
+                        PRIMARY KEY (story_id, type, key)
                     )
                 ''')
                 
@@ -76,6 +78,21 @@ class DatabaseOperations:
                         tags TEXT,
                         created_at REAL,
                         bookmark_data TEXT
+                    )
+                ''')
+                
+                # Create rollback_points table
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS rollback_points (
+                        rollback_id TEXT PRIMARY KEY,
+                        scene_id TEXT,
+                        timestamp TEXT,
+                        description TEXT,
+                        scene_data TEXT,
+                        state_snapshot TEXT,
+                        created_at TEXT,
+                        last_used TEXT,
+                        usage_count INTEGER DEFAULT 0
                     )
                 ''')
                 

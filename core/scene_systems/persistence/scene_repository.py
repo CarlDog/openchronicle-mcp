@@ -53,8 +53,8 @@ class SceneRepository:
             execute_update(self.story_id, '''
                 INSERT OR REPLACE INTO scenes 
                 (scene_id, timestamp, input, output, memory_snapshot, flags, canon_refs, 
-                 analysis, scene_label, structured_tags)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 analysis, scene_label, structured_tags, story_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 db_data["scene_id"],
                 db_data["timestamp"],
@@ -65,7 +65,8 @@ class SceneRepository:
                 db_data["canon_refs"],
                 db_data["analysis"],
                 db_data["scene_label"],
-                db_data["structured_tags"]
+                db_data["structured_tags"],
+                self.story_id
             ))
             
             return True
@@ -217,32 +218,38 @@ class SceneRepository:
             print(f"Error updating scene label for {scene_id}: {e}")
             return False
     
-    def _row_to_scene_data(self, row: Dict[str, Any]) -> SceneData:
+    def _row_to_scene_data(self, row) -> SceneData:
         """
         Convert database row to SceneData object.
         
         Args:
-            row: Database row dictionary
+            row: Database row (sqlite3.Row or dict)
             
         Returns:
             SceneData object
         """
+        # Convert sqlite3.Row to dict if needed
+        if hasattr(row, 'keys'):
+            row_dict = dict(row)
+        else:
+            row_dict = row
+        
         # Parse JSON fields
-        memory_snapshot = json.loads(row.get("memory_snapshot", "{}"))
-        flags = json.loads(row.get("flags", "[]"))
-        context_refs = json.loads(row.get("canon_refs", "[]"))
-        analysis_data = json.loads(row.get("analysis", "null")) if row.get("analysis") else None
+        memory_snapshot = json.loads(row_dict.get("memory_snapshot", "{}"))
+        flags = json.loads(row_dict.get("flags", "[]"))
+        context_refs = json.loads(row_dict.get("canon_refs", "[]"))
+        analysis_data = json.loads(row_dict.get("analysis", "null")) if row_dict.get("analysis") else None
         
         return SceneData(
-            scene_id=row["scene_id"],
-            timestamp=row["timestamp"],
-            user_input=row["input"],
-            model_output=row["output"],
+            scene_id=row_dict["scene_id"],
+            timestamp=row_dict["timestamp"],
+            user_input=row_dict["input"],
+            model_output=row_dict["output"],
             memory_snapshot=memory_snapshot,
             flags=flags,
             context_refs=context_refs,
             analysis_data=analysis_data,
-            scene_label=row.get("scene_label"),
+            scene_label=row_dict.get("scene_label"),
             model_name=None,  # Not stored in current schema
             structured_tags=None  # Will be rebuilt from data
         )
