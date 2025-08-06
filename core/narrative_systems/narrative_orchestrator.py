@@ -440,3 +440,76 @@ class NarrativeOrchestrator:
         except Exception as e:
             log_error(f"Error during narrative orchestrator cleanup: {e}")
             return False
+    
+    # Character integration methods for compatibility
+    def get_character_narrative_context(self, story_id: str, character_id: str) -> Dict[str, Any]:
+        """Get narrative context for a specific character."""
+        state = self.get_narrative_state(story_id)
+        if not state:
+            return {}
+        
+        return {
+            'character_id': character_id,
+            'narrative_tension': state.narrative_tension,
+            'character_state': state.character_states.get(character_id, {}),
+            'emotional_state': state.emotional_stability.get(character_id, 0.5),
+            'last_update': state.last_update
+        }
+    
+    def update_character_narrative_state(self, story_id: str, character_id: str, narrative_data: Dict[str, Any]) -> bool:
+        """Update narrative state for a specific character."""
+        try:
+            state = self.get_narrative_state(story_id)
+            if not state:
+                state = NarrativeState(story_id=story_id, current_scene="")
+                self.narrative_states[story_id] = state
+            
+            # Update character-specific narrative data
+            state.character_states[character_id] = narrative_data
+            state.last_update = datetime.now().isoformat()
+            
+            log_info(f"Updated narrative state for character {character_id} in story {story_id}")
+            return True
+            
+        except Exception as e:
+            log_error(f"Failed to update character narrative state: {e}")
+            return False
+    
+    def validate_character_consistency(self, story_id: str, character_id: str, narrative_event: Dict[str, Any]) -> bool:
+        """Validate character consistency in narrative event."""
+        try:
+            if self.consistency_orchestrator:
+                result = self.consistency_orchestrator.validate_character_consistency(
+                    story_id, character_id, narrative_event
+                )
+                return result.get('consistent', True)
+            else:
+                # Basic validation when consistency orchestrator not available
+                return True
+                
+        except Exception as e:
+            log_warning(f"Character consistency validation failed: {e}")
+            return True  # Fail open
+    
+    def track_character_emotional_changes(self, story_id: str, character_id: str, emotional_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Track emotional changes for character in narrative context."""
+        try:
+            if self.emotional_orchestrator:
+                return self.emotional_orchestrator.track_character_emotions(
+                    story_id, character_id, emotional_data
+                )
+            else:
+                # Basic tracking when emotional orchestrator not available
+                state = self.get_narrative_state(story_id)
+                if state:
+                    state.emotional_stability[character_id] = emotional_data.get('stability', 0.5)
+                    
+                return {
+                    'tracking_status': 'basic',
+                    'character_id': character_id,
+                    'emotional_stability': emotional_data.get('stability', 0.5)
+                }
+                
+        except Exception as e:
+            log_error(f"Character emotional tracking failed: {e}")
+            return {'tracking_status': 'failed', 'error': str(e)}

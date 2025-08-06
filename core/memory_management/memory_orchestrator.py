@@ -468,6 +468,104 @@ class MemoryOrchestrator:
             "world_manager": "active" if self.world_manager else "inactive",
             "scene_manager": "active" if self.scene_manager else "inactive"
         }
+    
+    # ===== MODEL INTEGRATION METHODS (For Model-Memory Integration) =====
+    
+    def track_model_operation(self, story_id: str, operation_type: str, model_data: Dict[str, Any]) -> bool:
+        """Track model operations in memory context."""
+        try:
+            self.add_recent_event(
+                story_id,
+                f"Model operation: {operation_type}",
+                {
+                    "operation_type": operation_type,
+                    "model_data": model_data,
+                    "timestamp": datetime.now(UTC).isoformat()
+                }
+            )
+            return True
+        except Exception as e:
+            self.logger.error(f"Error tracking model operation: {e}")
+            return False
+    
+    def get_model_context(self, story_id: str) -> Dict[str, Any]:
+        """Get memory context formatted for model operations."""
+        try:
+            memory = self.repository.load_memory(story_id)
+            return {
+                "characters": {name: char.to_dict() for name, char in memory.characters.items()},
+                "world_state": memory.world_state,
+                "recent_events": memory.recent_events[-5:],  # Last 5 events
+                "flags": memory.flags,
+                "context_summary": self.get_memory_summary(story_id)
+            }
+        except Exception as e:
+            self.logger.error(f"Error getting model context: {e}")
+            return {}
+    
+    def update_from_model_response(self, story_id: str, model_response: Dict[str, Any]) -> bool:
+        """Update memory state based on model response."""
+        try:
+            if 'character_updates' in model_response:
+                for char_name, updates in model_response['character_updates'].items():
+                    self.update_character_memory(story_id, char_name, updates)
+            
+            if 'world_updates' in model_response:
+                for key, value in model_response['world_updates'].items():
+                    self.update_world_state(story_id, key, value)
+            
+            if 'new_events' in model_response:
+                for event in model_response['new_events']:
+                    self.add_recent_event(story_id, event['description'], event.get('data', {}))
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"Error updating from model response: {e}")
+            return False
+
+    # Common interface methods for integration compatibility
+    def get_status(self) -> Dict[str, Any]:
+        """Get orchestrator status - common interface method."""
+        return self.get_component_status()
+    
+    async def initialize(self) -> bool:
+        """Initialize orchestrator - common interface method."""
+        try:
+            # Memory orchestrator is stateless, so initialization is always successful
+            return True
+        except Exception as e:
+            self.logger.error(f"Error initializing memory orchestrator: {e}")
+            return False
+    
+    async def process_request_dict(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process request with dict format - common interface method."""
+        try:
+            story_id = request_data.get('story_id')
+            operation = request_data.get('operation')
+            
+            if not story_id:
+                return {'error': 'No story_id provided', 'success': False}
+            
+            if operation == 'get_context':
+                return {
+                    'success': True,
+                    'context': self.get_model_context(story_id)
+                }
+            elif operation == 'get_summary':
+                return {
+                    'success': True,
+                    'summary': self.get_memory_summary(story_id)
+                }
+            elif operation == 'load_memory':
+                return {
+                    'success': True,
+                    'memory': self.load_current_memory(story_id)
+                }
+            else:
+                return {'error': f'Unknown operation: {operation}', 'success': False}
+                
+        except Exception as e:
+            return {'error': str(e), 'success': False}
 
 
 # Global instance for backward compatibility

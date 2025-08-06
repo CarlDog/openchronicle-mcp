@@ -401,3 +401,46 @@ class PerformanceMonitor:
                 "error": str(e),
                 "timestamp": datetime.now(UTC).isoformat()
             }
+    
+    # Recording methods for integration compatibility
+    def record_response_time(self, adapter_name: str, response_time: float):
+        """Record response time for adapter."""
+        if adapter_name not in self.adapter_performance:
+            self.adapter_performance[adapter_name] = {
+                'response_times': [],
+                'success_count': 0,
+                'failure_count': 0
+            }
+        
+        self.adapter_performance[adapter_name]['response_times'].append(response_time)
+        log_info(f"Recorded response time for {adapter_name}: {response_time:.3f}s")
+    
+    def record_success(self, adapter_name: str, input_tokens: int, output_tokens: int):
+        """Record successful operation for adapter."""
+        if adapter_name not in self.adapter_performance:
+            self.adapter_performance[adapter_name] = {
+                'response_times': [],
+                'success_count': 0,
+                'failure_count': 0
+            }
+        
+        self.adapter_performance[adapter_name]['success_count'] += 1
+        log_info(f"Recorded success for {adapter_name}: {input_tokens} in, {output_tokens} out")
+    
+    def record_failure(self, adapter_name: str, error_type: str, error_message: str):
+        """Record failed operation for adapter."""
+        if adapter_name not in self.adapter_performance:
+            self.adapter_performance[adapter_name] = {
+                'response_times': [],
+                'success_count': 0,
+                'failure_count': 0
+            }
+        
+        self.adapter_performance[adapter_name]['failure_count'] += 1
+        log_warning(f"Recorded failure for {adapter_name}: {error_type} - {error_message}")
+    
+    def get_performance_summary(self, adapter_name: str = None) -> Dict[str, Any]:
+        """Get performance summary for adapter or all adapters."""
+        if adapter_name:
+            return self.adapter_performance.get(adapter_name, {})
+        return self.adapter_performance

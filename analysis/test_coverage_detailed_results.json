@@ -1,0 +1,3280 @@
+{
+  "orchestrators": {
+    "character_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\character_management\\character_orchestrator.py",
+      "module_path": "core.character_management.character_orchestrator",
+      "relative_path": "character_management",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "CharacterOrchestrator",
+          "methods": [
+            "__init__",
+            "load_default_components",
+            "register_component",
+            "unregister_component",
+            "create_character",
+            "get_character",
+            "delete_character",
+            "list_characters",
+            "get_character_stats",
+            "update_character_stat",
+            "get_effective_stat",
+            "generate_behavior_context",
+            "generate_response_modifiers",
+            "get_character_state",
+            "update_character_state",
+            "validate_character_action",
+            "get_consistency_score",
+            "export_character_data",
+            "import_character_data",
+            "save_all_characters",
+            "get_orchestrator_stats",
+            "cleanup_cache",
+            "_on_character_updated",
+            "_on_character_created"
+          ],
+          "async_methods": [],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "load_default_components",
+        "register_component",
+        "unregister_component",
+        "create_character",
+        "get_character",
+        "delete_character",
+        "list_characters",
+        "get_character_stats",
+        "update_character_stat",
+        "get_effective_stat",
+        "generate_behavior_context",
+        "generate_response_modifiers",
+        "get_character_state",
+        "update_character_state",
+        "validate_character_action",
+        "get_consistency_score",
+        "export_character_data",
+        "import_character_data",
+        "save_all_characters",
+        "get_orchestrator_stats",
+        "cleanup_cache",
+        "_on_character_updated",
+        "_on_character_created"
+      ],
+      "async_functions": [],
+      "imports": [
+        "logging",
+        "typing.Dict",
+        "typing.List",
+        "typing.Optional",
+        "typing.Any",
+        "typing.Set",
+        "typing.Tuple",
+        "datetime.datetime",
+        "character_base.CharacterEngineBase",
+        "character_base.CharacterEventHandler",
+        "character_base.CharacterStateProvider",
+        "character_base.CharacterBehaviorProvider",
+        "character_base.CharacterValidationProvider",
+        "character_data.CharacterData",
+        "character_data.CharacterStats",
+        "character_data.CharacterStatType",
+        "character_data.CharacterBehaviorType",
+        "character_data.CharacterRelationType",
+        "character_data.CharacterInteractionType",
+        "character_data.CharacterConsistencyLevel",
+        "character_storage.CharacterStorage",
+        "stats.StatsBehaviorEngine",
+        "interactions.InteractionDynamicsEngine",
+        "consistency.ConsistencyValidationEngine",
+        "presentation.PresentationStyleEngine"
+      ]
+    },
+    "context_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\context_systems\\context_orchestrator.py",
+      "module_path": "core.context_systems.context_orchestrator",
+      "relative_path": "context_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "ContextConfiguration",
+          "methods": [],
+          "async_methods": [],
+          "properties": []
+        },
+        {
+          "name": "ContextMetrics",
+          "methods": [],
+          "async_methods": [],
+          "properties": []
+        },
+        {
+          "name": "ContextOrchestrator",
+          "methods": [
+            "__init__",
+            "_ensure_initialized",
+            "analyze_context_metrics",
+            "_assemble_context",
+            "_format_content_analysis_context",
+            "_format_narrative_context",
+            "_create_fallback_context",
+            "_calculate_metrics",
+            "_get_current_time_ms"
+          ],
+          "async_methods": [
+            "build_context_with_analysis",
+            "build_simple_context",
+            "build_character_focused_context",
+            "_build_memory_context",
+            "_build_content_context",
+            "_build_narrative_context"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "_ensure_initialized",
+        "analyze_context_metrics",
+        "_assemble_context",
+        "_format_content_analysis_context",
+        "_format_narrative_context",
+        "_create_fallback_context",
+        "_calculate_metrics",
+        "_get_current_time_ms"
+      ],
+      "async_functions": [
+        "build_context_with_analysis",
+        "build_simple_context",
+        "build_character_focused_context",
+        "_build_memory_context",
+        "_build_content_context",
+        "_build_narrative_context"
+      ],
+      "imports": [
+        "os",
+        "json",
+        "sys",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Union",
+        "pathlib.Path",
+        "dataclasses.dataclass",
+        "logging_system.log_system_event",
+        "logging_system.log_info",
+        "logging_system.log_warning",
+        "logging_system.log_error",
+        "memory_management.context.ContextBuilder",
+        "memory_management.context.ContextConfiguration",
+        "memory_management.context.ContextMetrics",
+        "content_analysis.context_orchestrator.ContentAnalysisOrchestrator",
+        "narrative_systems.response.context_analyzer.ContextAnalyzer",
+        "memory_management.MemoryOrchestrator",
+        "content_analysis.ContentAnalysisOrchestrator",
+        "narrative_systems.NarrativeOrchestrator",
+        "time"
+      ]
+    },
+    "async_database_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\database_systems\\async_database_orchestrator.py",
+      "module_path": "core.database_systems.async_database_orchestrator",
+      "relative_path": "database_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "AsyncDatabaseOrchestrator",
+          "methods": [
+            "__init__",
+            "connection_manager",
+            "operations",
+            "fts_manager",
+            "migration_manager",
+            "get_sync_operations"
+          ],
+          "async_methods": [
+            "init_database",
+            "execute_query",
+            "execute_update",
+            "execute_insert",
+            "execute_many",
+            "get_database_info",
+            "check_integrity",
+            "optimize_database",
+            "check_connection",
+            "startup_health_check"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "get_async_database_orchestrator",
+        "__init__",
+        "connection_manager",
+        "operations",
+        "fts_manager",
+        "migration_manager",
+        "get_sync_operations"
+      ],
+      "async_functions": [
+        "async_execute_query",
+        "async_execute_update",
+        "async_execute_insert",
+        "init_database",
+        "execute_query",
+        "execute_update",
+        "execute_insert",
+        "execute_many",
+        "get_database_info",
+        "check_integrity",
+        "optimize_database",
+        "check_connection",
+        "startup_health_check"
+      ],
+      "imports": [
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "aiosqlite",
+        "os",
+        "pathlib.Path",
+        "async_connection.AsyncConnectionManager",
+        "async_operations.AsyncDatabaseOperations",
+        "fts.FTSManager",
+        "migration.MigrationManager",
+        "shared.DatabaseConfig",
+        "shared.DatabaseStats",
+        "database_orchestrator.DatabaseOrchestrator",
+        "connection.ConnectionManager",
+        "connection.ConnectionManager"
+      ]
+    },
+    "database_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\database_systems\\database_orchestrator.py",
+      "module_path": "core.database_systems.database_orchestrator",
+      "relative_path": "database_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "DatabaseOrchestrator",
+          "methods": [
+            "__init__",
+            "connection_manager",
+            "operations",
+            "fts_manager",
+            "migration_manager",
+            "health_checker",
+            "init_database",
+            "get_connection",
+            "execute_query",
+            "execute_update",
+            "execute_insert",
+            "has_fts5_support",
+            "optimize_fts_index",
+            "rebuild_fts_index",
+            "get_fts_stats",
+            "migrate_from_json",
+            "cleanup_json_files",
+            "get_database_stats",
+            "get_db_path",
+            "ensure_db_dir",
+            "get_all_databases",
+            "check_fts_support"
+          ],
+          "async_methods": [
+            "startup_health_check"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "init_database",
+        "get_connection",
+        "execute_query",
+        "execute_update",
+        "execute_insert",
+        "has_fts5_support",
+        "optimize_fts_index",
+        "rebuild_fts_index",
+        "get_fts_stats",
+        "migrate_from_json",
+        "cleanup_json_files",
+        "get_database_stats",
+        "get_db_path",
+        "ensure_db_dir",
+        "check_fts_support",
+        "get_all_databases",
+        "__init__",
+        "connection_manager",
+        "operations",
+        "fts_manager",
+        "migration_manager",
+        "health_checker",
+        "init_database",
+        "get_connection",
+        "execute_query",
+        "execute_update",
+        "execute_insert",
+        "has_fts5_support",
+        "optimize_fts_index",
+        "rebuild_fts_index",
+        "get_fts_stats",
+        "migrate_from_json",
+        "cleanup_json_files",
+        "get_database_stats",
+        "get_db_path",
+        "ensure_db_dir",
+        "get_all_databases",
+        "check_fts_support"
+      ],
+      "async_functions": [
+        "startup_health_check",
+        "startup_health_check"
+      ],
+      "imports": [
+        "typing.Optional",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "typing.Tuple",
+        "sqlite3",
+        "os",
+        "asyncio",
+        "pathlib.Path",
+        "connection.ConnectionManager",
+        "operations.DatabaseOperations",
+        "fts.FTSManager",
+        "migration.MigrationManager",
+        "health_checker.DatabaseHealthChecker",
+        "shared.DatabaseConfig",
+        "shared.DatabaseStats"
+      ]
+    },
+    "image_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\image_systems\\image_orchestrator.py",
+      "module_path": "core.image_systems.image_orchestrator",
+      "relative_path": "image_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "ImageOrchestrator",
+          "methods": [
+            "__init__",
+            "get_image_metadata",
+            "get_image_path",
+            "get_images_by_character",
+            "get_images_by_scene",
+            "get_images_by_tag",
+            "delete_image",
+            "optimize_storage",
+            "backup_images",
+            "validate_configuration",
+            "get_available_providers",
+            "get_available_style_presets",
+            "create_style_preset",
+            "get_system_stats",
+            "export_system_data"
+          ],
+          "async_methods": [
+            "generate_character_portrait",
+            "generate_scene_image",
+            "generate_location_image",
+            "generate_item_image",
+            "convert_image_format"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "create_image_engine",
+        "__init__",
+        "get_image_metadata",
+        "get_image_path",
+        "get_images_by_character",
+        "get_images_by_scene",
+        "get_images_by_tag",
+        "delete_image",
+        "optimize_storage",
+        "backup_images",
+        "validate_configuration",
+        "get_available_providers",
+        "get_available_style_presets",
+        "create_style_preset",
+        "get_system_stats",
+        "export_system_data"
+      ],
+      "async_functions": [
+        "auto_generate_character_portrait",
+        "auto_generate_scene_image",
+        "generate_character_portrait",
+        "generate_scene_image",
+        "generate_location_image",
+        "generate_item_image",
+        "convert_image_format"
+      ],
+      "imports": [
+        "asyncio",
+        "logging",
+        "os",
+        "pathlib.Path",
+        "typing.Dict",
+        "typing.List",
+        "typing.Optional",
+        "typing.Any",
+        "shared.image_models.ImageGenerationRequest",
+        "shared.image_models.ImageMetadata",
+        "shared.image_models.ImageType",
+        "shared.image_models.ImageSize",
+        "shared.image_models.ImageProvider",
+        "shared.config_manager.ImageConfigManager",
+        "shared.validation_utils.ImageValidator",
+        "generation.generation_engine.GenerationEngine",
+        "generation.prompt_processor.PromptProcessor",
+        "generation.style_manager.StyleManager",
+        "processing.storage_manager.ImageStorageManager",
+        "processing.format_converter.ImageFormatConverter",
+        "shared.config_manager.ImageConfigManager"
+      ]
+    },
+    "management_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\management_systems\\management_orchestrator.py",
+      "module_path": "core.management_systems.management_orchestrator",
+      "relative_path": "management_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "ManagementOrchestrator",
+          "methods": [
+            "__init__",
+            "count_tokens",
+            "estimate_tokens",
+            "select_optimal_model",
+            "trim_context",
+            "track_token_usage",
+            "get_token_usage_stats",
+            "get_token_cost_analysis",
+            "recommend_model_switch",
+            "get_bookmark_manager",
+            "create_bookmark",
+            "get_bookmark",
+            "list_bookmarks",
+            "search_bookmarks",
+            "get_chapter_structure",
+            "auto_create_chapter_bookmark",
+            "get_token_count",
+            "get_optimal_model",
+            "trim_to_limit",
+            "get_bookmarks_with_scenes",
+            "get_bookmark_stats",
+            "analyze_story_content",
+            "optimize_story_navigation",
+            "get_management_stats",
+            "_calculate_complexity_score",
+            "_generate_content_recommendations",
+            "clear_all_caches",
+            "export_all_data",
+            "update_config"
+          ],
+          "async_methods": [],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "count_tokens",
+        "estimate_tokens",
+        "select_optimal_model",
+        "trim_context",
+        "track_token_usage",
+        "get_token_usage_stats",
+        "get_token_cost_analysis",
+        "recommend_model_switch",
+        "get_bookmark_manager",
+        "create_bookmark",
+        "get_bookmark",
+        "list_bookmarks",
+        "search_bookmarks",
+        "get_chapter_structure",
+        "auto_create_chapter_bookmark",
+        "get_token_count",
+        "get_optimal_model",
+        "trim_to_limit",
+        "get_bookmarks_with_scenes",
+        "get_bookmark_stats",
+        "analyze_story_content",
+        "optimize_story_navigation",
+        "get_management_stats",
+        "_calculate_complexity_score",
+        "_generate_content_recommendations",
+        "clear_all_caches",
+        "export_all_data",
+        "update_config"
+      ],
+      "async_functions": [],
+      "imports": [
+        "sys",
+        "typing.Dict",
+        "typing.List",
+        "typing.Optional",
+        "typing.Any",
+        "typing.Union",
+        "pathlib.Path",
+        "logging_system.log_system_event",
+        "logging_system.log_info",
+        "logging_system.log_error",
+        "token.TokenManager",
+        "bookmark.BookmarkManager",
+        "shared.ManagementConfig",
+        "shared.TokenManagerException",
+        "shared.BookmarkManagerException",
+        "shared.ConfigValidator"
+      ]
+    },
+    "async_memory_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\memory_management\\async_memory_orchestrator.py",
+      "module_path": "core.memory_management.async_memory_orchestrator",
+      "relative_path": "memory_management",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "AsyncMemoryOrchestrator",
+          "methods": [
+            "__init__",
+            "_get_default_memory",
+            "get_performance_stats",
+            "clear_cache",
+            "_update_performance_stats",
+            "_get_default_memory",
+            "_format_character_snapshot_for_prompt"
+          ],
+          "async_methods": [
+            "load_current_memory",
+            "save_current_memory",
+            "update_character_memory",
+            "get_character_memory_snapshot",
+            "update_world_state",
+            "archive_memory_snapshot",
+            "refresh_memory_after_rollback",
+            "add_memory_flag",
+            "remove_memory_flag",
+            "has_memory_flag",
+            "add_recent_event"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "_get_default_memory",
+        "get_performance_stats",
+        "clear_cache",
+        "_update_performance_stats",
+        "_get_default_memory",
+        "_format_character_snapshot_for_prompt"
+      ],
+      "async_functions": [
+        "load_current_memory",
+        "save_current_memory",
+        "update_character_memory",
+        "get_character_memory_snapshot",
+        "update_world_state",
+        "archive_memory_snapshot",
+        "refresh_memory_after_rollback",
+        "add_memory_flag",
+        "remove_memory_flag",
+        "has_memory_flag",
+        "add_recent_event"
+      ],
+      "imports": [
+        "datetime.datetime",
+        "datetime.UTC",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Union",
+        "logging",
+        "asyncio",
+        "persistence.async_memory_repository.AsyncMemoryRepository",
+        "character.CharacterManager",
+        "character.MoodTracker",
+        "character.VoiceManager",
+        "context.ContextBuilder",
+        "context.WorldStateManager",
+        "context.SceneContextManager",
+        "shared.MemorySnapshot",
+        "shared.CharacterMemory"
+      ]
+    },
+    "memory_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\memory_management\\memory_orchestrator.py",
+      "module_path": "core.memory_management.memory_orchestrator",
+      "relative_path": "memory_management",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "MemoryOrchestrator",
+          "methods": [
+            "__init__",
+            "load_current_memory",
+            "save_current_memory",
+            "archive_memory_snapshot",
+            "restore_memory_from_snapshot",
+            "update_character_memory",
+            "get_character_memory_snapshot",
+            "format_character_snapshot_for_prompt",
+            "get_character_voice_prompt",
+            "update_character_mood",
+            "get_character_memory",
+            "update_world_state",
+            "add_memory_flag",
+            "remove_memory_flag",
+            "has_memory_flag",
+            "add_recent_event",
+            "get_memory_context_for_prompt",
+            "get_memory_summary",
+            "refresh_memory_after_rollback",
+            "analyze_memory_health",
+            "create_scene_context",
+            "get_component_status",
+            "track_model_operation",
+            "get_model_context",
+            "update_from_model_response",
+            "get_status"
+          ],
+          "async_methods": [
+            "initialize",
+            "process_request_dict"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "get_memory_orchestrator",
+        "load_current_memory",
+        "save_current_memory",
+        "archive_memory_snapshot",
+        "update_character_memory",
+        "get_character_memory_snapshot",
+        "format_character_snapshot_for_prompt",
+        "refresh_memory_after_rollback",
+        "get_character_voice_prompt",
+        "update_character_mood",
+        "update_world_state",
+        "add_memory_flag",
+        "remove_memory_flag",
+        "has_memory_flag",
+        "add_recent_event",
+        "get_character_memory",
+        "get_memory_summary",
+        "get_memory_context_for_prompt",
+        "restore_memory_from_snapshot",
+        "__init__",
+        "load_current_memory",
+        "save_current_memory",
+        "archive_memory_snapshot",
+        "restore_memory_from_snapshot",
+        "update_character_memory",
+        "get_character_memory_snapshot",
+        "format_character_snapshot_for_prompt",
+        "get_character_voice_prompt",
+        "update_character_mood",
+        "get_character_memory",
+        "update_world_state",
+        "add_memory_flag",
+        "remove_memory_flag",
+        "has_memory_flag",
+        "add_recent_event",
+        "get_memory_context_for_prompt",
+        "get_memory_summary",
+        "refresh_memory_after_rollback",
+        "analyze_memory_health",
+        "create_scene_context",
+        "get_component_status",
+        "track_model_operation",
+        "get_model_context",
+        "update_from_model_response",
+        "get_status"
+      ],
+      "async_functions": [
+        "initialize",
+        "process_request_dict"
+      ],
+      "imports": [
+        "datetime.datetime",
+        "datetime.UTC",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Union",
+        "logging",
+        "persistence.MemoryRepository",
+        "persistence.MemorySerializer",
+        "persistence.SnapshotManager",
+        "character.CharacterManager",
+        "character.MoodTracker",
+        "character.VoiceManager",
+        "context.ContextBuilder",
+        "context.WorldStateManager",
+        "context.SceneContextManager",
+        "shared.MemorySnapshot",
+        "shared.CharacterMemory"
+      ]
+    },
+    "model_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\model_management\\model_orchestrator.py",
+      "module_path": "core.model_management.model_orchestrator",
+      "relative_path": "model_management",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "ModelResponseGenerator",
+          "methods": [
+            "__init__",
+            "get_fallback_chain"
+          ],
+          "async_methods": [
+            "generate_response",
+            "generate_with_fallback_chain"
+          ],
+          "properties": []
+        },
+        {
+          "name": "ModelLifecycleManager",
+          "methods": [
+            "__init__",
+            "is_adapter_available",
+            "is_adapter_healthy"
+          ],
+          "async_methods": [
+            "initialize_adapter",
+            "initialize_all_adapters",
+            "health_check_adapter",
+            "health_check_all_adapters",
+            "shutdown_adapter",
+            "restart_adapter"
+          ],
+          "properties": []
+        },
+        {
+          "name": "ModelOrchestrator",
+          "methods": [
+            "__init__",
+            "response_generator",
+            "lifecycle_manager",
+            "configuration_manager",
+            "performance_monitor",
+            "get_adapter_status",
+            "get_available_adapters",
+            "get_adapter_info",
+            "config",
+            "default_adapter",
+            "default_adapter",
+            "add_model_config",
+            "get_model_status",
+            "get_status"
+          ],
+          "async_methods": [
+            "generate_response",
+            "initialize_adapter",
+            "initialize_adapter_safe",
+            "shutdown",
+            "process_request",
+            "initialize",
+            "process_request_dict"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "get_fallback_chain",
+        "__init__",
+        "is_adapter_available",
+        "is_adapter_healthy",
+        "__init__",
+        "response_generator",
+        "lifecycle_manager",
+        "configuration_manager",
+        "performance_monitor",
+        "get_adapter_status",
+        "get_available_adapters",
+        "get_adapter_info",
+        "config",
+        "default_adapter",
+        "default_adapter",
+        "add_model_config",
+        "get_model_status",
+        "get_status"
+      ],
+      "async_functions": [
+        "generate_response",
+        "generate_with_fallback_chain",
+        "initialize_adapter",
+        "initialize_all_adapters",
+        "health_check_adapter",
+        "health_check_all_adapters",
+        "shutdown_adapter",
+        "restart_adapter",
+        "generate_response",
+        "initialize_adapter",
+        "initialize_adapter_safe",
+        "shutdown",
+        "process_request",
+        "initialize",
+        "process_request_dict",
+        "initialize_with_semaphore"
+      ],
+      "imports": [
+        "asyncio",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "typing.List",
+        "datetime.datetime",
+        "datetime.UTC",
+        "model_interfaces.IModelOrchestrator",
+        "model_interfaces.IModelResponseGenerator",
+        "model_interfaces.IModelLifecycleManager",
+        "model_interfaces.IModelConfigurationManager",
+        "model_interfaces.IModelPerformanceMonitor",
+        "model_interfaces.ModelResponse",
+        "model_interfaces.AdapterStatus",
+        "model_interfaces.ModelConfiguration",
+        "core.shared.dependency_injection.DIContainer",
+        "core.shared.dependency_injection.get_container",
+        "core.shared.error_handling.with_error_handling",
+        "core.shared.error_handling.ModelError",
+        "core.shared.error_handling.ErrorContext",
+        "core.shared.error_handling.ErrorSeverity",
+        "core.shared.security_decorators.secure_operation",
+        "core.shared.security_decorators.SecurityThreatLevel",
+        "utilities.logging_system.log_info",
+        "utilities.logging_system.log_error",
+        "utilities.logging_system.log_warning",
+        "configuration_manager.ConfigurationManager",
+        "performance_monitor.PerformanceMonitor",
+        "asyncio"
+      ]
+    },
+    "narrative_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\narrative_systems\\narrative_orchestrator.py",
+      "module_path": "core.narrative_systems.narrative_orchestrator",
+      "relative_path": "narrative_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "NarrativeState",
+          "methods": [
+            "__post_init__"
+          ],
+          "async_methods": [],
+          "properties": []
+        },
+        {
+          "name": "NarrativeOperation",
+          "methods": [
+            "__post_init__"
+          ],
+          "async_methods": [],
+          "properties": []
+        },
+        {
+          "name": "NarrativeOrchestrator",
+          "methods": [
+            "__init__",
+            "_initialize_available_orchestrators",
+            "_load_configuration",
+            "get_narrative_state",
+            "update_narrative_state",
+            "process_narrative_operation",
+            "_handle_response_operation",
+            "_handle_mechanics_operation",
+            "_handle_consistency_operation",
+            "_handle_emotional_operation",
+            "get_system_status",
+            "cleanup",
+            "get_character_narrative_context",
+            "update_character_narrative_state",
+            "validate_character_consistency",
+            "track_character_emotional_changes"
+          ],
+          "async_methods": [],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__post_init__",
+        "__post_init__",
+        "__init__",
+        "_initialize_available_orchestrators",
+        "_load_configuration",
+        "get_narrative_state",
+        "update_narrative_state",
+        "process_narrative_operation",
+        "_handle_response_operation",
+        "_handle_mechanics_operation",
+        "_handle_consistency_operation",
+        "_handle_emotional_operation",
+        "get_system_status",
+        "cleanup",
+        "get_character_narrative_context",
+        "update_character_narrative_state",
+        "validate_character_consistency",
+        "track_character_emotional_changes"
+      ],
+      "async_functions": [],
+      "imports": [
+        "json",
+        "time",
+        "datetime.datetime",
+        "datetime.timedelta",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "typing.Union",
+        "pathlib.Path",
+        "dataclasses.dataclass",
+        "dataclasses.asdict",
+        "sys",
+        "logging_system.log_system_event",
+        "logging_system.log_info",
+        "logging_system.log_warning",
+        "logging_system.log_error",
+        "response.ResponseOrchestrator",
+        "mechanics.MechanicsOrchestrator",
+        "consistency.ConsistencyOrchestrator",
+        "emotional.EmotionalOrchestrator"
+      ]
+    },
+    "consistency_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\narrative_systems\\consistency\\consistency_orchestrator.py",
+      "module_path": "core.narrative_systems.consistency.consistency_orchestrator",
+      "relative_path": "narrative_systems\\consistency",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "ConsistencyOrchestrator",
+          "methods": [
+            "__init__",
+            "add_memory",
+            "retrieve_relevant_memories",
+            "validate_memory_consistency",
+            "get_character_memory_summary",
+            "compress_old_memories",
+            "get_memory_context_for_prompt",
+            "export_character_memories",
+            "import_character_memories",
+            "get_consistency_metrics",
+            "_validate_memory_event",
+            "get_status"
+          ],
+          "async_methods": [],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "add_memory",
+        "retrieve_relevant_memories",
+        "validate_memory_consistency",
+        "get_character_memory_summary",
+        "compress_old_memories",
+        "get_memory_context_for_prompt",
+        "export_character_memories",
+        "import_character_memories",
+        "get_consistency_metrics",
+        "_validate_memory_event",
+        "get_status"
+      ],
+      "async_functions": [],
+      "imports": [
+        "logging",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "typing.Optional",
+        "datetime.datetime",
+        "memory_validator.MemoryValidator",
+        "state_tracker.StateTracker",
+        "shared.narrative_state.NarrativeStateManager",
+        "shared.json_utilities.JSONUtilities"
+      ]
+    },
+    "emotional_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\narrative_systems\\emotional\\emotional_orchestrator.py",
+      "module_path": "core.narrative_systems.emotional.emotional_orchestrator",
+      "relative_path": "narrative_systems\\emotional",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "EmotionalOrchestrator",
+          "methods": [
+            "__init__",
+            "track_emotional_state",
+            "is_behavior_on_cooldown",
+            "trigger_behavior_cooldown",
+            "detect_dialogue_similarity",
+            "detect_emotional_loops",
+            "get_emotional_context",
+            "generate_anti_loop_prompt",
+            "analyze_emotional_stability",
+            "reset_character_emotional_state",
+            "export_emotional_data",
+            "import_emotional_data",
+            "_generate_stability_recommendations",
+            "get_status"
+          ],
+          "async_methods": [],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "track_emotional_state",
+        "is_behavior_on_cooldown",
+        "trigger_behavior_cooldown",
+        "detect_dialogue_similarity",
+        "detect_emotional_loops",
+        "get_emotional_context",
+        "generate_anti_loop_prompt",
+        "analyze_emotional_stability",
+        "reset_character_emotional_state",
+        "export_emotional_data",
+        "import_emotional_data",
+        "_generate_stability_recommendations",
+        "get_status"
+      ],
+      "async_functions": [],
+      "imports": [
+        "logging",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "typing.Optional",
+        "datetime.datetime",
+        "stability_tracker.StabilityTracker",
+        "mood_analyzer.MoodAnalyzer",
+        "shared.narrative_state.NarrativeStateManager",
+        "shared.json_utilities.JSONUtilities"
+      ]
+    },
+    "mechanics_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\narrative_systems\\mechanics\\mechanics_orchestrator.py",
+      "module_path": "core.narrative_systems.mechanics.mechanics_orchestrator",
+      "relative_path": "narrative_systems\\mechanics",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "MechanicsOrchestrator",
+          "methods": [
+            "__init__",
+            "_get_character_skill",
+            "_determine_difficulty",
+            "_generate_narrative_impact",
+            "_generate_consequences_and_benefits",
+            "_update_character_performance",
+            "_get_performance_summary",
+            "get_orchestrator_stats"
+          ],
+          "async_methods": [
+            "resolve_action",
+            "create_narrative_branches",
+            "simulate_action",
+            "_generate_narrative_prompt",
+            "cleanup"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "_get_character_skill",
+        "_determine_difficulty",
+        "_generate_narrative_impact",
+        "_generate_consequences_and_benefits",
+        "_update_character_performance",
+        "_get_performance_summary",
+        "get_orchestrator_stats"
+      ],
+      "async_functions": [
+        "resolve_action",
+        "create_narrative_branches",
+        "simulate_action",
+        "_generate_narrative_prompt",
+        "cleanup"
+      ],
+      "imports": [
+        "logging",
+        "asyncio",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "datetime.datetime",
+        "mechanics_models.MechanicsRequest",
+        "mechanics_models.MechanicsResult",
+        "mechanics_models.ResolutionResult",
+        "mechanics_models.NarrativeBranch",
+        "mechanics_models.ResolutionType",
+        "mechanics_models.DifficultyLevel",
+        "mechanics_models.OutcomeType",
+        "mechanics_models.DiceRoll",
+        "mechanics_models.ResolutionConfig",
+        "mechanics_models.CharacterPerformance",
+        "dice_engine.DiceEngine",
+        "narrative_branching.NarrativeBranchingEngine",
+        "shared.narrative_exceptions.NarrativeSystemError",
+        "utilities.logging_system.log_system_event",
+        "random"
+      ]
+    },
+    "response_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\narrative_systems\\response\\response_orchestrator.py",
+      "module_path": "core.narrative_systems.response.response_orchestrator",
+      "relative_path": "narrative_systems\\response",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "ResponseOrchestrator",
+          "methods": [
+            "__init__",
+            "process",
+            "validate",
+            "_create_request_from_data",
+            "_analyze_context",
+            "_plan_response",
+            "_generate_response",
+            "_evaluate_response",
+            "_update_metrics",
+            "get_response_history",
+            "get_performance_summary",
+            "_save_orchestrator_data",
+            "_load_orchestrator_data"
+          ],
+          "async_methods": [],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "process",
+        "validate",
+        "_create_request_from_data",
+        "_analyze_context",
+        "_plan_response",
+        "_generate_response",
+        "_evaluate_response",
+        "_update_metrics",
+        "get_response_history",
+        "get_performance_summary",
+        "_save_orchestrator_data",
+        "_load_orchestrator_data"
+      ],
+      "async_functions": [],
+      "imports": [
+        "json",
+        "time",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "datetime.datetime",
+        "pathlib.Path",
+        "shared.NarrativeComponent",
+        "shared.ValidationResult",
+        "shared.StateManager",
+        "response_models.ResponseRequest",
+        "response_models.ResponseResult",
+        "response_models.ResponseContext",
+        "response_models.ContextAnalysis",
+        "response_models.ResponsePlan",
+        "response_models.ResponseEvaluation",
+        "response_models.ResponseMetrics",
+        "context_analyzer.ContextAnalyzer",
+        "response_planner.ResponsePlanner"
+      ]
+    },
+    "scene_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\scene_systems\\scene_orchestrator.py",
+      "module_path": "core.scene_systems.scene_orchestrator",
+      "relative_path": "scene_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "SceneOrchestrator",
+          "methods": [
+            "__init__",
+            "repository",
+            "serializer",
+            "statistics_engine",
+            "mood_analyzer",
+            "scene_manager",
+            "labeling_system",
+            "id_generator",
+            "save_scene",
+            "load_scene",
+            "list_scenes",
+            "get_scenes_with_long_turns",
+            "get_token_usage_stats",
+            "get_scene_summary_stats",
+            "get_scenes_by_mood",
+            "get_character_mood_timeline",
+            "get_scenes_by_type",
+            "update_scene_label",
+            "get_scenes_by_label",
+            "get_labeled_scenes",
+            "rollback_to_scene",
+            "get_orchestrator_status",
+            "_update_operation_metrics"
+          ],
+          "async_methods": [],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "repository",
+        "serializer",
+        "statistics_engine",
+        "mood_analyzer",
+        "scene_manager",
+        "labeling_system",
+        "id_generator",
+        "save_scene",
+        "load_scene",
+        "list_scenes",
+        "get_scenes_with_long_turns",
+        "get_token_usage_stats",
+        "get_scene_summary_stats",
+        "get_scenes_by_mood",
+        "get_character_mood_timeline",
+        "get_scenes_by_type",
+        "update_scene_label",
+        "get_scenes_by_label",
+        "get_labeled_scenes",
+        "rollback_to_scene",
+        "get_orchestrator_status",
+        "_update_operation_metrics"
+      ],
+      "async_functions": [],
+      "imports": [
+        "os",
+        "json",
+        "sys",
+        "datetime.datetime",
+        "datetime.timezone",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "pathlib.Path",
+        "logging_system.log_system_event",
+        "logging_system.log_info",
+        "logging_system.log_warning",
+        "logging_system.log_error",
+        "persistence.scene_repository.SceneRepository",
+        "persistence.scene_serializer.SceneSerializer",
+        "analysis.statistics_engine.StatisticsEngine",
+        "analysis.mood_analyzer.MoodAnalyzer",
+        "management.scene_manager.SceneManager",
+        "management.labeling_system.LabelingSystem",
+        "shared.scene_models.Scene",
+        "shared.scene_models.SceneData",
+        "shared.scene_models.StructuredTags",
+        "shared.id_generator.SceneIdGenerator"
+      ]
+    },
+    "timeline_orchestrator": {
+      "file_path": "c:\\Temp\\openchronicle-core\\core\\timeline_systems\\timeline_orchestrator.py",
+      "module_path": "core.timeline_systems.timeline_orchestrator",
+      "relative_path": "timeline_systems",
+      "has_tests": false,
+      "test_files": [],
+      "class_names": [],
+      "methods": [],
+      "async_methods": [],
+      "classes": [
+        {
+          "name": "TimelineConfiguration",
+          "methods": [
+            "__init__"
+          ],
+          "async_methods": [],
+          "properties": []
+        },
+        {
+          "name": "TimelineMetrics",
+          "methods": [
+            "__init__",
+            "record_operation",
+            "get_metrics"
+          ],
+          "async_methods": [],
+          "properties": []
+        },
+        {
+          "name": "TimelineOrchestrator",
+          "methods": [
+            "__init__",
+            "_get_timeline_manager",
+            "_get_state_manager",
+            "_get_navigation_manager",
+            "get_metrics",
+            "_create_fallback_timeline_manager",
+            "_create_fallback_state_manager",
+            "_create_fallback_navigation_manager",
+            "_create_fallback_timeline",
+            "_get_current_time_ms"
+          ],
+          "async_methods": [
+            "build_timeline",
+            "create_rollback_point",
+            "list_rollback_points",
+            "rollback_to_point",
+            "navigate_timeline"
+          ],
+          "properties": []
+        }
+      ],
+      "functions": [
+        "__init__",
+        "__init__",
+        "record_operation",
+        "get_metrics",
+        "__init__",
+        "_get_timeline_manager",
+        "_get_state_manager",
+        "_get_navigation_manager",
+        "get_metrics",
+        "_create_fallback_timeline_manager",
+        "_create_fallback_state_manager",
+        "_create_fallback_navigation_manager",
+        "_create_fallback_timeline",
+        "_get_current_time_ms"
+      ],
+      "async_functions": [
+        "build_timeline",
+        "create_rollback_point",
+        "list_rollback_points",
+        "rollback_to_point",
+        "navigate_timeline"
+      ],
+      "imports": [
+        "asyncio",
+        "json",
+        "sys",
+        "datetime.datetime",
+        "datetime.UTC",
+        "pathlib.Path",
+        "typing.Dict",
+        "typing.List",
+        "typing.Any",
+        "typing.Optional",
+        "typing.Tuple",
+        "logging_system.log_system_event",
+        "logging_system.log_info",
+        "logging_system.log_warning",
+        "logging_system.log_error",
+        "shared.fallback_timeline.FallbackTimelineManager",
+        "shared.fallback_state.FallbackStateManager",
+        "shared.fallback_navigation.FallbackNavigationManager",
+        "time",
+        "timeline.timeline_manager.TimelineManager",
+        "rollback.state_manager.StateManager",
+        "navigation.navigation_manager.NavigationManager"
+      ]
+    }
+  },
+  "test_files": {
+    "test_complete_workflows.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\integration\\test_complete_workflows.py",
+      "category": "integration",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_complete_scene_generation_workflow",
+        "test_scene_continuation_workflow",
+        "test_character_interaction_workflow",
+        "test_timeline_navigation_workflow",
+        "test_memory_consistency_workflow",
+        "test_context_management_workflow",
+        "test_model_failure_recovery",
+        "test_database_failure_handling",
+        "test_invalid_input_handling",
+        "test_concurrent_scene_generation",
+        "test_large_workflow_performance",
+        "test_scene_data_integrity",
+        "test_memory_data_consistency"
+      ],
+      "mock_usage": true,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestCompleteSceneGenerationWorkflow",
+          "methods": [],
+          "async_methods": [
+            "test_complete_scene_generation_workflow",
+            "test_scene_continuation_workflow",
+            "test_character_interaction_workflow",
+            "test_timeline_navigation_workflow",
+            "test_memory_consistency_workflow",
+            "test_context_management_workflow"
+          ]
+        },
+        {
+          "name": "TestErrorHandlingAndRecovery",
+          "methods": [],
+          "async_methods": [
+            "test_model_failure_recovery",
+            "test_database_failure_handling",
+            "test_invalid_input_handling"
+          ]
+        },
+        {
+          "name": "TestPerformanceAndScalability",
+          "methods": [],
+          "async_methods": [
+            "test_concurrent_scene_generation",
+            "test_large_workflow_performance"
+          ]
+        },
+        {
+          "name": "TestIntegrationDataValidation",
+          "methods": [],
+          "async_methods": [
+            "test_scene_data_integrity",
+            "test_memory_data_consistency"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator",
+        "core.context_systems.context_orchestrator.ContextOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator",
+        "core.timeline_systems.timeline_orchestrator.TimelineOrchestrator",
+        "core.model_management.model_orchestrator.ModelOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator",
+        "core.context_systems.context_orchestrator.ContextOrchestrator",
+        "tests.mocks.mock_adapters.MockModelOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "time",
+        "typing.Dict",
+        "typing.Any",
+        "typing.Optional",
+        "pathlib.Path",
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator",
+        "core.context_systems.context_orchestrator.ContextOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator",
+        "core.timeline_systems.timeline_orchestrator.TimelineOrchestrator",
+        "core.model_management.model_orchestrator.ModelOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator",
+        "core.context_systems.context_orchestrator.ContextOrchestrator",
+        "tests.mocks.mock_adapters.MockModelOrchestrator",
+        "tests.mocks.mock_adapters.MockDatabaseManager"
+      ],
+      "pytest_marks": []
+    },
+    "test_user_sessions.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\integration\\test_user_sessions.py",
+      "category": "integration",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_complete_interactive_story_session",
+        "test_multi_character_dialogue_session",
+        "test_session_state_persistence",
+        "test_session_response_times",
+        "test_session_memory_efficiency"
+      ],
+      "mock_usage": false,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestCompleteUserSessions",
+          "methods": [],
+          "async_methods": [
+            "test_complete_interactive_story_session",
+            "test_multi_character_dialogue_session",
+            "test_session_state_persistence"
+          ]
+        },
+        {
+          "name": "TestSessionPerformance",
+          "methods": [],
+          "async_methods": [
+            "test_session_response_times",
+            "test_session_memory_efficiency"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.model_management.ModelOrchestrator",
+        "core.memory_management.MemoryOrchestrator",
+        "core.character_management.CharacterOrchestrator",
+        "core.scene_systems.SceneOrchestrator",
+        "core.context_systems.ContextOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "time",
+        "core.model_management.ModelOrchestrator",
+        "core.memory_management.MemoryOrchestrator",
+        "core.character_management.CharacterOrchestrator",
+        "core.scene_systems.SceneOrchestrator",
+        "core.context_systems.ContextOrchestrator",
+        "psutil",
+        "os"
+      ],
+      "pytest_marks": []
+    },
+    "test_concurrency_advanced.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\performance\\test_concurrency_advanced.py",
+      "category": "performance",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_high_load_concurrent_scene_generation",
+        "test_mixed_orchestrator_concurrency",
+        "test_orchestrator_stress_limits",
+        "test_concurrent_performance_monitoring",
+        "test_resource_usage_under_concurrency"
+      ],
+      "mock_usage": false,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestAdvancedConcurrency",
+          "methods": [],
+          "async_methods": [
+            "test_high_load_concurrent_scene_generation",
+            "test_mixed_orchestrator_concurrency",
+            "test_orchestrator_stress_limits"
+          ]
+        },
+        {
+          "name": "TestConcurrencyPerformanceMetrics",
+          "methods": [],
+          "async_methods": [
+            "test_concurrent_performance_monitoring",
+            "test_resource_usage_under_concurrency"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.model_management.ModelOrchestrator",
+        "core.memory_management.MemoryOrchestrator",
+        "core.scene_systems.SceneOrchestrator",
+        "core.character_management.CharacterOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "time",
+        "core.model_management.ModelOrchestrator",
+        "core.memory_management.MemoryOrchestrator",
+        "core.scene_systems.SceneOrchestrator",
+        "core.character_management.CharacterOrchestrator",
+        "core.model_management.performance_monitor.PerformanceMonitor",
+        "psutil",
+        "os"
+      ],
+      "pytest_marks": []
+    },
+    "test_core_regression.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\performance\\test_core_regression.py",
+      "category": "performance",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_logging_system_performance",
+        "test_file_system_operations_performance",
+        "test_scene_orchestrator_initialization_performance",
+        "test_configuration_loading_performance",
+        "test_json_serialization_performance",
+        "test_string_operations_performance",
+        "test_async_operations_performance"
+      ],
+      "mock_usage": false,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestCorePerformance",
+          "methods": [
+            "test_logging_system_performance",
+            "test_file_system_operations_performance",
+            "test_scene_orchestrator_initialization_performance",
+            "test_configuration_loading_performance"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestDataStructurePerformance",
+          "methods": [
+            "test_json_serialization_performance",
+            "test_string_operations_performance"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestHealthCheckPerformance",
+          "methods": [],
+          "async_methods": [
+            "test_async_operations_performance"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "time",
+        "tempfile",
+        "os",
+        "pathlib.Path",
+        "sys",
+        "utilities.logging_system.log_info",
+        "utilities.logging_system.log_warning",
+        "utilities.logging_system.log_error",
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator",
+        "core.database_systems.shared.DatabaseConfig",
+        "json",
+        "asyncio"
+      ],
+      "pytest_marks": []
+    },
+    "test_regression.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\performance\\test_regression.py",
+      "category": "performance",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_database_initialization_performance",
+        "test_scene_insertion_performance",
+        "test_scene_retrieval_performance",
+        "test_bulk_scene_insertion_performance",
+        "test_database_query_performance",
+        "test_health_check_performance",
+        "test_memory_operation_performance",
+        "test_complete_workflow_performance"
+      ],
+      "mock_usage": false,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestDatabasePerformance",
+          "methods": [
+            "test_database_initialization_performance",
+            "test_scene_insertion_performance",
+            "test_scene_retrieval_performance",
+            "test_bulk_scene_insertion_performance",
+            "test_database_query_performance"
+          ],
+          "async_methods": [
+            "test_health_check_performance"
+          ]
+        },
+        {
+          "name": "TestMemorySystemPerformance",
+          "methods": [
+            "test_memory_operation_performance"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestIntegrationPerformance",
+          "methods": [
+            "test_complete_workflow_performance"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [
+        "core.database_systems.database_orchestrator.DatabaseOrchestrator",
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "time",
+        "sqlite3",
+        "tempfile",
+        "os",
+        "pathlib.Path",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "json",
+        "sys",
+        "core.database_systems.database_orchestrator.DatabaseOrchestrator",
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator"
+      ],
+      "pytest_marks": []
+    },
+    "test_async_database_operations.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_async_database_operations.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_story_id",
+        "test_async_database_initialization",
+        "test_async_basic_operations",
+        "test_async_many_operations",
+        "test_async_integrity_check",
+        "test_async_connection_check",
+        "test_async_startup_health_check",
+        "test_async_concurrent_operations",
+        "test_async_performance_baseline"
+      ],
+      "mock_usage": false,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestAsyncDatabaseOperations",
+          "methods": [
+            "test_story_id"
+          ],
+          "async_methods": [
+            "test_async_database_initialization",
+            "test_async_basic_operations",
+            "test_async_many_operations",
+            "test_async_integrity_check",
+            "test_async_connection_check",
+            "test_async_startup_health_check",
+            "test_async_concurrent_operations"
+          ]
+        },
+        {
+          "name": "TestAsyncDatabasePerformance",
+          "methods": [],
+          "async_methods": [
+            "test_async_performance_baseline"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.database_systems.async_database_orchestrator.AsyncDatabaseOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "tempfile",
+        "os",
+        "pathlib.Path",
+        "core.database_systems.async_database_orchestrator.AsyncDatabaseOrchestrator",
+        "core.shared.async_database_operations.AsyncDatabaseOperations",
+        "uuid",
+        "uuid",
+        "uuid",
+        "uuid",
+        "time",
+        "uuid"
+      ],
+      "pytest_marks": []
+    },
+    "test_async_memory_operations.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_async_memory_operations.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_story_id",
+        "test_async_memory_initialization",
+        "test_async_memory_save_load",
+        "test_async_character_memory_operations",
+        "test_async_world_state_operations",
+        "test_async_memory_flags",
+        "test_async_recent_events",
+        "test_async_memory_snapshots",
+        "test_async_memory_caching_performance",
+        "test_async_concurrent_memory_operations",
+        "test_async_memory_large_dataset_performance",
+        "test_async_memory_cache_management"
+      ],
+      "mock_usage": false,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestAsyncMemoryOperations",
+          "methods": [
+            "test_story_id"
+          ],
+          "async_methods": [
+            "test_async_memory_initialization",
+            "test_async_memory_save_load",
+            "test_async_character_memory_operations",
+            "test_async_world_state_operations",
+            "test_async_memory_flags",
+            "test_async_recent_events",
+            "test_async_memory_snapshots"
+          ]
+        },
+        {
+          "name": "TestAsyncMemoryPerformance",
+          "methods": [],
+          "async_methods": [
+            "test_async_memory_caching_performance",
+            "test_async_concurrent_memory_operations",
+            "test_async_memory_large_dataset_performance",
+            "test_async_memory_cache_management"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.memory_management.async_memory_orchestrator.AsyncMemoryOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "tempfile",
+        "os",
+        "pathlib.Path",
+        "uuid",
+        "time",
+        "core.memory_management.async_memory_orchestrator.AsyncMemoryOrchestrator",
+        "core.memory_management.persistence.async_memory_repository.AsyncMemoryRepository"
+      ],
+      "pytest_marks": []
+    },
+    "test_context_orchestrator.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_context_orchestrator.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_import_availability",
+        "test_orchestrator_initialization",
+        "test_orchestrator_components_initialization",
+        "test_context_building_workflow",
+        "test_orchestrator_error_handling",
+        "test_orchestrator_configuration_handling",
+        "test_context_assembly_handling",
+        "test_memory_integration_handling",
+        "test_prompt_optimization_handling",
+        "test_context_builder_integration",
+        "test_memory_system_integration",
+        "test_prompt_assembly_coordination",
+        "test_context_orchestrator_with_mock_data",
+        "test_memory_integration_with_mocks",
+        "test_context_building_with_mock_scenarios"
+      ],
+      "mock_usage": true,
+      "async_tests": false,
+      "test_classes": [
+        {
+          "name": "TestContextOrchestrator",
+          "methods": [
+            "test_import_availability",
+            "test_orchestrator_initialization",
+            "test_orchestrator_components_initialization",
+            "test_context_building_workflow",
+            "test_orchestrator_error_handling",
+            "test_orchestrator_configuration_handling"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestContextBuildingMethods",
+          "methods": [
+            "test_context_assembly_handling",
+            "test_memory_integration_handling",
+            "test_prompt_optimization_handling"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestContextOrchestrationIntegration",
+          "methods": [
+            "test_context_builder_integration",
+            "test_memory_system_integration",
+            "test_prompt_assembly_coordination"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestContextOrchestrationWithMocks",
+          "methods": [
+            "test_context_orchestrator_with_mock_data",
+            "test_memory_integration_with_mocks",
+            "test_context_building_with_mock_scenarios"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [
+        "tests.mocks.mock_adapters.MockModelOrchestrator",
+        "core.context_systems.context_orchestrator.ContextOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "unittest.mock.Mock",
+        "unittest.mock.patch",
+        "unittest.mock.MagicMock",
+        "asyncio",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "typing.Optional",
+        "tests.mocks.mock_adapters.MockLLMAdapter",
+        "tests.mocks.mock_adapters.MockModelOrchestrator",
+        "tests.mocks.mock_adapters.MockDatabaseManager",
+        "core.context_systems.context_orchestrator.ContextOrchestrator"
+      ],
+      "pytest_marks": []
+    },
+    "test_core_reliability.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_core_reliability.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_core_imports",
+        "test_orchestrator_availability",
+        "test_basic_configuration_loading",
+        "test_model_orchestrator_basic_functionality"
+      ],
+      "mock_usage": false,
+      "async_tests": false,
+      "test_classes": [
+        {
+          "name": "TestCoreSystemReliability",
+          "methods": [
+            "test_core_imports",
+            "test_orchestrator_availability",
+            "test_basic_configuration_loading",
+            "test_model_orchestrator_basic_functionality"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [
+        "core.model_management.ModelOrchestrator",
+        "core.memory_management.MemoryOrchestrator",
+        "core.character_management.CharacterOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "logging",
+        "core.model_management",
+        "core.memory_management",
+        "core.character_management",
+        "core.model_management.ModelOrchestrator",
+        "core.memory_management.MemoryOrchestrator",
+        "core.character_management.CharacterOrchestrator",
+        "pathlib.Path"
+      ],
+      "pytest_marks": []
+    },
+    "test_distributed_cache.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_distributed_cache.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_default_config",
+        "test_cluster_config",
+        "test_cluster_metrics_recording",
+        "test_partition_metrics_recording",
+        "test_key_partitioning",
+        "test_replication_nodes",
+        "test_single_node_initialization",
+        "test_cluster_initialization",
+        "test_client_selection_for_key",
+        "test_character_cache_warming",
+        "test_memory_snapshot_warming",
+        "test_cache_initialization",
+        "test_distributed_get_set_operations",
+        "test_cache_warming_integration",
+        "test_metrics_collector",
+        "test_alert_manager",
+        "test_recommendation_engine",
+        "test_dashboard_creation",
+        "test_dashboard_data_collection",
+        "test_prometheus_exporter",
+        "test_health_checker",
+        "test_structured_logger",
+        "test_production_cache_setup",
+        "test_full_monitoring_setup",
+        "test_cache_warming_with_monitoring",
+        "test_real_redis_operations"
+      ],
+      "mock_usage": true,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestDistributedCacheConfig",
+          "methods": [
+            "test_default_config",
+            "test_cluster_config"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestDistributedCacheMetrics",
+          "methods": [
+            "test_cluster_metrics_recording",
+            "test_partition_metrics_recording"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestCachePartitioner",
+          "methods": [
+            "test_key_partitioning",
+            "test_replication_nodes"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestRedisClusterManager",
+          "methods": [],
+          "async_methods": [
+            "test_single_node_initialization",
+            "test_cluster_initialization",
+            "test_client_selection_for_key"
+          ]
+        },
+        {
+          "name": "TestCacheWarmingManager",
+          "methods": [],
+          "async_methods": [
+            "test_character_cache_warming",
+            "test_memory_snapshot_warming"
+          ]
+        },
+        {
+          "name": "TestDistributedMultiTierCache",
+          "methods": [],
+          "async_methods": [
+            "test_cache_initialization",
+            "test_distributed_get_set_operations",
+            "test_cache_warming_integration"
+          ]
+        },
+        {
+          "name": "TestPerformanceAnalytics",
+          "methods": [
+            "test_metrics_collector",
+            "test_alert_manager",
+            "test_recommendation_engine"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestCacheAnalyticsDashboard",
+          "methods": [],
+          "async_methods": [
+            "test_dashboard_creation",
+            "test_dashboard_data_collection"
+          ]
+        },
+        {
+          "name": "TestProductionMonitoring",
+          "methods": [
+            "test_prometheus_exporter",
+            "test_structured_logger"
+          ],
+          "async_methods": [
+            "test_health_checker"
+          ]
+        },
+        {
+          "name": "TestIntegrationScenarios",
+          "methods": [],
+          "async_methods": [
+            "test_production_cache_setup",
+            "test_full_monitoring_setup",
+            "test_cache_warming_with_monitoring"
+          ]
+        },
+        {
+          "name": "TestRealRedisIntegration",
+          "methods": [],
+          "async_methods": [
+            "test_real_redis_operations"
+          ]
+        }
+      ],
+      "orchestrators_tested": [],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "time",
+        "json",
+        "unittest.mock.Mock",
+        "unittest.mock.AsyncMock",
+        "unittest.mock.patch",
+        "unittest.mock.MagicMock",
+        "datetime.datetime",
+        "datetime.UTC",
+        "datetime.timedelta",
+        "core.memory_management.distributed_cache.DistributedCacheConfig",
+        "core.memory_management.distributed_cache.ClusterNode",
+        "core.memory_management.distributed_cache.PartitionConfig",
+        "core.memory_management.distributed_cache.DistributedCacheMetrics",
+        "core.memory_management.distributed_cache.CachePartitioner",
+        "core.memory_management.distributed_cache.RedisClusterManager",
+        "core.memory_management.distributed_cache.CacheWarmingManager",
+        "core.memory_management.distributed_cache.DistributedMultiTierCache",
+        "core.memory_management.distributed_cache.create_production_distributed_cache",
+        "core.memory_management.performance_analytics.AlertRule",
+        "core.memory_management.performance_analytics.PerformanceAlert",
+        "core.memory_management.performance_analytics.MetricsCollector",
+        "core.memory_management.performance_analytics.AlertManager",
+        "core.memory_management.performance_analytics.PerformanceRecommendationEngine",
+        "core.memory_management.performance_analytics.CacheAnalyticsDashboard",
+        "core.memory_management.performance_analytics.create_cache_dashboard",
+        "core.memory_management.production_monitoring.HealthCheckResult",
+        "core.memory_management.production_monitoring.PrometheusExporter",
+        "core.memory_management.production_monitoring.HealthChecker",
+        "core.memory_management.production_monitoring.StructuredLogger",
+        "core.memory_management.production_monitoring.ProductionMonitoring",
+        "core.memory_management.production_monitoring.setup_production_monitoring"
+      ],
+      "pytest_marks": []
+    },
+    "test_error_handling.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_error_handling.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_base_error_creation",
+        "test_specialized_errors",
+        "test_error_context",
+        "test_fallback_value_strategy",
+        "test_retry_strategy",
+        "test_error_recovery_manager",
+        "test_with_error_handling_async",
+        "test_with_error_handling_sync",
+        "test_specialized_decorators",
+        "test_critical_operation_decorator",
+        "test_error_monitor_recording",
+        "test_error_monitor_health_status",
+        "test_end_to_end_error_handling",
+        "test_utility_functions",
+        "test_async_func",
+        "test_sync_func"
+      ],
+      "mock_usage": true,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestErrorHierarchy",
+          "methods": [
+            "test_base_error_creation",
+            "test_specialized_errors",
+            "test_error_context"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestRecoveryStrategies",
+          "methods": [
+            "test_fallback_value_strategy",
+            "test_error_recovery_manager"
+          ],
+          "async_methods": [
+            "test_retry_strategy"
+          ]
+        },
+        {
+          "name": "TestErrorDecorators",
+          "methods": [
+            "test_with_error_handling_sync"
+          ],
+          "async_methods": [
+            "test_with_error_handling_async",
+            "test_specialized_decorators",
+            "test_critical_operation_decorator"
+          ]
+        },
+        {
+          "name": "TestErrorMonitoring",
+          "methods": [
+            "test_error_monitor_recording",
+            "test_error_monitor_health_status"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestIntegration",
+          "methods": [
+            "test_utility_functions"
+          ],
+          "async_methods": [
+            "test_end_to_end_error_handling"
+          ]
+        }
+      ],
+      "orchestrators_tested": [],
+      "imports": [
+        "asyncio",
+        "pytest",
+        "time",
+        "unittest.mock.Mock",
+        "unittest.mock.patch",
+        "core.shared.error_handling.OpenChronicleError",
+        "core.shared.error_handling.ConfigurationError",
+        "core.shared.error_handling.DatabaseError",
+        "core.shared.error_handling.ModelError",
+        "core.shared.error_handling.MemoryError",
+        "core.shared.error_handling.SceneError",
+        "core.shared.error_handling.NarrativeError",
+        "core.shared.error_handling.TimelineError",
+        "core.shared.error_handling.ContextError",
+        "core.shared.error_handling.SecurityError",
+        "core.shared.error_handling.PerformanceError",
+        "core.shared.error_handling.ErrorCategory",
+        "core.shared.error_handling.ErrorSeverity",
+        "core.shared.error_handling.ErrorContext",
+        "core.shared.error_handling.ErrorRecoveryStrategy",
+        "core.shared.error_handling.FallbackValueStrategy",
+        "core.shared.error_handling.RetryStrategy",
+        "core.shared.error_handling.ErrorRecoveryManager",
+        "core.shared.error_handling.with_error_handling",
+        "core.shared.error_handling.database_error_handling",
+        "core.shared.error_handling.model_error_handling",
+        "core.shared.error_handling.memory_error_handling",
+        "core.shared.error_handling.scene_error_handling",
+        "core.shared.error_handling.critical_operation",
+        "core.shared.error_handling.ErrorMonitor",
+        "core.shared.error_handling.error_monitor",
+        "core.shared.error_handling.get_error_recovery_manager",
+        "core.shared.error_handling.add_recovery_strategy",
+        "core.shared.error_handling.get_error_monitor"
+      ],
+      "pytest_marks": []
+    },
+    "test_interface_segregation.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_interface_segregation.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_response_generator_interface_compliance",
+        "test_response_generator_successful_generation",
+        "test_response_generator_fallback_chain",
+        "test_lifecycle_manager_interface_compliance",
+        "test_lifecycle_manager_initialization",
+        "test_lifecycle_manager_health_checks",
+        "test_lifecycle_manager_concurrent_initialization",
+        "test_segregated_orchestrator_composition",
+        "test_segregated_orchestrator_delegation",
+        "test_interface_focused_testing",
+        "test_interface_substitutability",
+        "test_dependency_injection_compatibility",
+        "test_interface_single_responsibility",
+        "test_memory_interfaces_exist",
+        "test_memory_data_structures"
+      ],
+      "mock_usage": true,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestModelInterfaceSegregation",
+          "methods": [
+            "test_response_generator_interface_compliance",
+            "test_lifecycle_manager_interface_compliance",
+            "test_segregated_orchestrator_composition"
+          ],
+          "async_methods": [
+            "test_response_generator_successful_generation",
+            "test_response_generator_fallback_chain",
+            "test_lifecycle_manager_initialization",
+            "test_lifecycle_manager_health_checks",
+            "test_lifecycle_manager_concurrent_initialization",
+            "test_segregated_orchestrator_delegation"
+          ]
+        },
+        {
+          "name": "TestInterfaceSegregationBenefits",
+          "methods": [
+            "test_interface_focused_testing",
+            "test_interface_substitutability",
+            "test_dependency_injection_compatibility",
+            "test_interface_single_responsibility"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestMemoryInterfaceSegregation",
+          "methods": [
+            "test_memory_interfaces_exist",
+            "test_memory_data_structures"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestResponseGenerator",
+          "methods": [],
+          "async_methods": []
+        },
+        {
+          "name": "TestResponseGenerator",
+          "methods": [],
+          "async_methods": []
+        },
+        {
+          "name": "TestLifecycleManager",
+          "methods": [],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [
+        "core.model_management.model_orchestrator.ModelResponseGenerator",
+        "core.model_management.model_orchestrator.ModelLifecycleManager",
+        "core.model_management.model_orchestrator.ModelOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "unittest.mock.Mock",
+        "unittest.mock.patch",
+        "unittest.mock.AsyncMock",
+        "datetime.datetime",
+        "datetime.UTC",
+        "core.model_management.model_interfaces.IModelResponseGenerator",
+        "core.model_management.model_interfaces.IModelLifecycleManager",
+        "core.model_management.model_interfaces.IModelConfigurationManager",
+        "core.model_management.model_interfaces.IModelPerformanceMonitor",
+        "core.model_management.model_interfaces.ModelResponse",
+        "core.model_management.model_interfaces.AdapterStatus",
+        "core.model_management.model_interfaces.ModelConfiguration",
+        "core.model_management.model_orchestrator.ModelResponseGenerator",
+        "core.model_management.model_orchestrator.ModelLifecycleManager",
+        "core.model_management.model_orchestrator.ModelOrchestrator",
+        "core.memory_management.memory_interfaces.IMemoryPersistence",
+        "core.memory_management.memory_interfaces.ICharacterMemoryManager",
+        "core.memory_management.memory_interfaces.IWorldStateManager",
+        "core.memory_management.memory_interfaces.IMemoryContextBuilder",
+        "core.memory_management.memory_interfaces.IMemoryFlagManager",
+        "core.memory_management.memory_interfaces.MemorySnapshot",
+        "core.memory_management.memory_interfaces.CharacterMemory",
+        "core.memory_management.memory_interfaces.WorldState",
+        "core.memory_management.memory_interfaces.MemoryContext",
+        "core.shared.dependency_injection.DIContainer",
+        "core.shared.dependency_injection.ServiceLifetime"
+      ],
+      "pytest_marks": []
+    },
+    "test_memory_orchestrator.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_memory_orchestrator.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_import_availability",
+        "test_orchestrator_initialization",
+        "test_orchestrator_components_initialization",
+        "test_memory_management_workflow",
+        "test_orchestrator_error_handling",
+        "test_orchestrator_configuration_handling",
+        "test_character_memory_handling",
+        "test_memory_persistence_handling",
+        "test_consistency_engine_handling",
+        "test_memory_system_integration",
+        "test_character_management_integration",
+        "test_persistence_layer_coordination",
+        "test_memory_persistence_with_mock_database"
+      ],
+      "mock_usage": true,
+      "async_tests": false,
+      "test_classes": [
+        {
+          "name": "TestMemoryOrchestrator",
+          "methods": [
+            "test_import_availability",
+            "test_orchestrator_initialization",
+            "test_orchestrator_components_initialization",
+            "test_memory_management_workflow",
+            "test_orchestrator_error_handling",
+            "test_orchestrator_configuration_handling"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestMemoryManagementMethods",
+          "methods": [
+            "test_character_memory_handling",
+            "test_memory_persistence_handling",
+            "test_consistency_engine_handling"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestMemoryOrchestrationIntegration",
+          "methods": [
+            "test_memory_system_integration",
+            "test_character_management_integration",
+            "test_persistence_layer_coordination"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestMemoryOrchestrationWithMocks",
+          "methods": [
+            "test_memory_persistence_with_mock_database"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [
+        "tests.mocks.mock_adapters.MockModelOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "unittest.mock.Mock",
+        "unittest.mock.patch",
+        "unittest.mock.MagicMock",
+        "asyncio",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "typing.Optional",
+        "tests.mocks.mock_adapters.MockLLMAdapter",
+        "tests.mocks.mock_adapters.MockModelOrchestrator",
+        "tests.mocks.mock_adapters.MockDatabaseManager",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator"
+      ],
+      "pytest_marks": []
+    },
+    "test_model_orchestrator.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_model_orchestrator.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_orchestrator_initialization",
+        "test_orchestrator_with_config",
+        "test_orchestrator_component_status",
+        "test_load_model_registry",
+        "test_get_available_models",
+        "test_model_configuration_validation",
+        "test_model_health_check",
+        "test_model_fallback_chain",
+        "test_performance_metrics",
+        "test_model_selection_optimization",
+        "test_performance_degradation_detection",
+        "test_generate_response_success",
+        "test_generate_response_with_fallback",
+        "test_generate_response_error_handling",
+        "test_mock_adapter_integration",
+        "test_mock_orchestrator_integration",
+        "test_mock_adapter_failure_simulation",
+        "test_configuration_error_handling",
+        "test_model_initialization_error_handling",
+        "test_response_generation_error_handling",
+        "test_performance_metrics_collection",
+        "test_performance_optimization",
+        "test_generate_model_configs",
+        "test_generate_performance_data"
+      ],
+      "mock_usage": true,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestModelOrchestratorInitialization",
+          "methods": [
+            "test_orchestrator_initialization",
+            "test_orchestrator_with_config",
+            "test_orchestrator_component_status"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestModelOrchestratorConfiguration",
+          "methods": [
+            "test_load_model_registry",
+            "test_get_available_models",
+            "test_model_configuration_validation"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestModelOrchestratorLifecycle",
+          "methods": [
+            "test_model_health_check",
+            "test_model_fallback_chain"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestModelOrchestratorPerformance",
+          "methods": [
+            "test_performance_metrics",
+            "test_model_selection_optimization",
+            "test_performance_degradation_detection"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestModelOrchestratorResponseGeneration",
+          "methods": [],
+          "async_methods": [
+            "test_generate_response_success",
+            "test_generate_response_with_fallback",
+            "test_generate_response_error_handling"
+          ]
+        },
+        {
+          "name": "TestModelOrchestratorIntegration",
+          "methods": [],
+          "async_methods": [
+            "test_mock_adapter_integration",
+            "test_mock_orchestrator_integration",
+            "test_mock_adapter_failure_simulation"
+          ]
+        },
+        {
+          "name": "TestModelOrchestratorErrorHandling",
+          "methods": [
+            "test_configuration_error_handling"
+          ],
+          "async_methods": [
+            "test_model_initialization_error_handling",
+            "test_response_generation_error_handling"
+          ]
+        },
+        {
+          "name": "TestModelOrchestratorPerformanceMonitoring",
+          "methods": [],
+          "async_methods": [
+            "test_performance_metrics_collection",
+            "test_performance_optimization"
+          ]
+        },
+        {
+          "name": "TestModelOrchestratorDataGeneration",
+          "methods": [
+            "test_generate_model_configs",
+            "test_generate_performance_data"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [
+        "core.model_management.model_orchestrator.ModelOrchestrator",
+        "tests.mocks.mock_adapters.MockModelOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "unittest.mock.Mock",
+        "unittest.mock.MagicMock",
+        "unittest.mock.patch",
+        "typing.Dict",
+        "typing.Any",
+        "typing.List",
+        "typing.Optional",
+        "core.model_management.model_orchestrator.ModelOrchestrator",
+        "tests.mocks.mock_adapters.MockLLMAdapter",
+        "tests.mocks.mock_adapters.MockModelOrchestrator",
+        "tests.mocks.mock_adapters.MockDatabaseManager"
+      ],
+      "pytest_marks": []
+    },
+    "test_redis_cache.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_redis_cache.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_default_config",
+        "test_custom_config",
+        "test_initial_metrics",
+        "test_hit_tracking",
+        "test_response_time_tracking",
+        "test_metrics_summary",
+        "test_cache_without_redis",
+        "test_local_cache_operations",
+        "test_cache_key_generation",
+        "test_fallback_function",
+        "test_cache_deletion",
+        "test_cache_invalidation_pattern",
+        "test_cache_metrics_integration",
+        "test_character_caching",
+        "test_character_update_invalidation",
+        "test_memory_orchestrator_integration",
+        "test_memory_store_invalidation",
+        "test_benchmark_creation",
+        "test_character_operations_benchmark",
+        "test_memory_snapshots_benchmark",
+        "test_concurrent_operations_benchmark",
+        "test_full_cache_workflow",
+        "test_cache_fallback_behavior",
+        "test_cache_response_time"
+      ],
+      "mock_usage": true,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestCacheConfig",
+          "methods": [
+            "test_default_config",
+            "test_custom_config"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestCacheMetrics",
+          "methods": [
+            "test_initial_metrics",
+            "test_hit_tracking",
+            "test_response_time_tracking",
+            "test_metrics_summary"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestMultiTierCache",
+          "methods": [],
+          "async_methods": [
+            "test_cache_without_redis",
+            "test_local_cache_operations",
+            "test_cache_key_generation",
+            "test_fallback_function",
+            "test_cache_deletion",
+            "test_cache_invalidation_pattern",
+            "test_cache_metrics_integration"
+          ]
+        },
+        {
+          "name": "TestCachedCharacterManager",
+          "methods": [],
+          "async_methods": [
+            "test_character_caching",
+            "test_character_update_invalidation"
+          ]
+        },
+        {
+          "name": "TestCachedMemoryOrchestrator",
+          "methods": [],
+          "async_methods": [
+            "test_memory_orchestrator_integration",
+            "test_memory_store_invalidation"
+          ]
+        },
+        {
+          "name": "TestCachePerformanceBenchmark",
+          "methods": [],
+          "async_methods": [
+            "test_benchmark_creation",
+            "test_character_operations_benchmark",
+            "test_memory_snapshots_benchmark",
+            "test_concurrent_operations_benchmark"
+          ]
+        },
+        {
+          "name": "TestCacheIntegration",
+          "methods": [],
+          "async_methods": [
+            "test_full_cache_workflow",
+            "test_cache_fallback_behavior"
+          ]
+        },
+        {
+          "name": "TestCachePerformance",
+          "methods": [],
+          "async_methods": [
+            "test_cache_response_time"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.memory_management.redis_cache.CachedMemoryOrchestrator",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "asyncio",
+        "time",
+        "unittest.mock.Mock",
+        "unittest.mock.AsyncMock",
+        "unittest.mock.patch",
+        "core.memory_management.redis_cache.CacheConfig",
+        "core.memory_management.redis_cache.CacheMetrics",
+        "core.memory_management.redis_cache.MultiTierCache",
+        "core.memory_management.redis_cache.CachedCharacterManager",
+        "core.memory_management.redis_cache.CachedMemoryOrchestrator",
+        "core.memory_management.cache_benchmark.CachePerformanceBenchmark",
+        "core.memory_management.memory_orchestrator.MemoryOrchestrator",
+        "core.memory_management.character.character_manager.CharacterManager",
+        "core.memory_management.memory_interfaces.MemorySnapshot",
+        "core.memory_management.memory_interfaces.CharacterMemory"
+      ],
+      "pytest_marks": []
+    },
+    "test_registry_schema_validation.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_registry_schema_validation.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_valid_model_config",
+        "test_invalid_model_config_priority",
+        "test_invalid_model_config_name",
+        "test_duplicate_fallbacks",
+        "test_valid_provider_config",
+        "test_invalid_provider_type",
+        "test_content_routing_config",
+        "test_performance_config",
+        "test_invalid_performance_config",
+        "test_fallback_behavior_config",
+        "test_complete_registry_schema",
+        "test_duplicate_model_names",
+        "test_duplicate_priorities",
+        "test_invalid_fallback_reference",
+        "test_self_referencing_fallback",
+        "test_invalid_content_routing_reference",
+        "test_validate_registry_success",
+        "test_validate_registry_failure",
+        "test_validate_provider_success",
+        "test_validate_provider_failure",
+        "test_validate_registry_file",
+        "test_validate_nonexistent_file",
+        "test_validate_invalid_json_file",
+        "test_create_backup",
+        "test_safe_save_registry",
+        "test_safe_save_provider",
+        "test_validate_registry_config_function",
+        "test_validate_provider_config_function",
+        "test_empty_registry",
+        "test_missing_required_fields",
+        "test_extra_fields_forbidden",
+        "test_type_coercion",
+        "test_whitespace_stripping"
+      ],
+      "mock_usage": false,
+      "async_tests": false,
+      "test_classes": [
+        {
+          "name": "TestSchemaValidation",
+          "methods": [
+            "test_valid_model_config",
+            "test_invalid_model_config_priority",
+            "test_invalid_model_config_name",
+            "test_duplicate_fallbacks",
+            "test_valid_provider_config",
+            "test_invalid_provider_type",
+            "test_content_routing_config",
+            "test_performance_config",
+            "test_invalid_performance_config",
+            "test_fallback_behavior_config",
+            "test_complete_registry_schema",
+            "test_duplicate_model_names",
+            "test_duplicate_priorities",
+            "test_invalid_fallback_reference",
+            "test_self_referencing_fallback",
+            "test_invalid_content_routing_reference"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestRegistryValidator",
+          "methods": [
+            "test_validate_registry_success",
+            "test_validate_registry_failure",
+            "test_validate_provider_success",
+            "test_validate_provider_failure",
+            "test_validate_registry_file",
+            "test_validate_nonexistent_file",
+            "test_validate_invalid_json_file",
+            "test_create_backup",
+            "test_safe_save_registry",
+            "test_safe_save_provider"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestConvenienceFunctions",
+          "methods": [
+            "test_validate_registry_config_function",
+            "test_validate_provider_config_function"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestEdgeCases",
+          "methods": [
+            "test_empty_registry",
+            "test_missing_required_fields",
+            "test_extra_fields_forbidden",
+            "test_type_coercion",
+            "test_whitespace_stripping"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [],
+      "imports": [
+        "json",
+        "pytest",
+        "tempfile",
+        "pathlib.Path",
+        "datetime.datetime",
+        "datetime.timezone",
+        "typing.Dict",
+        "typing.Any",
+        "core.model_registry.schema_validation.RegistryValidator",
+        "core.model_registry.schema_validation.SchemaValidationError",
+        "core.model_registry.schema_validation.ModelRegistrySchema",
+        "core.model_registry.schema_validation.ProviderConfig",
+        "core.model_registry.schema_validation.ModelConfig",
+        "core.model_registry.schema_validation.ContentRoutingConfig",
+        "core.model_registry.schema_validation.PerformanceConfig",
+        "core.model_registry.schema_validation.FallbackBehaviorConfig",
+        "core.model_registry.schema_validation.ContentType",
+        "core.model_registry.schema_validation.ProviderType",
+        "core.model_registry.schema_validation.validate_registry_config",
+        "core.model_registry.schema_validation.validate_provider_config"
+      ],
+      "pytest_marks": []
+    },
+    "test_scene_orchestrator.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_scene_orchestrator.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_import_availability",
+        "test_orchestrator_initialization",
+        "test_orchestrator_components_initialization",
+        "test_scene_creation_workflow",
+        "test_orchestrator_error_handling",
+        "test_orchestrator_configuration_handling",
+        "test_scene_id_generation",
+        "test_structured_tags_handling",
+        "test_mood_analysis_integration",
+        "test_persistence_layer_integration",
+        "test_analysis_layer_integration",
+        "test_management_layer_integration",
+        "test_scene_creation_with_mock_data",
+        "test_mock_database_integration"
+      ],
+      "mock_usage": true,
+      "async_tests": true,
+      "test_classes": [
+        {
+          "name": "TestSceneOrchestrator",
+          "methods": [
+            "test_import_availability",
+            "test_orchestrator_initialization",
+            "test_orchestrator_components_initialization",
+            "test_scene_creation_workflow",
+            "test_orchestrator_error_handling",
+            "test_orchestrator_configuration_handling"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestSceneOrchestrationMethods",
+          "methods": [
+            "test_scene_id_generation",
+            "test_structured_tags_handling",
+            "test_mood_analysis_integration"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestSceneOrchestrationIntegration",
+          "methods": [
+            "test_persistence_layer_integration",
+            "test_analysis_layer_integration",
+            "test_management_layer_integration"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestSceneOrchestrationWithMocks",
+          "methods": [
+            "test_scene_creation_with_mock_data"
+          ],
+          "async_methods": [
+            "test_mock_database_integration"
+          ]
+        }
+      ],
+      "orchestrators_tested": [
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "unittest.mock.patch",
+        "unittest.mock.MagicMock",
+        "typing.Dict",
+        "typing.Any",
+        "mocks.mock_adapters.MockDataGenerator",
+        "mocks.mock_adapters.create_mock_database",
+        "core.scene_systems.scene_orchestrator.SceneOrchestrator"
+      ],
+      "pytest_marks": []
+    },
+    "test_security_framework.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_security_framework.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_valid_user_input",
+        "test_sql_injection_detection",
+        "test_script_injection_detection",
+        "test_input_length_validation",
+        "test_content_sanitization",
+        "test_path_traversal_detection",
+        "test_valid_file_path",
+        "test_json_validation",
+        "test_valid_sql_queries",
+        "test_sql_injection_detection",
+        "test_safe_query_execution",
+        "test_blocked_keywords",
+        "test_secure_input_decorator",
+        "test_rate_limiting_decorator",
+        "test_authentication_decorator",
+        "test_composite_security_decorator",
+        "test_violation_recording",
+        "test_security_status_calculation",
+        "test_violation_history_limits",
+        "test_security_manager_singleton",
+        "test_convenience_functions",
+        "test_security_summary",
+        "test_end_to_end_security_validation",
+        "test_malicious_input_handling"
+      ],
+      "mock_usage": true,
+      "async_tests": false,
+      "test_classes": [
+        {
+          "name": "TestInputValidator",
+          "methods": [
+            "test_valid_user_input",
+            "test_sql_injection_detection",
+            "test_script_injection_detection",
+            "test_input_length_validation",
+            "test_content_sanitization",
+            "test_path_traversal_detection",
+            "test_valid_file_path",
+            "test_json_validation"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestSQLSecurityValidator",
+          "methods": [
+            "test_valid_sql_queries",
+            "test_sql_injection_detection",
+            "test_safe_query_execution",
+            "test_blocked_keywords"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestSecurityDecorators",
+          "methods": [
+            "test_secure_input_decorator",
+            "test_rate_limiting_decorator",
+            "test_authentication_decorator",
+            "test_composite_security_decorator"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestSecurityMonitoring",
+          "methods": [
+            "test_violation_recording",
+            "test_security_status_calculation",
+            "test_violation_history_limits"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestGlobalSecurityManager",
+          "methods": [
+            "test_security_manager_singleton",
+            "test_convenience_functions",
+            "test_security_summary"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestIntegration",
+          "methods": [
+            "test_end_to_end_security_validation",
+            "test_malicious_input_handling"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [],
+      "imports": [
+        "pytest",
+        "sqlite3",
+        "tempfile",
+        "os",
+        "pathlib.Path",
+        "unittest.mock.patch",
+        "unittest.mock.MagicMock",
+        "core.shared.security.SecurityManager",
+        "core.shared.security.InputValidator",
+        "core.shared.security.SQLSecurityValidator",
+        "core.shared.security.FileAccessManager",
+        "core.shared.security.SecurityMonitor",
+        "core.shared.security.SecurityContext",
+        "core.shared.security.SecurityThreatLevel",
+        "core.shared.security.SecurityViolationType",
+        "core.shared.security.security_manager",
+        "core.shared.security.validate_user_input",
+        "core.shared.security.validate_file_path",
+        "core.shared.security.validate_sql_query",
+        "core.shared.security_decorators.secure_input",
+        "core.shared.security_decorators.secure_file_access",
+        "core.shared.security_decorators.secure_sql_execution",
+        "core.shared.security_decorators.rate_limited",
+        "core.shared.security_decorators.security_monitored",
+        "core.shared.security_decorators.require_authentication",
+        "core.shared.security_decorators.secure_operation",
+        "core.shared.security.get_security_summary"
+      ],
+      "pytest_marks": []
+    },
+    "test_timeline_orchestrator.py": {
+      "file_path": "c:\\Temp\\openchronicle-core\\tests\\unit\\test_timeline_orchestrator.py",
+      "category": "unit",
+      "tests_orchestrators": [],
+      "test_methods": [
+        "test_import_availability",
+        "test_orchestrator_initialization",
+        "test_orchestrator_components",
+        "test_timeline_management_methods",
+        "test_state_management_methods",
+        "test_timeline_manager_integration",
+        "test_state_manager_integration",
+        "test_metrics_tracking",
+        "test_timeline_orchestrator_creation",
+        "test_configuration_handling"
+      ],
+      "mock_usage": false,
+      "async_tests": false,
+      "test_classes": [
+        {
+          "name": "TestTimelineOrchestrator",
+          "methods": [
+            "test_import_availability",
+            "test_orchestrator_initialization",
+            "test_orchestrator_components",
+            "test_timeline_management_methods",
+            "test_state_management_methods"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestTimelineOrchestrationIntegration",
+          "methods": [
+            "test_timeline_manager_integration",
+            "test_state_manager_integration",
+            "test_metrics_tracking"
+          ],
+          "async_methods": []
+        },
+        {
+          "name": "TestTimelineOrchestrationWithMocks",
+          "methods": [
+            "test_timeline_orchestrator_creation",
+            "test_configuration_handling"
+          ],
+          "async_methods": []
+        }
+      ],
+      "orchestrators_tested": [
+        "core.timeline_systems.timeline_orchestrator.TimelineOrchestrator"
+      ],
+      "imports": [
+        "pytest",
+        "typing.Dict",
+        "typing.Any",
+        "core.timeline_systems.timeline_orchestrator.TimelineOrchestrator"
+      ],
+      "pytest_marks": []
+    }
+  },
+  "orchestrator_coverage": {
+    "character_orchestrator": [],
+    "context_orchestrator": [
+      "test_complete_workflows.py",
+      "test_context_orchestrator.py"
+    ],
+    "async_database_orchestrator": [
+      "test_async_database_operations.py"
+    ],
+    "database_orchestrator": [
+      "test_regression.py",
+      "test_async_database_operations.py"
+    ],
+    "image_orchestrator": [],
+    "management_orchestrator": [],
+    "async_memory_orchestrator": [
+      "test_async_memory_operations.py"
+    ],
+    "memory_orchestrator": [
+      "test_complete_workflows.py",
+      "test_regression.py",
+      "test_async_memory_operations.py",
+      "test_memory_orchestrator.py",
+      "test_redis_cache.py"
+    ],
+    "model_orchestrator": [
+      "test_complete_workflows.py",
+      "test_interface_segregation.py",
+      "test_model_orchestrator.py"
+    ],
+    "narrative_orchestrator": [],
+    "consistency_orchestrator": [],
+    "emotional_orchestrator": [],
+    "mechanics_orchestrator": [],
+    "response_orchestrator": [],
+    "scene_orchestrator": [
+      "test_complete_workflows.py",
+      "test_core_regression.py",
+      "test_regression.py",
+      "test_scene_orchestrator.py"
+    ],
+    "timeline_orchestrator": [
+      "test_complete_workflows.py",
+      "test_timeline_orchestrator.py"
+    ]
+  },
+  "coverage_gaps": [
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "character_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for character_orchestrator"
+    },
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "image_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for image_orchestrator"
+    },
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "management_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for management_orchestrator"
+    },
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "narrative_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for narrative_orchestrator"
+    },
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "consistency_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for consistency_orchestrator"
+    },
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "emotional_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for emotional_orchestrator"
+    },
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "mechanics_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for mechanics_orchestrator"
+    },
+    {
+      "type": "untested_orchestrator",
+      "orchestrator": "response_orchestrator",
+      "severity": "HIGH",
+      "description": "No tests found for response_orchestrator"
+    }
+  ],
+  "test_quality": {
+    "total_test_files": 19,
+    "test_categories": {
+      "integration": 2,
+      "performance": 3,
+      "unit": 14
+    },
+    "mock_usage_count": 10,
+    "async_test_count": 13,
+    "total_test_methods": 552,
+    "quality_issues": []
+  },
+  "summary": {
+    "total_orchestrators": 16,
+    "tested_orchestrators": 8,
+    "untested_orchestrators": 8,
+    "coverage_percentage": 50.0,
+    "total_test_files": 19,
+    "total_gaps": 8,
+    "high_severity_gaps": 8,
+    "medium_severity_gaps": 0,
+    "test_coverage_score": 0
+  }
+}

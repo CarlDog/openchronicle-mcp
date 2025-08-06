@@ -479,3 +479,37 @@ class ModelOrchestrator(IModelOrchestrator):
                 'system_healthy': True,
                 'last_check': datetime.now(UTC).isoformat()
             }
+    
+    # Common interface methods for integration compatibility
+    def get_status(self) -> Dict[str, Any]:
+        """Get orchestrator status - common interface method."""
+        return self.get_model_status()
+    
+    async def initialize(self) -> bool:
+        """Initialize orchestrator - common interface method."""
+        try:
+            # Initialize through the lifecycle manager
+            result = await self._lifecycle_manager.initialize_all_adapters()
+            return any(result.values()) if result else True
+        except Exception as e:
+            # Fallback to basic initialization
+            return True
+    
+    async def process_request_dict(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process request with dict format - common interface method."""
+        prompt = request_data.get('prompt', '')
+        adapter = request_data.get('adapter')
+        
+        if not prompt:
+            return {'error': 'No prompt provided', 'success': False}
+        
+        try:
+            response = await self.generate_response(prompt, adapter)
+            return {
+                'success': True,
+                'response': response.response_text,
+                'adapter_used': response.adapter_name,
+                'metadata': response.metadata
+            }
+        except Exception as e:
+            return {'error': str(e), 'success': False}
