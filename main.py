@@ -61,7 +61,7 @@ def load_imports():
     async def get_memory_summary(story_id):
         return await memory_orchestrator.get_memory_summary(story_id)
     from core.scene_systems.scene_orchestrator import SceneOrchestrator
-    from core.model_management import ModelOrchestrator
+    from core.model_management.model_orchestrator import ModelOrchestrator
     from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
     from core.image_systems import create_image_engine, ImageType
     from core.database_systems.database_orchestrator import startup_health_check

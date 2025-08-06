@@ -103,7 +103,9 @@ class DIContainer(IContainer):
         
         self._services[interface] = registration
         
-        log_info(f"Registered service: {interface.__name__} -> {implementation} ({lifetime})")
+        # Log registration with proper interface name handling
+        interface_name = interface.__name__ if hasattr(interface, '__name__') else str(interface)
+        log_info(f"Registered service: {interface_name} -> {implementation} ({lifetime})")
         
         return self
     
