@@ -17,17 +17,9 @@ This directory contains essential documentation, examples, and patterns to enhan
 │   └── models/                       # Individual model configurations
 │       ├── openai.json               # OpenAI GPT configuration
 │       └── ollama.json               # Ollama local model configuration
-├── examples/                         # Complete working examples
-│   ├── dynamic_model_management.py   # Dynamic model management examples
-│   ├── transformer_content_analysis.py # Transformer-based content analysis examples
-│   └── storage/storypacks/           # Example story packages
-│       └── fantasy-tavern/           # Fantasy tavern story example
-│           ├── meta.yaml             # Story metadata
-│           ├── style_guide.md        # Narrative style guide
-│           ├── characters/           # Character definitions
-│           │   └── gareth_ironwood.json
-│           └── canon/                # World lore documents
-│               └── wanderers_rest_tavern.md
+├── docs/                             # Documentation and architecture guides
+│   └── architecture/                 # Architecture documentation
+│       └── migration_patterns.md     # DI and error handling migration patterns
 ├── patterns/                         # Development patterns and best practices
 │   ├── core_module_pattern.py        # Standard module structure
 │   ├── development_guidelines.md     # Coding standards and conventions
@@ -87,7 +79,7 @@ This directory serves multiple purposes:
 ### 2. **Development Acceleration**
 - Terminal command patterns and environment setup in `development_config.md`
 - Reusable code patterns and templates in `patterns/`
-- Working examples and configurations in `examples/` and `config/`
+- Working configurations and patterns in `config/` and `docs/architecture/`
 - Testing frameworks and patterns in `testing/`
 - Standardized patterns for common development tasks
 
@@ -160,7 +152,7 @@ This directory automatically enhances Copilot's suggestions by providing:
 ### 🔧 **Development Resources**  
 - **`technical_improvements.md`** - Core module enhancements and performance optimizations
 - **`patterns/development_guidelines.md`** - Coding standards and best practices
-- **`examples/transformer_content_analysis.py`** - Working content analysis implementation
+- **`docs/architecture/migration_patterns.md`** - DI and error handling migration patterns
 
 ### 📊 **Planning and Management**
 - **`tasks/priority_matrix.json`** - Sprint planning, dependency mapping, and risk management

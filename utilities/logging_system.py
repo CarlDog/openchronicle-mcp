@@ -320,6 +320,12 @@ def log_debug(message: str, story_id: Optional[str] = None, scene_id: Optional[s
     get_logger().debug(message, story_id=story_id, scene_id=scene_id, model=model,
                       context_tags=context_tags, **kwargs)
 
+def log_critical(message: str, story_id: Optional[str] = None, scene_id: Optional[str] = None,
+                model: Optional[str] = None, context_tags: Optional[Union[str, list]] = None, **kwargs):
+    """Log critical message with optional context."""
+    get_logger().critical(message, story_id=story_id, scene_id=scene_id, model=model,
+                         context_tags=context_tags, **kwargs)
+
 def log_maintenance_action(action: str, details: Optional[Dict[str, Any]] = None, status: str = "success"):
     """Log maintenance action."""
     get_logger().log_maintenance_action(action, details, status)

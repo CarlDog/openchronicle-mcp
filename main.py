@@ -11,6 +11,10 @@ from api_key_manager import (
     prompt_and_store_key, get_keyring_info, is_keyring_available
 )
 
+# Security imports
+from core.shared.security_decorators import secure_input, validate_and_raise, create_security_context
+from core.shared.security import validate_user_input, SecurityThreatLevel
+
 # Global flag for emoji display (set by command line argument)
 USE_EMOJIS = True
 
@@ -87,6 +91,41 @@ def load_imports():
     
     _imports_loaded = True
 
+def secure_user_input(prompt: str, context_info: str = "user_interaction") -> str:
+    """
+    Secure wrapper for user input with validation.
+    
+    Args:
+        prompt: The input prompt to display
+        context_info: Context description for security logging
+    
+    Returns:
+        Validated and sanitized user input
+    """
+    try:
+        raw_input = input(prompt).strip()
+        
+        # Validate the input
+        validation_result = validate_user_input(raw_input, operation=context_info)
+        
+        if not validation_result.is_valid:
+            if validation_result.threat_level == SecurityThreatLevel.CRITICAL:
+                print(f"❌ Security Error: Input rejected due to security concerns")
+                log_warning(f"Critical security violation in user input: {validation_result.error_message}")
+                return ""
+            else:
+                print(f"⚠️ Input Warning: {validation_result.error_message}")
+                # For non-critical issues, allow sanitized input
+                return validation_result.sanitized_value or ""
+        
+        return validation_result.sanitized_value or raw_input
+        
+    except KeyboardInterrupt:
+        raise
+    except Exception as e:
+        log_error(f"Error processing user input: {e}")
+        return ""
+
 def emoji(text):
     """Return emoji text if emojis are enabled, otherwise return empty string."""
     return text if USE_EMOJIS else ""
@@ -130,7 +169,7 @@ async def switch_model():
     for i, adapter in enumerate(adapters):
         print(f"{i+1}. {adapter}")
     
-    choice = input("Select adapter number (or press Enter to cancel): ").strip()
+    choice = secure_user_input("Select adapter number (or press Enter to cancel): ", "adapter_selection")
     if choice.isdigit() and 1 <= int(choice) <= len(adapters):
         adapter_name = adapters[int(choice)-1]
         try:
@@ -586,7 +625,7 @@ async def main():
     
     # Interactive mode
     while True:
-        user_input = input("\nYou: ").strip()
+        user_input = secure_user_input("\nYou: ", "story_input")
         
         if user_input.lower() in ['quit', 'exit', 'q']:
             break

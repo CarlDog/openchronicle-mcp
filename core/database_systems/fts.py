@@ -9,6 +9,8 @@ from typing import Optional, Dict, Any, List
 
 from .connection import ConnectionManager
 from .shared import FTSIndexInfo
+from core.shared.security import SQLSecurityValidator, SecurityContext
+from utilities.logging_system import log_warning, log_error
 
 
 class FTSManager:
@@ -16,13 +18,23 @@ class FTSManager:
     
     def __init__(self, connection_manager: ConnectionManager):
         self.connection_manager = connection_manager
+        self.sql_validator = SQLSecurityValidator()
     
     def has_fts5_support(self) -> bool:
         """Check if SQLite supports FTS5."""
         try:
             with sqlite3.connect(':memory:') as conn:
+                context = SecurityContext(operation="fts5_check", component="FTSManager")
+                query = "CREATE VIRTUAL TABLE test_fts USING fts5(content)"
+                
+                # Validate the query
+                validation_result = self.sql_validator.validate_sql_query(query, context)
+                if not validation_result.is_valid:
+                    log_warning(f"FTS5 check query validation failed: {validation_result.error_message}")
+                    return False
+                
                 cursor = conn.cursor()
-                cursor.execute("CREATE VIRTUAL TABLE test_fts USING fts5(content)")
+                cursor.execute(query)
                 cursor.execute("DROP TABLE test_fts")
                 return True
         except sqlite3.OperationalError:
@@ -35,19 +47,37 @@ class FTSManager:
             
         try:
             with self.connection_manager.get_connection(story_id, is_test) as conn:
-                cursor = conn.cursor()
+                context = SecurityContext(
+                    operation="optimize_fts", 
+                    component="FTSManager", 
+                    user_id=story_id
+                )
                 
-                # Get list of FTS tables
-                cursor.execute("""
+                # Get list of FTS tables using secure query execution
+                list_query = """
                     SELECT name FROM sqlite_master 
                     WHERE type='table' AND name LIKE '%_fts'
-                """)
+                """
+                
+                cursor = self.sql_validator.execute_safe_query(conn, list_query, (), context)
                 fts_tables = [row[0] for row in cursor.fetchall()]
                 
                 # Optimize each FTS table
                 for table in fts_tables:
                     try:
-                        cursor.execute(f"INSERT INTO {table}({table}) VALUES('optimize')")
+                        # Validate table name to prevent injection
+                        if not table.replace('_', '').replace('-', '').isalnum():
+                            log_warning(f"Invalid FTS table name skipped: {table}")
+                            continue
+                            
+                        optimize_query = f"INSERT INTO {table}({table}) VALUES('optimize')"
+                        
+                        # Validate and execute optimization query
+                        validation_result = self.sql_validator.validate_sql_query(optimize_query, context)
+                        if validation_result.is_valid:
+                            self.sql_validator.execute_safe_query(conn, optimize_query, (), context)
+                        else:
+                            log_warning(f"FTS optimization query validation failed for {table}: {validation_result.error_message}")
                     except sqlite3.OperationalError as e:
                         print(f"Warning: Could not optimize FTS table {table}: {e}")
                         continue
