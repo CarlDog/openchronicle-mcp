@@ -64,7 +64,7 @@ python -c "from core.model_management import ModelOrchestrator; print('Installat
 Create a `.env` file in the project root:
 
 ```bash
-# AI Model API Keys (Optional - system works with mock adapters)
+# AI Model API Keys (Optional - system works with transformers fallback)
 OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 GOOGLE_API_KEY=your_google_key_here
@@ -231,7 +231,7 @@ async def generate_scene(user_input: str):
     ]
   },
   "fallback_chains": {
-    "openai_gpt4": ["anthropic_claude", "groq_llama", "mock"]
+    "openai_gpt4": ["anthropic_claude", "groq_llama", "transformers"]
   }
 }
 ```
@@ -297,7 +297,8 @@ class ModelSelectionFlow:
 | Cohere | `CohereAdapter` | Command, Command-R | ✅ Production |
 | Mistral | `MistralAdapter` | Mistral Large/Medium | ✅ Production |
 | Ollama | `OllamaAdapter` | All Ollama models | ✅ Production |
-| Mock | `MockAdapter` | Testing/Development | ✅ Always Available |
+| Mock | `MockAdapter` | Testing/Development | ✅ Tests Only |
+| Transformers | `TransformersAdapter` | Local LLM Fallback | ✅ Always Available |
 
 ---
 
@@ -631,9 +632,9 @@ class ModelFailureHandling:
                 log_error(f"Model {model_name} failed: {e}")
                 continue
                 
-        # Final fallback to mock adapter
-        log_warning("All models failed, using mock adapter")
-        return await self.mock_adapter.generate(prompt)
+        # Final fallback to transformers adapter
+        log_warning("All models failed, using transformers adapter")
+        return await self.transformers_adapter.generate(prompt)
 ```
 
 ### 6.2 Network & Connectivity Issues
@@ -907,7 +908,7 @@ graph TD
     
     I --> J{Fallback Available?}
     J -->|Yes| K[Use Fallback Model]
-    J -->|No| L[Use Mock Adapter]
+    J -->|No| L[Use Transformers Adapter]
     
     H --> M[Generate Response]
     K --> M

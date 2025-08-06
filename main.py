@@ -374,9 +374,9 @@ async def run_quick_test():
         print(f"{status_icon(True)} Loaded: {story['meta']['title']}")
         
         # Initialize model
-        print("Initializing mock model...")
-        await model_manager.initialize_adapter("mock")
-        print(f"{status_icon(True)} Mock model ready")
+        print("Initializing transformers model...")
+        await model_manager.initialize_adapter("transformers")
+        print(f"{status_icon(True)} Transformers model ready")
         
         # Test context building
         print("Testing context building...")
@@ -604,9 +604,9 @@ async def main():
     except Exception as e:
         print(f"{status_icon(False)} Model initialization failed: {e}")
         print(f"{emoji('🚨 ')}CRITICAL WARNING: No real AI models available!")
-        print(f"{emoji('⚠️ ')}System will use MOCK responses - NOT suitable for production use!")
-        print(f"{emoji('💡 ')}Please configure at least one working AI provider for real functionality.")
-        print(f"{emoji('⚠️ ')}Continuing with mock responses for testing purposes only...")
+        print(f"{emoji('⚠️ ')}System will use TRANSFORMERS fallback - performance may be limited!")
+        print(f"{emoji('💡 ')}Please configure at least one working AI provider for best functionality.")
+        print(f"{emoji('⚠️ ')}Continuing with transformers for basic functionality...")
     
     # Handle non-interactive mode
     if args.non_interactive:

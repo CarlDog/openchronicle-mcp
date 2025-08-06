@@ -271,8 +271,8 @@ class LifecycleManager:
                         "maintainer": "OpenChronicle Team"
                     },
                     "defaults": {
-                        "text_model": "mock",
-                        "image_model": "mock_image"
+                        "text_model": "transformers",
+                        "image_model": "openai_dalle"
                     },
                     "text_models": {
                         "testing": []
@@ -281,11 +281,11 @@ class LifecycleManager:
                         "testing": []
                     },
                     "content_routing": {
-                        "nsfw_content": {"allowed_models": ["mock"], "default_model": "mock"},
-                        "safe_content": {"allowed_models": ["mock"], "default_model": "mock"}
+                        "nsfw_content": {"allowed_models": ["transformers"], "default_model": "transformers"},
+                        "safe_content": {"allowed_models": ["transformers"], "default_model": "transformers"}
                     },
                     "fallback_chains": {
-                        "mock": ["mock"]
+                        "transformers": ["transformers"]
                     }
                 }
             

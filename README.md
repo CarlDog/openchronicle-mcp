@@ -46,7 +46,8 @@ OpenChronicle supports multiple LLM backends. Edit `config/models.json` to set y
 {
   "default_adapter": "mock",  // Change to "openai", "ollama", or "mock"
   "adapters": {
-    "mock": {...},     // Built-in mock adapter (no setup required)
+    "mock": {...},     // Built-in mock adapter (tests only)
+    "transformers": {...}, // Local LLM fallback adapter
     "openai": {...},   // OpenAI API integration
     "ollama": {...}    // Local Ollama integration
   }
@@ -80,7 +81,8 @@ OpenChronicle supports multiple LLM backends through a unified adapter system po
 ### Supported Models
 - **OpenAI**: GPT-4, GPT-4o-mini, GPT-3.5-turbo
 - **Ollama**: Any locally hosted model (Llama, Mistral, etc.)
-- **Mock**: Built-in testing adapter
+- **Mock**: Built-in testing adapter (tests only)
+- **Transformers**: Local LLM fallback adapter
 
 ### Configuration
 
@@ -287,7 +289,7 @@ python main.py
 
 ### 🔧 Configuration
 
-Models are configured in `config/models.json`. You can choose any combination of adapters based on your needs and preferences. The system supports OpenAI, Ollama, or mock adapters equally.
+Models are configured in `config/models.json`. You can choose any combination of adapters based on your needs and preferences. The system supports OpenAI, Ollama, and transformers adapters with automatic fallback to transformers when external services are unavailable.
 
 ---
 

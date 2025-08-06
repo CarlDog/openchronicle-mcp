@@ -95,7 +95,12 @@ class ResponseGenerator:
         Raises:
             RuntimeError: When no adapters are available
         """
-        # Try to find any available adapter (excluding mock adapters)
+        # First priority: Try transformers if available
+        if "transformers" in self.adapters:
+            log_warning("No default adapter specified, using transformers as fallback")
+            return "transformers"
+        
+        # Second priority: Try to find any available adapter (excluding mock adapters)
         available_adapters = [name for name in self.adapters.keys() 
                             if not name.startswith("mock")]
         
@@ -103,17 +108,10 @@ class ResponseGenerator:
             adapter_name = available_adapters[0]
             log_warning(f"No default adapter specified, using emergency fallback: {adapter_name}")
             return adapter_name
-        
-        # Try transformers as last resort
-        if "transformers" in self.config.get("adapters", {}):
-            # Note: This would require adapter initialization, which should be
-            # handled by the lifecycle manager in the full implementation
-            log_warning("Using transformers as emergency fallback adapter")
-            return "transformers"
-        
+
         raise RuntimeError(
-            "No adapter specified and no default adapter available. "
-            "Configure AI services or specify an adapter."
+            "No adapter specified and no production adapters available. "
+            "Please configure AI services (OpenAI, Anthropic, etc.) or ensure transformers is properly installed."
         )
     
     def _has_fallback_chain(self, adapter_name: str) -> bool:
