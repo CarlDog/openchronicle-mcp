@@ -1,0 +1,10 @@
+{
+  "output_format": "table",
+  "quiet_mode": false,
+  "auto_confirm": false,
+  "color_output": true,
+  "max_table_rows": 50,
+  "progress_bars": true,
+  "editor": "notepad",
+  "pager": "more"
+}
