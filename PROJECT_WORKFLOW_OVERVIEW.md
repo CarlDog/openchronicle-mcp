@@ -132,7 +132,7 @@ python main.py [options]
 
 #### Secondary Entry Points:
 - **API Server**: `utilities/api_server.py` (FastAPI-based)
-- **Import Tools**: `utilities/storypack_importer.py`
+- **Import Tools**: `utilities/storypack_import/` (Modular import system)
 - **Testing**: `pytest tests/`
 
 ### 2.2 System Initialization Flow
