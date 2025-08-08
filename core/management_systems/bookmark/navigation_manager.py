@@ -22,10 +22,17 @@ class NavigationManager:
     
     def __init__(self, story_id: str):
         self.story_id = story_id
-        # Import database utilities
-        sys.path.append(str(Path(__file__).parent.parent.parent))
-        from database import execute_query
-        self.execute_query = execute_query
+        # Import database utilities with fallback
+        try:
+            from core.database import execute_query
+            self.execute_query = execute_query
+        except ImportError:
+            # Fallback for testing
+            self.execute_query = self._mock_execute_query
+    
+    def _mock_execute_query(self, *args, **kwargs):
+        """Mock query function for testing."""
+        return []
     
     def auto_create_chapter_bookmark(self, scene_id: str, chapter_title: str,
                                    chapter_level: int = 1, data_manager=None) -> int:

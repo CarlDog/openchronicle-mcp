@@ -33,7 +33,7 @@ class TestNarrativeOrchestratorInitialization:
         orchestrator = NarrativeOrchestrator()
         
         # Test state initialization
-        initial_state = orchestrator.get_narrative_state()
+        initial_state = orchestrator.get_narrative_state("test_story_001")
         assert initial_state is not None
         assert isinstance(initial_state, dict)
         

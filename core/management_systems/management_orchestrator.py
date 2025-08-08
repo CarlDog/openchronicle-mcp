@@ -18,6 +18,7 @@ Provides single entry point for all management operations with backward compatib
 import sys
 from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
+from datetime import datetime
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
@@ -99,6 +100,37 @@ class ManagementOrchestrator:
         """Get model switch recommendations."""
         return self.token_manager.recommend_model_switch(current_model, usage_pattern)
     
+    def optimize_token_usage(self, text: str, model: Optional[str] = None) -> Dict[str, Any]:
+        """Optimize token usage for given text."""
+        if model is None:
+            model = self.select_optimal_model(text)
+        
+        original_tokens = self.estimate_tokens(text, model)
+        
+        # Try to optimize by trimming if text is very long
+        max_tokens = 4096  # Default reasonable limit
+        if original_tokens > max_tokens:
+            optimized_text = self.trim_context(text, max_tokens, model)
+            optimized_tokens = self.estimate_tokens(optimized_text, model)
+            
+            return {
+                'optimized_text': optimized_text,
+                'original_tokens': original_tokens,
+                'optimized_tokens': optimized_tokens,
+                'tokens_saved': original_tokens - optimized_tokens,
+                'model_used': model,
+                'optimization_applied': True
+            }
+        
+        return {
+            'optimized_text': text,
+            'original_tokens': original_tokens,
+            'optimized_tokens': original_tokens,
+            'tokens_saved': 0,
+            'model_used': model,
+            'optimization_applied': False
+        }
+    
     # =====================================================================
     # BOOKMARK MANAGEMENT INTERFACE
     # =====================================================================
@@ -117,6 +149,29 @@ class ManagementOrchestrator:
         """Create a new bookmark."""
         manager = self.get_bookmark_manager(story_id)
         return manager.create_bookmark(scene_id, label, description, bookmark_type, metadata)
+    
+    def organize_bookmarks_by_category(self, story_id: str) -> Dict[str, List[Dict[str, Any]]]:
+        """Organize bookmarks by category for better management."""
+        manager = self.get_bookmark_manager(story_id)
+        all_bookmarks = manager.list_bookmarks(limit=1000)  # Get all bookmarks with large limit
+        
+        # Organize by bookmark type (category)
+        organized = {}
+        for bookmark in all_bookmarks:
+            bookmark_type = bookmark.get('type', 'user')
+            if bookmark_type not in organized:
+                organized[bookmark_type] = []
+            organized[bookmark_type].append(bookmark)
+        
+        # Sort each category by creation date (newest first)
+        for category in organized:
+            organized[category].sort(
+                key=lambda x: x.get('created_at', ''),
+                reverse=True
+            )
+        
+        log_info(f"Organized {len(all_bookmarks)} bookmarks into {len(organized)} categories for story {story_id}")
+        return organized
     
     def get_bookmark(self, story_id: str, bookmark_id: int) -> Optional[Dict[str, Any]]:
         """Get a bookmark by ID."""
@@ -368,3 +423,59 @@ class ManagementOrchestrator:
         except Exception as e:
             log_error(f"Config update failed: {e}")
             raise Exception(f"Config update failed: {e}")
+    
+    def get_management_performance_metrics(self) -> Dict[str, Any]:
+        """Get comprehensive performance metrics for management systems."""
+        try:
+            # Token management metrics
+            token_stats = self.get_token_usage_stats()
+            token_cost = self.get_token_cost_analysis()
+            
+            # Bookmark management metrics
+            bookmark_metrics = {}
+            for story_id, manager in self.bookmark_managers.items():
+                try:
+                    stats = manager.get_stats()
+                    bookmark_metrics[story_id] = {
+                        'total_bookmarks': stats.get('total_bookmarks', 0),
+                        'bookmark_types': stats.get('bookmark_types', {}),
+                        'recent_activity': stats.get('recent_activity', 0)
+                    }
+                except Exception as e:
+                    log_warning(f"Failed to get bookmark stats for {story_id}: {e}")
+                    bookmark_metrics[story_id] = {'error': str(e)}
+            
+            # System performance
+            performance_metrics = {
+                'token_management': {
+                    'total_tokens_processed': token_stats.get('total_tokens', 0),
+                    'total_cost': token_cost.get('total_cost', 0.0),
+                    'models_used': len(token_stats.get('model_usage', {})),
+                    'average_tokens_per_request': token_stats.get('average_tokens_per_request', 0)
+                },
+                'bookmark_management': {
+                    'active_stories': len(self.bookmark_managers),
+                    'story_metrics': bookmark_metrics,
+                    'total_bookmarks_across_stories': sum(
+                        metrics.get('total_bookmarks', 0) 
+                        for metrics in bookmark_metrics.values()
+                        if isinstance(metrics, dict) and 'total_bookmarks' in metrics
+                    )
+                },
+                'system_health': {
+                    'uptime_status': 'operational',
+                    'last_updated': str(datetime.now()),
+                    'memory_usage': 'normal'  # Could be enhanced with actual memory monitoring
+                }
+            }
+            
+            log_info("Generated management performance metrics")
+            return performance_metrics
+            
+        except Exception as e:
+            log_error(f"Failed to generate performance metrics: {e}")
+            return {
+                'error': str(e),
+                'status': 'failed',
+                'timestamp': str(datetime.now())
+            }

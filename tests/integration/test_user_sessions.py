@@ -29,10 +29,10 @@ class TestCompleteUserSessions:
         
         # Initialize all orchestrators for complete session
         model_orch = ModelOrchestrator()
-        memory_orch = MemoryOrchestrator(story_id=story_id)
-        char_orch = CharacterOrchestrator(story_id=story_id)
-        scene_orch = SceneOrchestrator(story_id=story_id)
-        context_orch = ContextOrchestrator(story_id=story_id)
+        memory_orch = MemoryOrchestrator()
+        char_orch = CharacterOrchestrator()
+        scene_orch = SceneOrchestrator(story_id)
+        context_orch = ContextOrchestrator()
         
         # Session 1: Story Setup
         setup_context = await context_orch.build_context(

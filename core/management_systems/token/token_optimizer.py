@@ -70,6 +70,21 @@ class ModelSelector:
         log_info(f"Selected model {selected} for {total_tokens} tokens")
         return selected
     
+    def select_optimal_model(self, token_count: int, requirements: Dict[str, Any]) -> str:
+        """Select optimal model based on token count and requirements."""
+        # Estimate response length (default to 25% of token count)
+        response_length = requirements.get('response_length', token_count // 4)
+        
+        # Use existing method for selection
+        optimal = self.select_optimal_model_for_length(token_count, response_length)
+        
+        # If no model found, return a default
+        if optimal is None:
+            log_warning(f"No optimal model found for {token_count} tokens, using default")
+            return "gpt-3.5-turbo"  # Fallback default
+        
+        return optimal
+    
     def get_model_capabilities(self, model_name: str) -> Dict[str, Any]:
         """Get detailed capabilities for a model."""
         try:

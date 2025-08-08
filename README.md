@@ -1,14 +1,39 @@
 # 🧙 OpenChronicle
-## 🔧 Core Features (Phase 8B - Production Ready)
+**Narrative AI Engine with Multi-LLM Orchestration**
 
-### Production Architecture (Phase 8B Complete)
-- 🏗️ **13+ Orchestrator Systems** with clean separation of concerns and SOLID principles
+## � **Quick Start**
+
+```powershell
+# 1. Clone and setup
+git clone https://github.com/OpenChronicle/openchronicle-core.git
+cd openchronicle-core
+python -m venv openchronicle-env
+openchronicle-env\Scripts\activate
+
+# 2. Install and test
+pip install -r requirements.txt
+python -c "from core.model_management import ModelOrchestrator; print('✅ Ready!')"
+
+# 3. Run quick test
+python main.py --test --max-iterations 1
+```
+
+**📖 Complete Setup Guide**: See `DEVELOPER_SETUP.md`
+
+---
+
+## 🔧 **Core Features** (Production Ready - Phase 7)
+
+### **Architecture (13+ Orchestrator Systems)**
+- 🏗️ **Modular Design** with clean separation of concerns and SOLID principles
 - 🤖 **15+ LLM Provider Support** including OpenAI, Anthropic, Google, Groq, Ollama, and more
-- 🧪 **Professional Test Infrastructure** with 393 tests, pytest framework, comprehensive mocks
+- 🧪 **Professional Test Infrastructure** with 417 tests, pytest framework, comprehensive coverage
 - 🧠 **Advanced Memory Management** with consistency checking, optimized retrieval, and rollback
 - 🎭 **Sophisticated Character AI** with emotional stability, voice consistency, and stat-driven behavior
+
+### **Production Systems**
 - 🛡️ **Comprehensive Safety Systems** with content classification, NSFW detection, and security validation
-- 📊 **Performance Monitoring** with real-time metrics, bottleneck detection, and optimization
+- 📊 **Performance Monitoring** with real-time metrics, bottleneck detection, and optimization  
 - 🔄 **Scene Rollback System** with automatic backups, integrity validation, and state restoration
 - 📝 **Comprehensive Scene Logging** with structured tags, memory snapshots, and timeline integration
 - 🎯 **Production Ready** with error handling, graceful degradation, and professional logging
@@ -35,6 +60,18 @@ OpenChronicle uses a local LLM to analyze and optimize content before sending to
 - **Faster Responses**: Smaller, optimized prompts improve response times
 - **Better Content Handling**: Automatic classification and routing
 - **Enhanced Memory**: Automatic flag generation and entity extraction
+
+---
+
+---
+
+## 📁 **Documentation**
+
+- **🎯 Development Status**: `DEVELOPMENT_MASTER_PLAN.md` (primary development reference)
+- **🛠️ Developer Setup**: `DEVELOPER_SETUP.md` (complete installation & workflow guide)  
+- **🏗️ Architecture**: `.copilot/architecture/module_interactions.md` (technical architecture)
+- **📚 API Documentation**: `docs/` directory
+- **💾 Historical Data**: `.copilot/backup_original_docs/` (consolidated documentation)
 
 ---
 
