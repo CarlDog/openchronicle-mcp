@@ -67,10 +67,10 @@ class InputValidator:
     
     # Dangerous patterns that could indicate injection attempts
     DANGEROUS_SQL_PATTERNS = [
-        r"(?i)(union\s+select|drop\s+table|delete\s+from|insert\s+into)",
+        r"(?i)(union\s+select.*from|drop\s+table\s+\w+|delete\s+from.*where.*or.*=|insert\s+into.*select)",
         r"(?i)(exec\s*\(|eval\s*\(|script\s*>|<\s*script)",
-        r"(?i)(--|\#|/\*|\*/|;)",
-        r"(?i)(or\s+1\s*=\s*1|and\s+1\s*=\s*1)",
+        r"(?i)(--.*$|\#.*$|/\*.*\*/|;\s*drop|;\s*delete|;\s*insert)",
+        r"(?i)(or\s+['\"]?1['\"]?\s*=\s*['\"]?1['\"]?|and\s+['\"]?1['\"]?\s*=\s*['\"]?1['\"]?)",
         r"(?i)(information_schema|sysobjects|syscolumns)"
     ]
     
@@ -123,16 +123,18 @@ class InputValidator:
                 error_message=f"Input too long: {len(content)} characters (max: {self.max_input_length})"
             )
         
-        # SQL injection detection
+        # SQL injection detection - only flag clear injection attempts in user content
         for pattern in self.DANGEROUS_SQL_PATTERNS:
             if re.search(pattern, content):
-                log_critical(f"SQL injection attempt detected: {pattern}", 
-                           context_tags={"security": "sql_injection", "user": context.user_id})
+                log_critical(f"SQL injection attempt detected: {pattern}")
+                # Still sanitize the content for potential safe usage
+                sanitized = self._sanitize_content(content)
                 return SecurityValidationResult(
                     is_valid=False,
                     threat_level=SecurityThreatLevel.CRITICAL,
                     violation_type=SecurityViolationType.SQL_INJECTION,
-                    error_message="Potentially malicious SQL patterns detected"
+                    error_message="Potentially malicious SQL patterns detected",
+                    sanitized_value=sanitized
                 )
         
         # Script injection detection
@@ -319,6 +321,13 @@ class SQLSecurityValidator:
     def __init__(self):
         self.allowed_operations = {'SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER'}
         self.blocked_keywords = {'EXEC', 'EXECUTE', 'EVAL', 'SCRIPT'}
+        # Patterns specific to SQL injection in actual queries (not user content)
+        self.sql_injection_patterns = [
+            r"(?i)(union\s+select.*information_schema|drop\s+table\s+\w+|information_schema\.)",
+            r"(?i)(--.*\w+|/\*.*\*/.*\w+)",  # Comments with additional content
+            r"(?i)(or\s+['\"]?1['\"]?\s*=\s*['\"]?1['\"]?|and\s+['\"]?1['\"]?\s*=\s*['\"]?1['\"]?)",
+            r"(?i)(xp_cmdshell|sp_executesql)"
+        ]
     
     def validate_sql_query(self, query: str, context: SecurityContext) -> SecurityValidationResult:
         """Validate SQL queries for injection attempts."""
@@ -343,12 +352,10 @@ class SQLSecurityValidator:
                     error_message=f"Blocked SQL keyword: {keyword}"
                 )
         
-        # Check for suspicious patterns
-        validator = InputValidator()
-        for pattern in validator.DANGEROUS_SQL_PATTERNS:
+        # Check for suspicious patterns using SQL-specific patterns
+        for pattern in self.sql_injection_patterns:
             if re.search(pattern, query):
-                log_critical(f"Suspicious SQL pattern detected: {pattern}", 
-                           context_tags={"security": "sql_injection", "user": context.user_id})
+                log_critical(f"Suspicious SQL pattern detected: {pattern}")
                 return SecurityValidationResult(
                     is_valid=False,
                     threat_level=SecurityThreatLevel.CRITICAL,

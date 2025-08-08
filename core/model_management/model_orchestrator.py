@@ -18,7 +18,9 @@ from .model_interfaces import (
 )
 
 from core.shared.dependency_injection import DIContainer, get_container
-from core.shared.error_handling import with_error_handling, ModelError, ErrorContext, ErrorSeverity
+from core.shared.error_handling import (
+    with_error_handling, ErrorContext, ErrorSeverity, ErrorCategory, ModelError
+)
 from core.shared.security_decorators import secure_operation, SecurityThreatLevel
 from utilities.logging_system import log_info, log_error, log_warning
 
@@ -64,9 +66,9 @@ class ModelResponseGenerator(IModelResponseGenerator):
                 
                 raise ModelError(
                     f"Adapter {adapter_name} not available",
-                    category="adapter_error",
+                    category=ErrorCategory.MODEL,
                     severity=ErrorSeverity.HIGH,
-                    context=ErrorContext(operation="generate_response", adapter=adapter_name)
+                    context=ErrorContext(operation="generate_response", component="ModelResponseGenerator", model_name=adapter_name)
                 )
             
             adapter = self.adapters[adapter_name]
@@ -100,9 +102,9 @@ class ModelResponseGenerator(IModelResponseGenerator):
             
             raise ModelError(
                 f"Response generation failed: {e}",
-                category="generation_error",
+                category=ErrorCategory.MODEL,
                 severity=ErrorSeverity.HIGH,
-                context=ErrorContext(operation="generate_response", adapter=adapter_name),
+                context=ErrorContext(operation="generate_response", component="ModelResponseGenerator", model_name=adapter_name),
                 cause=e
             )
     

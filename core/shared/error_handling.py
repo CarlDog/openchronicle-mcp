@@ -335,7 +335,10 @@ def with_error_handling(
                 
                 if enable_recovery:
                     try:
-                        return await _error_recovery_manager.attempt_recovery(oc_error, args, kwargs)
+                        # Create a temporary recovery manager with the specific fallback
+                        temp_manager = ErrorRecoveryManager()
+                        temp_manager.add_strategy(FallbackValueStrategy(fallback_result))
+                        return await temp_manager.attempt_recovery(oc_error, args, kwargs)
                     except Exception:
                         pass  # Fall through to fallback
                 
@@ -370,7 +373,10 @@ def with_error_handling(
                 
                 if enable_recovery:
                     try:
-                        return await _error_recovery_manager.attempt_recovery(oc_error, args, kwargs)
+                        # Create a temporary recovery manager with the specific fallback
+                        temp_manager = ErrorRecoveryManager()
+                        temp_manager.add_strategy(FallbackValueStrategy(fallback_result))
+                        return await temp_manager.attempt_recovery(oc_error, args, kwargs)
                     except Exception:
                         pass  # Fall through to fallback
                 

@@ -41,7 +41,7 @@ class TestCompleteUserSessions:
         
         setup_response = await model_orch.generate_response(
             "I want to start a fantasy adventure story.",
-            context=setup_context
+            adapter_name="gpt-4-turbo"
         )
         
         setup_scene = await scene_orch.save_scene_async(
@@ -136,11 +136,11 @@ class TestCompleteUserSessions:
         """Test session with multiple character interactions."""
         story_id = clean_test_environment['story_id']
         
-        char_orch = CharacterOrchestrator(story_id=story_id)
+        char_orch = CharacterOrchestrator()
         model_orch = ModelOrchestrator()
         scene_orch = SceneOrchestrator(story_id=story_id)
-        memory_orch = MemoryOrchestrator(story_id=story_id)
-        context_orch = ContextOrchestrator(story_id=story_id)
+        memory_orch = MemoryOrchestrator()
+        context_orch = ContextOrchestrator()
         
         # Create multiple characters
         characters = [
@@ -208,7 +208,7 @@ class TestCompleteUserSessions:
         """Test session state persistence across operations."""
         story_id = clean_test_environment['story_id']
         
-        memory_orch = MemoryOrchestrator(story_id=story_id)
+        memory_orch = MemoryOrchestrator()
         scene_orch = SceneOrchestrator(story_id=story_id)
         
         # Build session state over multiple operations
@@ -259,7 +259,7 @@ class TestSessionPerformance:
         story_id = clean_test_environment['story_id']
         
         model_orch = ModelOrchestrator()
-        context_orch = ContextOrchestrator(story_id=story_id)
+        context_orch = ContextOrchestrator()
         
         response_times = []
         
@@ -296,7 +296,7 @@ class TestSessionPerformance:
         import os
         
         story_id = clean_test_environment['story_id']
-        memory_orch = MemoryOrchestrator(story_id=story_id)
+        memory_orch = MemoryOrchestrator()
         
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss

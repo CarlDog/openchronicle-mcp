@@ -92,6 +92,38 @@ class ContextOrchestrator:
         
         log_info("ContextOrchestrator initialized (delayed loading)")
     
+    async def build_context(self, user_input: str, story_data: Optional[Dict[str, Any]] = None, 
+                          config: Optional[ContextConfiguration] = None) -> str:
+        """
+        Build comprehensive context for narrative generation.
+        
+        This is the main entry point method expected by integration tests.
+        
+        Args:
+            user_input: User's input or prompt for context building
+            story_data: Optional story data for context enhancement
+            config: Optional configuration for context building
+            
+        Returns:
+            Formatted context string ready for narrative generation
+        """
+        try:
+            # Use default story data if none provided
+            if story_data is None:
+                story_data = {"content": user_input, "scenes": [], "characters": []}
+            
+            # Use build_context_with_analysis for comprehensive context
+            return await self.build_context_with_analysis(
+                user_input=user_input,
+                story_data=story_data,
+                config=config or self.default_config
+            )
+            
+        except Exception as e:
+            log_error(f"Failed to build context: {e}")
+            # Return simple fallback context
+            return self._create_fallback_context(user_input, story_data or {})
+    
     def _ensure_initialized(self):
         """Ensure all subsystems are initialized (lazy loading)."""
         if self._initialized:

@@ -152,6 +152,27 @@ class ConfigurationManager:
         """Get fallback chain for a model."""
         return self.global_config.get("fallback_chains", {}).get(model_name, [model_name])
     
+    def get_model_configuration(self, adapter_name: str) -> Optional['ModelConfiguration']:
+        """Get configuration for specific model adapter."""
+        from .model_interfaces import ModelConfiguration
+        
+        # Look up the adapter in our configuration
+        adapters = self.config.get("adapters", {})
+        if adapter_name not in adapters:
+            return None
+        
+        adapter_config = adapters[adapter_name]
+        
+        # Convert to ModelConfiguration format
+        return ModelConfiguration(
+            provider_name=adapter_config.get("type", "unknown"),
+            model_name=adapter_name,
+            enabled=adapter_config.get("enabled", True),
+            config=adapter_config,
+            fallback_chain=self.get_fallback_chain(adapter_name),
+            metadata=adapter_config.get("metadata", {})
+        )
+    
     def get_adapters_config(self) -> Dict[str, Any]:
         """Get adapters configuration."""
         return self.config

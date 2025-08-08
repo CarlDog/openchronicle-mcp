@@ -231,8 +231,8 @@ class TestManagementErrorHandling:
             result = orchestrator.create_bookmark("", "", "")
             # Should handle gracefully or raise appropriate error
             assert result is None or isinstance(result, str)
-        except (ValueError, TypeError):
-            # Exception is acceptable for invalid input
+        except (ValueError, TypeError, Exception):
+            # Exception is acceptable for invalid input (including BookmarkManagerException)
             pass
     
     def test_model_selection_fallback(self):

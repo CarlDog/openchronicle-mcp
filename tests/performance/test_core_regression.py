@@ -171,12 +171,27 @@ class TestHealthCheckPerformance:
             return True
         
         def run_async():
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                return loop.run_until_complete(async_operations())
-            finally:
-                loop.close()
+            # Use the existing event loop via run_until_complete in a thread
+            import threading
+            result = [None]  # type: ignore
+            exception = [None]  # type: ignore
+            
+            def thread_target():
+                try:
+                    new_loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(new_loop)
+                    result[0] = new_loop.run_until_complete(async_operations())
+                    new_loop.close()
+                except Exception as e:
+                    exception[0] = e
+            
+            thread = threading.Thread(target=thread_target)
+            thread.start()
+            thread.join()
+            
+            if exception[0]:
+                raise exception[0]
+            return result[0]
         
         result = benchmark(run_async)
         assert result is True

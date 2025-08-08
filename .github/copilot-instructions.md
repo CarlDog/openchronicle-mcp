@@ -97,6 +97,12 @@ Edit: .copilot/project_status.json
 
 # ❌ WRONG: Never update multiple files with same information
 Edit: sprint_action_items.md, mvp_roadmap.md, README.md, etc.
+
+# ❌ WRONG: Do not scatter status updates across files
+# ❌ WRONG: Do not create additional documentation files if editing a current file would achieve the same result
+
+# ✅ TIP: Regularly audit documentation to ensure all project status references point ONLY to `.copilot/project_status.json`.
+# ✅ TIP: Remove outdated or duplicate status information from legacy files to maintain a clean, single source of truth.
 ```
 
 ### **Reference pattern for other files:**
