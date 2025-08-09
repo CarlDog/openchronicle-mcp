@@ -6,6 +6,7 @@ pytest>=8.0.0                    # Testing framework
 pytest-benchmark>=4.0.0         # Performance regression testing
 sqlalchemy>=2.0.0                # Database ORM
 aiosqlite>=0.21.0                # Async SQLite support
+aiofiles>=23.2.0                 # Async file operations
 psutil>=5.9.0                    # System and process utilities for profiling
 keyring>=24.0.0                  # Secure API key storage
 pydantic>=2.5.0                  # Data validation and settings management
@@ -13,10 +14,13 @@ cachetools>=5.3.3                # Caching utilities for performance optimizatio
 redis>=5.0.0                     # Redis caching for performance optimization
 aioredis>=2.0.0                  # Async Redis client
 
-# Web framework (for future API development)
+# Web framework and interface dependencies
 fastapi>=0.116.0                 # FastAPI web framework
 uvicorn>=0.35.0                  # ASGI server
 jinja2>=3.1.0                    # Template engine
+click>=8.1.0                     # CLI framework
+rich>=13.0.0                     # Rich terminal output for CLI
+python-multipart>=0.0.20         # Form data handling for FastAPI
 
 # LLM API Dependencies (install as needed)
 openai>=1.0.0                    # OpenAI GPT models + DALL-E (includes Azure OpenAI support)

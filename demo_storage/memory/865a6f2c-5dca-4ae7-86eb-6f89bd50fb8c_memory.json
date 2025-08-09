@@ -1,0 +1,23 @@
+{
+  "story_id": "865a6f2c-5dca-4ae7-86eb-6f89bd50fb8c",
+  "character_memories": {
+    "9a67129a-9096-4b5d-bada-892d23ea51c7": {
+      "name": "Alex the Architect",
+      "personality": {
+        "wisdom": 8,
+        "creativity": 7,
+        "pragmatism": 9
+      },
+      "emotional_state": {},
+      "relationships": {}
+    }
+  },
+  "world_state": {
+    "setting": "A magical realm of software architecture",
+    "mood": "adventurous",
+    "tech_level": "modern"
+  },
+  "recent_events": [],
+  "flags": {},
+  "last_updated": "2025-08-09T12:24:15.310375"
+}

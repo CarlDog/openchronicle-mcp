@@ -14,7 +14,7 @@ from cachetools import TTLCache
 import asyncio
 
 from ..shared.memory_models import MemoryType, MemoryUpdateResult
-from ...database_systems.async_database_orchestrator import AsyncDatabaseOrchestrator
+from ...database.async_database_orchestrator import AsyncDatabaseOrchestrator
 from ...shared.json_utilities import JSONUtilities
 
 # Setup logging

@@ -15,6 +15,7 @@ This workflow validates:
 """
 
 import pytest
+import pytest_asyncio
 import asyncio
 import time
 from typing import Dict, Any, List

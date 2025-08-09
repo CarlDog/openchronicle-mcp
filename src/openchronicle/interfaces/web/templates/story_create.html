@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Create Story - OpenChronicle{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h3><i class="fas fa-plus me-2"></i>Create New Story</h3>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Title *</label>
+                        <input type="text" class="form-control" id="title" name="title" required 
+                               placeholder="Enter your story title">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"
+                                  placeholder="Describe your story (optional)"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="genre" class="form-label">Genre</label>
+                        <select class="form-control" id="genre" name="genre">
+                            <option value="">Select genre (optional)</option>
+                            <option value="fantasy">Fantasy</option>
+                            <option value="science_fiction">Science Fiction</option>
+                            <option value="mystery">Mystery</option>
+                            <option value="romance">Romance</option>
+                            <option value="adventure">Adventure</option>
+                            <option value="horror">Horror</option>
+                            <option value="comedy">Comedy</option>
+                            <option value="drama">Drama</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="setting" class="form-label">Setting</label>
+                                <input type="text" class="form-control" id="setting" name="setting"
+                                       placeholder="Where does your story take place?">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tech_level" class="form-label">Technology Level</label>
+                                <select class="form-control" id="tech_level" name="tech_level">
+                                    <option value="">Select technology level</option>
+                                    <option value="stone_age">Stone Age</option>
+                                    <option value="bronze_age">Bronze Age</option>
+                                    <option value="medieval">Medieval</option>
+                                    <option value="renaissance">Renaissance</option>
+                                    <option value="industrial">Industrial</option>
+                                    <option value="modern">Modern</option>
+                                    <option value="near_future">Near Future</option>
+                                    <option value="far_future">Far Future</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="magic_level" class="form-label">Magic Level</label>
+                        <select class="form-control" id="magic_level" name="magic_level">
+                            <option value="">Select magic level</option>
+                            <option value="none">No Magic</option>
+                            <option value="low">Low Magic</option>
+                            <option value="medium">Medium Magic</option>
+                            <option value="high">High Magic</option>
+                            <option value="very_high">Very High Magic</option>
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="/stories" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Create Story
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

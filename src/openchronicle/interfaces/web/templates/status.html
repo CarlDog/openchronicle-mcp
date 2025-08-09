@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}System Status - OpenChronicle{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3><i class="fas fa-heartbeat me-2"></i>System Status</h3>
+                <span class="badge {% if health.status == 'healthy' %}bg-success{% else %}bg-danger{% endif %} fs-6">
+                    {{ health.status.upper() }}
+                </span>
+            </div>
+            <div class="card-body">
+                <p><strong>Last Check:</strong> {{ health.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</p>
+                
+                <h5 class="mt-4">Component Health</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Status</th>
+                                <th>Details</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for component, status in health.components.items() %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-{% if status == 'healthy' %}check-circle text-success{% else %}times-circle text-danger{% endif %} me-2"></i>
+                                    {{ component.replace('_', ' ').title() }}
+                                </td>
+                                <td>
+                                    <span class="badge {% if status == 'healthy' %}bg-success{% else %}bg-danger{% endif %}">
+                                        {{ status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if status == 'healthy' %}
+                                        <span class="text-success">Operational</span>
+                                    {% else %}
+                                        <span class="text-danger">{{ status }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle me-2"></i>System Information</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><strong>Version:</strong> 0.1.0</li>
+                    <li><strong>Architecture:</strong> Hexagonal/Clean</li>
+                    <li><strong>Pattern:</strong> CQRS + Event Sourcing</li>
+                    <li><strong>Infrastructure:</strong> Async Python</li>
+                    <li><strong>AI Models:</strong> Multiple Providers</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5><i class="fas fa-external-link-alt me-2"></i>External Links</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/api/v1/health" class="btn btn-outline-primary" target="_blank">
+                        <i class="fas fa-code me-2"></i>API Health Check
+                    </a>
+                    <a href="/api/v1/status" class="btn btn-outline-info" target="_blank">
+                        <i class="fas fa-info me-2"></i>API Status
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh status every 30 seconds
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

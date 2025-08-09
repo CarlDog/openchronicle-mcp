@@ -437,3 +437,115 @@ class AsyncTestMockAdapter(TestMockAdapter):
         raise AssertionError(
             f"Expected {expected_count} calls, got {self.state.call_count} within {timeout}s"
         )
+
+
+# =================
+# ORCHESTRATOR MOCKS
+# =================
+
+class MockModelOrchestrator:
+    """Mock orchestrator for testing model management functionality."""
+    
+    def __init__(self):
+        self.adapters = {}
+        self.initialized_adapters = set()
+        self.call_history = []
+        self.mock_responses = {}
+        
+    async def initialize_adapter(self, adapter_name: str):
+        """Mock adapter initialization."""
+        self.initialized_adapters.add(adapter_name)
+        self.call_history.append(f"initialize_adapter:{adapter_name}")
+        
+    def get_fallback_chain(self, adapter_name: str):
+        """Mock fallback chain generation."""
+        self.call_history.append(f"get_fallback_chain:{adapter_name}")
+        return [adapter_name, "fallback_adapter"]
+        
+    async def generate_response(self, prompt: str, adapter_name: str = "test-mock"):
+        """Mock response generation."""
+        self.call_history.append(f"generate_response:{adapter_name}")
+        return TestResponse(
+            content=self.mock_responses.get(adapter_name, "Mock response"),
+            model=adapter_name
+        )
+        
+    def set_mock_response(self, adapter_name: str, response: str):
+        """Set mock response for specific adapter."""
+        self.mock_responses[adapter_name] = response
+
+
+class MockDatabaseManager:
+    """Mock database manager for testing database operations."""
+    
+    def __init__(self):
+        self.connections = {}
+        self.query_history = []
+        self.mock_results = {}
+        self.transaction_count = 0
+        
+    async def execute_query(self, query: str, params=None):
+        """Mock query execution."""
+        self.query_history.append((query, params))
+        return self.mock_results.get(query, [])
+        
+    async def begin_transaction(self):
+        """Mock transaction start."""
+        self.transaction_count += 1
+        
+    async def commit_transaction(self):
+        """Mock transaction commit."""
+        pass
+        
+    async def rollback_transaction(self):
+        """Mock transaction rollback."""
+        pass
+        
+    def set_mock_result(self, query: str, result):
+        """Set mock result for specific query."""
+        self.mock_results[query] = result
+
+
+class MockLLMAdapter:
+    """Mock LLM adapter for testing language model operations."""
+    
+    def __init__(self, model_name: str = "test-llm"):
+        self.model_name = model_name
+        self.call_history = []
+        self.responses = {}
+        self.default_response = "Mock LLM response"
+        
+    async def generate_text(self, prompt: str, **kwargs):
+        """Mock text generation."""
+        self.call_history.append(f"generate_text:{prompt[:50]}")
+        return self.responses.get(prompt, self.default_response)
+        
+    def set_response(self, prompt: str, response: str):
+        """Set mock response for specific prompt."""
+        self.responses[prompt] = response
+        
+    def get_call_count(self):
+        """Get number of calls made."""
+        return len(self.call_history)
+
+
+# Additional mock classes for compatibility
+class MockDataGenerator:
+    """Mock data generator for tests."""
+    
+    def __init__(self):
+        self.generated_data = {}
+    
+    def generate_test_data(self, data_type: str, count: int = 1):
+        """Generate mock test data."""
+        if data_type == "scene":
+            return [f"Test scene {i}" for i in range(count)]
+        elif data_type == "character":
+            return [f"Test character {i}" for i in range(count)]
+        else:
+            return [f"Test {data_type} {i}" for i in range(count)]
+
+
+def create_mock_database():
+    """Create a mock database for testing."""
+    return MockDatabaseManager()

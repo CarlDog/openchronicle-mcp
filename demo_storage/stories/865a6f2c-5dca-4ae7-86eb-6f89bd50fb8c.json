@@ -1,0 +1,13 @@
+{
+  "id": "865a6f2c-5dca-4ae7-86eb-6f89bd50fb8c",
+  "title": "The Hexagonal Adventure",
+  "description": "A tale of clean architecture and separated concerns",
+  "status": "draft",
+  "world_state": {
+    "setting": "A magical realm of software architecture",
+    "mood": "adventurous",
+    "tech_level": "modern"
+  },
+  "created_at": "2025-08-09T12:24:14.598361",
+  "updated_at": "2025-08-09T12:24:14.598409"
+}
