@@ -13,7 +13,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 
 from ..interfaces import IOutputFormatter, ImportResult, ImportContext, ContentFile
-from utilities.logging_system import get_logger, log_system_event
+from core.shared.logging_system import get_logger, log_system_event
 
 
 class OutputFormatter(IOutputFormatter):

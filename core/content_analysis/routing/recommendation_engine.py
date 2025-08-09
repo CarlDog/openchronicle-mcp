@@ -12,7 +12,7 @@ from typing import Dict, List, Any, Optional
 from ..shared.interfaces import RoutingComponent
 
 # Import logging utilities
-from utilities.logging_system import log_error
+from core.shared.logging_system import log_error
 
 class RecommendationEngine(RoutingComponent):
     """Analyze system state and recommend model management improvements."""

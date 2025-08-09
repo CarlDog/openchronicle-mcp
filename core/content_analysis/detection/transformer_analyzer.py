@@ -15,7 +15,7 @@ from typing import Dict, List, Any, Optional
 from ..shared.interfaces import DetectionComponent
 
 # Import logging utilities
-from utilities.logging_system import log_model_interaction, log_system_event, log_info, log_error, log_warning
+from core.shared.logging_system import log_model_interaction, log_system_event, log_info, log_error, log_warning
 
 # Optional transformer imports with graceful fallback
 try:

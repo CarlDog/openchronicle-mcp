@@ -47,7 +47,7 @@ class NavigationManager:
             return history
             
         except Exception as e:
-            from utilities.logging_system import log_system_event
+            from core.shared.logging_system import log_system_event
             log_system_event("error", f"Navigation history retrieval failed: {e}")
             return []
     
@@ -100,7 +100,7 @@ class NavigationManager:
             return sorted(results, key=lambda x: x['relevance_score'], reverse=True)
             
         except Exception as e:
-            from utilities.logging_system import log_system_event
+            from core.shared.logging_system import log_system_event
             log_system_event("error", f"Scene search failed: {e}")
             return []
     
@@ -161,7 +161,7 @@ class NavigationManager:
             }
             
         except Exception as e:
-            from utilities.logging_system import log_system_event
+            from core.shared.logging_system import log_system_event
             log_system_event("error", f"Scene context retrieval failed: {e}")
             return {"error": str(e)}
     
@@ -179,14 +179,14 @@ class NavigationManager:
                 VALUES (?, ?, ?, ?)
             ''', (from_scene, to_scene, navigation_type, datetime.now(UTC).isoformat()))
             
-            from utilities.logging_system import log_system_event
+            from core.shared.logging_system import log_system_event
             log_system_event("timeline_navigation", 
                             f"Navigation: {from_scene} -> {to_scene} ({navigation_type})")
             
             return True
             
         except Exception as e:
-            from utilities.logging_system import log_system_event
+            from core.shared.logging_system import log_system_event
             log_system_event("error", f"Navigation tracking failed: {e}")
             return False
     
@@ -225,7 +225,7 @@ class NavigationManager:
             }
             
         except Exception as e:
-            from utilities.logging_system import log_system_event
+            from core.shared.logging_system import log_system_event
             log_system_event("error", f"Navigation statistics failed: {e}")
             return {"error": str(e)}
     

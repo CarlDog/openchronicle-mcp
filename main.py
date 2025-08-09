@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Add utilities to path for logging system  
 sys.path.append(str(Path(__file__).parent / "utilities"))
-from logging_system import log_model_interaction, log_system_event, log_info, log_error, log_warning
+from core.shared.logging_system import log_model_interaction, log_system_event, log_info, log_error, log_warning
 from api_key_manager import (
     get_api_key, set_api_key, remove_api_key, list_stored_keys, 
     prompt_and_store_key, get_keyring_info, is_keyring_available

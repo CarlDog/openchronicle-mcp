@@ -15,7 +15,7 @@ from .dependency_injection import DIContainer, ServiceLifetime, get_container
 from .service_interfaces import *
 
 # Import utilities
-from utilities.logging_system import log_system_event, log_info, log_error
+from .logging_system import log_system_event, log_info, log_error
 
 
 class ServiceConfigurator:
@@ -62,15 +62,15 @@ class ServiceConfigurator:
             """Adapter for OpenChronicle logging system."""
             
             def log_info(self, message: str, **kwargs) -> None:
-                from utilities.logging_system import log_info
+                from .logging_system import log_info
                 log_info(message, **kwargs)
             
             def log_error(self, message: str, **kwargs) -> None:
-                from utilities.logging_system import log_error
+                from .logging_system import log_error
                 log_error(message, **kwargs)
             
             def log_warning(self, message: str, **kwargs) -> None:
-                from utilities.logging_system import log_warning
+                from .logging_system import log_warning
                 log_warning(message, **kwargs)
         
         self.container.register_singleton(

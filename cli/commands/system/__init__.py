@@ -21,7 +21,7 @@ current_dir = Path(__file__).parent.parent.parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from cli.core import SystemCommand, OutputManager
+from cli.support import SystemCommand, OutputManager
 
 # Create the system command group
 system_app = typer.Typer(
@@ -603,6 +603,701 @@ def system_diagnostics(
                 
     except Exception as e:
         OutputManager().error(f"Error generating diagnostics: {e}")
+
+
+@system_app.command("performance")
+def performance_status(
+    hours: int = typer.Option(24, "--hours", "-h", help="Hours of data to analyze"),
+    adapter: Optional[str] = typer.Option(None, "--adapter", "-a", help="Specific adapter to analyze"),
+    detailed: bool = typer.Option(False, "--detailed", "-d", help="Show detailed performance metrics"),
+    cleanup: bool = typer.Option(False, "--cleanup", "-c", help="Clean up old performance data"),
+    retention_days: int = typer.Option(30, "--retention", "-r", help="Data retention period for cleanup"),
+    report: bool = typer.Option(False, "--report", help="Generate performance report"),
+    output_file: Optional[str] = typer.Option(None, "--output", "-o", help="Save report to file")
+):
+    """
+    Performance monitoring and analysis.
+    
+    Monitor system performance, analyze metrics, and generate reports
+    for OpenChronicle operations and model adapters.
+    
+    EXAMPLES:
+    
+        # Current performance status
+        openchronicle system performance
+        
+        # Detailed analysis for last 48 hours
+        openchronicle system performance --hours 48 --detailed
+        
+        # Analyze specific adapter performance  
+        openchronicle system performance --adapter gpt-4 --hours 12
+        
+        # Clean up old performance data
+        openchronicle system performance --cleanup --retention 14
+        
+        # Generate performance report
+        openchronicle system performance --report --output performance.json
+    """
+    import asyncio
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
+    import json
+    
+    console = Console()
+    
+    # Try to import PerformanceOrchestrator
+    try:
+        from cli.lib.performance import PerformanceOrchestrator
+        if PerformanceOrchestrator is None:
+            raise ImportError("PerformanceOrchestrator not available")
+    except ImportError:
+        console.print("❌ [bold red]Performance monitoring not available[/bold red]")
+        console.print("   Performance utilities are not properly configured.")
+        console.print("   Please check your OpenChronicle installation.")
+        return
+    
+    async def run_performance_monitoring():
+        """Run performance monitoring operations."""
+        try:
+            orchestrator = PerformanceOrchestrator()
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                
+                if cleanup:
+                    # Clean up old data
+                    task = progress.add_task("Cleaning up performance data...", total=None)
+                    cleanup_stats = await orchestrator.cleanup_old_data(retention_days)
+                    
+                    console.print(f"🧹 [bold green]Performance data cleanup completed[/bold green]")
+                    console.print(f"   📊 Removed {cleanup_stats.get('records_deleted', 0)} old records")
+                    console.print(f"   💾 Freed {cleanup_stats.get('space_freed', 'Unknown')} space")
+                    console.print(f"   ⏱️  Retention: {retention_days} days")
+                    return
+                
+                if report:
+                    # Generate performance report
+                    task = progress.add_task("Generating performance report...", total=None)
+                    from datetime import datetime, timedelta
+                    
+                    end_time = datetime.now()
+                    start_time = end_time - timedelta(hours=hours)
+                    time_period = (start_time, end_time)
+                    
+                    report_data = await orchestrator.generate_performance_report(time_period)
+                    
+                    if output_file:
+                        with open(output_file, 'w') as f:
+                            json.dump(report_data, f, indent=2, default=str)
+                        console.print(f"📋 [bold green]Performance report saved to {output_file}[/bold green]")
+                    else:
+                        console.print(f"📋 [bold blue]Performance Report ({hours}h)[/bold blue]")
+                        console.print_json(data=report_data)
+                    return
+                
+                # Get current status
+                task = progress.add_task("Gathering performance metrics...", total=None)
+                real_time_metrics = await orchestrator.get_real_time_metrics()
+                monitoring_status = orchestrator.get_monitoring_status()
+                
+                progress.update(task, description="Analyzing performance data...")
+                
+                if detailed or adapter:
+                    # Detailed analysis
+                    from datetime import datetime, timedelta
+                    end_time = datetime.now() 
+                    start_time = end_time - timedelta(hours=hours)
+                    time_period = (start_time, end_time)
+                    
+                    analysis = await orchestrator.analyze_performance(time_period, adapter)
+                    
+                    console.print(f"📊 [bold blue]Performance Analysis ({hours}h)[/bold blue]")
+                    if adapter:
+                        console.print(f"   🎯 Adapter: [cyan]{adapter}[/cyan]")
+                    
+                    # Create detailed metrics table
+                    table = Table(title="Performance Metrics")
+                    table.add_column("Metric", style="cyan", no_wrap=True)
+                    table.add_column("Value", style="magenta")
+                    table.add_column("Status", justify="center")
+                    
+                    # Add metrics to table
+                    for metric_name, metric_data in real_time_metrics.items():
+                        if isinstance(metric_data, dict):
+                            value = metric_data.get('value', 'N/A')
+                            status = metric_data.get('status', '⚪')
+                        else:
+                            value = str(metric_data)
+                            status = '✅'
+                        
+                        table.add_row(metric_name, str(value), status)
+                    
+                    console.print(table)
+                    
+                    if analysis and 'recommendations' in analysis:
+                        console.print(f"\n💡 [bold yellow]Recommendations:[/bold yellow]")
+                        for rec in analysis['recommendations']:
+                            console.print(f"   • {rec}")
+                
+                else:
+                    # Simple status display
+                    console.print(f"🔍 [bold blue]Performance Status[/bold blue]")
+                    console.print(f"   📊 Monitoring: [green]{'Active' if monitoring_status.get('active', False) else 'Inactive'}[/green]")
+                    console.print(f"   ⏱️  Collection interval: {monitoring_status.get('interval', 'Unknown')}")
+                    console.print(f"   💾 Storage: {monitoring_status.get('storage_status', 'Unknown')}")
+                    
+                    if real_time_metrics:
+                        console.print(f"\n📈 [bold]Key Metrics:[/bold]")
+                        for metric_name, metric_value in list(real_time_metrics.items())[:5]:
+                            if isinstance(metric_value, dict):
+                                value = metric_value.get('value', 'N/A')
+                                unit = metric_value.get('unit', '')
+                                console.print(f"   {metric_name}: [cyan]{value} {unit}[/cyan]")
+                            else:
+                                console.print(f"   {metric_name}: [cyan]{metric_value}[/cyan]")
+                                
+                        if len(real_time_metrics) > 5:
+                            console.print(f"   ... and {len(real_time_metrics) - 5} more metrics")
+                            console.print(f"   💡 Use --detailed for complete metrics")
+                
+        except Exception as e:
+            console.print(f"❌ [red]Performance monitoring error: {e}[/red]")
+            if detailed:
+                console.print_exception()
+            raise typer.Exit(1)
+    
+    # Run the async performance monitoring
+    asyncio.run(run_performance_monitoring())
+
+
+# Create database command group
+database_app = typer.Typer(
+    name="database",
+    help="Database management and optimization commands",
+    no_args_is_help=True
+)
+
+@database_app.command("optimize")
+def database_optimize(
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show what would be optimized without making changes"),
+    target: Optional[str] = typer.Option(None, "--target", "-t", help="Specific database file to optimize"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed optimization progress"),
+    analyze_only: bool = typer.Option(False, "--analyze", "-a", help="Only analyze databases, don't optimize")
+):
+    """
+    Optimize SQLite databases for better performance.
+    
+    Analyzes and optimizes OpenChronicle SQLite databases, including
+    VACUUM operations, index analysis, and storage optimization.
+    
+    EXAMPLES:
+    
+        # Analyze all databases
+        openchronicle system database optimize --analyze
+        
+        # Dry run optimization
+        openchronicle system database optimize --dry-run --verbose
+        
+        # Optimize specific database
+        openchronicle system database optimize --target stories.db
+        
+        # Full optimization
+        openchronicle system database optimize
+    """
+    from cli.lib.database import DatabaseOptimizer
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
+    from pathlib import Path
+    
+    console = Console()
+    
+    try:
+        optimizer = DatabaseOptimizer(dry_run=dry_run or analyze_only)
+        
+        console.print(f"🗄️  [bold blue]Database Optimization[/bold blue]")
+        if dry_run:
+            console.print(f"   🏃 [yellow]Dry Run Mode - No changes will be made[/yellow]")
+        elif analyze_only:
+            console.print(f"   🔍 [blue]Analysis Mode - No optimization will be performed[/blue]")
+        console.print()
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            
+            task = progress.add_task("Scanning for databases...", total=None)
+            
+            if target:
+                # Optimize specific database
+                target_path = Path(target)
+                if not target_path.exists():
+                    # Try relative to storage directory
+                    target_path = Path("storage") / target
+                    if not target_path.exists():
+                        console.print(f"❌ [red]Database not found: {target}[/red]")
+                        raise typer.Exit(1)
+                
+                databases = [target_path]
+            else:
+                # Find all databases
+                databases = optimizer.find_databases()
+            
+            if not databases:
+                console.print(f"ℹ️  [yellow]No databases found to optimize[/yellow]")
+                return
+            
+            progress.update(task, description=f"Found {len(databases)} database(s)")
+            console.print(f"📊 Found {len(databases)} database(s) to process")
+            
+            # Create results table
+            table = Table(title="Database Optimization Results")
+            table.add_column("Database", style="cyan", no_wrap=True)
+            table.add_column("Original Size", style="yellow")
+            table.add_column("Optimized Size", style="green")
+            table.add_column("Space Saved", style="magenta")
+            table.add_column("Status", justify="center")
+            
+            total_original_size = 0
+            total_optimized_size = 0
+            total_saved = 0
+            
+            for i, db_path in enumerate(databases, 1):
+                progress.update(task, description=f"Processing {db_path.name} ({i}/{len(databases)})")
+                
+                try:
+                    # Get original size
+                    original_size = db_path.stat().st_size
+                    total_original_size += original_size
+                    
+                    if analyze_only:
+                        # Just analyze
+                        analysis = optimizer.analyze_database(str(db_path))
+                        status = "✅ Analyzed"
+                        optimized_size = original_size
+                        saved = 0
+                        
+                        if verbose:
+                            console.print(f"\n📊 [bold]{db_path.name} Analysis:[/bold]")
+                            console.print(f"   Size: {optimizer.format_size(original_size)}")
+                            console.print(f"   Tables: {analysis.get('table_count', 'Unknown')}")
+                            console.print(f"   Indexes: {analysis.get('index_count', 'Unknown')}")
+                            if analysis.get('recommendations'):
+                                console.print(f"   💡 Recommendations: {len(analysis['recommendations'])}")
+                    
+                    else:
+                        # Perform optimization
+                        if dry_run:
+                            result = optimizer.estimate_optimization(str(db_path))
+                            optimized_size = original_size - result.get('estimated_savings', 0)
+                            saved = result.get('estimated_savings', 0)
+                            status = "🔍 Estimated"
+                        else:
+                            result = optimizer.optimize_database(str(db_path))
+                            optimized_size = db_path.stat().st_size
+                            saved = original_size - optimized_size
+                            status = "✅ Optimized"
+                        
+                        total_optimized_size += optimized_size
+                        total_saved += saved
+                    
+                    # Add to results table
+                    table.add_row(
+                        db_path.name,
+                        optimizer.format_size(original_size),
+                        optimizer.format_size(optimized_size),
+                        optimizer.format_size(saved),
+                        status
+                    )
+                    
+                except Exception as e:
+                    table.add_row(
+                        db_path.name,
+                        "Error",
+                        "Error", 
+                        "Error",
+                        f"❌ {str(e)[:20]}..."
+                    )
+                    if verbose:
+                        console.print(f"❌ [red]Error processing {db_path.name}: {e}[/red]")
+            
+            progress.update(task, description="Optimization completed!")
+            
+        # Display results
+        console.print(table)
+        
+        # Summary
+        console.print(f"\n📈 [bold blue]Summary:[/bold blue]")
+        console.print(f"   📊 Databases processed: [cyan]{len(databases)}[/cyan]")
+        
+        if not analyze_only:
+            console.print(f"   💾 Total space saved: [green]{optimizer.format_size(total_saved)}[/green]")
+            if total_original_size > 0:
+                savings_percent = (total_saved / total_original_size) * 100
+                console.print(f"   📉 Space reduction: [magenta]{savings_percent:.1f}%[/magenta]")
+            
+            if dry_run:
+                console.print(f"   ℹ️  [yellow]Run without --dry-run to perform actual optimization[/yellow]")
+        
+    except Exception as e:
+        console.print(f"❌ [red]Database optimization error: {e}[/red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@database_app.command("health")
+def database_health(
+    target: Optional[str] = typer.Option(None, "--target", "-t", help="Specific database to check"),
+    detailed: bool = typer.Option(False, "--detailed", "-d", help="Show detailed health analysis"),
+    fix_issues: bool = typer.Option(False, "--fix", "-f", help="Attempt to fix detected issues"),
+    report: bool = typer.Option(False, "--report", "-r", help="Generate health report")
+):
+    """
+    Check database health and integrity.
+    
+    Performs comprehensive health checks on OpenChronicle databases,
+    including integrity verification, corruption detection, and performance analysis.
+    
+    EXAMPLES:
+    
+        # Quick health check for all databases
+        openchronicle system database health
+        
+        # Detailed health analysis
+        openchronicle system database health --detailed
+        
+        # Check specific database
+        openchronicle system database health --target stories.db --detailed
+        
+        # Check and fix issues
+        openchronicle system database health --fix
+    """
+    from cli.lib.database import database_health_check
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
+    from pathlib import Path
+    
+    console = Console()
+    
+    try:
+        validator = DatabaseHealthValidator()
+        
+        console.print(f"🏥 [bold blue]Database Health Check[/bold blue]")
+        if fix_issues:
+            console.print(f"   🔧 [yellow]Fix Mode - Issues will be repaired[/yellow]")
+        console.print()
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            
+            task = progress.add_task("Scanning databases...", total=None)
+            
+            if target:
+                # Check specific database
+                target_path = Path(target)
+                if not target_path.exists():
+                    target_path = Path("storage") / target
+                    if not target_path.exists():
+                        console.print(f"❌ [red]Database not found: {target}[/red]")
+                        raise typer.Exit(1)
+                databases = [target_path]
+            else:
+                # Find all databases
+                databases = validator.find_databases()
+            
+            if not databases:
+                console.print(f"ℹ️  [yellow]No databases found to check[/yellow]")
+                return
+            
+            progress.update(task, description=f"Checking {len(databases)} database(s)")
+            
+            # Results table
+            table = Table(title="Database Health Status")
+            table.add_column("Database", style="cyan", no_wrap=True)
+            table.add_column("Integrity", justify="center")
+            table.add_column("Performance", justify="center") 
+            table.add_column("Issues", style="yellow")
+            table.add_column("Status", justify="center")
+            
+            total_issues = 0
+            fixed_issues = 0
+            
+            for i, db_path in enumerate(databases, 1):
+                progress.update(task, description=f"Checking {db_path.name} ({i}/{len(databases)})")
+                
+                try:
+                    # Perform health check
+                    health_result = validator.check_database_health(str(db_path))
+                    
+                    integrity = "✅" if health_result.get('integrity_ok', False) else "❌"
+                    performance = "✅" if health_result.get('performance_ok', False) else "⚠️"
+                    issues_count = len(health_result.get('issues', []))
+                    total_issues += issues_count
+                    
+                    # Attempt fixes if requested
+                    status = "Healthy" if issues_count == 0 else f"{issues_count} issues"
+                    if fix_issues and issues_count > 0:
+                        fix_result = validator.fix_database_issues(str(db_path), health_result['issues'])
+                        fixed_count = fix_result.get('fixed_count', 0)
+                        fixed_issues += fixed_count
+                        status = f"Fixed {fixed_count}/{issues_count}"
+                    
+                    table.add_row(
+                        db_path.name,
+                        integrity,
+                        performance,
+                        str(issues_count),
+                        status
+                    )
+                    
+                    if detailed and health_result.get('issues'):
+                        console.print(f"\n🔍 [bold]{db_path.name} Issues:[/bold]")
+                        for issue in health_result['issues']:
+                            console.print(f"   • {issue}")
+                    
+                except Exception as e:
+                    table.add_row(
+                        db_path.name,
+                        "❌",
+                        "❌",
+                        "Error",
+                        f"Error: {str(e)[:20]}..."
+                    )
+            
+            progress.update(task, description="Health check completed!")
+        
+        # Display results
+        console.print(table)
+        
+        # Summary
+        console.print(f"\n🏥 [bold blue]Health Summary:[/bold blue]")
+        console.print(f"   📊 Databases checked: [cyan]{len(databases)}[/cyan]")
+        console.print(f"   ⚠️  Total issues found: [yellow]{total_issues}[/yellow]")
+        
+        if fix_issues and fixed_issues > 0:
+            console.print(f"   🔧 Issues fixed: [green]{fixed_issues}[/green]")
+        elif total_issues > 0 and not fix_issues:
+            console.print(f"   💡 [blue]Use --fix to attempt automatic repairs[/blue]")
+        
+    except Exception as e:
+        console.print(f"❌ [red]Database health check error: {e}[/red]")
+        if detailed:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+# Add database commands to system app
+system_app.add_typer(database_app, name="database")
+
+
+@system_app.command("cleanup")
+def storage_cleanup(
+    dry_run: bool = typer.Option(False, "--dry-run", "-d", help="Show what would be cleaned without making changes"),
+    days: int = typer.Option(30, "--days", help="Clean files older than specified days"),
+    include_logs: bool = typer.Option(True, "--logs/--no-logs", help="Include log file cleanup"),
+    include_backups: bool = typer.Option(True, "--backups/--no-backups", help="Include backup cleanup"),
+    include_cache: bool = typer.Option(True, "--cache/--no-cache", help="Include cache cleanup"),
+    include_temp: bool = typer.Option(True, "--temp/--no-temp", help="Include temporary file cleanup"),
+    aggressive: bool = typer.Option(False, "--aggressive", "-a", help="More aggressive cleanup (shorter retention)"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed cleanup progress")
+):
+    """
+    Clean up storage directories and old files.
+    
+    Removes old backups, logs, temporary files, and cache data to free up
+    disk space and maintain system performance.
+    
+    EXAMPLES:
+    
+        # Preview cleanup (dry run)
+        openchronicle system cleanup --dry-run --verbose
+        
+        # Clean files older than 7 days
+        openchronicle system cleanup --days 7
+        
+        # Aggressive cleanup (shorter retention periods)
+        openchronicle system cleanup --aggressive
+        
+        # Clean only specific file types
+        openchronicle system cleanup --no-logs --no-cache
+    """
+    from cli.lib.storage import StorageCleanup
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from rich.table import Table
+    from datetime import datetime, timedelta
+    import shutil
+    
+    console = Console()
+    
+    try:
+        cleanup = StorageCleanup(dry_run=dry_run)
+        
+        console.print(f"🧹 [bold blue]Storage Cleanup[/bold blue]")
+        if dry_run:
+            console.print(f"   🏃 [yellow]Dry Run Mode - No files will be deleted[/yellow]")
+        if aggressive:
+            console.print(f"   ⚡ [red]Aggressive Mode - Shorter retention periods[/red]")
+            effective_days = max(7, days // 2)  # More aggressive cleanup
+        else:
+            effective_days = days
+        console.print(f"   📅 Retention period: [cyan]{effective_days} days[/cyan]")
+        console.print()
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console
+        ) as progress:
+            
+            task = progress.add_task("Scanning for cleanup candidates...", total=None)
+            
+            # Scan for cleanup items
+            cleanup_items = cleanup.scan_for_cleanup()
+            
+            # Filter based on options and age
+            cutoff_date = datetime.now() - timedelta(days=effective_days)
+            
+            items_to_clean = []
+            total_size = 0
+            
+            # Process each category
+            categories = {
+                "config_backups": (include_backups, "Configuration Backups"),
+                "log_files": (include_logs, "Log Files"), 
+                "temp_files": (include_temp, "Temporary Files"),
+                "cache_files": (include_cache, "Cache Files"),
+                "old_exports": (True, "Old Exports"),
+                "empty_directories": (True, "Empty Directories")
+            }
+            
+            for category, (include, display_name) in categories.items():
+                if not include:
+                    continue
+                    
+                category_items = cleanup_items.get(category, [])
+                for item in category_items:
+                    if isinstance(item, dict):
+                        if item.get('modified', datetime.now()) < cutoff_date:
+                            items_to_clean.append({
+                                'category': display_name,
+                                'path': item['path'],
+                                'size': item.get('size', 0)
+                            })
+                            total_size += item.get('size', 0)
+                    else:
+                        # Handle Path objects directly
+                        try:
+                            stat = item.stat()
+                            if datetime.fromtimestamp(stat.st_mtime) < cutoff_date:
+                                items_to_clean.append({
+                                    'category': display_name,
+                                    'path': item,
+                                    'size': stat.st_size
+                                })
+                                total_size += stat.st_size
+                        except (OSError, AttributeError):
+                            # Skip files we can't stat
+                            pass
+            
+            progress.update(task, description=f"Found {len(items_to_clean)} items to clean")
+            
+            if not items_to_clean:
+                console.print(f"✨ [green]No cleanup needed - storage is already optimized![/green]")
+                return
+            
+            # Create cleanup summary table
+            table = Table(title="Cleanup Summary by Category")
+            table.add_column("Category", style="cyan", no_wrap=True)
+            table.add_column("Items", style="yellow", justify="right")
+            table.add_column("Size", style="magenta", justify="right")
+            
+            # Group by category for summary
+            category_stats = {}
+            for item in items_to_clean:
+                cat = item['category']
+                if cat not in category_stats:
+                    category_stats[cat] = {'count': 0, 'size': 0}
+                category_stats[cat]['count'] += 1
+                category_stats[cat]['size'] += item['size']
+            
+            for category, stats in category_stats.items():
+                table.add_row(
+                    category,
+                    str(stats['count']),
+                    cleanup.format_size(stats['size'])
+                )
+            
+            console.print(table)
+            
+            console.print(f"\n📊 [bold]Total:[/bold]")
+            console.print(f"   📁 Items: [yellow]{len(items_to_clean)}[/yellow]")
+            console.print(f"   💾 Space to free: [green]{cleanup.format_size(total_size)}[/green]")
+            
+            if not dry_run:
+                # Confirm cleanup
+                if not typer.confirm(f"\n🗑️  Proceed with cleanup of {len(items_to_clean)} items?"):
+                    console.print(f"❌ [yellow]Cleanup cancelled by user[/yellow]")
+                    return
+            
+            # Perform cleanup
+            progress.update(task, description="Cleaning up files...")
+            
+            cleaned_count = 0
+            cleaned_size = 0
+            failed_count = 0
+            
+            for i, item in enumerate(items_to_clean, 1):
+                if verbose:
+                    progress.update(task, description=f"Cleaning {item['path'].name} ({i}/{len(items_to_clean)})")
+                
+                try:
+                    if not dry_run:
+                        if item['path'].is_file():
+                            item['path'].unlink()
+                        elif item['path'].is_dir():
+                            shutil.rmtree(item['path'])
+                    
+                    cleaned_count += 1
+                    cleaned_size += item['size']
+                    
+                    if verbose:
+                        console.print(f"   ✅ Cleaned: [cyan]{item['path'].name}[/cyan] ({cleanup.format_size(item['size'])})")
+                
+                except Exception as e:
+                    failed_count += 1
+                    if verbose:
+                        console.print(f"   ❌ Failed: [red]{item['path'].name}[/red] - {e}")
+            
+            progress.update(task, description="Cleanup completed!")
+        
+        # Final summary
+        console.print(f"\n🎉 [bold green]Cleanup {'Preview' if dry_run else 'Completed'}![/bold green]")
+        console.print(f"   ✅ Items {'would be' if dry_run else ''} cleaned: [cyan]{cleaned_count}[/cyan]")
+        console.print(f"   💾 Space {'would be' if dry_run else ''} freed: [green]{cleanup.format_size(cleaned_size)}[/green]")
+        
+        if failed_count > 0:
+            console.print(f"   ⚠️  Failed items: [yellow]{failed_count}[/yellow]")
+        
+        if dry_run:
+            console.print(f"   💡 [blue]Run without --dry-run to perform actual cleanup[/blue]")
+        
+    except Exception as e:
+        console.print(f"❌ [red]Storage cleanup error: {e}[/red]")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 if __name__ == "__main__":

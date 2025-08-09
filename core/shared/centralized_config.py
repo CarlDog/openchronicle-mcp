@@ -16,7 +16,7 @@ from datetime import datetime
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from utilities.logging_system import log_info, log_error, log_warning, log_system_event
+from .logging_system import log_info, log_error, log_warning, log_system_event
 
 
 @dataclass

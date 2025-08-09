@@ -18,7 +18,7 @@ from .shared import DatabaseConfig
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from utilities.logging_system import log_system_event, log_error, log_info, log_warning
+from core.shared.logging_system import log_system_event, log_error, log_info, log_warning
 
 
 class DatabaseHealthChecker:

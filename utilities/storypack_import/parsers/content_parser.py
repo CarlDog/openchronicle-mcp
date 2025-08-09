@@ -17,7 +17,7 @@ except ImportError:
     CHARDET_AVAILABLE = False
 
 from ..interfaces import IContentParser, ContentFile
-from utilities.logging_system import get_logger, log_system_event
+from core.shared.logging_system import get_logger, log_system_event
 
 
 class ContentParser(IContentParser):

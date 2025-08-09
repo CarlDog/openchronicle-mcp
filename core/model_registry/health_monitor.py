@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, UTC
 from dataclasses import dataclass
 from enum import Enum
 
-from utilities.logging_system import log_info, log_error, log_system_event
+from core.shared.logging_system import log_info, log_error, log_system_event
 
 logger = logging.getLogger(__name__)
 

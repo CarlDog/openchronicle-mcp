@@ -22,7 +22,7 @@ from core.shared.error_handling import (
     with_error_handling, ErrorContext, ErrorSeverity, ErrorCategory, ModelError
 )
 from core.shared.security_decorators import secure_operation, SecurityThreatLevel
-from utilities.logging_system import log_info, log_error, log_warning
+from core.shared.logging_system import log_info, log_error, log_warning
 
 class ModelResponseGenerator(IModelResponseGenerator):
     """

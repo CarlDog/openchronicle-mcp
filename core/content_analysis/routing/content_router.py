@@ -12,7 +12,7 @@ from typing import Dict, List, Any
 from ..shared.interfaces import RoutingComponent
 
 # Import logging utilities
-from utilities.logging_system import log_warning
+from core.shared.logging_system import log_warning
 
 class ContentRouter(RoutingComponent):
     """Provide routing recommendations based on content analysis."""

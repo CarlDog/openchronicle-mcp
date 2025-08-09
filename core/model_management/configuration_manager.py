@@ -17,7 +17,7 @@ from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 # Import existing specialized components
-from utilities.logging_system import log_info, log_error, log_warning, log_system_event
+from core.shared.logging_system import log_info, log_error, log_warning, log_system_event
 from core.model_registry.registry_manager import RegistryManager
 from core.shared.centralized_config import SystemConfig, ModelConfig
 from core.model_registry.schema_validation import validate_provider_config

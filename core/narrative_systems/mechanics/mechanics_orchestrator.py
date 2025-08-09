@@ -20,7 +20,7 @@ from .mechanics_models import (
 from .dice_engine import DiceEngine
 from .narrative_branching import NarrativeBranchingEngine
 from ..shared.narrative_exceptions import NarrativeSystemError
-from utilities.logging_system import log_system_event
+from core.shared.logging_system import log_system_event
 
 
 class MechanicsOrchestrator:

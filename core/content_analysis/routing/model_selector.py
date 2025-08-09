@@ -12,7 +12,7 @@ from typing import Dict, List, Any
 from ..shared.interfaces import RoutingComponent
 
 # Import logging utilities
-from utilities.logging_system import log_warning, log_system_event
+from core.shared.logging_system import log_warning, log_system_event
 
 class ModelSelector(RoutingComponent):
     """Select the best model for content generation based on analysis."""

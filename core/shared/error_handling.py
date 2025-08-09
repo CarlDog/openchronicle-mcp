@@ -18,7 +18,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
-from utilities.logging_system import log_system_event, log_info, log_warning, log_error
+from .logging_system import log_system_event, log_info, log_warning, log_error
 
 T = TypeVar('T')
 

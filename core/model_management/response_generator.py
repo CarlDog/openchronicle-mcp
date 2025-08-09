@@ -17,7 +17,7 @@ import logging
 from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
 
-from utilities.logging_system import log_info, log_error, log_warning, log_system_event
+from core.shared.logging_system import log_info, log_error, log_warning, log_system_event
 
 logger = logging.getLogger(__name__)
 

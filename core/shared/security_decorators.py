@@ -16,7 +16,7 @@ from core.shared.security import (
     SecurityManager, SecurityContext, SecurityValidationResult,
     SecurityThreatLevel, SecurityViolationType, security_manager
 )
-from utilities.logging_system import log_warning, log_error
+from .logging_system import log_warning, log_error
 
 def secure_input(*param_names: str, validation_type: str = "user_input"):
     """
@@ -256,7 +256,7 @@ def security_monitored(threat_level: SecurityThreatLevel = SecurityThreatLevel.L
                 
                 # Log successful security-monitored operation
                 if threat_level in [SecurityThreatLevel.HIGH, SecurityThreatLevel.CRITICAL]:
-                    from utilities.logging_system import log_info
+                    from .logging_system import log_info
                     log_info(f"Security monitored operation completed: {func.__name__}", 
                             context_tags={"security": "monitored_operation", "user": user_id})
                 

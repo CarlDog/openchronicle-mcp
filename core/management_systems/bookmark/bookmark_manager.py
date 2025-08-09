@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from logging_system import log_system_event, log_info, log_error
+from core.shared.logging_system import log_system_event, log_info, log_error
 
 from .bookmark_data_manager import BookmarkDataManager, BookmarkValidator
 from .search_engine import BookmarkSearchEngine

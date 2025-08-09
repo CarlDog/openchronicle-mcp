@@ -27,7 +27,7 @@ class TestCorePerformance:
     
     def test_logging_system_performance(self, benchmark):
         """Test logging system performance."""
-        from utilities.logging_system import log_info, log_warning, log_error
+        from core.shared.logging_system import log_info, log_warning, log_error
         
         def log_operations():
             log_info("Performance test info message")

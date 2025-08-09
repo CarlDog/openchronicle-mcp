@@ -22,7 +22,7 @@ from datetime import datetime
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from logging_system import log_system_event, log_info, log_error
+from core.shared.logging_system import log_system_event, log_info, log_error
 
 from .token import TokenManager
 from .bookmark import BookmarkManager

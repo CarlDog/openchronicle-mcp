@@ -36,7 +36,8 @@ class OpenChronicleLogger:
     
     def __init__(self, name: str = "openchronicle", log_dir: Optional[Path] = None):
         self.name = name
-        self.root_dir = Path(__file__).parent.parent
+        # Adjust path since we're now in cli/utilities/ - need to go up 3 levels to project root
+        self.root_dir = Path(__file__).parent.parent.parent
         
         # Determine log directory based on context
         if log_dir:

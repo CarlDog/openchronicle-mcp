@@ -14,7 +14,7 @@ from typing import Dict, List, Any
 from ..shared.interfaces import ExtractionComponent
 
 # Import logging utilities
-from utilities.logging_system import log_info, log_warning, log_error, log_model_interaction
+from core.shared.logging_system import log_info, log_warning, log_error, log_model_interaction
 
 class LoreExtractor(ExtractionComponent):
     """Extract world-building and lore information from raw text content using LLM analysis."""

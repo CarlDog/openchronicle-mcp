@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List
 from .connection import ConnectionManager
 from .shared import FTSIndexInfo
 from core.shared.security import SQLSecurityValidator, SecurityContext
-from utilities.logging_system import log_warning, log_error
+from core.shared.logging_system import log_warning, log_error
 
 
 class FTSManager:

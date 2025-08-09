@@ -22,7 +22,7 @@ from typing import Dict, List, Any, Optional, Tuple
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from logging_system import log_system_event, log_info, log_warning, log_error
+from core.shared.logging_system import log_system_event, log_info, log_warning, log_error
 
 class TimelineConfiguration:
     """Configuration settings for timeline operations."""

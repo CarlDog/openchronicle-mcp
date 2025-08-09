@@ -21,7 +21,7 @@ from typing import Dict, Any, Optional
 from datetime import datetime, UTC
 
 # Import logging system
-from utilities.logging_system import log_model_interaction, log_system_event, log_info, log_error
+from core.shared.logging_system import log_model_interaction, log_system_event, log_info, log_error
 
 # Import exceptions
 from .adapter_exceptions import (

@@ -16,7 +16,7 @@ from .extraction import CharacterExtractor, LocationExtractor, LoreExtractor
 from .routing import ModelSelector, ContentRouter, RecommendationEngine
 
 # Import logging utilities
-from utilities.logging_system import log_info, log_error, log_system_event
+from core.shared.logging_system import log_info, log_error, log_system_event
 
 class ContentAnalysisOrchestrator(ContentAnalysisComponent):
     """

@@ -18,7 +18,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 # Import system components
-from utilities.logging_system import log_info, log_error, log_warning, log_system_event
+from core.shared.logging_system import log_info, log_error, log_warning, log_system_event
 
 UTC = timezone.utc
 

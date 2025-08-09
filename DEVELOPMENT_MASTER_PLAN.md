@@ -672,7 +672,7 @@ pip install pytest-benchmark
 - Check for code duplication across the codebase
 - Check for monolithic architecture issues that should be addressed
 - Ensure comprehensive test coverage for all new code
-- Run full test suite repeatedly until 100% success rate achieved; NO SKIPPED TESTS, NO WARNINGS
+- Run full test suite repeatedly until 100% success rate achieved; NO SKIPPED TESTS (That aren't specific to certain tests), NO WARNINGS
 - Implement baseline stress-testing framework infrastructure
 - Prepare for advanced stress-testing development
 - Confirm integration across dependant modules and all necessary components

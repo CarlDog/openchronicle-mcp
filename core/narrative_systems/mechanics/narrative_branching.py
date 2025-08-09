@@ -17,7 +17,7 @@ from .mechanics_models import (
     CharacterPerformance, MechanicsRequest
 )
 from ..shared.narrative_exceptions import NarrativeSystemError
-from utilities.logging_system import log_system_event
+from core.shared.logging_system import log_system_event
 
 
 class NarrativeBranchingEngine:

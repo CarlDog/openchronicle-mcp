@@ -2,7 +2,8 @@
 Pytest configuration and fixtures for OpenChronicle tests.
 
 Provides common test setup, mock objects, and utility functions
-for both unit and integration tests.
+for both unit and integration tests, with support for the four-tier
+testing strategy (production-real, production-mock, smoke, stress).
 """
 
 import pytest
@@ -19,6 +20,121 @@ from unittest.mock import Mock, MagicMock, AsyncMock
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+
+class TestConfigurationManager:
+    """Manages test configurations for different testing tiers."""
+    
+    def __init__(self):
+        self.current_tier = self._detect_current_tier()
+        self.mock_adapters_enabled = self._should_use_mock_adapters()
+    
+    def _detect_current_tier(self) -> str:
+        """Detect which test tier is currently running."""
+        # Check environment variables first
+        tier = os.environ.get('OPENCHRONICLE_TEST_TIER', 'standard')
+        if tier != 'standard':
+            return tier
+            
+        # Check for pytest markers in sys.argv
+        import sys
+        argv_str = ' '.join(sys.argv)
+        if 'production_real' in argv_str:
+            return 'production_real'
+        elif 'production_mock' in argv_str or 'mock_only' in argv_str:
+            return 'production_mock'
+        elif 'smoke' in argv_str or 'core' in argv_str:
+            return 'smoke'
+        elif 'stress' in argv_str or 'chaos' in argv_str:
+            return 'stress'
+        
+        return 'standard'
+    
+    def _should_use_mock_adapters(self) -> bool:
+        """Determine if mock adapters should be used."""
+        return self.current_tier in ['production_mock', 'smoke', 'stress', 'standard']
+    
+    def get_model_adapter_config(self) -> Dict[str, Any]:
+        """Get model adapter configuration for current test tier."""
+        if self.mock_adapters_enabled:
+            return {
+                'adapter_type': 'mock',
+                'mock_responses': True,
+                'enable_real_api_calls': False,
+                'timeout': 5.0
+            }
+        else:
+            return {
+                'adapter_type': 'real',
+                'mock_responses': False,
+                'enable_real_api_calls': True,
+                'timeout': 30.0,
+                'retry_attempts': 3
+            }
+    
+    def get_database_config(self) -> Dict[str, Any]:
+        """Get database configuration for current test tier."""
+        base_config = {
+            'use_memory_db': True,
+            'enable_foreign_keys': True,
+            'auto_vacuum': True
+        }
+        
+        if self.current_tier == 'stress':
+            stress_config = {
+                'connection_pool_size': 10,
+                'max_connections': 50,
+                'timeout': 60.0
+            }
+            base_config.update(stress_config)
+        
+        return base_config
+
+
+# Global configuration instance
+test_config = TestConfigurationManager()
+
+
+def pytest_configure(config):
+    """Pytest hook to setup test configuration."""
+    # Set environment variables based on markers
+    markexpr = getattr(config.option, 'markexpr', '')
+    if markexpr:
+        if 'production_real' in markexpr:
+            os.environ['OPENCHRONICLE_TEST_TIER'] = 'production_real'
+        elif 'production_mock' in markexpr:
+            os.environ['OPENCHRONICLE_TEST_TIER'] = 'production_mock'
+        elif 'smoke' in markexpr:
+            os.environ['OPENCHRONICLE_TEST_TIER'] = 'smoke'
+        elif 'stress' in markexpr:
+            os.environ['OPENCHRONICLE_TEST_TIER'] = 'stress'
+
+
+def get_mock_model_adapter():
+    """Create a mock model adapter for testing."""
+    mock_adapter = AsyncMock()
+    mock_adapter.generate_response.return_value = {
+        'content': 'Mock response content',
+        'metadata': {'model': 'mock-model', 'tokens': 50}
+    }
+    mock_adapter.is_available.return_value = True
+    mock_adapter.get_model_info.return_value = {
+        'name': 'mock-model',
+        'provider': 'mock',
+        'capabilities': ['text_generation']
+    }
+    return mock_adapter
+
+
+def get_mock_image_adapter():
+    """Create a mock image adapter for testing."""
+    mock_adapter = AsyncMock()
+    mock_adapter.generate_image.return_value = {
+        'image_data': b'mock_image_data',
+        'metadata': {'format': 'png', 'size': '512x512'}
+    }
+    mock_adapter.is_available.return_value = True
+    return mock_adapter
+
 # Import core modules
 from core.scene_systems.scene_orchestrator import SceneOrchestrator
 from core.timeline_systems.timeline_orchestrator import TimelineOrchestrator
@@ -28,6 +144,34 @@ from core.context_systems.context_orchestrator import ContextOrchestrator
 
 # Import enhanced mock adapters for isolated testing
 from tests.mocks.mock_adapters import MockModelOrchestrator, MockDatabaseManager
+
+
+# ===== TIER-BASED FIXTURES =====
+
+@pytest.fixture
+def tier_config():
+    """Provide test tier configuration."""
+    return test_config
+
+
+@pytest.fixture
+def model_adapter(tier_config):
+    """Provide model adapter based on test tier."""
+    if tier_config.mock_adapters_enabled:
+        return get_mock_model_adapter()
+    else:
+        # Return real adapter (would need actual implementation)
+        pytest.skip("Real model adapter not configured for testing")
+
+
+@pytest.fixture
+def image_adapter(tier_config):
+    """Provide image adapter based on test tier."""
+    if tier_config.mock_adapters_enabled:
+        return get_mock_image_adapter()
+    else:
+        # Return real adapter (would need actual implementation)
+        pytest.skip("Real image adapter not configured for testing")
 
 
 # ===== FIXTURES =====

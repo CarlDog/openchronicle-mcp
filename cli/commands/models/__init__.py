@@ -17,7 +17,7 @@ current_dir = Path(__file__).parent.parent.parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from cli.core import ModelCommand, OutputManager
+from cli.support import ModelCommand, OutputManager
 
 # Create the models command group
 models_app = typer.Typer(

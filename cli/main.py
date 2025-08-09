@@ -10,27 +10,55 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-import typer
-from rich.console import Console
-
 # Add the current directory to Python path for imports
 current_dir = Path(__file__).parent.parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from cli.core.output_manager import OutputManager
-from cli.core.config_manager import ConfigManager
+# Also add utilities specifically to ensure imports work
+utilities_dir = current_dir / "utilities"
+if str(utilities_dir) not in sys.path:
+    sys.path.insert(0, str(utilities_dir))
+
+import typer
+from rich.console import Console
+
+from cli.support.output_manager import OutputManager
+from cli.support.config_manager import ConfigManager
 
 # Import command modules
+commands_imported = {}
 try:
     from cli.commands.story import story_app
-    from cli.commands.models import models_app
-    from cli.commands.system import system_app
-    from cli.commands.config import config_app
-    COMMANDS_AVAILABLE = True
+    commands_imported['story'] = story_app
 except ImportError as e:
-    print(f"Warning: Some command modules not available: {e}")
-    COMMANDS_AVAILABLE = False
+    print(f"Warning: Story commands not available: {e}")
+
+try:
+    from cli.commands.models import models_app  
+    commands_imported['models'] = models_app
+except ImportError as e:
+    print(f"Warning: Models commands not available: {e}")
+
+try:
+    from cli.commands.system import system_app
+    commands_imported['system'] = system_app
+except ImportError as e:
+    print(f"Warning: System commands not available: {e}")
+
+try:
+    from cli.commands.config import config_app
+    commands_imported['config'] = config_app
+except ImportError as e:
+    print(f"Warning: Config commands not available: {e}")
+
+try:
+    from cli.commands.test import test_app
+    commands_imported['test'] = test_app
+except ImportError as e:
+    print(f"Warning: Test commands not available: {e}")
+
+COMMANDS_AVAILABLE = len(commands_imported) > 0
 
 # Initialize Typer app
 app = typer.Typer(
@@ -125,20 +153,23 @@ def main(
     output_manager = OutputManager(format_type=format, quiet=quiet)
     config_manager = ConfigManager(config_dir=config_dir_path)
     
-    # Store in app state for commands to access
-    app.state = {
-        "output_manager": output_manager,
-        "config_manager": config_manager
-    }
+    # Store in global variables for commands to access (simple approach)
+    # Commands can import these directly or we can pass them via context
 
 
 # Add command groups if available
 if COMMANDS_AVAILABLE:
     try:
-        app.add_typer(story_app, name="story")
-        app.add_typer(models_app, name="models")
-        app.add_typer(system_app, name="system")
-        app.add_typer(config_app, name="config")
+        if 'story' in commands_imported:
+            app.add_typer(commands_imported['story'], name="story")
+        if 'models' in commands_imported:
+            app.add_typer(commands_imported['models'], name="models")
+        if 'system' in commands_imported:
+            app.add_typer(commands_imported['system'], name="system")
+        if 'config' in commands_imported:
+            app.add_typer(commands_imported['config'], name="config")
+        if 'test' in commands_imported:
+            app.add_typer(commands_imported['test'], name="test")
     except Exception as e:
         print(f"Warning: Error adding command groups: {e}")
 

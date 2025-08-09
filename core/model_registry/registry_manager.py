@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 from datetime import datetime, timezone
 
-from utilities.logging_system import log_system_event, log_error, log_info, log_warning
+from core.shared.logging_system import log_system_event, log_error, log_info, log_warning
 from .schema_validation import (
     RegistryValidator, 
     SchemaValidationError, 

@@ -11,23 +11,31 @@ from typing import Optional, List
 
 import typer
 from rich.prompt import Prompt, Confirm
+from rich.console import Console
 
 # Add parent directories to path for imports
 current_dir = Path(__file__).parent.parent.parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from cli.core import StoryCommand, OutputManager
+from cli.support import StoryCommand, OutputManager
 
 # Import interactive commands
-from .interactive import interactive_app
-
-# Import interactive command
 try:
     from .interactive import interactive_app
     INTERACTIVE_AVAILABLE = True
 except ImportError as e:
-    print(f"Warning: Interactive commands not available: {e}")
+    print(f"Warning: Interactive story commands not available: {e}")
+    # Create a minimal fallback interactive app
+    interactive_app = typer.Typer()
+    @interactive_app.command("disabled")
+    def interactive_disabled():
+        """Interactive commands are disabled due to missing dependencies."""
+        console = Console()
+        console.print("❌ [red]Interactive story commands are not available[/red]")
+        console.print("   This may be due to missing core dependencies")
+        console.print("   Please check your installation")
+    INTERACTIVE_AVAILABLE = False
     INTERACTIVE_AVAILABLE = False
 
 # Create the story command group
@@ -364,6 +372,195 @@ def generate_content(
             
     except Exception as e:
         OutputManager().error(f"Error generating content: {e}")
+
+
+@story_app.command("import")
+def import_storypack(
+    source_path: Path = typer.Argument(..., help="Path to the source content directory"),
+    storypack_name: str = typer.Argument(..., help="Name for the generated storypack"),
+    output_dir: Optional[Path] = typer.Option(
+        Path("storage/storypacks"),
+        "--output-dir", "-o",
+        help="Output directory for the storypack"
+    ),
+    import_mode: str = typer.Option(
+        "auto",
+        "--import-mode", "-m",
+        help="Import mode: auto, manual, ai_assisted"
+    ),
+    ai_enabled: bool = typer.Option(
+        False,
+        "--ai-enabled", "-a",
+        help="Enable AI processing for content analysis"
+    ),
+    template: Optional[str] = typer.Option(
+        None,
+        "--template", "-t",
+        help="Specific template to use for the storypack"
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run", "-d",
+        help="Perform a dry run without creating files"
+    ),
+    report_type: str = typer.Option(
+        "summary",
+        "--report-type", "-r",
+        help="Report type: summary, standard, detailed, technical"
+    ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose", "-v",
+        help="Enable verbose output"
+    )
+):
+    """
+    Import content into a new storypack.
+    
+    Converts external content (text files, documents, etc.) into OpenChronicle
+    storypack format with automatic content analysis and organization.
+    
+    EXAMPLES:
+    
+        # Basic import
+        openchronicle story import ./my-content "My Adventure"
+        
+        # AI-assisted import with custom template
+        openchronicle story import ./content "Epic Quest" --ai-enabled --template fantasy
+        
+        # Dry run to preview import
+        openchronicle story import ./content "Test" --dry-run --verbose
+    """
+    import asyncio
+    from cli.utilities.storypack import (
+        StorypackOrchestrator, ContentParser, MetadataExtractor, StructureAnalyzer,
+        AIProcessor, ContentClassifier, ValidationEngine, StorypackBuilder, 
+        TemplateEngine, OutputFormatter
+    )
+    from rich.console import Console
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    
+    console = Console()
+    
+    async def run_import():
+        """Run the import process asynchronously."""
+        try:
+            # Validate inputs
+            if not source_path.exists():
+                console.print(f"❌ [red]Source path does not exist: {source_path}[/red]")
+                raise typer.Exit(1)
+            
+            if not source_path.is_dir():
+                console.print(f"❌ [red]Source path is not a directory: {source_path}[/red]")
+                raise typer.Exit(1)
+            
+            # Create output directory if it doesn't exist
+            if output_dir:
+                output_dir.mkdir(parents=True, exist_ok=True)
+                console.print(f"   📁 Output: [yellow]{output_dir}[/yellow]")
+            else:
+                console.print(f"❌ [red]Output directory not specified[/red]")
+                raise typer.Exit(1)
+            
+            console.print(f"📦 [bold blue]Starting storypack import[/bold blue]")
+            console.print(f"   📂 Source: [cyan]{source_path}[/cyan]")
+            console.print(f"   📝 Name: [green]{storypack_name}[/green]")
+            console.print(f"   📁 Output: [yellow]{output_dir}[/yellow]")
+            console.print(f"   🔧 Mode: [magenta]{import_mode}[/magenta]")
+            if ai_enabled:
+                console.print(f"   🤖 AI Processing: [green]Enabled[/green]")
+            if template:
+                console.print(f"   📋 Template: [blue]{template}[/blue]")
+            if dry_run:
+                console.print(f"   🏃 [yellow]Dry Run Mode[/yellow]")
+            console.print()
+            
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console
+            ) as progress:
+                # Initialize components
+                task = progress.add_task("Initializing import system...", total=None)
+                
+                content_parser = ContentParser()
+                metadata_extractor = MetadataExtractor() 
+                structure_analyzer = StructureAnalyzer()
+                ai_processor = AIProcessor() if ai_enabled else None
+                content_classifier = ContentClassifier()
+                validation_engine = ValidationEngine()
+                storypack_builder = StorypackBuilder()
+                template_engine = TemplateEngine()
+                output_formatter = OutputFormatter()
+                
+                # Create orchestrator
+                orchestrator = StorypackOrchestrator(
+                    content_parser=content_parser,
+                    metadata_extractor=metadata_extractor,
+                    structure_analyzer=structure_analyzer,
+                    ai_processor=ai_processor,
+                    content_classifier=content_classifier,
+                    validation_engine=validation_engine,
+                    storypack_builder=storypack_builder,
+                    template_engine=template_engine,
+                    output_formatter=output_formatter
+                )
+                
+                progress.update(task, description="Processing content...")
+                
+                # Run the import
+                result = await orchestrator.import_storypack(
+                    source_path=source_path,
+                    storypack_name=storypack_name,
+                    target_dir=output_dir,
+                    import_mode=import_mode
+                )
+                
+                progress.update(task, description="Import completed!")
+                
+            # Display results
+            if result:
+                console.print(f"✅ [bold green]Import successful![/bold green]")
+                console.print(f"   📦 Storypack: [cyan]{storypack_name}[/cyan]")
+                console.print(f"   📁 Location: [yellow]{output_dir / storypack_name}[/yellow]")
+                
+                # Try to get statistics from result
+                try:
+                    stats = getattr(result, 'statistics', None)
+                    if stats:
+                        console.print(f"   📊 Files processed: [blue]{stats.get('files_processed', 'N/A')}[/blue]")
+                        console.print(f"   📝 Scenes created: [green]{stats.get('scenes_created', 'N/A')}[/green]")
+                        console.print(f"   👥 Characters found: [magenta]{stats.get('characters_found', 'N/A')}[/magenta]")
+                    else:
+                        # Try to extract stats from result object directly
+                        for attr in ['files_processed', 'scenes_created', 'characters_found']:
+                            value = getattr(result, attr, None)
+                            if value is not None:
+                                console.print(f"   📊 {attr.replace('_', ' ').title()}: [blue]{value}[/blue]")
+                except Exception:
+                    # If we can't get statistics, just continue
+                    pass
+                
+                if report_type != "summary":
+                    console.print(f"\n📋 [bold]Detailed Report:[/bold]")
+                    # Add detailed reporting based on report_type
+                    console.print(f"   Report type '{report_type}' - detailed reporting coming soon")
+                    
+            else:
+                console.print(f"❌ [red]Import failed[/red]")
+                raise typer.Exit(1)
+                
+        except KeyboardInterrupt:
+            console.print(f"\n⏸️  [yellow]Import cancelled by user[/yellow]")
+            raise typer.Exit(1)
+        except Exception as e:
+            console.print(f"❌ [red]Import error: {e}[/red]")
+            if verbose:
+                console.print_exception()
+            raise typer.Exit(1)
+    
+    # Run the async import
+    asyncio.run(run_import())
 
 
 if __name__ == "__main__":

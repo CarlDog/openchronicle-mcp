@@ -36,7 +36,7 @@ from core.memory_management.memory_orchestrator import MemoryOrchestrator
 from core.scene_systems.scene_orchestrator import SceneOrchestrator
 from core.database_systems.database_orchestrator import startup_health_check
 from core.shared.error_handling import OpenChronicleError, ErrorCategory, ErrorSeverity
-from utilities.logging_system import log_info, log_error, log_warning
+from core.shared.logging_system import log_info, log_error, log_warning
 
 
 @dataclass

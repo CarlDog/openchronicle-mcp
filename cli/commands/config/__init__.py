@@ -19,7 +19,7 @@ current_dir = Path(__file__).parent.parent.parent
 if str(current_dir) not in sys.path:
     sys.path.insert(0, str(current_dir))
 
-from cli.core import OpenChronicleCommand, OutputManager, ConfigManager
+from cli.support import OpenChronicleCommand, OutputManager, ConfigManager
 
 # Create the config command group
 config_app = typer.Typer(

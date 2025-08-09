@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Any
 
 from ..interfaces import IStructureAnalyzer, ContentFile
-from utilities.logging_system import get_logger, log_system_event
+from core.shared.logging_system import get_logger, log_system_event
 
 
 class StructureAnalyzer(IStructureAnalyzer):

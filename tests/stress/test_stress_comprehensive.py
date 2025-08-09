@@ -34,7 +34,7 @@ from core.memory_management.memory_orchestrator import MemoryOrchestrator
 from core.scene_systems.scene_orchestrator import SceneOrchestrator
 from core.character_management.character_orchestrator import CharacterOrchestrator
 from core.narrative_systems.narrative_orchestrator import NarrativeOrchestrator
-from utilities.logging_system import log_info, log_warning
+from core.shared.logging_system import log_info, log_warning
 
 
 class TestOrchestatorStressTesting:

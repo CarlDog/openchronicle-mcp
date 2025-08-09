@@ -16,7 +16,7 @@ from .dependency_injection import DIContainer, get_container
 from .service_interfaces import *
 
 # Import utilities
-from utilities.logging_system import log_system_event, log_info, log_error
+from .logging_system import log_system_event, log_info, log_error
 
 T = TypeVar('T')
 

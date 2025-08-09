@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional, Union, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
-from utilities.logging_system import log_system_event, log_info, log_warning, log_error, log_critical
+from .logging_system import log_system_event, log_info, log_warning, log_error, log_critical
 
 class SecurityThreatLevel(Enum):
     """Security threat classification levels."""

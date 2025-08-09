@@ -14,7 +14,7 @@ from .keyword_detector import KeywordDetector
 from .transformer_analyzer import TransformerAnalyzer
 
 # Import logging utilities
-from utilities.logging_system import log_system_event, log_error
+from core.shared.logging_system import log_system_event, log_error
 
 class ContentClassifier(DetectionComponent):
     """Main content classification combining keyword and transformer approaches."""

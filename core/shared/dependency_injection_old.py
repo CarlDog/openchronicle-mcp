@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 # Import utilities
-from utilities.logging_system import log_system_event, log_info, log_error, log_warning
+from .logging_system import log_system_event, log_info, log_error, log_warning
 
 # Type hints
 T = TypeVar('T')
