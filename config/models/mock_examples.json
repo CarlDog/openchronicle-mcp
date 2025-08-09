@@ -1,0 +1,54 @@
+{
+  "mock_creative_writer": {
+    "provider": "mock",
+    "model_name": "creative-writer-v1",
+    "personality": "creative",
+    "response_quality": "high",
+    "response_length": "medium",
+    "creativity_level": 0.8,
+    "consistency_level": 0.9,
+    "error_rate": 0.0,
+    "response_time_ms": 600,
+    "description": "Creative mock model for imaginative storytelling",
+    "enabled": true
+  },
+  "mock_analytical_writer": {
+    "provider": "mock", 
+    "model_name": "analytical-writer-v1",
+    "personality": "analytical",
+    "response_quality": "high",
+    "response_length": "long",
+    "creativity_level": 0.3,
+    "consistency_level": 0.95,
+    "error_rate": 0.0,
+    "response_time_ms": 800,
+    "description": "Analytical mock model for structured narrative development",
+    "enabled": true
+  },
+  "mock_fast_prototype": {
+    "provider": "mock",
+    "model_name": "fast-prototype-v1", 
+    "personality": "concise",
+    "response_quality": "medium",
+    "response_length": "short",
+    "creativity_level": 0.5,
+    "consistency_level": 0.8,
+    "error_rate": 0.0,
+    "response_time_ms": 300,
+    "description": "Fast mock model for rapid prototyping and testing",
+    "enabled": true
+  },
+  "mock_error_tester": {
+    "provider": "mock",
+    "model_name": "error-tester-v1",
+    "personality": "balanced",
+    "response_quality": "medium",
+    "response_length": "medium",
+    "creativity_level": 0.7,
+    "consistency_level": 0.9,
+    "error_rate": 0.1,
+    "response_time_ms": 500,
+    "description": "Mock model for testing error handling and resilience",
+    "enabled": false
+  }
+}

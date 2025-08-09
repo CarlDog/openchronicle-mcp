@@ -21,8 +21,8 @@ import json
 # Core database systems
 import sys
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from core.database_systems.database_orchestrator import DatabaseOrchestrator
-from core.scene_systems.scene_orchestrator import SceneOrchestrator
+from core.database.database_orchestrator import DatabaseOrchestrator
+from core.scenes.scene_orchestrator import SceneOrchestrator
 
 
 class TestDatabasePerformance:
@@ -218,7 +218,7 @@ class TestMemorySystemPerformance:
     
     def test_memory_operation_performance(self, benchmark, temp_story_id):
         """Test memory system operation performance."""
-        from core.memory_management.memory_orchestrator import MemoryOrchestrator
+        from core.memory.memory_orchestrator import MemoryOrchestrator
         
         memory_orchestrator = MemoryOrchestrator()
         

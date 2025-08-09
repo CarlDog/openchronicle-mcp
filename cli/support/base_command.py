@@ -156,7 +156,7 @@ class OpenChronicleCommand(ABC):
         Safely import a core OpenChronicle module.
         
         Args:
-            module_name: Name of the module to import (e.g., "model_management")
+            module_name: Name of the module to import (e.g., "models")
             
         Returns:
             Imported module
@@ -332,7 +332,7 @@ class ModelCommand(OpenChronicleCommand):
         """Lazy-load the model manager."""
         if self._model_manager is None:
             try:
-                model_mgmt = self.import_core_module("model_management")
+                model_mgmt = self.import_core_module("models")
                 self._model_manager = model_mgmt.ModelOrchestrator()
             except Exception as e:
                 self.output.error(f"Cannot initialize model manager: {e}")
@@ -385,8 +385,8 @@ class SystemCommand(OpenChronicleCommand):
         
         # Check core modules
         core_modules = [
-            "model_management", "narrative_systems", "character_management",
-            "memory_management", "timeline_systems", "scene_systems"
+            "models", "narrative", "characters",
+            "memory", "timeline", "scenes"
         ]
         
         module_status = {}

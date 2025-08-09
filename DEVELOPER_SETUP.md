@@ -178,23 +178,68 @@ git push origin feature/your-feature-name
 - **Type Hints**: Use Python type hints throughout
 - **Docstrings**: Document all public functions and classes
 - **Error Handling**: Use try/except with specific exceptions
-- **Logging**: Use `utilities.logging_system` for all logging
+- **Logging**: Use `core.shared.logging_system` for all logging
 - **Testing**: Write tests for new functionality
+
+### **Core API Usage (NEW!)**
+
+OpenChronicle now provides a professional unified API through `core.main`:
+
+```python
+# Modern import style (RECOMMENDED)
+from core.main import ModelOrchestrator, SceneOrchestrator, MemoryOrchestrator
+from core.main import health_check, initialize_core, get_version
+
+# System initialization
+import asyncio
+
+async def setup_system():
+    # Initialize core systems
+    success = await initialize_core()
+    if success:
+        # Check system health
+        status = await health_check()
+        print(f"System health: {status.availability_percentage:.1f}%")
+    
+    # Create orchestrators using clean API
+    model_orchestrator = ModelOrchestrator()
+    scene_orchestrator = SceneOrchestrator()
+    memory_orchestrator = MemoryOrchestrator()
+
+# Alternative: Factory functions with error handling
+from core.main import create_model_orchestrator, create_scene_orchestrator
+
+model_orchestrator = create_model_orchestrator()  # Returns None if unavailable
+if model_orchestrator:
+    # Use orchestrator safely
+    pass
+
+# System information
+from core.main import get_available_orchestrators
+available = get_available_orchestrators()
+print(f"Available systems: {[name for name, status in available.items() if status]}")
+```
 
 ### **Architecture Patterns**
 
 ```python
-# Orchestrator Pattern Example
-from core.model_management import ModelOrchestrator
+# Modern Orchestrator Pattern (RECOMMENDED)
+from core.main import ModelOrchestrator, MemoryOrchestrator
+from core.shared.logging_system import log_system_event
 
 class YourOrchestrator:
     def __init__(self):
         self.model_manager = ModelOrchestrator()
+        self.memory_manager = MemoryOrchestrator()
     
     async def your_method(self):
         # Always use async patterns
+        log_system_event("operation", "Starting your_method")
         result = await self.model_manager.generate_response(prompt)
         return result
+
+# Legacy import style (still supported)
+from core.model_management.model_orchestrator import ModelOrchestrator
 ```
 
 ---

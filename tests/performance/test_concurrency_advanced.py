@@ -8,10 +8,10 @@ Tests high-load concurrent operations and stress scenarios.
 import pytest
 import asyncio
 import time
-from core.model_management import ModelOrchestrator
-from core.memory_management import MemoryOrchestrator
-from core.scene_systems import SceneOrchestrator
-from core.character_management import CharacterOrchestrator
+from core.models import ModelOrchestrator
+from core.memory import MemoryOrchestrator
+from core.scenes import SceneOrchestrator
+from core.characters import CharacterOrchestrator
 
 
 class TestAdvancedConcurrency:
@@ -129,7 +129,7 @@ class TestConcurrencyPerformanceMetrics:
     @pytest.mark.performance
     async def test_concurrent_performance_monitoring(self, clean_test_environment):
         """Test performance monitoring during concurrent operations."""
-        from core.model_management.performance_monitor import PerformanceMonitor
+        from core.performance.model_monitor import PerformanceMonitor
         
         monitor = PerformanceMonitor({}, {})
         story_id = clean_test_environment['story_id']

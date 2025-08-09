@@ -33,9 +33,9 @@ def load_imports():
     global ContentAnalyzer, create_image_engine, ImageType, startup_health_check
     
     from core.story_loader import load_storypack
-    from core.context_systems import ContextOrchestrator
-    from core.memory_management import MemoryOrchestrator
-    from core.timeline_systems import TimelineOrchestrator
+    from core.content.context import ContextOrchestrator
+    from core.memory import MemoryOrchestrator
+    from core.timeline import TimelineOrchestrator
     
     # Create orchestrators
     context_orchestrator = ContextOrchestrator()
@@ -60,11 +60,11 @@ def load_imports():
     
     async def get_memory_summary(story_id):
         return await memory_orchestrator.get_memory_summary(story_id)
-    from core.scene_systems.scene_orchestrator import SceneOrchestrator
-    from core.model_management.model_orchestrator import ModelOrchestrator
-    from core.content_analysis import ContentAnalysisOrchestrator as ContentAnalyzer
-    from core.image_systems import create_image_engine, ImageType
-    from core.database_systems.database_orchestrator import startup_health_check
+    from core.scenes.scene_orchestrator import SceneOrchestrator
+    from core.models.model_orchestrator import ModelOrchestrator
+    from core.content import ContentAnalysisOrchestrator as ContentAnalyzer
+    from core.images import create_image_engine, ImageType
+    from core.database.database_orchestrator import startup_health_check
     
     # Scene orchestrator will be created per story
     def save_scene(story_id, user_input, ai_response, memory_snapshot=None, analysis_data=None):

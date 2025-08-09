@@ -29,11 +29,11 @@ from tests.stress.stress_testing_framework import (
     create_stress_test_config
 )
 
-from core.model_management.model_orchestrator import ModelOrchestrator
-from core.memory_management.memory_orchestrator import MemoryOrchestrator
-from core.scene_systems.scene_orchestrator import SceneOrchestrator
-from core.character_management.character_orchestrator import CharacterOrchestrator
-from core.narrative_systems.narrative_orchestrator import NarrativeOrchestrator
+from core.models.model_orchestrator import ModelOrchestrator
+from core.memory.memory_orchestrator import MemoryOrchestrator
+from core.scenes.scene_orchestrator import SceneOrchestrator
+from core.characters.character_orchestrator import CharacterOrchestrator
+from core.narrative.narrative_orchestrator import NarrativeOrchestrator
 from core.shared.logging_system import log_info, log_warning
 
 

@@ -8,11 +8,11 @@ Tests complete user interaction workflows and session management.
 import pytest
 import asyncio
 import time
-from core.model_management import ModelOrchestrator
-from core.memory_management import MemoryOrchestrator
-from core.character_management import CharacterOrchestrator
-from core.scene_systems import SceneOrchestrator
-from core.context_systems import ContextOrchestrator
+from core.models import ModelOrchestrator
+from core.memory import MemoryOrchestrator
+from core.characters import CharacterOrchestrator
+from core.scenes import SceneOrchestrator
+from core.content.context import ContextOrchestrator
 
 # Enable pytest asyncio mode
 pytestmark = pytest.mark.asyncio

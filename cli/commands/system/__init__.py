@@ -129,8 +129,8 @@ class SystemHealthCommand(SystemCommand):
                 
         # Core module availability checks
         core_modules = [
-            "model_management", "narrative_systems", "character_management",
-            "memory_management", "timeline_systems", "scene_systems"
+            "models", "narrative", "characters",
+            "memory", "timeline", "scenes"
         ]
         
         module_status = {}

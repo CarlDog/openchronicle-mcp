@@ -66,7 +66,7 @@ class TestCorePerformance:
     
     def test_scene_orchestrator_initialization_performance(self, benchmark, temp_story_id):
         """Test scene orchestrator initialization performance."""
-        from core.scene_systems.scene_orchestrator import SceneOrchestrator
+        from core.scenes.scene_orchestrator import SceneOrchestrator
         
         def init_scene_orchestrator():
             return SceneOrchestrator(
@@ -83,7 +83,7 @@ class TestCorePerformance:
     
     def test_configuration_loading_performance(self, benchmark):
         """Test configuration loading performance."""
-        from core.database_systems.shared import DatabaseConfig
+        from core.database.shared import DatabaseConfig
         
         def load_config():
             return DatabaseConfig()

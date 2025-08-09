@@ -136,11 +136,11 @@ def get_mock_image_adapter():
     return mock_adapter
 
 # Import core modules
-from core.scene_systems.scene_orchestrator import SceneOrchestrator
-from core.timeline_systems.timeline_orchestrator import TimelineOrchestrator
-from core.model_management.model_orchestrator import ModelOrchestrator
-from core.memory_management.memory_orchestrator import MemoryOrchestrator
-from core.context_systems.context_orchestrator import ContextOrchestrator
+from core.scenes.scene_orchestrator import SceneOrchestrator
+from core.timeline.timeline_orchestrator import TimelineOrchestrator
+from core.models.model_orchestrator import ModelOrchestrator
+from core.memory.memory_orchestrator import MemoryOrchestrator
+from core.content.context.orchestrator import ContextOrchestrator
 
 # Import enhanced mock adapters for isolated testing
 from tests.mocks.mock_adapters import MockModelOrchestrator, MockDatabaseManager

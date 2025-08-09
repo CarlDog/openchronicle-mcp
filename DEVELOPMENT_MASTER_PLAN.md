@@ -670,8 +670,12 @@ pip install pytest-benchmark
 
 #### **Days 6-7: Validation & Stress-Testing Foundation**
 - Check for code duplication across the codebase
-- Check for monolithic architecture issues that should be addressed
+- Check for large code files and script line counts over 500 that should be addressed
 - Ensure comprehensive test coverage for all new code
+- 'Basic' testing (or core, or whatever), should test fundamental functionality and integration points
+- 'Advanced' testing should cover edge cases, performance, and security aspects
+- 'Stress' testing should evaluate system behavior under extreme conditions
+- 'Mock' testing should be a separate category focusing on isolated component testing
 - Run full test suite repeatedly until 100% success rate achieved; NO SKIPPED TESTS (That aren't specific to certain tests), NO WARNINGS
 - Implement baseline stress-testing framework infrastructure
 - Prepare for advanced stress-testing development
@@ -683,7 +687,7 @@ pip install pytest-benchmark
 - [ ] **ALL 417 tests passing (100% success rate)**
 - [ ] **No skipped tests**
 - [ ] **No import errors or missing dependencies**
-- [ ] **Clean test execution under 30 seconds**
+- [ ] **Clean basic test execution under 30 seconds**
 - [ ] **Professional CI/CD ready test infrastructure**
 - [ ] **Stress-testing framework foundation ready**
 - [ ] **Confirmed integration across dependant modules and all necessary components**

@@ -86,7 +86,7 @@ class ServiceConfigurator:
         log_info("Configuring configuration services")
         
         try:
-            from core.model_management.configuration_manager import ConfigurationManager
+            from core.models.configuration_manager import ConfigurationManager
             
             # Create wrapper that implements interface
             class ConfigurationManagerAdapter(IConfigurationManager):
@@ -118,7 +118,7 @@ class ServiceConfigurator:
         log_info("Configuring database services")
         
         try:
-            from core.database_systems.database_orchestrator import DatabaseOrchestrator
+            from core.database.database_orchestrator import DatabaseOrchestrator
             
             # Create wrapper that implements interface
             class DatabaseOrchestratorAdapter(IDatabaseOrchestrator):
@@ -151,7 +151,7 @@ class ServiceConfigurator:
         log_info("Configuring model management services")
         
         try:
-            from core.model_management.model_orchestrator import ModelOrchestrator
+            from core.models.model_orchestrator import ModelOrchestrator
             
             # Create wrapper that implements interface
             class ModelOrchestratorAdapter(IModelOrchestrator):
@@ -186,7 +186,7 @@ class ServiceConfigurator:
         log_info("Configuring memory management services")
         
         try:
-            from core.memory_management.memory_orchestrator import MemoryOrchestrator
+            from core.memory.memory_orchestrator import MemoryOrchestrator
             
             # Create wrapper that implements interface
             class MemoryOrchestratorAdapter(IMemoryOrchestrator):
@@ -219,7 +219,7 @@ class ServiceConfigurator:
         log_info("Configuring content analysis services")
         
         try:
-            from core.context_systems.context_orchestrator import ContextOrchestrator
+            from core.content.context.orchestrator import ContextOrchestrator
             
             # Create wrapper that implements interface
             class ContextOrchestratorAdapter(IContextOrchestrator):
@@ -247,7 +247,7 @@ class ServiceConfigurator:
         log_info("Configuring scene management services")
         
         try:
-            from core.scene_systems.scene_orchestrator import SceneOrchestrator
+            from core.scenes.scene_orchestrator import SceneOrchestrator
             
             # Create wrapper that implements interface  
             class SceneOrchestratorAdapter(ISceneOrchestrator):
@@ -282,7 +282,7 @@ class ServiceConfigurator:
         log_info("Configuring narrative services")
         
         try:
-            from core.narrative_systems.narrative_orchestrator import NarrativeOrchestrator
+            from core.narrative.narrative_orchestrator import NarrativeOrchestrator
             
             # Create wrapper that implements interface
             class NarrativeOrchestratorAdapter(INarrativeOrchestrator):

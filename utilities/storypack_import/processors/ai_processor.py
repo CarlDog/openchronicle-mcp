@@ -28,7 +28,7 @@ class AIProcessor(IAIProcessor):
         """Initialize AI capabilities."""
         try:
             # Import here to avoid circular dependencies
-            from core.content_analysis import ContentAnalysisOrchestrator
+            from core.content import ContentAnalysisOrchestrator
             
             self.content_analyzer = ContentAnalysisOrchestrator()
             
@@ -244,7 +244,7 @@ class AIProcessor(IAIProcessor):
         
         try:
             if not self.content_analyzer:
-                from core.content_analysis import ContentAnalysisOrchestrator
+                from core.content import ContentAnalysisOrchestrator
                 self.content_analyzer = ContentAnalysisOrchestrator()
             
             # Test with a simple content sample
