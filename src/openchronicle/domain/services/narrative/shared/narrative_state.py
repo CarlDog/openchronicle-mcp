@@ -7,10 +7,11 @@ Author: OpenChronicle Development Team
 """
 
 import json
+from dataclasses import asdict
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Any, Optional
-from dataclasses import dataclass, asdict
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -20,9 +21,9 @@ class NarrativeState:
     story_id: str
     character_id: str = ""
     current_scene: str = ""
-    emotional_state: Dict[str, Any] = None
-    memory_context: Dict[str, Any] = None
-    consistency_metrics: Dict[str, float] = None
+    emotional_state: dict[str, Any] = None
+    memory_context: dict[str, Any] = None
+    consistency_metrics: dict[str, float] = None
     last_update: str = ""
 
     def __post_init__(self):
@@ -43,7 +44,7 @@ class NarrativeStateManager:
         """Initialize state manager."""
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
-        self.states: Dict[str, NarrativeState] = {}
+        self.states: dict[str, NarrativeState] = {}
         self._load_states()
 
     def _load_states(self):
@@ -51,7 +52,7 @@ class NarrativeStateManager:
         try:
             state_file = self.storage_dir / "narrative_states.json"
             if state_file.exists():
-                with open(state_file, "r", encoding="utf-8") as f:
+                with open(state_file, encoding="utf-8") as f:
                     data = json.load(f)
                     for key, state_data in data.items():
                         self.states[key] = NarrativeState(**state_data)

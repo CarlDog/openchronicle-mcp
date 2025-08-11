@@ -8,29 +8,24 @@ Consolidates validation logic from image generation and adapter components.
 import os
 import re
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
 
-from .image_models import (
-    ImageGenerationRequest,
-    ImageGenerationResult,
-    ImageMetadata,
-    ImageProvider,
-    ImageSize,
-    ImageType,
-)
+from .image_models import ImageGenerationRequest
+from .image_models import ImageGenerationResult
+from .image_models import ImageMetadata
+from .image_models import ImageProvider
+from .image_models import ImageSize
 
 
 class ImageValidationError(Exception):
     """Custom exception for image validation errors"""
 
-    pass
 
 
 class ImageValidator:
     """Validates image system components and requests"""
 
     @staticmethod
-    def validate_request(request: ImageGenerationRequest) -> List[str]:
+    def validate_request(request: ImageGenerationRequest) -> list[str]:
         """Validate an image generation request"""
         issues = []
 
@@ -70,7 +65,7 @@ class ImageValidator:
         return issues
 
     @staticmethod
-    def validate_result(result: ImageGenerationResult) -> List[str]:
+    def validate_result(result: ImageGenerationResult) -> list[str]:
         """Validate an image generation result"""
         issues = []
 
@@ -87,15 +82,14 @@ class ImageValidator:
 
             if result.cost < 0:
                 issues.append("Cost cannot be negative")
-        else:
-            # Check that failed results have error message
-            if not result.error_message:
-                issues.append("Failed result must have error_message")
+        # Check that failed results have error message
+        elif not result.error_message:
+            issues.append("Failed result must have error_message")
 
         return issues
 
     @staticmethod
-    def validate_metadata(metadata: ImageMetadata) -> List[str]:
+    def validate_metadata(metadata: ImageMetadata) -> list[str]:
         """Validate image metadata"""
         issues = []
 
@@ -140,7 +134,7 @@ class ImageValidator:
     @staticmethod
     def validate_file_path(
         file_path: str, create_dirs: bool = False
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Validate a file path for image storage"""
         try:
             path = Path(file_path)
@@ -197,7 +191,7 @@ class ImageValidator:
         return size in provider_sizes.get(provider, set())
 
     @staticmethod
-    def validate_prompt_safety(prompt: str) -> Tuple[bool, List[str]]:
+    def validate_prompt_safety(prompt: str) -> tuple[bool, list[str]]:
         """Check prompt for potentially unsafe content"""
         warnings = []
 
@@ -243,7 +237,7 @@ class ImageValidator:
     @staticmethod
     def validate_storage_space(
         directory: str, required_mb: float = 50.0
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> tuple[bool, str | None]:
         """Check if there's enough storage space for image generation"""
         try:
             import shutil

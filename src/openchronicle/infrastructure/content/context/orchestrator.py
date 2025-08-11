@@ -13,7 +13,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from typing import Optional
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
@@ -107,8 +107,8 @@ class ContextOrchestrator:
     async def build_context(
         self,
         user_input: str,
-        story_data: Optional[dict[str, Any]] = None,
-        config: Optional[ContextConfiguration] = None,
+        story_data: dict[str, Any] | None = None,
+        config: ContextConfiguration | None = None,
     ) -> str:
         """
         Build comprehensive context for narrative generation.
@@ -182,7 +182,7 @@ class ContextOrchestrator:
         self,
         user_input: str,
         story_data: dict[str, Any],
-        config: Optional[ContextConfiguration] = None,
+        config: ContextConfiguration | None = None,
     ) -> str:
         """
         Build comprehensive context with analysis - main interface function.
@@ -249,7 +249,7 @@ class ContextOrchestrator:
             return self._create_fallback_context(user_input, story_data)
 
     async def build_simple_context(
-        self, story_data: dict[str, Any], config: Optional[ContextConfiguration] = None
+        self, story_data: dict[str, Any], config: ContextConfiguration | None = None
     ) -> str:
         """Build basic context without complex analysis."""
         if config is None:
@@ -265,7 +265,7 @@ class ContextOrchestrator:
         self,
         character_name: str,
         story_data: dict[str, Any],
-        config: Optional[ContextConfiguration] = None,
+        config: ContextConfiguration | None = None,
     ) -> str:
         """Build context focused on a specific character."""
         if config is None:

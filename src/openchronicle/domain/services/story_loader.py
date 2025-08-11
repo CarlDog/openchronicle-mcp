@@ -2,6 +2,7 @@ import json
 import os
 from typing import Any
 
+
 STORYPACKS_DIR = os.path.join(os.getcwd(), "storage", "storypacks")
 
 

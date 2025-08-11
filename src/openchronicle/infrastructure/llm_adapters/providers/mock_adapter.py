@@ -18,11 +18,11 @@ Usage in config/models/user_models.json:
 """
 
 import asyncio
-import time
 import random
-import json
-from typing import Dict, Any, List, Optional
+import time
 from dataclasses import dataclass
+from typing import Any
+
 
 # TODO: Import logging system when available
 # from utilities.logging_system import log_system_event
@@ -55,7 +55,7 @@ class MockResponse:
     provider: str = "mock"
     tokens_used: int = 0
     finish_reason: str = "completed"
-    metadata: Optional[Dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.metadata is None:
@@ -207,8 +207,8 @@ class MockAdapter:
             )
 
         except Exception as e:
-            log_system_event("adapter_error", f"Mock adapter error: {str(e)}")
-            raise Exception(f"Mock adapter error: {str(e)}")
+            log_system_event("adapter_error", f"Mock adapter error: {e!s}")
+            raise Exception(f"Mock adapter error: {e!s}")
 
     async def _simulate_processing_time(self):
         """Simulate realistic API response time."""
@@ -218,7 +218,7 @@ class MockAdapter:
         actual_time = max(0.1, base_time + variance)
         await asyncio.sleep(actual_time)
 
-    def _analyze_prompt(self, prompt: str, **kwargs) -> Dict[str, Any]:
+    def _analyze_prompt(self, prompt: str, **kwargs) -> dict[str, Any]:
         """Analyze prompt to determine response context and style."""
         prompt_lower = prompt.lower()
 
@@ -256,34 +256,33 @@ class MockAdapter:
         return context
 
     async def _generate_contextual_response(
-        self, context: Dict[str, Any], prompt: str
+        self, context: dict[str, Any], prompt: str
     ) -> str:
         """Generate response based on analyzed context."""
         response_type = context["type"]
 
         if response_type == "story_continuation":
             return self._generate_story_continuation(context)
-        elif response_type == "character_interaction":
+        if response_type == "character_interaction":
             return self._generate_character_interaction(context)
-        elif response_type == "scene_description":
+        if response_type == "scene_description":
             return self._generate_scene_description(context)
-        elif response_type == "narrative_development":
+        if response_type == "narrative_development":
             return self._generate_narrative_development(context)
-        else:
-            return self._generate_general_response(context, prompt)
+        return self._generate_general_response(context, prompt)
 
-    def _generate_story_continuation(self, context: Dict[str, Any]) -> str:
+    def _generate_story_continuation(self, context: dict[str, Any]) -> str:
         """Generate story continuation based on personality."""
         if self.config.personality == "creative":
             return self._creative_story_response(context)
-        elif self.config.personality == "analytical":
+        if self.config.personality == "analytical":
             return self._analytical_story_response(context)
-        elif self.config.personality == "concise":
+        if self.config.personality == "concise":
             return self._concise_story_response(context)
-        else:  # balanced
-            return self._balanced_story_response(context)
+        # balanced
+        return self._balanced_story_response(context)
 
-    def _creative_story_response(self, context: Dict[str, Any]) -> str:
+    def _creative_story_response(self, context: dict[str, Any]) -> str:
         """Generate creative, imaginative story content."""
         # Ensure we have characters to choose from
         characters = context.get("characters") or self.content_library["characters"]
@@ -294,13 +293,13 @@ class MockAdapter:
         creative_elements = [
             f"In a moment that would change everything, {character} discovered something extraordinary in the {setting}.",
             f"The {emotion} expression on {character}'s face told a story of its own.",
-            f"What happened next defied all expectations—the very air seemed to shimmer with possibility.",
+            "What happened next defied all expectations—the very air seemed to shimmer with possibility.",
             f"Time seemed to slow as {character} realized the true significance of this moment.",
         ]
 
         return " ".join(random.sample(creative_elements, k=random.randint(2, 3)))
 
-    def _analytical_story_response(self, context: Dict[str, Any]) -> str:
+    def _analytical_story_response(self, context: dict[str, Any]) -> str:
         """Generate logical, structured story content."""
         return (
             "The sequence of events followed a clear pattern. First, the protagonist "
@@ -310,14 +309,14 @@ class MockAdapter:
             "while minimizing potential risks."
         )
 
-    def _concise_story_response(self, context: Dict[str, Any]) -> str:
+    def _concise_story_response(self, context: dict[str, Any]) -> str:
         """Generate brief, focused story content."""
         characters = context.get("characters") or ["the protagonist"]
         character = random.choice(characters)
         action = random.choice(self.content_library["actions"])
         return f"{character} moved forward, {action}. The path ahead was clear."
 
-    def _balanced_story_response(self, context: Dict[str, Any]) -> str:
+    def _balanced_story_response(self, context: dict[str, Any]) -> str:
         """Generate balanced story content with good pacing."""
         characters = context.get("characters") or self.content_library["characters"]
         character = random.choice(characters)
@@ -331,7 +330,7 @@ class MockAdapter:
             f"With careful consideration, they decided to move forward."
         )
 
-    def _generate_character_interaction(self, context: Dict[str, Any]) -> str:
+    def _generate_character_interaction(self, context: dict[str, Any]) -> str:
         """Generate character dialogue and interaction."""
         characters = context.get("characters") or self.content_library["characters"]
         character = random.choice(characters)
@@ -346,7 +345,7 @@ class MockAdapter:
 
         return random.choice(dialogue_options)
 
-    def _generate_scene_description(self, context: Dict[str, Any]) -> str:
+    def _generate_scene_description(self, context: dict[str, Any]) -> str:
         """Generate environmental and scene descriptions."""
         setting = random.choice(self.content_library["settings"])
 
@@ -356,7 +355,7 @@ class MockAdapter:
             f"Every element contributed to the overall atmosphere."
         )
 
-    def _generate_narrative_development(self, context: Dict[str, Any]) -> str:
+    def _generate_narrative_development(self, context: dict[str, Any]) -> str:
         """Generate plot advancement and development."""
         developments = [
             "A new revelation emerged that would reshape their understanding.",
@@ -367,7 +366,7 @@ class MockAdapter:
 
         return random.choice(developments)
 
-    def _generate_general_response(self, context: Dict[str, Any], prompt: str) -> str:
+    def _generate_general_response(self, context: dict[str, Any], prompt: str) -> str:
         """Generate general response for unspecified contexts."""
         return (
             "I understand your request. Based on the context provided, "
@@ -405,7 +404,7 @@ class MockAdapter:
         """Validate adapter connection (always succeeds for mock)."""
         return True
 
-    def get_supported_features(self) -> List[str]:
+    def get_supported_features(self) -> list[str]:
         """Return list of supported features."""
         return [
             "text_generation",
@@ -415,7 +414,7 @@ class MockAdapter:
             "error_simulation",
         ]
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         """Return model information."""
         return {
             "name": self.model_name,

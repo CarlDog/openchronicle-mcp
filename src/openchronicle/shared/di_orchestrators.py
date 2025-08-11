@@ -8,15 +8,19 @@ Part of Phase 2, Week 5-6: Dependency Injection Framework
 """
 
 from abc import ABC
-from typing import Type, TypeVar, Optional, Dict, Any
 from dataclasses import dataclass
+from typing import Any
+from typing import TypeVar
 
 # Import DI components
-from .dependency_injection import DIContainer, get_container
-from .service_interfaces import *
+from .dependency_injection import DIContainer
+from .dependency_injection import get_container
+from .logging_system import log_error
+from .logging_system import log_info
 
 # Import utilities
-from .logging_system import log_system_event, log_info, log_error
+from .service_interfaces import *
+
 
 T = TypeVar("T")
 
@@ -25,7 +29,7 @@ T = TypeVar("T")
 class OrchestratorConfig:
     """Base configuration for DI-enabled orchestrators."""
 
-    container: Optional[DIContainer] = None
+    container: DIContainer | None = None
     auto_configure: bool = True
     enable_logging: bool = True
 
@@ -39,7 +43,7 @@ class DIEnabledOrchestrator(ABC):
     injected rather than manually creating them.
     """
 
-    def __init__(self, config: Optional[OrchestratorConfig] = None):
+    def __init__(self, config: OrchestratorConfig | None = None):
         """Initialize DI-enabled orchestrator."""
         self.config = config or OrchestratorConfig()
         self.container = self.config.container or get_container()
@@ -67,13 +71,12 @@ class DIEnabledOrchestrator(ABC):
 
     def _initialize_dependencies(self):
         """Initialize dependencies through DI. Override in derived classes."""
-        pass
 
-    def resolve(self, interface: Type[T]) -> T:
+    def resolve(self, interface: type[T]) -> T:
         """Resolve a service from the DI container."""
         return self.container.resolve(interface)
 
-    def resolve_optional(self, interface: Type[T]) -> Optional[T]:
+    def resolve_optional(self, interface: type[T]) -> T | None:
         """Resolve a service optionally (returns None if not registered)."""
         try:
             return self.container.resolve(interface)
@@ -84,7 +87,7 @@ class DIEnabledOrchestrator(ABC):
 class DIModelOrchestrator(DIEnabledOrchestrator):
     """DI-enabled replacement for ModelOrchestrator."""
 
-    def __init__(self, config: Optional[OrchestratorConfig] = None):
+    def __init__(self, config: OrchestratorConfig | None = None):
         """Initialize with dependency injection."""
         super().__init__(config)
 
@@ -108,8 +111,8 @@ class DIModelOrchestrator(DIEnabledOrchestrator):
     async def generate_response(
         self,
         prompt: str,
-        adapter_name: Optional[str] = None,
-        story_id: Optional[str] = None,
+        adapter_name: str | None = None,
+        story_id: str | None = None,
         **kwargs,
     ) -> str:
         """Generate response through DI."""
@@ -123,7 +126,7 @@ class DIModelOrchestrator(DIEnabledOrchestrator):
 class DIMemoryOrchestrator(DIEnabledOrchestrator):
     """DI-enabled replacement for MemoryOrchestrator."""
 
-    def __init__(self, config: Optional[OrchestratorConfig] = None):
+    def __init__(self, config: OrchestratorConfig | None = None):
         """Initialize with dependency injection."""
         super().__init__(config)
 
@@ -134,15 +137,15 @@ class DIMemoryOrchestrator(DIEnabledOrchestrator):
         self.context_builder = self.resolve_optional(IContextBuilder)
         self.logger = self.resolve_optional(ILogger)
 
-    async def get_character_memory(self, character_id: str) -> Dict[str, Any]:
+    async def get_character_memory(self, character_id: str) -> dict[str, Any]:
         """Get character memory through DI."""
         if self.memory_orchestrator:
             return await self.memory_orchestrator.get_character_memory(character_id)
         return {}
 
     async def create_scene_context(
-        self, story_id: str, scene_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, scene_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create scene context through DI."""
         if self.memory_orchestrator:
             return await self.memory_orchestrator.create_scene_context(
@@ -154,7 +157,7 @@ class DIMemoryOrchestrator(DIEnabledOrchestrator):
 class DISceneOrchestrator(DIEnabledOrchestrator):
     """DI-enabled replacement for SceneOrchestrator."""
 
-    def __init__(self, story_id: str, config: Optional[OrchestratorConfig] = None):
+    def __init__(self, story_id: str, config: OrchestratorConfig | None = None):
         """Initialize with dependency injection."""
         self.story_id = story_id
         super().__init__(config)
@@ -166,7 +169,7 @@ class DISceneOrchestrator(DIEnabledOrchestrator):
         self.context_orchestrator = self.resolve_optional(IContextOrchestrator)
         self.logger = self.resolve_optional(ILogger)
 
-    async def generate_scene(self, user_input: str) -> Dict[str, Any]:
+    async def generate_scene(self, user_input: str) -> dict[str, Any]:
         """Generate scene through DI."""
         if self.scene_orchestrator:
             return await self.scene_orchestrator.generate_scene(
@@ -178,7 +181,7 @@ class DISceneOrchestrator(DIEnabledOrchestrator):
 class DINarrativeOrchestrator(DIEnabledOrchestrator):
     """DI-enabled replacement for NarrativeOrchestrator."""
 
-    def __init__(self, config: Optional[OrchestratorConfig] = None):
+    def __init__(self, config: OrchestratorConfig | None = None):
         """Initialize with dependency injection."""
         super().__init__(config)
 
@@ -189,8 +192,8 @@ class DINarrativeOrchestrator(DIEnabledOrchestrator):
         self.logger = self.resolve_optional(ILogger)
 
     async def process_narrative_request(
-        self, story_id: str, request: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, request: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process narrative request through DI."""
         if self.narrative_orchestrator:
             return await self.narrative_orchestrator.process_narrative_request(
@@ -202,7 +205,7 @@ class DINarrativeOrchestrator(DIEnabledOrchestrator):
 class DIContextOrchestrator(DIEnabledOrchestrator):
     """DI-enabled replacement for ContextOrchestrator."""
 
-    def __init__(self, config: Optional[OrchestratorConfig] = None):
+    def __init__(self, config: OrchestratorConfig | None = None):
         """Initialize with dependency injection."""
         super().__init__(config)
 
@@ -215,7 +218,7 @@ class DIContextOrchestrator(DIEnabledOrchestrator):
 
     async def build_context_with_analysis(
         self, content: str, story_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build context with analysis through DI."""
         if self.context_orchestrator:
             return await self.context_orchestrator.build_context_with_analysis(
@@ -226,7 +229,7 @@ class DIContextOrchestrator(DIEnabledOrchestrator):
 
 # Factory functions for creating DI-enabled orchestrators
 def create_di_model_orchestrator(
-    container: Optional[DIContainer] = None,
+    container: DIContainer | None = None,
 ) -> DIModelOrchestrator:
     """Create DI-enabled model orchestrator."""
     config = OrchestratorConfig(container=container)
@@ -234,7 +237,7 @@ def create_di_model_orchestrator(
 
 
 def create_di_memory_orchestrator(
-    container: Optional[DIContainer] = None,
+    container: DIContainer | None = None,
 ) -> DIMemoryOrchestrator:
     """Create DI-enabled memory orchestrator."""
     config = OrchestratorConfig(container=container)
@@ -242,7 +245,7 @@ def create_di_memory_orchestrator(
 
 
 def create_di_scene_orchestrator(
-    story_id: str, container: Optional[DIContainer] = None
+    story_id: str, container: DIContainer | None = None
 ) -> DISceneOrchestrator:
     """Create DI-enabled scene orchestrator."""
     config = OrchestratorConfig(container=container)
@@ -250,7 +253,7 @@ def create_di_scene_orchestrator(
 
 
 def create_di_narrative_orchestrator(
-    container: Optional[DIContainer] = None,
+    container: DIContainer | None = None,
 ) -> DINarrativeOrchestrator:
     """Create DI-enabled narrative orchestrator."""
     config = OrchestratorConfig(container=container)
@@ -258,7 +261,7 @@ def create_di_narrative_orchestrator(
 
 
 def create_di_context_orchestrator(
-    container: Optional[DIContainer] = None,
+    container: DIContainer | None = None,
 ) -> DIContextOrchestrator:
     """Create DI-enabled context orchestrator."""
     config = OrchestratorConfig(container=container)
@@ -270,7 +273,7 @@ class OrchestratorMigration:
     """Utilities for migrating from manual DI to container-based DI."""
 
     @staticmethod
-    def migrate_orchestrator_creation() -> Dict[str, str]:
+    def migrate_orchestrator_creation() -> dict[str, str]:
         """Provide migration examples for orchestrator creation."""
         return {
             "ModelOrchestrator": """

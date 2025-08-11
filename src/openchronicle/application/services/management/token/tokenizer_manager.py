@@ -5,21 +5,20 @@ Extracted from token_manager.py
 Handles tokenizer management and token estimation for different models.
 """
 
-import tiktoken
-from typing import Dict, Optional
 import os
 import sys
-from pathlib import Path
+
+import tiktoken
+
 
 # Import logging system with fallback for missing module
-import os
-import sys
 
 sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "utilities")
 )
 try:
-    from logging_system import log_warning, log_error
+    from logging_system import log_error
+    from logging_system import log_warning
 except ImportError:
     # Fallback for testing or when logging_system is not available
     def log_warning(message):
@@ -29,13 +28,12 @@ except ImportError:
         print(f"ERROR: {message}")
 
 
-from ..shared import TokenManagerException, ErrorHandler
 
 
 class TokenizerManager:
     """Manages tokenizers for different models."""
 
-    def __init__(self, default_model: Optional[str] = None, cache_size: int = 1000):
+    def __init__(self, default_model: str | None = None, cache_size: int = 1000):
         self.default_model = default_model or "gpt-3.5-turbo"
         self.cache_size = cache_size
         self.encoders = {}
@@ -46,7 +44,7 @@ class TokenizerManager:
             "default": "cl100k_base",
         }
 
-    def get_tokenizer(self, model_name: str, provider: Optional[str] = None):
+    def get_tokenizer(self, model_name: str, provider: str | None = None):
         """Get tokenizer for a specific model."""
         if model_name not in self.encoders:
             try:
@@ -70,7 +68,7 @@ class TokenizerManager:
         return self.encoders[model_name]
 
     def estimate_tokens(
-        self, text: str, model_name: str, provider: Optional[str] = None
+        self, text: str, model_name: str, provider: str | None = None
     ) -> int:
         """Estimate token count for given text and model."""
         try:
@@ -82,7 +80,7 @@ class TokenizerManager:
             return len(text) // 4
 
     def estimate_tokens_batch(
-        self, texts: list[str], model_name: str, provider: Optional[str] = None
+        self, texts: list[str], model_name: str, provider: str | None = None
     ) -> list[int]:
         """Estimate token counts for multiple texts."""
         try:
@@ -112,7 +110,7 @@ class TokenEstimator:
         self,
         prompt: str,
         model_name: str,
-        provider: Optional[str] = None,
+        provider: str | None = None,
         response_ratio: float = 0.3,
     ) -> int:
         """Estimate likely response token count based on prompt."""
@@ -136,7 +134,7 @@ class TokenEstimator:
         original_text: str,
         partial_response: str,
         model_name: str,
-        provider: Optional[str] = None,
+        provider: str | None = None,
     ) -> int:
         """Estimate tokens needed to continue a partial response."""
         partial_tokens = self.tokenizer_manager.estimate_tokens(
@@ -167,7 +165,7 @@ class TokenEstimator:
         text: str,
         model_name: str,
         token_limit: int,
-        provider: Optional[str] = None,
+        provider: str | None = None,
     ) -> bool:
         """Check if text fits within token limit."""
         estimated_tokens = self.tokenizer_manager.estimate_tokens(

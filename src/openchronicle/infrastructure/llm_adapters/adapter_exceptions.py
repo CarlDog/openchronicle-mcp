@@ -7,13 +7,11 @@ in the modular adapter architecture.
 Following OpenChronicle naming convention: adapter_exceptions.py
 """
 
-from typing import Optional
 
 
 class AdapterError(Exception):
     """Base exception for adapter-related errors."""
 
-    pass
 
 
 class AdapterNotFoundError(AdapterError):
@@ -27,7 +25,7 @@ class AdapterNotFoundError(AdapterError):
 class AdapterInitializationError(AdapterError):
     """Raised when an adapter fails to initialize properly."""
 
-    def __init__(self, provider: Optional[str] = None, reason: Optional[str] = None):
+    def __init__(self, provider: str | None = None, reason: str | None = None):
         self.provider = provider
         self.reason = reason
         if provider and reason:
@@ -35,14 +33,14 @@ class AdapterInitializationError(AdapterError):
         elif reason:
             super().__init__(f"Adapter initialization failed: {reason}")
         else:
-            super().__init__(f"Adapter initialization failed")
+            super().__init__("Adapter initialization failed")
 
 
 class AdapterConfigurationError(AdapterError):
     """Raised when adapter configuration is invalid."""
 
     def __init__(
-        self, provider: Optional[str] = None, config_issue: Optional[str] = None
+        self, provider: str | None = None, config_issue: str | None = None
     ):
         self.provider = provider
         self.config_issue = config_issue
@@ -53,14 +51,14 @@ class AdapterConfigurationError(AdapterError):
         elif config_issue:
             super().__init__(f"Adapter configuration error: {config_issue}")
         else:
-            super().__init__(f"Adapter configuration error")
+            super().__init__("Adapter configuration error")
 
 
 class AdapterConnectionError(AdapterError):
     """Raised when adapter cannot connect to its service."""
 
     def __init__(
-        self, provider: Optional[str] = None, connection_issue: Optional[str] = None
+        self, provider: str | None = None, connection_issue: str | None = None
     ):
         self.provider = provider
         self.connection_issue = connection_issue
@@ -71,14 +69,14 @@ class AdapterConnectionError(AdapterError):
         elif connection_issue:
             super().__init__(f"Adapter connection error: {connection_issue}")
         else:
-            super().__init__(f"Adapter connection error")
+            super().__init__("Adapter connection error")
 
 
 class AdapterResponseError(AdapterError):
     """Raised when adapter receives an invalid response."""
 
     def __init__(
-        self, provider: Optional[str] = None, response_issue: Optional[str] = None
+        self, provider: str | None = None, response_issue: str | None = None
     ):
         self.provider = provider
         self.response_issue = response_issue
@@ -87,14 +85,14 @@ class AdapterResponseError(AdapterError):
         elif response_issue:
             super().__init__(f"Adapter response error: {response_issue}")
         else:
-            super().__init__(f"Adapter response error")
+            super().__init__("Adapter response error")
 
 
 class AdapterTimeoutError(AdapterError):
     """Raised when adapter operation times out."""
 
     def __init__(
-        self, provider: Optional[str] = None, timeout_duration: Optional[float] = None
+        self, provider: str | None = None, timeout_duration: float | None = None
     ):
         self.provider = provider
         self.timeout_duration = timeout_duration
@@ -105,14 +103,14 @@ class AdapterTimeoutError(AdapterError):
         elif timeout_duration:
             super().__init__(f"Adapter timeout after {timeout_duration}s")
         else:
-            super().__init__(f"Adapter timeout error")
+            super().__init__("Adapter timeout error")
 
 
 class AdapterRateLimitError(AdapterError):
     """Raised when adapter hits rate limits."""
 
     def __init__(
-        self, provider: Optional[str] = None, retry_after: Optional[int] = None
+        self, provider: str | None = None, retry_after: int | None = None
     ):
         self.provider = provider
         self.retry_after = retry_after
@@ -123,4 +121,4 @@ class AdapterRateLimitError(AdapterError):
         elif provider:
             super().__init__(f"Rate limit error for {provider} adapter")
         else:
-            super().__init__(f"Adapter rate limit error")
+            super().__init__("Adapter rate limit error")

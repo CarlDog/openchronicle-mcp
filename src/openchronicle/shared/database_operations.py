@@ -3,12 +3,11 @@ Shared database operations for OpenChronicle core modules.
 Consolidates database patterns from 10+ modules to eliminate duplication.
 """
 
-import sqlite3
-import json
 import os
-from typing import Dict, Any, List, Optional, Union
-from pathlib import Path
+import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
+from typing import Any
 
 
 class DatabaseOperations:
@@ -45,7 +44,7 @@ class DatabaseOperations:
         finally:
             conn.close()
 
-    def execute_query(self, query: str, params: tuple = None) -> List[Dict[str, Any]]:
+    def execute_query(self, query: str, params: tuple = None) -> list[dict[str, Any]]:
         """Execute SELECT query and return results."""
         with self.get_connection() as conn:
             cursor = conn.cursor()
@@ -64,7 +63,7 @@ class DatabaseOperations:
         except sqlite3.Error:
             return False
 
-    def execute_insert(self, query: str, params: tuple = None) -> Optional[int]:
+    def execute_insert(self, query: str, params: tuple = None) -> int | None:
         """Execute INSERT query and return row ID."""
         try:
             with self.get_connection() as conn:
@@ -92,7 +91,7 @@ class QueryBuilder:
         self._params = []
         return self
 
-    def select(self, columns: Union[str, List[str]]):
+    def select(self, columns: str | list[str]):
         """Add SELECT columns."""
         if isinstance(columns, str):
             self._select.append(columns)

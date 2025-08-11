@@ -7,18 +7,16 @@ Handles bookmark searching and advanced querying capabilities.
 
 import json
 import sys
-from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-)
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
 
-from ..shared import BookmarkRecord, BookmarkType, BookmarkManagerException
+from ..shared import BookmarkType
 
 
 class BookmarkSearchEngine:
@@ -42,10 +40,10 @@ class BookmarkSearchEngine:
     def search_bookmarks(
         self,
         query: str,
-        bookmark_type: Optional[BookmarkType] = None,
-        search_fields: Optional[List[str]] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        bookmark_type: BookmarkType | None = None,
+        search_fields: list[str] | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Search bookmarks by label or description with advanced options."""
         try:
             # Default search fields
@@ -114,9 +112,9 @@ class BookmarkSearchEngine:
 
     def search_by_metadata(
         self,
-        metadata_filters: Dict[str, Any],
-        bookmark_type: Optional[BookmarkType] = None,
-    ) -> List[Dict[str, Any]]:
+        metadata_filters: dict[str, Any],
+        bookmark_type: BookmarkType | None = None,
+    ) -> list[dict[str, Any]]:
         """Search bookmarks by metadata fields."""
         try:
             # Get all bookmarks (we'll filter by metadata in Python since SQLite JSON support varies)
@@ -170,8 +168,8 @@ class BookmarkSearchEngine:
             return []
 
     def search_by_scene_content(
-        self, content_query: str, bookmark_type: Optional[BookmarkType] = None
-    ) -> List[Dict[str, Any]]:
+        self, content_query: str, bookmark_type: BookmarkType | None = None
+    ) -> list[dict[str, Any]]:
         """Search bookmarks by their associated scene content."""
         try:
             query = """
@@ -228,7 +226,7 @@ class BookmarkSearchEngine:
 
     def find_similar_bookmarks(
         self, bookmark_id: int, similarity_threshold: float = 0.5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Find bookmarks similar to the given bookmark."""
         try:
             # Get reference bookmark
@@ -287,8 +285,8 @@ class BookmarkSearchEngine:
             return []
 
     def get_bookmark_suggestions(
-        self, current_scene_id: str, context: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, current_scene_id: str, context: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get bookmark suggestions based on current context."""
         try:
             suggestions = []
@@ -341,7 +339,7 @@ class BookmarkSearchEngine:
             log_warning(f"Bookmark suggestions failed: {e}")
             return []
 
-    def _calculate_relevance(self, query: str, bookmark: Dict[str, Any]) -> float:
+    def _calculate_relevance(self, query: str, bookmark: dict[str, Any]) -> float:
         """Calculate relevance score for search results."""
         score = 0.0
         query_lower = query.lower()
@@ -376,7 +374,7 @@ class BookmarkSearchEngine:
         return score
 
     def _calculate_content_relevance(
-        self, query: str, bookmark: Dict[str, Any]
+        self, query: str, bookmark: dict[str, Any]
     ) -> float:
         """Calculate content relevance score."""
         score = 0.0
@@ -397,7 +395,7 @@ class BookmarkSearchEngine:
         return score
 
     def _calculate_similarity(
-        self, bookmark1: Dict[str, Any], bookmark2: Dict[str, Any]
+        self, bookmark1: dict[str, Any], bookmark2: dict[str, Any]
     ) -> float:
         """Calculate similarity between two bookmarks."""
         score = 0.0

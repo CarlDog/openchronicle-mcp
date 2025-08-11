@@ -8,30 +8,29 @@ management in a modular architecture.
 
 import json
 import sys
-from datetime import datetime, UTC, timedelta
-from typing import Dict, List, Any, Optional
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
+from typing import Any
+
 
 # Database imports from parent core directory
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.infrastructure.persistence import (
-    execute_query,
-    execute_update,
-    init_database,
-)
 from src.openchronicle.domain.services.scenes.scene_orchestrator import (
     SceneOrchestrator,
 )
-from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+# from src.openchronicle.infrastructure.memory import MemoryOrchestrator - REPLACED WITH DEPENDENCY INJECTION
+# from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+# from src.openchronicle.infrastructure.persistence import execute_update - REPLACED WITH DEPENDENCY INJECTION
+# from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-    log_error,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_warning
 
 
 class StateManager:
@@ -45,7 +44,7 @@ class StateManager:
 
     async def create_rollback_point(
         self, scene_id: str, description: str = "Manual rollback point"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create a rollback point at a specific scene."""
 
         # Verify scene exists
@@ -90,7 +89,7 @@ class StateManager:
             "created_at": datetime.now(UTC).isoformat(),
         }
 
-    async def list_rollback_points(self) -> List[Dict[str, Any]]:
+    async def list_rollback_points(self) -> list[dict[str, Any]]:
         """List all available rollback points."""
 
         rows = execute_query(
@@ -124,7 +123,7 @@ class StateManager:
 
         return rollback_points
 
-    async def rollback_to_point(self, rollback_id: str) -> Dict[str, Any]:
+    async def rollback_to_point(self, rollback_id: str) -> dict[str, Any]:
         """Restore story state to a specific rollback point."""
 
         # Get rollback point data
@@ -204,7 +203,7 @@ class StateManager:
 
     async def cleanup_old_rollback_points(
         self, retention_days: int = 30
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Clean up rollback points older than specified days."""
 
         cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
@@ -243,7 +242,7 @@ class StateManager:
             "retention_days": retention_days,
         }
 
-    async def _create_state_snapshot(self, scene_id: str) -> Dict[str, Any]:
+    async def _create_state_snapshot(self, scene_id: str) -> dict[str, Any]:
         """Create comprehensive state snapshot for rollback."""
 
         snapshot = {
@@ -285,7 +284,7 @@ class StateManager:
 
         return snapshot
 
-    async def _restore_memory_state(self, memory_state: Dict[str, Any]) -> str:
+    async def _restore_memory_state(self, memory_state: dict[str, Any]) -> str:
         """Restore memory state from snapshot."""
         try:
             # Use memory orchestrator to restore state
@@ -337,15 +336,14 @@ class StateManager:
         return remove_count
 
     async def _restore_scene_state(
-        self, scene_id: str, scene_data: Dict[str, Any]
+        self, scene_id: str, scene_data: dict[str, Any]
     ) -> str:
         """Restore specific scene state if needed."""
         # For now, just verify scene exists
         current_scene = self.scene_orchestrator.load_scene(scene_id)
         if current_scene:
             return f"Scene {scene_id} verified and accessible"
-        else:
-            return f"Warning: Scene {scene_id} not found after rollback"
+        return f"Warning: Scene {scene_id} not found after rollback"
 
     async def _update_rollback_metadata(self, rollback_id: str):
         """Update rollback point metadata after use."""

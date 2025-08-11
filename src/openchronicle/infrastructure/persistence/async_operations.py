@@ -4,13 +4,11 @@ Async core database operations.
 Handles async CRUD operations, database initialization, and statistics.
 """
 
+from typing import Any
+
 import aiosqlite
-import os
-from typing import Optional, List, Dict, Any
-from datetime import datetime, UTC
 
 from .async_connection import AsyncConnectionManager
-from .shared import DatabaseStats
 
 
 class AsyncDatabaseOperations:
@@ -20,7 +18,7 @@ class AsyncDatabaseOperations:
         self.connection_manager = connection_manager
 
     async def init_database(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Initialize the database with required tables."""
         try:
@@ -146,8 +144,8 @@ class AsyncDatabaseOperations:
             return False
 
     async def get_database_info(
-        self, story_id: str, is_test: Optional[bool] = None
-    ) -> Dict[str, Any]:
+        self, story_id: str, is_test: bool | None = None
+    ) -> dict[str, Any]:
         """Get database information and statistics."""
         try:
             async with self.connection_manager.get_connection(
@@ -193,9 +191,9 @@ class AsyncDatabaseOperations:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
-    ) -> List[Dict[str, Any]]:
+        params: tuple | None = None,
+        is_test: bool | None = None,
+    ) -> list[dict[str, Any]]:
         """Execute SELECT query and return results."""
         async with self.connection_manager.get_connection(story_id, is_test) as conn:
             cursor = await conn.execute(query, params or ())
@@ -206,8 +204,8 @@ class AsyncDatabaseOperations:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
+        params: tuple | None = None,
+        is_test: bool | None = None,
     ) -> bool:
         """Execute UPDATE/DELETE query."""
         try:
@@ -224,9 +222,9 @@ class AsyncDatabaseOperations:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
-    ) -> Optional[int]:
+        params: tuple | None = None,
+        is_test: bool | None = None,
+    ) -> int | None:
         """Execute INSERT query and return row ID."""
         try:
             async with self.connection_manager.get_connection(
@@ -235,15 +233,15 @@ class AsyncDatabaseOperations:
                 cursor = await conn.execute(query, params or ())
                 await conn.commit()
                 return cursor.lastrowid
-        except aiosqlite.Error as e:
+        except aiosqlite.Error:
             return None
 
     async def execute_many(
         self,
         story_id: str,
         query: str,
-        params_list: List[tuple],
-        is_test: Optional[bool] = None,
+        params_list: list[tuple],
+        is_test: bool | None = None,
     ) -> bool:
         """Execute multiple queries in a transaction."""
         try:
@@ -253,11 +251,11 @@ class AsyncDatabaseOperations:
                 await conn.executemany(query, params_list)
                 await conn.commit()
                 return True
-        except aiosqlite.Error as e:
+        except aiosqlite.Error:
             return False
 
     async def check_integrity(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Run PRAGMA integrity_check on database."""
         try:
@@ -271,7 +269,7 @@ class AsyncDatabaseOperations:
             return False
 
     async def optimize_database(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Run VACUUM and ANALYZE on database."""
         try:

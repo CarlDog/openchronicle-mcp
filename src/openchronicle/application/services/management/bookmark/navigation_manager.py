@@ -7,18 +7,17 @@ Handles chapter structure, timeline navigation, and story organization.
 
 import json
 import sys
-from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-)
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
 
-from ..shared import BookmarkRecord, BookmarkType, BookmarkManagerException
+from ..shared import BookmarkManagerException
+from ..shared import BookmarkType
 
 
 class NavigationManager:
@@ -79,7 +78,7 @@ class NavigationManager:
             log_warning(f"Failed to create auto chapter bookmark: {e}")
             raise BookmarkManagerException(f"Auto chapter creation failed: {e}")
 
-    def get_chapter_bookmarks(self) -> List[Dict[str, Any]]:
+    def get_chapter_bookmarks(self) -> list[dict[str, Any]]:
         """Get all chapter bookmarks in chronological order."""
         try:
             rows = self.execute_query(
@@ -98,7 +97,7 @@ class NavigationManager:
             log_warning(f"Failed to get chapter bookmarks: {e}")
             return []
 
-    def get_timeline_bookmarks(self) -> List[Dict[str, Any]]:
+    def get_timeline_bookmarks(self) -> list[dict[str, Any]]:
         """Get all bookmarks with scene information for timeline building."""
         try:
             query = """
@@ -142,7 +141,7 @@ class NavigationManager:
             log_warning(f"Failed to get timeline bookmarks: {e}")
             return []
 
-    def get_chapter_structure(self) -> Dict[int, List[Dict[str, Any]]]:
+    def get_chapter_structure(self) -> dict[int, list[dict[str, Any]]]:
         """Get chapter structure from bookmarks organized by levels."""
         try:
             chapter_bookmarks = self.get_chapter_bookmarks()
@@ -171,7 +170,7 @@ class NavigationManager:
             log_warning(f"Failed to get chapter structure: {e}")
             return {}
 
-    def get_navigation_hierarchy(self) -> Dict[str, Any]:
+    def get_navigation_hierarchy(self) -> dict[str, Any]:
         """Get complete navigation hierarchy including chapters, sections, and bookmarks."""
         try:
             structure = self.get_chapter_structure()
@@ -197,7 +196,7 @@ class NavigationManager:
                 "quick_links": [],
             }
 
-    def find_next_bookmark(self, current_scene_id: str) -> Optional[Dict[str, Any]]:
+    def find_next_bookmark(self, current_scene_id: str) -> dict[str, Any] | None:
         """Find the next bookmark in the timeline after the current scene."""
         try:
             timeline = self.get_timeline_bookmarks()
@@ -219,7 +218,7 @@ class NavigationManager:
             log_warning(f"Failed to find next bookmark: {e}")
             return None
 
-    def find_previous_bookmark(self, current_scene_id: str) -> Optional[Dict[str, Any]]:
+    def find_previous_bookmark(self, current_scene_id: str) -> dict[str, Any] | None:
         """Find the previous bookmark in the timeline before the current scene."""
         try:
             timeline = self.get_timeline_bookmarks()
@@ -241,7 +240,7 @@ class NavigationManager:
             log_warning(f"Failed to find previous bookmark: {e}")
             return None
 
-    def get_chapter_for_scene(self, scene_id: str) -> Optional[Dict[str, Any]]:
+    def get_chapter_for_scene(self, scene_id: str) -> dict[str, Any] | None:
         """Find which chapter a scene belongs to."""
         try:
             timeline = self.get_timeline_bookmarks()
@@ -268,7 +267,7 @@ class NavigationManager:
             log_warning(f"Failed to find chapter for scene: {e}")
             return None
 
-    def organize_by_chapters(self) -> Dict[str, List[Dict[str, Any]]]:
+    def organize_by_chapters(self) -> dict[str, list[dict[str, Any]]]:
         """Organize all bookmarks by their chapter associations."""
         try:
             timeline = self.get_timeline_bookmarks()
@@ -295,8 +294,8 @@ class NavigationManager:
             return {}
 
     def _calculate_navigation_stats(
-        self, chapters: Dict[int, List[Dict[str, Any]]], timeline: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, chapters: dict[int, list[dict[str, Any]]], timeline: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Calculate navigation statistics."""
         total_chapters = sum(
             len(level_chapters) for level_chapters in chapters.values()
@@ -318,8 +317,8 @@ class NavigationManager:
         }
 
     def _generate_quick_links(
-        self, timeline: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self, timeline: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         """Generate quick navigation links."""
         quick_links = []
 
@@ -346,7 +345,7 @@ class NavigationManager:
 
         return quick_links
 
-    def _format_bookmark(self, row) -> Dict[str, Any]:
+    def _format_bookmark(self, row) -> dict[str, Any]:
         """Format a bookmark row into a dictionary."""
         return {
             "id": row["id"],

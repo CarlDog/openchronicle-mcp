@@ -15,7 +15,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
-from typing import Optional
 
 
 @dataclass
@@ -27,7 +26,7 @@ class TestResponse:
     provider: str = "test_mock"
     tokens_used: int = 0
     finish_reason: str = "completed"
-    metadata: Optional[dict[str, Any]] = None
+    metadata: dict[str, Any] | None = None
     generation_time: float = 0.0
 
     def __post_init__(self):
@@ -208,10 +207,9 @@ class TestMockAdapter:
         # Generate deterministic response
         if self.config["deterministic"]:
             return self._generate_deterministic_response(response_type, prompt)
-        else:
-            return self.default_responses.get(
-                response_type, self.default_responses["general"]
-            )
+        return self.default_responses.get(
+            response_type, self.default_responses["general"]
+        )
 
     def _classify_prompt(self, prompt: str) -> str:
         """Classify prompt type for appropriate response."""
@@ -219,16 +217,15 @@ class TestMockAdapter:
 
         if any(word in prompt_lower for word in ["continue", "story", "narrative"]):
             return "story_continuation"
-        elif any(word in prompt_lower for word in ["character", "dialogue", "said"]):
+        if any(word in prompt_lower for word in ["character", "dialogue", "said"]):
             return "character_dialogue"
-        elif any(word in prompt_lower for word in ["describe", "scene", "setting"]):
+        if any(word in prompt_lower for word in ["describe", "scene", "setting"]):
             return "scene_description"
-        elif "error" in prompt_lower or "fail" in prompt_lower:
+        if "error" in prompt_lower or "fail" in prompt_lower:
             return "error_test"
-        elif "performance" in prompt_lower or "speed" in prompt_lower:
+        if "performance" in prompt_lower or "speed" in prompt_lower:
             return "performance_test"
-        else:
-            return "general"
+        return "general"
 
     def _generate_deterministic_response(self, response_type: str, prompt: str) -> str:
         """Generate deterministic response based on prompt hash."""
@@ -524,11 +521,9 @@ class MockDatabaseManager:
 
     async def commit_transaction(self):
         """Mock transaction commit."""
-        pass
 
     async def rollback_transaction(self):
         """Mock transaction rollback."""
-        pass
 
     def set_mock_result(self, query: str, result):
         """Set mock result for specific query."""
@@ -592,10 +587,9 @@ class MockDataGenerator:
         """Generate mock test data."""
         if data_type == "scene":
             return [f"Test scene {i}" for i in range(count)]
-        elif data_type == "character":
+        if data_type == "character":
             return [f"Test character {i}" for i in range(count)]
-        else:
-            return [f"Test {data_type} {i}" for i in range(count)]
+        return [f"Test {data_type} {i}" for i in range(count)]
 
 
 def create_mock_database():

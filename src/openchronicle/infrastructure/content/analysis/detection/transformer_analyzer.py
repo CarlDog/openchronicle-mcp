@@ -7,21 +7,20 @@ Part of: Phase 5A - Content Analysis Enhancement
 Extracted from: core/content_analyzer.py (lines 64-207, 494-578)
 """
 
-import warnings
 import sys
+import warnings
 from io import StringIO
-from typing import Dict, List, Any, Optional
+from typing import Any
+
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+
+# Import logging utilities
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
 
 from ..shared.interfaces import DetectionComponent
 
-# Import logging utilities
-from src.openchronicle.shared.logging_system import (
-    log_model_interaction,
-    log_system_event,
-    log_info,
-    log_error,
-    log_warning,
-)
 
 # Optional transformer imports with graceful fallback
 try:
@@ -55,8 +54,9 @@ try:
     except ImportError:
         from transformers import pipeline  # type: ignore
 
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification
     import torch
+    from transformers import AutoModelForSequenceClassification
+    from transformers import AutoTokenizer
 
     TRANSFORMERS_AVAILABLE = True
     log_info("Transformers library loaded - advanced classification enabled")
@@ -82,11 +82,11 @@ class TransformerAnalyzer(DetectionComponent):
         if self.use_transformers:
             self._initialize_transformers()
 
-    def detect_content_type(self, content: str) -> Dict[str, Any]:
+    def detect_content_type(self, content: str) -> dict[str, Any]:
         """Detect content type using transformer analysis."""
         return self._analyze_with_transformers(content)
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process content and return transformer-based analysis results."""
         return self.detect_content_type(content)
 
@@ -138,7 +138,7 @@ class TransformerAnalyzer(DetectionComponent):
                                     f"SSL/Network error loading {description} model '{model_name}': {model_error}"
                                 )
                                 log_warning(
-                                    f"Enterprise firewall may be blocking access to huggingface.co"
+                                    "Enterprise firewall may be blocking access to huggingface.co"
                                 )
                             else:
                                 log_error(
@@ -245,7 +245,7 @@ class TransformerAnalyzer(DetectionComponent):
                 "For full transformer support, ensure network access to huggingface.co or use local models"
             )
 
-    def _analyze_with_transformers(self, user_input: str) -> Dict[str, Any]:
+    def _analyze_with_transformers(self, user_input: str) -> dict[str, Any]:
         """Use transformer models for advanced content analysis."""
         if not self.use_transformers:
             return {}
@@ -349,7 +349,7 @@ class TransformerAnalyzer(DetectionComponent):
 
         return analysis
 
-    def check_transformer_connectivity(self) -> Dict[str, Any]:
+    def check_transformer_connectivity(self) -> dict[str, Any]:
         """
         Diagnose transformer connectivity issues for SSL/Network troubleshooting.
 

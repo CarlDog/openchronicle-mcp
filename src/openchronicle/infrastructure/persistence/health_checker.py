@@ -5,26 +5,22 @@ Implements startup health checks including database integrity validation,
 connection testing, and corruption detection as specified in Development Master Plan Phase 1 Week 4.
 """
 
-import aiosqlite
-import sqlite3
 import asyncio
-import os
-from typing import Dict, List, Any, Optional, Tuple
-from pathlib import Path
+import sqlite3
+import sys
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import aiosqlite
 
 from .connection import ConnectionManager
-from .shared import DatabaseConfig
-import sys
-from pathlib import Path
+
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_error,
-    log_info,
-    log_warning,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_warning
 
 
 class DatabaseHealthChecker:
@@ -41,7 +37,7 @@ class DatabaseHealthChecker:
     def __init__(self, connection_manager: ConnectionManager):
         self.connection_manager = connection_manager
 
-    async def startup_health_check(self) -> Dict[str, Any]:
+    async def startup_health_check(self) -> dict[str, Any]:
         """
         Run comprehensive startup health check on all databases.
 
@@ -110,12 +106,12 @@ class DatabaseHealthChecker:
             return health_report
 
         except Exception as e:
-            log_error(f"Database health check failed: {str(e)}")
+            log_error(f"Database health check failed: {e!s}")
             health_report["overall_status"] = "error"
             health_report["error"] = str(e)
             return health_report
 
-    async def _discover_databases(self) -> List[Path]:
+    async def _discover_databases(self) -> list[Path]:
         """Discover all SQLite databases in the system."""
         db_paths = []
 
@@ -143,7 +139,7 @@ class DatabaseHealthChecker:
 
         return list(set(db_paths))  # Remove duplicates
 
-    async def _check_single_database(self, db_path: Path) -> Dict[str, Any]:
+    async def _check_single_database(self, db_path: Path) -> dict[str, Any]:
         """
         Check health of a single database.
 
@@ -183,9 +179,9 @@ class DatabaseHealthChecker:
                 with open(db_path, "rb") as f:
                     f.read(16)  # Read SQLite header
                 result["checks"]["file_readable"] = True
-            except (IOError, OSError) as e:
+            except OSError as e:
                 result["status"] = "error"
-                result["issues"].append(f"File not readable: {str(e)}")
+                result["issues"].append(f"File not readable: {e!s}")
                 return result
 
             # Database connection test
@@ -223,20 +219,20 @@ class DatabaseHealthChecker:
 
             except sqlite3.OperationalError as e:
                 result["status"] = "corrupt"
-                result["issues"].append(f"Database corruption detected: {str(e)}")
+                result["issues"].append(f"Database corruption detected: {e!s}")
             except Exception as e:
                 result["status"] = "error"
-                result["issues"].append(f"Connection failed: {str(e)}")
+                result["issues"].append(f"Connection failed: {e!s}")
 
         except Exception as e:
             result["status"] = "error"
-            result["issues"].append(f"Health check failed: {str(e)}")
+            result["issues"].append(f"Health check failed: {e!s}")
 
         return result
 
     async def _validate_schema(
         self, conn: aiosqlite.Connection, db_path: Path
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Validate database schema structure."""
         schema_result = {
             "valid": True,
@@ -291,11 +287,11 @@ class DatabaseHealthChecker:
 
         except Exception as e:
             schema_result["valid"] = False
-            schema_result["issues"].append(f"Schema validation failed: {str(e)}")
+            schema_result["issues"].append(f"Schema validation failed: {e!s}")
 
         return schema_result
 
-    async def _get_database_details(self, conn: aiosqlite.Connection) -> Dict[str, Any]:
+    async def _get_database_details(self, conn: aiosqlite.Connection) -> dict[str, Any]:
         """Get additional database details and statistics."""
         details = {}
 
@@ -371,7 +367,7 @@ class DatabaseHealthChecker:
         # Default to filename
         return db_path.stem or "unknown"
 
-    def _generate_recommendations(self, health_report: Dict[str, Any]) -> List[str]:
+    def _generate_recommendations(self, health_report: dict[str, Any]) -> list[str]:
         """Generate recommendations based on health check results."""
         recommendations = []
 
@@ -406,7 +402,7 @@ class DatabaseHealthChecker:
 
         return recommendations
 
-    def get_all_databases(self) -> List[str]:
+    def get_all_databases(self) -> list[str]:
         """
         Get paths to all databases for external health checks.
 

@@ -5,12 +5,14 @@ Handles FTS5 operations, index optimization, and search capabilities.
 """
 
 import sqlite3
-from typing import Optional, Dict, Any, List
+from typing import Any
+
+from src.openchronicle.shared.logging_system import log_warning
+from src.openchronicle.shared.security import SecurityContext
+from src.openchronicle.shared.security import SQLSecurityValidator
 
 from .connection import ConnectionManager
 from .shared import FTSIndexInfo
-from src.openchronicle.shared.security import SQLSecurityValidator, SecurityContext
-from src.openchronicle.shared.logging_system import log_warning, log_error
 
 
 class FTSManager:
@@ -46,7 +48,7 @@ class FTSManager:
         except sqlite3.OperationalError:
             return False
 
-    def optimize_fts_index(self, story_id: str, is_test: Optional[bool] = None) -> bool:
+    def optimize_fts_index(self, story_id: str, is_test: bool | None = None) -> bool:
         """Optimize FTS indexes for better performance."""
         if not self.has_fts5_support():
             return False
@@ -103,7 +105,7 @@ class FTSManager:
             print(f"Error optimizing FTS indexes: {e}")
             return False
 
-    def rebuild_fts_index(self, story_id: str, is_test: Optional[bool] = None) -> bool:
+    def rebuild_fts_index(self, story_id: str, is_test: bool | None = None) -> bool:
         """Rebuild FTS indexes from scratch."""
         if not self.has_fts5_support():
             return False
@@ -139,8 +141,8 @@ class FTSManager:
             return False
 
     def get_fts_stats(
-        self, story_id: str, is_test: Optional[bool] = None
-    ) -> Dict[str, Any]:
+        self, story_id: str, is_test: bool | None = None
+    ) -> dict[str, Any]:
         """Get FTS index statistics."""
         stats = {
             "fts_enabled": self.has_fts5_support(),
@@ -195,8 +197,8 @@ class FTSManager:
         story_id: str,
         source_table: str,
         fts_table: str,
-        columns: List[str],
-        is_test: Optional[bool] = None,
+        columns: list[str],
+        is_test: bool | None = None,
     ) -> bool:
         """Synchronize FTS table with source table data."""
         if not self.has_fts5_support():
@@ -236,8 +238,8 @@ class FTSManager:
         fts_table: str,
         query: str,
         limit: int = 50,
-        is_test: Optional[bool] = None,
-    ) -> List[sqlite3.Row]:
+        is_test: bool | None = None,
+    ) -> list[sqlite3.Row]:
         """Perform FTS search on specified table."""
         if not self.has_fts5_support():
             return []

@@ -10,14 +10,19 @@ Following the OpenChronicle "No Backwards Compatibility" policy:
 - All orchestrators updated to use DI container
 """
 
-import logging
-from abc import ABC, abstractmethod
-from typing import TypeVar, Type, Dict, Any, Optional, Callable, Union
+from abc import ABC
+from abc import abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
+from typing import Any
+from typing import TypeVar
+from typing import Union
+
+from .logging_system import log_info
 
 # Import utilities
-from .logging_system import log_system_event, log_info, log_error, log_warning
+from .logging_system import log_system_event
+
 
 # Type hints
 T = TypeVar("T")
@@ -29,7 +34,7 @@ ServiceInstance = Union[type, ServiceFactory, Any]
 class ServiceRegistration:
     """Service registration metadata."""
 
-    interface: Type
+    interface: type
     implementation: ServiceInstance
     singleton: bool = False
     lazy: bool = True
@@ -49,14 +54,14 @@ class IContainer(ABC):
     @abstractmethod
     def register(
         self,
-        interface: Type[T],
+        interface: type[T],
         implementation: ServiceInstance,
         lifetime: str = ServiceLifetime.TRANSIENT,
     ) -> "IContainer":
         pass
 
     @abstractmethod
-    def resolve(self, interface: Type[T]) -> T:
+    def resolve(self, interface: type[T]) -> T:
         pass
 
 
@@ -74,8 +79,8 @@ class DIContainer(IContainer):
 
     def __init__(self):
         """Initialize the DI container."""
-        self._services: Dict[Type, ServiceRegistration] = {}
-        self._singletons: Dict[Type, Any] = {}
+        self._services: dict[type, ServiceRegistration] = {}
+        self._singletons: dict[type, Any] = {}
         self._resolution_stack: set = set()
 
         log_system_event(
@@ -84,7 +89,7 @@ class DIContainer(IContainer):
 
     def register(
         self,
-        interface: Type[T],
+        interface: type[T],
         implementation: ServiceInstance,
         lifetime: str = ServiceLifetime.TRANSIENT,
         description: str = "",
@@ -123,7 +128,7 @@ class DIContainer(IContainer):
         return self
 
     def register_singleton(
-        self, interface: Type[T], implementation: ServiceInstance, description: str = ""
+        self, interface: type[T], implementation: ServiceInstance, description: str = ""
     ) -> "DIContainer":
         """Register a singleton service."""
         return self.register(
@@ -131,14 +136,14 @@ class DIContainer(IContainer):
         )
 
     def register_transient(
-        self, interface: Type[T], implementation: ServiceInstance, description: str = ""
+        self, interface: type[T], implementation: ServiceInstance, description: str = ""
     ) -> "DIContainer":
         """Register a transient service."""
         return self.register(
             interface, implementation, ServiceLifetime.TRANSIENT, description
         )
 
-    def resolve(self, interface: Type[T]) -> T:
+    def resolve(self, interface: type[T]) -> T:
         """
         Resolve a service from the container.
 
@@ -188,7 +193,7 @@ class DIContainer(IContainer):
             # Remove from resolution stack
             self._resolution_stack.discard(interface)
 
-    def resolve_optional(self, interface: Type[T]) -> Optional[T]:
+    def resolve_optional(self, interface: type[T]) -> T | None:
         """
         Resolve a service optionally (returns None if not registered).
 
@@ -221,11 +226,11 @@ class DIContainer(IContainer):
 
         raise ValueError(f"Unknown implementation type: {type(implementation)}")
 
-    def is_registered(self, interface: Type) -> bool:
+    def is_registered(self, interface: type) -> bool:
         """Check if a service is registered."""
         return interface in self._services
 
-    def get_registrations(self) -> Dict[str, Dict[str, Any]]:
+    def get_registrations(self) -> dict[str, dict[str, Any]]:
         """Get all service registrations for debugging."""
         result = {}
         for interface, registration in self._services.items():
@@ -251,7 +256,7 @@ class DIContainer(IContainer):
 
 
 # Global container instance
-_global_container: Optional[DIContainer] = None
+_global_container: DIContainer | None = None
 
 
 def get_container() -> DIContainer:

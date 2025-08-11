@@ -10,9 +10,9 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.json_utilities import JSONUtilities
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class StateTracker:
     and provides consistency metrics for narrative management.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize state tracker."""
         self.config = config or {}
         self.json_utils = JSONUtilities()
@@ -139,7 +139,7 @@ class StateTracker:
             return {}
 
     def get_consistency_metrics(
-        self, character_id: Optional[str] = None
+        self, character_id: str | None = None
     ) -> dict[str, Any]:
         """
         Get consistency metrics for character(s).
@@ -154,19 +154,18 @@ class StateTracker:
             if character_id:
                 # Metrics for specific character
                 return self._get_character_consistency_metrics(character_id)
-            else:
-                # Aggregate metrics for all characters
-                all_metrics = {}
-                for char_id in self.character_states.keys():
-                    all_metrics[char_id] = self._get_character_consistency_metrics(
-                        char_id
-                    )
+            # Aggregate metrics for all characters
+            all_metrics = {}
+            for char_id in self.character_states.keys():
+                all_metrics[char_id] = self._get_character_consistency_metrics(
+                    char_id
+                )
 
-                # Calculate system-wide metrics
-                all_metrics[
-                    "system_summary"
-                ] = self._calculate_system_consistency_metrics()
-                return all_metrics
+            # Calculate system-wide metrics
+            all_metrics[
+                "system_summary"
+            ] = self._calculate_system_consistency_metrics()
+            return all_metrics
 
         except Exception as e:
             logger.error(f"Error getting consistency metrics: {e}")
@@ -494,14 +493,13 @@ class StateTracker:
         """Interpret emotional score as state description."""
         if score > 0.7:
             return "very positive"
-        elif score > 0.3:
+        if score > 0.3:
             return "positive"
-        elif score > -0.3:
+        if score > -0.3:
             return "neutral"
-        elif score > -0.7:
+        if score > -0.7:
             return "negative"
-        else:
-            return "very negative"
+        return "very negative"
 
     def _record_conflict_event(self, event_data: dict[str, Any]) -> None:
         """Record a memory conflict event."""
@@ -527,7 +525,6 @@ class StateTracker:
 
         # Development events are automatically tracked through update_character_state
         # This method can be extended for additional development tracking
-        pass
 
     def _record_consistency_event(self, event_data: dict[str, Any]) -> None:
         """Record a consistency check event."""

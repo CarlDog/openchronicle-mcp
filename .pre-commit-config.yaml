@@ -66,13 +66,13 @@ repos:
     hooks:
       - id: hexagonal-boundaries
         name: "🎯 ENFORCE: Hexagonal layer boundaries"
-        entry: scripts/check-hexagonal-boundaries.sh
+        entry: powershell.exe -ExecutionPolicy Bypass -File scripts/check-hexagonal-boundaries.ps1
         language: system
         pass_filenames: false
 
       - id: import-structure-check
         name: "📁 VALIDATE: Import structure compliance"
-        entry: scripts/check-import-structure.sh
+        entry: powershell.exe -ExecutionPolicy Bypass -File scripts/check-import-structure.ps1
         language: system
         pass_filenames: false
 
@@ -82,6 +82,7 @@ repos:
         language: system
         types: [python]
         require_serial: true
+        pass_filenames: false
 
 # Pre-commit.ci configuration
 ci:

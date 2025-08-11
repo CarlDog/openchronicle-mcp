@@ -6,26 +6,19 @@ Provides unified interface replacing the previous separate character engines.
 """
 
 import logging
-from typing import Dict, List, Optional, Any, Set, Tuple
 from datetime import datetime
+from typing import Any
 
-from .character_base import (
-    CharacterEngineBase,
-    CharacterEventHandler,
-    CharacterStateProvider,
-    CharacterBehaviorProvider,
-    CharacterValidationProvider,
-)
-from .character_data import (
-    CharacterData,
-    CharacterStats,
-    CharacterStatType,
-    CharacterBehaviorType,
-    CharacterRelationType,
-    CharacterInteractionType,
-    CharacterConsistencyLevel,
-)
+from .character_base import CharacterBehaviorProvider
+from .character_base import CharacterEngineBase
+from .character_base import CharacterEventHandler
+from .character_base import CharacterStateProvider
+from .character_base import CharacterValidationProvider
+from .character_data import CharacterData
+from .character_data import CharacterStats
+from .character_data import CharacterStatType
 from .character_storage import CharacterStorage
+
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +31,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     that coordinates stats, interactions, consistency, and presentation.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize character orchestrator."""
         super().__init__()
         self.config = config or {}
@@ -48,15 +41,15 @@ class CharacterOrchestrator(CharacterEventHandler):
         self.storage = CharacterStorage(storage_config)
 
         # Component registry - will be populated as components are loaded
-        self.components: Dict[str, CharacterEngineBase] = {}
+        self.components: dict[str, CharacterEngineBase] = {}
 
         # Manager attributes expected by tests
         self.consistency_manager = None
         self.interaction_manager = None
         self.stats_manager = None
-        self.state_providers: List[CharacterStateProvider] = []
-        self.behavior_providers: List[CharacterBehaviorProvider] = []
-        self.validation_providers: List[CharacterValidationProvider] = []
+        self.state_providers: list[CharacterStateProvider] = []
+        self.behavior_providers: list[CharacterBehaviorProvider] = []
+        self.validation_providers: list[CharacterValidationProvider] = []
 
         # Configuration
         self.auto_save = self.config.get("auto_save", True)
@@ -77,10 +70,10 @@ class CharacterOrchestrator(CharacterEventHandler):
         """Load the default character management components."""
         try:
             # Import and register components
-            from .stats import StatsBehaviorEngine
-            from .interactions import InteractionDynamicsEngine
             from .consistency import ConsistencyValidationEngine
+            from .interactions import InteractionDynamicsEngine
             from .presentation import PresentationStyleEngine
+            from .stats import StatsBehaviorEngine
 
             # Create and register components
             stats_config = self.config.get("stats", {})
@@ -145,7 +138,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     # =============================================================================
 
     def create_character(
-        self, character_id: str, character_data: Optional[Dict] = None
+        self, character_id: str, character_data: dict | None = None
     ) -> str:
         """Create a new character with all components initialized."""
         # Create character through storage
@@ -172,7 +165,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         return character_id
 
     async def add_character(
-        self, name: str, description: str = "", traits: Optional[Dict] = None
+        self, name: str, description: str = "", traits: dict | None = None
     ) -> str:
         """Add a new character to the story. Expected by integration tests."""
         character_data = {
@@ -190,7 +183,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         logger.info(f"Added character {name} with ID {character_id}")
         return result
 
-    def get_character(self, character_id: str) -> Optional[CharacterData]:
+    def get_character(self, character_id: str) -> CharacterData | None:
         """Get complete character data."""
         return self.storage.get_character_data(character_id)
 
@@ -220,7 +213,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
         return success
 
-    def list_characters(self) -> List[str]:
+    def list_characters(self) -> list[str]:
         """List all available characters."""
         return self.storage.list_characters()
 
@@ -228,7 +221,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Character Statistics Interface
     # =============================================================================
 
-    def get_character_stats(self, character_id: str) -> Optional[CharacterStats]:
+    def get_character_stats(self, character_id: str) -> CharacterStats | None:
         """Get character statistics."""
         character = self.get_character(character_id)
         return character.stats if character else None
@@ -284,7 +277,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
     def get_effective_stat(
         self, character_id: str, stat_type: CharacterStatType
-    ) -> Optional[int]:
+    ) -> int | None:
         """Get effective character stat value including modifiers."""
         stats = self.get_character_stats(character_id)
         return stats.get_effective_stat(stat_type) if stats else None
@@ -295,7 +288,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
     def generate_behavior_context(
         self, character_id: str, situation_type: str = "general"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate comprehensive behavior context for character."""
         context = {
             "character_id": character_id,
@@ -319,7 +312,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
     def generate_response_modifiers(
         self, character_id: str, content_type: str = "dialogue"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate response modifiers for character content generation."""
         modifiers = {
             "character_id": character_id,
@@ -341,7 +334,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
         return modifiers
 
-    def manage_character_relationship(self, relationship_data: Dict[str, Any]) -> bool:
+    def manage_character_relationship(self, relationship_data: dict[str, Any]) -> bool:
         """Manage character relationships and interactions."""
         character_id = relationship_data.get("character_id")
         if not character_id:
@@ -371,7 +364,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             try:
                 interactions_component = self.components["interactions"]
                 if hasattr(interactions_component, "manage_relationship"):
-                    return getattr(interactions_component, "manage_relationship")(
+                    return interactions_component.manage_relationship(
                         character_id, relationship_data
                     )
             except Exception as e:
@@ -392,8 +385,8 @@ class CharacterOrchestrator(CharacterEventHandler):
         return True
 
     def track_emotional_stability(
-        self, character_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, character_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Track and analyze character emotional stability."""
         character_id = character_data.get("character_id")
         if not character_id:
@@ -410,7 +403,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             try:
                 stats_component = self.components["stats"]
                 if hasattr(stats_component, "track_emotional_stability"):
-                    return getattr(stats_component, "track_emotional_stability")(
+                    return stats_component.track_emotional_stability(
                         character_id, character_data
                     )
             except Exception as e:
@@ -439,8 +432,8 @@ class CharacterOrchestrator(CharacterEventHandler):
         return result
 
     def adapt_character_style(
-        self, adaptation_request: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, adaptation_request: dict[str, Any]
+    ) -> dict[str, Any]:
         """Adapt character style for different models or contexts."""
         character_id = adaptation_request.get("character_id")
         if not character_id:
@@ -457,7 +450,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             try:
                 presentation_component = self.components["presentation"]
                 if hasattr(presentation_component, "adapt_style"):
-                    return getattr(presentation_component, "adapt_style")(
+                    return presentation_component.adapt_style(
                         character_id, adaptation_request
                     )
             except Exception as e:
@@ -485,8 +478,8 @@ class CharacterOrchestrator(CharacterEventHandler):
         return result
 
     def validate_character_consistency(
-        self, character_history: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, character_history: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate character consistency against historical actions and traits."""
         character_id = character_history.get("character_id")
         if not character_id:
@@ -505,7 +498,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             try:
                 consistency_component = self.components["consistency"]
                 if hasattr(consistency_component, "validate_consistency"):
-                    return getattr(consistency_component, "validate_consistency")(
+                    return consistency_component.validate_consistency(
                         character_id, character_history
                     )
             except Exception as e:
@@ -548,7 +541,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Character State Interface
     # =============================================================================
 
-    def get_character_state(self, character_id: str) -> Dict[str, Any]:
+    def get_character_state(self, character_id: str) -> dict[str, Any]:
         """Get comprehensive character state from all providers."""
         state = {"character_id": character_id, "timestamp": datetime.now().isoformat()}
 
@@ -565,13 +558,13 @@ class CharacterOrchestrator(CharacterEventHandler):
         return state
 
     async def update_character(
-        self, character_id: str, updates: Dict[str, Any]
+        self, character_id: str, updates: dict[str, Any]
     ) -> bool:
         """Update character information (async wrapper for tests)."""
         return self.update_character_state(character_id, updates)
 
     def update_character_state(
-        self, character_id: str, state_updates: Dict[str, Any]
+        self, character_id: str, state_updates: dict[str, Any]
     ) -> bool:
         """Update character state across all providers."""
         success = True
@@ -600,8 +593,8 @@ class CharacterOrchestrator(CharacterEventHandler):
     # =============================================================================
 
     def validate_character_action(
-        self, character_id: str, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, character_id: str, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate character action across all validation providers."""
         if not self.validation_enabled:
             return True, None
@@ -638,7 +631,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Data Management Interface
     # =============================================================================
 
-    def export_character_data(self, character_id: str) -> Dict[str, Any]:
+    def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export complete character data from all components."""
         base_data = self.storage.export_character_data(character_id)
 
@@ -655,7 +648,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         base_data["component_data"] = component_data
         return base_data
 
-    def import_character_data(self, character_data: Dict[str, Any]) -> bool:
+    def import_character_data(self, character_data: dict[str, Any]) -> bool:
         """Import complete character data to all components."""
         # Import base data
         if not self.storage.import_character_data(character_data):
@@ -672,7 +665,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
         return True
 
-    def save_all_characters(self) -> Dict[str, bool]:
+    def save_all_characters(self) -> dict[str, bool]:
         """Save all character data."""
         return self.storage.save_all_pending()
 
@@ -680,7 +673,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     # System Interface
     # =============================================================================
 
-    def get_orchestrator_stats(self) -> Dict[str, Any]:
+    def get_orchestrator_stats(self) -> dict[str, Any]:
         """Get orchestrator statistics."""
         component_stats = {}
         for component_name, component in self.components.items():
@@ -703,7 +696,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             },
         }
 
-    def cleanup_cache(self, max_age_hours: int = 24) -> Dict[str, int]:
+    def cleanup_cache(self, max_age_hours: int = 24) -> dict[str, int]:
         """Clean up cached data across all components."""
         results = {}
 
@@ -714,7 +707,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         for component_name, component in self.components.items():
             if hasattr(component, "cleanup_cache"):
                 try:
-                    results[component_name] = getattr(component, "cleanup_cache")(
+                    results[component_name] = component.cleanup_cache(
                         max_age_hours
                     )
                 except Exception as e:
@@ -727,12 +720,12 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Event Handlers
     # =============================================================================
 
-    def _on_character_updated(self, event_data: Dict[str, Any]) -> None:
+    def _on_character_updated(self, event_data: dict[str, Any]) -> None:
         """Handle character update events from storage."""
         if self.event_logging_enabled:
             logger.info(f"Character updated: {event_data}")
 
-    def _on_character_created(self, event_data: Dict[str, Any]) -> None:
+    def _on_character_created(self, event_data: dict[str, Any]) -> None:
         """Handle character creation events from storage."""
         if self.event_logging_enabled:
             logger.info(f"Character created: {event_data}")

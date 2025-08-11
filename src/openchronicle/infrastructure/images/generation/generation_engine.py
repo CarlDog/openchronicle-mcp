@@ -8,25 +8,20 @@ Handles:
 - Integration with processing and shared components
 """
 
-import asyncio
 import json
 import logging
-import os
 import time
-from dataclasses import asdict
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
 import httpx
 
-from ..shared.image_models import (
-    ImageGenerationRequest,
-    ImageMetadata,
-    ImageType,
-    ImageSize,
-    ImageProvider,
-)
+from ..shared.image_models import ImageGenerationRequest
+from ..shared.image_models import ImageMetadata
+from ..shared.image_models import ImageProvider
+from ..shared.image_models import ImageSize
+from ..shared.image_models import ImageType
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +30,7 @@ logger = logging.getLogger(__name__)
 class GenerationEngine:
     """Core engine for coordinating image generation"""
 
-    def __init__(self, story_path: str, config: Dict[str, Any]):
+    def __init__(self, story_path: str, config: dict[str, Any]):
         self.story_path = Path(story_path)
         self.images_path = self.story_path / "images"
         self.metadata_file = self.images_path / "images.json"
@@ -73,13 +68,13 @@ class GenerationEngine:
             "providers_used": set(),
         }
 
-    def _load_metadata(self) -> Dict[str, ImageMetadata]:
+    def _load_metadata(self) -> dict[str, ImageMetadata]:
         """Load image metadata from JSON file"""
         if not self.metadata_file.exists():
             return {}
 
         try:
-            with open(self.metadata_file, "r", encoding="utf-8") as f:
+            with open(self.metadata_file, encoding="utf-8") as f:
                 data = json.load(f)
 
             metadata = {}
@@ -111,8 +106,8 @@ class GenerationEngine:
     def _generate_filename(
         self,
         image_type: ImageType,
-        name: Optional[str] = None,
-        scene_id: Optional[str] = None,
+        name: str | None = None,
+        scene_id: str | None = None,
         extension: str = "png",
     ) -> str:
         """Generate filename for image based on type and context"""
@@ -125,16 +120,15 @@ class GenerationEngine:
             safe_name = "".join(c for c in name.lower() if c.isalnum() or c in "-_")
             return f"{prefix}-{safe_name}-{timestamp}.{extension}"
 
-        elif image_type == ImageType.SCENE and scene_id:
+        if image_type == ImageType.SCENE and scene_id:
             # scene-000123-20250718_143022.png
             return f"{prefix}-{scene_id}-{timestamp}.{extension}"
 
-        else:
-            # Generic naming
-            return f"{prefix}-{timestamp}.{extension}"
+        # Generic naming
+        return f"{prefix}-{timestamp}.{extension}"
 
     def _generate_image_id(
-        self, image_type: ImageType, name: Optional[str] = None
+        self, image_type: ImageType, name: str | None = None
     ) -> str:
         """Generate unique image ID"""
         base = f"{image_type.value}"
@@ -147,13 +141,13 @@ class GenerationEngine:
         self,
         prompt: str,
         image_type: ImageType,
-        character_name: Optional[str] = None,
-        scene_id: Optional[str] = None,
+        character_name: str | None = None,
+        scene_id: str | None = None,
         size: ImageSize = ImageSize.SQUARE_512,
-        style_modifiers: Optional[List[str]] = None,
-        preferred_provider: Optional[ImageProvider] = None,
-        tags: Optional[List[str]] = None,
-    ) -> Optional[str]:
+        style_modifiers: list[str] | None = None,
+        preferred_provider: ImageProvider | None = None,
+        tags: list[str] | None = None,
+    ) -> str | None:
         """
         Generate an image and save it to the story's images directory
 
@@ -260,13 +254,13 @@ class GenerationEngine:
         self.stats["generation_time"] += metadata.generation_time
         self.stats["providers_used"].add(metadata.provider)
 
-    def get_image_path(self, image_id: str) -> Optional[Path]:
+    def get_image_path(self, image_id: str) -> Path | None:
         """Get the file path for an image"""
         if image_id in self.metadata:
             return self.images_path / self.metadata[image_id].filename
         return None
 
-    def get_images_by_character(self, character_name: str) -> List[ImageMetadata]:
+    def get_images_by_character(self, character_name: str) -> list[ImageMetadata]:
         """Get all images for a specific character"""
         return [
             meta
@@ -275,11 +269,11 @@ class GenerationEngine:
             and meta.character_name.lower() == character_name.lower()
         ]
 
-    def get_images_by_scene(self, scene_id: str) -> List[ImageMetadata]:
+    def get_images_by_scene(self, scene_id: str) -> list[ImageMetadata]:
         """Get all images for a specific scene"""
         return [meta for meta in self.metadata.values() if meta.scene_id == scene_id]
 
-    def get_images_by_tag(self, tag: str) -> List[ImageMetadata]:
+    def get_images_by_tag(self, tag: str) -> list[ImageMetadata]:
         """Get all images with a specific tag"""
         return [
             meta
@@ -309,7 +303,7 @@ class GenerationEngine:
             logger.error(f"Failed to delete image {image_id}: {e}")
             return False
 
-    def get_engine_stats(self) -> Dict[str, Any]:
+    def get_engine_stats(self) -> dict[str, Any]:
         """Get engine statistics"""
         stats = self.stats.copy()
         stats["providers_used"] = list(stats["providers_used"])
@@ -317,7 +311,7 @@ class GenerationEngine:
         stats["available_adapters"] = self.registry.list_available_adapters()
         return stats
 
-    def export_metadata(self) -> Dict[str, Any]:
+    def export_metadata(self) -> dict[str, Any]:
         """Export all metadata for backup/transfer"""
         return {
             "metadata": {id: meta.to_dict() for id, meta in self.metadata.items()},

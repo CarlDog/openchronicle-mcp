@@ -4,7 +4,7 @@ Fallback Navigation Manager - Basic Navigation
 Provides minimal navigation functionality when full system is unavailable.
 """
 
-from typing import Dict, List, Any
+from typing import Any
 
 
 class FallbackNavigationManager:
@@ -13,17 +13,15 @@ class FallbackNavigationManager:
     def __init__(self, story_id: str):
         self.story_id = story_id
 
-    async def get_navigation_history(self) -> List[Dict[str, Any]]:
+    async def get_navigation_history(self) -> list[dict[str, Any]]:
         """Basic navigation history with limited functionality."""
         try:
             import sys
             from pathlib import Path
 
             sys.path.append(str(Path(__file__).parent.parent.parent))
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -51,13 +49,13 @@ class FallbackNavigationManager:
         except Exception:
             return []
 
-    async def find_scene_by_criteria(self, **kwargs) -> List[Dict[str, Any]]:
+    async def find_scene_by_criteria(self, **kwargs) -> list[dict[str, Any]]:
         """Basic scene search."""
         return [{"message": "Fallback mode: Limited search functionality"}]
 
     async def get_scene_context(
         self, scene_id: str, context_window: int = 3
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Basic scene context."""
         return {
             "scene_id": scene_id,
@@ -71,7 +69,7 @@ class FallbackNavigationManager:
         """Basic navigation tracking."""
         return True
 
-    async def navigate(self, navigation_type: str, **kwargs) -> Dict[str, Any]:
+    async def navigate(self, navigation_type: str, **kwargs) -> dict[str, Any]:
         """Main navigation interface with fallback functionality."""
         return {
             "type": navigation_type,
@@ -80,6 +78,6 @@ class FallbackNavigationManager:
             "data": {},
         }
 
-    async def get_navigation_statistics(self) -> Dict[str, Any]:
+    async def get_navigation_statistics(self) -> dict[str, Any]:
         """Basic navigation statistics."""
         return {"message": "Fallback mode: Limited statistics", "fallback_mode": True}

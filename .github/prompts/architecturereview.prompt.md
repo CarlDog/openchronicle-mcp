@@ -7,7 +7,7 @@ GOAL:
 1) Critically assess the codebase architecture using folder/file layout and key config files.
 2) Identify gaps against modern Python best practices.
 3) Propose a target-state architecture and naming scheme.
-4) Produce a phased implementation plan with checklists and concrete deliverables we can execute.
+4) Produce a phased implementation document with checklists and concrete deliverables we can execute.
 
 SCOPE & CONSTRAINTS:
 - Focus on structure and interfaces first (folders, filenames, package boundaries, entry points, configs, tests, CI). Skim file headers only when structure is ambiguous; do NOT deep-read every file.

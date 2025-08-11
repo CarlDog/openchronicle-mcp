@@ -5,20 +5,16 @@ Handles all character-specific memory operations including updates, mood trackin
 and voice profile management. Extracted from character-related functions in memory_manager.py.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
-from ..shared.memory_models import (
-    CharacterMemory,
-    CharacterUpdates,
-    MemoryUpdateResult,
-    MoodEntry,
-    VoiceProfile,
-    DEFAULT_CHARACTER_TEMPLATE,
-    MAX_MOOD_HISTORY,
-)
 from ..persistence import MemoryRepository
+from ..shared.memory_models import MAX_MOOD_HISTORY
+from ..shared.memory_models import CharacterMemory
+from ..shared.memory_models import MoodEntry
+from ..shared.memory_models import VoiceProfile
 
 
 @dataclass
@@ -27,10 +23,10 @@ class CharacterUpdateResult:
 
     success: bool
     character_name: str
-    updated_fields: List[str]
-    warnings: List[str]
-    previous_mood: Optional[str] = None
-    new_mood: Optional[str] = None
+    updated_fields: list[str]
+    warnings: list[str]
+    previous_mood: str | None = None
+    new_mood: str | None = None
 
 
 class CharacterManager:
@@ -41,7 +37,7 @@ class CharacterManager:
         self.repository = repository or MemoryRepository()
 
     def update_character(
-        self, story_id: str, character_name: str, updates: Dict[str, Any]
+        self, story_id: str, character_name: str, updates: dict[str, Any]
     ) -> CharacterUpdateResult:
         """Update character memory with comprehensive tracking."""
         try:
@@ -73,17 +69,17 @@ class CharacterManager:
                 updated_fields.append("mood")
 
             # Handle voice profile updates
-            if "voice_updates" in updates and updates["voice_updates"]:
+            if updates.get("voice_updates"):
                 self._update_voice_profile(character, updates["voice_updates"])
                 updated_fields.append("voice_profile")
 
             # Handle relationship updates
-            if "relationship_updates" in updates and updates["relationship_updates"]:
+            if updates.get("relationship_updates"):
                 character.relationships.update(updates["relationship_updates"])
                 updated_fields.append("relationships")
 
             # Handle arc progress updates
-            if "arc_updates" in updates and updates["arc_updates"]:
+            if updates.get("arc_updates"):
                 character.arc_progress.update(updates["arc_updates"])
                 updated_fields.append("arc_progress")
 
@@ -108,12 +104,12 @@ class CharacterManager:
                 success=False,
                 character_name=character_name,
                 updated_fields=[],
-                warnings=[f"Update failed: {str(e)}"],
+                warnings=[f"Update failed: {e!s}"],
             )
 
     def get_character_memory(
         self, story_id: str, character_name: str
-    ) -> Optional[CharacterMemory]:
+    ) -> CharacterMemory | None:
         """Get character memory data."""
         try:
             memory = self.repository.load_memory(story_id)
@@ -123,7 +119,7 @@ class CharacterManager:
 
     def get_character_snapshot(
         self, story_id: str, character_name: str, format_for_prompt: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get character memory snapshot with optional prompt formatting."""
         try:
             character = self.get_character_memory(story_id, character_name)
@@ -177,7 +173,7 @@ class CharacterManager:
         story_id: str,
         character_name: str,
         new_mood: str,
-        reason: Optional[str] = None,
+        reason: str | None = None,
         confidence: float = 1.0,
     ) -> bool:
         """Update character mood with history tracking."""
@@ -267,7 +263,7 @@ class CharacterManager:
         self,
         character: CharacterMemory,
         new_mood: str,
-        reason: Optional[str] = None,
+        reason: str | None = None,
         confidence: float = 1.0,
     ) -> None:
         """Internal method to update character mood with history."""
@@ -289,7 +285,7 @@ class CharacterManager:
             character.current_mood = new_mood
 
     def _update_voice_profile(
-        self, character: CharacterMemory, voice_updates: Dict[str, Any]
+        self, character: CharacterMemory, voice_updates: dict[str, Any]
     ) -> None:
         """Internal method to update character voice profile."""
         # Initialize voice profile if it doesn't exist

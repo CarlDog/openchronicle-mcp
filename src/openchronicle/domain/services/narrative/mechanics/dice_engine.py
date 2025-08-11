@@ -7,28 +7,24 @@ Extracted from NarrativeDiceEngine for modular architecture.
 Author: OpenChronicle Development Team
 """
 
-import random
 import logging
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime
+import random
+from typing import Any
 
-from .mechanics_models import (
-    DiceType,
-    DiceRoll,
-    ResolutionResult,
-    ResolutionConfig,
-    DifficultyLevel,
-    OutcomeType,
-    ResolutionType,
-)
-from ..shared.narrative_exceptions import NarrativeSystemError
 from src.openchronicle.shared.logging_system import log_system_event
+
+from ..shared.narrative_exceptions import NarrativeSystemError
+from .mechanics_models import DiceRoll
+from .mechanics_models import DiceType
+from .mechanics_models import DifficultyLevel
+from .mechanics_models import OutcomeType
+from .mechanics_models import ResolutionConfig
 
 
 class DiceEngine:
     """Handles dice rolling mechanics and calculations."""
 
-    def __init__(self, config: Optional[ResolutionConfig] = None):
+    def __init__(self, config: ResolutionConfig | None = None):
         """
         Initialize dice engine.
 
@@ -137,15 +133,14 @@ class DiceEngine:
         if dice_type == DiceType.FUDGE:
             # Fudge dice: -1, 0, +1
             return random.randint(-1, 1)
-        elif dice_type == DiceType.COIN:
+        if dice_type == DiceType.COIN:
             # Coin flip: 0 (tails), 1 (heads)
             return random.randint(0, 1)
-        elif dice_type == DiceType.D10:
+        if dice_type == DiceType.D10:
             # D10 traditionally 0-9
             return random.randint(0, 9)
-        else:
-            # Standard dice
-            return random.randint(config["min"], config["sides"])
+        # Standard dice
+        return random.randint(config["min"], config["sides"])
 
     def roll_d20(
         self, modifier: int = 0, advantage: bool = False, disadvantage: bool = False
@@ -176,7 +171,7 @@ class DiceEngine:
             self.logger.error(f"Error parsing dice string '{dice_string}': {e}")
             raise NarrativeSystemError(f"Invalid dice notation: {dice_string}")
 
-    def _parse_dice_string(self, dice_string: str) -> Tuple[int, DiceType, int]:
+    def _parse_dice_string(self, dice_string: str) -> tuple[int, DiceType, int]:
         """Parse dice notation string into components."""
         dice_string = dice_string.lower().replace(" ", "")
 
@@ -224,8 +219,8 @@ class DiceEngine:
         dice_roll: DiceRoll,
         difficulty: int,
         character_skill: int = 0,
-        situation_modifiers: Dict[str, int] = None,
-    ) -> Tuple[bool, int, OutcomeType]:
+        situation_modifiers: dict[str, int] = None,
+    ) -> tuple[bool, int, OutcomeType]:
         """
         Calculate if a dice roll succeeds against difficulty.
 
@@ -259,31 +254,26 @@ class DiceEngine:
             elif natural_roll <= self.config.critical_failure_threshold:
                 outcome = OutcomeType.CRITICAL_FAILURE
             elif success:
-                if margin >= 10:
-                    outcome = OutcomeType.SUCCESS
-                elif margin >= 5:
+                if margin >= 10 or margin >= 5:
                     outcome = OutcomeType.SUCCESS
                 else:
                     outcome = OutcomeType.PARTIAL_SUCCESS
+            elif margin <= -10:
+                outcome = OutcomeType.CRITICAL_FAILURE
             else:
-                if margin <= -10:
-                    outcome = OutcomeType.CRITICAL_FAILURE
-                else:
-                    outcome = OutcomeType.FAILURE
+                outcome = OutcomeType.FAILURE
+        # Non-d20 outcomes
+        elif success:
+            if margin >= difficulty // 2:
+                outcome = OutcomeType.CRITICAL_SUCCESS
+            elif margin >= 0:
+                outcome = OutcomeType.SUCCESS
+            else:
+                outcome = OutcomeType.PARTIAL_SUCCESS
+        elif margin <= -difficulty // 2:
+            outcome = OutcomeType.CRITICAL_FAILURE
         else:
-            # Non-d20 outcomes
-            if success:
-                if margin >= difficulty // 2:
-                    outcome = OutcomeType.CRITICAL_SUCCESS
-                elif margin >= 0:
-                    outcome = OutcomeType.SUCCESS
-                else:
-                    outcome = OutcomeType.PARTIAL_SUCCESS
-            else:
-                if margin <= -difficulty // 2:
-                    outcome = OutcomeType.CRITICAL_FAILURE
-                else:
-                    outcome = OutcomeType.FAILURE
+            outcome = OutcomeType.FAILURE
 
         return success, margin, outcome
 
@@ -297,7 +287,7 @@ class DiceEngine:
         count: int = 1,
         iterations: int = 1000,
         modifier: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Simulate multiple dice rolls for statistical analysis.
 
@@ -350,23 +340,22 @@ class DiceEngine:
 
         return True
 
-    def get_dice_statistics(self, dice_type: DiceType) -> Dict[str, Any]:
+    def get_dice_statistics(self, dice_type: DiceType) -> dict[str, Any]:
         """Get statistical information for dice type."""
         config = self.dice_configs.get(dice_type, {})
 
         if dice_type == DiceType.FUDGE:
             return {"min": -1, "max": 1, "average": 0.0, "sides": 3, "type": "fudge"}
-        elif dice_type == DiceType.COIN:
+        if dice_type == DiceType.COIN:
             return {"min": 0, "max": 1, "average": 0.5, "sides": 2, "type": "coin"}
-        else:
-            sides = config.get("sides", 1)
-            min_val = config.get("min", 1)
-            max_val = sides if dice_type != DiceType.D10 else 9
+        sides = config.get("sides", 1)
+        min_val = config.get("min", 1)
+        max_val = sides if dice_type != DiceType.D10 else 9
 
-            return {
-                "min": min_val,
-                "max": max_val,
-                "average": (min_val + max_val) / 2,
-                "sides": sides,
-                "type": "standard",
-            }
+        return {
+            "min": min_val,
+            "max": max_val,
+            "average": (min_val + max_val) / 2,
+            "sides": sides,
+            "type": "standard",
+        }

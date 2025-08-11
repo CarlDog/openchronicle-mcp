@@ -7,7 +7,8 @@ Part of: Phase 5A - Content Analysis Enhancement
 Extracted from: core/content_analyzer.py (lines 596-676, 1606-1624)
 """
 
-from typing import Dict, List, Any
+from typing import Any
+
 from ..shared.interfaces import DetectionComponent
 
 
@@ -112,15 +113,15 @@ class KeywordDetector(DetectionComponent):
             "exit",
         ]
 
-    def detect_content_type(self, user_input: str) -> Dict[str, Any]:
+    def detect_content_type(self, user_input: str) -> dict[str, Any]:
         """Main public API for content detection using keywords."""
         return self._keyword_based_detection(user_input)
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process content and return keyword-based analysis results."""
         return self.detect_content_type(content)
 
-    def _keyword_based_detection(self, user_input: str) -> Dict[str, Any]:
+    def _keyword_based_detection(self, user_input: str) -> dict[str, Any]:
         """Core keyword-based content detection logic."""
         text_lower = user_input.lower()
         content_flags = []
@@ -194,7 +195,7 @@ class KeywordDetector(DetectionComponent):
             "analysis_method": "keyword",
         }
 
-    def _basic_content_analysis(self, content: str) -> Dict[str, Any]:
+    def _basic_content_analysis(self, content: str) -> dict[str, Any]:
         """Basic content analysis using patterns and heuristics."""
         words = content.split()
         lines = content.split("\n")

@@ -2,7 +2,8 @@
 Scene Analysis Components
 """
 
-from .statistics_engine import StatisticsEngine
 from .mood_analyzer import MoodAnalyzer
+from .statistics_engine import StatisticsEngine
 
-__all__ = ["StatisticsEngine", "MoodAnalyzer"]
+
+__all__ = ["MoodAnalyzer", "StatisticsEngine"]

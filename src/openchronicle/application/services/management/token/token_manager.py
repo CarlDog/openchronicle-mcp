@@ -5,20 +5,20 @@ Modernized token management system that integrates all token components.
 Provides unified API for tokenization, optimization, and usage tracking.
 """
 
-from typing import Dict, List, Optional, Any, Union
 import os
 import sys
-from pathlib import Path
+from typing import Any
+
 
 # Import logging system with fallback
-import os
-import sys
 
 sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "utilities")
 )
 try:
-    from logging_system import log_system_event, log_info, log_error
+    from logging_system import log_error
+    from logging_system import log_info
+    from logging_system import log_system_event
 except ImportError:
     # Fallback for testing or when logging_system is not available
     def log_system_event(event_type, description):
@@ -31,16 +31,18 @@ except ImportError:
         print(f"ERROR: {message}")
 
 
-from .tokenizer_manager import TokenizerManager, TokenEstimator
-from .token_optimizer import ModelSelector, ContextTrimmer, TruncationDetector
-from .usage_tracker import UsageTracker, CostCalculator, UsageRecommender
-from ..shared import (
-    TokenManagerConfig,
-    TokenUsageRecord,
-    TokenUsageType,
-    TokenManagerException,
-    ConfigValidator,
-)
+from ..shared import ConfigValidator
+from ..shared import TokenManagerConfig
+from ..shared import TokenManagerException
+from ..shared import TokenUsageType
+from .token_optimizer import ContextTrimmer
+from .token_optimizer import ModelSelector
+from .token_optimizer import TruncationDetector
+from .tokenizer_manager import TokenEstimator
+from .tokenizer_manager import TokenizerManager
+from .usage_tracker import CostCalculator
+from .usage_tracker import UsageRecommender
+from .usage_tracker import UsageTracker
 
 
 class TokenManager:
@@ -51,7 +53,7 @@ class TokenManager:
     Maintains backward compatibility with legacy token_manager.py interface.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize the token management system."""
         try:
             # Validate and set configuration
@@ -95,22 +97,22 @@ class TokenManager:
     # TOKENIZATION INTERFACE
     # =====================================================================
 
-    def count_tokens(self, text: str, model: Optional[str] = None) -> int:
+    def count_tokens(self, text: str, model: str | None = None) -> int:
         """Count tokens in text for specified model."""
         model = model or self.config.default_model
         return self.tokenizer.estimate_tokens(text, model)
 
-    def estimate_tokens(self, text: str, model: Optional[str] = None) -> int:
+    def estimate_tokens(self, text: str, model: str | None = None) -> int:
         """Estimate tokens with padding factor."""
         model = model or self.config.default_model
         return self.tokenizer.estimate_tokens(text, model)
 
-    def tokenize_text(self, text: str, model: Optional[str] = None) -> List[int]:
+    def tokenize_text(self, text: str, model: str | None = None) -> list[int]:
         """Tokenize text into token IDs."""
         model = model or self.config.default_model
         return self.tokenizer.tokenize(text, model)
 
-    def detokenize_text(self, tokens: List[int], model: Optional[str] = None) -> str:
+    def detokenize_text(self, tokens: list[int], model: str | None = None) -> str:
         """Convert token IDs back to text."""
         model = model or self.config.default_model
         return self.tokenizer.detokenize(tokens, model)
@@ -120,7 +122,7 @@ class TokenManager:
     # =====================================================================
 
     def select_optimal_model(
-        self, text: str, requirements: Optional[Dict[str, Any]] = None
+        self, text: str, requirements: dict[str, Any] | None = None
     ) -> str:
         """Select the optimal model for given text and requirements."""
         token_count = self.count_tokens(text)
@@ -130,7 +132,7 @@ class TokenManager:
         self,
         text: str,
         max_tokens: int,
-        model: Optional[str] = None,
+        model: str | None = None,
         strategy: str = "truncate_middle",
     ) -> str:
         """Trim context to fit within token limit."""
@@ -138,15 +140,15 @@ class TokenManager:
         return self.trimmer.trim_context(text, max_tokens, model, strategy)
 
     def check_truncation_risk(
-        self, text: str, model: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, text: str, model: str | None = None
+    ) -> dict[str, Any]:
         """Check if text might be truncated by model."""
         model = model or self.config.default_model
         return self.truncation_detector.check_truncation_risk(text, model)
 
     def split_text_for_model(
-        self, text: str, model: Optional[str] = None, chunk_size: Optional[int] = None
-    ) -> List[str]:
+        self, text: str, model: str | None = None, chunk_size: int | None = None
+    ) -> list[str]:
         """Split text into chunks that fit model limits."""
         model = model or self.config.default_model
         if chunk_size is None:
@@ -167,8 +169,8 @@ class TokenManager:
         prompt_tokens: int,
         response_tokens: int,
         usage_type: TokenUsageType = TokenUsageType.PROMPT,
-        cost: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        cost: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """Track token usage for analytics."""
         # Calculate cost if not provided
@@ -181,21 +183,21 @@ class TokenManager:
             model_name, prompt_tokens, response_tokens, usage_type, cost, metadata
         )
 
-    def get_usage_stats(self) -> Dict[str, Any]:
+    def get_usage_stats(self) -> dict[str, Any]:
         """Get comprehensive usage statistics."""
         return self.usage_tracker.get_usage_stats()
 
-    def get_model_usage(self, model_name: str) -> Dict[str, Any]:
+    def get_model_usage(self, model_name: str) -> dict[str, Any]:
         """Get usage statistics for a specific model."""
         return self.usage_tracker.get_model_usage(model_name)
 
-    def get_cost_analysis(self) -> Dict[str, Any]:
+    def get_cost_analysis(self) -> dict[str, Any]:
         """Get detailed cost analysis."""
         return self.usage_tracker.get_cost_analysis()
 
     def recommend_model_switch(
-        self, current_model: str, usage_pattern: Optional[Dict[str, Any]] = None
-    ) -> Optional[str]:
+        self, current_model: str, usage_pattern: dict[str, Any] | None = None
+    ) -> str | None:
         """Get model switch recommendations."""
         pattern = usage_pattern or self._analyze_usage_pattern(current_model)
         return self.recommender.recommend_model_switch(
@@ -206,7 +208,7 @@ class TokenManager:
     # UTILITY METHODS
     # =====================================================================
 
-    def validate_model_choice(self, model: str, text: str) -> Dict[str, Any]:
+    def validate_model_choice(self, model: str, text: str) -> dict[str, Any]:
         """Validate if model choice is appropriate for given text."""
         token_count = self.count_tokens(text, model)
         model_config = self.model_configs.get(model, {})
@@ -227,7 +229,7 @@ class TokenManager:
 
         return validation
 
-    def get_model_capabilities(self, model: str) -> Dict[str, Any]:
+    def get_model_capabilities(self, model: str) -> dict[str, Any]:
         """Get capabilities and limits for a specific model."""
         return self.model_configs.get(
             model,
@@ -239,7 +241,7 @@ class TokenManager:
             },
         )
 
-    def optimize_for_cost(self, text: str, max_cost: float) -> Dict[str, Any]:
+    def optimize_for_cost(self, text: str, max_cost: float) -> dict[str, Any]:
         """Find the most cost-effective model for given text."""
         token_count = self.estimate_tokens(text)
 
@@ -271,7 +273,7 @@ class TokenManager:
             ],
         }
 
-    def _analyze_usage_pattern(self, model: str) -> Dict[str, Any]:
+    def _analyze_usage_pattern(self, model: str) -> dict[str, Any]:
         """Analyze usage patterns for a model."""
         model_stats = self.usage_tracker.get_model_usage(model)
 
@@ -317,7 +319,7 @@ class TokenManager:
         self.usage_tracker.clear_usage_data()
         log_system_event("token_system", "Caches cleared")
 
-    def export_stats(self) -> Dict[str, Any]:
+    def export_stats(self) -> dict[str, Any]:
         """Export all statistics and usage data."""
         return {
             "usage_data": self.usage_tracker.export_usage_data(),
@@ -329,7 +331,7 @@ class TokenManager:
             },
         }
 
-    def update_config(self, new_config: Dict[str, Any]):
+    def update_config(self, new_config: dict[str, Any]):
         """Update system configuration."""
         try:
             validated_config = ConfigValidator.validate_token_config(new_config)

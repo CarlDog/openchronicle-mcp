@@ -10,14 +10,16 @@ Implements distributed caching strategies for production-ready scaling:
 - Cache warming strategies
 """
 
+import asyncio
 import hashlib
 import json
-import time
-import asyncio
-from typing import Dict, List, Any, Optional, Union, Tuple
-from datetime import datetime, UTC, timedelta
-from dataclasses import dataclass, asdict
 import logging
+import time
+from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
+from typing import Any
+
 
 try:
     import redis.asyncio as redis
@@ -29,7 +31,9 @@ except ImportError:
     redis = None
     RedisCluster = None
 
-from .redis_cache import CacheConfig, CacheMetrics, MultiTierCache
+from .redis_cache import CacheConfig
+from .redis_cache import CacheMetrics
+from .redis_cache import MultiTierCache
 
 
 @dataclass
@@ -38,7 +42,7 @@ class ClusterNode:
 
     host: str
     port: int
-    password: Optional[str] = None
+    password: str | None = None
     db: int = 0
 
 
@@ -46,7 +50,7 @@ class ClusterNode:
 class PartitionConfig:
     """Cache partitioning configuration."""
 
-    partition_key_patterns: List[str]  # Patterns like "char:*", "scene:*"
+    partition_key_patterns: list[str]  # Patterns like "char:*", "scene:*"
     hash_algorithm: str = "sha256"
     replication_factor: int = 1
     consistency_level: str = "eventual"  # "eventual", "strong"
@@ -61,7 +65,7 @@ class DistributedCacheConfig(CacheConfig):
         redis_host: str = "localhost",
         redis_port: int = 6379,
         redis_db: int = 0,
-        redis_password: Optional[str] = None,
+        redis_password: str | None = None,
         default_ttl: int = 3600,
         character_ttl: int = 7200,
         memory_ttl: int = 1800,
@@ -69,9 +73,9 @@ class DistributedCacheConfig(CacheConfig):
         enable_local_cache: bool = True,
         local_cache_size: int = 1000,
         # Distributed config
-        cluster_nodes: Optional[List[ClusterNode]] = None,
+        cluster_nodes: list[ClusterNode] | None = None,
         enable_clustering: bool = False,
-        partition_config: Optional[PartitionConfig] = None,
+        partition_config: PartitionConfig | None = None,
         enable_monitoring: bool = True,
         metrics_collection_interval: int = 60,
         enable_cache_warming: bool = True,
@@ -162,7 +166,7 @@ class DistributedCacheMetrics(CacheMetrics):
             unique_list = list(metrics["unique_keys"])
             metrics["unique_keys"] = set(unique_list[-5000:])
 
-    def get_distributed_summary(self) -> Dict[str, Any]:
+    def get_distributed_summary(self) -> dict[str, Any]:
         """Get comprehensive distributed cache metrics."""
         base_summary = self.get_summary()
 
@@ -204,7 +208,7 @@ class DistributedCacheMetrics(CacheMetrics):
 class CachePartitioner:
     """Handles cache key partitioning across multiple Redis instances."""
 
-    def __init__(self, config: PartitionConfig, cluster_nodes: List[ClusterNode]):
+    def __init__(self, config: PartitionConfig, cluster_nodes: list[ClusterNode]):
         self.config = config
         self.cluster_nodes = cluster_nodes
         self.logger = logging.getLogger("openchronicle.cache.partitioner")
@@ -213,13 +217,12 @@ class CachePartitioner:
         """Generate hash for partitioning key."""
         if self.config.hash_algorithm == "sha256":
             return hashlib.sha256(key.encode()).hexdigest()
-        elif self.config.hash_algorithm == "md5":
+        if self.config.hash_algorithm == "md5":
             return hashlib.md5(key.encode()).hexdigest()
-        else:
-            # Simple string hash fallback
-            return str(hash(key))
+        # Simple string hash fallback
+        return str(hash(key))
 
-    def get_partition_for_key(self, key: str) -> Tuple[int, str]:
+    def get_partition_for_key(self, key: str) -> tuple[int, str]:
         """
         Determine which partition (Redis node) should handle this key.
 
@@ -233,7 +236,7 @@ class CachePartitioner:
 
         return partition_index, key_hash
 
-    def get_replica_nodes(self, primary_index: int) -> List[int]:
+    def get_replica_nodes(self, primary_index: int) -> list[int]:
         """Get replica node indices for replication."""
         if self.config.replication_factor <= 1:
             return []
@@ -254,8 +257,8 @@ class RedisClusterManager:
     def __init__(self, config: DistributedCacheConfig):
         self.config = config
         self.logger = logging.getLogger("openchronicle.cache.cluster")
-        self.clients: Dict[int, Any] = {}
-        self.cluster_client: Optional[Any] = None
+        self.clients: dict[int, Any] = {}
+        self.cluster_client: Any | None = None
         self.partitioner = None
 
         if config.cluster_nodes:
@@ -328,7 +331,7 @@ class RedisClusterManager:
         except Exception as e:
             self.logger.error(f"Failed to initialize single Redis node: {e}")
 
-    async def get_client_for_key(self, key: str) -> Tuple[Optional[Any], int]:
+    async def get_client_for_key(self, key: str) -> tuple[Any | None, int]:
         """Get the appropriate Redis client for a key."""
         if not self.clients:
             return None, -1
@@ -336,12 +339,11 @@ class RedisClusterManager:
         if self.partitioner and len(self.clients) > 1:
             node_index, _ = self.partitioner.get_partition_for_key(key)
             return self.clients.get(node_index), node_index
-        else:
-            # Use first available client
-            client = list(self.clients.values())[0]
-            return client, 0
+        # Use first available client
+        client = list(self.clients.values())[0]
+        return client, 0
 
-    async def get_all_clients(self) -> List[Tuple[Any, int]]:
+    async def get_all_clients(self) -> list[tuple[Any, int]]:
         """Get all active Redis clients."""
         return [(client, index) for index, client in self.clients.items()]
 
@@ -365,8 +367,8 @@ class CacheWarmingManager:
         self.warming_tasks = {}
 
     async def warm_character_cache(
-        self, story_id: str, character_names: List[str]
-    ) -> Dict[str, bool]:
+        self, story_id: str, character_names: list[str]
+    ) -> dict[str, bool]:
         """Warm cache with character data."""
         self.logger.info(
             f"Warming character cache for story {story_id}: {len(character_names)} characters"
@@ -385,7 +387,7 @@ class CacheWarmingManager:
 
             batch_results = await asyncio.gather(*batch_tasks, return_exceptions=True)
 
-            for character_name, result in zip(batch, batch_results):
+            for character_name, result in zip(batch, batch_results, strict=False):
                 results[character_name] = not isinstance(result, Exception)
                 if isinstance(result, Exception):
                     self.logger.error(
@@ -436,7 +438,7 @@ class CacheWarmingManager:
             self.logger.error(f"Cache warming failed for {character_name}: {e}")
             return False
 
-    async def warm_memory_snapshots(self, story_ids: List[str]) -> Dict[str, bool]:
+    async def warm_memory_snapshots(self, story_ids: list[str]) -> dict[str, bool]:
         """Warm cache with memory snapshots."""
         self.logger.info(f"Warming memory snapshot cache for {len(story_ids)} stories")
 
@@ -476,7 +478,7 @@ class DistributedMultiTierCache(MultiTierCache):
     - Cache warming
     """
 
-    def __init__(self, config: Optional[DistributedCacheConfig] = None):
+    def __init__(self, config: DistributedCacheConfig | None = None):
         self.config = config or DistributedCacheConfig()
         self.logger = logging.getLogger("openchronicle.cache.distributed")
         self.metrics = DistributedCacheMetrics()
@@ -561,9 +563,9 @@ class DistributedMultiTierCache(MultiTierCache):
     async def get(
         self,
         key: str,
-        fallback_func: Optional[callable] = None,
-        ttl: Optional[int] = None,
-    ) -> Optional[Any]:
+        fallback_func: callable | None = None,
+        ttl: int | None = None,
+    ) -> Any | None:
         """Enhanced get with distributed support."""
         start_time = time.time()
 
@@ -720,8 +722,8 @@ class DistributedMultiTierCache(MultiTierCache):
                     )
 
     async def warm_cache(
-        self, story_ids: List[str], character_names: Dict[str, List[str]]
-    ) -> Dict[str, Any]:
+        self, story_ids: list[str], character_names: dict[str, list[str]]
+    ) -> dict[str, Any]:
         """Warm cache with commonly accessed data."""
         if not self.config.enable_cache_warming:
             return {"warming_disabled": True}
@@ -744,7 +746,7 @@ class DistributedMultiTierCache(MultiTierCache):
 
         return results
 
-    async def get_distributed_metrics(self) -> Dict[str, Any]:
+    async def get_distributed_metrics(self) -> dict[str, Any]:
         """Get comprehensive distributed cache metrics."""
         return self.metrics.get_distributed_summary()
 
@@ -763,7 +765,7 @@ class DistributedMultiTierCache(MultiTierCache):
 
 # Convenience function for production setup
 def create_production_distributed_cache(
-    cluster_nodes: List[Dict[str, Any]],
+    cluster_nodes: list[dict[str, Any]],
     enable_monitoring: bool = True,
     enable_cache_warming: bool = True,
 ) -> DistributedMultiTierCache:

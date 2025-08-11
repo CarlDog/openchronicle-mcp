@@ -5,15 +5,17 @@ Modular bookmark management for OpenChronicle Core.
 Provides bookmark CRUD, search, and navigation capabilities.
 """
 
+from .bookmark_data_manager import BookmarkDataManager
+from .bookmark_data_manager import BookmarkValidator
 from .bookmark_manager import BookmarkManager
-from .bookmark_data_manager import BookmarkDataManager, BookmarkValidator
-from .search_engine import BookmarkSearchEngine
 from .navigation_manager import NavigationManager
+from .search_engine import BookmarkSearchEngine
+
 
 __all__ = [
-    "BookmarkManager",
     "BookmarkDataManager",
-    "BookmarkValidator",
+    "BookmarkManager",
     "BookmarkSearchEngine",
+    "BookmarkValidator",
     "NavigationManager",
 ]

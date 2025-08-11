@@ -8,32 +8,28 @@ Author: OpenChronicle Development Team
 """
 
 import logging
-import asyncio
-from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
+from typing import Any
 
-from .mechanics_models import (
-    MechanicsRequest,
-    MechanicsResult,
-    ResolutionResult,
-    NarrativeBranch,
-    ResolutionType,
-    DifficultyLevel,
-    OutcomeType,
-    DiceRoll,
-    ResolutionConfig,
-    CharacterPerformance,
-)
-from .dice_engine import DiceEngine
-from .narrative_branching import NarrativeBranchingEngine
-from ..shared.narrative_exceptions import NarrativeSystemError
 from src.openchronicle.shared.logging_system import log_system_event
+
+from .dice_engine import DiceEngine
+from .mechanics_models import CharacterPerformance
+from .mechanics_models import DifficultyLevel
+from .mechanics_models import MechanicsRequest
+from .mechanics_models import MechanicsResult
+from .mechanics_models import NarrativeBranch
+from .mechanics_models import OutcomeType
+from .mechanics_models import ResolutionConfig
+from .mechanics_models import ResolutionResult
+from .mechanics_models import ResolutionType
+from .narrative_branching import NarrativeBranchingEngine
 
 
 class MechanicsOrchestrator:
     """Main orchestrator for narrative mechanics operations."""
 
-    def __init__(self, config: Optional[ResolutionConfig] = None):
+    def __init__(self, config: ResolutionConfig | None = None):
         """
         Initialize mechanics orchestrator.
 
@@ -48,7 +44,7 @@ class MechanicsOrchestrator:
         self.branching_engine = NarrativeBranchingEngine()
 
         # Performance tracking
-        self.character_performance: Dict[str, CharacterPerformance] = {}
+        self.character_performance: dict[str, CharacterPerformance] = {}
 
         # Metrics and statistics
         self.operation_count = 0
@@ -62,7 +58,7 @@ class MechanicsOrchestrator:
     async def resolve_action(
         self,
         request: MechanicsRequest,
-        character_state: Dict[str, Any] = None,
+        character_state: dict[str, Any] = None,
         create_branches: bool = True,
     ) -> MechanicsResult:
         """
@@ -176,9 +172,9 @@ class MechanicsOrchestrator:
     async def create_narrative_branches(
         self,
         resolution_result: ResolutionResult,
-        context: Dict[str, Any] = None,
+        context: dict[str, Any] = None,
         max_branches: int = 3,
-    ) -> List[NarrativeBranch]:
+    ) -> list[NarrativeBranch]:
         """Create narrative branches for a resolution result."""
         try:
             return self.branching_engine.create_narrative_branches(
@@ -192,7 +188,7 @@ class MechanicsOrchestrator:
 
     async def simulate_action(
         self, request: MechanicsRequest, iterations: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Simulate an action multiple times for statistical analysis.
 
@@ -205,7 +201,7 @@ class MechanicsOrchestrator:
         """
         try:
             results = []
-            outcomes = {outcome: 0 for outcome in OutcomeType}
+            outcomes = dict.fromkeys(OutcomeType, 0)
 
             for _ in range(iterations):
                 # Create a temporary copy of the request
@@ -262,7 +258,7 @@ class MechanicsOrchestrator:
         self,
         character_id: str,
         resolution_type: ResolutionType,
-        character_state: Dict[str, Any],
+        character_state: dict[str, Any],
     ) -> int:
         """Get character skill for resolution type."""
         skills = character_state.get("skills", {})
@@ -306,7 +302,7 @@ class MechanicsOrchestrator:
         return self.dice_engine.get_difficulty_dc(default_difficulty)
 
     def _generate_narrative_impact(
-        self, resolution_result: ResolutionResult, character_state: Dict[str, Any]
+        self, resolution_result: ResolutionResult, character_state: dict[str, Any]
     ) -> str:
         """Generate narrative impact description."""
         impact_templates = {
@@ -345,8 +341,8 @@ class MechanicsOrchestrator:
         return random.choice(templates)
 
     def _generate_consequences_and_benefits(
-        self, resolution_result: ResolutionResult, character_state: Dict[str, Any]
-    ) -> Tuple[List[str], List[str]]:
+        self, resolution_result: ResolutionResult, character_state: dict[str, Any]
+    ) -> tuple[list[str], list[str]]:
         """Generate consequences and benefits for the resolution."""
         consequences = []
         benefits = []
@@ -440,8 +436,8 @@ class MechanicsOrchestrator:
     async def _generate_narrative_prompt(
         self,
         resolution_result: ResolutionResult,
-        branches: List[NarrativeBranch],
-        character_state: Dict[str, Any],
+        branches: list[NarrativeBranch],
+        character_state: dict[str, Any],
     ) -> str:
         """Generate narrative prompt for the resolution."""
         # This would integrate with the model manager in a real implementation
@@ -468,7 +464,7 @@ class MechanicsOrchestrator:
 
         return "\n".join(prompt_parts)
 
-    def _get_performance_summary(self, character_id: str) -> Dict[str, Any]:
+    def _get_performance_summary(self, character_id: str) -> dict[str, Any]:
         """Get performance summary for character."""
         if character_id not in self.character_performance:
             return {}
@@ -490,7 +486,7 @@ class MechanicsOrchestrator:
             ),
         }
 
-    def get_orchestrator_stats(self) -> Dict[str, Any]:
+    def get_orchestrator_stats(self) -> dict[str, Any]:
         """Get orchestrator performance statistics."""
         return {
             "total_operations": self.operation_count,

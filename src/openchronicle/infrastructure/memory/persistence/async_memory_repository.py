@@ -11,13 +11,13 @@ from datetime import UTC
 from datetime import datetime
 from functools import lru_cache
 from typing import Any
-from typing import Optional
 
 from cachetools import TTLCache
 from src.openchronicle.infrastructure.persistence.async_database_orchestrator import (
     AsyncDatabaseOrchestrator,
 )
 from src.openchronicle.shared.json_utilities import JSONUtilities
+
 
 # Setup logging
 logger = logging.getLogger("openchronicle.async_memory_repository")
@@ -166,7 +166,7 @@ class AsyncMemoryRepository:
     @lru_cache(maxsize=512)
     def get_character_memory_cached(
         self, story_id: str, character_name: str
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """LRU cached character memory lookup (for frequently accessed characters)."""
         # This is a synchronous cache for the most frequently accessed character data
         # The actual database fetch will be async
@@ -174,7 +174,7 @@ class AsyncMemoryRepository:
 
     async def load_character_memory(
         self, story_id: str, character_name: str
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Load character memory with lazy loading and caching."""
         cache_key = f"char_{story_id}_{character_name}"
 
@@ -412,7 +412,7 @@ class AsyncMemoryRepository:
             "world_cache_size": len(self.world_state_cache),
         }
 
-    def clear_cache(self, story_id: Optional[str] = None):
+    def clear_cache(self, story_id: str | None = None):
         """Clear caches, optionally for specific story."""
         if story_id:
             # Clear specific story caches

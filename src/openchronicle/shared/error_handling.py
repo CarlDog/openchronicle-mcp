@@ -14,11 +14,20 @@ import asyncio
 import functools
 import time
 import traceback
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from abc import ABC
+from abc import abstractmethod
+from collections.abc import Callable
+from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, Union
-from .logging_system import log_system_event, log_info, log_warning, log_error
+from typing import Any
+from typing import TypeVar
+
+from .logging_system import log_error
+from .logging_system import log_info
+from .logging_system import log_system_event
+from .logging_system import log_warning
+
 
 T = TypeVar("T")
 
@@ -54,14 +63,14 @@ class ErrorContext:
 
     component: str
     operation: str
-    story_id: Optional[str] = None
-    scene_id: Optional[str] = None
-    model_name: Optional[str] = None
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    story_id: str | None = None
+    scene_id: str | None = None
+    model_name: str | None = None
+    user_id: str | None = None
+    session_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_log_tags(self) -> Dict[str, str]:
+    def to_log_tags(self) -> dict[str, str]:
         """Convert to logging context tags."""
         tags = {"component": self.component, "operation": self.operation}
         if self.story_id:
@@ -88,8 +97,8 @@ class OpenChronicleError(Exception):
         message: str,
         category: ErrorCategory,
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
-        context: Optional[ErrorContext] = None,
-        cause: Optional[Exception] = None,
+        context: ErrorContext | None = None,
+        cause: Exception | None = None,
         recoverable: bool = True,
     ):
         super().__init__(message)
@@ -104,7 +113,7 @@ class OpenChronicleError(Exception):
     def __str__(self) -> str:
         return f"[{self.category.value}:{self.severity.value}] {self.message}"
 
-    def get_error_info(self) -> Dict[str, Any]:
+    def get_error_info(self) -> dict[str, Any]:
         """Get structured error information for logging/monitoring."""
         return {
             "message": self.message,
@@ -122,7 +131,7 @@ class OpenChronicleError(Exception):
 class ConfigurationError(OpenChronicleError):
     """Errors related to configuration issues."""
 
-    def __init__(self, message: str, config_key: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, config_key: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.CONFIGURATION)
         super().__init__(message, **kwargs)
         self.config_key = config_key
@@ -131,7 +140,7 @@ class ConfigurationError(OpenChronicleError):
 class DatabaseError(OpenChronicleError):
     """Errors related to database operations."""
 
-    def __init__(self, message: str, database_path: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, database_path: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.DATABASE)
         super().__init__(message, **kwargs)
         self.database_path = database_path
@@ -140,7 +149,7 @@ class DatabaseError(OpenChronicleError):
 class ModelError(OpenChronicleError):
     """Errors related to model operations."""
 
-    def __init__(self, message: str, model_name: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, model_name: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.MODEL)
         super().__init__(message, **kwargs)
         self.model_name = model_name
@@ -149,7 +158,7 @@ class ModelError(OpenChronicleError):
 class MemoryError(OpenChronicleError):
     """Errors related to memory management operations."""
 
-    def __init__(self, message: str, character_id: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, character_id: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.MEMORY)
         super().__init__(message, **kwargs)
         self.character_id = character_id
@@ -158,7 +167,7 @@ class MemoryError(OpenChronicleError):
 class SceneError(OpenChronicleError):
     """Errors related to scene management operations."""
 
-    def __init__(self, message: str, scene_id: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, scene_id: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.SCENE)
         super().__init__(message, **kwargs)
         self.scene_id = scene_id
@@ -167,7 +176,7 @@ class SceneError(OpenChronicleError):
 class NarrativeError(OpenChronicleError):
     """Errors related to narrative operations."""
 
-    def __init__(self, message: str, narrative_id: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, narrative_id: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.NARRATIVE)
         super().__init__(message, **kwargs)
         self.narrative_id = narrative_id
@@ -176,7 +185,7 @@ class NarrativeError(OpenChronicleError):
 class TimelineError(OpenChronicleError):
     """Errors related to timeline operations."""
 
-    def __init__(self, message: str, timeline_id: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, timeline_id: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.TIMELINE)
         super().__init__(message, **kwargs)
         self.timeline_id = timeline_id
@@ -185,7 +194,7 @@ class TimelineError(OpenChronicleError):
 class ContextError(OpenChronicleError):
     """Errors related to context analysis operations."""
 
-    def __init__(self, message: str, context_type: Optional[str] = None, **kwargs):
+    def __init__(self, message: str, context_type: str | None = None, **kwargs):
         kwargs.setdefault("category", ErrorCategory.CONTEXT)
         super().__init__(message, **kwargs)
         self.context_type = context_type
@@ -195,7 +204,7 @@ class SecurityError(OpenChronicleError):
     """Errors related to security violations."""
 
     def __init__(
-        self, message: str, security_violation: Optional[str] = None, **kwargs
+        self, message: str, security_violation: str | None = None, **kwargs
     ):
         kwargs.setdefault("category", ErrorCategory.SECURITY)
         kwargs.setdefault("severity", ErrorSeverity.HIGH)
@@ -208,7 +217,7 @@ class PerformanceError(OpenChronicleError):
     """Errors related to performance issues."""
 
     def __init__(
-        self, message: str, operation_duration: Optional[float] = None, **kwargs
+        self, message: str, operation_duration: float | None = None, **kwargs
     ):
         kwargs.setdefault("category", ErrorCategory.PERFORMANCE)
         super().__init__(message, **kwargs)
@@ -224,21 +233,19 @@ class ErrorRecoveryStrategy(ABC):
     @abstractmethod
     async def can_recover(self, error: OpenChronicleError) -> bool:
         """Check if this strategy can recover from the given error."""
-        pass
 
     @abstractmethod
     async def recover(
         self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict
     ) -> Any:
         """Attempt to recover from the error."""
-        pass
 
 
 class FallbackValueStrategy(ErrorRecoveryStrategy):
     """Recovery strategy that returns a fallback value."""
 
     def __init__(
-        self, fallback_value: Any, applicable_categories: List[ErrorCategory] = None
+        self, fallback_value: Any, applicable_categories: list[ErrorCategory] = None
     ):
         self.fallback_value = fallback_value
         self.applicable_categories = applicable_categories or []
@@ -317,7 +324,7 @@ class ErrorRecoveryManager:
     """Manages error recovery strategies and execution."""
 
     def __init__(self):
-        self.strategies: List[ErrorRecoveryStrategy] = [
+        self.strategies: list[ErrorRecoveryStrategy] = [
             RetryStrategy(),
             FallbackValueStrategy(None),  # Default fallback to None
         ]
@@ -351,10 +358,10 @@ _error_recovery_manager = ErrorRecoveryManager()
 
 
 def with_error_handling(
-    context: Optional[ErrorContext] = None,
+    context: ErrorContext | None = None,
     fallback_result: Any = None,
     enable_recovery: bool = True,
-    error_category: Optional[ErrorCategory] = None,
+    error_category: ErrorCategory | None = None,
 ):
     """
     Decorator for standardized error handling with recovery capabilities.
@@ -387,11 +394,10 @@ def with_error_handling(
                         *args,
                         **{k: v for k, v in kwargs.items() if k != "_original_func"},
                     )
-                else:
-                    return func(
-                        *args,
-                        **{k: v for k, v in kwargs.items() if k != "_original_func"},
-                    )
+                return func(
+                    *args,
+                    **{k: v for k, v in kwargs.items() if k != "_original_func"},
+                )
 
             except OpenChronicleError as oc_error:
                 # Already a structured OpenChronicle error
@@ -420,7 +426,7 @@ def with_error_handling(
             except Exception as error:
                 # Convert to structured OpenChronicle error
                 oc_error = OpenChronicleError(
-                    message=f"Unexpected error in {operation_context.operation}: {str(error)}",
+                    message=f"Unexpected error in {operation_context.operation}: {error!s}",
                     category=error_category or ErrorCategory.INTEGRATION,
                     severity=ErrorSeverity.HIGH,
                     context=operation_context,
@@ -490,7 +496,7 @@ def with_error_handling(
 
             except Exception as error:
                 oc_error = OpenChronicleError(
-                    message=f"Unexpected error in {operation_context.operation}: {str(error)}",
+                    message=f"Unexpected error in {operation_context.operation}: {error!s}",
                     category=error_category or ErrorCategory.INTEGRATION,
                     severity=ErrorSeverity.HIGH,
                     context=operation_context,
@@ -522,8 +528,7 @@ def with_error_handling(
         # Return appropriate wrapper based on function type
         if asyncio.iscoroutinefunction(func):
             return async_wrapper
-        else:
-            return sync_wrapper
+        return sync_wrapper
 
     return decorator
 
@@ -579,8 +584,8 @@ class ErrorMonitor:
     """Monitors and tracks error patterns for system health assessment."""
 
     def __init__(self):
-        self.error_counts: Dict[str, int] = {}
-        self.error_trends: List[Dict[str, Any]] = []
+        self.error_counts: dict[str, int] = {}
+        self.error_trends: list[dict[str, Any]] = []
         self.last_error_check = time.time()
 
     def record_error(self, error: OpenChronicleError):
@@ -603,7 +608,7 @@ class ErrorMonitor:
         if len(self.error_trends) > 1000:
             self.error_trends = self.error_trends[-1000:]
 
-    def get_error_summary(self) -> Dict[str, Any]:
+    def get_error_summary(self) -> dict[str, Any]:
         """Get summary of error patterns and system health."""
         total_errors = sum(self.error_counts.values())
         recent_errors = [

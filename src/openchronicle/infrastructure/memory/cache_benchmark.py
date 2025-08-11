@@ -6,14 +6,16 @@ Provides comprehensive benchmarking and monitoring for cache performance.
 """
 
 import asyncio
-import time
-import statistics
-from typing import Dict, List, Any, Optional
-from datetime import datetime, UTC
 import logging
+import statistics
+import time
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
-from .redis_cache import CachedMemoryOrchestrator, CacheConfig
 from .memory_orchestrator import MemoryOrchestrator
+from .redis_cache import CacheConfig
+from .redis_cache import CachedMemoryOrchestrator
 
 
 class CachePerformanceBenchmark:
@@ -36,7 +38,7 @@ class CachePerformanceBenchmark:
 
     async def benchmark_character_operations(
         self, num_operations: int = 100
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Benchmark character read operations."""
         self.logger.info(f"Benchmarking {num_operations} character operations...")
 
@@ -124,7 +126,7 @@ class CachePerformanceBenchmark:
 
     async def benchmark_memory_snapshots(
         self, num_operations: int = 50
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Benchmark memory snapshot operations."""
         self.logger.info(f"Benchmarking {num_operations} memory snapshot operations...")
 
@@ -195,7 +197,7 @@ class CachePerformanceBenchmark:
 
     async def benchmark_concurrent_operations(
         self, concurrent_tasks: int = 20
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Benchmark concurrent cache operations."""
         self.logger.info(f"Benchmarking {concurrent_tasks} concurrent operations...")
 
@@ -268,7 +270,7 @@ class CachePerformanceBenchmark:
             "cache_metrics": await self.cached_orchestrator.get_cache_metrics(),
         }
 
-    async def run_comprehensive_benchmark(self) -> Dict[str, Any]:
+    async def run_comprehensive_benchmark(self) -> dict[str, Any]:
         """Run all benchmarks and return comprehensive results."""
         self.logger.info("Starting comprehensive cache performance benchmark...")
 
@@ -386,7 +388,7 @@ class CacheMonitor:
 
 
 # Convenience function for quick benchmarking
-async def quick_benchmark(story_id: str = "quick_benchmark") -> Dict[str, Any]:
+async def quick_benchmark(story_id: str = "quick_benchmark") -> dict[str, Any]:
     """Run a quick performance benchmark."""
     benchmark = CachePerformanceBenchmark(story_id)
     return await benchmark.run_comprehensive_benchmark()

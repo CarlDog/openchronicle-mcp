@@ -23,6 +23,7 @@ from src.openchronicle.application import ApplicationFacade
 from src.openchronicle.infrastructure import InfrastructureConfig
 from src.openchronicle.infrastructure import InfrastructureContainer
 
+
 # ================================
 # Event System Types
 # ================================
@@ -81,7 +82,7 @@ class ConnectionManager:
         self,
         websocket: WebSocket,
         client_id: str,
-        subscriptions: Optional[list[EventType]] = None,
+        subscriptions: list[EventType] | None = None,
     ) -> str:
         """Accept a new WebSocket connection."""
         await websocket.accept()
@@ -146,7 +147,7 @@ class ConnectionManager:
             return False
 
     async def broadcast(
-        self, event: Event, event_type_filter: Optional[EventType] = None
+        self, event: Event, event_type_filter: EventType | None = None
     ):
         """Broadcast an event to all subscribed clients."""
         target_type = event_type_filter or event.type
@@ -222,7 +223,7 @@ class EventBus:
         await self.connection_manager.broadcast(event)
 
     def get_recent_events(
-        self, event_types: Optional[list[EventType]] = None, limit: int = 50
+        self, event_types: list[EventType] | None = None, limit: int = 50
     ) -> list[Event]:
         """Get recent events, optionally filtered by type."""
         events = self.event_history
@@ -460,7 +461,6 @@ class EventApplication:
         """Set up listeners for application events."""
         # TODO: Add listeners for domain events
         # This would connect to the application layer's event system
-        pass
 
 
 # Global event application

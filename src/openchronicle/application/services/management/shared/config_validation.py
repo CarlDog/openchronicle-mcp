@@ -5,11 +5,11 @@ Consolidates configuration management and validation logic from token_manager.py
 and bookmark_manager.py providing unified config handling and input validation.
 """
 
-import os
 import json
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
-from .management_models import BookmarkType, TokenUsageType, ManagementException
+from typing import Any
+
+from .management_models import BookmarkType
+from .management_models import ManagementException
 
 
 class ConfigManager:
@@ -19,7 +19,7 @@ class ConfigManager:
         self.config_cache = {}
         self.default_config = self._get_default_config()
 
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """Get default configuration for management systems."""
         return {
             "token_management": {
@@ -42,11 +42,11 @@ class ConfigManager:
             },
         }
 
-    def get_token_config(self) -> Dict[str, Any]:
+    def get_token_config(self) -> dict[str, Any]:
         """Get token management configuration."""
         return self.default_config.get("token_management", {})
 
-    def get_bookmark_config(self) -> Dict[str, Any]:
+    def get_bookmark_config(self) -> dict[str, Any]:
         """Get bookmark management configuration."""
         return self.default_config.get("bookmark_management", {})
 
@@ -124,7 +124,7 @@ class ValidationManager:
 
         return text
 
-    def validate_json_metadata(self, metadata: Any) -> Dict[str, Any]:
+    def validate_json_metadata(self, metadata: Any) -> dict[str, Any]:
         """Validate and ensure metadata is JSON-serializable."""
         if metadata is None:
             return {}
@@ -139,7 +139,7 @@ class ValidationManager:
         except (TypeError, ValueError) as e:
             raise ManagementException(f"Metadata is not JSON-serializable: {e}")
 
-    def validate_search_query(self, query: Optional[str]) -> Optional[str]:
+    def validate_search_query(self, query: str | None) -> str | None:
         """Validate search query."""
         if query is None:
             return None
@@ -171,7 +171,7 @@ class DatabaseHelper:
     """Helper for database operations in management systems."""
 
     @staticmethod
-    def format_sql_conditions(conditions: Dict[str, Any]) -> tuple[str, List[Any]]:
+    def format_sql_conditions(conditions: dict[str, Any]) -> tuple[str, list[Any]]:
         """Format conditions for SQL WHERE clauses."""
         if not conditions:
             return "", []
@@ -189,8 +189,8 @@ class DatabaseHelper:
 
     @staticmethod
     def format_search_conditions(
-        query: Optional[str], search_fields: List[str]
-    ) -> tuple[str, List[Any]]:
+        query: str | None, search_fields: list[str]
+    ) -> tuple[str, list[Any]]:
         """Format search conditions for FTS queries."""
         if not query or not search_fields:
             return "", []
@@ -207,12 +207,12 @@ class DatabaseHelper:
         return f"WHERE ({search_clause})" if search_clause else "", params
 
     @staticmethod
-    def format_metadata_json(metadata: Optional[Dict[str, Any]]) -> str:
+    def format_metadata_json(metadata: dict[str, Any] | None) -> str:
         """Format metadata as JSON string for database storage."""
         return json.dumps(metadata or {})
 
     @staticmethod
-    def parse_metadata_json(metadata_str: Optional[str]) -> Dict[str, Any]:
+    def parse_metadata_json(metadata_str: str | None) -> dict[str, Any]:
         """Parse JSON metadata from database."""
         if not metadata_str:
             return {}

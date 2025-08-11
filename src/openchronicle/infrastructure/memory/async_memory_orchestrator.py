@@ -5,15 +5,19 @@ Async version of the memory orchestrator with performance optimizations.
 Provides lazy loading, caching, and non-blocking memory operations.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Union
-import logging
 import asyncio
+import logging
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
+from .character import CharacterManager
+from .character import MoodTracker
+from .character import VoiceManager
+from .context import ContextBuilder
+from .context import SceneContextManager
+from .context import WorldStateManager
 from .persistence.async_memory_repository import AsyncMemoryRepository
-from .character import CharacterManager, MoodTracker, VoiceManager
-from .context import ContextBuilder, WorldStateManager, SceneContextManager
-from .shared import MemorySnapshot, CharacterMemory
 
 
 class AsyncMemoryOrchestrator:
@@ -51,7 +55,7 @@ class AsyncMemoryOrchestrator:
 
     # ===== ASYNC CORE MEMORY OPERATIONS =====
 
-    async def load_current_memory(self, story_id: str) -> Dict[str, Any]:
+    async def load_current_memory(self, story_id: str) -> dict[str, Any]:
         """Load complete memory state asynchronously."""
         start_time = asyncio.get_event_loop().time()
 
@@ -71,7 +75,7 @@ class AsyncMemoryOrchestrator:
             self.logger.error(f"Error loading memory for story {story_id}: {e}")
             return self._get_default_memory()
 
-    def _get_default_memory(self) -> Dict[str, Any]:
+    def _get_default_memory(self) -> dict[str, Any]:
         """Get default memory structure."""
         return {
             "characters": {},
@@ -85,7 +89,7 @@ class AsyncMemoryOrchestrator:
         }
 
     async def save_current_memory(
-        self, story_id: str, memory_data: Dict[str, Any]
+        self, story_id: str, memory_data: dict[str, Any]
     ) -> bool:
         """Save memory state asynchronously."""
         start_time = asyncio.get_event_loop().time()
@@ -115,7 +119,7 @@ class AsyncMemoryOrchestrator:
             return False
 
     async def update_character_memory(
-        self, story_id: str, character_name: str, updates: Dict[str, Any]
+        self, story_id: str, character_name: str, updates: dict[str, Any]
     ) -> bool:
         """Update character memory with optimized caching."""
         start_time = asyncio.get_event_loop().time()
@@ -137,7 +141,7 @@ class AsyncMemoryOrchestrator:
 
     async def get_character_memory_snapshot(
         self, story_id: str, character_name: str, format_for_prompt: bool = True
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get character memory with lazy loading."""
         start_time = asyncio.get_event_loop().time()
 
@@ -169,7 +173,7 @@ class AsyncMemoryOrchestrator:
             self.logger.error(f"Error getting character {character_name} snapshot: {e}")
             return None
 
-    async def update_world_state(self, story_id: str, updates: Dict[str, Any]) -> bool:
+    async def update_world_state(self, story_id: str, updates: dict[str, Any]) -> bool:
         """Update world state asynchronously."""
         start_time = asyncio.get_event_loop().time()
 
@@ -196,7 +200,7 @@ class AsyncMemoryOrchestrator:
             return False
 
     async def archive_memory_snapshot(
-        self, story_id: str, scene_id: str, memory_data: Optional[Dict[str, Any]] = None
+        self, story_id: str, scene_id: str, memory_data: dict[str, Any] | None = None
     ) -> bool:
         """Create memory snapshot for rollback capability."""
         start_time = asyncio.get_event_loop().time()
@@ -237,7 +241,7 @@ class AsyncMemoryOrchestrator:
 
     # ===== PERFORMANCE MONITORING =====
 
-    def get_performance_stats(self) -> Dict[str, Any]:
+    def get_performance_stats(self) -> dict[str, Any]:
         """Get performance statistics including cache effectiveness."""
         cache_stats = self.repository.get_cache_stats()
 
@@ -247,7 +251,7 @@ class AsyncMemoryOrchestrator:
             "cache_effectiveness_percent": cache_stats["hit_rate_percent"],
         }
 
-    def clear_cache(self, story_id: Optional[str] = None):
+    def clear_cache(self, story_id: str | None = None):
         """Clear memory caches."""
         self.repository.clear_cache(story_id)
         self.logger.info(f"Cache cleared for story: {story_id or 'all stories'}")
@@ -329,7 +333,7 @@ class AsyncMemoryOrchestrator:
             current_avg * (count - 1) + operation_time
         ) / count
 
-    def _get_default_memory(self) -> Dict[str, Any]:
+    def _get_default_memory(self) -> dict[str, Any]:
         """Get default memory structure."""
         return {
             "characters": {},
@@ -340,8 +344,8 @@ class AsyncMemoryOrchestrator:
         }
 
     def _format_character_snapshot_for_prompt(
-        self, snapshot: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, snapshot: dict[str, Any]
+    ) -> dict[str, Any]:
         """Format character snapshot for LLM prompt."""
         # This could be optimized with caching for frequently accessed characters
         formatted = {

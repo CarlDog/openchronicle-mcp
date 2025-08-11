@@ -4,10 +4,10 @@ Consolidates JSON handling patterns from 8+ modules to eliminate duplication.
 """
 
 import json
-import os
-from typing import Dict, Any, List, Optional, Union, Type
-from pathlib import Path
 import logging
+from pathlib import Path
+from typing import Any
+
 
 # Configure logging for JSON operations
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class JSONUtilities:
 
     @staticmethod
     def safe_loads(
-        json_str: str, fallback: Any = None, fallback_type: Type = dict
+        json_str: str, fallback: Any = None, fallback_type: type = dict
     ) -> Any:
         """
         Safe JSON string loading with fallback support.
@@ -66,7 +66,7 @@ class JSONUtilities:
             )
 
     @staticmethod
-    def load_file(file_path: Union[str, Path], fallback: Any = None) -> Any:
+    def load_file(file_path: str | Path, fallback: Any = None) -> Any:
         """
         Load JSON from file with error handling.
 
@@ -84,16 +84,16 @@ class JSONUtilities:
             return fallback if fallback is not None else {}
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError, OSError) as e:
+        except (json.JSONDecodeError, OSError) as e:
             logger.error(f"Failed to load JSON file {file_path}: {e}")
             return fallback if fallback is not None else {}
 
     @staticmethod
     def save_file(
         data: Any,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         pretty: bool = True,
         ensure_ascii: bool = False,
         create_dirs: bool = True,
@@ -123,14 +123,14 @@ class JSONUtilities:
                 else:
                     json.dump(data, f, ensure_ascii=ensure_ascii)
             return True
-        except (TypeError, ValueError, IOError, OSError) as e:
+        except (TypeError, ValueError, OSError) as e:
             logger.error(f"Failed to save JSON file {file_path}: {e}")
             return False
 
     @staticmethod
     def merge_objects(
-        base: Dict[str, Any], update: Dict[str, Any], deep: bool = True
-    ) -> Dict[str, Any]:
+        base: dict[str, Any], update: dict[str, Any], deep: bool = True
+    ) -> dict[str, Any]:
         """
         Merge two JSON objects.
 
@@ -161,8 +161,8 @@ class JSONUtilities:
 
     @staticmethod
     def validate_schema(
-        data: Any, required_keys: List[str], optional_keys: Optional[List[str]] = None
-    ) -> tuple[bool, List[str]]:
+        data: Any, required_keys: list[str], optional_keys: list[str] | None = None
+    ) -> tuple[bool, list[str]]:
         """
         Simple schema validation for JSON objects.
 
@@ -199,7 +199,7 @@ class DatabaseJSONMixin:
     """Mixin for database-related JSON serialization patterns."""
 
     @staticmethod
-    def safe_db_loads(db_value: Optional[str], fallback_type: Type = dict) -> Any:
+    def safe_db_loads(db_value: str | None, fallback_type: type = dict) -> Any:
         """
         Safe loading of JSON from database fields.
         Common pattern: json.loads(row["field"] or "{}")
@@ -219,8 +219,8 @@ class ConfigJSONMixin:
 
     @staticmethod
     def load_config(
-        config_path: Union[str, Path], required_keys: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+        config_path: str | Path, required_keys: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Load and validate configuration JSON file.
         """
@@ -235,7 +235,7 @@ class ConfigJSONMixin:
         return config
 
     @staticmethod
-    def save_config(config: Dict[str, Any], config_path: Union[str, Path]) -> bool:
+    def save_config(config: dict[str, Any], config_path: str | Path) -> bool:
         """
         Save configuration with pretty formatting.
         """

@@ -2,7 +2,8 @@
 Scene Management Components
 """
 
-from .scene_manager import SceneManager
 from .labeling_system import LabelingSystem
+from .scene_manager import SceneManager
 
-__all__ = ["SceneManager", "LabelingSystem"]
+
+__all__ = ["LabelingSystem", "SceneManager"]

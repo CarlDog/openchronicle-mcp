@@ -9,18 +9,13 @@ Phase 2 Week 9-10: Security Hardening
 
 import functools
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Union
-from pathlib import Path
+from collections.abc import Callable
+from typing import Any
 
-from src.openchronicle.shared.security import (
-    SecurityManager,
-    SecurityContext,
-    SecurityValidationResult,
-    SecurityThreatLevel,
-    SecurityViolationType,
-    security_manager,
-)
-from .logging_system import log_warning, log_error
+from src.openchronicle.shared.security import SecurityContext
+from src.openchronicle.shared.security import SecurityThreatLevel
+from src.openchronicle.shared.security import SecurityViolationType
+from src.openchronicle.shared.security import security_manager
 
 
 def secure_input(*param_names: str, validation_type: str = "user_input"):
@@ -192,7 +187,8 @@ def rate_limited(max_calls: int = 100, window_seconds: int = 60, per_user: bool 
             pass
     """
     import time
-    from collections import defaultdict, deque
+    from collections import defaultdict
+    from collections import deque
 
     call_history = defaultdict(deque)
 
@@ -299,7 +295,7 @@ def security_monitored(threat_level: SecurityThreatLevel = SecurityThreatLevel.L
                     SecurityViolationType.AUTHORIZATION,
                     threat_level,
                     context,
-                    f"Operation failed: {str(e)}",
+                    f"Operation failed: {e!s}",
                 )
                 raise
 
@@ -357,11 +353,11 @@ def require_authentication(user_param: str = "user_id"):
 
 
 def secure_operation(
-    input_params: Optional[List[str]] = None,
-    file_path_params: Optional[List[str]] = None,
-    sql_query_params: Optional[List[str]] = None,
+    input_params: list[str] | None = None,
+    file_path_params: list[str] | None = None,
+    sql_query_params: list[str] | None = None,
     require_auth: bool = False,
-    rate_limit: Optional[Dict[str, Any]] = None,
+    rate_limit: dict[str, Any] | None = None,
     monitor_level: SecurityThreatLevel = SecurityThreatLevel.LOW,
 ):
     """

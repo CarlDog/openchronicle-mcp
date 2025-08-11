@@ -8,8 +8,10 @@ Following OpenChronicle naming convention: ollama_adapter.py
 """
 
 from typing import Any
+
+from ..adapter_exceptions import AdapterConnectionError
+from ..adapter_exceptions import AdapterResponseError
 from ..api_adapter_base import LocalModelAdapter
-from ..adapter_exceptions import AdapterResponseError, AdapterConnectionError
 
 
 class OllamaAdapter(LocalModelAdapter):
@@ -81,9 +83,8 @@ class OllamaAdapter(LocalModelAdapter):
                 from ..adapter_exceptions import AdapterTimeoutError
 
                 raise AdapterTimeoutError(self.get_provider_name(), self.timeout)
-            elif isinstance(e, (AdapterResponseError, AdapterConnectionError)):
+            if isinstance(e, (AdapterResponseError, AdapterConnectionError)):
                 raise
-            else:
-                raise AdapterResponseError(
-                    self.get_provider_name(), f"Ollama request failed: {e}"
-                )
+            raise AdapterResponseError(
+                self.get_provider_name(), f"Ollama request failed: {e}"
+            )

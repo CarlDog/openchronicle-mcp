@@ -7,11 +7,10 @@ Provides consistent serialization for scene data across different contexts:
 - Export/import operations
 """
 
-import json
-from typing import Dict, List, Any, Optional
 from datetime import datetime
+from typing import Any
 
-from ..shared.scene_models import SceneData, Scene
+from ..shared.scene_models import SceneData
 
 
 class SceneSerializer:
@@ -19,9 +18,8 @@ class SceneSerializer:
 
     def __init__(self):
         """Initialize the serializer."""
-        pass
 
-    def serialize_scene_for_output(self, scene_data: SceneData) -> Dict[str, Any]:
+    def serialize_scene_for_output(self, scene_data: SceneData) -> dict[str, Any]:
         """
         Serialize scene data for API output/backward compatibility.
 
@@ -48,7 +46,7 @@ class SceneSerializer:
             ),
         }
 
-    def serialize_scene_summary(self, scene_data: SceneData) -> Dict[str, Any]:
+    def serialize_scene_summary(self, scene_data: SceneData) -> dict[str, Any]:
         """
         Serialize scene data for summary views (minimal data).
 
@@ -78,8 +76,8 @@ class SceneSerializer:
         }
 
     def serialize_scenes_list(
-        self, scenes: List[SceneData], summary: bool = False
-    ) -> List[Dict[str, Any]]:
+        self, scenes: list[SceneData], summary: bool = False
+    ) -> list[dict[str, Any]]:
         """
         Serialize a list of scenes.
 
@@ -92,10 +90,9 @@ class SceneSerializer:
         """
         if summary:
             return [self.serialize_scene_summary(scene) for scene in scenes]
-        else:
-            return [self.serialize_scene_for_output(scene) for scene in scenes]
+        return [self.serialize_scene_for_output(scene) for scene in scenes]
 
-    def serialize_for_export(self, scenes: List[SceneData]) -> Dict[str, Any]:
+    def serialize_for_export(self, scenes: list[SceneData]) -> dict[str, Any]:
         """
         Serialize scenes for export/backup purposes.
 
@@ -114,7 +111,7 @@ class SceneSerializer:
             "scenes": [self.serialize_scene_for_output(scene) for scene in scenes],
         }
 
-    def deserialize_from_export(self, export_data: Dict[str, Any]) -> List[SceneData]:
+    def deserialize_from_export(self, export_data: dict[str, Any]) -> list[SceneData]:
         """
         Deserialize scenes from export data.
 
@@ -150,7 +147,7 @@ class SceneSerializer:
 
         return scenes
 
-    def serialize_scene_metadata(self, scene_data: SceneData) -> Dict[str, Any]:
+    def serialize_scene_metadata(self, scene_data: SceneData) -> dict[str, Any]:
         """
         Extract just the metadata from a scene.
 

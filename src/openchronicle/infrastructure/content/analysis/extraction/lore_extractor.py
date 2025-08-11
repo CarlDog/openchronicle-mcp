@@ -9,17 +9,16 @@ Extracted from: core/content_analyzer.py (lines 1336-1398)
 
 import json
 import re
-from typing import Dict, List, Any
+from typing import Any
 
-from ..shared.interfaces import ExtractionComponent
+from src.openchronicle.shared.logging_system import log_error
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import (
-    log_info,
-    log_warning,
-    log_error,
-    log_model_interaction,
-)
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_model_interaction
+from src.openchronicle.shared.logging_system import log_warning
+
+from ..shared.interfaces import ExtractionComponent
 
 
 class LoreExtractor(ExtractionComponent):
@@ -28,7 +27,7 @@ class LoreExtractor(ExtractionComponent):
     def __init__(self, model_manager):
         super().__init__(model_manager)
 
-    async def extract_data(self, content: str) -> Dict[str, Any]:
+    async def extract_data(self, content: str) -> dict[str, Any]:
         """Extract world-building and lore information from raw text content."""
         log_info(f"Extracting lore data from content ({len(content)} chars)")
 
@@ -88,15 +87,14 @@ Return empty object {{}} if no clear lore information found."""
                 if json_match:
                     result = json.loads(json_match.group())
                     return result
-                else:
-                    log_error("No valid JSON found in lore extraction response")
-                    return {}
+                log_error("No valid JSON found in lore extraction response")
+                return {}
 
         except Exception as e:
             log_error(f"Lore extraction failed: {e}")
             return {}
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process content and extract lore data."""
         return await self.extract_data(content)
 

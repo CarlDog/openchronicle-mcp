@@ -6,26 +6,24 @@ Extracted and modularized from core/image_adapter.py
 """
 
 import asyncio
-import hashlib
+import base64
+import io
+import logging
 import os
 import time
-from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Any
-import logging
+from abc import ABC
+from abc import abstractmethod
+from typing import Any
 
 import httpx
 from PIL import Image
-import base64
-import io
 
-from ..shared.image_models import (
-    ImageProvider,
-    ImageSize,
-    ImageType,
-    ImageGenerationRequest,
-    ImageGenerationResult,
-)
-from ..shared.validation_utils import ImageValidator, ImageValidationError
+from ..shared.image_models import ImageGenerationRequest
+from ..shared.image_models import ImageGenerationResult
+from ..shared.image_models import ImageProvider
+from ..shared.image_models import ImageSize
+from ..shared.validation_utils import ImageValidator
+
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +31,7 @@ logger = logging.getLogger(__name__)
 class ImageAdapter(ABC):
     """Abstract base class for image generation adapters"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.provider = ImageProvider(config.get("provider", "mock"))
         self.enabled = config.get("enabled", True)
@@ -43,12 +41,10 @@ class ImageAdapter(ABC):
         self, request: ImageGenerationRequest
     ) -> ImageGenerationResult:
         """Generate an image from the request"""
-        pass
 
     @abstractmethod
     def is_available(self) -> bool:
         """Check if the adapter is available and configured"""
-        pass
 
     def get_provider_name(self) -> str:
         """Get human-readable provider name"""
@@ -63,7 +59,7 @@ class ImageAdapter(ABC):
 class OpenAIImageAdapter(ImageAdapter):
     """Adapter for OpenAI DALL-E image generation"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.api_key = config.get("api_key", os.getenv("OPENAI_API_KEY"))
         self.model = config.get("model", "dall-e-3")
@@ -164,7 +160,7 @@ class OpenAIImageAdapter(ImageAdapter):
 class StabilityImageAdapter(ImageAdapter):
     """Adapter for Stability AI image generation"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.api_key = config.get("api_key", os.getenv("STABILITY_API_KEY"))
         self.model = config.get("model", "stable-diffusion-xl-1024-v1-0")
@@ -259,7 +255,7 @@ class StabilityImageAdapter(ImageAdapter):
 class MockImageAdapter(ImageAdapter):
     """Mock adapter for testing and fallback"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         super().__init__(config)
         self.delay = config.get("delay", 1.0)  # Simulate generation time
 
@@ -289,7 +285,8 @@ class MockImageAdapter(ImageAdapter):
 
             # Add some text to the image
             try:
-                from PIL import ImageDraw, ImageFont
+                from PIL import ImageDraw
+                from PIL import ImageFont
 
                 draw = ImageDraw.Draw(image)
 
@@ -346,9 +343,9 @@ class MockImageAdapter(ImageAdapter):
 class ImageAdapterRegistry:
     """Registry for managing image adapters"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
-        self.adapters: Dict[str, ImageAdapter] = {}
+        self.adapters: dict[str, ImageAdapter] = {}
         self._initialize_adapters()
 
     def _initialize_adapters(self):
@@ -375,8 +372,8 @@ class ImageAdapterRegistry:
                 logger.error(f"Failed to initialize adapter {adapter_name}: {e}")
 
     def get_adapter(
-        self, provider: Optional[ImageProvider] = None
-    ) -> Optional[ImageAdapter]:
+        self, provider: ImageProvider | None = None
+    ) -> ImageAdapter | None:
         """Get an adapter for the specified provider"""
         if provider:
             # Look for specific provider
@@ -394,13 +391,13 @@ class ImageAdapterRegistry:
 
         return None
 
-    def list_available_adapters(self) -> List[str]:
+    def list_available_adapters(self) -> list[str]:
         """List names of available adapters"""
         return [
             name for name, adapter in self.adapters.items() if adapter.is_available()
         ]
 
-    def get_adapter_info(self) -> Dict[str, Dict[str, Any]]:
+    def get_adapter_info(self) -> dict[str, dict[str, Any]]:
         """Get information about all adapters"""
         info = {}
         for name, adapter in self.adapters.items():
@@ -412,6 +409,6 @@ class ImageAdapterRegistry:
         return info
 
 
-def create_image_registry(config: Dict[str, Any]) -> ImageAdapterRegistry:
+def create_image_registry(config: dict[str, Any]) -> ImageAdapterRegistry:
     """Create and configure an image adapter registry"""
     return ImageAdapterRegistry(config)

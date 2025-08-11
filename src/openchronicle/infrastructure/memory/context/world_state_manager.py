@@ -5,18 +5,22 @@ Specialized component for managing world state, flags, and events.
 Handles world consistency, event tracking, and state transitions.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Set, Union
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
-from ..shared.memory_models import MemorySnapshot, WorldEvent, MemoryFlag
+from ..shared.memory_models import MemoryFlag
+from ..shared.memory_models import MemorySnapshot
+from ..shared.memory_models import WorldEvent
 
 
 @dataclass
 class WorldStateUpdate:
     """Represents a world state update operation."""
 
-    updates: Dict[str, Any]
+    updates: dict[str, Any]
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
     source: str = "system"
     description: str = ""
@@ -26,10 +30,10 @@ class WorldStateUpdate:
 class EventFilter:
     """Filter criteria for querying events."""
 
-    event_type: Optional[str] = None
-    character_involved: Optional[str] = None
-    location: Optional[str] = None
-    date_range: Optional[tuple] = None
+    event_type: str | None = None
+    character_involved: str | None = None
+    location: str | None = None
+    date_range: tuple | None = None
     max_results: int = 50
 
 
@@ -38,9 +42,9 @@ class WorldStateAnalysis:
     """Analysis of world state consistency and completeness."""
 
     total_state_items: int
-    categories_present: List[str]
-    missing_critical_states: List[str]
-    potential_inconsistencies: List[str]
+    categories_present: list[str]
+    missing_critical_states: list[str]
+    potential_inconsistencies: list[str]
     completeness_score: float  # 0.0 to 1.0
 
 
@@ -76,7 +80,7 @@ class WorldStateManager:
     def update_world_state(
         self,
         memory: MemorySnapshot,
-        updates: Dict[str, Any],
+        updates: dict[str, Any],
         source: str = "system",
         description: str = "",
     ) -> WorldStateUpdate:
@@ -120,8 +124,8 @@ class WorldStateManager:
         memory: MemorySnapshot,
         event_description: str,
         event_type: str = "general",
-        event_data: Dict[str, Any] = None,
-        characters_involved: List[str] = None,
+        event_data: dict[str, Any] = None,
+        characters_involved: list[str] = None,
         location: str = None,
     ) -> WorldEvent:
         """
@@ -171,9 +175,9 @@ class WorldStateManager:
         self,
         memory: MemorySnapshot,
         flag_name: str,
-        flag_data: Dict[str, Any] = None,
+        flag_data: dict[str, Any] = None,
         flag_type: str = "general",
-        expires_at: Optional[datetime] = None,
+        expires_at: datetime | None = None,
     ) -> MemoryFlag:
         """
         Add a memory flag for tracking important conditions.
@@ -234,7 +238,7 @@ class WorldStateManager:
 
     def get_active_flags(
         self, memory: MemorySnapshot, flag_type: str = None
-    ) -> List[MemoryFlag]:
+    ) -> list[MemoryFlag]:
         """Get all active flags, optionally filtered by type."""
         try:
             # Clean up expired flags
@@ -252,7 +256,7 @@ class WorldStateManager:
 
     def query_events(
         self, memory: MemorySnapshot, event_filter: EventFilter
-    ) -> List[WorldEvent]:
+    ) -> list[WorldEvent]:
         """Query events based on filter criteria."""
         try:
             events = []
@@ -332,7 +336,7 @@ class WorldStateManager:
 
     def get_world_state_summary(
         self, memory: MemorySnapshot, category: str = None
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get a summary of world state, optionally filtered by category."""
         try:
             world_state = memory.world_state
@@ -345,16 +349,15 @@ class WorldStateManager:
                     for key, value in world_state.items()
                     if key in category_states
                 }
-            else:
-                # Return all world state
-                return dict(world_state)
+            # Return all world state
+            return dict(world_state)
 
         except Exception:
             return {}
 
     def _validate_world_state_updates(
-        self, updates: Dict[str, Any], current_state: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, updates: dict[str, Any], current_state: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate world state updates for consistency."""
         validated = {}
 
@@ -368,12 +371,12 @@ class WorldStateManager:
 
         return validated
 
-    def _log_world_state_changes(self, updates: Dict[str, Any], source: str):
+    def _log_world_state_changes(self, updates: dict[str, Any], source: str):
         """Log significant world state changes."""
         # In a full implementation, this would integrate with the logging system
         # For now, we just track critical changes
         critical_changes = [
-            key for key in updates.keys() if key in self.critical_world_states
+            key for key in updates if key in self.critical_world_states
         ]
 
         if critical_changes:
@@ -434,8 +437,8 @@ class WorldStateManager:
             pass
 
     def _detect_world_state_inconsistencies(
-        self, world_state: Dict[str, Any]
-    ) -> List[str]:
+        self, world_state: dict[str, Any]
+    ) -> list[str]:
         """Detect potential inconsistencies in world state."""
         inconsistencies = []
 

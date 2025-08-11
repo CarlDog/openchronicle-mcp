@@ -56,14 +56,12 @@ except ImportError:
 
 # Performance interfaces
 try:
-    from .interfaces.performance_interfaces import (
-        IPerformanceOrchestrator,
-        IMetricsCollector,
-        IMetricsStorage,
-        IBottleneckAnalyzer,
-        PerformanceMetrics,
-        OperationContext,
-    )
+    from .interfaces.performance_interfaces import IBottleneckAnalyzer
+    from .interfaces.performance_interfaces import IMetricsCollector
+    from .interfaces.performance_interfaces import IMetricsStorage
+    from .interfaces.performance_interfaces import IPerformanceOrchestrator
+    from .interfaces.performance_interfaces import OperationContext
+    from .interfaces.performance_interfaces import PerformanceMetrics
 
     INTERFACES_AVAILABLE = True
 except ImportError:

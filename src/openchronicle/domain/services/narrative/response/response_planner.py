@@ -7,19 +7,16 @@ Extracted from IntelligentResponseEngine for modular architecture.
 Author: OpenChronicle Development Team
 """
 
-import json
 import random
-from typing import Dict, List, Any, Optional
-from datetime import datetime
+from typing import Any
 
-from ..shared import NarrativeComponent, ValidationResult
-from .response_models import (
-    ContextAnalysis,
-    ResponsePlan,
-    ResponseStrategy,
-    ResponseComplexity,
-    ContextQuality,
-)
+from ..shared import NarrativeComponent
+from ..shared import ValidationResult
+from .response_models import ContextAnalysis
+from .response_models import ContextQuality
+from .response_models import ResponseComplexity
+from .response_models import ResponsePlan
+from .response_models import ResponseStrategy
 
 
 class ResponsePlanner(NarrativeComponent):
@@ -33,7 +30,7 @@ class ResponsePlanner(NarrativeComponent):
     - Setting quality targets for response generation
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: dict[str, Any] = None):
         super().__init__("ResponsePlanner", config)
 
         # Strategy selection weights
@@ -83,7 +80,7 @@ class ResponsePlanner(NarrativeComponent):
             }
         )
 
-    def process(self, data: Dict[str, Any]) -> ResponsePlan:
+    def process(self, data: dict[str, Any]) -> ResponsePlan:
         """Plan a response based on context analysis."""
         try:
             context_analysis = data.get("context_analysis")
@@ -139,18 +136,18 @@ class ResponsePlanner(NarrativeComponent):
                 content_focus="general",
                 tone="neutral",
                 estimated_length=100,
-                key_points=[f"Planning error: {str(e)}"],
+                key_points=[f"Planning error: {e!s}"],
                 context_integration={},
                 quality_targets={"coherence": 0.7, "creativity": 0.5},
             )
 
-    def validate(self, data: Dict[str, Any]) -> ValidationResult:
+    def validate(self, data: dict[str, Any]) -> ValidationResult:
         """Validate planning data."""
         required_fields = ["context_analysis"]
         return self._validate_required_fields(data, required_fields)
 
     def _select_response_strategy(
-        self, context_analysis: ContextAnalysis, preferences: Dict[str, Any]
+        self, context_analysis: ContextAnalysis, preferences: dict[str, Any]
     ) -> ResponseStrategy:
         """Select appropriate response strategy."""
         # Check for user preference
@@ -198,11 +195,10 @@ class ResponsePlanner(NarrativeComponent):
 
         if weighted_candidates:
             return random.choice(weighted_candidates)
-        else:
-            return ResponseStrategy.BALANCED
+        return ResponseStrategy.BALANCED
 
     def _determine_response_complexity(
-        self, context_analysis: ContextAnalysis, preferences: Dict[str, Any]
+        self, context_analysis: ContextAnalysis, preferences: dict[str, Any]
     ) -> ResponseComplexity:
         """Determine appropriate response complexity."""
         # Check for user preference
@@ -221,9 +217,9 @@ class ResponsePlanner(NarrativeComponent):
             # Downgrade complexity for poor context
             if suggested_complexity == ResponseComplexity.ELABORATE:
                 return ResponseComplexity.COMPLEX
-            elif suggested_complexity == ResponseComplexity.COMPLEX:
+            if suggested_complexity == ResponseComplexity.COMPLEX:
                 return ResponseComplexity.MODERATE
-            elif suggested_complexity == ResponseComplexity.MODERATE:
+            if suggested_complexity == ResponseComplexity.MODERATE:
                 return ResponseComplexity.SIMPLE
 
         elif quality == ContextQuality.EXCELLENT:
@@ -256,12 +252,11 @@ class ResponsePlanner(NarrativeComponent):
         # Content type-based focus
         if content_type in ["dialogue", "emotion"]:
             return "character_interaction"
-        elif content_type == "action":
+        if content_type == "action":
             return "scene_progression"
-        elif content_type == "description":
+        if content_type == "description":
             return "world_building"
-        else:
-            return "narrative_continuation"
+        return "narrative_continuation"
 
     def _select_tone(
         self, context_analysis: ContextAnalysis, strategy: ResponseStrategy
@@ -295,7 +290,7 @@ class ResponsePlanner(NarrativeComponent):
 
     def _select_style_guides(
         self, context_analysis: ContextAnalysis, complexity: ResponseComplexity
-    ) -> List[str]:
+    ) -> list[str]:
         """Select style guides for response generation."""
         style_guides = []
 
@@ -350,7 +345,7 @@ class ResponsePlanner(NarrativeComponent):
 
     def _identify_key_points(
         self, context_analysis: ContextAnalysis, strategy: ResponseStrategy
-    ) -> List[str]:
+    ) -> list[str]:
         """Identify key points to address in response."""
         key_points = []
 
@@ -385,7 +380,7 @@ class ResponsePlanner(NarrativeComponent):
 
     def _plan_context_integration(
         self, context_analysis: ContextAnalysis
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Plan how to integrate available context."""
         integration_plan = {}
 
@@ -421,7 +416,7 @@ class ResponsePlanner(NarrativeComponent):
 
     def _set_quality_targets(
         self, complexity: ResponseComplexity, strategy: ResponseStrategy
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Set quality targets for response generation."""
         # Base targets from complexity
         targets = self.quality_targets.get(
@@ -443,7 +438,7 @@ class ResponsePlanner(NarrativeComponent):
         return targets
 
     def _validate_required_fields(
-        self, data: Dict[str, Any], required_fields: List[str]
+        self, data: dict[str, Any], required_fields: list[str]
     ) -> ValidationResult:
         """Validate required fields are present."""
         missing_fields = [field for field in required_fields if field not in data]

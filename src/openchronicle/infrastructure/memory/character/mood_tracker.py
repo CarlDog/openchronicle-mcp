@@ -5,12 +5,15 @@ Specialized component for tracking character mood changes and emotional states.
 Provides advanced mood analysis and tracking capabilities.
 """
 
-from datetime import datetime, UTC, timedelta
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
 
-from ..shared.memory_models import CharacterMemory, MoodEntry, MAX_MOOD_HISTORY
+from ..shared.memory_models import CharacterMemory
+from ..shared.memory_models import MoodEntry
 
 
 @dataclass
@@ -23,7 +26,7 @@ class MoodAnalysis:
     mood_stability: float  # 0.0 to 1.0
     mood_changes_today: int
     emotional_trend: str  # "improving", "declining", "stable"
-    recent_triggers: List[str]
+    recent_triggers: list[str]
 
 
 @dataclass
@@ -113,7 +116,7 @@ class MoodTracker:
                 recent_triggers=[],
             )
 
-    def detect_mood_patterns(self, character: CharacterMemory) -> List[MoodPattern]:
+    def detect_mood_patterns(self, character: CharacterMemory) -> list[MoodPattern]:
         """Detect patterns in character mood history."""
         patterns = []
 
@@ -142,7 +145,7 @@ class MoodTracker:
 
     def get_mood_summary(
         self, character: CharacterMemory, days: int = 7
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get mood summary for the last N days."""
         try:
             if not character.mood_history:
@@ -209,7 +212,7 @@ class MoodTracker:
                 "most_common_triggers": [],
             }
 
-    def _calculate_mood_stability(self, mood_history: List[MoodEntry]) -> float:
+    def _calculate_mood_stability(self, mood_history: list[MoodEntry]) -> float:
         """Calculate mood stability score (0.0 to 1.0)."""
         if len(mood_history) < 2:
             return 1.0
@@ -226,7 +229,7 @@ class MoodTracker:
 
         return max(0.0, min(1.0, stability))
 
-    def _find_dominant_mood(self, mood_history: List[MoodEntry]) -> str:
+    def _find_dominant_mood(self, mood_history: list[MoodEntry]) -> str:
         """Find the most frequent mood in recent history."""
         if not mood_history:
             return "neutral"
@@ -244,7 +247,7 @@ class MoodTracker:
             else "neutral"
         )
 
-    def _count_mood_changes_today(self, mood_history: List[MoodEntry]) -> int:
+    def _count_mood_changes_today(self, mood_history: list[MoodEntry]) -> int:
         """Count mood changes that happened today."""
         today = datetime.now(UTC).date()
         today_moods = [mood for mood in mood_history if mood.timestamp.date() == today]
@@ -256,7 +259,7 @@ class MoodTracker:
 
         return changes
 
-    def _determine_emotional_trend(self, mood_history: List[MoodEntry]) -> str:
+    def _determine_emotional_trend(self, mood_history: list[MoodEntry]) -> str:
         """Determine if emotional state is improving, declining, or stable."""
         if len(mood_history) < 3:
             return "stable"
@@ -279,14 +282,13 @@ class MoodTracker:
 
             if diff > 0.2:
                 return "improving"
-            elif diff < -0.2:
+            if diff < -0.2:
                 return "declining"
-            else:
-                return "stable"
+            return "stable"
 
         return "stable"
 
-    def _extract_recent_triggers(self, mood_history: List[MoodEntry]) -> List[str]:
+    def _extract_recent_triggers(self, mood_history: list[MoodEntry]) -> list[str]:
         """Extract recent mood triggers."""
         recent_triggers = []
 
@@ -314,16 +316,16 @@ class MoodTracker:
 
         if mood_lower in self.mood_categories["positive"]:
             return 1.0
-        elif mood_lower in self.mood_categories["negative"]:
+        if mood_lower in self.mood_categories["negative"]:
             return -1.0
-        elif mood_lower in self.mood_categories["complex"]:
+        if mood_lower in self.mood_categories["complex"]:
             return 0.5
-        else:  # neutral
-            return 0.0
+        # neutral
+        return 0.0
 
     def _detect_mood_cycles(
-        self, mood_history: List[MoodEntry]
-    ) -> Optional[MoodPattern]:
+        self, mood_history: list[MoodEntry]
+    ) -> MoodPattern | None:
         """Detect cyclic patterns in mood history."""
         # Simplified cycle detection - could be enhanced
         if len(mood_history) < 10:
@@ -344,8 +346,8 @@ class MoodTracker:
         return None
 
     def _detect_trigger_patterns(
-        self, mood_history: List[MoodEntry]
-    ) -> List[MoodPattern]:
+        self, mood_history: list[MoodEntry]
+    ) -> list[MoodPattern]:
         """Detect trigger-based patterns."""
         patterns = []
 
@@ -372,8 +374,8 @@ class MoodTracker:
         return patterns
 
     def _detect_stability_pattern(
-        self, mood_history: List[MoodEntry]
-    ) -> Optional[MoodPattern]:
+        self, mood_history: list[MoodEntry]
+    ) -> MoodPattern | None:
         """Detect overall stability pattern."""
         stability = self._calculate_mood_stability(mood_history)
 
@@ -384,7 +386,7 @@ class MoodTracker:
                 frequency=len(mood_history),
                 confidence=stability,
             )
-        elif stability < 0.3:
+        if stability < 0.3:
             return MoodPattern(
                 pattern_type="instability",
                 description="High mood volatility - character experiences frequent emotional changes",

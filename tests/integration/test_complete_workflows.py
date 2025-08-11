@@ -5,28 +5,34 @@ Comprehensive end-to-end workflow testing for the narrative AI engine.
 Tests complete pipelines from input to final output with memory updates.
 """
 
-import pytest
 import asyncio
 import time
-from typing import Dict, Any, Optional
-from pathlib import Path
+
+import pytest
 
 # Import core orchestrators
-from src.openchronicle.domain.services.scenes.scene_orchestrator import SceneOrchestrator
-from src.openchronicle.infrastructure.content.context.orchestrator import ContextOrchestrator
-from src.openchronicle.infrastructure.memory.memory_orchestrator import MemoryOrchestrator
-from src.openchronicle.domain.services.timeline.timeline_orchestrator import TimelineOrchestrator
-from src.openchronicle.domain.models.model_orchestrator import ModelOrchestrator
-from src.openchronicle.infrastructure.memory.memory_orchestrator import MemoryOrchestrator
-from src.openchronicle.infrastructure.content.context.orchestrator import ContextOrchestrator
+from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+    SceneOrchestrator,
+)
+from src.openchronicle.domain.services.timeline.timeline_orchestrator import (
+    TimelineOrchestrator,
+)
+from src.openchronicle.infrastructure.content.context.orchestrator import (
+    ContextOrchestrator,
+)
+from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+    MemoryOrchestrator,
+)
+
+from tests.mocks.mock_adapters import MockDatabaseManager
 
 # Import enhanced mock adapters for isolated testing
-from tests.mocks.mock_adapters import MockModelOrchestrator, MockDatabaseManager
+from tests.mocks.mock_adapters import MockModelOrchestrator
 
 
 class TestCompleteSceneGenerationWorkflow:
     """Test complete scene generation workflow from input to memory updates."""
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_complete_scene_generation_workflow(self, clean_test_environment):
@@ -34,13 +40,13 @@ class TestCompleteSceneGenerationWorkflow:
         # Arrange
         story_id = clean_test_environment['story_id']
         user_input = "The hero enters the dark forest"
-        
+
         # Initialize orchestrators
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act - Save a scene (simulating the generation process)
         model_output = "The hero cautiously steps into the dark forest, the ancient trees looming overhead."
         scene_id = scene_orchestrator.save_scene(
@@ -53,18 +59,18 @@ class TestCompleteSceneGenerationWorkflow:
             scene_label='forest_entrance',
             model_name='mock_model'
         )
-        
+
         # Assert
         assert scene_id is not None
         assert isinstance(scene_id, str)
         assert len(scene_id) > 0
-        
+
         # Verify scene was saved
         saved_scene = scene_orchestrator.load_scene(scene_id)
         assert saved_scene is not None
         assert saved_scene['input'] == user_input
         assert saved_scene['output'] == model_output
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_scene_continuation_workflow(self, clean_test_environment):
@@ -73,12 +79,12 @@ class TestCompleteSceneGenerationWorkflow:
         story_id = clean_test_environment['story_id']
         initial_scene = "The hero enters the dark forest"
         continuation_output = "The hero continues deeper into the forest, the path becoming more treacherous."
-        
+
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act - Generate initial scene
         initial_scene_id = scene_orchestrator.save_scene(
             user_input=initial_scene,
@@ -86,7 +92,7 @@ class TestCompleteSceneGenerationWorkflow:
             memory_snapshot={'characters': {}, 'location': 'forest_entrance'},
             scene_label='forest_entrance'
         )
-        
+
         # Act - Continue the scene
         continuation_scene_id = scene_orchestrator.save_scene(
             user_input="What happens next?",
@@ -95,20 +101,20 @@ class TestCompleteSceneGenerationWorkflow:
             scene_label='forest_continuation',
             context_refs=[initial_scene_id]
         )
-        
+
         # Assert
         assert continuation_scene_id is not None
         assert continuation_scene_id != initial_scene_id
-        
+
         # Verify both scenes exist
         initial_saved = scene_orchestrator.load_scene(initial_scene_id)
         continuation_saved = scene_orchestrator.load_scene(continuation_scene_id)
-        
+
         assert initial_saved is not None
         assert continuation_saved is not None
         assert initial_saved['input'] == initial_scene
         assert continuation_saved['output'] == continuation_output
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_character_interaction_workflow(self, clean_test_environment):
@@ -117,12 +123,12 @@ class TestCompleteSceneGenerationWorkflow:
         story_id = clean_test_environment['story_id']
         character_name = "Gandalf"
         interaction_prompt = f"{character_name} speaks to the hero"
-        
+
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act - Save character interaction scene
         scene_id = scene_orchestrator.save_scene(
             user_input=interaction_prompt,
@@ -132,29 +138,29 @@ class TestCompleteSceneGenerationWorkflow:
             scene_label='gandalf_dialogue',
             model_name='mock_model'
         )
-        
+
         # Assert
         assert scene_id is not None
-        
+
         # Verify scene contains character interaction
         saved_scene = scene_orchestrator.load_scene(scene_id)
         assert saved_scene is not None
         assert character_name.lower() in saved_scene['output'].lower()
         assert 'dialogue_scene' in saved_scene.get('flags', [])
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_timeline_navigation_workflow(self, clean_test_environment):
         """Test timeline navigation and scene retrieval."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         timeline_orchestrator = TimelineOrchestrator(story_id=story_id)
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act - Generate multiple scenes
         scenes = []
         for i in range(3):
@@ -165,71 +171,69 @@ class TestCompleteSceneGenerationWorkflow:
                 scene_label=f'scene_{i+1}'
             )
             scenes.append(scene_id)
-        
+
         # Act - Navigate timeline
         timeline = await timeline_orchestrator.build_timeline()
         rollback_points = await timeline_orchestrator.list_rollback_points()
-        
+
         # Assert
         assert timeline is not None
         assert rollback_points is not None
-        
+
         # Verify scene order (timeline should contain our scenes)
         saved_scenes = scene_orchestrator.list_scenes(limit=10)
         assert len(saved_scenes) >= 3
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_memory_consistency_workflow(self, clean_test_environment):
         """Test memory consistency across scene generation."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         # Test memory orchestrator basic functionality
-        from src.openchronicle.infrastructure.memory.memory_orchestrator import MemoryOrchestrator
         memory_orch = MemoryOrchestrator()
-        
+
         # Test character memory operations
         character_name = "TestCharacter"
         initial_memory = {"mood": "neutral", "location": "tavern"}
-        
+
         # Update character memory
         memory_orch.update_character_memory(story_id, character_name, initial_memory)
-        
+
         # Retrieve and verify consistency
         retrieved_memory = memory_orch.get_character_memory(story_id, character_name)
         assert isinstance(retrieved_memory, dict), "Character memory should be a dictionary"
-        
+
         # Test memory snapshot functionality
         snapshot = memory_orch.get_character_memory_snapshot(story_id, character_name)
         assert snapshot is not None, "Memory snapshot should be available"
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_context_management_workflow(self, clean_test_environment):
         """Test context management and scene relevance."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         # Test context orchestrator basic functionality
-        from src.openchronicle.infrastructure.content.context.orchestrator import ContextOrchestrator
         context_orch = ContextOrchestrator()
-        
+
         # Test context building with sample data
         sample_story_data = {
             'story_id': story_id,
             'title': 'Test Story',
             'setting': 'medieval fantasy'
         }
-        
+
         # Test basic context building
         user_input = "The hero enters a dark forest"
         context = await context_orch.build_context(user_input, sample_story_data)
-        
+
         # Assert context was built successfully
         assert context is not None, "Context should be built successfully"
         assert isinstance(context, str), "Context should be a string"
-        
+
         # Context might be empty due to missing data - this is acceptable behavior
         # The important part is that the method doesn't crash and returns a string
         if len(context) == 0:
@@ -241,7 +245,7 @@ class TestCompleteSceneGenerationWorkflow:
                 'setting': 'A fantasy world'
             }
             context = await context_orch.build_context(user_input, fallback_data)
-        
+
         # Test context metrics analysis (should work even with empty context)
         metrics = context_orch.analyze_context_metrics(context or "fallback context")
         assert metrics is not None, "Context metrics should be available"
@@ -249,17 +253,17 @@ class TestCompleteSceneGenerationWorkflow:
 
 class TestErrorHandlingAndRecovery:
     """Test error handling and recovery mechanisms."""
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_model_failure_recovery(self, clean_test_environment):
         """Test recovery from model failures."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         # Create mock model orchestrator with failure simulation
         model_orchestrator = MockModelOrchestrator(simulate_failures=True, failure_rate=0.3)
-        
+
         # Act - Attempt to generate response with potential failures
         try:
             response = await model_orchestrator.generate_with_fallback("Test prompt")
@@ -270,14 +274,14 @@ class TestErrorHandlingAndRecovery:
         except Exception as e:
             # Even with fallback, some failures might occur
             assert "All adapters in fallback chain failed" in str(e)
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_database_failure_handling(self, clean_test_environment):
         """Test handling of database failures."""
         # Arrange
         mock_db = MockDatabaseManager(simulate_failures=True, failure_rate=0.2)
-        
+
         # Act - Attempt database operations with potential failures
         try:
             result = await mock_db.execute_query("SELECT * FROM scenes")
@@ -285,19 +289,19 @@ class TestErrorHandlingAndRecovery:
         except Exception as e:
             # Database failures should be handled gracefully
             assert "Mock database error" in str(e)
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_invalid_input_handling(self, clean_test_environment):
         """Test handling of invalid user input."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act - Try to save scene with invalid data
         try:
             scene_id = scene_orchestrator.save_scene(
@@ -315,22 +319,22 @@ class TestErrorHandlingAndRecovery:
 
 class TestPerformanceAndScalability:
     """Test performance and scalability of complete workflows."""
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_concurrent_scene_generation(self, clean_test_environment):
         """Test concurrent scene generation performance."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act - Generate multiple scenes concurrently
         start_time = time.time()
-        
+
         async def generate_scene(i):
             return scene_orchestrator.save_scene(
                 user_input=f"Concurrent scene {i}",
@@ -338,35 +342,35 @@ class TestPerformanceAndScalability:
                 memory_snapshot={'characters': {}, 'scene_number': i},
                 scene_label=f'concurrent_scene_{i}'
             )
-        
+
         tasks = [generate_scene(i) for i in range(5)]
         results = await asyncio.gather(*tasks)
         end_time = time.time()
-        
+
         # Assert
         assert len(results) == 5
         assert all(result is not None for result in results)
-        
+
         # Performance assertion (should complete within reasonable time)
         execution_time = end_time - start_time
         assert execution_time < 10.0  # Should complete within 10 seconds
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_large_workflow_performance(self, clean_test_environment):
         """Test performance with large workflow sequences."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
         timeline_orchestrator = TimelineOrchestrator(story_id=story_id)
-        
+
         # Act - Generate large sequence of scenes
         start_time = time.time()
-        
+
         scenes = []
         for i in range(10):
             scene_id = scene_orchestrator.save_scene(
@@ -376,7 +380,7 @@ class TestPerformanceAndScalability:
                 scene_label=f'large_workflow_scene_{i+1}'
             )
             scenes.append(scene_id)
-            
+
             # Add character interaction every 3rd scene
             if i % 3 == 0:
                 interaction_id = scene_orchestrator.save_scene(
@@ -386,15 +390,15 @@ class TestPerformanceAndScalability:
                     scene_label=f'character_interaction_{i}'
                 )
                 scenes.append(interaction_id)
-        
+
         # Get timeline summary
         timeline = await timeline_orchestrator.build_timeline()
         end_time = time.time()
-        
+
         # Assert
         assert len(scenes) >= 10
         assert timeline is not None
-        
+
         # Performance assertion
         execution_time = end_time - start_time
         assert execution_time < 30.0  # Should complete within 30 seconds
@@ -402,7 +406,7 @@ class TestPerformanceAndScalability:
 
 class TestIntegrationDataValidation:
     """Test data validation and integrity in complete workflows."""
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     @pytest.mark.asyncio
@@ -410,12 +414,12 @@ class TestIntegrationDataValidation:
         """Test that generated scene data maintains integrity."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act
         scene_id = scene_orchestrator.save_scene(
             user_input="Test scene for data integrity",
@@ -427,75 +431,75 @@ class TestIntegrationDataValidation:
             scene_label='integrity_test',
             model_name='test_model'
         )
-        
+
         # Load the saved scene
         result = scene_orchestrator.load_scene(scene_id)
-        
+
         # Assert basic structure exists
         assert result is not None, "Scene result should not be None"
         assert isinstance(result, dict), "Scene result should be a dictionary"
         assert 'scene_id' in result or 'id' in result, "Scene should have an ID field"
-        
+
         # Test that the scene has either user_input or input field
         has_input = 'user_input' in result or 'input' in result
         assert has_input, f"Scene should have input field. Available keys: {list(result.keys()) if result else 'None'}"
-        
-        # Test that the scene has output/model_output field  
+
+        # Test that the scene has output/model_output field
         has_output = 'output' in result or 'model_output' in result
         assert has_output, f"Scene should have output field. Available keys: {list(result.keys()) if result else 'None'}"
-        
+
         # Assert data type integrity
         assert isinstance(result['scene_id'], str)
         assert isinstance(result['input'], str)  # Updated field name
         assert isinstance(result['output'], str)  # Updated field name
         assert isinstance(result['timestamp'], (int, float, str))  # Allow string timestamps
-        
+
         # Check analysis field specifically since it's the main metadata container
         assert 'analysis' in result
         assert isinstance(result['analysis'], dict)
-        
+
         # Assert data value integrity
         assert len(result['scene_id']) > 0
         assert len(result['input']) > 0  # Updated field name
         assert len(result['output']) > 0  # Updated field name
-    
+
     @pytest.mark.integration
     @pytest.mark.asyncio
     async def test_memory_data_consistency(self, clean_test_environment):
         """Test memory data consistency across operations."""
         # Arrange
         story_id = clean_test_environment['story_id']
-        
+
         scene_orchestrator = SceneOrchestrator(
             story_id=story_id,
             config={'enable_logging': False}
         )
-        
+
         # Act - Generate scenes with memory updates
         character_name = "Legolas"
-        
+
         scene1_id = scene_orchestrator.save_scene(
             user_input=f"{character_name} joins the party",
             model_output=f"{character_name} appears, an elf with exceptional archery skills.",
             memory_snapshot={'characters': {character_name: {'name': character_name, 'skills': ['archery']}}},
             scene_label='character_join'
         )
-        
+
         scene2_id = scene_orchestrator.save_scene(
             user_input=f"{character_name} demonstrates his skills",
             model_output=f"{character_name} shows his exceptional archery with perfect accuracy.",
             memory_snapshot={'characters': {character_name: {'name': character_name, 'skills': ['archery'], 'demonstrated': True}}},
             scene_label='skill_demonstration'
         )
-        
+
         # Assert
         assert scene1_id is not None
         assert scene2_id is not None
-        
+
         # Verify both scenes exist and are consistent
         scene1 = scene_orchestrator.load_scene(scene1_id)
         scene2 = scene_orchestrator.load_scene(scene2_id)
-        
+
         assert scene1 is not None
         assert scene2 is not None
         assert character_name in scene1['output']
@@ -507,6 +511,6 @@ class TestIntegrationDataValidation:
 # Integration test markers for selective execution
 # These markers are defined in pytest.ini and can be used for selective test execution
 # @pytest.mark.integration - for integration tests
-# @pytest.mark.workflow - for workflow tests  
+# @pytest.mark.workflow - for workflow tests
 # @pytest.mark.performance - for performance tests
-# @pytest.mark.validation - for validation tests 
+# @pytest.mark.validation - for validation tests

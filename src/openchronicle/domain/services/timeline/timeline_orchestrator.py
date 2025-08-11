@@ -13,21 +13,19 @@ Features:
 - Enhanced error handling and logging
 """
 
-import asyncio
-import json
 import sys
-from datetime import datetime, UTC
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-    log_error,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
 
 
 class TimelineConfiguration:
@@ -66,7 +64,7 @@ class TimelineMetrics:
         if not success:
             self.errors_count += 1
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get current metrics summary."""
         uptime = (datetime.now(UTC) - self.start_time).total_seconds()
         return {
@@ -152,7 +150,7 @@ class TimelineOrchestrator:
 
     async def build_timeline(
         self, include_bookmarks: bool = True, include_summaries: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Build complete story timeline with scenes, bookmarks, and navigation.
 
@@ -210,7 +208,7 @@ class TimelineOrchestrator:
 
     async def create_rollback_point(
         self, scene_id: str, description: str = "Manual rollback point"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create a rollback point for state restoration.
 
@@ -243,7 +241,7 @@ class TimelineOrchestrator:
             log_error(f"Rollback point creation failed for scene {scene_id}: {e}")
             raise
 
-    async def list_rollback_points(self) -> List[Dict[str, Any]]:
+    async def list_rollback_points(self) -> list[dict[str, Any]]:
         """
         List all available rollback points for the story.
 
@@ -258,7 +256,7 @@ class TimelineOrchestrator:
             log_error(f"Failed to list rollback points for {self.story_id}: {e}")
             return []
 
-    async def rollback_to_point(self, rollback_id: str) -> Dict[str, Any]:
+    async def rollback_to_point(self, rollback_id: str) -> dict[str, Any]:
         """
         Restore story state to a specific rollback point.
 
@@ -283,7 +281,7 @@ class TimelineOrchestrator:
             log_error(f"Rollback to {rollback_id} failed: {e}")
             raise
 
-    async def navigate_timeline(self, navigation_type: str, **kwargs) -> Dict[str, Any]:
+    async def navigate_timeline(self, navigation_type: str, **kwargs) -> dict[str, Any]:
         """
         Navigate through timeline with various options.
 
@@ -308,7 +306,7 @@ class TimelineOrchestrator:
             log_error(f"Timeline navigation failed: {e}")
             raise
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get timeline system metrics and performance data."""
         return {
             "orchestrator_metrics": self.metrics.get_metrics(),
@@ -344,7 +342,7 @@ class TimelineOrchestrator:
 
         return FallbackNavigationManager(self.story_id)
 
-    def _create_fallback_timeline(self) -> Dict[str, Any]:
+    def _create_fallback_timeline(self) -> dict[str, Any]:
         """Create minimal fallback timeline when full generation fails."""
         fallback_data = {
             "entries": [],

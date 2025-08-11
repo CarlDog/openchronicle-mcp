@@ -15,16 +15,17 @@ Key Features:
 
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional, Set
-from datetime import datetime, timedelta, UTC
 from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
 from enum import Enum
+from typing import Any
 
-from src.openchronicle.shared.logging_system import (
-    log_info,
-    log_error,
-    log_system_event,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
+
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +46,9 @@ class HealthCheckResult:
     adapter_name: str
     status: HealthStatus
     response_time: float
-    error_message: Optional[str] = None
+    error_message: str | None = None
     timestamp: datetime = datetime.now(UTC)
-    metadata: Dict[str, Any] = None
+    metadata: dict[str, Any] = None
 
     def __post_init__(self):
         if self.metadata is None:
@@ -63,8 +64,8 @@ class PerformanceMetrics:
     successful_requests: int = 0
     failed_requests: int = 0
     average_response_time: float = 0.0
-    last_success: Optional[datetime] = None
-    last_failure: Optional[datetime] = None
+    last_success: datetime | None = None
+    last_failure: datetime | None = None
     uptime_percentage: float = 100.0
 
 
@@ -81,20 +82,20 @@ class HealthMonitor:
         self.health_check_interval = health_check_interval  # seconds
 
         # Health tracking
-        self.health_results: Dict[str, List[HealthCheckResult]] = {}
-        self.performance_metrics: Dict[str, PerformanceMetrics] = {}
-        self.current_status: Dict[str, HealthStatus] = {}
+        self.health_results: dict[str, list[HealthCheckResult]] = {}
+        self.performance_metrics: dict[str, PerformanceMetrics] = {}
+        self.current_status: dict[str, HealthStatus] = {}
 
         # Monitoring control
         self.monitoring_active = False
-        self.monitoring_task: Optional[asyncio.Task] = None
+        self.monitoring_task: asyncio.Task | None = None
 
         # Configuration from registry
         self.health_config = self._load_health_configuration()
 
         log_info(f"HealthMonitor initialized with {health_check_interval}s interval")
 
-    def _load_health_configuration(self) -> Dict[str, Any]:
+    def _load_health_configuration(self) -> dict[str, Any]:
         """Load health monitoring configuration from registry."""
         try:
             config = self.registry_manager.get_health_check_config()
@@ -103,7 +104,7 @@ class HealthMonitor:
             log_error(f"Failed to load health config from registry: {e}")
             return self._get_default_health_config()
 
-    def _get_default_health_config(self) -> Dict[str, Any]:
+    def _get_default_health_config(self) -> dict[str, Any]:
         """Default health monitoring configuration."""
         return {
             "health_check_timeout": 10.0,
@@ -115,7 +116,7 @@ class HealthMonitor:
             "auto_recovery_enabled": True,
         }
 
-    async def start_monitoring(self, adapters: Dict[str, Any]):
+    async def start_monitoring(self, adapters: dict[str, Any]):
         """Start continuous health monitoring."""
         if self.monitoring_active:
             log_info("Health monitoring already active")
@@ -124,7 +125,7 @@ class HealthMonitor:
         self.monitoring_active = True
 
         # Initialize performance metrics for all adapters
-        for adapter_name in adapters.keys():
+        for adapter_name in adapters:
             if adapter_name not in self.performance_metrics:
                 self.performance_metrics[adapter_name] = PerformanceMetrics(
                     adapter_name
@@ -151,7 +152,7 @@ class HealthMonitor:
         log_info("Health monitoring stopped")
         log_system_event("health_monitoring_stopped", "Health monitoring shut down")
 
-    async def _monitoring_loop(self, adapters: Dict[str, Any]):
+    async def _monitoring_loop(self, adapters: dict[str, Any]):
         """Main monitoring loop."""
         while self.monitoring_active:
             try:
@@ -165,7 +166,7 @@ class HealthMonitor:
                 log_error(f"Error in health monitoring loop: {e}")
                 await asyncio.sleep(30)  # Wait before retrying
 
-    async def _perform_health_checks(self, adapters: Dict[str, Any]):
+    async def _perform_health_checks(self, adapters: dict[str, Any]):
         """Perform health checks on all adapters."""
         tasks = []
 
@@ -206,9 +207,7 @@ class HealthMonitor:
             response_time = (datetime.now(UTC) - start_time).total_seconds()
 
             # Determine status based on response time and health
-            if not is_healthy:
-                status = HealthStatus.UNHEALTHY
-            elif response_time > self.health_config.get(
+            if not is_healthy or response_time > self.health_config.get(
                 "unhealthy_response_threshold", 10.0
             ):
                 status = HealthStatus.UNHEALTHY
@@ -230,7 +229,7 @@ class HealthMonitor:
                 },
             )
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             response_time = (datetime.now(UTC) - start_time).total_seconds()
             return HealthCheckResult(
                 adapter_name=adapter_name,
@@ -357,7 +356,7 @@ class HealthMonitor:
 
     def get_recent_results(
         self, adapter_name: str, count: int = 10
-    ) -> List[HealthCheckResult]:
+    ) -> list[HealthCheckResult]:
         """Get recent health check results for an adapter."""
         results = self.health_results.get(adapter_name, [])
         return sorted(results, key=lambda r: r.timestamp, reverse=True)[:count]
@@ -368,11 +367,11 @@ class HealthMonitor:
 
     def get_performance_summary(
         self, adapter_name: str
-    ) -> Optional[PerformanceMetrics]:
+    ) -> PerformanceMetrics | None:
         """Get performance metrics summary for an adapter."""
         return self.performance_metrics.get(adapter_name)
 
-    def get_overall_health_summary(self) -> Dict[str, Any]:
+    def get_overall_health_summary(self) -> dict[str, Any]:
         """Get overall health summary for all adapters."""
         total_adapters = len(self.current_status)
         healthy_count = sum(

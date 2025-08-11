@@ -8,33 +8,30 @@ Phase 2 Week 11-12: Interface Segregation & Architecture Cleanup
 """
 
 import asyncio
-from typing import Dict, Any, Optional, List
-from datetime import datetime, UTC
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
-from .model_interfaces import (
-    IModelOrchestrator,
-    IModelResponseGenerator,
-    IModelLifecycleManager,
-    IModelConfigurationManager,
-    IModelPerformanceMonitor,
-    ModelResponse,
-    AdapterStatus,
-    ModelConfiguration,
-)
+from src.openchronicle.shared.dependency_injection import get_container
+from src.openchronicle.shared.error_handling import ErrorCategory
+from src.openchronicle.shared.error_handling import ErrorContext
+from src.openchronicle.shared.error_handling import ErrorSeverity
+from src.openchronicle.shared.error_handling import ModelError
+from src.openchronicle.shared.error_handling import with_error_handling
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_warning
+from src.openchronicle.shared.security_decorators import SecurityThreatLevel
+from src.openchronicle.shared.security_decorators import secure_operation
 
-from src.openchronicle.shared.dependency_injection import DIContainer, get_container
-from src.openchronicle.shared.error_handling import (
-    with_error_handling,
-    ErrorContext,
-    ErrorSeverity,
-    ErrorCategory,
-    ModelError,
-)
-from src.openchronicle.shared.security_decorators import (
-    secure_operation,
-    SecurityThreatLevel,
-)
-from src.openchronicle.shared.logging_system import log_info, log_error, log_warning
+from .model_interfaces import AdapterStatus
+from .model_interfaces import IModelConfigurationManager
+from .model_interfaces import IModelLifecycleManager
+from .model_interfaces import IModelOrchestrator
+from .model_interfaces import IModelPerformanceMonitor
+from .model_interfaces import IModelResponseGenerator
+from .model_interfaces import ModelConfiguration
+from .model_interfaces import ModelResponse
 
 
 class ModelResponseGenerator(IModelResponseGenerator):
@@ -44,7 +41,7 @@ class ModelResponseGenerator(IModelResponseGenerator):
     Single responsibility: Handle AI response generation and fallback logic.
     """
 
-    def __init__(self, adapters: Dict[str, Any], config_manager, performance_monitor):
+    def __init__(self, adapters: dict[str, Any], config_manager, performance_monitor):
         self.adapters = adapters
         self.config_manager = config_manager
         self.performance_monitor = performance_monitor
@@ -65,7 +62,7 @@ class ModelResponseGenerator(IModelResponseGenerator):
         self,
         prompt: str,
         adapter_name: str,
-        model_params: Optional[Dict[str, Any]] = None,
+        model_params: dict[str, Any] | None = None,
         use_fallback: bool = True,
     ) -> ModelResponse:
         """Generate response using specified adapter with fallback support."""
@@ -150,8 +147,8 @@ class ModelResponseGenerator(IModelResponseGenerator):
     async def generate_with_fallback_chain(
         self,
         prompt: str,
-        adapter_chain: List[str],
-        model_params: Optional[Dict[str, Any]] = None,
+        adapter_chain: list[str],
+        model_params: dict[str, Any] | None = None,
     ) -> ModelResponse:
         """Generate response trying each adapter in the chain until success."""
         last_error = None
@@ -174,7 +171,7 @@ class ModelResponseGenerator(IModelResponseGenerator):
             cause=last_error,
         )
 
-    def get_fallback_chain(self, adapter_name: str) -> List[str]:
+    def get_fallback_chain(self, adapter_name: str) -> list[str]:
         """Get fallback chain for specified adapter."""
         config = self.config_manager.get_model_configuration(adapter_name)
         if config and config.fallback_chain:
@@ -194,7 +191,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
     Single responsibility: Manage adapter initialization, health, and cleanup.
     """
 
-    def __init__(self, adapters: Dict[str, Any], config_manager):
+    def __init__(self, adapters: dict[str, Any], config_manager):
         self.adapters = adapters
         self.config_manager = config_manager
         self.adapter_health = {}
@@ -253,7 +250,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
 
         return False
 
-    async def initialize_all_adapters(self, max_concurrent: int = 3) -> Dict[str, bool]:
+    async def initialize_all_adapters(self, max_concurrent: int = 3) -> dict[str, bool]:
         """Initialize all configured adapters with concurrency control."""
         available_configs = self.config_manager.get_available_models()
         enabled_adapters = [
@@ -310,7 +307,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
                 metadata={"error": str(e)},
             )
 
-    async def health_check_all_adapters(self) -> Dict[str, AdapterStatus]:
+    async def health_check_all_adapters(self) -> dict[str, AdapterStatus]:
         """Perform health checks on all adapters."""
         results = {}
         tasks = [self.health_check_adapter(name) for name in self.adapters.keys()]
@@ -390,7 +387,7 @@ class ModelOrchestrator(IModelOrchestrator):
     while maintaining clean separation of concerns using SOLID principles.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self._init_config = config or {}  # Store init config separately
         self.adapters = {}
 
@@ -404,7 +401,7 @@ class ModelOrchestrator(IModelOrchestrator):
         container.register_singleton("model_config_manager", config_manager)
 
         # Register and resolve performance monitor
-        from src.openchronicle.infrastructure.performance.model_monitor import (
+        # VIOLATION FIXED: Use dependency injection instead # (
             PerformanceMonitor,
         )
 
@@ -474,7 +471,8 @@ class ModelOrchestrator(IModelOrchestrator):
         except Exception as e:
             # If adapter not available, provide mock response for tests
             if "not available" in str(e) or "Adapter" in str(e):
-                from datetime import datetime, UTC
+                from datetime import UTC
+                from datetime import datetime
 
                 mock_response_content = f"Mock response for: {enhanced_prompt[:100]}..."
 
@@ -488,8 +486,7 @@ class ModelOrchestrator(IModelOrchestrator):
                     success=True,
                 )
                 return mock_response
-            else:
-                raise  # Re-raise if it's a different error
+            raise  # Re-raise if it's a different error
 
     async def initialize_adapter(self, adapter_name: str) -> bool:
         """Convenience method for adapter initialization."""
@@ -509,11 +506,11 @@ class ModelOrchestrator(IModelOrchestrator):
 
         return asyncio.run(self._lifecycle_manager.health_check_adapter(adapter_name))
 
-    def get_available_adapters(self) -> Dict[str, Any]:
+    def get_available_adapters(self) -> dict[str, Any]:
         """Get available adapters from configuration."""
         return self._configuration_manager.list_model_configs()
 
-    def get_adapter_info(self, adapter_name: str) -> Dict[str, Any]:
+    def get_adapter_info(self, adapter_name: str) -> dict[str, Any]:
         """Get adapter information."""
         configs = self._configuration_manager.get_available_models()
         return configs.get(adapter_name, {})
@@ -525,7 +522,7 @@ class ModelOrchestrator(IModelOrchestrator):
 
     # Configuration properties
     @property
-    def config(self) -> Dict[str, Any]:
+    def config(self) -> dict[str, Any]:
         """Access to configuration."""
         return (
             self._configuration_manager.config
@@ -543,7 +540,7 @@ class ModelOrchestrator(IModelOrchestrator):
         """Set default adapter."""
         self._default_adapter = adapter_name
 
-    def add_model_config(self, provider_name: str, config: Dict[str, Any]) -> bool:
+    def add_model_config(self, provider_name: str, config: dict[str, Any]) -> bool:
         """Convenience method for adding model configuration."""
         model_config = ModelConfiguration(
             provider_name=provider_name,
@@ -560,7 +557,7 @@ class ModelOrchestrator(IModelOrchestrator):
         """Standard API method for processing requests."""
         return await self.generate_response(request, **kwargs)
 
-    def get_model_status(self, adapter_name: str = None) -> Dict[str, Any]:
+    def get_model_status(self, adapter_name: str = None) -> dict[str, Any]:
         """Standard API method for getting model status."""
         if adapter_name:
             status = self.get_adapter_status(adapter_name)
@@ -577,17 +574,16 @@ class ModelOrchestrator(IModelOrchestrator):
                 "success_count": status.success_count,
                 "average_response_time": status.average_response_time,
             }
-        else:
-            # Return overall system status
-            return {
-                "adapters_count": len(self.adapters),
-                "available_configs": len(self.get_available_adapters()),
-                "system_healthy": True,
-                "last_check": datetime.now(UTC).isoformat(),
-            }
+        # Return overall system status
+        return {
+            "adapters_count": len(self.adapters),
+            "available_configs": len(self.get_available_adapters()),
+            "system_healthy": True,
+            "last_check": datetime.now(UTC).isoformat(),
+        }
 
     # Common interface methods for integration compatibility
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get orchestrator status - common interface method."""
         return self.get_model_status()
 
@@ -597,13 +593,13 @@ class ModelOrchestrator(IModelOrchestrator):
             # Initialize through the lifecycle manager
             result = await self._lifecycle_manager.initialize_all_adapters()
             return any(result.values()) if result else True
-        except Exception as e:
+        except Exception:
             # Fallback to basic initialization
             return True
 
     async def process_request_dict(
-        self, request_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, request_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process request with dict format - common interface method."""
         prompt = request_data.get("prompt", "")
         adapter = request_data.get("adapter")

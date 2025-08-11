@@ -6,32 +6,39 @@ Handles scene management operations:
 - Scene state management
 - Scene lifecycle operations
 - Integration with rollback systems
+
+This manager now uses dependency injection following hexagonal architecture principles.
 """
 
-import sys
-from typing import Dict, List, Any, Optional
-from pathlib import Path
+from typing import Any, Optional
 
-# Database imports from parent core directory
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.infrastructure.persistence import execute_query, execute_update
+# Import domain interfaces (following dependency inversion principle)
+from src.openchronicle.domain.ports.persistence_port import IPersistencePort
 
 from ..persistence.scene_repository import SceneRepository
 
 
 class SceneManager:
-    """Manages scene lifecycle and state operations."""
+    """Manages scene lifecycle and state operations using dependency injection."""
 
-    def __init__(self, story_id: str, repository: SceneRepository):
+    def __init__(self, story_id: str, repository: SceneRepository, persistence_port: Optional[IPersistencePort] = None):
         """
         Initialize scene manager.
 
         Args:
             story_id: Story identifier
             repository: Scene repository instance
+            persistence_port: Persistence interface implementation (injected)
         """
         self.story_id = story_id
         self.repository = repository
+        
+        # If no persistence port provided, create default adapter
+        if persistence_port is None:
+            from src.openchronicle.infrastructure.persistence_adapters.persistence_adapter import PersistenceAdapter
+            self.persistence = PersistenceAdapter()
+        else:
+            self.persistence = persistence_port
 
     def rollback_to_scene(self, scene_id: str) -> bool:
         """
@@ -54,7 +61,7 @@ class SceneManager:
             target_timestamp = target_scene.timestamp
 
             # Get all scenes after the target scene for backup
-            scenes_to_remove = execute_query(
+            scenes_to_remove = self.persistence.self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp
@@ -62,7 +69,7 @@ class SceneManager:
                 WHERE timestamp > ? AND story_id = ?
                 ORDER BY timestamp ASC
             """,
-                (target_timestamp, self.story_id),
+                [target_timestamp, self.story_id]
             )
 
             if not scenes_to_remove:
@@ -77,13 +84,13 @@ class SceneManager:
             }
 
             # Delete scenes after the target scene
-            execute_update(
+            success = self.persistence.self.persistence.execute_update(
                 self.story_id,
                 """
                 DELETE FROM scenes 
                 WHERE timestamp > ? AND story_id = ?
             """,
-                (target_timestamp, self.story_id),
+                [target_timestamp, self.story_id]
             )
 
             print(
@@ -95,7 +102,7 @@ class SceneManager:
             print(f"Error rolling back to scene {scene_id}: {e}")
             return False
 
-    def get_rollback_preview(self, scene_id: str) -> Dict[str, Any]:
+    def get_rollback_preview(self, scene_id: str) -> dict[str, Any]:
         """
         Preview what would be affected by rolling back to a scene.
 
@@ -114,7 +121,7 @@ class SceneManager:
             target_timestamp = target_scene.timestamp
 
             # Get scenes that would be removed
-            scenes_to_remove = execute_query(
+            scenes_to_remove = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp, scene_label, 
@@ -147,7 +154,7 @@ class SceneManager:
         except Exception as e:
             return {"error": f"Error previewing rollback: {e}"}
 
-    def validate_scene_integrity(self) -> Dict[str, Any]:
+    def validate_scene_integrity(self) -> dict[str, Any]:
         """
         Validate scene data integrity.
 
@@ -159,7 +166,7 @@ class SceneManager:
             issues = []
 
             # Check for scenes without input/output
-            empty_scenes = execute_query(
+            empty_scenes = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp
@@ -181,7 +188,7 @@ class SceneManager:
                 )
 
             # Check for scenes with invalid timestamps
-            invalid_timestamps = execute_query(
+            invalid_timestamps = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp
@@ -203,7 +210,7 @@ class SceneManager:
                 )
 
             # Check for duplicate scene IDs (shouldn't happen but good to check)
-            duplicates = execute_query(
+            duplicates = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, COUNT(*) as count
@@ -224,7 +231,7 @@ class SceneManager:
                 )
 
             # Get total scene count for context
-            total_scenes = execute_query(
+            total_scenes = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT COUNT(*) as count FROM scenes
@@ -241,7 +248,7 @@ class SceneManager:
         except Exception as e:
             return {"error": f"Error validating scene integrity: {e}"}
 
-    def compact_scene_data(self) -> Dict[str, Any]:
+    def compact_scene_data(self) -> dict[str, Any]:
         """
         Compact scene data by removing redundant information (placeholder for future optimization).
 
@@ -252,7 +259,7 @@ class SceneManager:
             # For now, just return statistics about potential compaction
             # Future versions could implement actual data compaction
 
-            total_scenes = execute_query(
+            total_scenes = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT COUNT(*) as count FROM scenes
@@ -270,7 +277,7 @@ class SceneManager:
         except Exception as e:
             return {"error": f"Error analyzing scene data for compaction: {e}"}
 
-    def get_scene_dependencies(self, scene_id: str) -> Dict[str, Any]:
+    def get_scene_dependencies(self, scene_id: str) -> dict[str, Any]:
         """
         Get dependencies for a specific scene (scenes that reference it).
 
@@ -284,7 +291,7 @@ class SceneManager:
             # Check for scenes that might reference this scene in their content
             # This is a simplified check - could be enhanced with more sophisticated analysis
 
-            referencing_scenes = execute_query(
+            referencing_scenes = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp, scene_label
@@ -296,14 +303,14 @@ class SceneManager:
 
             # Check if this scene is referenced in bookmarks (if bookmark table exists)
             try:
-                bookmark_references = execute_query(
+                bookmark_references = self.persistence.execute_query(
                     self.story_id,
                     """
                     SELECT bookmark_id, label
                     FROM bookmarks
                     WHERE scene_id = ?
                 """,
-                    (scene_id,),
+                    [scene_id],
                 )
             except:
                 bookmark_references = []  # Table might not exist
@@ -345,7 +352,6 @@ class SceneManager:
 
             if integrity["issues_found"] > 0:
                 return f"warning ({integrity['issues_found']} issues detected)"
-            else:
-                return f"healthy ({integrity['total_scenes']} scenes)"
+            return f"healthy ({integrity['total_scenes']} scenes)"
         except Exception:
             return "error"

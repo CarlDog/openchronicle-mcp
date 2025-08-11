@@ -5,9 +5,9 @@ Provides shared utilities, validation patterns, and common functionality
 for timeline and state management operations.
 """
 
-import json
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
 
 class TimelineUtilities:
@@ -15,8 +15,8 @@ class TimelineUtilities:
 
     @staticmethod
     def build_timeline_from_scenes(
-        scenes: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+        scenes: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """Build timeline entries from scene data."""
         timeline = []
         for scene in scenes:
@@ -33,8 +33,8 @@ class TimelineUtilities:
 
     @staticmethod
     def find_scene_by_id(
-        timeline: List[Dict[str, Any]], scene_id: str
-    ) -> Optional[Dict[str, Any]]:
+        timeline: list[dict[str, Any]], scene_id: str
+    ) -> dict[str, Any] | None:
         """Find a specific scene in timeline."""
         for entry in timeline:
             if entry.get("type") == "scene" and entry.get("scene_id") == scene_id:
@@ -43,8 +43,8 @@ class TimelineUtilities:
 
     @staticmethod
     def get_scenes_in_range(
-        timeline: List[Dict[str, Any]], start_time: str, end_time: str
-    ) -> List[Dict[str, Any]]:
+        timeline: list[dict[str, Any]], start_time: str, end_time: str
+    ) -> list[dict[str, Any]]:
         """Get scenes within a time range."""
         scenes = []
         for entry in timeline:
@@ -56,8 +56,8 @@ class TimelineUtilities:
 
     @staticmethod
     def create_rollback_point(
-        timeline: List[Dict[str, Any]], description: str = None
-    ) -> Dict[str, Any]:
+        timeline: list[dict[str, Any]], description: str = None
+    ) -> dict[str, Any]:
         """Create a rollback point from current timeline state."""
         return {
             "type": "rollback_point",
@@ -72,7 +72,7 @@ class TemporalStateManager:
     """Shared temporal state management utilities."""
 
     @staticmethod
-    def validate_timeline_entry(entry: Dict[str, Any]) -> bool:
+    def validate_timeline_entry(entry: dict[str, Any]) -> bool:
         """Validate timeline entry structure."""
         required_fields = ["type", "timestamp"]
         return all(field in entry for field in required_fields)
@@ -90,8 +90,8 @@ class TemporalStateManager:
 
     @staticmethod
     def calculate_timeline_gaps(
-        entries: List[Dict[str, Any]], max_gap_hours: int = 24
-    ) -> List[Dict[str, Any]]:
+        entries: list[dict[str, Any]], max_gap_hours: int = 24
+    ) -> list[dict[str, Any]]:
         """Identify significant gaps in timeline."""
         if len(entries) < 2:
             return []
@@ -130,7 +130,7 @@ class CheckpointPatterns:
         return scene_count > 0 and scene_count % interval == 0
 
     @staticmethod
-    def generate_checkpoint_description(scene_data: Dict[str, Any]) -> str:
+    def generate_checkpoint_description(scene_data: dict[str, Any]) -> str:
         """Generate automatic description for checkpoint."""
         scene_input = scene_data.get("input", "")
         if len(scene_input) > 50:
@@ -139,8 +139,8 @@ class CheckpointPatterns:
 
     @staticmethod
     def prioritize_checkpoints(
-        checkpoints: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+        checkpoints: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """Prioritize checkpoints by importance for retention."""
         # Sort by age and usage patterns
         return sorted(
@@ -157,7 +157,7 @@ class HistoryUtilities:
     """History tracking and analysis utilities."""
 
     @staticmethod
-    def extract_narrative_arc(timeline_entries: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def extract_narrative_arc(timeline_entries: list[dict[str, Any]]) -> dict[str, Any]:
         """Extract basic narrative arc from timeline."""
         scene_entries = [e for e in timeline_entries if e.get("type") == "scene"]
 
@@ -188,8 +188,8 @@ class HistoryUtilities:
 
     @staticmethod
     def detect_story_phases(
-        timeline_entries: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
+        timeline_entries: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
         """Detect distinct phases in story progression."""
         scene_entries = [e for e in timeline_entries if e.get("type") == "scene"]
 

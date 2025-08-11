@@ -3,9 +3,11 @@ Configuration classes for management systems.
 Defines configuration data structures for token and bookmark management.
 """
 
-from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, field
-from .management_models import TokenUsageType, BookmarkType
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Any
+
+from .management_models import BookmarkType
 
 
 @dataclass
@@ -13,15 +15,15 @@ class TokenManagerConfig:
     """Configuration for token management system."""
 
     default_model: str = "gpt-3.5-turbo"
-    available_models: List[str] = field(default_factory=lambda: ["gpt-3.5-turbo"])
-    fallback_chain: List[str] = field(default_factory=lambda: ["gpt-3.5-turbo"])
+    available_models: list[str] = field(default_factory=lambda: ["gpt-3.5-turbo"])
+    fallback_chain: list[str] = field(default_factory=lambda: ["gpt-3.5-turbo"])
     cache_size: int = 1000
     padding_factor: float = 1.1
     safety_margin: int = 100
-    model_configs: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    model_configs: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TokenManagerConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "TokenManagerConfig":
         """Create config from dictionary."""
         return cls(
             default_model=data.get("default_model", "gpt-3.5-turbo"),
@@ -33,7 +35,7 @@ class TokenManagerConfig:
             model_configs=data.get("model_configs", {}),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
         return {
             "default_model": self.default_model,
@@ -55,12 +57,12 @@ class BookmarkManagerConfig:
     enable_full_text_search: bool = True
     cache_size: int = 500
     auto_create_chapters: bool = True
-    chapter_detection_keywords: List[str] = field(
+    chapter_detection_keywords: list[str] = field(
         default_factory=lambda: ["chapter", "section", "part", "book", "volume"]
     )
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BookmarkManagerConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "BookmarkManagerConfig":
         """Create config from dictionary."""
         return cls(
             default_bookmark_type=BookmarkType(
@@ -76,7 +78,7 @@ class BookmarkManagerConfig:
             ),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
         return {
             "default_bookmark_type": self.default_bookmark_type.value,
@@ -92,13 +94,13 @@ class BookmarkManagerConfig:
 class ManagementConfig:
     """Unified configuration for the management orchestrator."""
 
-    token_config: Dict[str, Any] = field(default_factory=dict)
-    bookmark_config: Dict[str, Any] = field(default_factory=dict)
+    token_config: dict[str, Any] = field(default_factory=dict)
+    bookmark_config: dict[str, Any] = field(default_factory=dict)
     enable_cross_system_analytics: bool = True
     cache_size: int = 1000
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ManagementConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "ManagementConfig":
         """Create config from dictionary."""
         return cls(
             token_config=data.get("token_config", {}),
@@ -109,7 +111,7 @@ class ManagementConfig:
             cache_size=data.get("cache_size", 1000),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert config to dictionary."""
         return {
             "token_config": self.token_config,
@@ -123,7 +125,7 @@ class ConfigValidator:
     """Validates configuration for management systems."""
 
     @staticmethod
-    def validate_token_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_token_config(config: dict[str, Any]) -> dict[str, Any]:
         """Validate token management configuration."""
         validated = {}
 
@@ -153,7 +155,7 @@ class ConfigValidator:
         return validated
 
     @staticmethod
-    def validate_bookmark_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_bookmark_config(config: dict[str, Any]) -> dict[str, Any]:
         """Validate bookmark management configuration."""
         validated = {}
 
@@ -188,7 +190,7 @@ class ConfigValidator:
         return validated
 
     @staticmethod
-    def validate_management_config(config: Dict[str, Any]) -> Dict[str, Any]:
+    def validate_management_config(config: dict[str, Any]) -> dict[str, Any]:
         """Validate unified management configuration."""
         validated = {}
 

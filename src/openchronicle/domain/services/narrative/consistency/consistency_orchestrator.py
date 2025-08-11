@@ -7,13 +7,13 @@ for narrative consistency management across the OpenChronicle system.
 
 import logging
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.json_utilities import JSONUtilities
 
 from ..shared.narrative_state import NarrativeStateManager
 from .memory_validator import MemoryValidator
 from .state_tracker import StateTracker
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class ConsistencyOrchestrator:
     to ensure narrative consistency across character memories and states.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize consistency orchestrator with configuration."""
         self.config = config or {}
         self.json_utils = JSONUtilities()
@@ -141,7 +141,7 @@ class ConsistencyOrchestrator:
         return self.state_tracker.get_character_memory_summary(character_id)
 
     def compress_old_memories(
-        self, character_id: str, retention_days: Optional[int] = None
+        self, character_id: str, retention_days: int | None = None
     ) -> int:
         """
         Compress old memories to optimize storage.
@@ -196,7 +196,7 @@ class ConsistencyOrchestrator:
         self.memory_validator.import_character_memories(data)
 
     def get_consistency_metrics(
-        self, character_id: Optional[str] = None
+        self, character_id: str | None = None
     ) -> dict[str, Any]:
         """
         Get consistency metrics for character(s).

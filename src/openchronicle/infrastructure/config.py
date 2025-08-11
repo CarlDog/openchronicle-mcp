@@ -5,7 +5,7 @@ Configuration settings for the infrastructure layer.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Any
 
 
 @dataclass
@@ -27,7 +27,7 @@ class InfrastructureConfig:
 
     # Logging
     log_level: str = "INFO"
-    log_file_path: Optional[str] = "logs/openchronicle.log"
+    log_file_path: str | None = "logs/openchronicle.log"
 
     # Model configuration
     default_model_adapter: str = "openai"
@@ -38,7 +38,7 @@ class InfrastructureConfig:
     scenes_path: str = "demo_storage/scenes"
     characters_path: str = "demo_storage/characters"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "database_path": self.database_path,

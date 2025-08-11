@@ -13,13 +13,14 @@ Key Features:
 - Content complexity analysis for model selection
 """
 
-import re
 import logging
-from typing import Dict, Any, List, Optional, Tuple
-from enum import Enum
 from datetime import datetime
+from enum import Enum
+from typing import Any
 
-from src.openchronicle.shared.logging_system import log_info, log_error
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class ContentRouter:
 
         log_info("ContentRouter initialized with registry-driven configuration")
 
-    def _load_routing_rules(self) -> Dict[str, Any]:
+    def _load_routing_rules(self) -> dict[str, Any]:
         """Load content routing rules from registry."""
         try:
             rules = self.registry_manager.get_content_routing_rules()
@@ -73,7 +74,7 @@ class ContentRouter:
             log_error(f"Failed to load routing rules from registry: {e}")
             return self._get_default_routing_rules()
 
-    def _load_provider_capabilities(self) -> Dict[str, Any]:
+    def _load_provider_capabilities(self) -> dict[str, Any]:
         """Load provider capability profiles from registry."""
         try:
             capabilities = {}
@@ -86,7 +87,7 @@ class ContentRouter:
             log_error(f"Failed to load provider capabilities: {e}")
             return {}
 
-    def _load_performance_profiles(self) -> Dict[str, Any]:
+    def _load_performance_profiles(self) -> dict[str, Any]:
         """Load performance profiles from registry."""
         try:
             profiles = {}
@@ -101,7 +102,7 @@ class ContentRouter:
             log_error(f"Failed to load performance profiles: {e}")
             return {}
 
-    def _get_default_routing_rules(self) -> Dict[str, Any]:
+    def _get_default_routing_rules(self) -> dict[str, Any]:
         """Default routing rules as fallback."""
         return {
             ContentType.NARRATIVE.value: ["openai", "anthropic", "ollama"],
@@ -115,7 +116,7 @@ class ContentRouter:
         }
 
     def analyze_content_type(
-        self, prompt: str, context: Optional[Dict[str, Any]] = None
+        self, prompt: str, context: dict[str, Any] | None = None
     ) -> ContentType:
         """
         Analyze prompt to determine content type.
@@ -212,7 +213,7 @@ class ContentRouter:
         return ContentType.NARRATIVE
 
     def analyze_complexity(
-        self, prompt: str, context: Optional[Dict[str, Any]] = None
+        self, prompt: str, context: dict[str, Any] | None = None
     ) -> ComplexityLevel:
         """
         Analyze content complexity to inform model selection.
@@ -270,7 +271,7 @@ class ContentRouter:
         content_type: ContentType,
         complexity: ComplexityLevel,
         performance_priority: str = "quality",
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Get optimal provider list based on content analysis and performance priority.
 
@@ -301,21 +302,21 @@ class ContentRouter:
         return sorted_providers
 
     def _filter_by_complexity(
-        self, providers: List[str], complexity: ComplexityLevel
-    ) -> List[str]:
+        self, providers: list[str], complexity: ComplexityLevel
+    ) -> list[str]:
         """Filter providers based on complexity handling capabilities."""
         if complexity == ComplexityLevel.SIMPLE:
             # Any provider can handle simple content
             return providers
 
-        elif complexity == ComplexityLevel.COMPLEX:
+        if complexity == ComplexityLevel.COMPLEX:
             # Prefer providers known for reasoning capabilities
             complex_capable = ["anthropic", "openai", "gpt-4"]
             return [
                 p for p in providers if any(cap in p for cap in complex_capable)
             ] or providers
 
-        elif complexity == ComplexityLevel.CREATIVE:
+        if complexity == ComplexityLevel.CREATIVE:
             # Prefer providers known for creativity
             creative_capable = ["anthropic", "openai", "claude"]
             return [
@@ -325,22 +326,22 @@ class ContentRouter:
         return providers
 
     def _sort_by_performance_priority(
-        self, providers: List[str], priority: str
-    ) -> List[str]:
+        self, providers: list[str], priority: str
+    ) -> list[str]:
         """Sort providers based on performance priority."""
         if priority == "speed":
             # Sort by latency (lower is better)
             return sorted(providers, key=lambda p: self._get_latency_score(p))
 
-        elif priority == "cost":
+        if priority == "cost":
             # Sort by cost (lower is better)
             return sorted(providers, key=lambda p: self._get_cost_score(p))
 
-        else:  # quality priority (default)
-            # Sort by quality score (higher is better)
-            return sorted(
-                providers, key=lambda p: self._get_quality_score(p), reverse=True
-            )
+        # quality priority (default)
+        # Sort by quality score (higher is better)
+        return sorted(
+            providers, key=lambda p: self._get_quality_score(p), reverse=True
+        )
 
     def _get_latency_score(self, provider: str) -> float:
         """Get latency score for provider (lower is better)."""
@@ -376,9 +377,9 @@ class ContentRouter:
     def route_content(
         self,
         prompt: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
         performance_priority: str = "quality",
-    ) -> Tuple[List[str], Dict[str, Any]]:
+    ) -> tuple[list[str], dict[str, Any]]:
         """
         Main routing method - analyze content and return optimal providers.
 

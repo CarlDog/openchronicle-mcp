@@ -10,31 +10,29 @@ This orchestrator coordinates between all scene subsystems:
 Replaces the legacy monolithic scene_logger.py with a clean orchestration pattern.
 """
 
-import os
-import json
 import sys
-from datetime import datetime, timezone
-from typing import Dict, List, Any, Optional, Tuple
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-    log_error,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+
+from .analysis.mood_analyzer import MoodAnalyzer
+from .analysis.statistics_engine import StatisticsEngine
+from .management.labeling_system import LabelingSystem
+from .management.scene_manager import SceneManager
 
 # Import modular scene components
 from .persistence.scene_repository import SceneRepository
 from .persistence.scene_serializer import SceneSerializer
-from .analysis.statistics_engine import StatisticsEngine
-from .analysis.mood_analyzer import MoodAnalyzer
-from .management.scene_manager import SceneManager
-from .management.labeling_system import LabelingSystem
-from .shared.scene_models import Scene, SceneData, StructuredTags
 from .shared.id_generator import SceneIdGenerator
+from .shared.scene_models import SceneData
+from .shared.scene_models import StructuredTags
 
 
 class SceneOrchestrator:
@@ -47,7 +45,7 @@ class SceneOrchestrator:
     - Management layer (labeling, rollback, organization)
     """
 
-    def __init__(self, story_id: str, config: Dict[str, Any] = None):
+    def __init__(self, story_id: str, config: dict[str, Any] = None):
         """
         Initialize scene orchestrator for a specific story.
 
@@ -130,14 +128,14 @@ class SceneOrchestrator:
         self,
         user_input: str,
         model_output: str,
-        memory_snapshot: Optional[Dict[str, Any]] = None,
-        flags: Optional[List[str]] = None,
-        context_refs: Optional[List[str]] = None,
-        analysis_data: Optional[Dict[str, Any]] = None,
-        scene_label: Optional[str] = None,
-        token_manager: Optional[Any] = None,
-        model_name: Optional[str] = None,
-        structured_tags: Optional[Dict[str, Any]] = None,
+        memory_snapshot: dict[str, Any] | None = None,
+        flags: list[str] | None = None,
+        context_refs: list[str] | None = None,
+        analysis_data: dict[str, Any] | None = None,
+        scene_label: str | None = None,
+        token_manager: Any | None = None,
+        model_name: str | None = None,
+        structured_tags: dict[str, Any] | None = None,
     ) -> str:
         """
         Save a scene with all associated data.
@@ -164,7 +162,7 @@ class SceneOrchestrator:
             # Create scene data object
             scene_data = SceneData(
                 scene_id=scene_id,
-                timestamp=datetime.now(timezone.utc).isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 user_input=user_input,
                 model_output=model_output,
                 memory_snapshot=memory_snapshot or {},
@@ -183,9 +181,8 @@ class SceneOrchestrator:
                 self._update_operation_metrics()
                 log_info(f"Scene {scene_id} saved successfully")
                 return scene_id
-            else:
-                log_error(f"Failed to save scene {scene_id}")
-                return ""
+            log_error(f"Failed to save scene {scene_id}")
+            return ""
 
         except Exception as e:
             log_error(f"Error saving scene: {e}")
@@ -195,8 +192,8 @@ class SceneOrchestrator:
         self,
         user_input: str,
         model_output: str,
-        memory_snapshot: Optional[Dict[str, Any]] = None,
-        scene_label: Optional[str] = None,
+        memory_snapshot: dict[str, Any] | None = None,
+        scene_label: str | None = None,
         **kwargs,
     ) -> str:
         """
@@ -226,25 +223,25 @@ class SceneOrchestrator:
             # Try to find a way to notify the memory orchestrator about the saved scene
             # For integration tests, we can use a simple approach
             try:
-                # Import here to avoid circular imports
-                from src.openchronicle.infrastructure.memory.memory_orchestrator import (
-                    get_memory_orchestrator,
-                )
-
-                memory_orch = get_memory_orchestrator()
-                if hasattr(memory_orch, "track_saved_scene"):
+                # Use dependency injection instead of direct import
+                # This should be injected through constructor, but for backward compatibility
+                # we'll use a conditional import approach
+                memory_port = getattr(self, 'memory_port', None)
+                if memory_port:
                     scene_data = {
                         "user_input": user_input,
                         "model_output": model_output,
                         "scene_label": scene_label,
                     }
-                    memory_orch.track_saved_scene(scene_id, scene_data)
+                    # Use memory port interface instead of direct call
+                    if hasattr(memory_port, 'track_saved_scene'):
+                        memory_port.track_saved_scene(scene_id, scene_data)
             except Exception:
                 pass  # Ignore errors for backward compatibility
 
         return scene_id
 
-    def load_scene(self, scene_id: str) -> Optional[Dict[str, Any]]:
+    def load_scene(self, scene_id: str) -> dict[str, Any] | None:
         """Load a scene by ID."""
         try:
             scene_data = self.repository.load_scene(scene_id)
@@ -255,7 +252,7 @@ class SceneOrchestrator:
             log_error(f"Error loading scene {scene_id}: {e}")
             return None
 
-    def list_scenes(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    def list_scenes(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         """List scenes with optional pagination."""
         try:
             scenes = self.repository.list_scenes(limit, offset)
@@ -268,29 +265,29 @@ class SceneOrchestrator:
 
     # ===== SCENE ANALYSIS OPERATIONS =====
 
-    def get_scenes_with_long_turns(self) -> List[Dict[str, Any]]:
+    def get_scenes_with_long_turns(self) -> list[dict[str, Any]]:
         """Get scenes with long turns using statistics engine."""
         return self.statistics_engine.get_scenes_with_long_turns()
 
-    def get_token_usage_stats(self) -> Dict[str, Any]:
+    def get_token_usage_stats(self) -> dict[str, Any]:
         """Get token usage statistics."""
         return self.statistics_engine.get_token_usage_stats()
 
-    def get_scene_summary_stats(self) -> Dict[str, Any]:
+    def get_scene_summary_stats(self) -> dict[str, Any]:
         """Get comprehensive scene statistics."""
         return self.statistics_engine.get_scene_summary_stats()
 
     # ===== MOOD ANALYSIS OPERATIONS =====
 
-    def get_scenes_by_mood(self, mood: str) -> List[Dict[str, Any]]:
+    def get_scenes_by_mood(self, mood: str) -> list[dict[str, Any]]:
         """Get scenes filtered by mood."""
         return self.mood_analyzer.get_scenes_by_mood(mood)
 
-    def get_character_mood_timeline(self, character_name: str) -> List[Dict[str, Any]]:
+    def get_character_mood_timeline(self, character_name: str) -> list[dict[str, Any]]:
         """Get character mood timeline."""
         return self.mood_analyzer.get_character_mood_timeline(character_name)
 
-    def get_scenes_by_type(self, scene_type: str) -> List[Dict[str, Any]]:
+    def get_scenes_by_type(self, scene_type: str) -> list[dict[str, Any]]:
         """Get scenes filtered by type."""
         return self.mood_analyzer.get_scenes_by_type(scene_type)
 
@@ -300,11 +297,11 @@ class SceneOrchestrator:
         """Update scene label."""
         return self.labeling_system.update_scene_label(scene_id, scene_label)
 
-    def get_scenes_by_label(self, scene_label: str) -> List[Dict[str, Any]]:
+    def get_scenes_by_label(self, scene_label: str) -> list[dict[str, Any]]:
         """Get scenes by label."""
         return self.labeling_system.get_scenes_by_label(scene_label)
 
-    def get_labeled_scenes(self) -> List[Dict[str, Any]]:
+    def get_labeled_scenes(self) -> list[dict[str, Any]]:
         """Get all labeled scenes."""
         return self.labeling_system.get_labeled_scenes()
 
@@ -316,7 +313,7 @@ class SceneOrchestrator:
 
     # ===== ORCHESTRATOR STATUS =====
 
-    def get_orchestrator_status(self) -> Dict[str, Any]:
+    def get_orchestrator_status(self) -> dict[str, Any]:
         """Get comprehensive orchestrator status."""
         return {
             "story_id": self.story_id,
@@ -349,4 +346,4 @@ class SceneOrchestrator:
     def _update_operation_metrics(self):
         """Update internal operation metrics."""
         self.operation_count += 1
-        self.last_operation_time = datetime.now(timezone.utc).isoformat()
+        self.last_operation_time = datetime.now(UTC).isoformat()

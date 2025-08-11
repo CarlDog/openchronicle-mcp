@@ -14,6 +14,7 @@ Direct replacement approach (no backwards compatibility needed):
 # Import the orchestrator and expose all functionality
 from .database_orchestrator import DatabaseOrchestrator
 
+
 # Create global orchestrator instance
 _orchestrator = DatabaseOrchestrator()
 

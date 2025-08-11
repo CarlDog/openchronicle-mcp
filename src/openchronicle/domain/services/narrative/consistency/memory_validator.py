@@ -12,9 +12,9 @@ from collections import defaultdict
 from datetime import datetime
 from datetime import timedelta
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.json_utilities import JSONUtilities
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class MemoryEvent:
         characters_involved: list[str],
         emotional_impact: float = 0.0,
         importance: float = 0.5,
-        tags: Optional[list[str]] = None,
+        tags: list[str] | None = None,
     ):
         self.event_type = event_type
         self.content = content
@@ -121,7 +121,7 @@ class MemoryValidator:
     and consistency checking for character memories.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize memory validator."""
         self.config = config or {}
         self.json_utils = JSONUtilities()
@@ -433,19 +433,16 @@ class MemoryValidator:
     def _save_memory(self, memory: CharacterMemory) -> None:
         """Save memory to database."""
         # Database interaction placeholder
-        pass
 
     def _save_compressed_memory(
         self, character_id: str, summary: str, week: str
     ) -> None:
         """Save compressed memory summary."""
         # Database interaction placeholder
-        pass
 
     def _delete_old_memories(self, memory_ids: list[str]) -> None:
         """Delete old memories from database."""
         # Database interaction placeholder
-        pass
 
     def _create_memory_summary(self, memories: list[CharacterMemory]) -> str:
         """Create summary of multiple memories."""
@@ -541,7 +538,7 @@ class MemoryValidator:
 
     def _detect_memory_contradiction(
         self, new_memory: CharacterMemory, existing_memory: CharacterMemory
-    ) -> Optional[MemoryConflict]:
+    ) -> MemoryConflict | None:
         """Detect contradiction between memories."""
         # Simple contradiction detection based on opposing keywords
         opposing_pairs = [
@@ -624,14 +621,13 @@ class MemoryValidator:
         """Interpret emotional score as text."""
         if score > 0.7:
             return "very positive"
-        elif score > 0.3:
+        if score > 0.3:
             return "positive"
-        elif score > -0.3:
+        if score > -0.3:
             return "neutral"
-        elif score > -0.7:
+        if score > -0.7:
             return "negative"
-        else:
-            return "very negative"
+        return "very negative"
 
     def get_status(self) -> dict[str, Any]:
         """Get validator status."""

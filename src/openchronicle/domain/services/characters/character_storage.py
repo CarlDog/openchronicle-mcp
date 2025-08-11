@@ -6,20 +6,16 @@ Handles loading, saving, and caching of character data across all components.
 """
 
 import json
-import os
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Set
-from datetime import datetime
 import threading
+from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from .character_base import CharacterEngineBase, CharacterEventHandler
-from .character_data import (
-    CharacterData,
-    CharacterStats,
-    CharacterConsistencyProfile,
-    CharacterStyleProfile,
-)
+from .character_base import CharacterEngineBase
+from .character_base import CharacterEventHandler
+from .character_data import CharacterData
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +28,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
     updates across all character management components.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize character storage manager."""
         # Store config first
         self.config = config or {}
@@ -49,8 +45,8 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
         CharacterEventHandler.__init__(self)
 
         # Storage
-        self.character_cache: Dict[str, CharacterData] = {}
-        self.pending_saves: Set[str] = set()
+        self.character_cache: dict[str, CharacterData] = {}
+        self.pending_saves: set[str] = set()
         self.save_lock = threading.Lock()
 
         # Ensure storage directory exists
@@ -73,7 +69,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
             raise ValueError(f"Storage path not writable: {e}")
 
     def initialize_character(
-        self, character_id: str, character_data: Optional[Dict] = None
+        self, character_id: str, character_data: dict | None = None
     ) -> CharacterData:
         """Initialize or load character data."""
         # Check cache first
@@ -104,7 +100,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
         self.emit_event("character_created", {"character_id": character_id})
         return new_character
 
-    def get_character_data(self, character_id: str) -> Optional[CharacterData]:
+    def get_character_data(self, character_id: str) -> CharacterData | None:
         """Get character data by ID."""
         if character_id in self.character_cache:
             return self.character_cache[character_id]
@@ -176,7 +172,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
 
         return success
 
-    def list_characters(self) -> List[str]:
+    def list_characters(self) -> list[str]:
         """List all available character IDs."""
         character_ids = set()
 
@@ -222,7 +218,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
 
     def get_character_component(
         self, character_id: str, component_name: str
-    ) -> Optional[Any]:
+    ) -> Any | None:
         """Get specific component data for a character."""
         character = self.get_character_data(character_id)
         if not character:
@@ -230,7 +226,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
 
         return character.get_component_data(component_name)
 
-    def export_character_data(self, character_id: str) -> Dict[str, Any]:
+    def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export character data for external use."""
         character = self.get_character_data(character_id)
         if not character:
@@ -238,7 +234,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
 
         return character.to_dict()
 
-    def import_character_data(self, character_data: Dict[str, Any]) -> bool:
+    def import_character_data(self, character_data: dict[str, Any]) -> bool:
         """Import character data from external source."""
         try:
             character_id = character_data.get("character_id")
@@ -259,7 +255,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
             self.logger.error(f"Failed to import character data: {e}")
             return False
 
-    def save_all_pending(self) -> Dict[str, bool]:
+    def save_all_pending(self) -> dict[str, bool]:
         """Save all characters with pending changes."""
         results = {}
         pending_copy = self.pending_saves.copy()
@@ -269,7 +265,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
 
         return results
 
-    def get_cache_stats(self) -> Dict[str, Any]:
+    def get_cache_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "cached_characters": len(self.character_cache),
@@ -301,7 +297,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
 
     def _load_character_from_storage(
         self, character_id: str
-    ) -> Optional[CharacterData]:
+    ) -> CharacterData | None:
         """Load character data from storage file."""
         storage_file = Path(self.storage_path) / f"{character_id}.json"
 
@@ -319,7 +315,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
             return None
 
     def _apply_character_data(
-        self, character: CharacterData, data: Dict[str, Any]
+        self, character: CharacterData, data: dict[str, Any]
     ) -> None:
         """Apply initial character data from dictionary."""
         for key, value in data.items():

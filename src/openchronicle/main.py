@@ -1,27 +1,26 @@
 """
-OpenChronicle Core - Main Entry Point
+OpenChronicle Core - API Entry Point
 
 Professional API for OpenChronicle's core narrative AI engine.
-Provides clean, centralized access to all core orchestrators and services
-following enterprise software best practices.
+This module provides programmatic access to all core orchestrators and services.
 
-Usage:
-    from src.openchronicle.domain.models import ModelOrchestrator
-    from src.openchronicle.infrastructure.memory import MemoryOrchestrator
-    from src.openchronicle.domain.services.scenes import SceneOrchestrator
+For CLI usage, use: python main.py [commands]
+For API usage: from src.openchronicle.main import ModelOrchestrator, MemoryOrchestrator, etc.
 
 Architecture:
     - Domain Layer: Business models and services (narrative, characters, scenes, timeline)
     - Application Layer: Application services and orchestrators (management)
     - Infrastructure Layer: Technical components (adapters, persistence, memory)
-    - Interface Layer: CLI, API, web interfaces
+    - Interface Layer: CLI, API, web interfaces (separate from this module)
 """
 
+from __future__ import annotations
+
 import sys
-import asyncio
-from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
 from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING
+
 
 # Ensure module can find its dependencies
 current_dir = Path(__file__).parent
@@ -29,10 +28,14 @@ if str(current_dir.parent.parent) not in sys.path:
     sys.path.insert(0, str(current_dir.parent.parent))
 
 # Core infrastructure with new paths
-from src.openchronicle.shared.logging import get_logger, log_structured_event
-from .shared.error_handling import OpenChronicleError
-from .shared.dependency_injection import get_container
 from .shared.centralized_config import CentralizedConfigManager
+from .shared.dependency_injection import get_container
+from .shared.error_handling import OpenChronicleError
+from .shared.logging_system import log_info, log_warning, log_error, log_system_event
+
+if TYPE_CHECKING:
+    from typing import Any
+
 
 # === PRIMARY ORCHESTRATORS ===
 # Main workflow components - most commonly used
@@ -131,10 +134,8 @@ except ImportError as e:
     ContentAnalysisOrchestrator = None
 
 try:
-    from .infrastructure.performance import (
-        PerformanceOrchestrator,
-        ModelPerformanceMonitor,
-    )
+    from .infrastructure.performance import ModelPerformanceMonitor
+    from .infrastructure.performance import PerformanceOrchestrator
 
     PERFORMANCE_AVAILABLE = True
 except ImportError as e:
@@ -150,8 +151,8 @@ except ImportError as e:
 class CoreStatus:
     """System health status for core components."""
 
-    available_orchestrators: List[str]
-    unavailable_orchestrators: List[str]
+    available_orchestrators: list[str]
+    unavailable_orchestrators: list[str]
     total_count: int
     availability_percentage: float
     core_initialized: bool = False
@@ -167,7 +168,7 @@ def get_version() -> str:
         return "development"
 
 
-def get_available_orchestrators() -> Dict[str, bool]:
+def get_available_orchestrators() -> dict[str, bool]:
     """Get availability status of all orchestrators."""
     return {
         "ModelOrchestrator": MODEL_AVAILABLE,
@@ -220,7 +221,7 @@ async def health_check() -> CoreStatus:
     return status
 
 
-async def initialize_core(config_path: Optional[str] = None) -> bool:
+async def initialize_core(config_path: str | None = None) -> bool:
     """
     Initialize core OpenChronicle systems.
 
@@ -253,18 +254,17 @@ async def initialize_core(config_path: Optional[str] = None) -> bool:
                 f"Core initialization successful - {status.availability_percentage:.1f}% availability",
             )
             return True
-        else:
-            log_error(
-                f"Core initialization failed - only {status.availability_percentage:.1f}% availability"
-            )
-            return False
+        log_error(
+            f"Core initialization failed - only {status.availability_percentage:.1f}% availability"
+        )
+        return False
 
     except Exception as e:
         log_error(f"Core initialization failed: {e}")
         return False
 
 
-def create_model_orchestrator(*args, **kwargs) -> Optional[ModelOrchestrator]:
+def create_model_orchestrator(*args, **kwargs):
     """Factory function for ModelOrchestrator with error handling."""
     if not MODEL_AVAILABLE:
         log_error("ModelOrchestrator not available")
@@ -272,7 +272,7 @@ def create_model_orchestrator(*args, **kwargs) -> Optional[ModelOrchestrator]:
     return ModelOrchestrator(*args, **kwargs)
 
 
-def create_scene_orchestrator(*args, **kwargs) -> Optional[SceneOrchestrator]:
+def create_scene_orchestrator(*args, **kwargs):
     """Factory function for SceneOrchestrator with error handling."""
     if not SCENE_AVAILABLE:
         log_error("SceneOrchestrator not available")
@@ -280,7 +280,7 @@ def create_scene_orchestrator(*args, **kwargs) -> Optional[SceneOrchestrator]:
     return SceneOrchestrator(*args, **kwargs)
 
 
-def create_memory_orchestrator(*args, **kwargs) -> Optional[MemoryOrchestrator]:
+def create_memory_orchestrator(*args, **kwargs):
     """Factory function for MemoryOrchestrator with error handling."""
     if not MEMORY_AVAILABLE:
         log_error("MemoryOrchestrator not available")

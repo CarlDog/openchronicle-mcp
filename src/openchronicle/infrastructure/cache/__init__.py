@@ -6,21 +6,28 @@ of frequently accessed data like model responses, character states, and
 narrative context.
 """
 
-import json
 import asyncio
 import hashlib
+import json
 import time
-from typing import Dict, Optional, Any, List, Tuple
-from datetime import datetime, timedelta
+from abc import ABC
+from abc import abstractmethod
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
-from abc import ABC, abstractmethod
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+
 import aiofiles
 
 
 class CacheEntry:
     """Represents a cached entry with metadata."""
 
-    def __init__(self, key: str, value: Any, ttl: Optional[int] = None):
+    def __init__(self, key: str, value: Any, ttl: int | None = None):
         self.key = key
         self.value = value
         self.created_at = time.time()
@@ -40,7 +47,7 @@ class CacheEntry:
         self.last_accessed = time.time()
         return self.value
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "key": self.key,
@@ -52,7 +59,7 @@ class CacheEntry:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CacheEntry":
+    def from_dict(cls, data: dict[str, Any]) -> "CacheEntry":
         """Create from dictionary."""
         entry = cls(data["key"], data["value"], data.get("ttl"))
         entry.created_at = data.get("created_at", time.time())
@@ -65,42 +72,37 @@ class BaseCache(ABC):
     """Abstract base class for cache implementations."""
 
     @abstractmethod
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Get value by key."""
-        pass
 
     @abstractmethod
-    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """Set key-value pair with optional TTL."""
-        pass
 
     @abstractmethod
     async def delete(self, key: str) -> bool:
         """Delete key."""
-        pass
 
     @abstractmethod
     async def clear(self) -> bool:
         """Clear all cached entries."""
-        pass
 
     @abstractmethod
     async def exists(self, key: str) -> bool:
         """Check if key exists."""
-        pass
 
 
 class InMemoryCache(BaseCache):
     """Simple in-memory cache with LRU eviction."""
 
-    def __init__(self, max_size: int = 1000, default_ttl: Optional[int] = None):
+    def __init__(self, max_size: int = 1000, default_ttl: int | None = None):
         self.max_size = max_size
         self.default_ttl = default_ttl
-        self._cache: Dict[str, CacheEntry] = {}
-        self._access_order: List[str] = []  # For LRU tracking
+        self._cache: dict[str, CacheEntry] = {}
+        self._access_order: list[str] = []  # For LRU tracking
         self._lock = asyncio.Lock()
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Get value by key."""
         async with self._lock:
             if key not in self._cache:
@@ -122,7 +124,7 @@ class InMemoryCache(BaseCache):
 
             return entry.access()
 
-    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """Set key-value pair with optional TTL."""
         async with self._lock:
             # Use default TTL if not specified
@@ -193,7 +195,7 @@ class InMemoryCache(BaseCache):
                 if key in self._access_order:
                     self._access_order.remove(key)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache statistics."""
         return {
             "size": len(self._cache),
@@ -233,7 +235,7 @@ class FileSystemCache(BaseCache):
         key_hash = hashlib.md5(key.encode()).hexdigest()
         return self.cache_dir / f"{key_hash}.cache"
 
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         """Get value by key."""
         cache_file = self._get_cache_path(key)
 
@@ -241,7 +243,7 @@ class FileSystemCache(BaseCache):
             return None
 
         try:
-            async with aiofiles.open(cache_file, "r", encoding="utf-8") as f:
+            async with aiofiles.open(cache_file, encoding="utf-8") as f:
                 content = await f.read()
                 entry_data = json.loads(content)
 
@@ -265,7 +267,7 @@ class FileSystemCache(BaseCache):
             print(f"Error reading cache file {cache_file}: {e}")
             return None
 
-    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         """Set key-value pair with optional TTL."""
         async with self._lock:
             try:
@@ -316,7 +318,7 @@ class FileSystemCache(BaseCache):
 
         # Check if expired
         try:
-            async with aiofiles.open(cache_file, "r", encoding="utf-8") as f:
+            async with aiofiles.open(cache_file, encoding="utf-8") as f:
                 content = await f.read()
                 entry_data = json.loads(content)
 
@@ -367,7 +369,7 @@ class ModelResponseCache(BaseCache):
 
     async def get_response(
         self, prompt: str, model_name: str, **kwargs
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get cached model response."""
         cache_key = self._create_cache_key(prompt, model_name, **kwargs)
         return await self.base_cache.get(cache_key)
@@ -376,8 +378,8 @@ class ModelResponseCache(BaseCache):
         self,
         prompt: str,
         model_name: str,
-        response_data: Dict[str, Any],
-        ttl: Optional[int] = 3600,  # 1 hour default
+        response_data: dict[str, Any],
+        ttl: int | None = 3600,  # 1 hour default
         **kwargs,
     ) -> bool:
         """Cache model response."""
@@ -385,10 +387,10 @@ class ModelResponseCache(BaseCache):
         return await self.base_cache.set(cache_key, response_data, ttl)
 
     # Delegate other methods to base cache
-    async def get(self, key: str) -> Optional[Any]:
+    async def get(self, key: str) -> Any | None:
         return await self.base_cache.get(key)
 
-    async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
+    async def set(self, key: str, value: Any, ttl: int | None = None) -> bool:
         return await self.base_cache.set(key, value, ttl)
 
     async def delete(self, key: str) -> bool:
@@ -406,18 +408,17 @@ def create_cache(cache_type: str = "memory", **kwargs) -> BaseCache:
     """Factory function to create cache instances."""
     if cache_type == "memory":
         return InMemoryCache(**kwargs)
-    elif cache_type == "filesystem":
+    if cache_type == "filesystem":
         return FileSystemCache(**kwargs)
-    else:
-        raise ValueError(f"Unknown cache type: {cache_type}")
+    raise ValueError(f"Unknown cache type: {cache_type}")
 
 
 # Export cache implementations
 __all__ = [
-    "CacheEntry",
     "BaseCache",
-    "InMemoryCache",
+    "CacheEntry",
     "FileSystemCache",
+    "InMemoryCache",
     "ModelResponseCache",
     "create_cache",
 ]

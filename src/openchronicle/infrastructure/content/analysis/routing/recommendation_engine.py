@@ -7,12 +7,12 @@ Part of: Phase 5A - Content Analysis Enhancement
 Extracted from: core/content_analyzer.py (lines 1753-1875)
 """
 
-from typing import Dict, List, Any, Optional
-
-from ..shared.interfaces import RoutingComponent
+from typing import Any
 
 # Import logging utilities
 from src.openchronicle.shared.logging_system import log_error
+
+from ..shared.interfaces import RoutingComponent
 
 
 class RecommendationEngine(RoutingComponent):
@@ -22,8 +22,8 @@ class RecommendationEngine(RoutingComponent):
         super().__init__(model_manager)
 
     def route_request(
-        self, analysis: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Route recommendation request based on content type and system state."""
         content_type = analysis.get("content_type", "general")
         system_resources = context.get("system_resources")
@@ -39,14 +39,14 @@ class RecommendationEngine(RoutingComponent):
             "system_state": self._get_system_state(),
         }
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process recommendation request and return suggestions."""
         analysis = context.get("analysis", {})
         return self.route_request(analysis, context)
 
     async def suggest_model_management_actions(
-        self, content_type: str, system_resources: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, content_type: str, system_resources: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """
         Suggest model management actions based on system state and requirements.
 
@@ -62,8 +62,8 @@ class RecommendationEngine(RoutingComponent):
         )
 
     def _suggest_model_management_actions_sync(
-        self, content_type: str, system_resources: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
+        self, content_type: str, system_resources: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """Synchronous version of suggest_model_management_actions."""
         try:
             suggestions = {
@@ -180,7 +180,7 @@ class RecommendationEngine(RoutingComponent):
             log_error(f"Error generating model management suggestions: {e}")
             return {"actions": [], "priority": "low", "error": str(e)}
 
-    def _get_working_models(self, content_type: str) -> List[str]:
+    def _get_working_models(self, content_type: str) -> list[str]:
         """Get list of working models for content type."""
         # Simplified version - in full implementation would test model connectivity
         all_models = self.model_manager.list_model_configs()
@@ -188,7 +188,7 @@ class RecommendationEngine(RoutingComponent):
             name for name, config in all_models.items() if config.get("enabled", True)
         ]
 
-    def _get_install_commands(self, content_type: str) -> List[str]:
+    def _get_install_commands(self, content_type: str) -> list[str]:
         """Get installation commands for content type."""
         commands = []
 
@@ -203,7 +203,7 @@ class RecommendationEngine(RoutingComponent):
 
         return commands
 
-    def _get_unsuitable_models(self, content_type: str) -> List[str]:
+    def _get_unsuitable_models(self, content_type: str) -> list[str]:
         """Get list of models unsuitable for content type."""
         # Simplified version - would check model characteristics in full implementation
         code_focused_models = ["codellama", "deepseek-coder", "code-llama"]
@@ -211,7 +211,7 @@ class RecommendationEngine(RoutingComponent):
 
         return [name for name in code_focused_models if name in all_models]
 
-    def _get_system_state(self) -> Dict[str, Any]:
+    def _get_system_state(self) -> dict[str, Any]:
         """Get current system state summary."""
         all_models = self.model_manager.list_model_configs()
         enabled_models = [
@@ -222,7 +222,7 @@ class RecommendationEngine(RoutingComponent):
             "total_models": len(all_models),
             "enabled_models": len(enabled_models),
             "available_adapters": getattr(
-                self.model_manager, "get_available_adapters", lambda: []
+                self.model_manager, "get_available_adapters", list
             )(),
             "default_adapter": getattr(self.model_manager, "default_adapter", "mock"),
         }

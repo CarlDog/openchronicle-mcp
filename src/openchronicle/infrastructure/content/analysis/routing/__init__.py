@@ -8,8 +8,9 @@ Purpose: Routing component initialization
 Part of: Phase 5A - Content Analysis Enhancement
 """
 
-from .model_selector import ModelSelector
 from .content_router import ContentRouter
+from .model_selector import ModelSelector
 from .recommendation_engine import RecommendationEngine
 
-__all__ = ["ModelSelector", "ContentRouter", "RecommendationEngine"]
+
+__all__ = ["ContentRouter", "ModelSelector", "RecommendationEngine"]

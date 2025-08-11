@@ -9,16 +9,17 @@ Provides comprehensive dashboard for monitoring:
 - Cache optimization insights
 """
 
-import json
-import time
 import asyncio
-from typing import Dict, List, Any, Optional, Tuple
-from datetime import datetime, UTC, timedelta
-from dataclasses import dataclass, asdict
+import json
 import logging
-from pathlib import Path
+from dataclasses import asdict
+from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
 
-from .distributed_cache import DistributedMultiTierCache, DistributedCacheMetrics
+from .distributed_cache import DistributedMultiTierCache
 
 
 @dataclass
@@ -51,10 +52,10 @@ class MetricsCollector:
 
     def __init__(self, max_history_hours: int = 24):
         self.max_history_hours = max_history_hours
-        self.metrics_history: List[Dict[str, Any]] = []
+        self.metrics_history: list[dict[str, Any]] = []
         self.logger = logging.getLogger("openchronicle.cache.collector")
 
-    def add_metrics_snapshot(self, metrics: Dict[str, Any]):
+    def add_metrics_snapshot(self, metrics: dict[str, Any]):
         """Add a metrics snapshot to history."""
         snapshot = {"timestamp": datetime.now(UTC).isoformat(), "metrics": metrics}
 
@@ -71,7 +72,7 @@ class MetricsCollector:
 
     def get_time_series(
         self, metric_path: str, hours: int = 1
-    ) -> List[Tuple[datetime, float]]:
+    ) -> list[tuple[datetime, float]]:
         """Get time series data for a specific metric."""
         cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
@@ -90,7 +91,7 @@ class MetricsCollector:
 
         return sorted(series, key=lambda x: x[0])
 
-    def _get_nested_value(self, data: Dict[str, Any], path: str) -> Optional[float]:
+    def _get_nested_value(self, data: dict[str, Any], path: str) -> float | None:
         """Get nested value from metrics using dot notation."""
         try:
             current = data
@@ -100,7 +101,7 @@ class MetricsCollector:
         except (KeyError, TypeError, ValueError):
             return None
 
-    def get_aggregated_metrics(self, hours: int = 1) -> Dict[str, float]:
+    def get_aggregated_metrics(self, hours: int = 1) -> dict[str, float]:
         """Get aggregated metrics over time period."""
         cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
@@ -165,8 +166,8 @@ class AlertManager:
     """Manages performance alerts and notifications."""
 
     def __init__(self):
-        self.alert_rules: List[AlertRule] = []
-        self.active_alerts: List[PerformanceAlert] = []
+        self.alert_rules: list[AlertRule] = []
+        self.active_alerts: list[PerformanceAlert] = []
         self.logger = logging.getLogger("openchronicle.cache.alerts")
 
         # Default alert rules
@@ -212,7 +213,7 @@ class AlertManager:
             ),
         ]
 
-    def check_alerts(self, metrics: Dict[str, Any]) -> List[PerformanceAlert]:
+    def check_alerts(self, metrics: dict[str, Any]) -> list[PerformanceAlert]:
         """Check metrics against alert rules."""
         new_alerts = []
 
@@ -237,19 +238,15 @@ class AlertManager:
         return new_alerts
 
     def _check_single_rule(
-        self, rule: AlertRule, metrics: Dict[str, Any]
-    ) -> Optional[PerformanceAlert]:
+        self, rule: AlertRule, metrics: dict[str, Any]
+    ) -> PerformanceAlert | None:
         """Check a single alert rule."""
         value = self._get_metric_value(metrics, rule.metric_path)
         if value is None:
             return None
 
         triggered = False
-        if rule.comparison == "lt" and value < rule.threshold:
-            triggered = True
-        elif rule.comparison == "gt" and value > rule.threshold:
-            triggered = True
-        elif rule.comparison == "eq" and abs(value - rule.threshold) < 0.001:
+        if (rule.comparison == "lt" and value < rule.threshold) or (rule.comparison == "gt" and value > rule.threshold) or (rule.comparison == "eq" and abs(value - rule.threshold) < 0.001):
             triggered = True
 
         if triggered:
@@ -265,8 +262,8 @@ class AlertManager:
         return None
 
     def _check_wildcard_rule(
-        self, rule: AlertRule, metrics: Dict[str, Any]
-    ) -> List[PerformanceAlert]:
+        self, rule: AlertRule, metrics: dict[str, Any]
+    ) -> list[PerformanceAlert]:
         """Check rule with wildcard metric path."""
         alerts = []
 
@@ -279,9 +276,7 @@ class AlertManager:
                 value = node_metrics.get(suffix)
                 if value is not None:
                     triggered = False
-                    if rule.comparison == "lt" and value < rule.threshold:
-                        triggered = True
-                    elif rule.comparison == "gt" and value > rule.threshold:
+                    if (rule.comparison == "lt" and value < rule.threshold) or (rule.comparison == "gt" and value > rule.threshold):
                         triggered = True
 
                     if triggered:
@@ -297,7 +292,7 @@ class AlertManager:
 
         return alerts
 
-    def _get_metric_value(self, metrics: Dict[str, Any], path: str) -> Optional[float]:
+    def _get_metric_value(self, metrics: dict[str, Any], path: str) -> float | None:
         """Get metric value using dot notation."""
         try:
             current = metrics
@@ -313,8 +308,8 @@ class AlertManager:
             self.active_alerts[alert_id].resolved = True
 
     def get_active_alerts(
-        self, severity: Optional[str] = None
-    ) -> List[PerformanceAlert]:
+        self, severity: str | None = None
+    ) -> list[PerformanceAlert]:
         """Get active alerts, optionally filtered by severity."""
         alerts = [a for a in self.active_alerts if not a.resolved]
 
@@ -338,8 +333,8 @@ class PerformanceRecommendationEngine:
         self.logger = logging.getLogger("openchronicle.cache.recommendations")
 
     def analyze_performance(
-        self, current_metrics: Dict[str, Any], historical_data: MetricsCollector
-    ) -> List[Dict[str, str]]:
+        self, current_metrics: dict[str, Any], historical_data: MetricsCollector
+    ) -> list[dict[str, str]]:
         """Analyze performance and generate recommendations."""
         recommendations = []
 
@@ -489,16 +484,16 @@ class CacheAnalyticsDashboard:
                 self.logger.error(f"Monitoring loop error: {e}")
                 await asyncio.sleep(interval_seconds)
 
-    def get_dashboard_data(self) -> Dict[str, Any]:
+    def get_dashboard_data(self) -> dict[str, Any]:
         """Get current dashboard data."""
         return self._dashboard_data.copy()
 
-    def get_time_series_data(self, metric: str, hours: int = 1) -> List[Dict[str, Any]]:
+    def get_time_series_data(self, metric: str, hours: int = 1) -> list[dict[str, Any]]:
         """Get time series data for charts."""
         series = self.metrics_collector.get_time_series(metric, hours)
         return [{"timestamp": ts.isoformat(), "value": value} for ts, value in series]
 
-    def get_cluster_overview(self) -> Dict[str, Any]:
+    def get_cluster_overview(self) -> dict[str, Any]:
         """Get cluster overview with health status."""
         current_metrics = self._dashboard_data.get("current_metrics", {})
         cluster_nodes = current_metrics.get("cluster_nodes", {})
@@ -563,7 +558,7 @@ class CacheAnalyticsDashboard:
 
         self.logger.info(f"Metrics exported to {filepath}")
 
-    async def generate_performance_report(self) -> Dict[str, Any]:
+    async def generate_performance_report(self) -> dict[str, Any]:
         """Generate comprehensive performance report."""
         current_metrics = await self.cache.get_distributed_metrics()
 

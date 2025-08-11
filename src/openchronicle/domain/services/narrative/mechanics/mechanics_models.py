@@ -7,9 +7,10 @@ Extracted from NarrativeDiceEngine for modular architecture.
 Author: OpenChronicle Development Team
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
+from typing import Any
 
 
 class DiceType(Enum):
@@ -72,7 +73,7 @@ class DiceRoll:
     """Individual dice roll data."""
 
     dice_type: DiceType
-    rolls: List[int] = field(default_factory=list)
+    rolls: list[int] = field(default_factory=list)
     modifier: int = 0
     advantage: bool = False
     disadvantage: bool = False
@@ -96,18 +97,18 @@ class ResolutionResult:
     # Character and context
     character_id: str = ""
     character_skill: int = 0
-    situation_modifiers: Dict[str, int] = field(default_factory=dict)
+    situation_modifiers: dict[str, int] = field(default_factory=dict)
 
     # Narrative impact
     narrative_impact: str = ""
-    consequences: List[str] = field(default_factory=list)
-    benefits: List[str] = field(default_factory=list)
+    consequences: list[str] = field(default_factory=list)
+    benefits: list[str] = field(default_factory=list)
 
     # Metadata
     timestamp: str = ""
-    scene_context: Dict[str, Any] = field(default_factory=dict)
+    scene_context: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary for serialization."""
         return {
             "resolution_type": self.resolution_type.value,
@@ -133,7 +134,7 @@ class ResolutionResult:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "ResolutionResult":
+    def from_dict(cls, data: dict) -> "ResolutionResult":
         """Create from dictionary."""
         dice_data = data.get("dice_roll", {})
         dice_roll = DiceRoll(
@@ -173,7 +174,7 @@ class ResolutionConfig:
     critical_success_threshold: int = 20
     critical_failure_threshold: int = 1
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
             "base_difficulty": self.base_difficulty,
@@ -185,7 +186,7 @@ class ResolutionConfig:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict) -> "ResolutionConfig":
+    def from_dict(cls, data: dict) -> "ResolutionConfig":
         """Create from dictionary."""
         return cls(
             base_difficulty=data.get("base_difficulty", 15),
@@ -206,17 +207,17 @@ class NarrativeBranch:
     probability: float = 1.0  # Likelihood of this branch occurring
 
     # Branch effects
-    stat_changes: Dict[str, int] = field(default_factory=dict)
-    scene_transitions: List[str] = field(default_factory=list)
-    character_consequences: List[str] = field(default_factory=list)
-    world_state_changes: Dict[str, Any] = field(default_factory=dict)
+    stat_changes: dict[str, int] = field(default_factory=dict)
+    scene_transitions: list[str] = field(default_factory=list)
+    character_consequences: list[str] = field(default_factory=list)
+    world_state_changes: dict[str, Any] = field(default_factory=dict)
 
     # Branch conditions
-    required_outcome: Optional[OutcomeType] = None
-    required_skills: Dict[str, int] = field(default_factory=dict)
-    required_items: List[str] = field(default_factory=list)
+    required_outcome: OutcomeType | None = None
+    required_skills: dict[str, int] = field(default_factory=dict)
+    required_items: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict:
+    def to_dict(self) -> dict:
         """Convert to dictionary."""
         return {
             "branch_id": self.branch_id,
@@ -241,14 +242,14 @@ class MechanicsRequest:
     operation_type: str  # "resolve_action", "create_branches", "simulate", etc.
     resolution_type: ResolutionType
     character_id: str = ""
-    difficulty: Optional[DifficultyLevel] = None
-    modifiers: Dict[str, int] = field(default_factory=dict)
-    context: Dict[str, Any] = field(default_factory=dict)
+    difficulty: DifficultyLevel | None = None
+    modifiers: dict[str, int] = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
     # Optional parameters
     advantage: bool = False
     disadvantage: bool = False
-    custom_config: Optional[ResolutionConfig] = None
+    custom_config: ResolutionConfig | None = None
 
 
 @dataclass
@@ -256,14 +257,14 @@ class MechanicsResult:
     """Result of mechanics operation."""
 
     request: MechanicsRequest
-    resolution_result: Optional[ResolutionResult] = None
-    narrative_branches: List[NarrativeBranch] = field(default_factory=list)
+    resolution_result: ResolutionResult | None = None
+    narrative_branches: list[NarrativeBranch] = field(default_factory=list)
     success: bool = True
     error_message: str = ""
 
     # Additional results
-    performance_data: Dict[str, Any] = field(default_factory=dict)
-    recommendations: List[str] = field(default_factory=list)
+    performance_data: dict[str, Any] = field(default_factory=dict)
+    recommendations: list[str] = field(default_factory=list)
     narrative_prompt: str = ""
 
 
@@ -279,11 +280,11 @@ class CharacterPerformance:
     critical_failures: int = 0
 
     # Skill tracking
-    skill_usage: Dict[str, int] = field(default_factory=dict)
-    skill_successes: Dict[str, int] = field(default_factory=dict)
+    skill_usage: dict[str, int] = field(default_factory=dict)
+    skill_successes: dict[str, int] = field(default_factory=dict)
 
     # Recent performance
-    recent_rolls: List[ResolutionResult] = field(default_factory=list)
+    recent_rolls: list[ResolutionResult] = field(default_factory=list)
     average_roll: float = 0.0
 
     def calculate_success_rate(self) -> float:

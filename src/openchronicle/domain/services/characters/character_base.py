@@ -5,13 +5,14 @@ Provides base classes and interfaces for the character management system.
 These classes establish common patterns used across all character components.
 """
 
-import json
 import logging
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, asdict, field
-from typing import Dict, List, Optional, Any, Union, Set, Tuple
+from abc import ABC
+from abc import abstractmethod
+from dataclasses import asdict
 from datetime import datetime
 from enum import Enum
+from typing import Any
+
 
 # Setup logging
 logger = logging.getLogger(__name__)
@@ -25,10 +26,10 @@ class CharacterEngineBase(ABC):
     and component lifecycle that all character engines should follow.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize character engine component."""
         self.config = config or {}
-        self.character_data: Dict[str, Any] = {}
+        self.character_data: dict[str, Any] = {}
         self._setup_logging()
         self._validate_config()
 
@@ -38,29 +39,24 @@ class CharacterEngineBase(ABC):
 
     def _validate_config(self) -> None:
         """Validate component configuration. Override in subclasses."""
-        pass
 
     @abstractmethod
     def initialize_character(self, character_id: str, **kwargs) -> Any:
         """Initialize character data for this component."""
-        pass
 
     @abstractmethod
-    def get_character_data(self, character_id: str) -> Optional[Any]:
+    def get_character_data(self, character_id: str) -> Any | None:
         """Retrieve character data for this component."""
-        pass
 
     @abstractmethod
-    def export_character_data(self, character_id: str) -> Dict[str, Any]:
+    def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export character data for serialization."""
-        pass
 
     @abstractmethod
-    def import_character_data(self, character_data: Dict[str, Any]) -> None:
+    def import_character_data(self, character_data: dict[str, Any]) -> None:
         """Import character data from serialization."""
-        pass
 
-    def get_component_stats(self) -> Dict[str, Any]:
+    def get_component_stats(self) -> dict[str, Any]:
         """Get component statistics and status."""
         return {
             "component_name": self.__class__.__name__,
@@ -86,7 +82,7 @@ class CharacterDataMixin:
     to ensure consistent serialization behavior.
     """
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         data = asdict(self)
 
@@ -105,7 +101,7 @@ class CharacterDataMixin:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CharacterDataMixin":
+    def from_dict(cls, data: dict[str, Any]) -> "CharacterDataMixin":
         """Create instance from dictionary."""
         # This is a base implementation - subclasses should override
         # to handle their specific field types properly
@@ -121,8 +117,8 @@ class CharacterEventHandler:
     """
 
     def __init__(self):
-        self.event_handlers: Dict[str, List[callable]] = {}
-        self.event_history: List[Dict[str, Any]] = []
+        self.event_handlers: dict[str, list[callable]] = {}
+        self.event_history: list[dict[str, Any]] = []
         self.max_history_size = 1000
 
     def subscribe_to_event(self, event_type: str, handler: callable) -> None:
@@ -141,7 +137,7 @@ class CharacterEventHandler:
             return True
         return False
 
-    def emit_event(self, event_type: str, event_data: Dict[str, Any]) -> None:
+    def emit_event(self, event_type: str, event_data: dict[str, Any]) -> None:
         """Emit character event to all subscribers."""
         # Add to history
         event_record = {
@@ -166,8 +162,8 @@ class CharacterEventHandler:
                     logger.error(f"Error in event handler for {event_type}: {e}")
 
     def get_event_history(
-        self, event_type: Optional[str] = None, character_id: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, event_type: str | None = None, character_id: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get filtered event history."""
         history = self.event_history
 
@@ -189,16 +185,14 @@ class CharacterStateProvider(ABC):
     """Interface for components that provide character state information."""
 
     @abstractmethod
-    def get_character_state(self, character_id: str) -> Dict[str, Any]:
+    def get_character_state(self, character_id: str) -> dict[str, Any]:
         """Get current character state."""
-        pass
 
     @abstractmethod
     def update_character_state(
-        self, character_id: str, state_updates: Dict[str, Any]
+        self, character_id: str, state_updates: dict[str, Any]
     ) -> bool:
         """Update character state."""
-        pass
 
 
 class CharacterBehaviorProvider(ABC):
@@ -207,16 +201,14 @@ class CharacterBehaviorProvider(ABC):
     @abstractmethod
     def get_behavior_context(
         self, character_id: str, situation_type: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get behavior context for character in given situation."""
-        pass
 
     @abstractmethod
     def generate_response_modifiers(
         self, character_id: str, content_type: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get response modifiers for character content generation."""
-        pass
 
 
 class CharacterValidationProvider(ABC):
@@ -224,12 +216,10 @@ class CharacterValidationProvider(ABC):
 
     @abstractmethod
     def validate_character_action(
-        self, character_id: str, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, character_id: str, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate if action is consistent with character."""
-        pass
 
     @abstractmethod
     def get_consistency_score(self, character_id: str) -> float:
         """Get character consistency score (0.0 to 1.0)."""
-        pass

@@ -14,12 +14,13 @@ All providers follow the same interface defined by BaseAPIAdapter,
 ensuring consistency and maintainability across the entire system.
 """
 
-from .openai_adapter import OpenAIAdapter
 from .anthropic_adapter import AnthropicAdapter
 from .ollama_adapter import OllamaAdapter
+from .openai_adapter import OpenAIAdapter
+
 
 __all__ = [
-    "OpenAIAdapter",
     "AnthropicAdapter",
     "OllamaAdapter",
+    "OpenAIAdapter",
 ]

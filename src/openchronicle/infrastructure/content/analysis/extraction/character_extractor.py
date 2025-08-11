@@ -9,17 +9,16 @@ Extracted from: core/content_analyzer.py (lines 1203-1268)
 
 import json
 import re
-from typing import Dict, List, Any
+from typing import Any
 
-from ..shared.interfaces import ExtractionComponent
+from src.openchronicle.shared.logging_system import log_error
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import (
-    log_info,
-    log_warning,
-    log_error,
-    log_model_interaction,
-)
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_model_interaction
+from src.openchronicle.shared.logging_system import log_warning
+
+from ..shared.interfaces import ExtractionComponent
 
 
 class CharacterExtractor(ExtractionComponent):
@@ -28,7 +27,7 @@ class CharacterExtractor(ExtractionComponent):
     def __init__(self, model_manager):
         super().__init__(model_manager)
 
-    async def extract_data(self, content: str) -> Dict[str, Any]:
+    async def extract_data(self, content: str) -> dict[str, Any]:
         """Extract character information from raw text content."""
         log_info(f"Extracting character data from content ({len(content)} chars)")
 
@@ -91,21 +90,20 @@ Return empty object {{}} if no clear character information found."""
                 if json_match:
                     result = json.loads(json_match.group())
                     return result
-                else:
-                    log_error("No valid JSON found in character extraction response")
-                    return {}
+                log_error("No valid JSON found in character extraction response")
+                return {}
 
         except Exception as e:
             log_error(f"Character extraction failed: {e}")
             return {}
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process content and extract character data."""
         return await self.extract_data(content)
 
     async def extract_characters(
         self, content: str, content_name: str
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Extract characters from content for import analysis.
 
@@ -125,12 +123,10 @@ Return empty object {{}} if no clear character information found."""
                 # Check if it's a single character object or empty
                 if "name" in character_data:
                     return [character_data]
-                else:
-                    return []
-            elif isinstance(character_data, list):
-                return character_data
-            else:
                 return []
+            if isinstance(character_data, list):
+                return character_data
+            return []
 
         except Exception as e:
             log_error(f"Error extracting characters from {content_name}: {e}")

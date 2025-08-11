@@ -8,8 +8,9 @@ Purpose: Detection component initialization
 Part of: Phase 5A - Content Analysis Enhancement
 """
 
+from .content_classifier import ContentClassifier
 from .keyword_detector import KeywordDetector
 from .transformer_analyzer import TransformerAnalyzer
-from .content_classifier import ContentClassifier
 
-__all__ = ["KeywordDetector", "TransformerAnalyzer", "ContentClassifier"]
+
+__all__ = ["ContentClassifier", "KeywordDetector", "TransformerAnalyzer"]

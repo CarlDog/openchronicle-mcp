@@ -4,10 +4,10 @@ Core database operations.
 Handles basic CRUD operations, database initialization, and statistics.
 """
 
-import sqlite3
 import os
-from typing import Optional, List, Dict, Any
-from datetime import datetime, UTC
+import sqlite3
+from datetime import UTC
+from datetime import datetime
 
 from .connection import ConnectionManager
 from .shared import DatabaseStats
@@ -19,7 +19,7 @@ class DatabaseOperations:
     def __init__(self, connection_manager: ConnectionManager):
         self.connection_manager = connection_manager
 
-    def init_database(self, story_id: str, is_test: Optional[bool] = None) -> bool:
+    def init_database(self, story_id: str, is_test: bool | None = None) -> bool:
         """Initialize the database with required tables."""
         try:
             with self.connection_manager.get_connection(story_id, is_test) as conn:
@@ -160,9 +160,9 @@ class DatabaseOperations:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
-    ) -> List[sqlite3.Row]:
+        params: tuple | None = None,
+        is_test: bool | None = None,
+    ) -> list[sqlite3.Row]:
         """Execute SELECT query and return results."""
         try:
             with self.connection_manager.get_connection(story_id, is_test) as conn:
@@ -180,8 +180,8 @@ class DatabaseOperations:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
+        params: tuple | None = None,
+        is_test: bool | None = None,
     ) -> int:
         """Execute UPDATE/DELETE query and return affected rows."""
         try:
@@ -201,8 +201,8 @@ class DatabaseOperations:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
+        params: tuple | None = None,
+        is_test: bool | None = None,
     ) -> int:
         """Execute INSERT query and return last row ID."""
         try:
@@ -219,7 +219,7 @@ class DatabaseOperations:
             return 0
 
     def get_database_stats(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> DatabaseStats:
         """Get comprehensive database statistics."""
         stats = DatabaseStats()

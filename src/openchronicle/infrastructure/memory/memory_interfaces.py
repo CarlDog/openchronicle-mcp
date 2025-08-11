@@ -7,10 +7,12 @@ into focused, single-responsibility interfaces.
 Phase 2 Week 11-12: Interface Segregation & Architecture Cleanup
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
+from abc import ABC
+from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
+
 
 # === Core Data Structures ===
 
@@ -22,14 +24,14 @@ class MemorySnapshot:
     story_id: str
     scene_id: str
     timestamp: datetime
-    character_memories: Dict[str, Any]
-    world_state: Dict[str, Any]
-    active_flags: List[str]
-    recent_events: List[Dict[str, Any]]
-    metadata: Dict[str, Any]
+    character_memories: dict[str, Any]
+    world_state: dict[str, Any]
+    active_flags: list[str]
+    recent_events: list[dict[str, Any]]
+    metadata: dict[str, Any]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MemorySnapshot":
+    def from_dict(cls, data: dict[str, Any]) -> "MemorySnapshot":
         """Create MemorySnapshot from dictionary data."""
         # Handle timestamp conversion if needed
         timestamp = data.get("timestamp")
@@ -57,16 +59,16 @@ class CharacterMemory:
     """Character-specific memory structure."""
 
     character_name: str
-    personality: Dict[str, Any]
-    relationships: Dict[str, Any]
-    experiences: List[Dict[str, Any]]
+    personality: dict[str, Any]
+    relationships: dict[str, Any]
+    experiences: list[dict[str, Any]]
     current_mood: str
-    voice_profile: Dict[str, Any]
+    voice_profile: dict[str, Any]
     last_updated: datetime
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CharacterMemory":
+    def from_dict(cls, data: dict[str, Any]) -> "CharacterMemory":
         """Create CharacterMemory from dictionary data."""
         # Handle timestamp conversion if needed
         last_updated = data.get("last_updated")
@@ -93,11 +95,11 @@ class CharacterMemory:
 class WorldState:
     """Global world state information."""
 
-    locations: Dict[str, Any]
-    time_context: Dict[str, Any]
-    environmental_factors: Dict[str, Any]
-    active_plotlines: List[str]
-    global_flags: List[str]
+    locations: dict[str, Any]
+    time_context: dict[str, Any]
+    environmental_factors: dict[str, Any]
+    active_plotlines: list[str]
+    global_flags: list[str]
     last_updated: datetime
 
 
@@ -106,8 +108,8 @@ class MemoryContext:
     """Context information for memory operations."""
 
     story_id: str
-    scene_id: Optional[str] = None
-    character_focus: Optional[str] = None
+    scene_id: str | None = None
+    character_focus: str | None = None
     context_type: str = "general"
     include_world_state: bool = True
     include_recent_events: bool = True
@@ -125,52 +127,44 @@ class IMemoryPersistence(ABC):
     """
 
     @abstractmethod
-    async def load_current_memory(self, story_id: str) -> Dict[str, Any]:
+    async def load_current_memory(self, story_id: str) -> dict[str, Any]:
         """Load current memory state for story."""
-        pass
 
     @abstractmethod
     async def save_current_memory(
-        self, story_id: str, memory_data: Dict[str, Any]
+        self, story_id: str, memory_data: dict[str, Any]
     ) -> bool:
         """Save current memory state for story."""
-        pass
 
     @abstractmethod
     async def archive_memory_snapshot(
         self, story_id: str, scene_id: str, snapshot: MemorySnapshot
     ) -> bool:
         """Archive memory snapshot for specific scene."""
-        pass
 
     @abstractmethod
     async def restore_memory_from_snapshot(
         self, story_id: str, scene_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Restore memory state from archived snapshot."""
-        pass
 
     @abstractmethod
     async def get_memory_history(
         self, story_id: str, limit: int = 50
-    ) -> List[MemorySnapshot]:
+    ) -> list[MemorySnapshot]:
         """Get memory history for story."""
-        pass
 
     @abstractmethod
     async def delete_memory_data(self, story_id: str) -> bool:
         """Delete all memory data for story."""
-        pass
 
     @abstractmethod
     async def backup_memory_data(self, story_id: str, backup_path: str) -> bool:
         """Backup memory data to specified path."""
-        pass
 
     @abstractmethod
     async def restore_memory_data(self, story_id: str, backup_path: str) -> bool:
         """Restore memory data from backup."""
-        pass
 
 
 class ICharacterMemoryManager(ABC):
@@ -185,33 +179,28 @@ class ICharacterMemoryManager(ABC):
         self, story_id: str, character_name: str
     ) -> CharacterMemory:
         """Get complete character memory."""
-        pass
 
     @abstractmethod
     async def update_character_memory(
-        self, story_id: str, character_name: str, updates: Dict[str, Any]
+        self, story_id: str, character_name: str, updates: dict[str, Any]
     ) -> CharacterMemory:
         """Update character memory with new information."""
-        pass
 
     @abstractmethod
     async def create_character_memory(
-        self, story_id: str, character_name: str, initial_data: Dict[str, Any]
+        self, story_id: str, character_name: str, initial_data: dict[str, Any]
     ) -> CharacterMemory:
         """Create new character memory."""
-        pass
 
     @abstractmethod
     async def delete_character_memory(self, story_id: str, character_name: str) -> bool:
         """Delete character memory."""
-        pass
 
     @abstractmethod
     async def update_character_mood(
         self, story_id: str, character_name: str, new_mood: str, reason: str
     ) -> bool:
         """Update character's current mood."""
-        pass
 
     @abstractmethod
     async def update_character_relationship(
@@ -219,29 +208,25 @@ class ICharacterMemoryManager(ABC):
         story_id: str,
         character_name: str,
         other_character: str,
-        relationship_data: Dict[str, Any],
+        relationship_data: dict[str, Any],
     ) -> bool:
         """Update relationship between characters."""
-        pass
 
     @abstractmethod
     async def add_character_experience(
-        self, story_id: str, character_name: str, experience: Dict[str, Any]
+        self, story_id: str, character_name: str, experience: dict[str, Any]
     ) -> bool:
         """Add new experience to character memory."""
-        pass
 
     @abstractmethod
     def get_character_voice_profile(
         self, story_id: str, character_name: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get character's voice and speech patterns."""
-        pass
 
     @abstractmethod
     def format_character_for_prompt(self, character_memory: CharacterMemory) -> str:
         """Format character memory for AI prompt inclusion."""
-        pass
 
 
 class IWorldStateManager(ABC):
@@ -254,64 +239,54 @@ class IWorldStateManager(ABC):
     @abstractmethod
     async def get_world_state(self, story_id: str) -> WorldState:
         """Get current world state."""
-        pass
 
     @abstractmethod
     async def update_world_state(
-        self, story_id: str, updates: Dict[str, Any]
+        self, story_id: str, updates: dict[str, Any]
     ) -> WorldState:
         """Update world state with new information."""
-        pass
 
     @abstractmethod
     async def add_location(
-        self, story_id: str, location_name: str, location_data: Dict[str, Any]
+        self, story_id: str, location_name: str, location_data: dict[str, Any]
     ) -> bool:
         """Add new location to world state."""
-        pass
 
     @abstractmethod
     async def update_location(
-        self, story_id: str, location_name: str, updates: Dict[str, Any]
+        self, story_id: str, location_name: str, updates: dict[str, Any]
     ) -> bool:
         """Update existing location."""
-        pass
 
     @abstractmethod
     async def get_location_info(
         self, story_id: str, location_name: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get information about specific location."""
-        pass
 
     @abstractmethod
     async def update_time_context(
-        self, story_id: str, time_updates: Dict[str, Any]
+        self, story_id: str, time_updates: dict[str, Any]
     ) -> bool:
         """Update time-related context (day/night, season, etc.)."""
-        pass
 
     @abstractmethod
     async def add_global_flag(
         self, story_id: str, flag_name: str, description: str
     ) -> bool:
         """Add global story flag."""
-        pass
 
     @abstractmethod
     async def remove_global_flag(self, story_id: str, flag_name: str) -> bool:
         """Remove global story flag."""
-        pass
 
     @abstractmethod
     async def has_global_flag(self, story_id: str, flag_name: str) -> bool:
         """Check if global flag exists."""
-        pass
 
     @abstractmethod
     def format_world_state_for_prompt(self, world_state: WorldState) -> str:
         """Format world state for AI prompt inclusion."""
-        pass
 
 
 class IMemoryContextBuilder(ABC):
@@ -326,35 +301,30 @@ class IMemoryContextBuilder(ABC):
         self, story_id: str, context_request: MemoryContext
     ) -> str:
         """Build memory context for scene generation."""
-        pass
 
     @abstractmethod
     async def build_character_context(
         self, story_id: str, character_name: str, context_request: MemoryContext
     ) -> str:
         """Build memory context focused on specific character."""
-        pass
 
     @abstractmethod
     async def build_world_context(
         self, story_id: str, context_request: MemoryContext
     ) -> str:
         """Build memory context focused on world state."""
-        pass
 
     @abstractmethod
     async def build_full_context(
         self, story_id: str, context_request: MemoryContext
     ) -> str:
         """Build comprehensive memory context."""
-        pass
 
     @abstractmethod
     async def get_recent_events(
         self, story_id: str, limit: int = 10, importance_threshold: float = 0.0
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get recent events filtered by importance."""
-        pass
 
     @abstractmethod
     async def add_recent_event(
@@ -365,14 +335,12 @@ class IMemoryContextBuilder(ABC):
         event_type: str = "general",
     ) -> bool:
         """Add new event to recent events."""
-        pass
 
     @abstractmethod
     def prioritize_context_elements(
-        self, elements: List[Dict[str, Any]], max_length: int
-    ) -> List[Dict[str, Any]]:
+        self, elements: list[dict[str, Any]], max_length: int
+    ) -> list[dict[str, Any]]:
         """Prioritize context elements by importance and relevance."""
-        pass
 
 
 class IMemoryFlagManager(ABC):
@@ -391,41 +359,34 @@ class IMemoryFlagManager(ABC):
         flag_type: str = "general",
     ) -> bool:
         """Add memory flag."""
-        pass
 
     @abstractmethod
     async def remove_memory_flag(self, story_id: str, flag_name: str) -> bool:
         """Remove memory flag."""
-        pass
 
     @abstractmethod
     async def has_memory_flag(self, story_id: str, flag_name: str) -> bool:
         """Check if memory flag exists."""
-        pass
 
     @abstractmethod
     async def get_active_flags(
-        self, story_id: str, flag_type: Optional[str] = None
-    ) -> List[str]:
+        self, story_id: str, flag_type: str | None = None
+    ) -> list[str]:
         """Get list of active flags, optionally filtered by type."""
-        pass
 
     @abstractmethod
     async def update_flag_description(
         self, story_id: str, flag_name: str, new_description: str
     ) -> bool:
         """Update flag description."""
-        pass
 
     @abstractmethod
-    async def get_flag_info(self, story_id: str, flag_name: str) -> Dict[str, Any]:
+    async def get_flag_info(self, story_id: str, flag_name: str) -> dict[str, Any]:
         """Get detailed information about specific flag."""
-        pass
 
     @abstractmethod
     async def clear_flags_by_type(self, story_id: str, flag_type: str) -> int:
         """Clear all flags of specific type."""
-        pass
 
 
 # === Composite Interface (Facade Pattern) ===
@@ -443,54 +404,45 @@ class IMemoryOrchestrator(ABC):
     @abstractmethod
     def persistence(self) -> IMemoryPersistence:
         """Access to memory persistence interface."""
-        pass
 
     @property
     @abstractmethod
     def character_manager(self) -> ICharacterMemoryManager:
         """Access to character memory management interface."""
-        pass
 
     @property
     @abstractmethod
     def world_manager(self) -> IWorldStateManager:
         """Access to world state management interface."""
-        pass
 
     @property
     @abstractmethod
     def context_builder(self) -> IMemoryContextBuilder:
         """Access to memory context building interface."""
-        pass
 
     @property
     @abstractmethod
     def flag_manager(self) -> IMemoryFlagManager:
         """Access to memory flag management interface."""
-        pass
 
     # Convenience methods that delegate to appropriate interfaces
     @abstractmethod
-    async def load_current_memory(self, story_id: str) -> Dict[str, Any]:
+    async def load_current_memory(self, story_id: str) -> dict[str, Any]:
         """Convenience method for loading memory."""
-        pass
 
     @abstractmethod
     async def update_character_memory(
-        self, story_id: str, character_name: str, updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, character_name: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
         """Convenience method for character memory updates."""
-        pass
 
     @abstractmethod
     async def build_scene_context(self, story_id: str, scene_id: str) -> str:
         """Convenience method for building scene context."""
-        pass
 
     @abstractmethod
-    async def get_memory_summary(self, story_id: str) -> Dict[str, Any]:
+    async def get_memory_summary(self, story_id: str) -> dict[str, Any]:
         """Get comprehensive memory summary for display."""
-        pass
 
 
 # === Service Discovery Interface ===
@@ -506,37 +458,30 @@ class IMemoryServiceDiscovery(ABC):
     @abstractmethod
     def get_persistence_service(self) -> IMemoryPersistence:
         """Get memory persistence service."""
-        pass
 
     @abstractmethod
     def get_character_manager_service(self) -> ICharacterMemoryManager:
         """Get character memory manager service."""
-        pass
 
     @abstractmethod
     def get_world_manager_service(self) -> IWorldStateManager:
         """Get world state manager service."""
-        pass
 
     @abstractmethod
     def get_context_builder_service(self) -> IMemoryContextBuilder:
         """Get memory context builder service."""
-        pass
 
     @abstractmethod
     def get_flag_manager_service(self) -> IMemoryFlagManager:
         """Get memory flag manager service."""
-        pass
 
     @abstractmethod
     def register_service(self, interface_type: type, implementation: Any) -> None:
         """Register service implementation for interface."""
-        pass
 
     @abstractmethod
     def resolve_service(self, interface_type: type) -> Any:
         """Resolve service implementation for interface."""
-        pass
 
 
 # === Interface Factory ===
@@ -550,42 +495,42 @@ class MemoryInterfaceFactory:
     """
 
     @staticmethod
-    def create_persistence_manager(config: Dict[str, Any]) -> IMemoryPersistence:
+    def create_persistence_manager(config: dict[str, Any]) -> IMemoryPersistence:
         """Create memory persistence implementation."""
         from .persistence import MemoryRepository
 
         return MemoryRepository(config)
 
     @staticmethod
-    def create_character_manager(config: Dict[str, Any]) -> ICharacterMemoryManager:
+    def create_character_manager(config: dict[str, Any]) -> ICharacterMemoryManager:
         """Create character memory manager implementation."""
         from .character import CharacterManager
 
         return CharacterManager(config)
 
     @staticmethod
-    def create_world_manager(config: Dict[str, Any]) -> IWorldStateManager:
+    def create_world_manager(config: dict[str, Any]) -> IWorldStateManager:
         """Create world state manager implementation."""
         from .context import WorldStateManager
 
         return WorldStateManager(config)
 
     @staticmethod
-    def create_context_builder(config: Dict[str, Any]) -> IMemoryContextBuilder:
+    def create_context_builder(config: dict[str, Any]) -> IMemoryContextBuilder:
         """Create memory context builder implementation."""
         from .context import ContextBuilder
 
         return ContextBuilder(config)
 
     @staticmethod
-    def create_flag_manager(config: Dict[str, Any]) -> IMemoryFlagManager:
+    def create_flag_manager(config: dict[str, Any]) -> IMemoryFlagManager:
         """Create memory flag manager implementation."""
         from .flags import MemoryFlagManager
 
         return MemoryFlagManager(config)
 
     @staticmethod
-    def create_orchestrator(config: Dict[str, Any]) -> IMemoryOrchestrator:
+    def create_orchestrator(config: dict[str, Any]) -> IMemoryOrchestrator:
         """Create complete orchestrator with all interfaces."""
         from .segregated_memory_orchestrator import SegregatedMemoryOrchestrator
 

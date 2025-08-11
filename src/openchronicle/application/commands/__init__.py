@@ -19,7 +19,6 @@ from src.openchronicle.domain import StoryStatus
 class Command(ABC):
     """Base class for all commands."""
 
-    pass
 
 
 class CommandResult:
@@ -69,9 +68,9 @@ class UpdateStoryCommand(Command):
     """Command to update an existing story."""
 
     story_id: str
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[StoryStatus] = None
+    title: str | None = None
+    description: str | None = None
+    status: StoryStatus | None = None
     world_state_updates: dict[str, Any] = None
 
     def __post_init__(self):
@@ -102,8 +101,8 @@ class UpdateCharacterCommand(Command):
     """Command to update an existing character."""
 
     character_id: str
-    name: Optional[str] = None
-    description: Optional[str] = None
+    name: str | None = None
+    description: str | None = None
     personality_updates: dict[str, Any] = None
     emotional_updates: dict[str, float] = None
     relationship_updates: dict[str, dict[str, Any]] = None
@@ -123,11 +122,11 @@ class GenerateSceneCommand(Command):
 
     story_id: str
     user_input: str
-    model_preference: Optional[str] = None
+    model_preference: str | None = None
     scene_type: str = "narrative"
     participant_ids: list[str] = None
     location: str = ""
-    context_override: Optional[dict[str, Any]] = None
+    context_override: dict[str, Any] | None = None
 
     def __post_init__(self):
         if self.participant_ids is None:
@@ -147,7 +146,7 @@ class SaveSceneCommand(Command):
     scene_type: str = "narrative"
     participant_ids: list[str] = None
     location: str = ""
-    memory_snapshot: Optional[MemoryState] = None
+    memory_snapshot: MemoryState | None = None
     character_updates: dict[str, dict[str, Any]] = None
 
     def __post_init__(self):
@@ -214,14 +213,14 @@ class DeleteCharacterCommand(Command):
 __all__ = [
     "Command",
     "CommandResult",
-    "CreateStoryCommand",
-    "UpdateStoryCommand",
     "CreateCharacterCommand",
-    "UpdateCharacterCommand",
-    "GenerateSceneCommand",
-    "SaveSceneCommand",
-    "UpdateMemoryCommand",
-    "RollbackStoryCommand",
-    "DeleteStoryCommand",
+    "CreateStoryCommand",
     "DeleteCharacterCommand",
+    "DeleteStoryCommand",
+    "GenerateSceneCommand",
+    "RollbackStoryCommand",
+    "SaveSceneCommand",
+    "UpdateCharacterCommand",
+    "UpdateMemoryCommand",
+    "UpdateStoryCommand",
 ]

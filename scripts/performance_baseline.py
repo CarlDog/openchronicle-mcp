@@ -9,15 +9,16 @@ Usage:
     python scripts/performance_baseline.py
 """
 
-import time
-import sys
 import json
 import subprocess
-from pathlib import Path
-from typing import Dict, Any, List
-import psutil
+import sys
+import time
 import tracemalloc
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import psutil
 
 
 def measure_import_time(module_name: str) -> float:
@@ -31,28 +32,28 @@ def measure_import_time(module_name: str) -> float:
         return -1.0  # Module not available
 
 
-def measure_test_execution_time() -> Dict[str, float]:
+def measure_test_execution_time() -> dict[str, float]:
     """Measure test suite execution times."""
     metrics = {}
-    
+
     # Measure different test categories
     test_commands = [
         ("unit_tests", ["python", "-m", "pytest", "tests/unit/", "-q", "--tb=no"]),
         ("integration_tests", ["python", "-m", "pytest", "tests/integration/", "-q", "--tb=no"]),
         ("all_tests", ["python", "-m", "pytest", "tests/", "-q", "--tb=no"]),
     ]
-    
+
     for test_name, command in test_commands:
         try:
             start_time = time.perf_counter()
             result = subprocess.run(
                 command,
-                capture_output=True,
+                check=False, capture_output=True,
                 text=True,
                 timeout=300  # 5 minute timeout
             )
             end_time = time.perf_counter()
-            
+
             metrics[test_name] = {
                 "execution_time": end_time - start_time,
                 "success": result.returncode == 0,
@@ -72,7 +73,7 @@ def measure_test_execution_time() -> Dict[str, float]:
                 "test_count": 0,
                 "error": str(e)
             }
-    
+
     return metrics
 
 
@@ -89,22 +90,21 @@ def _extract_test_count(pytest_output: str) -> int:
     return 0
 
 
-def measure_memory_usage() -> Dict[str, Any]:
+def measure_memory_usage() -> dict[str, Any]:
     """Measure current memory usage patterns."""
     tracemalloc.start()
-    
+
     try:
         # Import main modules to measure memory impact
         sys.path.insert(0, str(Path("src")))
-        import openchronicle
-        
+
         # Get current memory snapshot
         current, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        
+
         # Get system memory info
         memory_info = psutil.virtual_memory()
-        
+
         return {
             "import_memory_current": current,
             "import_memory_peak": peak,
@@ -120,16 +120,16 @@ def measure_memory_usage() -> Dict[str, Any]:
         }
 
 
-def measure_file_system_metrics() -> Dict[str, Any]:
+def measure_file_system_metrics() -> dict[str, Any]:
     """Measure file system related metrics."""
-    project_root = Path(".")
-    
+    project_root = Path()
+
     metrics = {
         "file_counts": {},
         "directory_sizes": {},
         "line_counts": {}
     }
-    
+
     # Count files by type
     file_types = {
         "python_files": "**/*.py",
@@ -137,25 +137,25 @@ def measure_file_system_metrics() -> Dict[str, Any]:
         "config_files": "*.{toml,yaml,yml,json,ini}",
         "doc_files": "**/*.{md,rst,txt}"
     }
-    
+
     for file_type, pattern in file_types.items():
         try:
             files = list(project_root.glob(pattern))
             metrics["file_counts"][file_type] = len(files)
-            
+
             # Calculate total lines for Python files
             if file_type in ["python_files", "test_files"]:
                 total_lines = 0
                 for file_path in files:
                     try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
+                        with open(file_path, encoding='utf-8') as f:
                             total_lines += len(f.readlines())
                     except Exception:
                         pass
                 metrics["line_counts"][file_type] = total_lines
         except Exception as e:
             metrics["file_counts"][file_type] = f"error: {e}"
-    
+
     # Directory sizes
     important_dirs = ["src", "tests", "docs", "core", "utilities"]
     for dir_name in important_dirs:
@@ -166,30 +166,30 @@ def measure_file_system_metrics() -> Dict[str, Any]:
                 metrics["directory_sizes"][dir_name] = size
             except Exception as e:
                 metrics["directory_sizes"][dir_name] = f"error: {e}"
-    
+
     return metrics
 
 
-def measure_quality_tool_performance() -> Dict[str, Any]:
+def measure_quality_tool_performance() -> dict[str, Any]:
     """Measure performance of quality tools."""
     tools = {
         "ruff_check": ["ruff", "check", "src/openchronicle/__init__.py"],
         "black_check": ["black", "--check", "src/openchronicle/__init__.py"],
         "mypy_check": ["mypy", "src/openchronicle/__init__.py"],
     }
-    
+
     metrics = {}
     for tool_name, command in tools.items():
         try:
             start_time = time.perf_counter()
             result = subprocess.run(
                 command,
-                capture_output=True,
+                check=False, capture_output=True,
                 text=True,
                 timeout=30
             )
             end_time = time.perf_counter()
-            
+
             metrics[tool_name] = {
                 "execution_time": end_time - start_time,
                 "success": result.returncode == 0
@@ -200,22 +200,22 @@ def measure_quality_tool_performance() -> Dict[str, Any]:
                 "success": False,
                 "error": str(e)
             }
-    
+
     return metrics
 
 
-def capture_baseline() -> Dict[str, Any]:
+def capture_baseline() -> dict[str, Any]:
     """Capture complete performance baseline."""
     print("🔍 Capturing OpenChronicle Performance Baseline")
     print("=" * 50)
-    
+
     baseline = {
         "timestamp": datetime.now().isoformat(),
         "python_version": sys.version,
         "platform": sys.platform,
         "metrics": {}
     }
-    
+
     # Import timing
     print("📦 Measuring import times...")
     important_imports = [
@@ -224,7 +224,7 @@ def capture_baseline() -> Dict[str, Any]:
         "src.openchronicle.domain",
         "src.openchronicle.infrastructure"
     ]
-    
+
     import_times = {}
     for module in important_imports:
         import_time = measure_import_time(module)
@@ -234,9 +234,9 @@ def capture_baseline() -> Dict[str, Any]:
             print(f"  {status} {module}: {import_time:.4f}s")
         else:
             print(f"  {status} {module}: Not available")
-    
+
     baseline["metrics"]["import_times"] = import_times
-    
+
     # Test execution
     print("\n🧪 Measuring test execution times...")
     test_metrics = measure_test_execution_time()
@@ -245,9 +245,9 @@ def capture_baseline() -> Dict[str, Any]:
         time_str = f"{data['execution_time']:.2f}s"
         count_str = f"({data['test_count']} tests)" if data["test_count"] > 0 else ""
         print(f"  {status} {test_name}: {time_str} {count_str}")
-    
+
     baseline["metrics"]["test_execution"] = test_metrics
-    
+
     # Memory usage
     print("\n💾 Measuring memory usage...")
     memory_metrics = measure_memory_usage()
@@ -258,9 +258,9 @@ def capture_baseline() -> Dict[str, Any]:
         print(f"  ✅ System memory: {memory_metrics['system_memory_percent']:.1f}% used")
     else:
         print(f"  ❌ Memory measurement error: {memory_metrics['error']}")
-    
+
     baseline["metrics"]["memory_usage"] = memory_metrics
-    
+
     # File system
     print("\n📁 Measuring file system metrics...")
     fs_metrics = measure_file_system_metrics()
@@ -269,9 +269,9 @@ def capture_baseline() -> Dict[str, Any]:
             for key, value in data.items():
                 if isinstance(value, int):
                     print(f"  ✅ {key}: {value:,}")
-    
+
     baseline["metrics"]["file_system"] = fs_metrics
-    
+
     # Quality tools
     print("\n🔧 Measuring quality tool performance...")
     quality_metrics = measure_quality_tool_performance()
@@ -279,20 +279,20 @@ def capture_baseline() -> Dict[str, Any]:
         status = "✅" if data["success"] else "❌"
         time_str = f"{data['execution_time']:.4f}s"
         print(f"  {status} {tool_name}: {time_str}")
-    
+
     baseline["metrics"]["quality_tools"] = quality_metrics
-    
+
     return baseline
 
 
-def save_baseline(baseline: Dict[str, Any]) -> None:
+def save_baseline(baseline: dict[str, Any]) -> None:
     """Save baseline to file."""
     output_file = Path("storage/performance_baseline.json")
     output_file.parent.mkdir(exist_ok=True)
-    
+
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(baseline, f, indent=2)
-    
+
     print(f"\n💾 Baseline saved to: {output_file}")
 
 
@@ -301,11 +301,11 @@ def main() -> int:
     try:
         baseline = capture_baseline()
         save_baseline(baseline)
-        
+
         print("\n" + "=" * 50)
         print("🎉 Performance baseline capture complete!")
         print("\nKey Metrics Summary:")
-        
+
         # Show summary
         if "test_execution" in baseline["metrics"]:
             all_tests = baseline["metrics"]["test_execution"].get("all_tests", {})
@@ -313,16 +313,16 @@ def main() -> int:
                 test_time = all_tests["execution_time"]
                 test_count = all_tests["test_count"]
                 print(f"  📊 Total tests: {test_count} in {test_time:.2f}s")
-        
+
         if "file_system" in baseline["metrics"]:
             fs = baseline["metrics"]["file_system"]
             python_files = fs.get("file_counts", {}).get("python_files", 0)
             python_lines = fs.get("line_counts", {}).get("python_files", 0)
             print(f"  📊 Python files: {python_files} files, {python_lines:,} lines")
-        
+
         print("\nUse this baseline to compare performance after migration!")
         return 0
-        
+
     except Exception as e:
         print(f"\n❌ Error capturing baseline: {e}")
         return 1

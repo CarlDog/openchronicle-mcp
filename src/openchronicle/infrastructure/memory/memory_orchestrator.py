@@ -6,14 +6,22 @@ providing a unified interface to replace the monolithic memory_manager.py.
 Maintains 100% backward compatibility while providing enhanced functionality.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Union
 import logging
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
-from .persistence import MemoryRepository, MemorySerializer, SnapshotManager
-from .character import CharacterManager, MoodTracker, VoiceManager
-from .context import ContextBuilder, WorldStateManager, SceneContextManager
-from .shared import MemorySnapshot, CharacterMemory
+from .character import CharacterManager
+from .character import MoodTracker
+from .character import VoiceManager
+from .context import ContextBuilder
+from .context import SceneContextManager
+from .context import WorldStateManager
+from .persistence import MemoryRepository
+from .persistence import MemorySerializer
+from .persistence import SnapshotManager
+from .shared import CharacterMemory
+from .shared import MemorySnapshot
 
 
 class MemoryOrchestrator:
@@ -54,7 +62,7 @@ class MemoryOrchestrator:
 
     # ===== CORE MEMORY OPERATIONS =====
 
-    def load_current_memory(self, story_id: str) -> Dict[str, Any]:
+    def load_current_memory(self, story_id: str) -> dict[str, Any]:
         """
         Load current memory state for a story.
 
@@ -68,7 +76,7 @@ class MemoryOrchestrator:
             # Return default structure for backward compatibility
             return self.repository.create_default_memory_structure()
 
-    def save_current_memory(self, story_id: str, memory_data: Dict[str, Any]) -> bool:
+    def save_current_memory(self, story_id: str, memory_data: dict[str, Any]) -> bool:
         """
         Save current memory state for a story.
 
@@ -108,7 +116,7 @@ class MemoryOrchestrator:
             self.logger.error(f"Error storing memory with key {key}: {e}")
             return False
 
-    async def get_current_state(self) -> Dict[str, Any]:
+    async def get_current_state(self) -> dict[str, Any]:
         """Get current memory state. Expected by integration tests."""
         try:
             # Get session state from in-memory storage
@@ -145,7 +153,7 @@ class MemoryOrchestrator:
             self.logger.error(f"Error getting current state: {e}")
             return {}
 
-    def track_saved_scene(self, scene_id: str, scene_data: Dict[str, Any]):
+    def track_saved_scene(self, scene_id: str, scene_data: dict[str, Any]):
         """Track a saved scene for integration tests."""
         scene_info = {
             "scene_id": scene_id,
@@ -157,7 +165,7 @@ class MemoryOrchestrator:
         self._saved_scenes.append(scene_info)
 
     def archive_memory_snapshot(
-        self, story_id: str, scene_id: str, memory_data: Dict[str, Any]
+        self, story_id: str, scene_id: str, memory_data: dict[str, Any]
     ) -> bool:
         """
         Archive a memory snapshot for a specific scene.
@@ -184,7 +192,7 @@ class MemoryOrchestrator:
 
     def restore_memory_from_snapshot(
         self, story_id: str, scene_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Restore memory from a historical snapshot.
 
@@ -196,8 +204,7 @@ class MemoryOrchestrator:
                 # Save restored memory as current
                 self.repository.save_memory(story_id, memory_snapshot)
                 return memory_snapshot.to_dict()
-            else:
-                raise ValueError(f"No memory snapshot found for scene: {scene_id}")
+            raise ValueError(f"No memory snapshot found for scene: {scene_id}")
         except Exception as e:
             self.logger.error(f"Error restoring snapshot {story_id}/{scene_id}: {e}")
             raise
@@ -205,8 +212,8 @@ class MemoryOrchestrator:
     # ===== CHARACTER MEMORY OPERATIONS =====
 
     def update_character_memory(
-        self, story_id: str, character_name: str, updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, character_name: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Update character memory with new information.
 
@@ -220,9 +227,8 @@ class MemoryOrchestrator:
             if result.success:
                 # Return current memory state
                 return self.load_current_memory(story_id)
-            else:
-                self.logger.error(f"Character update failed: {result.warnings}")
-                return self.load_current_memory(story_id)
+            self.logger.error(f"Character update failed: {result.warnings}")
+            return self.load_current_memory(story_id)
         except Exception as e:
             self.logger.error(
                 f"Error updating character {character_name} for {story_id}: {e}"
@@ -231,7 +237,7 @@ class MemoryOrchestrator:
 
     def get_character_memory_snapshot(
         self, story_id: str, character_name: str, format_for_prompt: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get a snapshot of character memory.
 
@@ -259,7 +265,7 @@ class MemoryOrchestrator:
             )
             return {}
 
-    def format_character_snapshot_for_prompt(self, snapshot: Dict[str, Any]) -> str:
+    def format_character_snapshot_for_prompt(self, snapshot: dict[str, Any]) -> str:
         """
         Format character snapshot for prompt inclusion.
 
@@ -301,7 +307,7 @@ class MemoryOrchestrator:
         new_mood: str,
         reasoning: str = "",
         intensity: float = 1.0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Update character mood with tracking.
 
@@ -326,7 +332,7 @@ class MemoryOrchestrator:
 
     def get_character_memory(
         self, story_id: str, character_name: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get character memory data.
 
@@ -346,8 +352,8 @@ class MemoryOrchestrator:
     # ===== WORLD STATE OPERATIONS =====
 
     def update_world_state(
-        self, story_id: str, updates: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Update world state memory.
 
@@ -368,8 +374,8 @@ class MemoryOrchestrator:
             return self.load_current_memory(story_id)
 
     def add_memory_flag(
-        self, story_id: str, flag_name: str, flag_data: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+        self, story_id: str, flag_name: str, flag_data: dict[str, Any] = None
+    ) -> dict[str, Any]:
         """
         Add a memory flag.
 
@@ -386,7 +392,7 @@ class MemoryOrchestrator:
             )
             return self.load_current_memory(story_id)
 
-    def remove_memory_flag(self, story_id: str, flag_name: str) -> Dict[str, Any]:
+    def remove_memory_flag(self, story_id: str, flag_name: str) -> dict[str, Any]:
         """
         Remove a memory flag by name.
 
@@ -419,8 +425,8 @@ class MemoryOrchestrator:
             return False
 
     def add_recent_event(
-        self, story_id: str, event_description: str, event_data: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+        self, story_id: str, event_description: str, event_data: dict[str, Any] = None
+    ) -> dict[str, Any]:
         """
         Add a recent event to memory.
 
@@ -442,7 +448,7 @@ class MemoryOrchestrator:
     def get_memory_context_for_prompt(
         self,
         story_id: str,
-        primary_characters: List[str] = None,
+        primary_characters: list[str] = None,
         include_full_context: bool = True,
     ) -> str:
         """
@@ -457,8 +463,7 @@ class MemoryOrchestrator:
                 return self.context_builder.build_comprehensive_context(
                     memory, primary_characters
                 )
-            else:
-                return self.context_builder.build_minimal_context(memory)
+            return self.context_builder.build_minimal_context(memory)
         except Exception as e:
             self.logger.error(f"Error getting memory context for {story_id}: {e}")
             return "=== MEMORY CONTEXT ===\n[Error loading memory context]"
@@ -498,7 +503,7 @@ class MemoryOrchestrator:
 
     def refresh_memory_after_rollback(
         self, story_id: str, target_scene_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Refresh memory state after rollback operation.
 
@@ -529,7 +534,7 @@ class MemoryOrchestrator:
 
     # ===== ENHANCED OPERATIONS (NEW CAPABILITIES) =====
 
-    def analyze_memory_health(self, story_id: str) -> Dict[str, Any]:
+    def analyze_memory_health(self, story_id: str) -> dict[str, Any]:
         """
         Analyze memory health and provide recommendations.
 
@@ -569,9 +574,9 @@ class MemoryOrchestrator:
         story_id: str,
         scene_id: str,
         location: str,
-        active_characters: List[str],
+        active_characters: list[str],
         scene_type: str = "dialogue",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create comprehensive scene context.
 
@@ -592,7 +597,7 @@ class MemoryOrchestrator:
             self.logger.error(f"Error creating scene context for {story_id}: {e}")
             return {"error": str(e)}
 
-    def get_component_status(self) -> Dict[str, str]:
+    def get_component_status(self) -> dict[str, str]:
         """
         Get status of all memory management components.
 
@@ -613,7 +618,7 @@ class MemoryOrchestrator:
     # ===== MODEL INTEGRATION METHODS (For Model-Memory Integration) =====
 
     def track_model_operation(
-        self, story_id: str, operation_type: str, model_data: Dict[str, Any]
+        self, story_id: str, operation_type: str, model_data: dict[str, Any]
     ) -> bool:
         """Track model operations in memory context."""
         try:
@@ -631,7 +636,7 @@ class MemoryOrchestrator:
             self.logger.error(f"Error tracking model operation: {e}")
             return False
 
-    def get_model_context(self, story_id: str) -> Dict[str, Any]:
+    def get_model_context(self, story_id: str) -> dict[str, Any]:
         """Get memory context formatted for model operations."""
         try:
             memory = self.repository.load_memory(story_id)
@@ -649,7 +654,7 @@ class MemoryOrchestrator:
             return {}
 
     def update_from_model_response(
-        self, story_id: str, model_response: Dict[str, Any]
+        self, story_id: str, model_response: dict[str, Any]
     ) -> bool:
         """Update memory state based on model response."""
         try:
@@ -673,7 +678,7 @@ class MemoryOrchestrator:
             return False
 
     # Common interface methods for integration compatibility
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict[str, Any]:
         """Get orchestrator status - common interface method."""
         return self.get_component_status()
 
@@ -687,8 +692,8 @@ class MemoryOrchestrator:
             return False
 
     async def process_request_dict(
-        self, request_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, request_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process request with dict format - common interface method."""
         try:
             story_id = request_data.get("story_id")
@@ -699,12 +704,11 @@ class MemoryOrchestrator:
 
             if operation == "get_context":
                 return {"success": True, "context": self.get_model_context(story_id)}
-            elif operation == "get_summary":
+            if operation == "get_summary":
                 return {"success": True, "summary": self.get_memory_summary(story_id)}
-            elif operation == "load_memory":
+            if operation == "load_memory":
                 return {"success": True, "memory": self.load_current_memory(story_id)}
-            else:
-                return {"error": f"Unknown operation: {operation}", "success": False}
+            return {"error": f"Unknown operation: {operation}", "success": False}
 
         except Exception as e:
             return {"error": str(e), "success": False}
@@ -726,18 +730,18 @@ def get_memory_orchestrator() -> MemoryOrchestrator:
 # These functions maintain the exact same interface as the original memory_manager.py
 
 
-def load_current_memory(story_id: str) -> Dict[str, Any]:
+def load_current_memory(story_id: str) -> dict[str, Any]:
     """Load current memory state for a story."""
     return get_memory_orchestrator().load_current_memory(story_id)
 
 
-def save_current_memory(story_id: str, memory_data: Dict[str, Any]) -> bool:
+def save_current_memory(story_id: str, memory_data: dict[str, Any]) -> bool:
     """Save current memory state for a story."""
     return get_memory_orchestrator().save_current_memory(story_id, memory_data)
 
 
 def archive_memory_snapshot(
-    story_id: str, scene_id: str, memory_data: Dict[str, Any]
+    story_id: str, scene_id: str, memory_data: dict[str, Any]
 ) -> bool:
     """Archive a memory snapshot for a specific scene."""
     return get_memory_orchestrator().archive_memory_snapshot(
@@ -746,8 +750,8 @@ def archive_memory_snapshot(
 
 
 def update_character_memory(
-    story_id: str, character_name: str, updates: Dict[str, Any]
-) -> Dict[str, Any]:
+    story_id: str, character_name: str, updates: dict[str, Any]
+) -> dict[str, Any]:
     """Update character memory with new information."""
     return get_memory_orchestrator().update_character_memory(
         story_id, character_name, updates
@@ -756,21 +760,21 @@ def update_character_memory(
 
 def get_character_memory_snapshot(
     story_id: str, character_name: str, format_for_prompt: bool = True
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Get a snapshot of character memory."""
     return get_memory_orchestrator().get_character_memory_snapshot(
         story_id, character_name, format_for_prompt
     )
 
 
-def format_character_snapshot_for_prompt(snapshot: Dict[str, Any]) -> str:
+def format_character_snapshot_for_prompt(snapshot: dict[str, Any]) -> str:
     """Format character snapshot for prompt inclusion."""
     return get_memory_orchestrator().format_character_snapshot_for_prompt(snapshot)
 
 
 def refresh_memory_after_rollback(
     story_id: str, target_scene_id: str
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Refresh memory state after rollback operation."""
     return get_memory_orchestrator().refresh_memory_after_rollback(
         story_id, target_scene_id
@@ -790,26 +794,26 @@ def update_character_mood(
     new_mood: str,
     reasoning: str = "",
     intensity: float = 1.0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Update character mood with tracking."""
     return get_memory_orchestrator().update_character_mood(
         story_id, character_name, new_mood, reasoning, intensity
     )
 
 
-def update_world_state(story_id: str, updates: Dict[str, Any]) -> Dict[str, Any]:
+def update_world_state(story_id: str, updates: dict[str, Any]) -> dict[str, Any]:
     """Update world state memory."""
     return get_memory_orchestrator().update_world_state(story_id, updates)
 
 
 def add_memory_flag(
-    story_id: str, flag_name: str, flag_data: Dict[str, Any] = None
-) -> Dict[str, Any]:
+    story_id: str, flag_name: str, flag_data: dict[str, Any] = None
+) -> dict[str, Any]:
     """Add a memory flag."""
     return get_memory_orchestrator().add_memory_flag(story_id, flag_name, flag_data)
 
 
-def remove_memory_flag(story_id: str, flag_name: str) -> Dict[str, Any]:
+def remove_memory_flag(story_id: str, flag_name: str) -> dict[str, Any]:
     """Remove a memory flag by name."""
     return get_memory_orchestrator().remove_memory_flag(story_id, flag_name)
 
@@ -820,15 +824,15 @@ def has_memory_flag(story_id: str, flag_name: str) -> bool:
 
 
 def add_recent_event(
-    story_id: str, event_description: str, event_data: Dict[str, Any] = None
-) -> Dict[str, Any]:
+    story_id: str, event_description: str, event_data: dict[str, Any] = None
+) -> dict[str, Any]:
     """Add a recent event to memory."""
     return get_memory_orchestrator().add_recent_event(
         story_id, event_description, event_data
     )
 
 
-def get_character_memory(story_id: str, character_name: str) -> Dict[str, Any]:
+def get_character_memory(story_id: str, character_name: str) -> dict[str, Any]:
     """Get character memory data."""
     return get_memory_orchestrator().get_character_memory(story_id, character_name)
 
@@ -840,7 +844,7 @@ def get_memory_summary(story_id: str) -> str:
 
 def get_memory_context_for_prompt(
     story_id: str,
-    primary_characters: List[str] = None,
+    primary_characters: list[str] = None,
     include_full_context: bool = True,
 ) -> str:
     """Get formatted memory context for LLM prompt injection."""
@@ -849,6 +853,6 @@ def get_memory_context_for_prompt(
     )
 
 
-def restore_memory_from_snapshot(story_id: str, scene_id: str) -> Dict[str, Any]:
+def restore_memory_from_snapshot(story_id: str, scene_id: str) -> dict[str, Any]:
     """Restore memory from a historical snapshot."""
     return get_memory_orchestrator().restore_memory_from_snapshot(story_id, scene_id)

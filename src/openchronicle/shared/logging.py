@@ -9,13 +9,14 @@ import logging
 import logging.config
 import uuid
 from contextvars import ContextVar
-from typing import Optional, Dict, Any
+from typing import Any
+
 
 # Context variable for correlation IDs
-correlation_id: ContextVar[Optional[str]] = ContextVar("correlation_id", default=None)
+correlation_id: ContextVar[str | None] = ContextVar("correlation_id", default=None)
 
 # Standard logging configuration
-LOGGING_CONFIG: Dict[str, Any] = {
+LOGGING_CONFIG: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
@@ -83,7 +84,7 @@ class CorrelationFilter(logging.Filter):
 
 
 def setup_logging(
-    config: Optional[Dict[str, Any]] = None, log_level: str = "INFO"
+    config: dict[str, Any] | None = None, log_level: str = "INFO"
 ) -> None:
     """
     Setup logging configuration for the application.
@@ -145,7 +146,7 @@ def get_logger(name: str) -> logging.Logger:
     return logger
 
 
-def set_correlation_id(correlation_id_value: Optional[str] = None) -> str:
+def set_correlation_id(correlation_id_value: str | None = None) -> str:
     """
     Set a correlation ID for tracking requests across the system.
 
@@ -162,7 +163,7 @@ def set_correlation_id(correlation_id_value: Optional[str] = None) -> str:
     return correlation_id_value
 
 
-def get_correlation_id() -> Optional[str]:
+def get_correlation_id() -> str | None:
     """Get the current correlation ID."""
     return correlation_id.get()
 

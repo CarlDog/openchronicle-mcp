@@ -11,9 +11,9 @@ from collections import deque
 from datetime import datetime
 from datetime import timedelta
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.json_utilities import JSONUtilities
+
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ class EmotionalState:
         emotion: str,
         intensity: float,
         context: str = "",
-        timestamp: Optional[datetime] = None,
+        timestamp: datetime | None = None,
     ):
         self.emotion = emotion
         self.intensity = intensity
@@ -57,7 +57,7 @@ class BehaviorCooldown:
     """Manages cooldown timing for specific behaviors."""
 
     def __init__(
-        self, behavior: str, duration: int, timestamp: Optional[datetime] = None
+        self, behavior: str, duration: int, timestamp: datetime | None = None
     ):
         self.behavior = behavior
         self.duration = duration  # Duration in seconds
@@ -69,7 +69,7 @@ class BehaviorCooldown:
         """Check if behavior is still on cooldown."""
         return datetime.now() < self.end_time
 
-    def get_remaining_cooldown(self) -> Optional[int]:
+    def get_remaining_cooldown(self) -> int | None:
         """Get remaining cooldown time in seconds."""
         if not self.is_on_cooldown():
             return None
@@ -115,7 +115,7 @@ class StabilityTracker:
     provides stability analysis for character emotional consistency.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize stability tracker."""
         self.config = config or {}
         self.json_utils = JSONUtilities()
@@ -202,7 +202,7 @@ class StabilityTracker:
         return True
 
     def trigger_behavior_cooldown(
-        self, character_id: str, behavior: str, duration: Optional[int] = None
+        self, character_id: str, behavior: str, duration: int | None = None
     ) -> dict[str, Any]:
         """
         Trigger cooldown for a specific behavior.
@@ -231,18 +231,17 @@ class StabilityTracker:
                     "remaining_time": existing_cooldown.get_remaining_cooldown(),
                     "total_triggers": existing_cooldown.triggered_count,
                 }
-            else:
-                # Create new cooldown
-                new_cooldown = BehaviorCooldown(behavior, cooldown_duration)
-                cooldowns[behavior] = new_cooldown
+            # Create new cooldown
+            new_cooldown = BehaviorCooldown(behavior, cooldown_duration)
+            cooldowns[behavior] = new_cooldown
 
-                return {
-                    "cooldown_triggered": True,
-                    "behavior": behavior,
-                    "new_cooldown": True,
-                    "duration": cooldown_duration,
-                    "end_time": new_cooldown.end_time.isoformat(),
-                }
+            return {
+                "cooldown_triggered": True,
+                "behavior": behavior,
+                "new_cooldown": True,
+                "duration": cooldown_duration,
+                "end_time": new_cooldown.end_time.isoformat(),
+            }
 
         except Exception as e:
             logger.error(f"Error triggering behavior cooldown: {e}")
@@ -250,7 +249,7 @@ class StabilityTracker:
 
     def get_current_emotional_state(
         self, character_id: str
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Get character's current emotional state.
 
@@ -269,7 +268,7 @@ class StabilityTracker:
         return latest_emotion.to_dict()
 
     def get_emotional_history(
-        self, character_id: str, limit: Optional[int] = None
+        self, character_id: str, limit: int | None = None
     ) -> list[dict[str, Any]]:
         """
         Get character's emotional history.
@@ -608,10 +607,9 @@ class StabilityTracker:
 
         if second_avg > first_avg + 0.1:
             return "improving"
-        elif second_avg < first_avg - 0.1:
+        if second_avg < first_avg - 0.1:
             return "declining"
-        else:
-            return "stable"
+        return "stable"
 
     def _calculate_emotional_volatility(self, emotions: list[EmotionalState]) -> float:
         """Calculate emotional volatility."""
@@ -679,10 +677,9 @@ class StabilityTracker:
 
         if stability_score < 0.3:
             return "high_risk"
-        elif stability_score < 0.6:
+        if stability_score < 0.6:
             return "moderate_risk"
-        else:
-            return "low_risk"
+        return "low_risk"
 
     def get_status(self) -> dict[str, Any]:
         """Get stability tracker status."""

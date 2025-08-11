@@ -5,11 +5,11 @@ Specialized component for managing character voice profiles and speaking pattern
 Handles voice consistency, style analysis, and prompt generation.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Set
 from dataclasses import dataclass
+from typing import Any
 
-from ..shared.memory_models import CharacterMemory, VoiceProfile
+from ..shared.memory_models import CharacterMemory
+from ..shared.memory_models import VoiceProfile
 
 
 @dataclass
@@ -19,7 +19,7 @@ class VoiceAnalysis:
     character_name: str
     speaking_style_consistency: float  # 0.0 to 1.0
     vocabulary_complexity: str
-    dominant_traits: List[str]
+    dominant_traits: list[str]
     speaking_patterns_count: int
     voice_completeness: float  # How complete the voice profile is
 
@@ -136,7 +136,7 @@ class VoiceManager:
 
     def generate_voice_recommendations(
         self, character: CharacterMemory
-    ) -> List[VoiceRecommendation]:
+    ) -> list[VoiceRecommendation]:
         """Generate recommendations for improving voice profile."""
         recommendations = []
 
@@ -272,7 +272,7 @@ class VoiceManager:
         return "\n".join(prompt_parts)
 
     def update_voice_profile(
-        self, character: CharacterMemory, voice_updates: Dict[str, Any]
+        self, character: CharacterMemory, voice_updates: dict[str, Any]
     ) -> bool:
         """Update character voice profile with validation."""
         try:
@@ -323,8 +323,8 @@ class VoiceManager:
             return False
 
     def extract_voice_from_dialogue(
-        self, dialogue_history: List[str]
-    ) -> Dict[str, Any]:
+        self, dialogue_history: list[str]
+    ) -> dict[str, Any]:
         """Extract voice characteristics from dialogue history."""
         if not dialogue_history:
             return {}
@@ -401,7 +401,7 @@ class VoiceManager:
 
         return "moderate"  # Default
 
-    def _extract_dominant_traits(self, voice: VoiceProfile) -> List[str]:
+    def _extract_dominant_traits(self, voice: VoiceProfile) -> list[str]:
         """Extract dominant personality traits."""
         traits = []
 
@@ -424,7 +424,7 @@ class VoiceManager:
         return traits[:3]  # Maximum 3 dominant traits
 
     def _calculate_style_consistency(
-        self, voice: VoiceProfile, dialogue_history: List[str]
+        self, voice: VoiceProfile, dialogue_history: list[str]
     ) -> float:
         """Calculate speaking style consistency."""
         if not voice.speaking_style:
@@ -441,7 +441,7 @@ class VoiceManager:
 
         return base_score
 
-    def _detect_voice_contradictions(self, voice: VoiceProfile) -> List[str]:
+    def _detect_voice_contradictions(self, voice: VoiceProfile) -> list[str]:
         """Detect contradictions in voice profile."""
         contradictions = []
 

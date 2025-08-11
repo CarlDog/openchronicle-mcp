@@ -7,9 +7,10 @@ Extracted from IntelligentResponseEngine for modular architecture.
 Author: OpenChronicle Development Team
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
+from dataclasses import field
 from enum import Enum
+from typing import Any
 
 
 class ResponseStrategy(Enum):
@@ -53,19 +54,19 @@ class ContextAnalysis:
     quality: ContextQuality
     complexity_needs: ResponseComplexity
     content_type: str
-    character_context: Dict[str, Any] = field(default_factory=dict)
-    narrative_context: Dict[str, Any] = field(default_factory=dict)
-    emotional_context: Dict[str, Any] = field(default_factory=dict)
+    character_context: dict[str, Any] = field(default_factory=dict)
+    narrative_context: dict[str, Any] = field(default_factory=dict)
+    emotional_context: dict[str, Any] = field(default_factory=dict)
 
     # Analysis results
     confidence: float = 0.0  # Confidence in analysis (0-1)
-    key_elements: List[str] = field(
+    key_elements: list[str] = field(
         default_factory=list
     )  # Important context elements identified
-    missing_elements: List[str] = field(
+    missing_elements: list[str] = field(
         default_factory=list
     )  # Important elements that are missing
-    recommendations: List[str] = field(default_factory=list)  # Analysis recommendations
+    recommendations: list[str] = field(default_factory=list)  # Analysis recommendations
 
 
 @dataclass
@@ -76,15 +77,15 @@ class ResponsePlan:
     complexity: ResponseComplexity
     content_focus: str
     tone: str = "balanced"
-    style_guides: List[str] = field(default_factory=list)
+    style_guides: list[str] = field(default_factory=list)
 
     # Planning details
     estimated_length: int = 0  # Estimated response length
-    key_points: List[str] = field(default_factory=list)  # Key points to address
-    context_integration: Dict[str, Any] = field(
+    key_points: list[str] = field(default_factory=list)  # Key points to address
+    context_integration: dict[str, Any] = field(
         default_factory=dict
     )  # How to integrate context
-    quality_targets: Dict[str, float] = field(
+    quality_targets: dict[str, float] = field(
         default_factory=dict
     )  # Quality metrics to target
 
@@ -99,9 +100,9 @@ class ResponseEvaluation:
     context_integration_score: float  # How well context was used
 
     # Detailed assessment
-    strengths: List[str] = field(default_factory=list)  # Response strengths
-    weaknesses: List[str] = field(default_factory=list)  # Areas for improvement
-    suggestions: List[str] = field(default_factory=list)  # Improvement suggestions
+    strengths: list[str] = field(default_factory=list)  # Response strengths
+    weaknesses: list[str] = field(default_factory=list)  # Areas for improvement
+    suggestions: list[str] = field(default_factory=list)  # Improvement suggestions
     meets_plan: bool = True  # Whether response met the plan
 
 
@@ -121,10 +122,10 @@ class ResponseMetrics:
 
     # Usage statistics
     responses_generated: int = 0  # Total responses generated
-    strategies_used: Dict[str, int] = field(
+    strategies_used: dict[str, int] = field(
         default_factory=dict
     )  # Strategy usage counts
-    context_types_handled: Dict[str, int] = field(
+    context_types_handled: dict[str, int] = field(
         default_factory=dict
     )  # Context type counts
 
@@ -134,15 +135,15 @@ class ResponseContext:
     """Comprehensive context for response generation."""
 
     user_input: str
-    story_state: Dict[str, Any] = field(default_factory=dict)
-    character_states: Dict[str, Any] = field(default_factory=dict)
-    narrative_history: List[str] = field(default_factory=list)
-    scene_context: Dict[str, Any] = field(default_factory=dict)
+    story_state: dict[str, Any] = field(default_factory=dict)
+    character_states: dict[str, Any] = field(default_factory=dict)
+    narrative_history: list[str] = field(default_factory=list)
+    scene_context: dict[str, Any] = field(default_factory=dict)
 
     # Meta context
-    session_info: Dict[str, Any] = field(default_factory=dict)
-    preferences: Dict[str, Any] = field(default_factory=dict)
-    constraints: List[str] = field(default_factory=list)
+    session_info: dict[str, Any] = field(default_factory=dict)
+    preferences: dict[str, Any] = field(default_factory=dict)
+    constraints: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -150,10 +151,10 @@ class ResponseRequest:
     """Request for intelligent response generation."""
 
     context: ResponseContext
-    preferred_strategy: Optional[ResponseStrategy] = None
-    preferred_complexity: Optional[ResponseComplexity] = None
-    quality_requirements: Dict[str, float] = field(default_factory=dict)
-    custom_instructions: List[str] = field(default_factory=list)
+    preferred_strategy: ResponseStrategy | None = None
+    preferred_complexity: ResponseComplexity | None = None
+    quality_requirements: dict[str, float] = field(default_factory=dict)
+    custom_instructions: list[str] = field(default_factory=list)
 
     # Request metadata
     request_id: str = ""
@@ -175,5 +176,5 @@ class ResponseResult:
     # Result metadata
     success: bool = True
     error_message: str = ""
-    warnings: List[str] = field(default_factory=list)
-    processing_notes: List[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
+    processing_notes: list[str] = field(default_factory=list)

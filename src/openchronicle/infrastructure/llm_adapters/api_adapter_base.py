@@ -21,7 +21,6 @@ from abc import abstractmethod
 from datetime import UTC
 from datetime import datetime
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.logging_system import log_error
 from src.openchronicle.shared.logging_system import log_info
@@ -36,12 +35,13 @@ from .adapter_exceptions import AdapterConnectionError
 # Import exceptions
 from .adapter_exceptions import AdapterInitializationError
 
+
 logger = logging.getLogger(__name__)
 
 
 def get_api_key_with_fallback(
     config: dict[str, Any], provider: str, env_var: str
-) -> Optional[str]:
+) -> str | None:
     """
     Get API key with fallback priority: config > keystore > environment variable
 
@@ -157,21 +157,18 @@ class BaseAPIAdapter(ABC):
     @abstractmethod
     def get_provider_name(self) -> str:
         """Return the provider name (e.g., 'openai', 'anthropic')."""
-        pass
 
     @abstractmethod
     def get_api_key_env_var(self) -> str:
         """Return the environment variable name for the API key."""
-        pass
 
-    def get_default_base_url(self) -> Optional[str]:
+    def get_default_base_url(self) -> str | None:
         """Return default base URL for the provider (can be overridden)."""
         return None
 
     @abstractmethod
     async def _create_client(self) -> Any:
         """Create and return the provider-specific client."""
-        pass
 
     async def get_client(self) -> Any:
         """Get or create the client with lazy initialization."""
@@ -197,7 +194,6 @@ class BaseAPIAdapter(ABC):
         Returns:
             Generated response as string
         """
-        pass
 
     async def generate_with_logging(self, prompt: str, **kwargs) -> str:
         """

@@ -13,10 +13,14 @@ The interface layer is responsible for:
 - External integrations
 """
 
-from .api import app as api_app, run_dev_server as run_api_server
+from .api import app as api_app
+from .api import run_dev_server as run_api_server
 from .cli import cli
-from .web import create_web_app, run_web_server
-from .events import create_event_app, run_event_server
+from .events import create_event_app
+from .events import run_event_server
+from .web import create_web_app
+from .web import run_web_server
+
 
 __all__ = [
     # API interface
@@ -51,8 +55,9 @@ def run_all_servers(
     all interfaces available at once.
     """
     import asyncio
-    import uvicorn
     from multiprocessing import Process
+
+    import uvicorn
 
     def run_api():
         uvicorn.run(
@@ -163,7 +168,8 @@ async def check_all_interfaces():
     Returns a comprehensive health status for the entire
     interface layer.
     """
-    from ..infrastructure import InfrastructureContainer, InfrastructureConfig
+    from ..infrastructure import InfrastructureConfig
+    from ..infrastructure import InfrastructureContainer
 
     health_status = {
         "interface_layer": "healthy",

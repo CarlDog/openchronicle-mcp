@@ -9,17 +9,17 @@ import json
 import logging
 import os
 import shutil
-from pathlib import Path
-from typing import Dict, List, Optional, Any
 from datetime import datetime
+from pathlib import Path
+from typing import Any
 
-from ..shared.image_models import (
-    ImageMetadata,
-    ImageType,
-    ImageGenerationResult,
-    NamingConfig,
-)
-from ..shared.validation_utils import ImageValidator, ImageValidationError
+from ..shared.image_models import ImageGenerationResult
+from ..shared.image_models import ImageMetadata
+from ..shared.image_models import ImageType
+from ..shared.image_models import NamingConfig
+from ..shared.validation_utils import ImageValidationError
+from ..shared.validation_utils import ImageValidator
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class ImageStorageManager:
     """Manages image file storage and metadata"""
 
-    def __init__(self, story_path: str, naming_config: Optional[NamingConfig] = None):
+    def __init__(self, story_path: str, naming_config: NamingConfig | None = None):
         self.story_path = Path(story_path)
         self.images_path = self.story_path / "images"
         self.metadata_file = self.images_path / "images.json"
@@ -48,7 +48,7 @@ class ImageStorageManager:
         self._create_subdirectories()
 
         # Load existing metadata
-        self.metadata: Dict[str, ImageMetadata] = self._load_metadata()
+        self.metadata: dict[str, ImageMetadata] = self._load_metadata()
 
     def _create_subdirectories(self):
         """Create organized subdirectories for different image types"""
@@ -58,14 +58,14 @@ class ImageStorageManager:
             subdir_path = self.images_path / subdir
             subdir_path.mkdir(exist_ok=True)
 
-    def _load_metadata(self) -> Dict[str, ImageMetadata]:
+    def _load_metadata(self) -> dict[str, ImageMetadata]:
         """Load image metadata from JSON file"""
         if not self.metadata_file.exists():
             logger.info("No existing image metadata found, starting fresh")
             return {}
 
         try:
-            with open(self.metadata_file, "r", encoding="utf-8") as f:
+            with open(self.metadata_file, encoding="utf-8") as f:
                 data = json.load(f)
 
             metadata = {}
@@ -105,7 +105,7 @@ class ImageStorageManager:
             raise ImageValidationError(f"Could not save metadata: {e}")
 
     def generate_image_id(
-        self, image_type: ImageType, context: Optional[Dict[str, Any]] = None
+        self, image_type: ImageType, context: dict[str, Any] | None = None
     ) -> str:
         """Generate a unique image ID based on type and context"""
         # Get prefix based on type
@@ -172,7 +172,7 @@ class ImageStorageManager:
         image_id: str,
         image_type: ImageType,
         prompt: str,
-        context: Optional[Dict[str, Any]] = None,
+        context: dict[str, Any] | None = None,
     ) -> ImageMetadata:
         """Store an image and create metadata"""
 
@@ -261,13 +261,13 @@ class ImageStorageManager:
             logger.error(f"Failed to store image {image_id}: {e}")
             raise ImageValidationError(f"Storage failed: {e}")
 
-    def get_image_metadata(self, image_id: str) -> Optional[ImageMetadata]:
+    def get_image_metadata(self, image_id: str) -> ImageMetadata | None:
         """Get metadata for an image"""
         return self.metadata.get(image_id)
 
     def list_images(
-        self, image_type: Optional[ImageType] = None, limit: Optional[int] = None
-    ) -> List[ImageMetadata]:
+        self, image_type: ImageType | None = None, limit: int | None = None
+    ) -> list[ImageMetadata]:
         """List stored images, optionally filtered by type"""
         images = list(self.metadata.values())
 
@@ -307,7 +307,7 @@ class ImageStorageManager:
             logger.error(f"Failed to delete image {image_id}: {e}")
             return False
 
-    def get_storage_stats(self) -> Dict[str, Any]:
+    def get_storage_stats(self) -> dict[str, Any]:
         """Get storage statistics"""
         total_images = len(self.metadata)
         total_cost = sum(img.cost for img in self.metadata.values())

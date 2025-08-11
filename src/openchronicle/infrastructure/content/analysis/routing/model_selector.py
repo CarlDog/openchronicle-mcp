@@ -7,12 +7,14 @@ Part of: Phase 5A - Content Analysis Enhancement
 Extracted from: core/content_analyzer.py (lines 812-880)
 """
 
-from typing import Dict, List, Any
+from typing import Any
 
-from ..shared.interfaces import RoutingComponent
+from src.openchronicle.shared.logging_system import log_system_event
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import log_warning, log_system_event
+from src.openchronicle.shared.logging_system import log_warning
+
+from ..shared.interfaces import RoutingComponent
 
 
 class ModelSelector(RoutingComponent):
@@ -22,8 +24,8 @@ class ModelSelector(RoutingComponent):
         super().__init__(model_manager)
 
     def route_request(
-        self, analysis: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Route content generation request to the best model."""
         recommended_model = self.recommend_generation_model(analysis)
 
@@ -32,12 +34,12 @@ class ModelSelector(RoutingComponent):
             "routing_metadata": self._get_routing_metadata(analysis, recommended_model),
         }
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process routing request and return model selection."""
         analysis = context.get("analysis", {})
         return self.route_request(analysis, context)
 
-    def recommend_generation_model(self, analysis: Dict[str, Any]) -> str:
+    def recommend_generation_model(self, analysis: dict[str, Any]) -> str:
         """Recommend the best model for content generation based on analysis."""
         content_type = analysis.get("content_type", "general")
         content_flags = analysis.get("content_flags", [])
@@ -136,8 +138,8 @@ class ModelSelector(RoutingComponent):
         return recommended
 
     def _get_routing_metadata(
-        self, analysis: Dict[str, Any], selected_model: str
-    ) -> Dict[str, Any]:
+        self, analysis: dict[str, Any], selected_model: str
+    ) -> dict[str, Any]:
         """Get metadata about the routing decision."""
         return {
             "content_type": analysis.get("content_type", "general"),

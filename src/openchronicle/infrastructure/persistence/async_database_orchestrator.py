@@ -5,16 +5,13 @@ This orchestrator provides a unified async interface for all database operations
 improving performance through non-blocking database access.
 """
 
-from typing import Optional, Dict, Any, List
-import aiosqlite
-import os
-from pathlib import Path
+from typing import Any
 
 from .async_connection import AsyncConnectionManager
 from .async_operations import AsyncDatabaseOperations
 from .fts import FTSManager  # Keep sync FTS for now, migrate later
 from .migration import MigrationManager  # Keep sync migrations for now
-from .shared import DatabaseConfig, DatabaseStats
+from .shared import DatabaseConfig
 
 
 class AsyncDatabaseOrchestrator:
@@ -76,7 +73,7 @@ class AsyncDatabaseOrchestrator:
 
     # Async database operations
     async def init_database(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Initialize database with all required tables."""
         return await self.operations.init_database(story_id, is_test)
@@ -85,9 +82,9 @@ class AsyncDatabaseOrchestrator:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
-    ) -> List[Dict[str, Any]]:
+        params: tuple | None = None,
+        is_test: bool | None = None,
+    ) -> list[dict[str, Any]]:
         """Execute SELECT query and return results."""
         return await self.operations.execute_query(story_id, query, params, is_test)
 
@@ -95,8 +92,8 @@ class AsyncDatabaseOrchestrator:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
+        params: tuple | None = None,
+        is_test: bool | None = None,
     ) -> bool:
         """Execute UPDATE/DELETE query."""
         return await self.operations.execute_update(story_id, query, params, is_test)
@@ -105,9 +102,9 @@ class AsyncDatabaseOrchestrator:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
-    ) -> Optional[int]:
+        params: tuple | None = None,
+        is_test: bool | None = None,
+    ) -> int | None:
         """Execute INSERT query and return row ID."""
         return await self.operations.execute_insert(story_id, query, params, is_test)
 
@@ -115,39 +112,39 @@ class AsyncDatabaseOrchestrator:
         self,
         story_id: str,
         query: str,
-        params_list: List[tuple],
-        is_test: Optional[bool] = None,
+        params_list: list[tuple],
+        is_test: bool | None = None,
     ) -> bool:
         """Execute multiple queries in a transaction."""
         return await self.operations.execute_many(story_id, query, params_list, is_test)
 
     # Database management
     async def get_database_info(
-        self, story_id: str, is_test: Optional[bool] = None
-    ) -> Dict[str, Any]:
+        self, story_id: str, is_test: bool | None = None
+    ) -> dict[str, Any]:
         """Get database information and statistics."""
         return await self.operations.get_database_info(story_id, is_test)
 
     async def check_integrity(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Run integrity check on database."""
         return await self.operations.check_integrity(story_id, is_test)
 
     async def optimize_database(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Optimize database performance."""
         return await self.operations.optimize_database(story_id, is_test)
 
     async def check_connection(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Test database connection."""
         return await self.connection_manager.check_connection(story_id, is_test)
 
     # Startup health checks
-    async def startup_health_check(self, story_ids: List[str]) -> Dict[str, bool]:
+    async def startup_health_check(self, story_ids: list[str]) -> dict[str, bool]:
         """Run health checks on multiple databases."""
         results = {}
         for story_id in story_ids:
@@ -187,9 +184,9 @@ def get_async_database_orchestrator() -> AsyncDatabaseOrchestrator:
 async def async_execute_query(
     story_id: str,
     query: str,
-    params: Optional[tuple] = None,
-    is_test: Optional[bool] = None,
-) -> List[Dict[str, Any]]:
+    params: tuple | None = None,
+    is_test: bool | None = None,
+) -> list[dict[str, Any]]:
     """Execute async query - utility function."""
     orchestrator = get_async_database_orchestrator()
     return await orchestrator.execute_query(story_id, query, params, is_test)
@@ -198,8 +195,8 @@ async def async_execute_query(
 async def async_execute_update(
     story_id: str,
     query: str,
-    params: Optional[tuple] = None,
-    is_test: Optional[bool] = None,
+    params: tuple | None = None,
+    is_test: bool | None = None,
 ) -> bool:
     """Execute async update - utility function."""
     orchestrator = get_async_database_orchestrator()
@@ -209,9 +206,9 @@ async def async_execute_update(
 async def async_execute_insert(
     story_id: str,
     query: str,
-    params: Optional[tuple] = None,
-    is_test: Optional[bool] = None,
-) -> Optional[int]:
+    params: tuple | None = None,
+    is_test: bool | None = None,
+) -> int | None:
     """Execute async insert - utility function."""
     orchestrator = get_async_database_orchestrator()
     return await orchestrator.execute_insert(story_id, query, params, is_test)

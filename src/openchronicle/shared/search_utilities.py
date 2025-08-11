@@ -26,16 +26,16 @@ Key Features:
 - Result formatting and snippets
 """
 
-import sqlite3
-import re
-import json
 import logging
-from typing import Dict, List, Optional, Tuple, Any, Union
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
+from typing import Any
 
 # Import shared utilities
 from .database_operations import DatabaseOperations
+
 
 # Logging setup
 logger = logging.getLogger(__name__)
@@ -51,7 +51,7 @@ class SearchOptions:
     include_content: bool = True
     include_snippets: bool = False
     snippet_length: int = 32
-    snippet_markers: Tuple[str, str] = ("<mark>", "</mark>")
+    snippet_markers: tuple[str, str] = ("<mark>", "</mark>")
     case_sensitive: bool = False
     exact_match: bool = False
     use_fts: bool = True
@@ -64,10 +64,10 @@ class SearchResult:
 
     id: str
     score: float = 0.0
-    content: Dict[str, Any] = field(default_factory=dict)
-    snippets: Dict[str, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-    timestamp: Optional[datetime] = None
+    content: dict[str, Any] = field(default_factory=dict)
+    snippets: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime | None = None
     rank: int = 0
 
 
@@ -96,8 +96,8 @@ class QueryProcessor:
 
     @staticmethod
     def build_where_clause(
-        filters: Dict[str, Any], table_prefix: str = ""
-    ) -> Tuple[str, List[Any]]:
+        filters: dict[str, Any], table_prefix: str = ""
+    ) -> tuple[str, list[Any]]:
         """Build WHERE clause from filters dictionary"""
         if not filters:
             return "", []
@@ -136,7 +136,7 @@ class QueryProcessor:
         return f" WHERE {where_clause}" if where_clause else "", params
 
     @staticmethod
-    def build_pagination(limit: int, offset: int = 0) -> Tuple[str, List[int]]:
+    def build_pagination(limit: int, offset: int = 0) -> tuple[str, list[int]]:
         """Build LIMIT/OFFSET clause with validation"""
         # Validate and sanitize pagination parameters
         limit = max(1, min(limit, 10000))  # Between 1 and 10,000
@@ -177,7 +177,7 @@ class FTSQueryBuilder:
 
     @staticmethod
     def build_fts_query(
-        search_terms: str, columns: List[str] = None, boost_exact: bool = True
+        search_terms: str, columns: list[str] = None, boost_exact: bool = True
     ) -> str:
         """Build FTS MATCH query with column targeting and boosting"""
         if not search_terms:
@@ -210,12 +210,12 @@ class FTSQueryBuilder:
     @staticmethod
     def build_snippet_select(
         table_name: str,
-        columns: List[str],
+        columns: list[str],
         start_mark: str = "<mark>",
         end_mark: str = "</mark>",
         ellipsis: str = "...",
         max_tokens: int = 32,
-    ) -> List[str]:
+    ) -> list[str]:
         """Build snippet() function calls for FTS highlighting"""
         snippets = []
 
@@ -273,8 +273,8 @@ class ResultRanker:
 
     @staticmethod
     def rank_results(
-        results: List[SearchResult], sort_by: str = "score", ascending: bool = False
-    ) -> List[SearchResult]:
+        results: list[SearchResult], sort_by: str = "score", ascending: bool = False
+    ) -> list[SearchResult]:
         """Rank and sort search results"""
         if not results:
             return results
@@ -323,10 +323,10 @@ class SearchUtilities:
         story_id: str,
         query: str,
         table: str,
-        columns: List[str] = None,
-        filters: Dict[str, Any] = None,
+        columns: list[str] = None,
+        filters: dict[str, Any] = None,
         options: SearchOptions = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Execute comprehensive search with FTS and filtering"""
         if not options:
             options = SearchOptions()
@@ -339,10 +339,9 @@ class SearchUtilities:
                 return self._execute_fts_search(
                     story_id, query, table, columns, filters, options, db_ops
                 )
-            else:
-                return self._execute_simple_search(
-                    story_id, table, columns, filters, options, db_ops
-                )
+            return self._execute_simple_search(
+                story_id, table, columns, filters, options, db_ops
+            )
         except Exception as e:
             logger.error(f"Search execution failed: {e}")
             return []
@@ -352,11 +351,11 @@ class SearchUtilities:
         story_id: str,
         query: str,
         table: str,
-        columns: List[str],
-        filters: Dict[str, Any],
+        columns: list[str],
+        filters: dict[str, Any],
         options: SearchOptions,
         db_ops: DatabaseOperations,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Execute FTS-based search"""
         fts_table = f"{table}_fts"
 
@@ -427,11 +426,11 @@ class SearchUtilities:
         self,
         story_id: str,
         table: str,
-        columns: List[str],
-        filters: Dict[str, Any],
+        columns: list[str],
+        filters: dict[str, Any],
         options: SearchOptions,
         db_ops: DatabaseOperations,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Execute simple non-FTS search"""
         # Build WHERE clause
         all_filters = (filters or {}).copy()
@@ -470,10 +469,10 @@ class SearchUtilities:
 
     def _convert_rows_to_results(
         self,
-        rows: List[Dict[str, Any]],
+        rows: list[dict[str, Any]],
         options: SearchOptions,
         has_fts_score: bool = False,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Convert database rows to SearchResult objects"""
         results = []
 
@@ -490,7 +489,7 @@ class SearchUtilities:
             for key, value in row.items():
                 if key in ("rowid", "score"):
                     continue
-                elif key.startswith("snippet_"):
+                if key.startswith("snippet_"):
                     # Extract snippet
                     column_name = key.replace("snippet_", "")
                     snippets[column_name] = value
@@ -506,10 +505,9 @@ class SearchUtilities:
                             timestamp = value
                     except (ValueError, TypeError):
                         timestamp = None
-                else:
-                    # Regular content
-                    if options.include_content:
-                        content[key] = value
+                # Regular content
+                elif options.include_content:
+                    content[key] = value
 
             # Calculate enhanced score if needed
             if has_fts_score:
@@ -540,9 +538,9 @@ class SearchUtilities:
         self,
         story_id: str,
         query: str = None,
-        filters: Dict[str, Any] = None,
+        filters: dict[str, Any] = None,
         options: SearchOptions = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Search scenes with full-text capabilities"""
         columns = [
             "scene_id",
@@ -559,9 +557,9 @@ class SearchUtilities:
         self,
         story_id: str,
         query: str = None,
-        filters: Dict[str, Any] = None,
+        filters: dict[str, Any] = None,
         options: SearchOptions = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Search characters with filtering"""
         columns = [
             "character_id",
@@ -578,9 +576,9 @@ class SearchUtilities:
         self,
         story_id: str,
         query: str = None,
-        filters: Dict[str, Any] = None,
+        filters: dict[str, Any] = None,
         options: SearchOptions = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Search bookmarks with metadata"""
         columns = [
             "bookmark_id",
@@ -598,9 +596,9 @@ class SearchUtilities:
         self,
         story_id: str,
         query: str = None,
-        filters: Dict[str, Any] = None,
+        filters: dict[str, Any] = None,
         options: SearchOptions = None,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Search character memories"""
         columns = ["memory_id", "character_id", "content", "importance", "timestamp"]
         return self.execute_search(
@@ -610,10 +608,10 @@ class SearchUtilities:
 
 # Export main classes and functions
 __all__ = [
-    "SearchUtilities",
+    "FTSQueryBuilder",
+    "QueryProcessor",
+    "ResultRanker",
     "SearchOptions",
     "SearchResult",
-    "QueryProcessor",
-    "FTSQueryBuilder",
-    "ResultRanker",
+    "SearchUtilities",
 ]

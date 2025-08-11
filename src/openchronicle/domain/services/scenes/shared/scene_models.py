@@ -7,17 +7,19 @@ Provides standardized data models for scene operations:
 - Scene metadata management
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional
-from datetime import datetime, timezone
 import json
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
 
 @dataclass
 class StructuredTags:
     """Handles structured metadata tags for scenes."""
 
-    def __init__(self, base_tags: Dict[str, Any] = None, token_manager: Any = None):
+    def __init__(self, base_tags: dict[str, Any] = None, token_manager: Any = None):
         """Initialize structured tags with optional token tracking."""
         self.tags = base_tags or {}
         self._add_token_information(token_manager)
@@ -43,9 +45,9 @@ class StructuredTags:
     def _add_scene_metadata(self) -> None:
         """Add basic scene metadata."""
         if "timestamp" not in self.tags:
-            self.tags["timestamp"] = datetime.now(timezone.utc).isoformat()
+            self.tags["timestamp"] = datetime.now(UTC).isoformat()
 
-    def add_character_moods(self, memory_snapshot: Dict[str, Any]) -> None:
+    def add_character_moods(self, memory_snapshot: dict[str, Any]) -> None:
         """Extract and add character mood information."""
         if memory_snapshot and "characters" in memory_snapshot:
             character_moods = {}
@@ -60,7 +62,7 @@ class StructuredTags:
             if character_moods:
                 self.tags["character_moods"] = character_moods
 
-    def add_scene_analysis(self, analysis_data: Dict[str, Any]) -> None:
+    def add_scene_analysis(self, analysis_data: dict[str, Any]) -> None:
         """Add content analysis information."""
         if analysis_data:
             self.tags.update(
@@ -74,7 +76,7 @@ class StructuredTags:
                 }
             )
 
-    def get_tags(self) -> Dict[str, Any]:
+    def get_tags(self) -> dict[str, Any]:
         """Get all structured tags."""
         return self.tags.copy()
 
@@ -91,13 +93,13 @@ class SceneData:
     timestamp: str
     user_input: str
     model_output: str
-    memory_snapshot: Dict[str, Any] = field(default_factory=dict)
-    flags: List[str] = field(default_factory=list)
-    context_refs: List[str] = field(default_factory=list)
-    analysis_data: Optional[Dict[str, Any]] = None
-    scene_label: Optional[str] = None
-    model_name: Optional[str] = None
-    structured_tags: Optional[StructuredTags] = None
+    memory_snapshot: dict[str, Any] = field(default_factory=dict)
+    flags: list[str] = field(default_factory=list)
+    context_refs: list[str] = field(default_factory=list)
+    analysis_data: dict[str, Any] | None = None
+    scene_label: str | None = None
+    model_name: str | None = None
+    structured_tags: StructuredTags | None = None
 
     def __post_init__(self):
         """Post-initialization processing."""
@@ -123,7 +125,7 @@ class SceneData:
         if self.analysis_data:
             self.structured_tags.add_scene_analysis(self.analysis_data)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "scene_id": self.scene_id,
@@ -148,8 +150,8 @@ class Scene:
     timestamp: str
     input: str
     output: str
-    scene_label: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    scene_label: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_scene_data(cls, scene_data: SceneData) -> "Scene":
@@ -172,13 +174,13 @@ class Scene:
 class SceneFilter:
     """Filter criteria for scene queries."""
 
-    mood: Optional[str] = None
-    scene_type: Optional[str] = None
-    scene_label: Optional[str] = None
-    character_name: Optional[str] = None
-    date_range: Optional[tuple] = None
-    token_range: Optional[tuple] = None
-    has_analysis: Optional[bool] = None
+    mood: str | None = None
+    scene_type: str | None = None
+    scene_label: str | None = None
+    character_name: str | None = None
+    date_range: tuple | None = None
+    token_range: tuple | None = None
+    has_analysis: bool | None = None
 
     def to_where_clause(self) -> tuple:
         """Convert filter to SQL WHERE clause."""

@@ -10,8 +10,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from typing import Optional
-from typing import Union
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
@@ -87,10 +86,10 @@ class BookmarkDataManager:
         self,
         scene_id: str,
         label: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         bookmark_type: BookmarkType = BookmarkType.USER,
-        metadata: Optional[dict[str, Any]] = None,
-    ) -> Union[int, str]:
+        metadata: dict[str, Any] | None = None,
+    ) -> int | str:
         """Create a new bookmark."""
         try:
             # Validate bookmark type
@@ -144,7 +143,7 @@ class BookmarkDataManager:
             log_warning(f"Failed to create bookmark: {e}")
             raise BookmarkManagerException(f"Bookmark creation failed: {e}")
 
-    def get_bookmark(self, bookmark_id: int) -> Optional[BookmarkRecord]:
+    def get_bookmark(self, bookmark_id: int) -> BookmarkRecord | None:
         """Get a bookmark by ID."""
         try:
             rows = self.execute_query(
@@ -167,9 +166,9 @@ class BookmarkDataManager:
 
     def list_bookmarks(
         self,
-        bookmark_type: Optional[BookmarkType] = None,
-        scene_id: Optional[str] = None,
-        limit: Optional[int] = None,
+        bookmark_type: BookmarkType | None = None,
+        scene_id: str | None = None,
+        limit: int | None = None,
     ) -> list[BookmarkRecord]:
         """List bookmarks with optional filtering."""
         try:
@@ -177,7 +176,7 @@ class BookmarkDataManager:
                 SELECT id, story_id, scene_id, label, description, bookmark_type, created_at, metadata
                 FROM bookmarks WHERE story_id = ?
             """
-            params: list[Union[str, int]] = [self.story_id]
+            params: list[str | int] = [self.story_id]
 
             if bookmark_type:
                 query += " AND bookmark_type = ?"
@@ -203,10 +202,10 @@ class BookmarkDataManager:
     def update_bookmark(
         self,
         bookmark_id: int,
-        label: Optional[str] = None,
-        description: Optional[str] = None,
-        bookmark_type: Optional[BookmarkType] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        label: str | None = None,
+        description: str | None = None,
+        bookmark_type: BookmarkType | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Update an existing bookmark."""
         try:
@@ -305,7 +304,7 @@ class BookmarkDataManager:
             return 0
 
     def get_bookmarks_with_scenes(
-        self, bookmark_type: Optional[BookmarkType] = None
+        self, bookmark_type: BookmarkType | None = None
     ) -> list[dict[str, Any]]:
         """Get bookmarks with their associated scene information."""
         try:
@@ -430,7 +429,7 @@ class BookmarkValidator:
         scene_id: str,
         label: str,
         bookmark_type: BookmarkType,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Validate bookmark creation data."""
         errors = []

@@ -8,8 +8,9 @@ Following OpenChronicle naming convention: anthropic_adapter.py
 """
 
 from typing import Any
-from ..api_adapter_base import BaseAPIAdapter
+
 from ..adapter_exceptions import AdapterResponseError
+from ..api_adapter_base import BaseAPIAdapter
 
 
 class AnthropicAdapter(BaseAPIAdapter):
@@ -55,11 +56,10 @@ class AnthropicAdapter(BaseAPIAdapter):
                 from ..adapter_exceptions import AdapterRateLimitError
 
                 raise AdapterRateLimitError(self.get_provider_name())
-            elif "timeout" in str(e).lower():
+            if "timeout" in str(e).lower():
                 from ..adapter_exceptions import AdapterTimeoutError
 
                 raise AdapterTimeoutError(self.get_provider_name(), self.timeout)
-            else:
-                raise AdapterResponseError(
-                    self.get_provider_name(), f"Anthropic API request failed: {e}"
-                )
+            raise AdapterResponseError(
+                self.get_provider_name(), f"Anthropic API request failed: {e}"
+            )

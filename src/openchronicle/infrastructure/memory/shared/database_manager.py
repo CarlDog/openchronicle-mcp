@@ -9,10 +9,11 @@ database infrastructure.
 Created as part of Phase 5B Memory Management Enhancement
 """
 
-import sqlite3
 import logging
-from typing import List, Dict, Any, Optional
+import sqlite3
 from pathlib import Path
+from typing import Any
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class DatabaseManager:
     for the memory management system components.
     """
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         """
         Initialize database manager.
 
@@ -122,7 +123,7 @@ class DatabaseManager:
         except (sqlite3.ProgrammingError, AttributeError):
             return True
 
-    def execute_query(self, query: str, params: tuple = ()) -> List[Dict[str, Any]]:
+    def execute_query(self, query: str, params: tuple = ()) -> list[dict[str, Any]]:
         """
         Execute a SELECT query and return results.
 
@@ -140,7 +141,7 @@ class DatabaseManager:
 
             # Convert rows to dictionaries
             columns = [description[0] for description in cursor.description]
-            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+            results = [dict(zip(columns, row, strict=False)) for row in cursor.fetchall()]
 
             return results
 
@@ -171,7 +172,7 @@ class DatabaseManager:
             logger.error(f"Error executing update: {e}")
             raise
 
-    def execute_batch(self, query: str, params_list: List[tuple]) -> int:
+    def execute_batch(self, query: str, params_list: list[tuple]) -> int:
         """
         Execute a batch of queries with different parameters.
 
@@ -197,10 +198,10 @@ class DatabaseManager:
     def get_memory_entries(
         self,
         story_id: str,
-        character_id: Optional[str] = None,
-        memory_type: Optional[str] = None,
+        character_id: str | None = None,
+        memory_type: str | None = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """
         Retrieve memory entries from database.
 
@@ -234,9 +235,9 @@ class DatabaseManager:
         story_id: str,
         memory_type: str,
         content: str,
-        character_id: Optional[str] = None,
+        character_id: str | None = None,
         importance_score: float = 0.0,
-        metadata: Optional[str] = None,
+        metadata: str | None = None,
     ) -> int:
         """
         Store a memory entry in the database.
@@ -275,7 +276,7 @@ class DatabaseManager:
 
     def get_character_state(
         self, story_id: str, character_id: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """
         Retrieve character state from database.
 
@@ -309,7 +310,7 @@ class DatabaseManager:
         """
         self.execute_update(query, (story_id, character_id, state_data))
 
-    def get_world_state(self, story_id: str) -> Optional[Dict[str, Any]]:
+    def get_world_state(self, story_id: str) -> dict[str, Any] | None:
         """
         Retrieve world state from database.
 
@@ -350,13 +351,11 @@ class DatabaseManager:
         Returns:
             Number of entries deleted
         """
-        query = """
+        query = f"""
             DELETE FROM memory_entries 
             WHERE story_id = ? 
-            AND datetime(timestamp) < datetime('now', '-{} days')
-        """.format(
-            days_to_keep
-        )
+            AND datetime(timestamp) < datetime('now', '-{days_to_keep} days')
+        """
 
         return self.execute_update(query, (story_id,))
 
@@ -376,7 +375,7 @@ class DatabaseManager:
 
 
 # Convenience function for getting a database manager instance
-def get_database_manager(db_path: Optional[str] = None) -> DatabaseManager:
+def get_database_manager(db_path: str | None = None) -> DatabaseManager:
     """
     Get a database manager instance.
 

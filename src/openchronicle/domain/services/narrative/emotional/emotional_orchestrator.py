@@ -8,13 +8,13 @@ pattern management for character emotional consistency across the system.
 import logging
 from datetime import datetime
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.json_utilities import JSONUtilities
 
 from ..shared.narrative_state import NarrativeStateManager
 from .mood_analyzer import MoodAnalyzer
 from .stability_tracker import StabilityTracker
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class EmotionalOrchestrator:
     pattern management to ensure character emotional consistency.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize emotional orchestrator with configuration."""
         self.config = config or {}
         self.json_utils = JSONUtilities()
@@ -126,7 +126,7 @@ class EmotionalOrchestrator:
         return self.stability_tracker.is_behavior_on_cooldown(character_id, behavior)
 
     def trigger_behavior_cooldown(
-        self, character_id: str, behavior: str, duration: Optional[int] = None
+        self, character_id: str, behavior: str, duration: int | None = None
     ) -> dict[str, Any]:
         """
         Trigger cooldown for a specific behavior.

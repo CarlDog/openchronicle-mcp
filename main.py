@@ -1,52 +1,49 @@
 #!/usr/bin/env python3
 """
-OpenChronicle - Legacy Entry Point Replacement
+OpenChronicle - Main Entry Point
 
-This script replaces the original 817-line main.py with a clean entry point
-that routes to the new hexagonal architecture.
+Professional Narrative AI Engine with comprehensive CLI and core orchestration.
+This entry point routes users to the modern Typer-based CLI while maintaining
+backward compatibility and clean architecture separation.
 
-For full functionality, use the new architecture:
-    python src/openchronicle/main.py
-
-This script provides legacy compatibility while the migration is completed.
+Usage:
+    python main.py [CLI_COMMANDS]
+    
+Architecture:
+    main.py → src/openchronicle/interfaces/cli/main.py → src/openchronicle/ (core business logic)
 """
 
 import sys
 from pathlib import Path
 
-# Add source path
-src_path = Path(__file__).parent / "src"
-sys.path.insert(0, str(src_path))
 
 def main():
-    """Route to the new main entry point."""
-    print("🔄 Routing to new hexagonal architecture...")
-    print("📂 Loading from: src/openchronicle/main.py")
-    print("=" * 50)
-    
+    """Route to the modern CLI interface."""
+    # Add the src directory to the path for imports
+    src_path = Path(__file__).parent / "src"
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+
     try:
-        # Import and run the new main
-        from openchronicle.main import main as new_main
-        import asyncio
+        # Import and run the modern CLI from its new location
+        from openchronicle.interfaces.cli.main import app
         
-        return asyncio.run(new_main())
+        # Pass all command line arguments to the CLI
+        app()
         
-    except Exception as e:
-        print(f"❌ Error loading new architecture: {e}")
-        print("💡 Falling back to legacy import system...")
-        
-        # If new architecture fails, show helpful error
-        print("\n🔧 Migration in progress - some features may be temporarily unavailable")
-        print("📖 See PHASE_4_MIGRATION_PLAN.md for status")
+    except ImportError as e:
+        print(f"❌ Error loading OpenChronicle CLI: {e}")
+        print("💡 Please ensure all dependencies are installed:")
+        print("   pip install -e .")
         return 1
+    except Exception as e:
+        print(f"� Unexpected error: {e}")
+        return 1
+
 
 if __name__ == "__main__":
     try:
-        exit_code = main()
-        sys.exit(exit_code)
+        sys.exit(main())
     except KeyboardInterrupt:
-        print("\n👋 Interrupted by user")
+        print("\n👋 Goodbye!")
         sys.exit(0)
-    except Exception as e:
-        print(f"💥 Fatal error: {e}")
-        sys.exit(1)

@@ -5,11 +5,16 @@ Value objects are immutable objects that represent concepts without identity.
 They encapsulate related data and behavior that doesn't belong to entities.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
+import json
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from enum import Enum
-import json
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
 
 @dataclass(frozen=True)
@@ -25,20 +30,20 @@ class MemoryState:
     timestamp: datetime
 
     # Character memory states
-    character_memories: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    character_memories: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     # World state
-    world_state: Dict[str, Any] = field(default_factory=dict)
-    active_flags: Dict[str, Any] = field(default_factory=dict)
+    world_state: dict[str, Any] = field(default_factory=dict)
+    active_flags: dict[str, Any] = field(default_factory=dict)
 
     # Recent events for context
-    recent_events: List[Dict[str, Any]] = field(default_factory=list)
+    recent_events: list[dict[str, Any]] = field(default_factory=list)
 
     # Metadata
     version: int = 1
-    checksum: Optional[str] = None
+    checksum: str | None = None
 
-    def get_character_state(self, character_id: str) -> Optional[Dict[str, Any]]:
+    def get_character_state(self, character_id: str) -> dict[str, Any] | None:
         """Get memory state for a specific character."""
         return self.character_memories.get(character_id)
 
@@ -50,7 +55,7 @@ class MemoryState:
         """Check if a specific flag is active."""
         return flag_name in self.active_flags
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "story_id": self.story_id,
@@ -64,7 +69,7 @@ class MemoryState:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MemoryState":
+    def from_dict(cls, data: dict[str, Any]) -> "MemoryState":
         """Create from dictionary representation."""
         timestamp = datetime.fromisoformat(data["timestamp"])
         return cls(
@@ -102,24 +107,24 @@ class NarrativeContext:
     assembled_at: datetime = field(default_factory=datetime.now)
 
     # Context components
-    characters: Dict[str, Any] = field(default_factory=dict)
+    characters: dict[str, Any] = field(default_factory=dict)
     memory_state: Optional["MemoryState"] = None
     scene_type: str = "narrative"
-    participant_ids: List[str] = field(default_factory=list)
+    participant_ids: list[str] = field(default_factory=list)
     location: str = ""
-    additional_context: Dict[str, Any] = field(default_factory=dict)
+    additional_context: dict[str, Any] = field(default_factory=dict)
 
     # Legacy fields for compatibility
-    character_context: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    world_context: Dict[str, Any] = field(default_factory=dict)
-    recent_history: List[str] = field(default_factory=list)
+    character_context: dict[str, dict[str, Any]] = field(default_factory=dict)
+    world_context: dict[str, Any] = field(default_factory=dict)
+    recent_history: list[str] = field(default_factory=list)
 
     # Context metadata
-    priority_elements: Dict[ContextPriority, List[str]] = field(default_factory=dict)
+    priority_elements: dict[ContextPriority, list[str]] = field(default_factory=dict)
     token_estimate: int = 0
-    generation_hints: List[str] = field(default_factory=list)
+    generation_hints: list[str] = field(default_factory=list)
 
-    def get_primary_characters(self) -> List[str]:
+    def get_primary_characters(self) -> list[str]:
         """Get list of primary character IDs in this context."""
         return self.participant_ids or list(self.characters.keys())
 
@@ -139,7 +144,7 @@ class NarrativeContext:
         """Check if character is included in context."""
         return character_id in self.characters
 
-    def get_critical_elements(self) -> List[str]:
+    def get_critical_elements(self) -> list[str]:
         """Get elements marked as critical priority."""
         return self.priority_elements.get(ContextPriority.CRITICAL, [])
 
@@ -164,13 +169,13 @@ class ModelResponse:
     finish_reason: str = "completed"
 
     # Quality metrics
-    confidence_score: Optional[float] = None
-    quality_metrics: Dict[str, float] = field(default_factory=dict)
+    confidence_score: float | None = None
+    quality_metrics: dict[str, float] = field(default_factory=dict)
 
     # Technical details
-    request_id: Optional[str] = None
-    model_version: Optional[str] = None
-    parameters: Dict[str, Any] = field(default_factory=dict)
+    request_id: str | None = None
+    model_version: str | None = None
+    parameters: dict[str, Any] = field(default_factory=dict)
 
     def tokens_per_second(self) -> float:
         """Calculate generation speed in tokens per second."""
@@ -182,12 +187,12 @@ class ModelResponse:
         """Check if generation completed successfully."""
         return self.finish_reason == "completed" and bool(self.content.strip())
 
-    def get_cost_estimate(self, input_tokens: int = 0) -> Optional[float]:
+    def get_cost_estimate(self, input_tokens: int = 0) -> float | None:
         """Estimate generation cost if pricing info is available."""
         # This would integrate with pricing data in a real implementation
         return None
 
-    def to_summary(self) -> Dict[str, Any]:
+    def to_summary(self) -> dict[str, Any]:
         """Create a summary for logging/debugging."""
         return {
             "model": self.model_name,
@@ -214,13 +219,13 @@ class SecurityValidation:
 
     # Validation details
     original_input: str
-    sanitized_value: Optional[str] = None
-    error_message: Optional[str] = None
+    sanitized_value: str | None = None
+    error_message: str | None = None
 
     # Security metadata
     validation_timestamp: datetime = field(default_factory=datetime.now)
     validator_version: str = "1.0"
-    checks_performed: List[str] = field(default_factory=list)
+    checks_performed: list[str] = field(default_factory=list)
 
     def is_safe(self) -> bool:
         """Check if input is safe to process."""
@@ -235,9 +240,9 @@ class SecurityValidation:
 
 # Export all value objects
 __all__ = [
-    "MemoryState",
-    "NarrativeContext",
-    "ModelResponse",
-    "SecurityValidation",
     "ContextPriority",
+    "MemoryState",
+    "ModelResponse",
+    "NarrativeContext",
+    "SecurityValidation",
 ]

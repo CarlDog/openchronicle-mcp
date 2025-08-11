@@ -9,19 +9,17 @@ Author: OpenChronicle Development Team
 
 import logging
 import random
-from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
+from typing import Any
 
-from .mechanics_models import (
-    NarrativeBranch,
-    ResolutionResult,
-    OutcomeType,
-    ResolutionType,
-    CharacterPerformance,
-    MechanicsRequest,
-)
-from ..shared.narrative_exceptions import NarrativeSystemError
 from src.openchronicle.shared.logging_system import log_system_event
+
+from ..shared.narrative_exceptions import NarrativeSystemError
+from .mechanics_models import CharacterPerformance
+from .mechanics_models import NarrativeBranch
+from .mechanics_models import OutcomeType
+from .mechanics_models import ResolutionResult
+from .mechanics_models import ResolutionType
 
 
 class NarrativeBranchingEngine:
@@ -151,9 +149,9 @@ class NarrativeBranchingEngine:
     def create_narrative_branches(
         self,
         resolution_result: ResolutionResult,
-        context: Dict[str, Any] = None,
+        context: dict[str, Any] = None,
         max_branches: int = 3,
-    ) -> List[NarrativeBranch]:
+    ) -> list[NarrativeBranch]:
         """
         Create narrative branches based on resolution result.
 
@@ -226,8 +224,8 @@ class NarrativeBranchingEngine:
         self,
         template: str,
         resolution_result: ResolutionResult,
-        outcome_template: Dict[str, Any],
-        context: Dict[str, Any],
+        outcome_template: dict[str, Any],
+        context: dict[str, Any],
         index: int,
     ) -> NarrativeBranch:
         """Create a branch from a template."""
@@ -282,7 +280,7 @@ class NarrativeBranchingEngine:
         self,
         template: str,
         resolution_result: ResolutionResult,
-        context: Dict[str, Any],
+        context: dict[str, Any],
     ) -> str:
         """Generate descriptive text for a branch."""
 
@@ -339,8 +337,8 @@ class NarrativeBranchingEngine:
         self,
         template: str,
         resolution_result: ResolutionResult,
-        outcome_template: Dict[str, Any],
-    ) -> List[str]:
+        outcome_template: dict[str, Any],
+    ) -> list[str]:
         """Generate consequences for the branch."""
         consequences = []
 
@@ -374,8 +372,8 @@ class NarrativeBranchingEngine:
         self,
         template: str,
         resolution_result: ResolutionResult,
-        outcome_template: Dict[str, Any],
-    ) -> Dict[str, int]:
+        outcome_template: dict[str, Any],
+    ) -> dict[str, int]:
         """Generate stat changes for the branch."""
         stat_changes = {}
 
@@ -413,8 +411,8 @@ class NarrativeBranchingEngine:
         self,
         template: str,
         resolution_result: ResolutionResult,
-        context: Dict[str, Any],
-    ) -> List[str]:
+        context: dict[str, Any],
+    ) -> list[str]:
         """Generate scene transitions for the branch."""
         transitions = []
 
@@ -445,7 +443,7 @@ class NarrativeBranchingEngine:
         return transitions if transitions else ["continue_current_scene"]
 
     def _create_default_branch(
-        self, resolution_result: ResolutionResult, context: Dict[str, Any]
+        self, resolution_result: ResolutionResult, context: dict[str, Any]
     ) -> NarrativeBranch:
         """Create a default continuation branch."""
         branch_id = f"default_{resolution_result.character_id}_{datetime.now().strftime('%H%M%S')}"
@@ -458,7 +456,7 @@ class NarrativeBranchingEngine:
             character_consequences=["Natural progression"],
         )
 
-    def _normalize_branch_probabilities(self, branches: List[NarrativeBranch]):
+    def _normalize_branch_probabilities(self, branches: list[NarrativeBranch]):
         """Normalize branch probabilities to sum to 1.0."""
         if not branches:
             return
@@ -471,10 +469,10 @@ class NarrativeBranchingEngine:
 
     def select_branch(
         self,
-        branches: List[NarrativeBranch],
-        character_performance: Optional[CharacterPerformance] = None,
+        branches: list[NarrativeBranch],
+        character_performance: CharacterPerformance | None = None,
         bias_factor: float = 0.0,
-    ) -> Optional[NarrativeBranch]:
+    ) -> NarrativeBranch | None:
         """
         Select a branch from available options.
 
@@ -544,7 +542,7 @@ class NarrativeBranchingEngine:
         return adjusted_branches[-1][0] if adjusted_branches else branches[-1]
 
     def evaluate_branch_requirements(
-        self, branch: NarrativeBranch, character_state: Dict[str, Any]
+        self, branch: NarrativeBranch, character_state: dict[str, Any]
     ) -> bool:
         """
         Check if character meets branch requirements.

@@ -4,9 +4,9 @@ Fallback Timeline Manager - Minimal Timeline Functionality
 Provides basic timeline functionality when full timeline system is unavailable.
 """
 
-import json
-from datetime import datetime, UTC
-from typing import Dict, List, Any
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
 
 class FallbackTimelineManager:
@@ -17,7 +17,7 @@ class FallbackTimelineManager:
 
     async def build_full_timeline(
         self, include_bookmarks: bool = True, include_summaries: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build minimal timeline with basic scene data."""
         try:
             # Try to get basic scene data using core database functions
@@ -25,10 +25,8 @@ class FallbackTimelineManager:
             from pathlib import Path
 
             sys.path.append(str(Path(__file__).parent.parent.parent))
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 

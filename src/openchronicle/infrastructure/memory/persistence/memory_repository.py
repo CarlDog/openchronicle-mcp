@@ -8,7 +8,6 @@ Consolidates all database access patterns from the original memory_manager.py.
 from datetime import UTC
 from datetime import datetime
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.infrastructure.persistence.database_orchestrator import (
     database_orchestrator,
@@ -164,7 +163,7 @@ class MemoryRepository:
 
     def restore_from_snapshot(
         self, story_id: str, scene_id: str
-    ) -> Optional[MemoryState]:
+    ) -> MemoryState | None:
         """Restore memory from specific snapshot."""
         try:
             rows = database_orchestrator.execute_query(

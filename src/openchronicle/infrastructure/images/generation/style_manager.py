@@ -9,9 +9,11 @@ Handles:
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from ..shared.image_models import ImageType, ImageSize, ImageProvider
+from ..shared.image_models import ImageProvider
+from ..shared.image_models import ImageSize
+from ..shared.image_models import ImageType
 
 
 logger = logging.getLogger(__name__)
@@ -20,13 +22,13 @@ logger = logging.getLogger(__name__)
 class StyleManager:
     """Manages styles, presets, and generation parameters"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.auto_generate = config.get("auto_generate", {})
         self.style_presets = self._load_style_presets()
         self.provider_settings = config.get("provider_settings", {})
 
-    def _load_style_presets(self) -> Dict[str, Dict[str, Any]]:
+    def _load_style_presets(self) -> dict[str, dict[str, Any]]:
         """Load style presets from configuration"""
 
         default_presets = {
@@ -93,11 +95,11 @@ class StyleManager:
 
         return default_presets
 
-    def get_style_preset(self, preset_name: str) -> Optional[Dict[str, Any]]:
+    def get_style_preset(self, preset_name: str) -> dict[str, Any] | None:
         """Get a specific style preset"""
         return self.style_presets.get(preset_name)
 
-    def get_default_style_modifiers(self, image_type: ImageType) -> List[str]:
+    def get_default_style_modifiers(self, image_type: ImageType) -> list[str]:
         """Get default style modifiers for an image type"""
         defaults = {
             ImageType.CHARACTER: ["high quality", "detailed", "portrait"],
@@ -112,7 +114,7 @@ class StyleManager:
         }
         return defaults.get(image_type, ["high quality", "detailed"])
 
-    def get_presets_for_type(self, image_type: ImageType) -> List[str]:
+    def get_presets_for_type(self, image_type: ImageType) -> list[str]:
         """Get available presets for image type"""
         compatible_presets = []
 
@@ -123,8 +125,8 @@ class StyleManager:
         return compatible_presets
 
     def apply_style_preset(
-        self, preset_name: str, existing_modifiers: Optional[List[str]] = None
-    ) -> List[str]:
+        self, preset_name: str, existing_modifiers: list[str] | None = None
+    ) -> list[str]:
         """Apply style preset to existing modifiers"""
 
         preset = self.get_style_preset(preset_name)
@@ -141,12 +143,11 @@ class StyleManager:
                 if modifier not in combined:
                     combined.append(modifier)
             return combined
-        else:
-            return preset_modifiers.copy()
+        return preset_modifiers.copy()
 
     def optimize_parameters_for_provider(
         self, provider: ImageProvider, size: ImageSize, image_type: ImageType
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Optimize generation parameters for specific provider"""
 
         provider_name = (
@@ -190,8 +191,8 @@ class StyleManager:
     def should_auto_generate_character(
         self,
         character_name: str,
-        character_data: Dict[str, Any],
-        existing_images: List[Any],
+        character_data: dict[str, Any],
+        existing_images: list[Any],
     ) -> bool:
         """Check if character portrait should be auto-generated"""
 
@@ -223,8 +224,8 @@ class StyleManager:
     def should_auto_generate_scene(
         self,
         scene_id: str,
-        scene_data: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None,
+        scene_data: dict[str, Any],
+        context: dict[str, Any] | None = None,
     ) -> bool:
         """Check if scene image should be auto-generated"""
 
@@ -266,7 +267,7 @@ class StyleManager:
         return should_generate
 
     def get_recommended_size(
-        self, image_type: ImageType, provider: Optional[ImageProvider] = None
+        self, image_type: ImageType, provider: ImageProvider | None = None
     ) -> ImageSize:
         """Get recommended image size for type and provider"""
 
@@ -304,9 +305,9 @@ class StyleManager:
     def validate_style_consistency(
         self,
         image_type: ImageType,
-        style_modifiers: List[str],
-        existing_images: List[Any],
-    ) -> Dict[str, Any]:
+        style_modifiers: list[str],
+        existing_images: list[Any],
+    ) -> dict[str, Any]:
         """Validate style consistency with existing images"""
 
         validation = {"consistent": True, "warnings": [], "suggestions": []}
@@ -343,8 +344,8 @@ class StyleManager:
     def create_custom_preset(
         self,
         name: str,
-        style_modifiers: List[str],
-        image_types: List[ImageType],
+        style_modifiers: list[str],
+        image_types: list[ImageType],
         description: str = "",
     ) -> bool:
         """Create a custom style preset"""
@@ -363,7 +364,7 @@ class StyleManager:
         logger.info(f"Created custom style preset: {name}")
         return True
 
-    def get_style_statistics(self) -> Dict[str, Any]:
+    def get_style_statistics(self) -> dict[str, Any]:
         """Get statistics about style usage"""
 
         total_presets = len(self.style_presets)

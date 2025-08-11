@@ -5,41 +5,46 @@ Handles all database operations related to scene storage:
 - Scene saving and loading
 - Scene querying and filtering
 - Database schema management
+
+This repository now uses dependency injection following hexagonal architecture principles.
 """
 
 import json
-import sys
-from typing import Dict, List, Any, Optional
-from pathlib import Path
+from typing import Optional
 
-# Database imports from parent core directory
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.infrastructure.persistence import (
-    execute_query,
-    execute_update,
-    init_database,
-)
+# Import domain interfaces (following dependency inversion principle)
+from src.openchronicle.domain.ports.persistence_port import IPersistencePort
 
 # Import shared scene models
-from ..shared.scene_models import SceneData, SceneFilter
+from ..shared.scene_models import SceneData
+from ..shared.scene_models import SceneFilter
 
 
 class SceneRepository:
-    """Handles scene data persistence and retrieval."""
+    """Handles scene data persistence and retrieval using dependency injection."""
 
-    def __init__(self, story_id: str):
+    def __init__(self, story_id: str, persistence_port: Optional[IPersistencePort] = None):
         """
         Initialize repository for a specific story.
 
         Args:
             story_id: Story identifier
+            persistence_port: Persistence interface implementation (injected)
         """
         self.story_id = story_id
+        
+        # If no persistence port provided, create default adapter
+        if persistence_port is None:
+            from src.openchronicle.infrastructure.persistence_adapters.persistence_adapter import PersistenceAdapter
+            self.persistence = PersistenceAdapter()
+        else:
+            self.persistence = persistence_port
+            
         self._init_database()
 
     def _init_database(self) -> None:
         """Initialize database for the story."""
-        init_database(self.story_id)
+        self.persistence.init_database(self.story_id)
 
     def save_scene(self, scene_data: SceneData) -> bool:
         """
@@ -55,7 +60,7 @@ class SceneRepository:
             # Convert scene data to database format
             db_data = scene_data.to_dict()
 
-            execute_update(
+            success = self.persistence.execute_update(
                 self.story_id,
                 """
                 INSERT OR REPLACE INTO scenes 
@@ -63,7 +68,7 @@ class SceneRepository:
                  analysis, scene_label, structured_tags, story_id)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-                (
+                [
                     db_data["scene_id"],
                     db_data["timestamp"],
                     db_data["input"],
@@ -75,7 +80,7 @@ class SceneRepository:
                     db_data["scene_label"],
                     db_data["structured_tags"],
                     self.story_id,
-                ),
+                ]
             )
 
             return True
@@ -85,7 +90,7 @@ class SceneRepository:
             print(f"Error saving scene {scene_data.scene_id}: {e}")
             return False
 
-    def load_scene(self, scene_id: str) -> Optional[SceneData]:
+    def load_scene(self, scene_id: str) -> SceneData | None:
         """
         Load scene data by ID.
 
@@ -96,7 +101,7 @@ class SceneRepository:
             SceneData if found, None otherwise
         """
         try:
-            rows = execute_query(
+            rows = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp, input, output, memory_snapshot, flags, canon_refs,
@@ -104,7 +109,7 @@ class SceneRepository:
                 FROM scenes
                 WHERE scene_id = ?
             """,
-                (scene_id,),
+                [scene_id]
             )
 
             if not rows:
@@ -121,8 +126,8 @@ class SceneRepository:
         self,
         limit: int = 50,
         offset: int = 0,
-        scene_filter: Optional[SceneFilter] = None,
-    ) -> List[SceneData]:
+        scene_filter: SceneFilter | None = None,
+    ) -> list[SceneData]:
         """
         List scenes with optional filtering and pagination.
 
@@ -164,7 +169,7 @@ class SceneRepository:
             print(f"Error listing scenes: {e}")
             return []
 
-    def count_scenes(self, scene_filter: Optional[SceneFilter] = None) -> int:
+    def count_scenes(self, scene_filter: SceneFilter | None = None) -> int:
         """
         Count total scenes with optional filtering.
 

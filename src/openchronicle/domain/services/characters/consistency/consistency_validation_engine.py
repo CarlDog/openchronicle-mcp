@@ -5,21 +5,20 @@ Specialized component for maintaining character trait consistency, motivation an
 and behavioral validation. Extracted from character_consistency_engine.py.
 """
 
+import json
 import logging
 import os
-import json
 from datetime import datetime
-from typing import Dict, List, Set, Optional, Any, Tuple
+from typing import Any
 
-from ..character_base import CharacterEngineBase, CharacterValidationProvider
-from ..character_data import (
-    CharacterData,
-    CharacterMotivationAnchor,
-    CharacterConsistencyViolation,
-    CharacterConsistencyProfile,
-    CharacterConsistencyLevel,
-    CharacterViolationType,
-)
+from ..character_base import CharacterEngineBase
+from ..character_base import CharacterValidationProvider
+from ..character_data import CharacterConsistencyLevel
+from ..character_data import CharacterConsistencyProfile
+from ..character_data import CharacterConsistencyViolation
+from ..character_data import CharacterMotivationAnchor
+from ..character_data import CharacterViolationType
+
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +29,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     and behavioral auditing across long narratives.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize the consistency validation engine."""
         super().__init__(config)
 
@@ -41,8 +40,8 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
         self.auto_lock_traits = self.config.get("auto_lock_traits", True)
 
         # Tracking data
-        self.behavioral_patterns: Dict[str, List[Dict[str, Any]]] = {}
-        self.emotional_states: Dict[str, Dict[str, Any]] = {}
+        self.behavioral_patterns: dict[str, list[dict[str, Any]]] = {}
+        self.emotional_states: dict[str, dict[str, Any]] = {}
 
         self.logger.info("Consistency validation engine initialized")
 
@@ -72,7 +71,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
     def get_character_data(
         self, character_id: str
-    ) -> Optional[CharacterConsistencyProfile]:
+    ) -> CharacterConsistencyProfile | None:
         """Get character consistency profile."""
         return self.character_data.get(character_id)
 
@@ -89,7 +88,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
                 char_path = os.path.join(characters_dir, char_file)
 
                 try:
-                    with open(char_path, "r", encoding="utf-8") as f:
+                    with open(char_path, encoding="utf-8") as f:
                         char_data = json.load(f)
 
                     profile = self.get_character_data(char_name)
@@ -159,7 +158,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
     def get_character_motivations(
         self, character_id: str
-    ) -> List[CharacterMotivationAnchor]:
+    ) -> list[CharacterMotivationAnchor]:
         """Get all motivation anchors for character."""
         profile = self.get_character_data(character_id)
         return profile.motivation_anchors if profile else []
@@ -247,7 +246,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
     def get_unresolved_violations(
         self, character_id: str
-    ) -> List[CharacterConsistencyViolation]:
+    ) -> list[CharacterConsistencyViolation]:
         """Get unresolved violations for character."""
         profile = self.get_character_data(character_id)
         if not profile:
@@ -260,8 +259,8 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     # =============================================================================
 
     def validate_character_action(
-        self, character_id: str, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, character_id: str, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate if action is consistent with character."""
         profile = self.get_character_data(character_id)
         if not profile:
@@ -299,7 +298,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     # =============================================================================
 
     def add_behavioral_pattern(
-        self, character_id: str, pattern: Dict[str, Any]
+        self, character_id: str, pattern: dict[str, Any]
     ) -> None:
         """Add behavioral pattern observation."""
         if character_id not in self.behavioral_patterns:
@@ -314,7 +313,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
                 character_id
             ][-100:]
 
-    def analyze_behavioral_drift(self, character_id: str) -> Dict[str, Any]:
+    def analyze_behavioral_drift(self, character_id: str) -> dict[str, Any]:
         """Analyze behavioral drift over time."""
         patterns = self.behavioral_patterns.get(character_id, [])
         if len(patterns) < 2:
@@ -347,7 +346,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     # Data Management
     # =============================================================================
 
-    def export_character_data(self, character_id: str) -> Dict[str, Any]:
+    def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export character consistency data."""
         profile = self.get_character_data(character_id)
         if not profile:
@@ -362,7 +361,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
             "version": "1.0",
         }
 
-    def import_character_data(self, character_data: Dict[str, Any]) -> None:
+    def import_character_data(self, character_data: dict[str, Any]) -> None:
         """Import character consistency data."""
         character_id = character_data.get("character_id")
         if not character_id:
@@ -399,7 +398,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     def _process_character_data(
         self,
         char_name: str,
-        char_data: Dict[str, Any],
+        char_data: dict[str, Any],
         profile: CharacterConsistencyProfile,
     ) -> None:
         """Process character data to extract consistency requirements."""
@@ -437,7 +436,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     def _create_emotional_anchors(
         self,
         char_name: str,
-        emotional_profile: Dict[str, Any],
+        emotional_profile: dict[str, Any],
         profile: CharacterConsistencyProfile,
     ) -> None:
         """Create motivation anchors from emotional profile."""
@@ -454,7 +453,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     def _create_stat_anchors(
         self,
         char_name: str,
-        character_stats: Dict[str, Any],
+        character_stats: dict[str, Any],
         profile: CharacterConsistencyProfile,
     ) -> None:
         """Create motivation anchors from character stats."""
@@ -474,8 +473,8 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
         )
 
     def _validate_motivation_change(
-        self, profile: CharacterConsistencyProfile, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, profile: CharacterConsistencyProfile, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate motivation change against anchors."""
         new_motivation = action.get("new_motivation", "")
 
@@ -491,8 +490,8 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
         return True, None
 
     def _validate_behavioral_consistency(
-        self, profile: CharacterConsistencyProfile, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, profile: CharacterConsistencyProfile, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate behavioral action consistency."""
         behavior_type = action.get("behavior_type", "")
 
@@ -509,8 +508,8 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
         return True, None
 
     def _validate_emotional_consistency(
-        self, profile: CharacterConsistencyProfile, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, profile: CharacterConsistencyProfile, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate emotional change consistency."""
         new_emotion = action.get("new_emotion", "")
         intensity = action.get("intensity", 0.5)
@@ -525,7 +524,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         return True, None
 
-    def _extract_pattern_themes(self, patterns: List[Dict[str, Any]]) -> Set[str]:
+    def _extract_pattern_themes(self, patterns: list[dict[str, Any]]) -> set[str]:
         """Extract themes from behavioral patterns."""
         themes = set()
 
@@ -552,7 +551,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
         return themes
 
     def _calculate_theme_similarity(
-        self, themes1: Set[str], themes2: Set[str]
+        self, themes1: set[str], themes2: set[str]
     ) -> float:
         """Calculate similarity between two theme sets."""
         if not themes1 and not themes2:

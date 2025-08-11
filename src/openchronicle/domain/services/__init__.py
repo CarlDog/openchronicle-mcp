@@ -6,14 +6,25 @@ or value objects. They coordinate between entities and implement complex
 business rules.
 """
 
-from typing import Dict, List, Optional, Any, Tuple
-from datetime import datetime, timedelta
 import re
+from abc import ABC
+from abc import abstractmethod
 from dataclasses import dataclass
-from abc import ABC, abstractmethod
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
 
-from ..entities import Story, Character, Scene, StoryStatus
-from ..value_objects import MemoryState, NarrativeContext, ContextPriority
+from ..entities import Character
+from ..entities import Scene
+from ..entities import Story
+from ..entities import StoryStatus
+from ..value_objects import ContextPriority
+from ..value_objects import MemoryState
+from ..value_objects import NarrativeContext
 
 
 @dataclass
@@ -21,9 +32,9 @@ class ValidationResult:
     """Result of a validation operation."""
 
     is_valid: bool
-    errors: List[str]
-    warnings: Optional[List[str]] = None
-    suggestions: Optional[List[str]] = None
+    errors: list[str]
+    warnings: list[str] | None = None
+    suggestions: list[str] | None = None
 
     def __post_init__(self):
         if self.warnings is None:
@@ -44,7 +55,7 @@ class StoryGenerator:
         self.min_scene_length = 50  # minimum words per scene
         self.max_context_age = timedelta(hours=24)  # context relevance window
 
-    def validate_story_state(self, story: Story) -> List[str]:
+    def validate_story_state(self, story: Story) -> list[str]:
         """Validate story state and return list of issues."""
         issues = []
 
@@ -56,7 +67,7 @@ class StoryGenerator:
 
         return issues
 
-    def calculate_narrative_coherence(self, scenes: List[Scene]) -> float:
+    def calculate_narrative_coherence(self, scenes: list[Scene]) -> float:
         """Calculate coherence score for a sequence of scenes."""
         if not scenes:
             return 1.0
@@ -73,7 +84,7 @@ class StoryGenerator:
 
         # Calculate participant consistency
         if all_participants:
-            participant_appearances = {p: 0 for p in all_participants}
+            participant_appearances = dict.fromkeys(all_participants, 0)
             for scene in sorted_scenes:
                 for participant in scene.participants:
                     participant_appearances[participant] += 1
@@ -108,7 +119,7 @@ class StoryGenerator:
             else 1.0
         )
 
-    def suggest_next_scene_type(self, recent_scenes: List[Scene]) -> str:
+    def suggest_next_scene_type(self, recent_scenes: list[Scene]) -> str:
         """Suggest the type of scene that should come next."""
         if not recent_scenes:
             return "narrative"
@@ -122,14 +133,13 @@ class StoryGenerator:
         # Suggest variety
         if type_counts.get("dialogue", 0) >= 3:
             return "action"
-        elif type_counts.get("action", 0) >= 2:
+        if type_counts.get("action", 0) >= 2:
             return "description"
-        elif type_counts.get("description", 0) >= 2:
+        if type_counts.get("description", 0) >= 2:
             return "dialogue"
-        else:
-            return "narrative"
+        return "narrative"
 
-    def detect_story_pacing_issues(self, scenes: List[Scene]) -> List[str]:
+    def detect_story_pacing_issues(self, scenes: list[Scene]) -> list[str]:
         """Detect potential pacing issues in the story."""
         issues = []
 
@@ -158,7 +168,7 @@ class StoryGenerator:
         return issues
 
     def validate_story_concept(
-        self, title: str, description: str, world_state: Dict[str, Any]
+        self, title: str, description: str, world_state: dict[str, Any]
     ) -> "ValidationResult":
         """Validate a story concept for coherence and completeness."""
         errors = []
@@ -198,8 +208,8 @@ class StoryGenerator:
         )
 
     def _generate_story_suggestions(
-        self, title: str, description: str, world_state: Dict[str, Any]
-    ) -> List[str]:
+        self, title: str, description: str, world_state: dict[str, Any]
+    ) -> list[str]:
         """Generate helpful suggestions for story development."""
         suggestions = []
 
@@ -227,7 +237,7 @@ class StoryGenerator:
         return suggestions
 
     def generate_coherent_narrative(
-        self, context: NarrativeContext, participant_characters: List["Character"]
+        self, context: NarrativeContext, participant_characters: list["Character"]
     ) -> ValidationResult:
         """Generate a coherent narrative based on context and characters."""
         errors = []
@@ -272,8 +282,8 @@ class StoryGenerator:
         )
 
     def _generate_narrative_suggestions(
-        self, context: NarrativeContext, participant_characters: List["Character"]
-    ) -> List[str]:
+        self, context: NarrativeContext, participant_characters: list["Character"]
+    ) -> list[str]:
         """Generate suggestions for improving the narrative."""
         suggestions = []
 
@@ -306,9 +316,9 @@ class CharacterAnalyzer:
     def validate_character_concept(
         self,
         name: str,
-        personality_traits: Dict[str, Any],
+        personality_traits: dict[str, Any],
         background: str,
-        story_context: Dict[str, Any],
+        story_context: dict[str, Any],
     ) -> ValidationResult:
         """Validate a character concept for coherence and story fit."""
         errors = []
@@ -384,8 +394,8 @@ class CharacterAnalyzer:
         )
 
     def _generate_character_suggestions(
-        self, name: str, personality_traits: Dict[str, Any], background: str
-    ) -> List[str]:
+        self, name: str, personality_traits: dict[str, Any], background: str
+    ) -> list[str]:
         """Generate suggestions for character development."""
         suggestions = []
 
@@ -416,7 +426,7 @@ class CharacterAnalyzer:
         return suggestions
 
     def calculate_consistency_score(
-        self, character: Character, recent_scenes: List[Scene]
+        self, character: Character, recent_scenes: list[Scene]
     ) -> float:
         """Calculate how consistent a character's behavior has been."""
         if not recent_scenes:
@@ -477,7 +487,7 @@ class CharacterAnalyzer:
         )
         return min(1.0, base_consistency + development_bonus)
 
-    def detect_character_conflicts(self, characters: List[Character]) -> List[str]:
+    def detect_character_conflicts(self, characters: list[Character]) -> list[str]:
         """Detect potential conflicts between character definitions."""
         conflicts = []
 
@@ -508,7 +518,7 @@ class CharacterAnalyzer:
 
     def suggest_character_development(
         self, character: Character, story_context: NarrativeContext
-    ) -> List[str]:
+    ) -> list[str]:
         """Suggest potential character development opportunities."""
         suggestions = []
 
@@ -540,8 +550,8 @@ class CharacterAnalyzer:
         return suggestions
 
     def validate_character_update(
-        self, character: Character, proposed_updates: Dict[str, Any]
-    ) -> Tuple[bool, List[str]]:
+        self, character: Character, proposed_updates: dict[str, Any]
+    ) -> tuple[bool, list[str]]:
         """Validate proposed character updates for consistency."""
         issues = []
 
@@ -592,7 +602,7 @@ class CharacterAnalyzer:
         return len(issues) == 0, issues
 
     def analyze_consistency(
-        self, character: Character, scene_content: str, previous_scenes: List[Scene]
+        self, character: Character, scene_content: str, previous_scenes: list[Scene]
     ) -> "ConsistencyAnalysisResult":
         """Analyze character consistency in a scene and suggest updates."""
         from dataclasses import dataclass
@@ -601,8 +611,8 @@ class CharacterAnalyzer:
         class ConsistencyAnalysisResult:
             consistency_score: float
             has_updates: bool
-            suggested_updates: Dict[str, Any]
-            warnings: List[str]
+            suggested_updates: dict[str, Any]
+            warnings: list[str]
 
         # Calculate consistency score
         consistency_score = self.calculate_consistency_score(character, previous_scenes)
@@ -665,14 +675,12 @@ class StoryService(ABC):
     """Abstract base class for story service."""
 
     @abstractmethod
-    async def get_story(self, story_id: str) -> Optional[Story]:
+    async def get_story(self, story_id: str) -> Story | None:
         """Get story by ID."""
-        pass
 
     @abstractmethod
     async def save_story(self, story: Story) -> bool:
         """Save story."""
-        pass
 
 
 class CharacterService(ABC):
@@ -681,44 +689,38 @@ class CharacterService(ABC):
     @abstractmethod
     async def get_character(
         self, story_id: str, character_id: str
-    ) -> Optional[Character]:
+    ) -> Character | None:
         """Get character by ID."""
-        pass
 
     @abstractmethod
     async def save_character(self, story_id: str, character: Character) -> bool:
         """Save character."""
-        pass
 
 
 class SceneService(ABC):
     """Abstract base class for scene service."""
 
     @abstractmethod
-    async def get_scene(self, story_id: str, scene_id: str) -> Optional[Scene]:
+    async def get_scene(self, story_id: str, scene_id: str) -> Scene | None:
         """Get scene by ID."""
-        pass
 
     @abstractmethod
     async def save_scene(self, story_id: str, scene: Scene) -> bool:
         """Save scene."""
-        pass
 
 
 class MemoryService(ABC):
     """Abstract base class for memory service."""
 
     @abstractmethod
-    async def get_memory_summary(self, story_id: str) -> Dict[str, Any]:
+    async def get_memory_summary(self, story_id: str) -> dict[str, Any]:
         """Get memory summary."""
-        pass
 
     @abstractmethod
     async def add_recent_event(
         self, story_id: str, description: str, importance: float = 1.0
     ):
         """Add recent event."""
-        pass
 
     @abstractmethod
     async def add_memory_flag(
@@ -729,15 +731,14 @@ class MemoryService(ABC):
         flag_type: str = "general",
     ):
         """Add memory flag."""
-        pass
 
 
 # Export all domain services
 __all__ = [
-    "StoryGenerator",
     "CharacterAnalyzer",
-    "StoryService",
     "CharacterService",
-    "SceneService",
     "MemoryService",
+    "SceneService",
+    "StoryGenerator",
+    "StoryService",
 ]

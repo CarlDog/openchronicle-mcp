@@ -13,22 +13,21 @@ Author: OpenChronicle Development Team
 """
 
 import json
-from datetime import datetime
-import time
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union
-from pathlib import Path
-from dataclasses import dataclass, asdict
 import sys
+import time
+from dataclasses import asdict
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 
 # Add utilities path
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-    log_error,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
 
 
 @dataclass
@@ -38,10 +37,10 @@ class NarrativeState:
     story_id: str
     current_scene: str
     narrative_tension: float = 0.5
-    character_states: Dict[str, Any] = None
-    memory_context: Dict[str, Any] = None
+    character_states: dict[str, Any] = None
+    memory_context: dict[str, Any] = None
     response_quality: float = 0.0
-    emotional_stability: Dict[str, float] = None
+    emotional_stability: dict[str, float] = None
     last_update: str = ""
 
     def __post_init__(self):
@@ -62,9 +61,9 @@ class NarrativeOperation:
     operation_type: str
     success: bool
     result: Any = None
-    state_changes: Dict[str, Any] = None
-    recommendations: List[str] = None
-    metrics: Dict[str, float] = None
+    state_changes: dict[str, Any] = None
+    recommendations: list[str] = None
+    metrics: dict[str, float] = None
 
     def __post_init__(self):
         if self.state_changes is None:
@@ -103,8 +102,8 @@ class NarrativeOrchestrator:
         self._initialize_available_orchestrators()
 
         # Shared state
-        self.narrative_states: Dict[str, NarrativeState] = {}
-        self.operation_history: List[NarrativeOperation] = []
+        self.narrative_states: dict[str, NarrativeState] = {}
+        self.operation_history: list[NarrativeOperation] = []
 
         # Configuration
         self.config = self._load_configuration()
@@ -118,10 +117,10 @@ class NarrativeOrchestrator:
         """Initialize available component orchestrators."""
         try:
             # Initialize response orchestrator
-            from .response import ResponseOrchestrator
-            from .mechanics import MechanicsOrchestrator
             from .consistency import ConsistencyOrchestrator
             from .emotional import EmotionalOrchestrator
+            from .mechanics import MechanicsOrchestrator
+            from .response import ResponseOrchestrator
 
             response_dir = self.data_dir / "response"
             self.response_orchestrator = ResponseOrchestrator(
@@ -163,7 +162,7 @@ class NarrativeOrchestrator:
             self.consistency_orchestrator = None
             self.emotional_orchestrator = None
 
-    def _load_configuration(self) -> Dict[str, Any]:
+    def _load_configuration(self) -> dict[str, Any]:
         """Load narrative system configuration."""
         config_path = self.data_dir / "narrative_config.json"
 
@@ -192,7 +191,7 @@ class NarrativeOrchestrator:
 
         try:
             if config_path.exists():
-                with open(config_path, "r", encoding="utf-8") as f:
+                with open(config_path, encoding="utf-8") as f:
                     return json.load(f)
             else:
                 # Create default configuration
@@ -203,7 +202,7 @@ class NarrativeOrchestrator:
             log_error(f"Error loading narrative configuration: {e}")
             return default_config
 
-    def get_narrative_state(self, story_id: str) -> Dict[str, Any]:
+    def get_narrative_state(self, story_id: str) -> dict[str, Any]:
         """Get current narrative state for a story."""
         if story_id not in self.narrative_states:
             # Create a default state if it doesn't exist
@@ -253,7 +252,7 @@ class NarrativeOrchestrator:
             return False
 
     def process_narrative_operation(
-        self, operation_type: str, story_id: str, operation_data: Dict[str, Any]
+        self, operation_type: str, story_id: str, operation_data: dict[str, Any]
     ) -> NarrativeOperation:
         """
         Process a narrative operation through appropriate orchestrator.
@@ -307,7 +306,7 @@ class NarrativeOrchestrator:
                 metrics={"processing_time": time.time() - start_time},
             )
 
-    def _handle_response_operation(self, story_id: str, data: Dict[str, Any]) -> Any:
+    def _handle_response_operation(self, story_id: str, data: dict[str, Any]) -> Any:
         """Handle response intelligence operations."""
         if self.response_orchestrator:
             try:
@@ -351,7 +350,7 @@ class NarrativeOrchestrator:
             )
             return {"status": "response_operation_unavailable", "data": data}
 
-    def _handle_mechanics_operation(self, story_id: str, data: Dict[str, Any]) -> Any:
+    def _handle_mechanics_operation(self, story_id: str, data: dict[str, Any]) -> Any:
         """Handle narrative mechanics operations."""
         # Placeholder for mechanics orchestrator integration
         log_info(
@@ -359,11 +358,11 @@ class NarrativeOrchestrator:
         )
         return {"status": "mechanics_operation_placeholder", "data": data}
 
-    def roll_dice(self, dice_expression: str) -> Dict[str, Any]:
+    def roll_dice(self, dice_expression: str) -> dict[str, Any]:
         """Roll dice using standard dice notation (e.g., '1d20', '3d6+2')."""
         try:
-            import re
             import random
+            import re
 
             # Parse dice expression (e.g., "1d20", "3d6+2", "d6")
             pattern = r"^(\d*)d(\d+)([+-]\d+)?$"
@@ -424,8 +423,8 @@ class NarrativeOrchestrator:
             return {"success": False, "error": str(e), "expression": dice_expression}
 
     async def evaluate_narrative_branch(
-        self, scenario: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, scenario: dict[str, Any]
+    ) -> dict[str, Any]:
         """Evaluate narrative branching scenarios."""
         try:
             story_id = scenario.get("story_id", "unknown")
@@ -489,9 +488,7 @@ class NarrativeOrchestrator:
             if self.mechanics_orchestrator:
                 try:
                     if hasattr(self.mechanics_orchestrator, "evaluate_branch"):
-                        mechanics_result = getattr(
-                            self.mechanics_orchestrator, "evaluate_branch"
-                        )(scenario)
+                        mechanics_result = self.mechanics_orchestrator.evaluate_branch(scenario)
                         evaluation.update(mechanics_result)
                 except Exception as e:
                     log_warning(f"Mechanics orchestrator evaluation failed: {e}")
@@ -514,7 +511,7 @@ class NarrativeOrchestrator:
             log_error(f"Error evaluating narrative branch: {e}")
             return {"success": False, "error": str(e), "scenario": scenario}
 
-    def _handle_consistency_operation(self, story_id: str, data: Dict[str, Any]) -> Any:
+    def _handle_consistency_operation(self, story_id: str, data: dict[str, Any]) -> Any:
         """Handle consistency validation operations."""
         if self.consistency_orchestrator:
             try:
@@ -553,7 +550,7 @@ class NarrativeOrchestrator:
             )
             return {"status": "consistency_operation_unavailable", "data": data}
 
-    def _handle_emotional_operation(self, story_id: str, data: Dict[str, Any]) -> Any:
+    def _handle_emotional_operation(self, story_id: str, data: dict[str, Any]) -> Any:
         """Handle emotional stability operations."""
         if self.emotional_orchestrator:
             try:
@@ -600,7 +597,7 @@ class NarrativeOrchestrator:
             )
             return {"status": "emotional_operation_unavailable", "data": data}
 
-    def get_system_status(self) -> Dict[str, Any]:
+    def get_system_status(self) -> dict[str, Any]:
         """Get comprehensive narrative system status."""
         return {
             "orchestrator_status": "active",
@@ -641,7 +638,7 @@ class NarrativeOrchestrator:
     # Character integration methods for compatibility
     def get_character_narrative_context(
         self, story_id: str, character_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get narrative context for a specific character."""
         state = self.get_narrative_state(story_id)
         if not state:
@@ -656,7 +653,7 @@ class NarrativeOrchestrator:
         }
 
     def update_character_narrative_state(
-        self, story_id: str, character_id: str, narrative_data: Dict[str, Any]
+        self, story_id: str, character_id: str, narrative_data: dict[str, Any]
     ) -> bool:
         """Update narrative state for a specific character."""
         try:
@@ -679,7 +676,7 @@ class NarrativeOrchestrator:
             return False
 
     def validate_character_consistency(
-        self, story_id: str, character_id: str, narrative_event: Dict[str, Any]
+        self, story_id: str, character_id: str, narrative_event: dict[str, Any]
     ) -> bool:
         """Validate character consistency in narrative event."""
         try:
@@ -688,44 +685,42 @@ class NarrativeOrchestrator:
                     story_id, character_id, narrative_event
                 )
                 return result.get("consistent", True)
-            else:
-                # Basic validation when consistency orchestrator not available
-                return True
+            # Basic validation when consistency orchestrator not available
+            return True
 
         except Exception as e:
             log_warning(f"Character consistency validation failed: {e}")
             return True  # Fail open
 
     def track_character_emotional_changes(
-        self, story_id: str, character_id: str, emotional_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, character_id: str, emotional_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Track emotional changes for character in narrative context."""
         try:
             if self.emotional_orchestrator:
                 return self.emotional_orchestrator.track_character_emotions(
                     story_id, character_id, emotional_data
                 )
-            else:
-                # Basic tracking when emotional orchestrator not available
-                state = self.get_narrative_state(story_id)
-                if state:
-                    state.emotional_stability[character_id] = emotional_data.get(
-                        "stability", 0.5
-                    )
+            # Basic tracking when emotional orchestrator not available
+            state = self.get_narrative_state(story_id)
+            if state:
+                state.emotional_stability[character_id] = emotional_data.get(
+                    "stability", 0.5
+                )
 
-                return {
-                    "tracking_status": "basic",
-                    "character_id": character_id,
-                    "stability_score": emotional_data.get("stability", 0.5),
-                }
+            return {
+                "tracking_status": "basic",
+                "character_id": character_id,
+                "stability_score": emotional_data.get("stability", 0.5),
+            }
 
         except Exception as e:
             log_error(f"Character emotional tracking failed: {e}")
             return {"tracking_status": "failed", "error": str(e)}
 
     def track_emotional_stability(
-        self, character_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, character_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Track character emotional stability in narrative context."""
         try:
             character_id = character_data.get("character_id", "unknown")
@@ -739,7 +734,7 @@ class NarrativeOrchestrator:
             log_error(f"Emotional stability tracking failed: {e}")
             return {"tracking_status": "failed", "error": str(e)}
 
-    def get_mechanics_status(self) -> Dict[str, Any]:
+    def get_mechanics_status(self) -> dict[str, Any]:
         """Get status of narrative mechanics systems."""
         try:
             status = {
@@ -753,9 +748,7 @@ class NarrativeOrchestrator:
             if self.mechanics_orchestrator:
                 try:
                     if hasattr(self.mechanics_orchestrator, "get_status"):
-                        mechanics_status = getattr(
-                            self.mechanics_orchestrator, "get_status"
-                        )()
+                        mechanics_status = self.mechanics_orchestrator.get_status()
                         status.update(mechanics_status)
                 except Exception as e:
                     log_warning(f"Error getting mechanics orchestrator status: {e}")
@@ -767,8 +760,8 @@ class NarrativeOrchestrator:
             return {"error": str(e), "status": "failed"}
 
     def validate_emotional_consistency(
-        self, emotional_history: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, emotional_history: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Validate emotional consistency over time."""
         try:
             if not emotional_history:
@@ -814,8 +807,8 @@ class NarrativeOrchestrator:
             return {"success": False, "error": str(e)}
 
     async def assess_response_quality(
-        self, response_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, response_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Assess quality of narrative response."""
         try:
             content = response_data.get("content", "")
@@ -854,9 +847,7 @@ class NarrativeOrchestrator:
             if self.response_orchestrator:
                 try:
                     if hasattr(self.response_orchestrator, "assess_quality"):
-                        advanced_result = getattr(
-                            self.response_orchestrator, "assess_quality"
-                        )(response_data)
+                        advanced_result = self.response_orchestrator.assess_quality(response_data)
                         result.update(advanced_result)
                         result["assessment_method"] = "advanced"
                 except Exception as e:
@@ -868,7 +859,7 @@ class NarrativeOrchestrator:
             log_error(f"Error assessing response quality: {e}")
             return {"success": False, "error": str(e)}
 
-    def calculate_quality_metrics(self, metrics_data: Dict[str, float]) -> float:
+    def calculate_quality_metrics(self, metrics_data: dict[str, float]) -> float:
         """Calculate overall quality from individual metrics."""
         try:
             # Default weights for quality metrics
@@ -905,8 +896,8 @@ class NarrativeOrchestrator:
             return 5.0  # Default neutral score
 
     async def orchestrate_response(
-        self, request_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, request_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Orchestrate comprehensive narrative response generation."""
         try:
             prompt = request_data.get("prompt", "")
@@ -926,9 +917,7 @@ class NarrativeOrchestrator:
             if self.response_orchestrator:
                 try:
                     if hasattr(self.response_orchestrator, "orchestrate"):
-                        advanced_result = getattr(
-                            self.response_orchestrator, "orchestrate"
-                        )(request_data)
+                        advanced_result = self.response_orchestrator.orchestrate(request_data)
                         result.update(advanced_result)
                         result["orchestration_method"] = "advanced"
                     else:
@@ -951,8 +940,8 @@ class NarrativeOrchestrator:
             return {"success": False, "error": str(e)}
 
     def validate_narrative_consistency(
-        self, consistency_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, consistency_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Validate overall narrative consistency."""
         try:
             scene_history = consistency_data.get("scene_history", [])
@@ -994,9 +983,7 @@ class NarrativeOrchestrator:
             if self.consistency_orchestrator:
                 try:
                     if hasattr(self.consistency_orchestrator, "validate_consistency"):
-                        advanced_result = getattr(
-                            self.consistency_orchestrator, "validate_consistency"
-                        )(consistency_data)
+                        advanced_result = self.consistency_orchestrator.validate_consistency(consistency_data)
                         result.update(advanced_result)
                         result["validation_method"] = "advanced"
                 except Exception as e:

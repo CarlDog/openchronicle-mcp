@@ -5,12 +5,15 @@ Week 16: Performance Optimization Advanced
 Provides multi-tier caching (Memory → Redis → Database) for OpenChronicle.
 """
 
-import json
-import time
+from __future__ import annotations
+
 import asyncio
-from typing import Dict, List, Any, Optional, Union, TYPE_CHECKING
-from datetime import datetime, UTC, timedelta
+import json
 import logging
+import time
+from typing import TYPE_CHECKING
+from typing import Any
+
 
 if TYPE_CHECKING:
     import redis.asyncio as redis
@@ -23,7 +26,8 @@ except ImportError:
     REDIS_AVAILABLE = False
     redis = None
 
-from .memory_interfaces import MemorySnapshot, CharacterMemory
+from .memory_interfaces import CharacterMemory
+from .memory_interfaces import MemorySnapshot
 
 
 class CacheConfig:
@@ -34,7 +38,7 @@ class CacheConfig:
         redis_host: str = "localhost",
         redis_port: int = 6379,
         redis_db: int = 0,
-        redis_password: Optional[str] = None,
+        redis_password: str | None = None,
         default_ttl: int = 3600,  # 1 hour
         character_ttl: int = 7200,  # 2 hours
         memory_ttl: int = 1800,  # 30 minutes
@@ -122,7 +126,7 @@ class CacheMetrics:
             else 0.0
         )
 
-    def get_summary(self) -> Dict[str, Any]:
+    def get_summary(self) -> dict[str, Any]:
         """Get comprehensive metrics summary."""
         uptime = time.time() - self.start_time
         return {
@@ -146,7 +150,7 @@ class MultiTierCache:
     cache warming/invalidation strategies.
     """
 
-    def __init__(self, config: Optional[CacheConfig] = None):
+    def __init__(self, config: CacheConfig | None = None):
         self.config = config or CacheConfig()
         self.logger = logging.getLogger("openchronicle.cache")
         self.metrics = CacheMetrics()
@@ -165,7 +169,7 @@ class MultiTierCache:
         self._redis_client = None
         self._redis_available = REDIS_AVAILABLE
 
-    async def _get_redis_client(self) -> Optional[Any]:
+    async def _get_redis_client(self) -> Any | None:
         """Get or create Redis client."""
         if not self._redis_available or redis is None:
             return None
@@ -196,9 +200,9 @@ class MultiTierCache:
     async def get(
         self,
         key: str,
-        fallback_func: Optional[callable] = None,
-        ttl: Optional[int] = None,
-    ) -> Optional[Any]:
+        fallback_func: callable | None = None,
+        ttl: int | None = None,
+    ) -> Any | None:
         """
         Get value from cache with multi-tier fallback.
 
@@ -350,7 +354,7 @@ class MultiTierCache:
         if self._redis_client:
             await self._redis_client.close()
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """Get cache performance metrics."""
         return self.metrics.get_summary()
 
@@ -365,7 +369,7 @@ class CachedCharacterManager:
 
     async def get_character_memory(
         self, story_id: str, character_name: str
-    ) -> Optional[CharacterMemory]:
+    ) -> CharacterMemory | None:
         """Get character memory with caching."""
         cache_key = self.cache._make_key("char", story_id, character_name)
 
@@ -379,7 +383,7 @@ class CachedCharacterManager:
         return result
 
     async def update_character(
-        self, story_id: str, character_name: str, updates: Dict[str, Any]
+        self, story_id: str, character_name: str, updates: dict[str, Any]
     ) -> bool:
         """Update character and invalidate cache."""
         # Update in original manager
@@ -408,7 +412,7 @@ class CachedMemoryOrchestrator:
     """Memory orchestrator with Redis caching."""
 
     def __init__(
-        self, original_orchestrator, cache_config: Optional[CacheConfig] = None
+        self, original_orchestrator, cache_config: CacheConfig | None = None
     ):
         self.original = original_orchestrator
         self.cache = MultiTierCache(cache_config)
@@ -417,7 +421,7 @@ class CachedMemoryOrchestrator:
         )
         self.logger = logging.getLogger("openchronicle.cache.memory")
 
-    async def get_memory_snapshot(self, story_id: str) -> Optional[MemorySnapshot]:
+    async def get_memory_snapshot(self, story_id: str) -> MemorySnapshot | None:
         """Get memory snapshot with caching."""
         cache_key = self.cache._make_key("snapshot", story_id, "current")
 
@@ -428,7 +432,7 @@ class CachedMemoryOrchestrator:
             cache_key, fallback, ttl=self.cache.config.memory_ttl
         )
 
-    async def save_memory(self, story_id: str, memory_data: Dict[str, Any]) -> bool:
+    async def save_memory(self, story_id: str, memory_data: dict[str, Any]) -> bool:
         """Save memory and invalidate related caches."""
         success = self.original.save_current_memory(story_id, memory_data)
 
@@ -442,7 +446,7 @@ class CachedMemoryOrchestrator:
 
         return success
 
-    async def get_cache_metrics(self) -> Dict[str, Any]:
+    async def get_cache_metrics(self) -> dict[str, Any]:
         """Get comprehensive cache performance metrics."""
         return self.cache.get_metrics()
 

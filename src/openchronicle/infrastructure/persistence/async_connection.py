@@ -3,11 +3,11 @@ Async database connection manager for OpenChronicle.
 Handles async SQLite connections with proper resource management.
 """
 
-import aiosqlite
 import os
-from typing import Optional
-from pathlib import Path
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+import aiosqlite
 
 from .shared import DatabaseConfig
 
@@ -18,7 +18,7 @@ class AsyncConnectionManager:
     def __init__(self, config: DatabaseConfig):
         self.config = config
 
-    def _get_db_path(self, story_id: str, is_test: Optional[bool] = None) -> str:
+    def _get_db_path(self, story_id: str, is_test: bool | None = None) -> str:
         """Get database path for story."""
         if is_test is None:
             is_test = self._is_test_context()
@@ -38,7 +38,7 @@ class AsyncConnectionManager:
         return "pytest" in sys.modules or os.getenv("TESTING") == "1"
 
     @asynccontextmanager
-    async def get_connection(self, story_id: str, is_test: Optional[bool] = None):
+    async def get_connection(self, story_id: str, is_test: bool | None = None):
         """Get async database connection with automatic cleanup."""
         db_path = self._get_db_path(story_id, is_test)
 
@@ -51,7 +51,7 @@ class AsyncConnectionManager:
             await conn.close()
 
     async def check_connection(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> bool:
         """Test database connection."""
         try:

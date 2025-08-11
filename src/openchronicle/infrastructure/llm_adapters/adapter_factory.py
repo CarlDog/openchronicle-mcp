@@ -8,12 +8,13 @@ Following OpenChronicle naming convention: adapter_factory.py
 """
 
 import logging
-from typing import Dict, Any, Type, Optional, List, Union
-from pathlib import Path
+from typing import Any
 
-from .api_adapter_base import BaseAPIAdapter, LocalModelAdapter
-from .adapter_exceptions import AdapterNotFoundError, AdapterInitializationError
 from ..model_registry.registry_manager import RegistryManager
+from .adapter_exceptions import AdapterInitializationError
+from .adapter_exceptions import AdapterNotFoundError
+from .api_adapter_base import BaseAPIAdapter
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,8 @@ class AdapterFactory:
             registry_path: Path to the main model registry configuration file
         """
         self.registry = RegistryManager(registry_path)
-        self.providers: Dict[str, Type[BaseAPIAdapter]] = {}
-        self.adapter_instances: Dict[str, BaseAPIAdapter] = {}
+        self.providers: dict[str, type[BaseAPIAdapter]] = {}
+        self.adapter_instances: dict[str, BaseAPIAdapter] = {}
 
         self._register_default_adapters()
         self._discover_available_providers()
@@ -58,9 +59,9 @@ class AdapterFactory:
         """Register default adapter class mappings."""
         try:
             # Import adapters dynamically to avoid circular imports
-            from .providers.openai_adapter import OpenAIAdapter
-            from .providers.ollama_adapter import OllamaAdapter
             from .providers.anthropic_adapter import AnthropicAdapter
+            from .providers.ollama_adapter import OllamaAdapter
+            from .providers.openai_adapter import OpenAIAdapter
 
             self.providers.update(
                 {
@@ -118,7 +119,7 @@ class AdapterFactory:
             logger.warning(f"Error discovering providers: {e}")
 
     def register_adapter(
-        self, provider: str, adapter_class: Type[BaseAPIAdapter]
+        self, provider: str, adapter_class: type[BaseAPIAdapter]
     ) -> None:
         """
         Register a new adapter class for a provider.
@@ -128,16 +129,16 @@ class AdapterFactory:
             adapter_class: Adapter class implementing BaseAPIAdapter
         """
         if not issubclass(adapter_class, BaseAPIAdapter):
-            raise ValueError(f"Adapter class must inherit from BaseAPIAdapter")
+            raise ValueError("Adapter class must inherit from BaseAPIAdapter")
 
         self.providers[provider] = adapter_class
         logger.info(f"Registered custom adapter for provider: {provider}")
 
-    def get_available_providers(self) -> List[str]:
+    def get_available_providers(self) -> list[str]:
         """Get list of providers with registered adapter classes."""
         return list(self.providers.keys())
 
-    def get_available_configurations(self) -> List[str]:
+    def get_available_configurations(self) -> list[str]:
         """Get list of all available configuration names."""
         try:
             all_configs = []
@@ -151,7 +152,7 @@ class AdapterFactory:
             logger.warning(f"Error getting configurations: {e}")
             return []
 
-    def get_provider_models(self, provider: str) -> List[Dict[str, Any]]:
+    def get_provider_models(self, provider: str) -> list[dict[str, Any]]:
         """
         Get all model configurations for a specific provider.
 
@@ -170,7 +171,7 @@ class AdapterFactory:
     def create_adapter(
         self,
         config_name_or_provider: str,
-        custom_config: Optional[Dict[str, Any]] = None,
+        custom_config: dict[str, Any] | None = None,
     ) -> BaseAPIAdapter:
         """
         Create an adapter instance from configuration name or provider.
@@ -208,7 +209,7 @@ class AdapterFactory:
         )
 
     def _create_adapter_from_config(
-        self, config_name: str, custom_config: Optional[Dict[str, Any]] = None
+        self, config_name: str, custom_config: dict[str, Any] | None = None
     ) -> BaseAPIAdapter:
         """Create adapter from specific configuration name."""
         try:
@@ -247,7 +248,7 @@ class AdapterFactory:
             raise AdapterInitializationError(f"Adapter creation failed: {e}")
 
     def _create_adapter_from_provider(
-        self, provider: str, custom_config: Optional[Dict[str, Any]] = None
+        self, provider: str, custom_config: dict[str, Any] | None = None
     ) -> BaseAPIAdapter:
         """Create adapter using provider default configuration."""
         try:
@@ -287,19 +288,19 @@ class AdapterFactory:
         )
 
     def validate_configuration(
-        self, provider_name: str, config: Dict[str, Any]
+        self, provider_name: str, config: dict[str, Any]
     ) -> bool:
         """Validate configuration for a provider."""
         return self.has_provider(provider_name)
 
-    def get_adapter_info(self, config_name: str) -> Optional[Dict[str, Any]]:
+    def get_adapter_info(self, config_name: str) -> dict[str, Any] | None:
         """Get adapter information including configuration requirements."""
         try:
             return self.registry.get_model_config(config_name)
         except Exception:
             return None
 
-    def get_fallback_chain(self, provider: str) -> List[str]:
+    def get_fallback_chain(self, provider: str) -> list[str]:
         """Get fallback chain for a provider."""
         try:
             # For now, return simple fallback to just the provider
@@ -308,7 +309,7 @@ class AdapterFactory:
         except Exception:
             return []
 
-    def add_runtime_config(self, config_name: str, config: Dict[str, Any]) -> bool:
+    def add_runtime_config(self, config_name: str, config: dict[str, Any]) -> bool:
         """Add a new configuration at runtime."""
         try:
             success = self.registry.add_model_config(config_name, config)
@@ -330,12 +331,12 @@ class AdapterFactory:
             logger.error(f"Failed to remove runtime config '{config_name}': {e}")
             return False
 
-    def refresh_configurations(self) -> Dict[str, Any]:
+    def refresh_configurations(self) -> dict[str, Any]:
         """Refresh configurations from disk."""
         return self.registry.refresh_providers()
 
     @property
-    def status(self) -> Dict[str, Any]:
+    def status(self) -> dict[str, Any]:
         """Get factory status information."""
         return {
             "mode": "dynamic",

@@ -8,12 +8,14 @@ This module contains common functionality used across memory management componen
 Created as part of Phase 5B Memory Management Enhancement
 """
 
-import json
 import hashlib
+import json
 import logging
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime, timedelta
 from dataclasses import dataclass
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
+
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +83,7 @@ class MemoryUtilities:
             return {}
 
     @staticmethod
-    def generate_memory_hash(content: str, context: Optional[str] = None) -> str:
+    def generate_memory_hash(content: str, context: str | None = None) -> str:
         """
         Generate a hash for memory content to detect duplicates.
 
@@ -150,8 +152,8 @@ class MemoryUtilities:
 
     @staticmethod
     def filter_memories_by_relevance(
-        memories: List[Dict[str, Any]], query_context: str, max_results: int = 10
-    ) -> List[Dict[str, Any]]:
+        memories: list[dict[str, Any]], query_context: str, max_results: int = 10
+    ) -> list[dict[str, Any]]:
         """
         Filter memories by relevance to a query context.
 
@@ -168,7 +170,7 @@ class MemoryUtilities:
 
         query_words = set(query_context.lower().split())
 
-        def calculate_relevance(memory: Dict[str, Any]) -> float:
+        def calculate_relevance(memory: dict[str, Any]) -> float:
             content = memory.get("content", "").lower()
             content_words = set(content.split())
 
@@ -201,8 +203,8 @@ class MemoryUtilities:
 
     @staticmethod
     def merge_similar_memories(
-        memories: List[Dict[str, Any]], similarity_threshold: float = 0.8
-    ) -> List[Dict[str, Any]]:
+        memories: list[dict[str, Any]], similarity_threshold: float = 0.8
+    ) -> list[dict[str, Any]]:
         """
         Merge similar memories to reduce redundancy.
 
@@ -253,7 +255,7 @@ class MemoryUtilities:
         return merged
 
     @staticmethod
-    def _merge_memory_group(memories: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def _merge_memory_group(memories: list[dict[str, Any]]) -> dict[str, Any]:
         """
         Merge a group of similar memories into one.
 
@@ -303,7 +305,7 @@ class MemoryUtilities:
         return merged
 
     @staticmethod
-    def validate_memory_entry(memory: Dict[str, Any]) -> bool:
+    def validate_memory_entry(memory: dict[str, Any]) -> bool:
         """
         Validate a memory entry has required fields.
 
@@ -354,7 +356,7 @@ class MemoryUtilities:
         return cleaned
 
     @staticmethod
-    def get_memory_metrics(memories: List[Dict[str, Any]]) -> MemoryMetrics:
+    def get_memory_metrics(memories: list[dict[str, Any]]) -> MemoryMetrics:
         """
         Calculate metrics for a collection of memories.
 
@@ -416,7 +418,7 @@ class MemoryUtilities:
         )
 
     @staticmethod
-    def format_memory_for_display(memory: Dict[str, Any], max_length: int = 200) -> str:
+    def format_memory_for_display(memory: dict[str, Any], max_length: int = 200) -> str:
         """
         Format a memory entry for display purposes.
 
@@ -471,6 +473,6 @@ def calculate_importance(content: str, memory_type: str, **kwargs) -> float:
     return MemoryUtilities.calculate_importance_score(content, memory_type, **kwargs)
 
 
-def validate_memory(memory: Dict[str, Any]) -> bool:
+def validate_memory(memory: dict[str, Any]) -> bool:
     """Validate a memory entry."""
     return MemoryUtilities.validate_memory_entry(memory)

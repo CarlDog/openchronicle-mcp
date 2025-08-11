@@ -4,13 +4,12 @@ OpenChronicle Centralized Logging System
 Provides unified logging for all utilities and core components.
 """
 
-import os
 import json
 import logging
-from pathlib import Path
 from datetime import datetime
-from typing import Dict, Any, Optional, Union
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
+from typing import Any
 
 
 class ContextualFormatter(logging.Formatter):
@@ -34,7 +33,7 @@ class ContextualFormatter(logging.Formatter):
 class OpenChronicleLogger:
     """Centralized logging system for OpenChronicle."""
 
-    def __init__(self, name: str = "openchronicle", log_dir: Optional[Path] = None):
+    def __init__(self, name: str = "openchronicle", log_dir: Path | None = None):
         self.name = name
         # Adjust path since we're now in src/openchronicle/shared/ - need to go up 4 levels to project root
         self.root_dir = Path(__file__).parent.parent.parent.parent
@@ -42,12 +41,11 @@ class OpenChronicleLogger:
         # Determine log directory based on context
         if log_dir:
             self.log_dir = log_dir
+        # Use tests/logs for test context, logs for production
+        elif self._is_test_context():
+            self.log_dir = self.root_dir / "tests" / "logs"
         else:
-            # Use tests/logs for test context, logs for production
-            if self._is_test_context():
-                self.log_dir = self.root_dir / "tests" / "logs"
-            else:
-                self.log_dir = self.root_dir / "logs"
+            self.log_dir = self.root_dir / "logs"
 
         self.log_dir.mkdir(exist_ok=True)
 
@@ -130,10 +128,10 @@ class OpenChronicleLogger:
     def info(
         self,
         message: str,
-        story_id: Optional[str] = None,
-        scene_id: Optional[str] = None,
-        model: Optional[str] = None,
-        context_tags: Optional[Union[str, list]] = None,
+        story_id: str | None = None,
+        scene_id: str | None = None,
+        model: str | None = None,
+        context_tags: str | list | None = None,
         **kwargs,
     ):
         """Log info message with optional context tags."""
@@ -144,10 +142,10 @@ class OpenChronicleLogger:
     def debug(
         self,
         message: str,
-        story_id: Optional[str] = None,
-        scene_id: Optional[str] = None,
-        model: Optional[str] = None,
-        context_tags: Optional[Union[str, list]] = None,
+        story_id: str | None = None,
+        scene_id: str | None = None,
+        model: str | None = None,
+        context_tags: str | list | None = None,
         **kwargs,
     ):
         """Log debug message with optional context tags."""
@@ -158,10 +156,10 @@ class OpenChronicleLogger:
     def warning(
         self,
         message: str,
-        story_id: Optional[str] = None,
-        scene_id: Optional[str] = None,
-        model: Optional[str] = None,
-        context_tags: Optional[Union[str, list]] = None,
+        story_id: str | None = None,
+        scene_id: str | None = None,
+        model: str | None = None,
+        context_tags: str | list | None = None,
         **kwargs,
     ):
         """Log warning message with optional context tags."""
@@ -172,10 +170,10 @@ class OpenChronicleLogger:
     def error(
         self,
         message: str,
-        story_id: Optional[str] = None,
-        scene_id: Optional[str] = None,
-        model: Optional[str] = None,
-        context_tags: Optional[Union[str, list]] = None,
+        story_id: str | None = None,
+        scene_id: str | None = None,
+        model: str | None = None,
+        context_tags: str | list | None = None,
         **kwargs,
     ):
         """Log error message with optional context tags."""
@@ -186,10 +184,10 @@ class OpenChronicleLogger:
     def critical(
         self,
         message: str,
-        story_id: Optional[str] = None,
-        scene_id: Optional[str] = None,
-        model: Optional[str] = None,
-        context_tags: Optional[Union[str, list]] = None,
+        story_id: str | None = None,
+        scene_id: str | None = None,
+        model: str | None = None,
+        context_tags: str | list | None = None,
         **kwargs,
     ):
         """Log critical message with optional context tags."""
@@ -201,10 +199,10 @@ class OpenChronicleLogger:
         self,
         level: int,
         message: str,
-        story_id: Optional[str] = None,
-        scene_id: Optional[str] = None,
-        model: Optional[str] = None,
-        context_tags: Optional[Union[str, list]] = None,
+        story_id: str | None = None,
+        scene_id: str | None = None,
+        model: str | None = None,
+        context_tags: str | list | None = None,
         **kwargs,
     ):
         """Log message with contextual tags."""
@@ -231,7 +229,7 @@ class OpenChronicleLogger:
     def log_maintenance_action(
         self,
         action: str,
-        details: Optional[Dict[str, Any]] = None,
+        details: dict[str, Any] | None = None,
         status: str = "success",
     ):
         """Log maintenance action with structured data."""
@@ -254,7 +252,7 @@ class OpenChronicleLogger:
         model: str,
         prompt_length: int,
         response_length: int,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """Log model interaction for analytics."""
         log_entry = {
@@ -272,7 +270,7 @@ class OpenChronicleLogger:
             f.write(json.dumps(log_entry) + "\n")
 
     def log_error_with_context(
-        self, error: Exception, context: Optional[Dict[str, Any]] = None
+        self, error: Exception, context: dict[str, Any] | None = None
     ):
         """Log error with additional context."""
         error_entry = {
@@ -293,7 +291,7 @@ class OpenChronicleLogger:
         )
 
     def log_system_event(
-        self, event_type: str, description: str, data: Optional[Dict[str, Any]] = None
+        self, event_type: str, description: str, data: dict[str, Any] | None = None
     ):
         """Log system events (startup, shutdown, configuration changes, etc.)."""
         event_entry = {
@@ -311,7 +309,7 @@ class OpenChronicleLogger:
         # Also log to main logger
         self.logger.info(f"System Event: {event_type} - {description}")
 
-    def get_log_statistics(self) -> Dict[str, Any]:
+    def get_log_statistics(self) -> dict[str, Any]:
         """Get statistics about log files."""
         stats = {"log_directory": str(self.log_dir), "files": {}}
 
@@ -336,7 +334,7 @@ class OpenChronicleLogger:
     def _count_lines(self, file_path: Path) -> int:
         """Count lines in a file."""
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 return sum(1 for line in f)
         except Exception:
             return 0
@@ -368,7 +366,7 @@ def get_logger(name: str = "openchronicle") -> OpenChronicleLogger:
     return _logger_instance
 
 
-def setup_logging(log_dir: Optional[Path] = None) -> OpenChronicleLogger:
+def setup_logging(log_dir: Path | None = None) -> OpenChronicleLogger:
     """Setup logging system."""
     global _logger_instance
     _logger_instance = OpenChronicleLogger(log_dir=log_dir)
@@ -378,10 +376,10 @@ def setup_logging(log_dir: Optional[Path] = None) -> OpenChronicleLogger:
 # Convenience functions with context support
 def log_info(
     message: str,
-    story_id: Optional[str] = None,
-    scene_id: Optional[str] = None,
-    model: Optional[str] = None,
-    context_tags: Optional[Union[str, list]] = None,
+    story_id: str | None = None,
+    scene_id: str | None = None,
+    model: str | None = None,
+    context_tags: str | list | None = None,
     **kwargs,
 ):
     """Log info message with optional context."""
@@ -397,10 +395,10 @@ def log_info(
 
 def log_error(
     message: str,
-    story_id: Optional[str] = None,
-    scene_id: Optional[str] = None,
-    model: Optional[str] = None,
-    context_tags: Optional[Union[str, list]] = None,
+    story_id: str | None = None,
+    scene_id: str | None = None,
+    model: str | None = None,
+    context_tags: str | list | None = None,
     **kwargs,
 ):
     """Log error message with optional context."""
@@ -416,10 +414,10 @@ def log_error(
 
 def log_warning(
     message: str,
-    story_id: Optional[str] = None,
-    scene_id: Optional[str] = None,
-    model: Optional[str] = None,
-    context_tags: Optional[Union[str, list]] = None,
+    story_id: str | None = None,
+    scene_id: str | None = None,
+    model: str | None = None,
+    context_tags: str | list | None = None,
     **kwargs,
 ):
     """Log warning message with optional context."""
@@ -435,10 +433,10 @@ def log_warning(
 
 def log_debug(
     message: str,
-    story_id: Optional[str] = None,
-    scene_id: Optional[str] = None,
-    model: Optional[str] = None,
-    context_tags: Optional[Union[str, list]] = None,
+    story_id: str | None = None,
+    scene_id: str | None = None,
+    model: str | None = None,
+    context_tags: str | list | None = None,
     **kwargs,
 ):
     """Log debug message with optional context."""
@@ -454,10 +452,10 @@ def log_debug(
 
 def log_critical(
     message: str,
-    story_id: Optional[str] = None,
-    scene_id: Optional[str] = None,
-    model: Optional[str] = None,
-    context_tags: Optional[Union[str, list]] = None,
+    story_id: str | None = None,
+    scene_id: str | None = None,
+    model: str | None = None,
+    context_tags: str | list | None = None,
     **kwargs,
 ):
     """Log critical message with optional context."""
@@ -472,7 +470,7 @@ def log_critical(
 
 
 def log_maintenance_action(
-    action: str, details: Optional[Dict[str, Any]] = None, status: str = "success"
+    action: str, details: dict[str, Any] | None = None, status: str = "success"
 ):
     """Log maintenance action."""
     get_logger().log_maintenance_action(action, details, status)
@@ -483,7 +481,7 @@ def log_model_interaction(
     model: str,
     prompt_length: int,
     response_length: int,
-    metadata: Optional[Dict[str, Any]] = None,
+    metadata: dict[str, Any] | None = None,
 ):
     """Log model interaction."""
     get_logger().log_model_interaction(
@@ -492,13 +490,13 @@ def log_model_interaction(
 
 
 def log_system_event(
-    event_type: str, description: str, data: Optional[Dict[str, Any]] = None
+    event_type: str, description: str, data: dict[str, Any] | None = None
 ):
     """Log system event."""
     get_logger().log_system_event(event_type, description, data)
 
 
-def log_error_with_context(error: Exception, context: Optional[Dict[str, Any]] = None):
+def log_error_with_context(error: Exception, context: dict[str, Any] | None = None):
     """Log error with context."""
     get_logger().log_error_with_context(error, context)
 

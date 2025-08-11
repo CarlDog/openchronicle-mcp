@@ -7,19 +7,19 @@ and interaction dynamics. Extracted from character_interaction_engine.py.
 
 import logging
 import uuid
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set, Tuple, Any
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
 
-from ..character_base import CharacterEngineBase, CharacterStateProvider
-from ..character_data import (
-    CharacterData,
-    CharacterRelationship,
-    CharacterInteraction,
-    CharacterState,
-    SceneState,
-    CharacterRelationType,
-    CharacterInteractionType,
-)
+from ..character_base import CharacterEngineBase
+from ..character_base import CharacterStateProvider
+from ..character_data import CharacterInteraction
+from ..character_data import CharacterInteractionType
+from ..character_data import CharacterRelationship
+from ..character_data import CharacterRelationType
+from ..character_data import CharacterState
+from ..character_data import SceneState
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
     and maintains individual character states within complex multi-character scenes.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize the interaction dynamics engine."""
         super().__init__(config)
 
@@ -46,12 +46,12 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         )
 
         # Data storage
-        self.relationships: Dict[str, CharacterRelationship] = (
+        self.relationships: dict[str, CharacterRelationship] = (
             {}
         )  # Key: "char_a:char_b"
-        self.interaction_history: List[CharacterInteraction] = []
-        self.scene_states: Dict[str, SceneState] = {}
-        self.character_contexts: Dict[str, Dict[str, Any]] = {}
+        self.interaction_history: list[CharacterInteraction] = []
+        self.scene_states: dict[str, SceneState] = {}
+        self.character_contexts: dict[str, dict[str, Any]] = {}
 
         # Turn management patterns
         self.speaking_patterns = {
@@ -81,7 +81,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
         return character_state
 
-    def get_character_data(self, character_id: str) -> Optional[CharacterState]:
+    def get_character_data(self, character_id: str) -> CharacterState | None:
         """Get character interaction state."""
         return self.character_data.get(character_id)
 
@@ -122,7 +122,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
     def get_relationship(
         self, character_a: str, character_b: str
-    ) -> Optional[CharacterRelationship]:
+    ) -> CharacterRelationship | None:
         """Get relationship between two characters."""
         relationship_key = self._get_relationship_key(character_a, character_b)
         return self.relationships.get(relationship_key)
@@ -162,7 +162,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
     def get_character_relationships(
         self, character_id: str
-    ) -> List[CharacterRelationship]:
+    ) -> list[CharacterRelationship]:
         """Get all relationships for a character."""
         relationships = []
 
@@ -182,7 +182,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
     def create_scene(
         self,
         scene_id: str,
-        characters: List[str],
+        characters: list[str],
         scene_focus: str,
         environment_context: str = "",
     ) -> SceneState:
@@ -223,7 +223,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         )
         return scene_state
 
-    def get_scene(self, scene_id: str) -> Optional[SceneState]:
+    def get_scene(self, scene_id: str) -> SceneState | None:
         """Get scene state."""
         return self.scene_states.get(scene_id)
 
@@ -287,7 +287,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         """Process character interaction within a scene."""
         scene = self.get_scene(scene_id)
         if not scene or speaker_id not in scene.active_characters:
-            raise ValueError(f"Invalid scene or character for interaction")
+            raise ValueError("Invalid scene or character for interaction")
 
         # Create interaction record
         interaction = CharacterInteraction(
@@ -321,7 +321,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
     def get_scene_interactions(
         self, scene_id: str, limit: int = 50
-    ) -> List[CharacterInteraction]:
+    ) -> list[CharacterInteraction]:
         """Get recent interactions from a scene."""
         scene = self.get_scene(scene_id)
         if not scene:
@@ -331,7 +331,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
     def get_character_interaction_history(
         self, character_id: str, hours_back: int = 24
-    ) -> List[CharacterInteraction]:
+    ) -> list[CharacterInteraction]:
         """Get character's recent interaction history."""
         cutoff_time = datetime.now() - timedelta(hours=hours_back)
 
@@ -346,7 +346,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
     # State Provider Interface
     # =============================================================================
 
-    def get_character_state(self, character_id: str) -> Dict[str, Any]:
+    def get_character_state(self, character_id: str) -> dict[str, Any]:
         """Get comprehensive character interaction state."""
         character_state = self.get_character_data(character_id)
         relationships = self.get_character_relationships(character_id)
@@ -370,7 +370,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         return state
 
     def update_character_state(
-        self, character_id: str, state_updates: Dict[str, Any]
+        self, character_id: str, state_updates: dict[str, Any]
     ) -> bool:
         """Update character interaction state."""
         character_state = self.get_character_data(character_id)
@@ -393,7 +393,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
     # Data Management
     # =============================================================================
 
-    def export_character_data(self, character_id: str) -> Dict[str, Any]:
+    def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export character interaction data."""
         character_state = self.get_character_data(character_id)
         relationships = self.get_character_relationships(character_id)
@@ -410,7 +410,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
             "version": "1.0",
         }
 
-    def import_character_data(self, character_data: Dict[str, Any]) -> None:
+    def import_character_data(self, character_data: dict[str, Any]) -> None:
         """Import character interaction data."""
         character_id = character_data.get("character_id")
         if not character_id:
@@ -520,8 +520,8 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         scene.current_speaker = scene.turn_order[next_index]
 
     def _summarize_relationships(
-        self, relationships: List[CharacterRelationship]
-    ) -> Dict[str, int]:
+        self, relationships: list[CharacterRelationship]
+    ) -> dict[str, int]:
         """Summarize relationship types for a character."""
         summary = {}
 

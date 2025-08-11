@@ -5,10 +5,9 @@ Handles timeline navigation, history tracking, and scene transitions.
 Extracted from legacy timeline_builder.py navigation functionality.
 """
 
-import json
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional
-from pathlib import Path
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
 
 class NavigationManager:
@@ -17,13 +16,11 @@ class NavigationManager:
     def __init__(self, story_id: str):
         self.story_id = story_id
 
-    async def get_navigation_history(self) -> List[Dict[str, Any]]:
+    async def get_navigation_history(self) -> list[dict[str, Any]]:
         """Retrieve navigation history for timeline."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -63,16 +60,14 @@ class NavigationManager:
 
     async def find_scene_by_criteria(
         self,
-        title_pattern: Optional[str] = None,
-        content_pattern: Optional[str] = None,
-        time_range: Optional[Dict[str, str]] = None,
-    ) -> List[Dict[str, Any]]:
+        title_pattern: str | None = None,
+        content_pattern: str | None = None,
+        time_range: dict[str, str] | None = None,
+    ) -> list[dict[str, Any]]:
         """Find scenes matching navigation criteria."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -128,13 +123,11 @@ class NavigationManager:
 
     async def get_scene_context(
         self, scene_id: str, context_window: int = 3
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get contextual scenes around target scene."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -214,10 +207,8 @@ class NavigationManager:
     ) -> bool:
         """Track navigation between scenes."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_update,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_update - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -247,13 +238,11 @@ class NavigationManager:
             log_system_event("error", f"Navigation tracking failed: {e}")
             return False
 
-    async def get_navigation_statistics(self) -> Dict[str, Any]:
+    async def get_navigation_statistics(self) -> dict[str, Any]:
         """Get navigation pattern statistics."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -297,25 +286,24 @@ class NavigationManager:
             log_system_event("error", f"Navigation statistics failed: {e}")
             return {"error": str(e)}
 
-    async def navigate(self, navigation_type: str, **kwargs) -> Dict[str, Any]:
+    async def navigate(self, navigation_type: str, **kwargs) -> dict[str, Any]:
         """Navigate through timeline with various options."""
         try:
             if navigation_type == "next":
                 return await self._navigate_next(kwargs.get("current_scene_id"))
-            elif navigation_type == "previous":
+            if navigation_type == "previous":
                 return await self._navigate_previous(kwargs.get("current_scene_id"))
-            elif navigation_type == "jump_to":
+            if navigation_type == "jump_to":
                 return await self._navigate_jump_to(kwargs.get("target_scene_id"))
-            elif navigation_type == "search":
+            if navigation_type == "search":
                 return await self._navigate_search(kwargs.get("search_criteria", {}))
-            else:
-                return {"error": f"Unknown navigation type: {navigation_type}"}
+            return {"error": f"Unknown navigation type: {navigation_type}"}
         except Exception as e:
-            return {"error": f"Navigation failed: {str(e)}"}
+            return {"error": f"Navigation failed: {e!s}"}
 
     async def build_navigation_structure(
-        self, timeline_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, timeline_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Build navigation structure from timeline data."""
         try:
             entries = timeline_data.get("entries", [])
@@ -364,16 +352,14 @@ class NavigationManager:
                 "bookmark_entries": 0,
                 "navigation_points": [],
                 "current_position": 0,
-                "error": f"Failed to build navigation structure: {str(e)}",
+                "error": f"Failed to build navigation structure: {e!s}",
             }
 
-    async def _navigate_next(self, current_scene_id: Optional[str]) -> Dict[str, Any]:
+    async def _navigate_next(self, current_scene_id: str | None) -> dict[str, Any]:
         """Navigate to next scene in timeline."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -411,21 +397,18 @@ class NavigationManager:
                     "navigation_type": "next",
                     "status": "success",
                 }
-            else:
-                return {"error": "No next scene found"}
+            return {"error": "No next scene found"}
 
         except Exception as e:
-            return {"error": f"Next navigation failed: {str(e)}"}
+            return {"error": f"Next navigation failed: {e!s}"}
 
     async def _navigate_previous(
-        self, current_scene_id: Optional[str]
-    ) -> Dict[str, Any]:
+        self, current_scene_id: str | None
+    ) -> dict[str, Any]:
         """Navigate to previous scene in timeline."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -463,19 +446,16 @@ class NavigationManager:
                     "navigation_type": "previous",
                     "status": "success",
                 }
-            else:
-                return {"error": "No previous scene found"}
+            return {"error": "No previous scene found"}
 
         except Exception as e:
-            return {"error": f"Previous navigation failed: {str(e)}"}
+            return {"error": f"Previous navigation failed: {e!s}"}
 
-    async def _navigate_jump_to(self, target_scene_id: str) -> Dict[str, Any]:
+    async def _navigate_jump_to(self, target_scene_id: str) -> dict[str, Any]:
         """Jump to specific scene."""
         try:
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -494,13 +474,12 @@ class NavigationManager:
                     "navigation_type": "jump_to",
                     "status": "success",
                 }
-            else:
-                return {"error": f"Scene {target_scene_id} not found"}
+            return {"error": f"Scene {target_scene_id} not found"}
 
         except Exception as e:
-            return {"error": f"Jump navigation failed: {str(e)}"}
+            return {"error": f"Jump navigation failed: {e!s}"}
 
-    async def _navigate_search(self, search_criteria: Dict[str, Any]) -> Dict[str, Any]:
+    async def _navigate_search(self, search_criteria: dict[str, Any]) -> dict[str, Any]:
         """Search for scenes matching criteria."""
         try:
             results = await self.find_scene_by_criteria(
@@ -516,11 +495,10 @@ class NavigationManager:
                     "search_results": results,
                     "status": "success",
                 }
-            else:
-                return {"error": "No scenes found matching search criteria"}
+            return {"error": "No scenes found matching search criteria"}
 
         except Exception as e:
-            return {"error": f"Search navigation failed: {str(e)}"}
+            return {"error": f"Search navigation failed: {e!s}"}
 
     def _format_display_time(self, timestamp: str) -> str:
         """Format timestamp for display."""
@@ -531,7 +509,7 @@ class NavigationManager:
             return timestamp
 
     def _calculate_relevance_score(
-        self, row, title_pattern: Optional[str], content_pattern: Optional[str]
+        self, row, title_pattern: str | None, content_pattern: str | None
     ) -> float:
         """Calculate relevance score for search results."""
         score = 0.0

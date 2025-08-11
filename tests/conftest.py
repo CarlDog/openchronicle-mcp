@@ -12,11 +12,14 @@ import shutil
 import sys
 import tempfile
 import uuid
+from collections.abc import Callable
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Iterator, Optional
+from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock
+
 
 # -----------------------------------------------------------------------------
 # PYTHONPATH SETUP
@@ -58,7 +61,7 @@ class TestConfigurationManager:
         """Determine if mock adapters should be used."""
         return self.current_tier in ["production_mock", "smoke", "stress", "standard"]
 
-    def get_model_adapter_config(self) -> Dict[str, Any]:
+    def get_model_adapter_config(self) -> dict[str, Any]:
         """Get model adapter configuration for current test tier."""
         if self.mock_adapters_enabled:
             return {
@@ -75,9 +78,9 @@ class TestConfigurationManager:
             "retry_attempts": 3,
         }
 
-    def get_database_config(self) -> Dict[str, Any]:
+    def get_database_config(self) -> dict[str, Any]:
         """Get database configuration for current test tier."""
-        base_config: Dict[str, Any] = {
+        base_config: dict[str, Any] = {
             "use_memory_db": True,
             "enable_foreign_keys": True,
             "auto_vacuum": True,
@@ -132,7 +135,7 @@ def pytest_configure(config: pytest.Config) -> None:
         os.environ["OPENCHRONICLE_TEST_TIER"] = "stress"
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: List[pytest.Item]) -> None:
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Modify test collection to add default markers based on file path / name."""
     for item in items:
         p = str(item.fspath)
@@ -154,7 +157,7 @@ def artifact_root(pytestconfig: pytest.Config) -> Path:
     One sandbox for all test artifacts. Everything that writes to disk should
     land somewhere under here so we can clean it safely at session end.
     """
-    override: Optional[str] = pytestconfig.getoption("--artifact-root")
+    override: str | None = pytestconfig.getoption("--artifact-root")
     if override:
         root = Path(override).expanduser().resolve()
     else:
@@ -249,7 +252,8 @@ def get_mock_image_adapter():
 
 
 # Enhanced mock adapters (imported normally)
-from tests.mocks.mock_adapters import MockDatabaseManager, MockModelOrchestrator  # noqa: E402
+from tests.mocks.mock_adapters import MockDatabaseManager  # noqa: E402
+from tests.mocks.mock_adapters import MockModelOrchestrator  # noqa: E402
 
 
 # -----------------------------------------------------------------------------
@@ -283,7 +287,9 @@ def image_adapter(tier_config):
 @pytest.fixture
 def scene_orchestrator(clean_test_environment):
     """Create a scene orchestrator for testing."""
-    from src.openchronicle.domain.services.scenes.scene_orchestrator import SceneOrchestrator
+    from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+        SceneOrchestrator,
+    )
     story_id = clean_test_environment["story_id"]
     return SceneOrchestrator(story_id=story_id, config={"enable_logging": False})
 
@@ -291,7 +297,9 @@ def scene_orchestrator(clean_test_environment):
 @pytest.fixture
 def timeline_orchestrator(clean_test_environment):
     """Create a timeline orchestrator for testing."""
-    from src.openchronicle.domain.services.timeline.timeline_orchestrator import TimelineOrchestrator
+    from src.openchronicle.domain.services.timeline.timeline_orchestrator import (
+        TimelineOrchestrator,
+    )
     story_id = clean_test_environment["story_id"]
     return TimelineOrchestrator(story_id=story_id)
 
@@ -299,14 +307,18 @@ def timeline_orchestrator(clean_test_environment):
 @pytest.fixture
 def memory_orchestrator():
     """Create a memory orchestrator for testing."""
-    from src.openchronicle.infrastructure.memory.memory_orchestrator import MemoryOrchestrator
+    from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+        MemoryOrchestrator,
+    )
     return MemoryOrchestrator()
 
 
 @pytest.fixture
 def context_orchestrator():
     """Create a context orchestrator for testing."""
-    from src.openchronicle.infrastructure.content.context.orchestrator import ContextOrchestrator
+    from src.openchronicle.infrastructure.content.context.orchestrator import (
+        ContextOrchestrator,
+    )
     return ContextOrchestrator()
 
 
@@ -327,7 +339,7 @@ def test_story_id() -> str:
 
 
 @pytest.fixture
-def clean_test_environment(temp_test_dir: str, test_story_id: str) -> Iterator[Dict[str, Any]]:
+def clean_test_environment(temp_test_dir: str, test_story_id: str) -> Iterator[dict[str, Any]]:
     """Create a clean test environment with temporary storage."""
     test_storage = Path(temp_test_dir) / "storage"
     (test_storage / "characters").mkdir(parents=True, exist_ok=True)
@@ -352,11 +364,11 @@ def clean_test_environment(temp_test_dir: str, test_story_id: str) -> Iterator[D
 # -----------------------------------------------------------------------------
 # TEST UTILITIES / MOCK DATA
 # -----------------------------------------------------------------------------
-def create_test_scene_data(scene_id: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+def create_test_scene_data(scene_id: str | None = None, **kwargs) -> dict[str, Any]:
     """Create test scene data with default values."""
     if scene_id is None:
         scene_id = f"test_scene_{uuid.uuid4().hex[:8]}"
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "scene_id": scene_id,
         "user_input": kwargs.get("user_input", "Test user input"),
         "model_output": kwargs.get("model_output", "Test model output"),
@@ -372,11 +384,11 @@ def create_test_scene_data(scene_id: Optional[str] = None, **kwargs) -> Dict[str
     return data
 
 
-def create_test_character_data(character_name: Optional[str] = None, **kwargs) -> Dict[str, Any]:
+def create_test_character_data(character_name: str | None = None, **kwargs) -> dict[str, Any]:
     """Create test character data with default values."""
     if character_name is None:
         character_name = f"test_character_{uuid.uuid4().hex[:8]}"
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "name": character_name,
         "personality": kwargs.get("personality", "Test personality"),
         "background": kwargs.get("background", "Test background"),
@@ -391,9 +403,9 @@ def create_test_character_data(character_name: Optional[str] = None, **kwargs) -
     return data
 
 
-def create_test_memory_snapshot(**kwargs) -> Dict[str, Any]:
+def create_test_memory_snapshot(**kwargs) -> dict[str, Any]:
     """Create test memory snapshot with default values."""
-    data: Dict[str, Any] = {
+    data: dict[str, Any] = {
         "characters": kwargs.get("characters", {}),
         "world_state": kwargs.get("world_state", {"location": "test_location"}),
         "recent_events": kwargs.get("recent_events", []),
@@ -408,7 +420,7 @@ class TestUtils:
     """Utility functions for testing."""
 
     @staticmethod
-    def validate_scene_data(scene_data: Dict[str, Any]) -> bool:
+    def validate_scene_data(scene_data: dict[str, Any]) -> bool:
         required = ["scene_id", "user_input", "model_output"]
         return all(k in scene_data for k in required)
 
@@ -430,7 +442,7 @@ class TestUtils:
         return scenes
 
     @staticmethod
-    def generate_test_scene() -> Dict[str, Any]:
+    def generate_test_scene() -> dict[str, Any]:
         r = uuid.uuid4().hex[:6]
         return {
             "scene_id": f"test_scene_{r}",
@@ -447,7 +459,7 @@ class TestUtils:
         }
 
     @staticmethod
-    def generate_test_timeline() -> Dict[str, Any]:
+    def generate_test_timeline() -> dict[str, Any]:
         return {
             "timeline_id": f"test_timeline_{uuid.uuid4().hex[:6]}",
             "story_id": "test_story",

@@ -38,7 +38,7 @@ class StoryRepository(Protocol):
         """Save a story."""
         ...
 
-    async def get_by_id(self, story_id: str) -> Optional[Story]:
+    async def get_by_id(self, story_id: str) -> Story | None:
         """Get story by ID."""
         ...
 
@@ -54,7 +54,7 @@ class CharacterRepository(Protocol):
         """Save a character."""
         ...
 
-    async def get_by_id(self, character_id: str) -> Optional[Character]:
+    async def get_by_id(self, character_id: str) -> Character | None:
         """Get character by ID."""
         ...
 
@@ -70,7 +70,7 @@ class SceneRepository(Protocol):
         """Save a scene."""
         ...
 
-    async def get_by_id(self, scene_id: str) -> Optional[Scene]:
+    async def get_by_id(self, scene_id: str) -> Scene | None:
         """Get scene by ID."""
         ...
 
@@ -97,7 +97,7 @@ class ModelManager(Protocol):
     """Model management interface."""
 
     async def generate_response(
-        self, context: NarrativeContext, model_preference: Optional[str] = None
+        self, context: NarrativeContext, model_preference: str | None = None
     ) -> ModelResponse:
         """Generate AI response."""
         ...
@@ -446,12 +446,12 @@ class NarrativeOrchestrator(BaseOrchestrator):
 # Export all orchestrators
 __all__ = [
     "BaseOrchestrator",
-    "StoryOrchestrator",
     "CharacterOrchestrator",
-    "NarrativeOrchestrator",
-    "StoryRepository",
     "CharacterRepository",
-    "SceneRepository",
     "MemoryManager",
     "ModelManager",
+    "NarrativeOrchestrator",
+    "SceneRepository",
+    "StoryOrchestrator",
+    "StoryRepository",
 ]

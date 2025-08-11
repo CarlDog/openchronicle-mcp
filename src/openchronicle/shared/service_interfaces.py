@@ -7,9 +7,10 @@ proper dependency injection and loose coupling.
 Part of Phase 2, Week 5-6: Dependency Injection Framework
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Union, AsyncContextManager
-from pathlib import Path
+from abc import ABC
+from abc import abstractmethod
+from typing import Any
+from typing import AsyncContextManager
 
 
 # =============================================================================
@@ -23,12 +24,10 @@ class IDatabaseConnection(ABC):
     @abstractmethod
     async def get_connection(self, db_path: str) -> AsyncContextManager:
         """Get a database connection."""
-        pass
 
     @abstractmethod
     async def execute_query(self, db_path: str, query: str, params: tuple = ()) -> Any:
         """Execute a database query."""
-        pass
 
 
 class IDatabaseOperations(ABC):
@@ -37,28 +36,24 @@ class IDatabaseOperations(ABC):
     @abstractmethod
     async def create_tables(self, db_path: str) -> bool:
         """Create database tables."""
-        pass
 
     @abstractmethod
     async def get_character_data(
         self, db_path: str, character_id: str
-    ) -> Optional[Dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """Get character data from database."""
-        pass
 
 
 class IDatabaseOrchestrator(ABC):
     """Interface for database orchestration."""
 
     @abstractmethod
-    async def startup_health_check(self) -> Dict[str, Any]:
+    async def startup_health_check(self) -> dict[str, Any]:
         """Perform startup health check."""
-        pass
 
     @abstractmethod
-    async def get_all_databases(self) -> List[str]:
+    async def get_all_databases(self) -> list[str]:
         """Get all database paths."""
-        pass
 
 
 # =============================================================================
@@ -72,12 +67,10 @@ class IModelAdapter(ABC):
     @abstractmethod
     async def initialize(self) -> bool:
         """Initialize the adapter."""
-        pass
 
     @abstractmethod
     async def generate_response(self, prompt: str, **kwargs) -> str:
         """Generate a response from the model."""
-        pass
 
 
 class ILifecycleManager(ABC):
@@ -88,12 +81,10 @@ class ILifecycleManager(ABC):
         self, name: str, max_retries: int = 2, graceful_degradation: bool = True
     ) -> bool:
         """Initialize a specific adapter."""
-        pass
 
     @abstractmethod
-    def get_adapter_status(self) -> Dict[str, Dict[str, Any]]:
+    def get_adapter_status(self) -> dict[str, dict[str, Any]]:
         """Get status of all adapters."""
-        pass
 
 
 class IPerformanceMonitor(ABC):
@@ -102,12 +93,10 @@ class IPerformanceMonitor(ABC):
     @abstractmethod
     def record_response_time(self, adapter_name: str, response_time: float) -> None:
         """Record response time for an adapter."""
-        pass
 
     @abstractmethod
-    def get_performance_metrics(self) -> Dict[str, Any]:
+    def get_performance_metrics(self) -> dict[str, Any]:
         """Get performance metrics."""
-        pass
 
 
 class IResponseGenerator(ABC):
@@ -117,12 +106,11 @@ class IResponseGenerator(ABC):
     async def generate_response(
         self,
         prompt: str,
-        adapter_name: Optional[str] = None,
-        story_id: Optional[str] = None,
+        adapter_name: str | None = None,
+        story_id: str | None = None,
         **kwargs,
     ) -> str:
         """Generate response using specified adapter."""
-        pass
 
 
 class IModelOrchestrator(ABC):
@@ -133,18 +121,16 @@ class IModelOrchestrator(ABC):
         self, name: str, max_retries: int = 2, graceful_degradation: bool = True
     ) -> bool:
         """Initialize a specific adapter."""
-        pass
 
     @abstractmethod
     async def generate_response(
         self,
         prompt: str,
-        adapter_name: Optional[str] = None,
-        story_id: Optional[str] = None,
+        adapter_name: str | None = None,
+        story_id: str | None = None,
         **kwargs,
     ) -> str:
         """Generate response using the ResponseGenerator component."""
-        pass
 
 
 # =============================================================================
@@ -156,32 +142,28 @@ class IMemoryRepository(ABC):
     """Interface for memory storage operations."""
 
     @abstractmethod
-    async def get_character_memory(self, character_id: str) -> Dict[str, Any]:
+    async def get_character_memory(self, character_id: str) -> dict[str, Any]:
         """Get character memory data."""
-        pass
 
     @abstractmethod
     async def update_character_memory(
-        self, character_id: str, updates: Dict[str, Any]
+        self, character_id: str, updates: dict[str, Any]
     ) -> bool:
         """Update character memory."""
-        pass
 
 
 class ICharacterManager(ABC):
     """Interface for character management."""
 
     @abstractmethod
-    def get_character_data(self, character_id: str) -> Optional[Dict[str, Any]]:
+    def get_character_data(self, character_id: str) -> dict[str, Any] | None:
         """Get character data."""
-        pass
 
     @abstractmethod
     def update_character_state(
-        self, character_id: str, updates: Dict[str, Any]
+        self, character_id: str, updates: dict[str, Any]
     ) -> bool:
         """Update character state."""
-        pass
 
 
 class IContextBuilder(ABC):
@@ -189,26 +171,23 @@ class IContextBuilder(ABC):
 
     @abstractmethod
     async def build_scene_context(
-        self, story_id: str, scene_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, scene_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Build context for a scene."""
-        pass
 
 
 class IMemoryOrchestrator(ABC):
     """Interface for memory orchestration."""
 
     @abstractmethod
-    async def get_character_memory(self, character_id: str) -> Dict[str, Any]:
+    async def get_character_memory(self, character_id: str) -> dict[str, Any]:
         """Get character memory."""
-        pass
 
     @abstractmethod
     async def create_scene_context(
-        self, story_id: str, scene_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, scene_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Create scene context."""
-        pass
 
 
 # =============================================================================
@@ -220,23 +199,20 @@ class ISceneRepository(ABC):
     """Interface for scene storage operations."""
 
     @abstractmethod
-    async def save_scene(self, story_id: str, scene_data: Dict[str, Any]) -> str:
+    async def save_scene(self, story_id: str, scene_data: dict[str, Any]) -> str:
         """Save scene data."""
-        pass
 
     @abstractmethod
-    async def get_scene(self, story_id: str, scene_id: str) -> Optional[Dict[str, Any]]:
+    async def get_scene(self, story_id: str, scene_id: str) -> dict[str, Any] | None:
         """Get scene data."""
-        pass
 
 
 class ISceneOrchestrator(ABC):
     """Interface for scene orchestration."""
 
     @abstractmethod
-    async def generate_scene(self, story_id: str, user_input: str) -> Dict[str, Any]:
+    async def generate_scene(self, story_id: str, user_input: str) -> dict[str, Any]:
         """Generate a new scene."""
-        pass
 
 
 # =============================================================================
@@ -249,10 +225,9 @@ class IContentAnalyzer(ABC):
 
     @abstractmethod
     async def analyze_content(
-        self, content: str, context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, content: str, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Analyze content and return insights."""
-        pass
 
 
 class IContextOrchestrator(ABC):
@@ -261,9 +236,8 @@ class IContextOrchestrator(ABC):
     @abstractmethod
     async def build_context_with_analysis(
         self, content: str, story_id: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build context with analysis."""
-        pass
 
 
 # =============================================================================
@@ -276,19 +250,17 @@ class INarrativeOrchestrator(ABC):
 
     @abstractmethod
     async def process_narrative_request(
-        self, story_id: str, request: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, story_id: str, request: dict[str, Any]
+    ) -> dict[str, Any]:
         """Process narrative request."""
-        pass
 
 
 class IMechanicsOrchestrator(ABC):
     """Interface for narrative mechanics."""
 
     @abstractmethod
-    async def resolve_action(self, request: Dict[str, Any]) -> Dict[str, Any]:
+    async def resolve_action(self, request: dict[str, Any]) -> dict[str, Any]:
         """Resolve a narrative action."""
-        pass
 
 
 # =============================================================================
@@ -300,14 +272,12 @@ class IConfigurationManager(ABC):
     """Interface for configuration management."""
 
     @abstractmethod
-    def get_config(self, section: str) -> Dict[str, Any]:
+    def get_config(self, section: str) -> dict[str, Any]:
         """Get configuration section."""
-        pass
 
     @abstractmethod
-    def update_config(self, section: str, updates: Dict[str, Any]) -> bool:
+    def update_config(self, section: str, updates: dict[str, Any]) -> bool:
         """Update configuration."""
-        pass
 
 
 # =============================================================================
@@ -321,17 +291,14 @@ class ILogger(ABC):
     @abstractmethod
     def log_info(self, message: str, **kwargs) -> None:
         """Log info message."""
-        pass
 
     @abstractmethod
     def log_error(self, message: str, **kwargs) -> None:
         """Log error message."""
-        pass
 
     @abstractmethod
     def log_warning(self, message: str, **kwargs) -> None:
         """Log warning message."""
-        pass
 
 
 # =============================================================================
@@ -339,7 +306,7 @@ class ILogger(ABC):
 # =============================================================================
 
 
-def get_core_service_interfaces() -> Dict[str, type]:
+def get_core_service_interfaces() -> dict[str, type]:
     """Get all core service interfaces for registration."""
     return {
         # Database services

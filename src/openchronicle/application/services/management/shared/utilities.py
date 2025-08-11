@@ -5,30 +5,28 @@ Consolidates common utility functions from token_manager.py and bookmark_manager
 providing unified operations for statistics, caching, and data formatting.
 """
 
-import os
-import sys
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Dict, List, Any, Optional, Union, Callable
 import json
+import sys
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-    log_error,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_warning
 
-from .management_models import TokenUsageRecord, BookmarkRecord, TokenUsageType
+from .management_models import BookmarkRecord
+from .management_models import TokenUsageRecord
 
 
 class StatisticsCalculator:
     """Calculates statistics for management systems."""
 
     @staticmethod
-    def calculate_token_stats(usage_records: List[TokenUsageRecord]) -> Dict[str, Any]:
+    def calculate_token_stats(usage_records: list[TokenUsageRecord]) -> dict[str, Any]:
         """Calculate comprehensive token usage statistics."""
         if not usage_records:
             return {
@@ -92,8 +90,8 @@ class StatisticsCalculator:
 
     @staticmethod
     def calculate_bookmark_stats(
-        bookmark_records: List[BookmarkRecord],
-    ) -> Dict[str, Any]:
+        bookmark_records: list[BookmarkRecord],
+    ) -> dict[str, Any]:
         """Calculate comprehensive bookmark statistics."""
         if not bookmark_records:
             return {
@@ -144,7 +142,7 @@ class StatisticsCalculator:
         }
 
     @staticmethod
-    def _estimate_cost(usage_by_model: Dict[str, Dict[str, Any]]) -> float:
+    def _estimate_cost(usage_by_model: dict[str, dict[str, Any]]) -> float:
         """Estimate cost based on usage (simplified pricing)."""
         # Simplified cost estimation - can be made more sophisticated
         cost_per_1k_tokens = {
@@ -162,7 +160,7 @@ class StatisticsCalculator:
         return round(total_cost, 4)
 
     @staticmethod
-    def _find_peak_usage_period(usage_records: List[TokenUsageRecord]) -> Optional[str]:
+    def _find_peak_usage_period(usage_records: list[TokenUsageRecord]) -> str | None:
         """Find the hour with peak usage."""
         if not usage_records:
             return None
@@ -189,7 +187,7 @@ class CacheManager:
         self.cache = {}
         self.access_order = []
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Get item from cache."""
         if key in self.cache:
             # Move to end (most recently used)
@@ -238,20 +236,18 @@ class DataFormatter:
         """Format token count with appropriate units."""
         if tokens < 1000:
             return f"{tokens} tokens"
-        elif tokens < 1000000:
+        if tokens < 1000000:
             return f"{tokens/1000:.1f}K tokens"
-        else:
-            return f"{tokens/1000000:.1f}M tokens"
+        return f"{tokens/1000000:.1f}M tokens"
 
     @staticmethod
     def format_duration(seconds: float) -> str:
         """Format duration in human-readable format."""
         if seconds < 60:
             return f"{seconds:.1f} seconds"
-        elif seconds < 3600:
+        if seconds < 3600:
             return f"{seconds/60:.1f} minutes"
-        else:
-            return f"{seconds/3600:.1f} hours"
+        return f"{seconds/3600:.1f} hours"
 
     @staticmethod
     def format_percentage(value: float, total: float) -> str:
@@ -274,7 +270,7 @@ class ErrorHandler:
 
     @staticmethod
     def log_and_raise(
-        error_type: type, message: str, context: Optional[Dict[str, Any]] = None
+        error_type: type, message: str, context: dict[str, Any] | None = None
     ):
         """Log error and raise exception."""
         log_error(f"Management System Error: {message}")
@@ -283,7 +279,7 @@ class ErrorHandler:
         raise error_type(message)
 
     @staticmethod
-    def log_warning(message: str, context: Optional[Dict[str, Any]] = None):
+    def log_warning(message: str, context: dict[str, Any] | None = None):
         """Log warning with context."""
         log_warning(f"Management System Warning: {message}")
         if context:

@@ -6,28 +6,26 @@ Central orchestrator for the modular performance monitoring system.
 Coordinates metrics collection, storage, analysis, and reporting.
 """
 
-import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import asdict
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
 
-from .interfaces.performance_interfaces import (
-    IPerformanceOrchestrator,
-    IMetricsCollector,
-    IMetricsStorage,
-    IBottleneckAnalyzer,
-    ITrendAnalyzer,
-    IReportGenerator,
-    IAlertManager,
-    PerformanceMetrics,
-    OperationContext,
-    BottleneckReport,
-    TrendAnalysis,
-)
+from src.openchronicle.shared.logging_system import get_logger
+from src.openchronicle.shared.logging_system import log_system_event
+
+from .analysis.bottleneck_analyzer import BottleneckAnalyzer
+from .interfaces.performance_interfaces import IAlertManager
+from .interfaces.performance_interfaces import IBottleneckAnalyzer
+from .interfaces.performance_interfaces import IMetricsCollector
+from .interfaces.performance_interfaces import IMetricsStorage
+from .interfaces.performance_interfaces import IPerformanceOrchestrator
+from .interfaces.performance_interfaces import IReportGenerator
+from .interfaces.performance_interfaces import ITrendAnalyzer
+from .interfaces.performance_interfaces import OperationContext
+from .interfaces.performance_interfaces import PerformanceMetrics
 from .metrics.collector import MetricsCollector
 from .metrics.storage import MetricsStorage
-from .analysis.bottleneck_analyzer import BottleneckAnalyzer
-from src.openchronicle.shared.logging_system import get_logger, log_system_event
 
 
 class PerformanceOrchestrator(IPerformanceOrchestrator):
@@ -35,12 +33,12 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
     def __init__(
         self,
-        metrics_collector: Optional[IMetricsCollector] = None,
-        metrics_storage: Optional[IMetricsStorage] = None,
-        bottleneck_analyzer: Optional[IBottleneckAnalyzer] = None,
-        trend_analyzer: Optional[ITrendAnalyzer] = None,
-        report_generator: Optional[IReportGenerator] = None,
-        alert_manager: Optional[IAlertManager] = None,
+        metrics_collector: IMetricsCollector | None = None,
+        metrics_storage: IMetricsStorage | None = None,
+        bottleneck_analyzer: IBottleneckAnalyzer | None = None,
+        trend_analyzer: ITrendAnalyzer | None = None,
+        report_generator: IReportGenerator | None = None,
+        alert_manager: IAlertManager | None = None,
     ):
         """Initialize orchestrator with dependency injection."""
         self.logger = get_logger()
@@ -134,7 +132,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
             return context.operation_id
 
     async def finish_operation_monitoring(
-        self, operation_id: str, success: bool, error_message: Optional[str] = None
+        self, operation_id: str, success: bool, error_message: str | None = None
     ) -> PerformanceMetrics:
         """Finish monitoring an operation and store metrics."""
         if not self._monitoring_enabled:
@@ -178,9 +176,9 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
     async def analyze_performance(
         self,
-        time_period: Optional[Tuple[datetime, datetime]] = None,
-        adapter_filter: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        time_period: tuple[datetime, datetime] | None = None,
+        adapter_filter: str | None = None,
+    ) -> dict[str, Any]:
         """Perform comprehensive performance analysis."""
         if not self._initialized:
             await self.initialize()
@@ -274,7 +272,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
                 "recommendations": ["Analysis failed - check system logs"],
             }
 
-    async def get_real_time_metrics(self) -> Dict[str, Any]:
+    async def get_real_time_metrics(self) -> dict[str, Any]:
         """Get current real-time performance metrics."""
         if not self._initialized:
             await self.initialize()
@@ -310,7 +308,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
                 "initialized": self._initialized,
             }
 
-    async def cleanup_old_data(self, retention_days: int = 30) -> Dict[str, int]:
+    async def cleanup_old_data(self, retention_days: int = 30) -> dict[str, int]:
         """Clean up old performance data."""
         if not self._initialized:
             await self.initialize()
@@ -347,8 +345,8 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
             }
 
     async def generate_performance_report(
-        self, time_period: Tuple[datetime, datetime], report_format: str = "json"
-    ) -> Dict[str, Any]:
+        self, time_period: tuple[datetime, datetime], report_format: str = "json"
+    ) -> dict[str, Any]:
         """Generate a comprehensive performance report."""
         if not self._initialized:
             await self.initialize()
@@ -363,14 +361,13 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
                     analysis, report_format
                 )
                 return formatted_report
-            else:
-                # Return analysis as basic report
-                return {
-                    "report_type": "performance_analysis",
-                    "format": report_format,
-                    "generated_at": datetime.now().isoformat(),
-                    "data": analysis,
-                }
+            # Return analysis as basic report
+            return {
+                "report_type": "performance_analysis",
+                "format": report_format,
+                "generated_at": datetime.now().isoformat(),
+                "data": analysis,
+            }
 
         except Exception as e:
             self.logger.error(f"Failed to generate performance report: {e}")
@@ -397,7 +394,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
         log_system_event("performance_orchestrator", "Monitoring disabled", {})
 
-    def get_monitoring_status(self) -> Dict[str, Any]:
+    def get_monitoring_status(self) -> dict[str, Any]:
         """Get current monitoring status."""
         return {
             "monitoring_enabled": self._monitoring_enabled,
@@ -429,7 +426,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
             self.logger.error(f"Failed to check alerts for {metrics.operation_id}: {e}")
 
     def _create_fallback_metrics(
-        self, operation_id: str, success: bool, error_message: Optional[str]
+        self, operation_id: str, success: bool, error_message: str | None
     ) -> PerformanceMetrics:
         """Create fallback metrics when monitoring is disabled or fails."""
         current_time = datetime.now().timestamp()

@@ -10,21 +10,20 @@ File: core/model_management/lifecycle_manager.py
 """
 
 import asyncio
-import importlib
 import json
 import os
-from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
-from pathlib import Path
+from datetime import UTC
+from datetime import datetime
+from typing import Any
+
+from src.openchronicle.shared.logging_system import log_error
 
 # Import system components
-from src.openchronicle.shared.logging_system import (
-    log_info,
-    log_error,
-    log_system_event,
-)
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
 
-UTC = timezone.utc
+
+UTC = UTC
 
 try:
     import httpx
@@ -42,9 +41,9 @@ class LifecycleManager:
 
     def __init__(
         self,
-        adapters: Dict[str, Any],
-        config: Dict[str, Any],
-        global_config: Dict[str, Any] = None,
+        adapters: dict[str, Any],
+        config: dict[str, Any],
+        global_config: dict[str, Any] = None,
     ):
         """
         Initialize the LifecycleManager.
@@ -122,8 +121,7 @@ class LifecycleManager:
             if graceful_degradation:
                 log_error(f"Skipping missing adapter: {name}")
                 return False
-            else:
-                raise ValueError(error_msg)
+            raise ValueError(error_msg)
 
         adapter_config = self.config["adapters"][name]
         adapter_type = adapter_config.get("type", "unknown")
@@ -182,26 +180,24 @@ class LifecycleManager:
                             f"Skipped {name}: {validation_result['reason']}",
                         )
                         return False
-                    else:
-                        raise RuntimeError(
-                            f"Adapter prerequisites failed: {validation_result['reason']}"
-                        )
-                else:
-                    # Track successful validation
-                    if adapter_type in [
-                        "openai",
-                        "anthropic",
-                        "gemini",
-                        "groq",
-                        "cohere",
-                        "mistral",
-                    ]:
-                        self.api_key_status[adapter_type] = {
-                            "available": True,
-                            "reason": "API key validated successfully",
-                            "recommendation": f"{adapter_type.title()} adapter ready for use",
-                            "last_validated": datetime.now(UTC).isoformat(),
-                        }
+                    raise RuntimeError(
+                        f"Adapter prerequisites failed: {validation_result['reason']}"
+                    )
+                # Track successful validation
+                if adapter_type in [
+                    "openai",
+                    "anthropic",
+                    "gemini",
+                    "groq",
+                    "cohere",
+                    "mistral",
+                ]:
+                    self.api_key_status[adapter_type] = {
+                        "available": True,
+                        "reason": "API key validated successfully",
+                        "recommendation": f"{adapter_type.title()} adapter ready for use",
+                        "last_validated": datetime.now(UTC).isoformat(),
+                    }
 
                 # Create adapter instance
                 adapter = self._create_adapter_instance(adapter_type, adapter_config)
@@ -241,10 +237,9 @@ class LifecycleManager:
                         f"Successfully initialized {adapter_type} adapter: {name}",
                     )
                     return True
-                else:
-                    raise RuntimeError(f"Adapter initialization returned False")
+                raise RuntimeError("Adapter initialization returned False")
 
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 last_exception = e
                 error_msg = f"Timeout initializing {adapter_type} adapter {name} (attempt {attempt + 1}/{max_retries + 1})"
                 log_error(error_msg)
@@ -259,8 +254,7 @@ class LifecycleManager:
                 log_system_event("adapter_initialization_dependency_error", error_msg)
                 if graceful_degradation:
                     return False
-                else:
-                    raise RuntimeError(error_msg)
+                raise RuntimeError(error_msg)
 
             except (ConnectionError, OSError) as e:
                 # Network/connection issues - retry (handle httpx.ConnectError if available)
@@ -310,8 +304,7 @@ class LifecycleManager:
         if graceful_degradation:
             log_error(f"Continuing without {name} adapter")
             return False
-        else:
-            raise RuntimeError(final_error_msg)
+        raise RuntimeError(final_error_msg)
 
     async def initialize_adapter_safe(self, name: str) -> bool:
         """Safe wrapper for adapter initialization that always uses graceful degradation."""
@@ -322,7 +315,7 @@ class LifecycleManager:
             return False
 
     def add_model_config(
-        self, name: str, config: Dict[str, Any], enabled: bool = True
+        self, name: str, config: dict[str, Any], enabled: bool = True
     ) -> bool:
         """Add a new model configuration dynamically to the registry."""
         try:
@@ -330,7 +323,7 @@ class LifecycleManager:
 
             # Load existing registry or create new one
             if os.path.exists(registry_file):
-                with open(registry_file, "r", encoding="utf-8") as f:
+                with open(registry_file, encoding="utf-8") as f:
                     registry = json.load(f)
             else:
                 # Create a basic registry structure
@@ -427,19 +420,19 @@ class LifecycleManager:
             log_error(f"Failed to add model config {name}: {e}")
             return False
 
-    def get_adapter_status(self, name: str) -> Optional[Dict[str, Any]]:
+    def get_adapter_status(self, name: str) -> dict[str, Any] | None:
         """Get status information for a specific adapter."""
         return self.adapter_status.get(name)
 
-    def get_disabled_adapters(self) -> Dict[str, Any]:
+    def get_disabled_adapters(self) -> dict[str, Any]:
         """Get information about disabled adapters."""
         return self.disabled_adapters.copy()
 
-    def get_api_key_status(self) -> Dict[str, Any]:
+    def get_api_key_status(self) -> dict[str, Any]:
         """Get API key validation status for all providers."""
         return self.api_key_status.copy()
 
-    def _check_if_adapter_disabled(self, adapter_name: str) -> Optional[str]:
+    def _check_if_adapter_disabled(self, adapter_name: str) -> str | None:
         """
         Check if an adapter exists in the global registry but is disabled.
 
@@ -462,8 +455,8 @@ class LifecycleManager:
         return None
 
     def _validate_adapter_prerequisites(
-        self, name: str, adapter_config: Dict[str, Any], adapter_type: str
-    ) -> Dict[str, Any]:
+        self, name: str, adapter_config: dict[str, Any], adapter_type: str
+    ) -> dict[str, Any]:
         """
         Enhanced validation with smart API key validation and graceful skipping.
 
@@ -569,8 +562,8 @@ class LifecycleManager:
             }
 
     def _validate_api_key_smart(
-        self, name: str, adapter_config: Dict[str, Any], provider_type: str
-    ) -> Dict[str, Any]:
+        self, name: str, adapter_config: dict[str, Any], provider_type: str
+    ) -> dict[str, Any]:
         """Registry-driven API key validation that works with any provider defined in the model registry."""
         # Get provider validation config from registry
         provider_config = (
@@ -651,7 +644,7 @@ class LifecycleManager:
         return any(indicator in error_str for indicator in transient_indicators)
 
     def _create_adapter_instance(
-        self, adapter_type: str, adapter_config: Dict[str, Any]
+        self, adapter_type: str, adapter_config: dict[str, Any]
     ):
         """Create an instance of the specified adapter type."""
 

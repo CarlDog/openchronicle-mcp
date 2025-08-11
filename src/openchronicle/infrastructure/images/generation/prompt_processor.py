@@ -9,9 +9,9 @@ Handles:
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from ..shared.image_models import ImageType, ImageSize
+from ..shared.image_models import ImageType
 
 
 logger = logging.getLogger(__name__)
@@ -20,12 +20,12 @@ logger = logging.getLogger(__name__)
 class PromptProcessor:
     """Processes and optimizes prompts for image generation"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: dict[str, Any]):
         self.config = config
         self.style_defaults = config.get("style_defaults", {})
 
     def build_character_prompt(
-        self, character_name: str, character_data: Dict[str, Any]
+        self, character_name: str, character_data: dict[str, Any]
     ) -> str:
         """Build optimized prompt for character portrait generation"""
 
@@ -61,8 +61,8 @@ class PromptProcessor:
     def build_scene_prompt(
         self,
         scene_id: str,
-        scene_data: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None,
+        scene_data: dict[str, Any],
+        context: dict[str, Any] | None = None,
     ) -> str:
         """Build optimized prompt for scene image generation"""
 
@@ -90,7 +90,7 @@ class PromptProcessor:
         return self._optimize_prompt(prompt, ImageType.SCENE)
 
     def build_location_prompt(
-        self, location_name: str, location_data: Dict[str, Any]
+        self, location_name: str, location_data: dict[str, Any]
     ) -> str:
         """Build optimized prompt for location image generation"""
 
@@ -122,7 +122,7 @@ class PromptProcessor:
 
         return self._optimize_prompt(prompt, ImageType.LOCATION)
 
-    def build_item_prompt(self, item_name: str, item_data: Dict[str, Any]) -> str:
+    def build_item_prompt(self, item_name: str, item_data: dict[str, Any]) -> str:
         """Build optimized prompt for item image generation"""
 
         prompt_parts = []
@@ -178,7 +178,7 @@ class PromptProcessor:
         return base_prompt
 
     def enhance_prompt_with_style(
-        self, base_prompt: str, style_modifiers: List[str]
+        self, base_prompt: str, style_modifiers: list[str]
     ) -> str:
         """Enhance prompt with additional style modifiers"""
 
@@ -190,10 +190,9 @@ class PromptProcessor:
 
         if valid_modifiers:
             return base_prompt + ", " + ", ".join(valid_modifiers)
-        else:
-            return base_prompt
+        return base_prompt
 
-    def get_default_style_modifiers(self, image_type: ImageType) -> List[str]:
+    def get_default_style_modifiers(self, image_type: ImageType) -> list[str]:
         """Get default style modifiers for image type"""
 
         type_defaults = {
@@ -227,7 +226,7 @@ class PromptProcessor:
         config_defaults = self.style_defaults.get(image_type.value, [])
         return config_defaults if config_defaults else type_defaults.get(image_type, [])
 
-    def validate_prompt(self, prompt: str) -> Dict[str, Any]:
+    def validate_prompt(self, prompt: str) -> dict[str, Any]:
         """Validate prompt for potential issues"""
 
         validation_result = {"valid": True, "warnings": [], "suggestions": []}
@@ -267,8 +266,8 @@ class PromptProcessor:
         return validation_result
 
     def get_prompt_suggestions(
-        self, image_type: ImageType, base_data: Dict[str, Any]
-    ) -> List[str]:
+        self, image_type: ImageType, base_data: dict[str, Any]
+    ) -> list[str]:
         """Get suggestions for improving prompts"""
 
         suggestions = []

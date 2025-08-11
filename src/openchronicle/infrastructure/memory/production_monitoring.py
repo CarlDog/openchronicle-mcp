@@ -9,15 +9,17 @@ Provides integrations with:
 - Performance benchmarking for production deployment
 """
 
-import json
-import time
 import asyncio
-import os
-from typing import Dict, List, Any, Optional, Callable
-from datetime import datetime, UTC
-from dataclasses import dataclass, asdict
+import json
 import logging
+import os
+import time
+from dataclasses import asdict
+from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from .distributed_cache import DistributedMultiTierCache
 from .performance_analytics import CacheAnalyticsDashboard
@@ -30,7 +32,7 @@ class HealthCheckResult:
     name: str
     status: str  # "healthy", "degraded", "unhealthy"
     response_time_ms: float
-    details: Dict[str, Any]
+    details: dict[str, Any]
     timestamp: datetime
 
 
@@ -49,16 +51,16 @@ class PrometheusExporter:
         # Basic cache metrics
         prometheus_lines.extend(
             [
-                f"# HELP openchronicle_cache_hit_rate Overall cache hit rate",
-                f"# TYPE openchronicle_cache_hit_rate gauge",
+                "# HELP openchronicle_cache_hit_rate Overall cache hit rate",
+                "# TYPE openchronicle_cache_hit_rate gauge",
                 f"openchronicle_cache_hit_rate {metrics.get('overall_hit_rate', 0):.6f}",
                 "",
-                f"# HELP openchronicle_cache_operations_total Total cache operations",
-                f"# TYPE openchronicle_cache_operations_total counter",
+                "# HELP openchronicle_cache_operations_total Total cache operations",
+                "# TYPE openchronicle_cache_operations_total counter",
                 f"openchronicle_cache_operations_total {metrics.get('total_operations', 0)}",
                 "",
-                f"# HELP openchronicle_redis_response_time_ms Average Redis response time in milliseconds",
-                f"# TYPE openchronicle_redis_response_time_ms gauge",
+                "# HELP openchronicle_redis_response_time_ms Average Redis response time in milliseconds",
+                "# TYPE openchronicle_redis_response_time_ms gauge",
                 f"openchronicle_redis_response_time_ms {metrics.get('avg_redis_response_ms', 0):.3f}",
                 "",
             ]
@@ -67,12 +69,12 @@ class PrometheusExporter:
         # Redis-specific metrics
         prometheus_lines.extend(
             [
-                f"# HELP openchronicle_redis_hit_rate Redis cache hit rate",
-                f"# TYPE openchronicle_redis_hit_rate gauge",
+                "# HELP openchronicle_redis_hit_rate Redis cache hit rate",
+                "# TYPE openchronicle_redis_hit_rate gauge",
                 f"openchronicle_redis_hit_rate {metrics.get('redis_hit_rate', 0):.6f}",
                 "",
-                f"# HELP openchronicle_local_hit_rate Local cache hit rate",
-                f"# TYPE openchronicle_local_hit_rate gauge",
+                "# HELP openchronicle_local_hit_rate Local cache hit rate",
+                "# TYPE openchronicle_local_hit_rate gauge",
                 f"openchronicle_local_hit_rate {metrics.get('local_hit_rate', 0):.6f}",
                 "",
             ]
@@ -83,8 +85,8 @@ class PrometheusExporter:
         if cluster_nodes:
             prometheus_lines.extend(
                 [
-                    f"# HELP openchronicle_cluster_node_operations Operations per cluster node",
-                    f"# TYPE openchronicle_cluster_node_operations gauge",
+                    "# HELP openchronicle_cluster_node_operations Operations per cluster node",
+                    "# TYPE openchronicle_cluster_node_operations gauge",
                 ]
             )
 
@@ -108,8 +110,8 @@ class PrometheusExporter:
         if partitions:
             prometheus_lines.extend(
                 [
-                    f"# HELP openchronicle_partition_operations Operations per partition",
-                    f"# TYPE openchronicle_partition_operations gauge",
+                    "# HELP openchronicle_partition_operations Operations per partition",
+                    "# TYPE openchronicle_partition_operations gauge",
                 ]
             )
 
@@ -131,16 +133,16 @@ class PrometheusExporter:
         if warming_metrics:
             prometheus_lines.extend(
                 [
-                    f"# HELP openchronicle_cache_warming_operations Cache warming operations count",
-                    f"# TYPE openchronicle_cache_warming_operations counter",
+                    "# HELP openchronicle_cache_warming_operations Cache warming operations count",
+                    "# TYPE openchronicle_cache_warming_operations counter",
                     f"openchronicle_cache_warming_operations {warming_metrics.get('operations', 0)}",
                     "",
-                    f"# HELP openchronicle_cache_warming_success_rate Cache warming success rate",
-                    f"# TYPE openchronicle_cache_warming_success_rate gauge",
+                    "# HELP openchronicle_cache_warming_success_rate Cache warming success rate",
+                    "# TYPE openchronicle_cache_warming_success_rate gauge",
                     f"openchronicle_cache_warming_success_rate {warming_metrics.get('success_rate', 0):.6f}",
                     "",
-                    f"# HELP openchronicle_cache_warming_time_ms Average cache warming time",
-                    f"# TYPE openchronicle_cache_warming_time_ms gauge",
+                    "# HELP openchronicle_cache_warming_time_ms Average cache warming time",
+                    "# TYPE openchronicle_cache_warming_time_ms gauge",
                     f"openchronicle_cache_warming_time_ms {warming_metrics.get('avg_time_ms', 0):.3f}",
                     "",
                 ]
@@ -149,8 +151,8 @@ class PrometheusExporter:
         # Uptime metric
         prometheus_lines.extend(
             [
-                f"# HELP openchronicle_cache_uptime_seconds Cache system uptime in seconds",
-                f"# TYPE openchronicle_cache_uptime_seconds counter",
+                "# HELP openchronicle_cache_uptime_seconds Cache system uptime in seconds",
+                "# TYPE openchronicle_cache_uptime_seconds counter",
                 f"openchronicle_cache_uptime_seconds {metrics.get('uptime_seconds', 0):.1f}",
                 "",
             ]
@@ -194,7 +196,7 @@ class HealthChecker:
                     node_time = time.time() - node_start
                     total_response_time += node_time
                 except Exception as e:
-                    failed_nodes.append(f"node_{node_index}: {str(e)}")
+                    failed_nodes.append(f"node_{node_index}: {e!s}")
 
             avg_response_time = total_response_time / len(clients) if clients else 0
             response_time_ms = (time.time() - start_time) * 1000
@@ -350,7 +352,7 @@ class HealthChecker:
                 timestamp=datetime.now(UTC),
             )
 
-    async def comprehensive_health_check(self) -> Dict[str, Any]:
+    async def comprehensive_health_check(self) -> dict[str, Any]:
         """Perform comprehensive health check."""
         checks = [
             self.check_redis_connectivity(),
@@ -407,7 +409,7 @@ class StructuredLogger:
         self.logger.addHandler(file_handler)
         self.logger.setLevel(logging.INFO)
 
-    def log_cache_event(self, event_type: str, details: Dict[str, Any]):
+    def log_cache_event(self, event_type: str, details: dict[str, Any]):
         """Log structured cache event."""
         event = {
             "timestamp": datetime.now(UTC).isoformat(),
@@ -418,7 +420,7 @@ class StructuredLogger:
 
         self.logger.info(json.dumps(event))
 
-    def log_performance_metrics(self, metrics: Dict[str, Any]):
+    def log_performance_metrics(self, metrics: dict[str, Any]):
         """Log performance metrics as structured event."""
         self.log_cache_event(
             "performance_metrics",
@@ -437,7 +439,7 @@ class StructuredLogger:
         alert_type: str,
         severity: str,
         message: str,
-        details: Dict[str, Any] = None,
+        details: dict[str, Any] = None,
     ):
         """Log performance alert."""
         self.log_cache_event(
@@ -450,7 +452,7 @@ class StructuredLogger:
             },
         )
 
-    def log_cache_warming(self, story_ids: List[str], results: Dict[str, Any]):
+    def log_cache_warming(self, story_ids: list[str], results: dict[str, Any]):
         """Log cache warming operation."""
         self.log_cache_event(
             "cache_warming",
@@ -468,7 +470,7 @@ class ProductionMonitoring:
     def __init__(
         self,
         cache: DistributedMultiTierCache,
-        dashboard: Optional[CacheAnalyticsDashboard] = None,
+        dashboard: CacheAnalyticsDashboard | None = None,
     ):
         self.cache = cache
         self.dashboard = dashboard
@@ -560,13 +562,13 @@ class ProductionMonitoring:
         """Get metrics in Prometheus format."""
         return await self.prometheus_exporter.export_metrics()
 
-    async def get_health_status(self) -> Dict[str, Any]:
+    async def get_health_status(self) -> dict[str, Any]:
         """Get current health status."""
         return await self.health_checker.comprehensive_health_check()
 
     async def benchmark_production_performance(
         self, duration_seconds: int = 300
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Run production performance benchmark."""
         self.logger.info(
             f"Starting production benchmark for {duration_seconds} seconds"
@@ -638,7 +640,7 @@ class ProductionMonitoring:
 
         return benchmark_results
 
-    def setup_environment_monitoring(self) -> Dict[str, str]:
+    def setup_environment_monitoring(self) -> dict[str, str]:
         """Setup environment-specific monitoring configuration."""
         env = os.getenv("ENVIRONMENT", "development")
 

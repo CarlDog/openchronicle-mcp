@@ -5,22 +5,20 @@ Handles memory serialization, deserialization, and validation.
 Consolidates JSON handling patterns from the original memory_manager.py.
 """
 
-import json
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Union
 from dataclasses import dataclass
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
-from ..shared.memory_models import (
-    MemoryState,
-    CharacterMemory,
-    MemoryFlag,
-    RecentEvent,
-    MemoryMetadata,
-    MoodEntry,
-    VoiceProfile,
-    DEFAULT_CHARACTER_TEMPLATE,
-)
 from src.openchronicle.shared.json_utilities import JSONUtilities
+
+from ..shared.memory_models import CharacterMemory
+from ..shared.memory_models import MemoryFlag
+from ..shared.memory_models import MemoryMetadata
+from ..shared.memory_models import MemoryState
+from ..shared.memory_models import MoodEntry
+from ..shared.memory_models import RecentEvent
+from ..shared.memory_models import VoiceProfile
 
 
 @dataclass
@@ -28,9 +26,9 @@ class ValidationResult:
     """Result of memory validation."""
 
     valid: bool
-    errors: List[str]
-    warnings: List[str]
-    corrected_fields: List[str]
+    errors: list[str]
+    warnings: list[str]
+    corrected_fields: list[str]
 
 
 class MemorySerializer:
@@ -40,7 +38,7 @@ class MemorySerializer:
         """Initialize memory serializer."""
         self.json_util = JSONUtilities()
 
-    def serialize_memory(self, memory: MemoryState) -> Dict[str, Any]:
+    def serialize_memory(self, memory: MemoryState) -> dict[str, Any]:
         """Serialize memory to database-ready format."""
         try:
             return {
@@ -50,7 +48,7 @@ class MemorySerializer:
                 "recent_events": self._serialize_events(memory.recent_events),
                 "metadata": self._serialize_metadata(memory.metadata),
             }
-        except Exception as e:
+        except Exception:
             # Return minimal valid structure on error
             return {
                 "characters": {},
@@ -65,7 +63,7 @@ class MemorySerializer:
                 },
             }
 
-    def deserialize_memory(self, data: Dict[str, Any]) -> MemoryState:
+    def deserialize_memory(self, data: dict[str, Any]) -> MemoryState:
         """Deserialize memory from database format with validation."""
         try:
             # Validate and correct data structure
@@ -99,7 +97,7 @@ class MemorySerializer:
 
             return memory
 
-        except Exception as e:
+        except Exception:
             # Return default memory on deserialization error
             return MemoryState()
 
@@ -145,8 +143,8 @@ class MemorySerializer:
         )
 
     def _serialize_characters(
-        self, characters: Dict[str, CharacterMemory]
-    ) -> Dict[str, Any]:
+        self, characters: dict[str, CharacterMemory]
+    ) -> dict[str, Any]:
         """Serialize characters dictionary."""
         result = {}
         for name, character in characters.items():
@@ -179,20 +177,20 @@ class MemorySerializer:
         return result
 
     def _deserialize_characters(
-        self, data: Dict[str, Any]
-    ) -> Dict[str, CharacterMemory]:
+        self, data: dict[str, Any]
+    ) -> dict[str, CharacterMemory]:
         """Deserialize characters with error handling."""
         characters = {}
         for name, char_data in data.items():
             try:
                 characters[name] = self._deserialize_single_character(name, char_data)
-            except Exception as e:
+            except Exception:
                 # Create minimal character on error
                 characters[name] = CharacterMemory(name=name)
         return characters
 
     def _deserialize_single_character(
-        self, name: str, data: Dict[str, Any]
+        self, name: str, data: dict[str, Any]
     ) -> CharacterMemory:
         """Deserialize single character with validation."""
         # Mood history
@@ -234,14 +232,14 @@ class MemorySerializer:
             dialogue_history=data.get("dialogue_history", []),
         )
 
-    def _serialize_flags(self, flags: List[MemoryFlag]) -> List[Dict[str, Any]]:
+    def _serialize_flags(self, flags: list[MemoryFlag]) -> list[dict[str, Any]]:
         """Serialize memory flags."""
         return [
             {"name": flag.name, "created": flag.created.isoformat(), "data": flag.data}
             for flag in flags
         ]
 
-    def _deserialize_flags(self, data: List[Dict[str, Any]]) -> List[MemoryFlag]:
+    def _deserialize_flags(self, data: list[dict[str, Any]]) -> list[MemoryFlag]:
         """Deserialize memory flags with error handling."""
         flags = []
         for flag_data in data:
@@ -258,7 +256,7 @@ class MemorySerializer:
                 continue
         return flags
 
-    def _serialize_events(self, events: List[RecentEvent]) -> List[Dict[str, Any]]:
+    def _serialize_events(self, events: list[RecentEvent]) -> list[dict[str, Any]]:
         """Serialize recent events."""
         return [
             {
@@ -269,7 +267,7 @@ class MemorySerializer:
             for event in events
         ]
 
-    def _deserialize_events(self, data: List[Dict[str, Any]]) -> List[RecentEvent]:
+    def _deserialize_events(self, data: list[dict[str, Any]]) -> list[RecentEvent]:
         """Deserialize recent events with error handling."""
         events = []
         for event_data in data:
@@ -286,7 +284,7 @@ class MemorySerializer:
                 continue
         return events
 
-    def _serialize_metadata(self, metadata: MemoryMetadata) -> Dict[str, Any]:
+    def _serialize_metadata(self, metadata: MemoryMetadata) -> dict[str, Any]:
         """Serialize memory metadata."""
         return {
             "last_updated": metadata.last_updated.isoformat(),
@@ -295,7 +293,7 @@ class MemorySerializer:
             "character_count": metadata.character_count,
         }
 
-    def _deserialize_metadata(self, data: Dict[str, Any]) -> MemoryMetadata:
+    def _deserialize_metadata(self, data: dict[str, Any]) -> MemoryMetadata:
         """Deserialize memory metadata with defaults."""
         try:
             return MemoryMetadata(
@@ -307,7 +305,7 @@ class MemorySerializer:
         except Exception:
             return MemoryMetadata(last_updated=datetime.now(UTC))
 
-    def _validate_and_correct_structure(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_and_correct_structure(self, data: dict[str, Any]) -> dict[str, Any]:
         """Validate and correct data structure."""
         # Ensure all required sections exist
         required_sections = [

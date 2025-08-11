@@ -6,10 +6,11 @@ and model selection. Extracted from character_style_manager.py.
 """
 
 import logging
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 from ..character_base import CharacterEngineBase
 from ..character_data import CharacterStyleProfile
+
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,7 @@ class PresentationStyleEngine(CharacterEngineBase):
     and presentation consistency across different content types.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize the presentation style engine."""
         super().__init__(config)
 
@@ -67,14 +68,14 @@ class PresentationStyleEngine(CharacterEngineBase):
         self.character_data[character_id] = profile
         return profile
 
-    def get_character_data(self, character_id: str) -> Optional[CharacterStyleProfile]:
+    def get_character_data(self, character_id: str) -> CharacterStyleProfile | None:
         """Get character style profile."""
         return self.character_data.get(character_id)
 
-    def load_character_styles(self, story_path: str) -> Dict[str, Dict[str, Any]]:
+    def load_character_styles(self, story_path: str) -> dict[str, dict[str, Any]]:
         """Load character styles from story directory."""
-        import os
         import json
+        import os
 
         styles = {}
         characters_dir = os.path.join(story_path, "characters")
@@ -88,7 +89,7 @@ class PresentationStyleEngine(CharacterEngineBase):
                 char_path = os.path.join(characters_dir, char_file)
 
                 try:
-                    with open(char_path, "r", encoding="utf-8") as f:
+                    with open(char_path, encoding="utf-8") as f:
                         char_data = json.load(f)
 
                     # Initialize or update style profile
@@ -114,7 +115,7 @@ class PresentationStyleEngine(CharacterEngineBase):
     # Style Management
     # =============================================================================
 
-    def get_character_style(self, character_name: str) -> Dict[str, Any]:
+    def get_character_style(self, character_name: str) -> dict[str, Any]:
         """Get character style data."""
         profile = self.get_character_data(character_name)
         if not profile:
@@ -128,7 +129,7 @@ class PresentationStyleEngine(CharacterEngineBase):
         }
 
     def update_character_style(
-        self, character_name: str, style_updates: Dict[str, Any]
+        self, character_name: str, style_updates: dict[str, Any]
     ) -> bool:
         """Update character style data."""
         profile = self.get_character_data(character_name)
@@ -216,12 +217,11 @@ class PresentationStyleEngine(CharacterEngineBase):
         # Format based on model type
         if "gpt" in model_name.lower() or "openai" in model_name.lower():
             return self._format_openai_style(style_data)
-        elif "claude" in model_name.lower() or "anthropic" in model_name.lower():
+        if "claude" in model_name.lower() or "anthropic" in model_name.lower():
             return self._format_anthropic_style(style_data)
-        elif "ollama" in model_name.lower():
+        if "ollama" in model_name.lower():
             return self._format_ollama_style(style_data)
-        else:
-            return self._format_generic_style(style_data)
+        return self._format_generic_style(style_data)
 
     def build_character_context(
         self,
@@ -229,7 +229,7 @@ class PresentationStyleEngine(CharacterEngineBase):
         model_name: str,
         scene_context: str = "",
         emotional_state: str = "",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build comprehensive character context for content generation."""
         profile = self.get_character_data(character_name)
         if not profile:
@@ -270,7 +270,7 @@ class PresentationStyleEngine(CharacterEngineBase):
         return True
 
     def track_model_performance(
-        self, character_name: str, model_name: str, metrics: Dict[str, float]
+        self, character_name: str, model_name: str, metrics: dict[str, float]
     ) -> None:
         """Track model performance for character."""
         profile = self.get_character_data(character_name)
@@ -284,7 +284,7 @@ class PresentationStyleEngine(CharacterEngineBase):
 
     def get_model_performance(
         self, character_name: str, model_name: str
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Get model performance metrics for character."""
         profile = self.get_character_data(character_name)
         if not profile:
@@ -296,7 +296,7 @@ class PresentationStyleEngine(CharacterEngineBase):
     # Data Management
     # =============================================================================
 
-    def export_character_data(self, character_id: str) -> Dict[str, Any]:
+    def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export character presentation data."""
         profile = self.get_character_data(character_id)
         if not profile:
@@ -309,7 +309,7 @@ class PresentationStyleEngine(CharacterEngineBase):
             "version": "1.0",
         }
 
-    def import_character_data(self, character_data: Dict[str, Any]) -> None:
+    def import_character_data(self, character_data: dict[str, Any]) -> None:
         """Import character presentation data."""
         character_id = character_data.get("character_id")
         if not character_id:
@@ -334,7 +334,7 @@ class PresentationStyleEngine(CharacterEngineBase):
     # =============================================================================
 
     def _process_style_data(
-        self, profile: CharacterStyleProfile, style_data: Dict[str, Any]
+        self, profile: CharacterStyleProfile, style_data: dict[str, Any]
     ) -> None:
         """Process style data into profile."""
         # Extract speech patterns
@@ -355,7 +355,7 @@ class PresentationStyleEngine(CharacterEngineBase):
         if "preferred_models" in style_data:
             profile.preferred_models.update(style_data["preferred_models"])
 
-    def _format_openai_style(self, style: Dict[str, Any]) -> str:
+    def _format_openai_style(self, style: dict[str, Any]) -> str:
         """Format style data for OpenAI models."""
         prompt_parts = []
 
@@ -382,7 +382,7 @@ class PresentationStyleEngine(CharacterEngineBase):
 
         return " | ".join(prompt_parts)
 
-    def _format_anthropic_style(self, style: Dict[str, Any]) -> str:
+    def _format_anthropic_style(self, style: dict[str, Any]) -> str:
         """Format style data for Anthropic models."""
         prompt_parts = []
 
@@ -399,7 +399,7 @@ class PresentationStyleEngine(CharacterEngineBase):
 
         return "\n".join(prompt_parts)
 
-    def _format_ollama_style(self, style: Dict[str, Any]) -> str:
+    def _format_ollama_style(self, style: dict[str, Any]) -> str:
         """Format style data for Ollama models."""
         # Simpler format for local models
         style_elements = []
@@ -415,6 +415,6 @@ class PresentationStyleEngine(CharacterEngineBase):
             str(elem) for elem in style_elements[:5]
         )  # Limit length
 
-    def _format_generic_style(self, style: Dict[str, Any]) -> str:
+    def _format_generic_style(self, style: dict[str, Any]) -> str:
         """Format style data for generic models."""
         return f"Character style: {style}"

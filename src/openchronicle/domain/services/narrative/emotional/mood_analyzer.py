@@ -14,9 +14,9 @@ from datetime import datetime
 from datetime import timedelta
 from difflib import SequenceMatcher
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.json_utilities import JSONUtilities
+
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ class MoodAnalyzer:
     and anti-loop prompt generation for maintaining character variety.
     """
 
-    def __init__(self, config: Optional[dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize mood analyzer."""
         self.config = config or {}
         self.json_utils = JSONUtilities()

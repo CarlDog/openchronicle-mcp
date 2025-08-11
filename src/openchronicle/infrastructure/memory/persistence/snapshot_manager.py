@@ -5,11 +5,10 @@ Handles memory snapshot creation, restoration, and rollback functionality.
 Extracted from archive_memory_snapshot and refresh_memory_after_rollback functions.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from typing import Any
 
-from ..shared.memory_models import MemoryState, MemorySnapshot, MemoryUpdateResult
+from ..shared.memory_models import MemoryState
 from .memory_repository import MemoryRepository
 
 
@@ -20,8 +19,8 @@ class RollbackResult:
     success: bool
     message: str
     restored_scene_id: str
-    changes_detected: List[str]
-    warnings: List[str]
+    changes_detected: list[str]
+    warnings: list[str]
 
 
 class SnapshotManager:
@@ -41,8 +40,7 @@ class SnapshotManager:
 
         if snapshot_id:
             return snapshot_id
-        else:
-            return ""
+        return ""
 
     def restore_from_snapshot(self, story_id: str, scene_id: str) -> RollbackResult:
         """Restore memory from specific snapshot with detailed results."""
@@ -76,25 +74,24 @@ class SnapshotManager:
                     changes_detected=changes,
                     warnings=[],
                 )
-            else:
-                return RollbackResult(
-                    success=False,
-                    message="Failed to save restored memory",
-                    restored_scene_id=scene_id,
-                    changes_detected=changes,
-                    warnings=["Memory restoration succeeded but save failed"],
-                )
+            return RollbackResult(
+                success=False,
+                message="Failed to save restored memory",
+                restored_scene_id=scene_id,
+                changes_detected=changes,
+                warnings=["Memory restoration succeeded but save failed"],
+            )
 
         except Exception as e:
             return RollbackResult(
                 success=False,
-                message=f"Rollback failed: {str(e)}",
+                message=f"Rollback failed: {e!s}",
                 restored_scene_id="",
                 changes_detected=[],
                 warnings=[],
             )
 
-    def get_available_snapshots(self, story_id: str) -> List[Dict[str, Any]]:
+    def get_available_snapshots(self, story_id: str) -> list[dict[str, Any]]:
         """Get list of available snapshots with metadata."""
         return self.repository.get_snapshot_metadata(story_id)
 
@@ -112,7 +109,7 @@ class SnapshotManager:
         except Exception:
             return 0
 
-    def _detect_changes(self, current: MemoryState, restored: MemoryState) -> List[str]:
+    def _detect_changes(self, current: MemoryState, restored: MemoryState) -> list[str]:
         """Detect changes between current and restored memory states."""
         changes = []
 

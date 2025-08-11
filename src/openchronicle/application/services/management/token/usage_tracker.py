@@ -5,34 +5,29 @@ Extracted from token_manager.py
 Handles token usage tracking, statistics, and cost monitoring.
 """
 
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone
-import os
 import sys
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-)
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
 
-from ..shared import (
-    TokenUsageRecord,
-    TokenUsageType,
-    StatisticsCalculator,
-    TokenManagerException,
-    CacheManager,
-)
+from ..shared import CacheManager
+from ..shared import StatisticsCalculator
+from ..shared import TokenUsageRecord
+from ..shared import TokenUsageType
 
 
 class UsageTracker:
     """Tracks token usage across models and sessions."""
 
     def __init__(self, cache_size: int = 1000):
-        self.usage_records: List[TokenUsageRecord] = []
+        self.usage_records: list[TokenUsageRecord] = []
         self.session_stats = {}
         self.model_stats = {}
         self.cache = CacheManager(cache_size)
@@ -44,7 +39,7 @@ class UsageTracker:
         response_tokens: int,
         usage_type: TokenUsageType = TokenUsageType.PROMPT,
         cost: float = 0.0,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """Track token usage for a specific operation."""
         # Create usage record
@@ -97,7 +92,7 @@ class UsageTracker:
 
         self.cache.set(cache_key, recent_usage)
 
-    def get_usage_stats(self) -> Dict[str, Any]:
+    def get_usage_stats(self) -> dict[str, Any]:
         """Get comprehensive token usage statistics."""
         if not self.usage_records:
             return {
@@ -133,7 +128,7 @@ class UsageTracker:
 
         return detailed_stats
 
-    def get_model_usage(self, model_name: str) -> Dict[str, Any]:
+    def get_model_usage(self, model_name: str) -> dict[str, Any]:
         """Get usage statistics for a specific model."""
         if model_name not in self.model_stats:
             return {}
@@ -143,13 +138,13 @@ class UsageTracker:
 
     def get_recent_usage(
         self, model_name: str, limit: int = 10
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get recent usage records for a model."""
         cache_key = f"recent_{model_name}"
         recent = self.cache.get(cache_key) or []
         return recent[-limit:] if len(recent) > limit else recent
 
-    def get_cost_analysis(self) -> Dict[str, Any]:
+    def get_cost_analysis(self) -> dict[str, Any]:
         """Get detailed cost analysis."""
         total_cost = sum(
             self.model_stats[model]["total_cost"] for model in self.model_stats
@@ -199,13 +194,13 @@ class UsageTracker:
         self.session_stats.clear()
         self.cache.clear()
 
-    def export_usage_data(self) -> Dict[str, Any]:
+    def export_usage_data(self) -> dict[str, Any]:
         """Export all usage data for external analysis."""
         return {
             "usage_records": [record.to_dict() for record in self.usage_records],
             "model_stats": self.model_stats,
             "session_stats": self.session_stats,
-            "export_timestamp": datetime.now(timezone.utc).isoformat(),
+            "export_timestamp": datetime.now(UTC).isoformat(),
         }
 
 
@@ -229,7 +224,7 @@ class CostCalculator:
         model_name: str,
         prompt_tokens: int,
         response_tokens: int,
-        custom_rates: Optional[Dict[str, float]] = None,
+        custom_rates: dict[str, float] | None = None,
     ) -> float:
         """Calculate cost for token usage."""
         total_tokens = prompt_tokens + response_tokens
@@ -246,7 +241,7 @@ class CostCalculator:
         self,
         model_name: str,
         estimated_tokens: int,
-        custom_rates: Optional[Dict[str, float]] = None,
+        custom_rates: dict[str, float] | None = None,
     ) -> float:
         """Estimate cost for estimated token usage."""
         return self.calculate_cost(
@@ -255,10 +250,10 @@ class CostCalculator:
 
     def get_cost_comparison(
         self,
-        models: List[str],
+        models: list[str],
         token_count: int,
-        custom_rates: Optional[Dict[str, float]] = None,
-    ) -> Dict[str, float]:
+        custom_rates: dict[str, float] | None = None,
+    ) -> dict[str, float]:
         """Compare costs across multiple models for the same token count."""
         return {
             model: self.estimate_cost(model, token_count, custom_rates)
@@ -276,9 +271,9 @@ class UsageRecommender:
     def recommend_model_switch(
         self,
         current_model: str,
-        usage_pattern: Dict[str, Any],
-        available_models: List[str],
-    ) -> Optional[str]:
+        usage_pattern: dict[str, Any],
+        available_models: list[str],
+    ) -> str | None:
         """Recommend model switching based on usage patterns."""
         recommendations = []
 
@@ -313,7 +308,7 @@ class UsageRecommender:
 
         return None
 
-    def get_optimization_suggestions(self) -> List[str]:
+    def get_optimization_suggestions(self) -> list[str]:
         """Get general optimization suggestions based on usage history."""
         stats = self.usage_tracker.get_usage_stats()
         suggestions = []

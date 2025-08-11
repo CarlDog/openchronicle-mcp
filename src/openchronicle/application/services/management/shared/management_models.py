@@ -5,11 +5,12 @@ Consolidates shared functionality from token_manager.py and bookmark_manager.py
 providing common data structures, enums, and base classes for management operations.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import UTC
+from datetime import datetime
 from enum import Enum
-from typing import Dict, List, Optional, Any, Union
-import json
+from typing import Any
 
 
 class BookmarkType(Enum):
@@ -37,14 +38,14 @@ class TokenUsageRecord:
     prompt_tokens: int
     response_tokens: int
     usage_type: TokenUsageType
-    timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def total_tokens(self) -> int:
         """Calculate total tokens used."""
         return self.prompt_tokens + self.response_tokens
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "model_name": self.model_name,
@@ -57,7 +58,7 @@ class TokenUsageRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TokenUsageRecord":
+    def from_dict(cls, data: dict[str, Any]) -> "TokenUsageRecord":
         """Create from dictionary."""
         return cls(
             model_name=data["model_name"],
@@ -73,16 +74,16 @@ class TokenUsageRecord:
 class BookmarkRecord:
     """Record of a story bookmark."""
 
-    id: Optional[int]
+    id: int | None
     story_id: str
     scene_id: str
     label: str
-    description: Optional[str] = None
+    description: str | None = None
     bookmark_type: BookmarkType = BookmarkType.USER
-    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "id": self.id,
@@ -96,7 +97,7 @@ class BookmarkRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "BookmarkRecord":
+    def from_dict(cls, data: dict[str, Any]) -> "BookmarkRecord":
         """Create from dictionary."""
         return cls(
             id=data.get("id"),
@@ -108,7 +109,7 @@ class BookmarkRecord:
             created_at=(
                 datetime.fromisoformat(data["created_at"])
                 if "created_at" in data
-                else datetime.now(timezone.utc)
+                else datetime.now(UTC)
             ),
             metadata=data.get("metadata", {}),
         )
@@ -118,14 +119,14 @@ class BookmarkRecord:
 class TokenOptimizationResult:
     """Result of token optimization operations."""
 
-    recommended_model: Optional[str] = None
+    recommended_model: str | None = None
     truncation_risk: bool = False
-    trimmed_context: Optional[Dict[str, str]] = None
+    trimmed_context: dict[str, str] | None = None
     estimated_tokens: int = 0
     optimization_applied: bool = False
-    reasons: List[str] = field(default_factory=list)
+    reasons: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for reporting."""
         return {
             "recommended_model": self.recommended_model,
@@ -141,14 +142,14 @@ class TokenOptimizationResult:
 class BookmarkSearchOptions:
     """Options for bookmark search operations."""
 
-    query: Optional[str] = None
-    bookmark_type: Optional[BookmarkType] = None
-    scene_id: Optional[str] = None
+    query: str | None = None
+    bookmark_type: BookmarkType | None = None
+    scene_id: str | None = None
     limit: int = 100
     offset: int = 0
     include_scenes: bool = False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for database queries."""
         return {
             "query": self.query,
@@ -163,16 +164,13 @@ class BookmarkSearchOptions:
 class ManagementException(Exception):
     """Base exception for management system operations."""
 
-    pass
 
 
 class TokenManagerException(ManagementException):
     """Exception specific to token management operations."""
 
-    pass
 
 
 class BookmarkManagerException(ManagementException):
     """Exception specific to bookmark management operations."""
 
-    pass

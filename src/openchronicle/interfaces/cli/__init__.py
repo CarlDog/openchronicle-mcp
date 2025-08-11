@@ -23,6 +23,7 @@ from src.openchronicle.application import ApplicationFacade
 from src.openchronicle.infrastructure import InfrastructureConfig
 from src.openchronicle.infrastructure import InfrastructureContainer
 
+
 # ================================
 # CLI Application Setup
 # ================================
@@ -100,7 +101,6 @@ def cli():
     Advanced storytelling with AI-powered character consistency,
     memory management, and interactive scene generation.
     """
-    pass
 
 
 # ================================
@@ -111,7 +111,6 @@ def cli():
 @cli.group()
 def story():
     """Story management commands."""
-    pass
 
 
 @story.command()
@@ -305,10 +304,9 @@ async def show(story_id: str):
 @cli.group()
 def character():
     """Character management commands."""
-    pass
 
 
-async def create_character_interactive(story_id: str) -> Optional[str]:
+async def create_character_interactive(story_id: str) -> str | None:
     """Interactive character creation helper."""
     console.print("\n[bold blue]👤 Interactive Character Creation[/bold blue]")
 
@@ -361,11 +359,10 @@ async def create_character_interactive(story_id: str) -> Optional[str]:
         )
         console.print(f"[dim]Character ID: {character.id}[/dim]")
         return character.id
-    else:
-        console.print("[bold red]❌ Failed to create character:[/bold red]")
-        for error in result.errors:
-            console.print(f"  • {error}")
-        return None
+    console.print("[bold red]❌ Failed to create character:[/bold red]")
+    for error in result.errors:
+        console.print(f"  • {error}")
+    return None
 
 
 @character.command()
@@ -463,7 +460,6 @@ async def list(story_id: str):
 @cli.group()
 def scene():
     """Scene generation and management commands."""
-    pass
 
 
 @scene.command()

@@ -29,6 +29,9 @@ dependencies = [
     "aioredis>=2.0.0",
     "pillow>=10.0.0",
     "numpy>=1.24.0",
+    "structlog>=24.1.0",
+    "typer[all]>=0.9.0",
+    "rich>=13.0.0",
 ]
 
 [project.optional-dependencies]
@@ -48,6 +51,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "pytest-mock>=3.11.0",
     "pytest-xdist>=3.3.0",
+    "pytest-benchmark>=4.0.0",
     "mypy>=1.7.0",
     "ruff>=0.1.0",
     "black>=23.0.0",
@@ -56,19 +60,21 @@ dev = [
     "safety>=3.0.0",
     "pip-audit>=2.6.0",
     "coverage>=7.3.0",
+    "types-pyyaml>=6.0.0",
+    "types-redis>=4.0.0",
 ]
 
 [project.scripts]
 openchronicle = "openchronicle.__main__:main"
-openchronicle-legacy = "openchronicle.interfaces.cli.main:main"
 
 [project.urls]
 Homepage = "https://github.com/OpenChronicle/openchronicle-core"
 Repository = "https://github.com/OpenChronicle/openchronicle-core"
 Documentation = "https://openchronicle.readthedocs.io"
+"Bug Reports" = "https://github.com/OpenChronicle/openchronicle-core/issues"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.21.0"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -77,32 +83,50 @@ packages = ["src/openchronicle"]
 [tool.hatch.build.targets.sdist]
 include = [
     "src/openchronicle/**",
+    "tests/**",
+    "docs/**",
     "pyproject.toml",
     "README.md",
     "LICENSE*",
 ]
 
+# Enhanced pytest configuration
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --cov=src --cov-report=term-missing --tb=short"
+addopts = [
+    "--strict-config",
+    "--strict-markers",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-fail-under=85",
+    "--tb=short",
+    "--maxfail=10",
+    "-ra",
+]
 markers = [
-    "unit: Unit tests",
-    "integration: Integration tests",
-    "performance: Performance tests",
-    "stress: Stress tests",
-    "slow: Slow running tests",
+    "unit: Unit tests - fast, isolated tests",
+    "integration: Integration tests - test component interaction",
+    "performance: Performance tests - measure speed and resource usage",
+    "stress: Stress tests - test system limits",
+    "slow: Slow running tests - may take >5 seconds",
     "asyncio: Asynchronous tests",
+    "requires_models: Tests requiring LLM model access",
+    "requires_redis: Tests requiring Redis",
+    "requires_database: Tests requiring database",
+    "contract: API contract tests",
+    "security: Security-focused tests",
     "chaos: Chaos engineering tests",
     "workflow: Workflow tests",
     "session: Session-based tests requiring state management",
     "concurrency: Concurrency and thread-safety tests",
-    "requires_models: Tests requiring LLM model access",
     "production: Production environment tests",
-        "production_real: Production tests with real adapters",
-        "production_mock: Production tests with mocked adapters",
-        "smoke: Quick smoke tests",
-        "core: Core functionality tests",
-        "mock_only: Tests using only mock data",
+    "production_real: Production tests with real adapters",
+    "production_mock: Production tests with mocked adapters",
+    "smoke: Quick smoke tests",
+    "core: Core functionality tests",
+    "mock_only: Tests using only mock data",
 ]
 asyncio_mode = "auto"
 filterwarnings = [
@@ -113,10 +137,19 @@ filterwarnings = [
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
 ]
+minversion = "7.0"
 
+# Enhanced coverage configuration
 [tool.coverage.run]
 source = ["src"]
-omit = ["tests/*", "scripts/*"]
+omit = [
+    "tests/*",
+    "scripts/*",
+    "*/migrations/*",
+    "*/__main__.py",
+]
+parallel = true
+branch = true
 
 [tool.coverage.report]
 exclude_lines = [
@@ -126,61 +159,130 @@ exclude_lines = [
     "raise AssertionError",
     "raise NotImplementedError",
     "if __name__ == \"__main__\":",
+    "class.*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
 ]
 fail_under = 85
+precision = 2
+show_missing = true
+skip_covered = false
 
+[tool.coverage.html]
+directory = "htmlcov"
+
+# Enhanced mypy configuration
 [tool.mypy]
 python_version = "3.11"
-files = ["src"]
+files = ["src", "tests"]
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
 show_error_codes = true
 enable_error_code = ["ignore-without-code", "redundant-expr", "truthy-bool"]
+namespace_packages = true
+explicit_package_bases = true
 
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# Enhanced ruff configuration
 [tool.ruff]
 target-version = "py311"
 line-length = 88
-src = ["src"]
+src = ["src", "tests"]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "C4",   # flake8-comprehensions
-    "B",    # flake8-bugbear
-    "UP",   # pyupgrade
-    "SIM",  # flake8-simplify
-    "RET",  # flake8-return
-    "ARG",  # flake8-unused-arguments
-    "PTH",  # flake8-use-pathlib
-    "PL",   # pylint
-    "RUF",  # ruff-specific rules
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "C4",     # flake8-comprehensions
+    "B",      # flake8-bugbear
+    "UP",     # pyupgrade
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "PL",     # pylint
+    "RUF",    # ruff-specific rules
+    "S",      # bandit (security)
+    "N",      # pep8-naming
+    "ERA",    # eradicate (commented code)
+    "PIE",    # flake8-pie
+    "T20",    # flake8-print
+    "RSE",    # flake8-raise
+    "TCH",    # flake8-type-checking
 ]
 ignore = [
-    "PLR0913", # Too many arguments
-    "PLR0915", # Too many statements
-    "RET504",  # Unnecessary variable assignment before return
+    "PLR0913",  # Too many arguments
+    "PLR0915",  # Too many statements  
+    "PLR2004",  # Magic value used in comparison
+    "RET504",   # Unnecessary variable assignment before return
+    "S101",     # Use of assert in tests is OK
+    "T20",      # Print statements OK in CLI
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["ARG", "PLR2004"]  # Test files can have unused args and magic values
+"tests/**/*" = [
+    "ARG",     # Test files can have unused args
+    "PLR2004", # Test files can have magic values
+    "S101",    # Assert statements are OK in tests
+    "S106",    # Hardcoded passwords OK in tests
+]
+"scripts/**/*" = [
+    "T20",     # Print statements OK in scripts
+    "S106",    # Hardcoded passwords OK in scripts
+]
 
 [tool.ruff.lint.isort]
 known-first-party = ["openchronicle"]
 force-single-line = true
+lines-after-imports = 2
 
 [tool.ruff.lint.pylint]
 max-args = 7
+max-branches = 15
+max-returns = 8
+max-statements = 60
 
+# Enhanced black configuration
 [tool.black]
 line-length = 88
-target-version = ["py311"]
+target-version = ["py311", "py312"]
+include = '\.pyi?$'
 extend-exclude = '''
 /(
-  # directories
+  # Directories
   \.eggs
   | \.git
   | \.hg
@@ -189,5 +291,14 @@ extend-exclude = '''
   | \.venv
   | build
   | dist
+  | migrations
 )/
 '''
+
+# Bandit security configuration
+[tool.bandit]
+exclude_dirs = ["tests", "scripts"]
+skips = ["B101"]  # Skip assert_used in tests
+
+[tool.bandit.assert_used]
+skips = ["*/test_*.py", "*/tests.py"]

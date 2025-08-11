@@ -10,20 +10,19 @@ Usage:
     python scripts/validate_environment.py
 """
 
-import sys
-import subprocess
-import shutil
-from pathlib import Path
-from typing import List, Tuple, Dict, Any
 import importlib.util
+import shutil
+import subprocess
+import sys
+from pathlib import Path
 
 
-def run_command(command: str) -> Tuple[bool, str]:
+def run_command(command: str) -> tuple[bool, str]:
     """Run a shell command and return success status and output."""
     try:
         result = subprocess.run(
             command.split(),
-            capture_output=True,
+            check=False, capture_output=True,
             text=True,
             timeout=30
         )
@@ -40,9 +39,8 @@ def check_python_version() -> bool:
     if version_info >= (3, 11):
         print(f"✅ Python {version_info.major}.{version_info.minor}.{version_info.micro}")
         return True
-    else:
-        print(f"❌ Python {version_info.major}.{version_info.minor}.{version_info.micro} - Need 3.11+")
-        return False
+    print(f"❌ Python {version_info.major}.{version_info.minor}.{version_info.micro} - Need 3.11+")
+    return False
 
 
 def check_tool_installed(tool_name: str, command: str = None) -> bool:
@@ -57,9 +55,8 @@ def check_tool_installed(tool_name: str, command: str = None) -> bool:
         else:
             print(f"✅ {tool_name}: Installed")
         return True
-    else:
-        print(f"❌ {tool_name}: Not found")
-        return False
+    print(f"❌ {tool_name}: Not found")
+    return False
 
 
 def check_python_package(package_name: str, import_name: str = None) -> bool:
@@ -70,9 +67,8 @@ def check_python_package(package_name: str, import_name: str = None) -> bool:
         if spec is not None:
             print(f"✅ {package_name}: Installed")
             return True
-        else:
-            print(f"❌ {package_name}: Not found")
-            return False
+        print(f"❌ {package_name}: Not found")
+        return False
     except Exception:
         print(f"❌ {package_name}: Error checking")
         return False
@@ -88,7 +84,7 @@ def check_project_structure() -> bool:
         "pyproject.toml",
         ".pre-commit-config.yaml"
     ]
-    
+
     all_exist = True
     for path in required_paths:
         path_obj = Path(path)
@@ -97,7 +93,7 @@ def check_project_structure() -> bool:
         else:
             print(f"❌ {path}: Missing")
             all_exist = False
-    
+
     return all_exist
 
 
@@ -105,13 +101,12 @@ def check_git_hooks() -> bool:
     """Check if pre-commit hooks are installed."""
     git_hooks_dir = Path(".git/hooks")
     pre_commit_hook = git_hooks_dir / "pre-commit"
-    
+
     if pre_commit_hook.exists():
         print("✅ Pre-commit hooks: Installed")
         return True
-    else:
-        print("❌ Pre-commit hooks: Not installed (run 'pre-commit install')")
-        return False
+    print("❌ Pre-commit hooks: Not installed (run 'pre-commit install')")
+    return False
 
 
 def check_quality_tools() -> bool:
@@ -122,7 +117,7 @@ def check_quality_tools() -> bool:
         ("MyPy", "mypy --version"),
         ("Pytest", "pytest --version"),
     ]
-    
+
     all_working = True
     for tool_name, command in tools_and_commands:
         success, output = run_command(command)
@@ -132,7 +127,7 @@ def check_quality_tools() -> bool:
         else:
             print(f"❌ {tool_name}: Not working - {output}")
             all_working = False
-    
+
     return all_working
 
 
@@ -148,12 +143,12 @@ def check_development_dependencies() -> bool:
         ("pydantic", "pydantic"),
         ("pydantic-settings", "pydantic_settings"),
     ]
-    
+
     all_installed = True
     for package_name, import_name in dev_packages:
         if not check_python_package(package_name, import_name):
             all_installed = False
-    
+
     return all_installed
 
 
@@ -165,7 +160,7 @@ def check_configuration_files() -> bool:
         ".editorconfig",
         "src/openchronicle/py.typed"
     ]
-    
+
     all_valid = True
     for config_file in config_files:
         path = Path(config_file)
@@ -174,7 +169,7 @@ def check_configuration_files() -> bool:
         else:
             print(f"❌ {config_file}: Missing")
             all_valid = False
-    
+
     return all_valid
 
 
@@ -185,7 +180,7 @@ def run_basic_quality_checks() -> bool:
         ("Black check", "black --check src/openchronicle/__init__.py"),
         ("MyPy check", "mypy src/openchronicle/__init__.py"),
     ]
-    
+
     all_passed = True
     for check_name, command in checks:
         success, output = run_command(command)
@@ -194,7 +189,7 @@ def run_basic_quality_checks() -> bool:
         else:
             print(f"❌ {check_name}: Failed - {output}")
             all_passed = False
-    
+
     return all_passed
 
 
@@ -214,7 +209,7 @@ def main() -> int:
     """Main validation function."""
     print("OpenChronicle Development Environment Validation")
     print("=" * 50)
-    
+
     checks = [
         ("Python Version", check_python_version),
         ("Project Structure", check_project_structure),
@@ -225,27 +220,27 @@ def main() -> int:
         ("Import Paths", check_import_paths),
         ("Basic Quality Checks", run_basic_quality_checks),
     ]
-    
+
     results = {}
     for check_name, check_func in checks:
         print(f"\n📋 {check_name}")
         print("-" * 30)
         results[check_name] = check_func()
-    
+
     # Summary
     print("\n" + "=" * 50)
     print("📊 VALIDATION SUMMARY")
     print("=" * 50)
-    
+
     passed = sum(results.values())
     total = len(results)
-    
+
     for check_name, result in results.items():
         status = "✅ PASS" if result else "❌ FAIL"
         print(f"{status} {check_name}")
-    
+
     print(f"\nOverall: {passed}/{total} checks passed")
-    
+
     if passed == total:
         print("\n🎉 Development environment is ready!")
         print("You can start developing with:")
@@ -253,12 +248,11 @@ def main() -> int:
         print("  make test     # Run test suite")
         print("  make run      # Run the application")
         return 0
-    else:
-        print(f"\n⚠️  {total - passed} issues need to be resolved.")
-        print("Run the following to fix common issues:")
-        print("  make dev-install     # Install development dependencies")
-        print("  pre-commit install  # Install git hooks")
-        return 1
+    print(f"\n⚠️  {total - passed} issues need to be resolved.")
+    print("Run the following to fix common issues:")
+    print("  make dev-install     # Install development dependencies")
+    print("  pre-commit install  # Install git hooks")
+    return 1
 
 
 if __name__ == "__main__":

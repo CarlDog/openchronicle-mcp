@@ -3,18 +3,18 @@ Async database operations for OpenChronicle core modules.
 Provides async/await pattern for all database operations to improve performance.
 """
 
-import aiosqlite
-import json
-import os
-from typing import Dict, Any, List, Optional, Union
-from pathlib import Path
 import asyncio
+import os
+from pathlib import Path
+from typing import Any
+
+import aiosqlite
 
 
 class AsyncDatabaseOperations:
     """Base class for all async database operations."""
 
-    def __init__(self, story_id: str, is_test: Optional[bool] = None):
+    def __init__(self, story_id: str, is_test: bool | None = None):
         self.story_id = story_id
         self.is_test = is_test if is_test is not None else self._is_test_context()
         self.db_path = self._get_db_path()
@@ -43,7 +43,7 @@ class AsyncDatabaseOperations:
 
     async def execute_query(
         self, query: str, params: tuple = None
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Execute SELECT query and return results."""
         async with aiosqlite.connect(self.db_path) as conn:
             conn.row_factory = aiosqlite.Row
@@ -61,7 +61,7 @@ class AsyncDatabaseOperations:
         except aiosqlite.Error:
             return False
 
-    async def execute_insert(self, query: str, params: tuple = None) -> Optional[int]:
+    async def execute_insert(self, query: str, params: tuple = None) -> int | None:
         """Execute INSERT query and return row ID."""
         try:
             async with aiosqlite.connect(self.db_path) as conn:
@@ -71,7 +71,7 @@ class AsyncDatabaseOperations:
         except aiosqlite.Error:
             return None
 
-    async def execute_many(self, query: str, params_list: List[tuple]) -> bool:
+    async def execute_many(self, query: str, params_list: list[tuple]) -> bool:
         """Execute multiple queries in a transaction."""
         try:
             async with aiosqlite.connect(self.db_path) as conn:
@@ -90,7 +90,7 @@ class AsyncDatabaseOperations:
                     conn.row_factory = aiosqlite.Row
                     async with conn:  # Transaction context
                         return await operation_func(conn, *args, **kwargs)
-            except aiosqlite.Error as e:
+            except aiosqlite.Error:
                 if attempt == max_retries - 1:
                     raise
                 await asyncio.sleep(0.1 * (attempt + 1))  # Exponential backoff
@@ -180,7 +180,7 @@ class AsyncQueryBuilder:
 # Utility functions for backwards compatibility
 async def async_query(
     story_id: str, query: str, params: tuple = None, is_test: bool = None
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Execute async query - utility function."""
     db_ops = AsyncDatabaseOperations(story_id, is_test)
     return await db_ops.execute_query(query, params)
@@ -196,7 +196,7 @@ async def async_update(
 
 async def async_insert(
     story_id: str, query: str, params: tuple = None, is_test: bool = None
-) -> Optional[int]:
+) -> int | None:
     """Execute async insert - utility function."""
     db_ops = AsyncDatabaseOperations(story_id, is_test)
     return await db_ops.execute_insert(query, params)

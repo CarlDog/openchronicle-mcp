@@ -9,26 +9,21 @@ Integrates all image system components:
 Provides a clean, unified interface for the main OpenChronicle system.
 """
 
-import asyncio
 import logging
-import os
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from .shared.image_models import (
-    ImageGenerationRequest,
-    ImageMetadata,
-    ImageType,
-    ImageSize,
-    ImageProvider,
-)
-from .shared.config_manager import ImageConfigManager
-from .shared.validation_utils import ImageValidator
 from .generation.generation_engine import GenerationEngine
 from .generation.prompt_processor import PromptProcessor
 from .generation.style_manager import StyleManager
-from .processing.storage_manager import ImageStorageManager
 from .processing.format_converter import ImageFormatConverter
+from .processing.storage_manager import ImageStorageManager
+from .shared.config_manager import ImageConfigManager
+from .shared.image_models import ImageMetadata
+from .shared.image_models import ImageProvider
+from .shared.image_models import ImageSize
+from .shared.image_models import ImageType
+from .shared.validation_utils import ImageValidator
 
 
 logger = logging.getLogger(__name__)
@@ -45,7 +40,7 @@ class ImageOrchestrator:
     - Configuration and validation
     """
 
-    def __init__(self, story_path: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, story_path: str, config: dict[str, Any] | None = None):
         self.story_path = story_path
 
         # Initialize configuration
@@ -69,11 +64,11 @@ class ImageOrchestrator:
     async def generate_character_portrait(
         self,
         character_name: str,
-        character_data: Dict[str, Any],
-        size: Optional[ImageSize] = None,
-        style_preset: Optional[str] = None,
-        preferred_provider: Optional[ImageProvider] = None,
-    ) -> Optional[str]:
+        character_data: dict[str, Any],
+        size: ImageSize | None = None,
+        style_preset: str | None = None,
+        preferred_provider: ImageProvider | None = None,
+    ) -> str | None:
         """Generate a character portrait with intelligent prompt processing"""
 
         # Build optimized prompt
@@ -124,11 +119,11 @@ class ImageOrchestrator:
     async def generate_scene_image(
         self,
         scene_id: str,
-        scene_data: Dict[str, Any],
-        context: Optional[Dict[str, Any]] = None,
-        style_preset: Optional[str] = None,
-        preferred_provider: Optional[ImageProvider] = None,
-    ) -> Optional[str]:
+        scene_data: dict[str, Any],
+        context: dict[str, Any] | None = None,
+        style_preset: str | None = None,
+        preferred_provider: ImageProvider | None = None,
+    ) -> str | None:
         """Generate a scene image with context-aware prompt processing"""
 
         # Check auto-generation rules first
@@ -175,10 +170,10 @@ class ImageOrchestrator:
     async def generate_location_image(
         self,
         location_name: str,
-        location_data: Dict[str, Any],
-        style_preset: Optional[str] = None,
-        preferred_provider: Optional[ImageProvider] = None,
-    ) -> Optional[str]:
+        location_data: dict[str, Any],
+        style_preset: str | None = None,
+        preferred_provider: ImageProvider | None = None,
+    ) -> str | None:
         """Generate a location image"""
 
         # Build optimized prompt
@@ -217,10 +212,10 @@ class ImageOrchestrator:
     async def generate_item_image(
         self,
         item_name: str,
-        item_data: Dict[str, Any],
-        style_preset: Optional[str] = None,
-        preferred_provider: Optional[ImageProvider] = None,
-    ) -> Optional[str]:
+        item_data: dict[str, Any],
+        style_preset: str | None = None,
+        preferred_provider: ImageProvider | None = None,
+    ) -> str | None:
         """Generate an item image"""
 
         # Build optimized prompt
@@ -254,23 +249,23 @@ class ImageOrchestrator:
 
     # === Management Operations ===
 
-    def get_image_metadata(self, image_id: str) -> Optional[ImageMetadata]:
+    def get_image_metadata(self, image_id: str) -> ImageMetadata | None:
         """Get metadata for a specific image"""
         return self.generation_engine.metadata.get(image_id)
 
-    def get_image_path(self, image_id: str) -> Optional[Path]:
+    def get_image_path(self, image_id: str) -> Path | None:
         """Get file path for an image"""
         return self.generation_engine.get_image_path(image_id)
 
-    def get_images_by_character(self, character_name: str) -> List[ImageMetadata]:
+    def get_images_by_character(self, character_name: str) -> list[ImageMetadata]:
         """Get all images for a character"""
         return self.generation_engine.get_images_by_character(character_name)
 
-    def get_images_by_scene(self, scene_id: str) -> List[ImageMetadata]:
+    def get_images_by_scene(self, scene_id: str) -> list[ImageMetadata]:
         """Get all images for a scene"""
         return self.generation_engine.get_images_by_scene(scene_id)
 
-    def get_images_by_tag(self, tag: str) -> List[ImageMetadata]:
+    def get_images_by_tag(self, tag: str) -> list[ImageMetadata]:
         """Get all images with a specific tag"""
         return self.generation_engine.get_images_by_tag(tag)
 
@@ -282,7 +277,7 @@ class ImageOrchestrator:
 
     async def convert_image_format(
         self, image_id: str, target_format: str, optimize: bool = True
-    ) -> Optional[str]:
+    ) -> str | None:
         """Convert image to different format"""
 
         source_path = self.get_image_path(image_id)
@@ -306,10 +301,9 @@ class ImageOrchestrator:
                 self.generation_engine._save_metadata()
 
             return str(target_path)
-        else:
-            return None
+        return None
 
-    def optimize_storage(self) -> Dict[str, Any]:
+    def optimize_storage(self) -> dict[str, Any]:
         """Optimize image storage and return statistics"""
         return self.storage_manager.optimize_storage()
 
@@ -319,7 +313,7 @@ class ImageOrchestrator:
 
     # === Configuration and Validation ===
 
-    def validate_configuration(self) -> Dict[str, Any]:
+    def validate_configuration(self) -> dict[str, Any]:
         """Validate current configuration"""
         validation_result = {"valid": True, "issues": [], "warnings": []}
 
@@ -343,24 +337,23 @@ class ImageOrchestrator:
 
         return validation_result
 
-    def get_available_providers(self) -> List[str]:
+    def get_available_providers(self) -> list[str]:
         """Get list of available image providers"""
         return self.generation_engine.registry.list_available_adapters()
 
     def get_available_style_presets(
-        self, image_type: Optional[ImageType] = None
-    ) -> List[str]:
+        self, image_type: ImageType | None = None
+    ) -> list[str]:
         """Get available style presets"""
         if image_type:
             return self.style_manager.get_presets_for_type(image_type)
-        else:
-            return list(self.style_manager.style_presets.keys())
+        return list(self.style_manager.style_presets.keys())
 
     def create_style_preset(
         self,
         name: str,
-        style_modifiers: List[str],
-        image_types: List[ImageType],
+        style_modifiers: list[str],
+        image_types: list[ImageType],
         description: str = "",
     ) -> bool:
         """Create a custom style preset"""
@@ -370,7 +363,7 @@ class ImageOrchestrator:
 
     # === Statistics and Reporting ===
 
-    def get_system_stats(self) -> Dict[str, Any]:
+    def get_system_stats(self) -> dict[str, Any]:
         """Get comprehensive system statistics"""
 
         generation_stats = self.generation_engine.get_engine_stats()
@@ -389,7 +382,7 @@ class ImageOrchestrator:
             },
         }
 
-    def export_system_data(self) -> Dict[str, Any]:
+    def export_system_data(self) -> dict[str, Any]:
         """Export complete system data for backup/transfer"""
 
         return {
@@ -407,7 +400,7 @@ class ImageOrchestrator:
 
 # Integration functions for backward compatibility
 def create_image_engine(
-    story_id: str, config: Optional[Dict[str, Any]] = None
+    story_id: str, config: dict[str, Any] | None = None
 ) -> ImageOrchestrator:
     """
     Create and configure an image orchestrator for a story
@@ -442,8 +435,8 @@ def create_image_engine(
 
 # Auto-generation helper functions for backward compatibility
 async def auto_generate_character_portrait(
-    orchestrator: ImageOrchestrator, character_name: str, character_data: Dict[str, Any]
-) -> Optional[str]:
+    orchestrator: ImageOrchestrator, character_name: str, character_data: dict[str, Any]
+) -> str | None:
     """Auto-generate character portrait if enabled"""
     return await orchestrator.generate_character_portrait(
         character_name, character_data
@@ -453,8 +446,8 @@ async def auto_generate_character_portrait(
 async def auto_generate_scene_image(
     orchestrator: ImageOrchestrator,
     scene_id: str,
-    scene_data: Dict[str, Any],
-    context: Optional[Dict[str, Any]] = None,
-) -> Optional[str]:
+    scene_data: dict[str, Any],
+    context: dict[str, Any] | None = None,
+) -> str | None:
     """Auto-generate scene image if conditions are met"""
     return await orchestrator.generate_scene_image(scene_id, scene_data, context)

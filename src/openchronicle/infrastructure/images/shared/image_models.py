@@ -5,10 +5,10 @@ Provides common data classes, enums, and types used across the image systems.
 Consolidates shared functionality from image_generation_engine.py and image_adapter.py
 """
 
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional, Any, Union
-from datetime import datetime
+from typing import Any
 
 
 class ImageProvider(Enum):
@@ -47,16 +47,16 @@ class ImageGenerationRequest:
     prompt: str
     image_type: ImageType
     size: ImageSize = ImageSize.SQUARE_1024
-    provider: Optional[ImageProvider] = None
-    style: Optional[str] = None
+    provider: ImageProvider | None = None
+    style: str | None = None
     quality: str = "standard"
-    negative_prompt: Optional[str] = None
+    negative_prompt: str | None = None
 
     # Story context
-    story_id: Optional[str] = None
-    scene_id: Optional[str] = None
-    character_names: Optional[List[str]] = None
-    location: Optional[str] = None
+    story_id: str | None = None
+    scene_id: str | None = None
+    character_names: list[str] | None = None
+    location: str | None = None
 
     def __post_init__(self):
         """Validate request parameters"""
@@ -85,15 +85,15 @@ class ImageGenerationResult:
     """Result from image generation"""
 
     success: bool
-    image_path: Optional[str] = None
-    image_data: Optional[bytes] = None
-    provider: Optional[ImageProvider] = None
+    image_path: str | None = None
+    image_data: bytes | None = None
+    provider: ImageProvider | None = None
     generation_time: float = 0.0
     cost: float = 0.0
-    error_message: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
+    error_message: str | None = None
+    metadata: dict[str, Any] | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return asdict(self)
 
@@ -113,17 +113,17 @@ class ImageMetadata:
     generation_time: float = 0.0
 
     # Story context
-    story_id: Optional[str] = None
-    scene_id: Optional[str] = None
-    character_names: Optional[List[str]] = None
-    location: Optional[str] = None
+    story_id: str | None = None
+    scene_id: str | None = None
+    character_names: list[str] | None = None
+    location: str | None = None
 
     # Generation details
-    style: Optional[str] = None
-    negative_prompt: Optional[str] = None
+    style: str | None = None
+    negative_prompt: str | None = None
     quality: str = "standard"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization"""
         data = asdict(self)
         # Convert enum to string for JSON serialization
@@ -132,7 +132,7 @@ class ImageMetadata:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "ImageMetadata":
+    def from_dict(cls, data: dict[str, Any]) -> "ImageMetadata":
         """Create ImageMetadata from dictionary"""
         # Convert string back to enum
         if isinstance(data.get("image_type"), str):
@@ -162,7 +162,7 @@ class ImageStats:
             if result.provider:
                 self.providers_used.add(result.provider.value)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization"""
         return {
             "images_generated": self.images_generated,
@@ -175,6 +175,6 @@ class ImageStats:
 
 
 # Type aliases for convenience
-ImageConfig = Dict[str, Any]
-NamingConfig = Dict[str, str]
-AutoGenerateConfig = Dict[str, Any]
+ImageConfig = dict[str, Any]
+NamingConfig = dict[str, str]
+AutoGenerateConfig = dict[str, Any]

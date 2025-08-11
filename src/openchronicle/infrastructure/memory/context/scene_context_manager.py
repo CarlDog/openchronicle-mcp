@@ -5,12 +5,12 @@ Specialized component for managing scene-specific context and narrative flow.
 Handles scene transitions, context continuity, and narrative consistency.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Set, Tuple
 from dataclasses import dataclass
+from typing import Any
 
-from ..shared.memory_models import MemorySnapshot, CharacterMemory
-from .context_builder import ContextBuilder, ContextConfiguration
+from ..shared.memory_models import MemorySnapshot
+from .context_builder import ContextBuilder
+from .context_builder import ContextConfiguration
 from .world_state_manager import WorldStateManager
 
 
@@ -21,9 +21,9 @@ class SceneContext:
     scene_id: str
     location: str
     time_context: str
-    active_characters: List[str]
+    active_characters: list[str]
     scene_mood: str
-    world_state_snapshot: Dict[str, Any]
+    world_state_snapshot: dict[str, Any]
     narrative_focus: str
     context_prompt: str
 
@@ -37,8 +37,8 @@ class SceneTransition:
     transition_type: (
         str  # "immediate", "time_jump", "location_change", "perspective_shift"
     )
-    time_elapsed: Optional[str] = None
-    continuity_notes: List[str] = None
+    time_elapsed: str | None = None
+    continuity_notes: list[str] = None
 
 
 @dataclass
@@ -48,8 +48,8 @@ class ContextContinuity:
     character_consistency: float  # 0.0 to 1.0
     world_state_consistency: float
     narrative_flow_score: float
-    potential_issues: List[str]
-    recommendations: List[str]
+    potential_issues: list[str]
+    recommendations: list[str]
 
 
 class SceneContextManager:
@@ -82,7 +82,7 @@ class SceneContextManager:
         memory: MemorySnapshot,
         scene_id: str,
         location: str,
-        active_characters: List[str],
+        active_characters: list[str],
         scene_type: str = "dialogue",
         narrative_focus: str = "character_development",
     ) -> SceneContext:
@@ -231,7 +231,7 @@ class SceneContextManager:
             prompt_parts = []
 
             # Scene setup
-            prompt_parts.append(f"=== SCENE SETUP ===")
+            prompt_parts.append("=== SCENE SETUP ===")
             prompt_parts.append(f"Scene ID: {scene_context.scene_id}")
             prompt_parts.append(f"Location: {scene_context.location}")
             prompt_parts.append(f"Time Context: {scene_context.time_context}")
@@ -240,7 +240,7 @@ class SceneContextManager:
 
             # Active characters
             if scene_context.active_characters:
-                prompt_parts.append(f"\n=== ACTIVE CHARACTERS ===")
+                prompt_parts.append("\n=== ACTIVE CHARACTERS ===")
                 for char_name in scene_context.active_characters:
                     if char_name in memory.characters:
                         char_data = memory.characters[char_name]
@@ -249,7 +249,7 @@ class SceneContextManager:
 
             # World context
             if scene_context.world_state_snapshot:
-                prompt_parts.append(f"\n=== CURRENT WORLD STATE ===")
+                prompt_parts.append("\n=== CURRENT WORLD STATE ===")
                 for key, value in scene_context.world_state_snapshot.items():
                     prompt_parts.append(f"- {key}: {value}")
 
@@ -258,7 +258,7 @@ class SceneContextManager:
 
             # Additional instructions
             if additional_instructions:
-                prompt_parts.append(f"\n=== ADDITIONAL INSTRUCTIONS ===")
+                prompt_parts.append("\n=== ADDITIONAL INSTRUCTIONS ===")
                 prompt_parts.append(additional_instructions)
 
             return "\n".join(prompt_parts)
@@ -270,8 +270,8 @@ class SceneContextManager:
         self,
         scene_context: SceneContext,
         memory: MemorySnapshot,
-        scene_outcomes: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        scene_outcomes: dict[str, Any],
+    ) -> dict[str, Any]:
         """Update memory based on scene outcomes."""
         try:
             updates = {}
@@ -343,7 +343,7 @@ class SceneContextManager:
         return " ".join(time_parts) if time_parts else "Present"
 
     def _determine_scene_mood(
-        self, memory: MemorySnapshot, active_characters: List[str]
+        self, memory: MemorySnapshot, active_characters: list[str]
     ) -> str:
         """Determine overall mood for the scene."""
         try:
@@ -363,22 +363,21 @@ class SceneContextManager:
                 mood in ["angry", "hostile", "frustrated"] for mood in character_moods
             ):
                 return "tense"
-            elif any(
+            if any(
                 mood in ["happy", "excited", "cheerful"] for mood in character_moods
             ):
                 return "upbeat"
-            elif any(
+            if any(
                 mood in ["sad", "melancholy", "depressed"] for mood in character_moods
             ):
                 return "somber"
-            else:
-                return "neutral"
+            return "neutral"
 
         except Exception:
             return "neutral"
 
     def _create_scene_context_config(
-        self, scene_type: str, active_characters: List[str]
+        self, scene_type: str, active_characters: list[str]
     ) -> ContextConfiguration:
         """Create context configuration optimized for scene type."""
         if scene_type == "dialogue":
@@ -391,7 +390,7 @@ class SceneContextManager:
                 character_detail_level="full",
                 prioritize_primary_characters=True,
             )
-        elif scene_type == "action":
+        if scene_type == "action":
             return ContextConfiguration(
                 include_character_details=True,
                 include_world_state=True,
@@ -401,16 +400,16 @@ class SceneContextManager:
                 character_detail_level="summary",
                 prioritize_primary_characters=True,
             )
-        else:  # exposition, reflection, transition
-            return ContextConfiguration(
-                include_character_details=True,
-                include_world_state=True,
-                include_recent_events=True,
-                include_active_flags=True,
-                max_recent_events=7,
-                character_detail_level="full",
-                prioritize_primary_characters=False,
-            )
+        # exposition, reflection, transition
+        return ContextConfiguration(
+            include_character_details=True,
+            include_world_state=True,
+            include_recent_events=True,
+            include_active_flags=True,
+            max_recent_events=7,
+            character_detail_level="full",
+            prioritize_primary_characters=False,
+        )
 
     def _determine_transition_type(
         self, from_context: SceneContext, to_context: SceneContext
@@ -434,7 +433,7 @@ class SceneContextManager:
 
     def _calculate_time_elapsed(
         self, from_context: SceneContext, to_context: SceneContext
-    ) -> Optional[str]:
+    ) -> str | None:
         """Calculate time elapsed between scenes."""
         # Simple time detection (could be enhanced)
         from_time = from_context.time_context.lower()
@@ -447,7 +446,7 @@ class SceneContextManager:
 
     def _generate_continuity_notes(
         self, from_context: SceneContext, to_context: SceneContext
-    ) -> List[str]:
+    ) -> list[str]:
         """Generate continuity notes for the transition."""
         notes = []
 
@@ -570,7 +569,7 @@ class SceneContextManager:
         narrative_flow: float,
         prev_context: SceneContext,
         curr_context: SceneContext,
-    ) -> Tuple[List[str], List[str]]:
+    ) -> tuple[list[str], list[str]]:
         """Analyze continuity issues and generate recommendations."""
         issues = []
         recommendations = []

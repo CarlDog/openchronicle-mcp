@@ -6,19 +6,20 @@ Focused component for identifying and analyzing performance bottlenecks.
 Analyzes metrics data to detect slow operations and resource constraints.
 """
 
-import asyncio
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
-from dataclasses import dataclass
-from collections import defaultdict, Counter
 import statistics
+from collections import Counter
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
 
-from ..interfaces.performance_interfaces import (
-    IBottleneckAnalyzer,
-    PerformanceMetrics,
-    BottleneckReport,
-)
-from src.openchronicle.shared.logging_system import get_logger, log_system_event
+from src.openchronicle.shared.logging_system import get_logger
+from src.openchronicle.shared.logging_system import log_system_event
+
+from ..interfaces.performance_interfaces import BottleneckReport
+from ..interfaces.performance_interfaces import IBottleneckAnalyzer
+from ..interfaces.performance_interfaces import PerformanceMetrics
 
 
 @dataclass
@@ -27,12 +28,12 @@ class BottleneckPattern:
 
     pattern_type: str  # 'duration', 'cpu', 'memory', 'error_rate'
     severity: str  # 'low', 'medium', 'high', 'critical'
-    affected_adapters: List[str]
-    affected_operations: List[str]
+    affected_adapters: list[str]
+    affected_operations: list[str]
     frequency: int
     avg_impact: float
     description: str
-    recommendations: List[str]
+    recommendations: list[str]
 
 
 class BottleneckAnalyzer(IBottleneckAnalyzer):
@@ -50,7 +51,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
 
     async def analyze_bottlenecks(
         self,
-        metrics: List[PerformanceMetrics],
+        metrics: list[PerformanceMetrics],
         time_window: timedelta = timedelta(hours=1),
     ) -> BottleneckReport:
         """Analyze metrics to identify bottlenecks."""
@@ -137,8 +138,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
             return self._create_empty_report()
 
     async def identify_slow_operations(
-        self, metrics: List[PerformanceMetrics], threshold_percentile: float = 95.0
-    ) -> List[PerformanceMetrics]:
+        self, metrics: list[PerformanceMetrics], threshold_percentile: float = 95.0
+    ) -> list[PerformanceMetrics]:
         """Identify operations that are significantly slower than average."""
         try:
             if not metrics:
@@ -175,8 +176,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
             return []
 
     async def analyze_resource_usage_patterns(
-        self, metrics: List[PerformanceMetrics]
-    ) -> Dict[str, Any]:
+        self, metrics: list[PerformanceMetrics]
+    ) -> dict[str, Any]:
         """Analyze resource usage patterns and trends."""
         try:
             if not metrics:
@@ -245,8 +246,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
             return {}
 
     def _group_by_adapter(
-        self, metrics: List[PerformanceMetrics]
-    ) -> Dict[str, List[PerformanceMetrics]]:
+        self, metrics: list[PerformanceMetrics]
+    ) -> dict[str, list[PerformanceMetrics]]:
         """Group metrics by adapter name."""
         grouped = defaultdict(list)
         for metric in metrics:
@@ -254,8 +255,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         return dict(grouped)
 
     def _group_by_operation(
-        self, metrics: List[PerformanceMetrics]
-    ) -> Dict[str, List[PerformanceMetrics]]:
+        self, metrics: list[PerformanceMetrics]
+    ) -> dict[str, list[PerformanceMetrics]]:
         """Group metrics by operation type."""
         grouped = defaultdict(list)
         for metric in metrics:
@@ -263,8 +264,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         return dict(grouped)
 
     async def _analyze_duration_bottlenecks(
-        self, adapter_metrics: Dict[str, List[PerformanceMetrics]]
-    ) -> List[BottleneckPattern]:
+        self, adapter_metrics: dict[str, list[PerformanceMetrics]]
+    ) -> list[BottleneckPattern]:
         """Analyze duration-based bottlenecks."""
         patterns = []
 
@@ -301,8 +302,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         return patterns
 
     async def _analyze_resource_bottlenecks(
-        self, adapter_metrics: Dict[str, List[PerformanceMetrics]]
-    ) -> List[BottleneckPattern]:
+        self, adapter_metrics: dict[str, list[PerformanceMetrics]]
+    ) -> list[BottleneckPattern]:
         """Analyze resource usage bottlenecks."""
         patterns = []
 
@@ -354,8 +355,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         return patterns
 
     async def _analyze_error_bottlenecks(
-        self, adapter_metrics: Dict[str, List[PerformanceMetrics]]
-    ) -> List[BottleneckPattern]:
+        self, adapter_metrics: dict[str, list[PerformanceMetrics]]
+    ) -> list[BottleneckPattern]:
         """Analyze error rate bottlenecks."""
         patterns = []
 
@@ -398,9 +399,9 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
 
     async def _analyze_frequency_bottlenecks(
         self,
-        operation_metrics: Dict[str, List[PerformanceMetrics]],
+        operation_metrics: dict[str, list[PerformanceMetrics]],
         time_window: timedelta,
-    ) -> List[BottleneckPattern]:
+    ) -> list[BottleneckPattern]:
         """Analyze operation frequency bottlenecks."""
         patterns = []
 
@@ -439,8 +440,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         return patterns
 
     def _calculate_adapter_impact_scores(
-        self, adapter_metrics: Dict[str, List[PerformanceMetrics]]
-    ) -> Dict[str, float]:
+        self, adapter_metrics: dict[str, list[PerformanceMetrics]]
+    ) -> dict[str, float]:
         """Calculate impact scores for each adapter."""
         scores = {}
 
@@ -476,8 +477,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         return scores
 
     def _identify_resource_intensive_adapters(
-        self, adapter_patterns: Dict[str, Dict[str, Any]]
-    ) -> List[str]:
+        self, adapter_patterns: dict[str, dict[str, Any]]
+    ) -> list[str]:
         """Identify adapters that are resource intensive."""
         intensive_adapters = []
 
@@ -490,7 +491,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
 
         return intensive_adapters
 
-    def _generate_recommendations(self, patterns: List[BottleneckPattern]) -> List[str]:
+    def _generate_recommendations(self, patterns: list[BottleneckPattern]) -> list[str]:
         """Generate overall recommendations based on patterns."""
         recommendations = []
 

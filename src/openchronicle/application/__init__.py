@@ -24,52 +24,44 @@ Architecture Principles:
 - DDD: Application services coordinate domain objects
 """
 
-from .commands import (
-    Command,
-    CommandResult,
-    CreateStoryCommand,
-    UpdateStoryCommand,
-    CreateCharacterCommand,
-    UpdateCharacterCommand,
-    GenerateSceneCommand,
-    SaveSceneCommand,
-    UpdateMemoryCommand,
-    RollbackStoryCommand,
-    DeleteStoryCommand,
-    DeleteCharacterCommand,
-)
-
-from .queries import (
-    Query,
-    QueryResult,
-    PaginationInfo,
-    GetStoryQuery,
-    ListStoriesQuery,
-    GetCharacterQuery,
-    ListCharactersQuery,
-    GetSceneQuery,
-    ListScenesQuery,
-    GetMemoryStateQuery,
-    SearchMemoryQuery,
-    GetCharacterRelationshipsQuery,
-    GetStoryTimelineQuery,
-    GetStoryStatisticsQuery,
-    SearchContentQuery,
-    GetModelUsageQuery,
-    ValidateStoryConsistencyQuery,
-)
-
-from .orchestrators import (
-    BaseOrchestrator,
-    StoryOrchestrator,
-    CharacterOrchestrator,
-    NarrativeOrchestrator,
-    StoryRepository,
-    CharacterRepository,
-    SceneRepository,
-    MemoryManager,
-    ModelManager,
-)
+from .commands import Command
+from .commands import CommandResult
+from .commands import CreateCharacterCommand
+from .commands import CreateStoryCommand
+from .commands import DeleteCharacterCommand
+from .commands import DeleteStoryCommand
+from .commands import GenerateSceneCommand
+from .commands import RollbackStoryCommand
+from .commands import SaveSceneCommand
+from .commands import UpdateCharacterCommand
+from .commands import UpdateMemoryCommand
+from .commands import UpdateStoryCommand
+from .orchestrators import BaseOrchestrator
+from .orchestrators import CharacterOrchestrator
+from .orchestrators import CharacterRepository
+from .orchestrators import MemoryManager
+from .orchestrators import ModelManager
+from .orchestrators import NarrativeOrchestrator
+from .orchestrators import SceneRepository
+from .orchestrators import StoryOrchestrator
+from .orchestrators import StoryRepository
+from .queries import GetCharacterQuery
+from .queries import GetCharacterRelationshipsQuery
+from .queries import GetMemoryStateQuery
+from .queries import GetModelUsageQuery
+from .queries import GetSceneQuery
+from .queries import GetStoryQuery
+from .queries import GetStoryStatisticsQuery
+from .queries import GetStoryTimelineQuery
+from .queries import ListCharactersQuery
+from .queries import ListScenesQuery
+from .queries import ListStoriesQuery
+from .queries import PaginationInfo
+from .queries import Query
+from .queries import QueryResult
+from .queries import SearchContentQuery
+from .queries import SearchMemoryQuery
+from .queries import ValidateStoryConsistencyQuery
 
 
 # Application layer facade for easy access
@@ -101,14 +93,14 @@ class ApplicationFacade:
             return await self.story.handle_command(command)
 
         # Character commands
-        elif isinstance(
+        if isinstance(
             command,
             (CreateCharacterCommand, UpdateCharacterCommand, DeleteCharacterCommand),
         ):
             return await self.character.handle_command(command)
 
         # Narrative commands
-        elif isinstance(
+        if isinstance(
             command,
             (
                 GenerateSceneCommand,
@@ -119,8 +111,7 @@ class ApplicationFacade:
         ):
             return await self.narrative.handle_command(command)
 
-        else:
-            return CommandResult.failure(f"Unknown command type: {type(command)}")
+        return CommandResult.failure(f"Unknown command type: {type(command)}")
 
     async def execute_query(self, query: Query) -> QueryResult:
         """Execute a query through the appropriate handler."""
@@ -138,14 +129,14 @@ class ApplicationFacade:
             return await self.story.handle_query(query)
 
         # Character queries
-        elif isinstance(
+        if isinstance(
             query,
             (GetCharacterQuery, ListCharactersQuery, GetCharacterRelationshipsQuery),
         ):
             return await self.character.handle_query(query)
 
         # Scene and narrative queries
-        elif isinstance(
+        if isinstance(
             query,
             (
                 GetSceneQuery,
@@ -158,11 +149,10 @@ class ApplicationFacade:
             return await self.narrative.handle_query(query)
 
         # Cross-cutting queries
-        elif isinstance(query, (SearchContentQuery, GetModelUsageQuery)):
+        if isinstance(query, (SearchContentQuery, GetModelUsageQuery)):
             return await self._handle_cross_cutting_query(query)
 
-        else:
-            return QueryResult.failure(f"Unknown query type: {type(query)}")
+        return QueryResult.failure(f"Unknown query type: {type(query)}")
 
     async def _handle_cross_cutting_query(self, query: Query) -> QueryResult:
         """Handle queries that span multiple orchestrators."""

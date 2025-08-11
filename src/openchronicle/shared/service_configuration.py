@@ -7,15 +7,17 @@ Replaces manual dependency wiring in orchestrator __init__ methods.
 Part of Phase 2, Week 5-6: Dependency Injection Framework
 """
 
-from typing import Dict, Any, Optional
-from pathlib import Path
+from typing import Any
 
 # Import the DI container and interfaces
-from .dependency_injection import DIContainer, ServiceLifetime, get_container
-from .service_interfaces import *
+from .dependency_injection import DIContainer
+from .dependency_injection import get_container
+from .logging_system import log_error
+from .logging_system import log_info
 
 # Import utilities
-from .logging_system import log_system_event, log_info, log_error
+from .logging_system import log_system_event
+from .service_interfaces import *
 
 
 class ServiceConfigurator:
@@ -26,7 +28,7 @@ class ServiceConfigurator:
     the codebase where orchestrators manually instantiate their dependencies.
     """
 
-    def __init__(self, container: Optional[DIContainer] = None):
+    def __init__(self, container: DIContainer | None = None):
         """Initialize service configurator."""
         self.container = container or get_container()
         self._registered_services = set()
@@ -96,12 +98,12 @@ class ServiceConfigurator:
                 def __init__(self):
                     self._config_manager = ConfigurationManager()
 
-                def get_config(self, section: str) -> Dict[str, Any]:
+                def get_config(self, section: str) -> dict[str, Any]:
                     if hasattr(self._config_manager, "config"):
                         return self._config_manager.config.get(section, {})
                     return {}
 
-                def update_config(self, section: str, updates: Dict[str, Any]) -> bool:
+                def update_config(self, section: str, updates: dict[str, Any]) -> bool:
                     # Implementation depends on ConfigurationManager API
                     return True
 
@@ -130,7 +132,7 @@ class ServiceConfigurator:
                 def __init__(self):
                     self._orchestrator = DatabaseOrchestrator()
 
-                async def startup_health_check(self) -> Dict[str, Any]:
+                async def startup_health_check(self) -> dict[str, Any]:
                     if hasattr(self._orchestrator, "startup_health_check"):
                         return await self._orchestrator.startup_health_check()
                     return {"status": "unknown"}
@@ -178,8 +180,8 @@ class ServiceConfigurator:
                 async def generate_response(
                     self,
                     prompt: str,
-                    adapter_name: Optional[str] = None,
-                    story_id: Optional[str] = None,
+                    adapter_name: str | None = None,
+                    story_id: str | None = None,
                     **kwargs,
                 ) -> str:
                     return await self._orchestrator.generate_response(
@@ -213,14 +215,14 @@ class ServiceConfigurator:
 
                 async def get_character_memory(
                     self, character_id: str
-                ) -> Dict[str, Any]:
+                ) -> dict[str, Any]:
                     if hasattr(self._orchestrator, "get_character_memory"):
                         return self._orchestrator.get_character_memory(character_id)
                     return {}
 
                 async def create_scene_context(
-                    self, story_id: str, scene_data: Dict[str, Any]
-                ) -> Dict[str, Any]:
+                    self, story_id: str, scene_data: dict[str, Any]
+                ) -> dict[str, Any]:
                     if hasattr(self._orchestrator, "create_scene_context"):
                         return self._orchestrator.create_scene_context(
                             story_id, scene_data
@@ -254,7 +256,7 @@ class ServiceConfigurator:
 
                 async def build_context_with_analysis(
                     self, content: str, story_id: str
-                ) -> Dict[str, Any]:
+                ) -> dict[str, Any]:
                     if hasattr(self._orchestrator, "build_context_with_analysis"):
                         return await self._orchestrator.build_context_with_analysis(
                             content, story_id
@@ -285,7 +287,7 @@ class ServiceConfigurator:
             class SceneOrchestratorAdapter(ISceneOrchestrator):
                 def __init__(self):
                     # SceneOrchestrator requires story_id, so we'll create it on demand
-                    self._orchestrators: Dict[str, Any] = {}
+                    self._orchestrators: dict[str, Any] = {}
 
                 def _get_orchestrator(self, story_id: str):
                     if story_id not in self._orchestrators:
@@ -294,7 +296,7 @@ class ServiceConfigurator:
 
                 async def generate_scene(
                     self, story_id: str, user_input: str
-                ) -> Dict[str, Any]:
+                ) -> dict[str, Any]:
                     orchestrator = self._get_orchestrator(story_id)
                     if hasattr(orchestrator, "generate_scene"):
                         return await orchestrator.generate_scene(user_input)
@@ -326,8 +328,8 @@ class ServiceConfigurator:
                     self._orchestrator = NarrativeOrchestrator()
 
                 async def process_narrative_request(
-                    self, story_id: str, request: Dict[str, Any]
-                ) -> Dict[str, Any]:
+                    self, story_id: str, request: dict[str, Any]
+                ) -> dict[str, Any]:
                     # Implementation depends on NarrativeOrchestrator API
                     return {}
 
@@ -348,9 +350,8 @@ class ServiceConfigurator:
 
         # Register any cross-cutting orchestrator services here
         # These would be services that coordinate between multiple systems
-        pass
 
-    def get_registration_summary(self) -> Dict[str, Any]:
+    def get_registration_summary(self) -> dict[str, Any]:
         """Get summary of registered services."""
         registrations = self.container.get_registrations()
 
@@ -363,7 +364,7 @@ class ServiceConfigurator:
 
 
 def configure_openchronicle_services(
-    container: Optional[DIContainer] = None,
+    container: DIContainer | None = None,
 ) -> DIContainer:
     """
     Configure all OpenChronicle services with dependency injection.

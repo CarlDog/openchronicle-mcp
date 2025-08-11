@@ -8,6 +8,7 @@ modern architecture.
 
 import pytest
 
+
 # Skip marker for tests of modernized utilities
 skip_utilities = pytest.mark.skip(reason="Utility modernized - test needs updating to use core architecture")
 

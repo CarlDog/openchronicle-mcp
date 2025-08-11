@@ -12,4 +12,5 @@ from .character_extractor import CharacterExtractor
 from .location_extractor import LocationExtractor
 from .lore_extractor import LoreExtractor
 
+
 __all__ = ["CharacterExtractor", "LocationExtractor", "LoreExtractor"]

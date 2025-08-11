@@ -53,14 +53,14 @@ class FileSystemStoryRepository:
             print(f"Error saving story {story.id}: {e}")
             return False
 
-    async def get_by_id(self, story_id: str) -> Optional[Story]:
+    async def get_by_id(self, story_id: str) -> Story | None:
         """Get a story by ID."""
         try:
             story_file = self.storage_path / f"{story_id}.json"
             if not story_file.exists():
                 return None
 
-            async with aiofiles.open(story_file, "r", encoding="utf-8") as f:
+            async with aiofiles.open(story_file, encoding="utf-8") as f:
                 content = await f.read()
                 story_data = json.loads(content)
 
@@ -154,14 +154,14 @@ class FileSystemCharacterRepository:
             print(f"Error saving character {character.id}: {e}")
             return False
 
-    async def get_by_id(self, character_id: str) -> Optional[Character]:
+    async def get_by_id(self, character_id: str) -> Character | None:
         """Get a character by ID."""
         try:
             char_file = self.storage_path / f"{character_id}.json"
             if not char_file.exists():
                 return None
 
-            async with aiofiles.open(char_file, "r", encoding="utf-8") as f:
+            async with aiofiles.open(char_file, encoding="utf-8") as f:
                 content = await f.read()
                 char_data = json.loads(content)
 
@@ -243,14 +243,14 @@ class FileSystemSceneRepository:
             print(f"Error saving scene {scene.id}: {e}")
             return False
 
-    async def get_by_id(self, scene_id: str) -> Optional[Scene]:
+    async def get_by_id(self, scene_id: str) -> Scene | None:
         """Get a scene by ID."""
         try:
             scene_file = self.storage_path / f"{scene_id}.json"
             if not scene_file.exists():
                 return None
 
-            async with aiofiles.open(scene_file, "r", encoding="utf-8") as f:
+            async with aiofiles.open(scene_file, encoding="utf-8") as f:
                 content = await f.read()
                 scene_data = json.loads(content)
 
@@ -339,8 +339,8 @@ class SQLiteStoryRepository:
 
 # Export all repository implementations
 __all__ = [
-    "FileSystemStoryRepository",
     "FileSystemCharacterRepository",
     "FileSystemSceneRepository",
+    "FileSystemStoryRepository",
     "SQLiteStoryRepository",
 ]

@@ -6,20 +6,17 @@ Focused component for collecting performance metrics from operations.
 Handles system resource monitoring and operation timing.
 """
 
-import asyncio
 import time
-import psutil
-import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Any, Tuple
-from collections import defaultdict
+from typing import Any
 
-from ..interfaces.performance_interfaces import (
-    IMetricsCollector,
-    PerformanceMetrics,
-    OperationContext,
-)
-from src.openchronicle.shared.logging_system import get_logger, log_system_event
+import psutil
+from src.openchronicle.shared.logging_system import get_logger
+from src.openchronicle.shared.logging_system import log_system_event
+
+from ..interfaces.performance_interfaces import IMetricsCollector
+from ..interfaces.performance_interfaces import OperationContext
+from ..interfaces.performance_interfaces import PerformanceMetrics
 
 
 class MetricsCollector(IMetricsCollector):
@@ -28,7 +25,7 @@ class MetricsCollector(IMetricsCollector):
     def __init__(self):
         """Initialize the metrics collector."""
         self.logger = get_logger()
-        self._active_operations: Dict[str, Dict[str, Any]] = {}
+        self._active_operations: dict[str, dict[str, Any]] = {}
         self._collection_enabled = True
 
     async def start_operation_tracking(self, context: OperationContext) -> str:
@@ -66,7 +63,7 @@ class MetricsCollector(IMetricsCollector):
             return context.operation_id
 
     async def finish_operation_tracking(
-        self, operation_id: str, success: bool, error_message: Optional[str] = None
+        self, operation_id: str, success: bool, error_message: str | None = None
     ) -> PerformanceMetrics:
         """Finish tracking an operation and return metrics."""
         if not self._collection_enabled or operation_id not in self._active_operations:
@@ -123,7 +120,7 @@ class MetricsCollector(IMetricsCollector):
             )
             return self._create_fallback_metrics(operation_id, success, error_message)
 
-    def collect_system_metrics(self) -> Dict[str, float]:
+    def collect_system_metrics(self) -> dict[str, float]:
         """Collect current system resource metrics."""
         try:
             # Get CPU usage (average over short interval)
@@ -170,9 +167,9 @@ class MetricsCollector(IMetricsCollector):
 
     async def get_metrics_history(
         self,
-        time_period: Tuple[datetime, datetime],
-        adapter_filter: Optional[str] = None,
-    ) -> List[PerformanceMetrics]:
+        time_period: tuple[datetime, datetime],
+        adapter_filter: str | None = None,
+    ) -> list[PerformanceMetrics]:
         """Retrieve historical metrics for analysis."""
         # This method would typically interface with storage
         # For now, return empty list as this collector focuses on real-time collection
@@ -193,7 +190,7 @@ class MetricsCollector(IMetricsCollector):
         """Get the number of currently active operations."""
         return len(self._active_operations)
 
-    def get_collection_status(self) -> Dict[str, Any]:
+    def get_collection_status(self) -> dict[str, Any]:
         """Get current collection status and statistics."""
         return {
             "collection_enabled": self._collection_enabled,
@@ -203,7 +200,7 @@ class MetricsCollector(IMetricsCollector):
         }
 
     def _create_fallback_metrics(
-        self, operation_id: str, success: bool, error_message: Optional[str]
+        self, operation_id: str, success: bool, error_message: str | None
     ) -> PerformanceMetrics:
         """Create fallback metrics when tracking fails or is disabled."""
         current_time = time.time()

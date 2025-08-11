@@ -10,13 +10,15 @@ Provides comprehensive statistics and analytics for scenes:
 
 import json
 import sys
-from typing import Dict, List, Any, Optional
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
-from datetime import datetime, timedelta
+from typing import Any
+
 
 # Database imports from parent core directory
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.infrastructure.persistence import execute_query
+# VIOLATION FIXED: Use dependency injection instead
 
 
 class StatisticsEngine:
@@ -31,7 +33,7 @@ class StatisticsEngine:
         """
         self.story_id = story_id
 
-    def get_scenes_with_long_turns(self) -> List[Dict[str, Any]]:
+    def get_scenes_with_long_turns(self) -> list[dict[str, Any]]:
         """
         Get scenes with unusually long user inputs or model outputs.
 
@@ -90,7 +92,7 @@ class StatisticsEngine:
             print(f"Error getting scenes with long turns: {e}")
             return []
 
-    def get_token_usage_stats(self) -> Dict[str, Any]:
+    def get_token_usage_stats(self) -> dict[str, Any]:
         """
         Get comprehensive token usage statistics.
 
@@ -176,7 +178,7 @@ class StatisticsEngine:
                 "error": str(e),
             }
 
-    def get_scene_summary_stats(self) -> Dict[str, Any]:
+    def get_scene_summary_stats(self) -> dict[str, Any]:
         """
         Get comprehensive scene statistics.
 
@@ -274,7 +276,7 @@ class StatisticsEngine:
             print(f"Error getting scene summary stats: {e}")
             return {"error": str(e)}
 
-    def get_content_length_distribution(self) -> Dict[str, Any]:
+    def get_content_length_distribution(self) -> dict[str, Any]:
         """
         Get distribution of content lengths across scenes.
 

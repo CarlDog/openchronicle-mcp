@@ -15,46 +15,38 @@ Key Features:
 """
 
 import json
-import logging
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union
-from datetime import datetime, timezone
+from typing import Any
 
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_error,
-    log_info,
-    log_warning,
-)
-from .schema_validation import (
-    RegistryValidator,
-    SchemaValidationError,
-    ModelRegistrySchema,
-    ProviderConfig,
-    validate_registry_config,
-    validate_provider_config,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
+
+from .schema_validation import RegistryValidator
+from .schema_validation import SchemaValidationError
+from .schema_validation import validate_provider_config
+
 
 # UTC for consistent timezone handling
-UTC = timezone.utc
+UTC = UTC
 
 
 class ConfigurationError(Exception):
     """Raised when configuration validation or loading fails."""
 
-    pass
 
 
 class ProviderNotFoundError(Exception):
     """Raised when a requested provider configuration is not found."""
 
-    pass
 
 
 class RegistryValidationError(Exception):
     """Raised when registry schema validation fails."""
 
-    pass
 
 
 class RegistryManager:
@@ -100,11 +92,11 @@ class RegistryManager:
             f"Dynamic registry manager initialized with {len(self.providers)} providers",
         )
 
-    def _load_global_settings(self) -> Dict[str, Any]:
+    def _load_global_settings(self) -> dict[str, Any]:
         """Load global registry settings from configuration file."""
         try:
             if self.settings_file.exists():
-                with open(self.settings_file, "r", encoding="utf-8") as f:
+                with open(self.settings_file, encoding="utf-8") as f:
                     self.global_settings = json.load(f)
                 log_info(f"Loaded global settings from {self.settings_file}")
             else:
@@ -120,7 +112,7 @@ class RegistryManager:
             self.global_settings = self._create_default_global_settings()
             return self.global_settings
 
-    def _create_default_global_settings(self) -> Dict[str, Any]:
+    def _create_default_global_settings(self) -> dict[str, Any]:
         """Create default global registry settings."""
         return {
             "schema_version": "3.1.0",
@@ -184,7 +176,7 @@ class RegistryManager:
                 context_tags=["registry", "error"],
             )
 
-    def _create_settings_backup(self) -> Optional[Path]:
+    def _create_settings_backup(self) -> Path | None:
         """Create backup of current settings file."""
         try:
             backup_dir = self.settings_file.parent / "backups"
@@ -208,7 +200,7 @@ class RegistryManager:
             )
             return None
 
-    def discover_providers(self) -> Dict[str, List[Dict[str, Any]]]:
+    def discover_providers(self) -> dict[str, list[dict[str, Any]]]:
         """
         Scan models directory for provider JSON files and group by provider.
 
@@ -276,7 +268,7 @@ class RegistryManager:
             log_error(f"Failed to discover providers: {e}")
             return {}
 
-    def _load_model_config(self, config_file: Path) -> Optional[Dict[str, Any]]:
+    def _load_model_config(self, config_file: Path) -> dict[str, Any] | None:
         """
         Load and validate a single model configuration file.
 
@@ -287,7 +279,7 @@ class RegistryManager:
             Dictionary containing model configuration, or None if invalid
         """
         try:
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 config = json.load(f)
 
             # Basic validation
@@ -303,7 +295,7 @@ class RegistryManager:
             log_error(f"Failed to load config {config_file}: {e}")
             return None
 
-    def _validate_model_config(self, config: Dict[str, Any], config_file: Path) -> bool:
+    def _validate_model_config(self, config: dict[str, Any], config_file: Path) -> bool:
         """
         Validate that a model configuration contains required fields using pydantic schema.
 
@@ -327,7 +319,7 @@ class RegistryManager:
             log_error(f"Unexpected error validating config {config_file}: {e}")
             return False
 
-    def get_provider_models(self, provider_name: str) -> List[Dict[str, Any]]:
+    def get_provider_models(self, provider_name: str) -> list[dict[str, Any]]:
         """
         Get all model configurations for a specific provider.
 
@@ -345,7 +337,7 @@ class RegistryManager:
 
         return self.providers[provider_name]
 
-    def get_model_config(self, config_name: str) -> Dict[str, Any]:
+    def get_model_config(self, config_name: str) -> dict[str, Any]:
         """
         Get a specific model configuration by its config name (filename without extension).
 
@@ -363,11 +355,11 @@ class RegistryManager:
 
         return self.model_configs[config_name]
 
-    def get_available_providers(self) -> List[str]:
+    def get_available_providers(self) -> list[str]:
         """Get list of all discovered provider names."""
         return list(self.providers.keys())
 
-    def get_enabled_providers(self) -> List[str]:
+    def get_enabled_providers(self) -> list[str]:
         """Get list of provider names that have at least one enabled model."""
         enabled_providers = []
 
@@ -377,7 +369,7 @@ class RegistryManager:
 
         return enabled_providers
 
-    def add_model_config(self, config_name: str, config: Dict[str, Any]) -> bool:
+    def add_model_config(self, config_name: str, config: dict[str, Any]) -> bool:
         """
         Add a new model configuration at runtime.
 
@@ -465,7 +457,7 @@ class RegistryManager:
             log_error(f"Failed to refresh providers: {e}")
             return False
 
-    def get_fallback_chain(self, provider_name: str) -> List[str]:
+    def get_fallback_chain(self, provider_name: str) -> list[str]:
         """
         Get fallback chain for a provider based on global settings and provider configs.
 
@@ -510,15 +502,14 @@ class RegistryManager:
             config_count = len(self.model_configs)
             if provider_count > 0 and config_count > 0:
                 return f"loaded ({provider_count} providers, {config_count} configs)"
-            elif provider_count > 0:
+            if provider_count > 0:
                 return f"loaded ({provider_count} providers, no configs)"
-            else:
-                return "empty"
+            return "empty"
         except Exception:
             return "error"
 
     def validate_registry(
-        self, registry_file: Optional[Union[str, Path]] = None
+        self, registry_file: str | Path | None = None
     ) -> bool:
         """
         Validate the complete registry configuration using pydantic schema.
@@ -553,7 +544,7 @@ class RegistryManager:
             log_error(f"Unexpected error during registry validation: {e}")
             return False
 
-    def create_backup(self, file_path: Union[str, Path]) -> Optional[Path]:
+    def create_backup(self, file_path: str | Path) -> Path | None:
         """
         Create backup of configuration file before modification.
 
@@ -570,7 +561,7 @@ class RegistryManager:
             log_error(f"Failed to create backup: {e}")
             return None
 
-    def safe_save_config(self, config_name: str, config: Dict[str, Any]) -> bool:
+    def safe_save_config(self, config_name: str, config: dict[str, Any]) -> bool:
         """
         Safely save provider configuration with validation and backup.
 
@@ -626,8 +617,8 @@ def load_dynamic_registry(models_dir: str = "config/models/") -> RegistryManager
 
 # Export main classes
 __all__ = [
-    "RegistryManager",
     "ConfigurationError",
     "ProviderNotFoundError",
+    "RegistryManager",
     "load_dynamic_registry",
 ]

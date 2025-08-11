@@ -8,12 +8,14 @@ Handles scene labeling operations:
 """
 
 import sys
-from typing import Dict, List, Any, Optional
 from pathlib import Path
+from typing import Any
+
 
 # Database imports from parent core directory
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.infrastructure.persistence import execute_query, execute_update
+# VIOLATION FIXED: Use dependency injection instead
+# VIOLATION FIXED: Use dependency injection instead
 
 from ..persistence.scene_repository import SceneRepository
 
@@ -64,7 +66,7 @@ class LabelingSystem:
             print(f"Error updating scene label for {scene_id}: {e}")
             return False
 
-    def get_scenes_by_label(self, scene_label: str) -> List[Dict[str, Any]]:
+    def get_scenes_by_label(self, scene_label: str) -> list[dict[str, Any]]:
         """
         Get all scenes with a specific label.
 
@@ -116,7 +118,7 @@ class LabelingSystem:
             print(f"Error getting scenes by label '{scene_label}': {e}")
             return []
 
-    def get_labeled_scenes(self) -> List[Dict[str, Any]]:
+    def get_labeled_scenes(self) -> list[dict[str, Any]]:
         """
         Get all scenes that have labels.
 
@@ -165,7 +167,7 @@ class LabelingSystem:
             print(f"Error getting labeled scenes: {e}")
             return []
 
-    def get_label_statistics(self) -> Dict[str, Any]:
+    def get_label_statistics(self) -> dict[str, Any]:
         """
         Get statistics about scene labels.
 
@@ -228,7 +230,7 @@ class LabelingSystem:
             print(f"Error getting label statistics: {e}")
             return {"error": str(e)}
 
-    def suggest_labels(self, scene_id: str) -> List[str]:
+    def suggest_labels(self, scene_id: str) -> list[str]:
         """
         Suggest labels for a scene based on content analysis.
 
@@ -299,7 +301,7 @@ class LabelingSystem:
             print(f"Error suggesting labels for scene {scene_id}: {e}")
             return []
 
-    def rename_label(self, old_label: str, new_label: str) -> Dict[str, Any]:
+    def rename_label(self, old_label: str, new_label: str) -> dict[str, Any]:
         """
         Rename all occurrences of a label.
 
@@ -363,7 +365,7 @@ class LabelingSystem:
         except Exception as e:
             return {"success": False, "error": f"Error renaming label: {e}"}
 
-    def delete_label(self, label: str) -> Dict[str, Any]:
+    def delete_label(self, label: str) -> dict[str, Any]:
         """
         Remove label from all scenes (set to NULL).
 

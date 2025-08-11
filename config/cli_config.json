@@ -1,5 +1,5 @@
 {
-  "output_format": "table",
+  "output_format": "rich",
   "quiet_mode": false,
   "auto_confirm": false,
   "color_output": true,

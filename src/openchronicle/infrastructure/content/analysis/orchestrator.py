@@ -7,20 +7,25 @@ Part of: Phase 5A - Content Analysis Enhancement
 Replaces: core/content_analyzer.py monolithic implementation
 """
 
-from typing import Dict, List, Any, Optional
 import asyncio
+from typing import Any
 
-from .shared.interfaces import ContentAnalysisComponent
-from .detection import ContentClassifier, KeywordDetector, TransformerAnalyzer
-from .extraction import CharacterExtractor, LocationExtractor, LoreExtractor
-from .routing import ModelSelector, ContentRouter, RecommendationEngine
+from src.openchronicle.shared.logging_system import log_error
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import (
-    log_info,
-    log_error,
-    log_system_event,
-)
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
+
+from .detection import ContentClassifier
+from .detection import KeywordDetector
+from .detection import TransformerAnalyzer
+from .extraction import CharacterExtractor
+from .extraction import LocationExtractor
+from .extraction import LoreExtractor
+from .routing import ContentRouter
+from .routing import ModelSelector
+from .routing import RecommendationEngine
+from .shared.interfaces import ContentAnalysisComponent
 
 
 class ContentAnalysisOrchestrator(ContentAnalysisComponent):
@@ -61,7 +66,7 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
         self.content_router = ContentRouter(self.model_manager)
         self.recommendation_engine = RecommendationEngine(self.model_manager)
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """
         Main processing method - analyze content using all components.
 
@@ -104,8 +109,8 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
             return self._create_error_result(str(e), content)
 
     async def _run_detection_analysis(
-        self, content: str, context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, content: str, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Run all detection and classification components."""
         try:
             # Get detailed content classification
@@ -126,8 +131,8 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
             return await self.keyword_detector.process(content, context)
 
     async def _run_extraction_analysis(
-        self, content: str, context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, content: str, context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Run content extraction components if requested."""
         extraction_result = {}
 
@@ -162,8 +167,8 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
         return extraction_result
 
     async def _run_routing_analysis(
-        self, classification_result: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, classification_result: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Run routing analysis components."""
         routing_result = {}
 
@@ -199,11 +204,11 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
 
     def _combine_analysis_results(
         self,
-        classification: Dict[str, Any],
-        extraction: Dict[str, Any],
-        routing: Dict[str, Any],
+        classification: dict[str, Any],
+        extraction: dict[str, Any],
+        routing: dict[str, Any],
         content: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Combine all analysis results into comprehensive response."""
         combined = {
             # Core classification results (maintain backward compatibility)
@@ -236,10 +241,10 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
 
     def _get_components_used(
         self,
-        classification: Dict[str, Any],
-        extraction: Dict[str, Any],
-        routing: Dict[str, Any],
-    ) -> List[str]:
+        classification: dict[str, Any],
+        extraction: dict[str, Any],
+        routing: dict[str, Any],
+    ) -> list[str]:
         """Get list of components that were used in analysis."""
         components = []
 
@@ -270,7 +275,7 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
 
         return components
 
-    def _get_system_capabilities(self) -> Dict[str, Any]:
+    def _get_system_capabilities(self) -> dict[str, Any]:
         """Get current system capabilities."""
         return {
             "detection": {
@@ -291,7 +296,7 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
             },
         }
 
-    def _create_error_result(self, error_message: str, content: str) -> Dict[str, Any]:
+    def _create_error_result(self, error_message: str, content: str) -> dict[str, Any]:
         """Create error result with basic fallback analysis."""
         return {
             "content_type": "general",
@@ -305,7 +310,7 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
         }
 
     # Backward compatibility methods
-    def detect_content_type(self, content: str) -> Dict[str, Any]:
+    def detect_content_type(self, content: str) -> dict[str, Any]:
         """Backward compatibility method for content type detection."""
         try:
             # Run synchronous detection using the classification component
@@ -315,31 +320,31 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
             log_error(f"Backward compatibility detect_content_type failed: {e}")
             return self.keyword_detector.detect_content_type(content)
 
-    def recommend_generation_model(self, analysis: Dict[str, Any]) -> str:
+    def recommend_generation_model(self, analysis: dict[str, Any]) -> str:
         """Backward compatibility method for model recommendation."""
         return self.model_selector.recommend_generation_model(analysis)
 
-    def get_routing_recommendation(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def get_routing_recommendation(self, analysis: dict[str, Any]) -> dict[str, Any]:
         """Backward compatibility method for routing recommendations."""
         return self.content_router.get_routing_recommendation(analysis)
 
-    async def extract_character_data(self, content: str) -> Dict[str, Any]:
+    async def extract_character_data(self, content: str) -> dict[str, Any]:
         """Backward compatibility method for character extraction."""
         return await self.character_extractor.extract_data(content)
 
-    async def extract_location_data(self, content: str) -> Dict[str, Any]:
+    async def extract_location_data(self, content: str) -> dict[str, Any]:
         """Backward compatibility method for location extraction."""
         return await self.location_extractor.extract_data(content)
 
-    async def extract_lore_data(self, content: str) -> Dict[str, Any]:
+    async def extract_lore_data(self, content: str) -> dict[str, Any]:
         """Backward compatibility method for lore extraction."""
         return await self.lore_extractor.extract_data(content)
 
-    def check_transformer_connectivity(self) -> Dict[str, Any]:
+    def check_transformer_connectivity(self) -> dict[str, Any]:
         """Check transformer connectivity and capabilities."""
         return self.transformer_analyzer.check_transformer_connectivity()
 
-    def get_analysis_capabilities(self) -> Dict[str, Any]:
+    def get_analysis_capabilities(self) -> dict[str, Any]:
         """Get comprehensive analysis capabilities."""
         return {
             "content_classifier": self.content_classifier.get_analysis_capabilities(),

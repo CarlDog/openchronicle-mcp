@@ -6,25 +6,19 @@ and stat-based progression. Extracted from character_stat_engine.py.
 """
 
 import logging
-import random
-import math
-from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
+from typing import Any
 
-from ..character_base import (
-    CharacterEngineBase,
-    CharacterBehaviorProvider,
-    CharacterValidationProvider,
-)
-from ..character_data import (
-    CharacterData,
-    CharacterStats,
-    CharacterStatType,
-    CharacterStatCategory,
-    CharacterBehaviorType,
-    CharacterStatProgression,
-    CharacterBehaviorInfluence,
-)
+from ..character_base import CharacterBehaviorProvider
+from ..character_base import CharacterEngineBase
+from ..character_base import CharacterValidationProvider
+from ..character_data import CharacterBehaviorInfluence
+from ..character_data import CharacterBehaviorType
+from ..character_data import CharacterStatCategory
+from ..character_data import CharacterStats
+from ..character_data import CharacterStatType
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +33,7 @@ class StatsBehaviorEngine(
     decision-making, and character development over time.
     """
 
-    def __init__(self, config: Optional[Dict] = None):
+    def __init__(self, config: dict | None = None):
         """Initialize the stats behavior engine."""
         super().__init__(config)
 
@@ -52,9 +46,9 @@ class StatsBehaviorEngine(
         )
 
         # Behavior templates and interactions
-        self.behavior_templates: Dict[str, Dict] = self._initialize_behavior_templates()
-        self.stat_interactions: Dict[
-            str, List[Tuple[CharacterStatType, CharacterStatType]]
+        self.behavior_templates: dict[str, dict] = self._initialize_behavior_templates()
+        self.stat_interactions: dict[
+            str, list[tuple[CharacterStatType, CharacterStatType]]
         ] = self._initialize_stat_interactions()
 
         # Stat influence thresholds
@@ -101,7 +95,7 @@ class StatsBehaviorEngine(
         self.character_data[character_id] = stats
         return stats
 
-    def get_character_data(self, character_id: str) -> Optional[CharacterStats]:
+    def get_character_data(self, character_id: str) -> CharacterStats | None:
         """Get character statistics."""
         return self.character_data.get(character_id)
 
@@ -144,7 +138,7 @@ class StatsBehaviorEngine(
 
     def get_effective_stat(
         self, character_id: str, stat_type: CharacterStatType
-    ) -> Optional[int]:
+    ) -> int | None:
         """Get effective stat value including temporary modifiers."""
         stats = self.get_character_data(character_id)
         return stats.get_effective_stat(stat_type) if stats else None
@@ -155,7 +149,7 @@ class StatsBehaviorEngine(
 
     def get_behavior_context(
         self, character_id: str, situation_type: str = "general"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate behavior context based on character statistics."""
         stats = self.get_character_data(character_id)
         if not stats:
@@ -192,7 +186,7 @@ class StatsBehaviorEngine(
 
     def generate_response_modifiers(
         self, character_id: str, content_type: str = "dialogue"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generate response modifiers based on character stats."""
         stats = self.get_character_data(character_id)
         if not stats:
@@ -230,8 +224,8 @@ class StatsBehaviorEngine(
     # =============================================================================
 
     def validate_character_action(
-        self, character_id: str, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, character_id: str, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate if action is consistent with character stats."""
         stats = self.get_character_data(character_id)
         if not stats:
@@ -241,9 +235,9 @@ class StatsBehaviorEngine(
 
         if action_type == "stat_update":
             return self._validate_stat_update(stats, action)
-        elif action_type == "decision":
+        if action_type == "decision":
             return self._validate_decision(stats, action)
-        elif action_type == "behavior":
+        if action_type == "behavior":
             return self._validate_behavior(stats, action)
 
         return True, None  # Unknown action types pass by default
@@ -291,7 +285,7 @@ class StatsBehaviorEngine(
     # Data Management
     # =============================================================================
 
-    def export_character_data(self, character_id: str) -> Dict[str, Any]:
+    def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export character statistics data."""
         stats = self.get_character_data(character_id)
         if not stats:
@@ -304,7 +298,7 @@ class StatsBehaviorEngine(
             "version": "1.0",
         }
 
-    def import_character_data(self, character_data: Dict[str, Any]) -> None:
+    def import_character_data(self, character_data: dict[str, Any]) -> None:
         """Import character statistics data."""
         character_id = character_data.get("character_id")
         stats_data = character_data.get("stats_data")
@@ -323,7 +317,7 @@ class StatsBehaviorEngine(
     # Private Helper Methods
     # =============================================================================
 
-    def _initialize_behavior_templates(self) -> Dict[str, Dict]:
+    def _initialize_behavior_templates(self) -> dict[str, dict]:
         """Initialize behavior templates for different situations."""
         return {
             "general": {
@@ -348,7 +342,7 @@ class StatsBehaviorEngine(
 
     def _initialize_stat_interactions(
         self,
-    ) -> Dict[str, List[Tuple[CharacterStatType, CharacterStatType]]]:
+    ) -> dict[str, list[tuple[CharacterStatType, CharacterStatType]]]:
         """Initialize stat interaction patterns."""
         return {
             "synergistic": [
@@ -366,7 +360,7 @@ class StatsBehaviorEngine(
 
     def _get_stat_influences(
         self, stat_type: CharacterStatType, value: int, situation: str
-    ) -> List[CharacterBehaviorInfluence]:
+    ) -> list[CharacterBehaviorInfluence]:
         """Get behavior influences for a specific stat value in given situation."""
         influences = []
         level = self._get_stat_level_description(value)
@@ -399,7 +393,7 @@ class StatsBehaviorEngine(
 
     def _get_behavior_examples(
         self, stat_type: CharacterStatType, value: int, situation: str
-    ) -> List[str]:
+    ) -> list[str]:
         """Get behavior examples for a stat type and value."""
         examples = []
         level = self._get_stat_level_description(value)
@@ -433,7 +427,7 @@ class StatsBehaviorEngine(
                 return level
         return "average"
 
-    def _get_dominant_traits(self, stats: CharacterStats) -> List[str]:
+    def _get_dominant_traits(self, stats: CharacterStats) -> list[str]:
         """Get character's dominant personality traits."""
         traits = []
 
@@ -446,7 +440,7 @@ class StatsBehaviorEngine(
 
         return traits
 
-    def _get_character_limitations(self, stats: CharacterStats) -> List[str]:
+    def _get_character_limitations(self, stats: CharacterStats) -> list[str]:
         """Get character limitations based on low stats."""
         limitations = []
 
@@ -459,7 +453,7 @@ class StatsBehaviorEngine(
 
     def _generate_behavioral_tendencies(
         self, stats: CharacterStats, situation_type: str
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Generate behavioral tendencies for the character."""
         tendencies = {}
 
@@ -491,7 +485,7 @@ class StatsBehaviorEngine(
 
         return tendencies
 
-    def _get_dialogue_modifiers(self, stats: CharacterStats) -> Dict[str, Any]:
+    def _get_dialogue_modifiers(self, stats: CharacterStats) -> dict[str, Any]:
         """Get dialogue-specific modifiers."""
         modifiers = {}
 
@@ -513,7 +507,7 @@ class StatsBehaviorEngine(
 
         return modifiers
 
-    def _get_action_modifiers(self, stats: CharacterStats) -> Dict[str, Any]:
+    def _get_action_modifiers(self, stats: CharacterStats) -> dict[str, Any]:
         """Get action-specific modifiers."""
         modifiers = {}
 
@@ -525,7 +519,7 @@ class StatsBehaviorEngine(
 
         return modifiers
 
-    def _get_internal_modifiers(self, stats: CharacterStats) -> Dict[str, Any]:
+    def _get_internal_modifiers(self, stats: CharacterStats) -> dict[str, Any]:
         """Get internal thought modifiers."""
         modifiers = {}
 
@@ -538,8 +532,8 @@ class StatsBehaviorEngine(
         return modifiers
 
     def _validate_stat_update(
-        self, stats: CharacterStats, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, stats: CharacterStats, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate stat update action."""
         new_value = action.get("new_value", 5)
         reason = action.get("reason", "")
@@ -559,8 +553,8 @@ class StatsBehaviorEngine(
         return True, None
 
     def _validate_decision(
-        self, stats: CharacterStats, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, stats: CharacterStats, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate decision action against character stats."""
         decision_type = action.get("decision_type", "")
         required_stats = action.get("required_stats", {})
@@ -580,8 +574,8 @@ class StatsBehaviorEngine(
         return True, None
 
     def _validate_behavior(
-        self, stats: CharacterStats, action: Dict[str, Any]
-    ) -> Tuple[bool, Optional[str]]:
+        self, stats: CharacterStats, action: dict[str, Any]
+    ) -> tuple[bool, str | None]:
         """Validate behavior action against character stats."""
         behavior_type = action.get("behavior_type", "")
 

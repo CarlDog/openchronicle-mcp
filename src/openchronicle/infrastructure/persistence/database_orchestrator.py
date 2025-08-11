@@ -7,7 +7,6 @@ replacing the monolithic database.py module with organized components.
 
 import sqlite3
 from typing import Any
-from typing import Optional
 
 from .connection import ConnectionManager
 from .fts import FTSManager
@@ -78,12 +77,12 @@ class DatabaseOrchestrator:
         return self._health_checker
 
     # Main Database Operations API
-    def init_database(self, story_id: str, is_test: Optional[bool] = None) -> bool:
+    def init_database(self, story_id: str, is_test: bool | None = None) -> bool:
         """Initialize database with required tables."""
         return self.operations.init_database(story_id, is_test)
 
     def get_connection(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> sqlite3.Connection:
         """Get database connection for story."""
         return self.connection_manager.get_connection(story_id, is_test)
@@ -92,8 +91,8 @@ class DatabaseOrchestrator:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
+        params: tuple | None = None,
+        is_test: bool | None = None,
     ) -> list[sqlite3.Row]:
         """Execute SELECT query and return results."""
         return self.operations.execute_query(story_id, query, params, is_test)
@@ -102,8 +101,8 @@ class DatabaseOrchestrator:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
+        params: tuple | None = None,
+        is_test: bool | None = None,
     ) -> int:
         """Execute UPDATE/DELETE query and return affected rows."""
         return self.operations.execute_update(story_id, query, params, is_test)
@@ -112,8 +111,8 @@ class DatabaseOrchestrator:
         self,
         story_id: str,
         query: str,
-        params: Optional[tuple] = None,
-        is_test: Optional[bool] = None,
+        params: tuple | None = None,
+        is_test: bool | None = None,
     ) -> int:
         """Execute INSERT query and return last row ID."""
         return self.operations.execute_insert(story_id, query, params, is_test)
@@ -123,16 +122,16 @@ class DatabaseOrchestrator:
         """Check if SQLite supports FTS5."""
         return self.fts_manager.has_fts5_support()
 
-    def optimize_fts_index(self, story_id: str, is_test: Optional[bool] = None) -> bool:
+    def optimize_fts_index(self, story_id: str, is_test: bool | None = None) -> bool:
         """Optimize FTS indexes for better performance."""
         return self.fts_manager.optimize_fts_index(story_id, is_test)
 
-    def rebuild_fts_index(self, story_id: str, is_test: Optional[bool] = None) -> bool:
+    def rebuild_fts_index(self, story_id: str, is_test: bool | None = None) -> bool:
         """Rebuild FTS indexes from scratch."""
         return self.fts_manager.rebuild_fts_index(story_id, is_test)
 
     def get_fts_stats(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> dict[str, Any]:
         """Get FTS index statistics."""
         return self.fts_manager.get_fts_stats(story_id, is_test)
@@ -148,16 +147,16 @@ class DatabaseOrchestrator:
 
     # Statistics and Utilities API
     def get_database_stats(
-        self, story_id: str, is_test: Optional[bool] = None
+        self, story_id: str, is_test: bool | None = None
     ) -> DatabaseStats:
         """Get comprehensive database statistics."""
         return self.operations.get_database_stats(story_id, is_test)
 
-    def get_db_path(self, story_id: str, is_test: Optional[bool] = None) -> str:
+    def get_db_path(self, story_id: str, is_test: bool | None = None) -> str:
         """Get database file path for story."""
         return self.connection_manager.get_db_path(story_id, is_test)
 
-    def ensure_db_dir(self, story_id: str, is_test: Optional[bool] = None) -> None:
+    def ensure_db_dir(self, story_id: str, is_test: bool | None = None) -> None:
         """Ensure database directory exists."""
         self.connection_manager.ensure_db_dir(story_id, is_test)
 

@@ -6,27 +6,24 @@ Provides unified API for bookmark operations, search, and navigation.
 """
 
 import sys
-from typing import Dict, List, Optional, Any, Union
 from pathlib import Path
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_error,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_system_event
 
-from .bookmark_data_manager import BookmarkDataManager, BookmarkValidator
-from .search_engine import BookmarkSearchEngine
+from ..shared import BookmarkManagerConfig
+from ..shared import BookmarkManagerException
+from ..shared import BookmarkRecord
+from ..shared import BookmarkType
+from ..shared import ConfigValidator
+from .bookmark_data_manager import BookmarkDataManager
+from .bookmark_data_manager import BookmarkValidator
 from .navigation_manager import NavigationManager
-from ..shared import (
-    BookmarkManagerConfig,
-    BookmarkRecord,
-    BookmarkType,
-    BookmarkManagerException,
-    ConfigValidator,
-)
+from .search_engine import BookmarkSearchEngine
 
 
 class BookmarkManager:
@@ -37,7 +34,7 @@ class BookmarkManager:
     Maintains backward compatibility with legacy bookmark_manager.py interface.
     """
 
-    def __init__(self, story_id: str, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, story_id: str, config: dict[str, Any] | None = None):
         """Initialize the bookmark management system."""
         try:
             self.story_id = story_id
@@ -68,9 +65,9 @@ class BookmarkManager:
         self,
         scene_id: str,
         label: str,
-        description: Optional[str] = None,
-        bookmark_type: Union[str, BookmarkType] = BookmarkType.USER,
-        metadata: Optional[Dict[str, Any]] = None,
+        description: str | None = None,
+        bookmark_type: str | BookmarkType = BookmarkType.USER,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """Create a new bookmark."""
         # Convert string to enum if needed
@@ -90,17 +87,17 @@ class BookmarkManager:
             scene_id, label, description, bookmark_type, metadata
         )
 
-    def get_bookmark(self, bookmark_id: int) -> Optional[Dict[str, Any]]:
+    def get_bookmark(self, bookmark_id: int) -> dict[str, Any] | None:
         """Get a bookmark by ID."""
         record = self.data_manager.get_bookmark(bookmark_id)
         return record.to_dict() if record else None
 
     def list_bookmarks(
         self,
-        bookmark_type: Optional[Union[str, BookmarkType]] = None,
-        scene_id: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        bookmark_type: str | BookmarkType | None = None,
+        scene_id: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """List bookmarks with optional filtering."""
         # Convert string to enum if needed
         if isinstance(bookmark_type, str):
@@ -112,10 +109,10 @@ class BookmarkManager:
     def update_bookmark(
         self,
         bookmark_id: int,
-        label: Optional[str] = None,
-        description: Optional[str] = None,
-        bookmark_type: Optional[Union[str, BookmarkType]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        label: str | None = None,
+        description: str | None = None,
+        bookmark_type: str | BookmarkType | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> bool:
         """Update an existing bookmark."""
         # Convert string to enum if needed
@@ -141,10 +138,10 @@ class BookmarkManager:
     def search_bookmarks(
         self,
         query: str,
-        bookmark_type: Optional[Union[str, BookmarkType]] = None,
-        search_fields: Optional[List[str]] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        bookmark_type: str | BookmarkType | None = None,
+        search_fields: list[str] | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Search bookmarks by label or description."""
         # Validate search query
         if not BookmarkValidator.validate_search_query(query):
@@ -160,9 +157,9 @@ class BookmarkManager:
 
     def search_by_metadata(
         self,
-        metadata_filters: Dict[str, Any],
-        bookmark_type: Optional[Union[str, BookmarkType]] = None,
-    ) -> List[Dict[str, Any]]:
+        metadata_filters: dict[str, Any],
+        bookmark_type: str | BookmarkType | None = None,
+    ) -> list[dict[str, Any]]:
         """Search bookmarks by metadata fields."""
         # Convert string to enum if needed
         if isinstance(bookmark_type, str):
@@ -173,8 +170,8 @@ class BookmarkManager:
     def search_by_scene_content(
         self,
         content_query: str,
-        bookmark_type: Optional[Union[str, BookmarkType]] = None,
-    ) -> List[Dict[str, Any]]:
+        bookmark_type: str | BookmarkType | None = None,
+    ) -> list[dict[str, Any]]:
         """Search bookmarks by their associated scene content."""
         # Convert string to enum if needed
         if isinstance(bookmark_type, str):
@@ -184,15 +181,15 @@ class BookmarkManager:
 
     def find_similar_bookmarks(
         self, bookmark_id: int, similarity_threshold: float = 0.5
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Find bookmarks similar to the given bookmark."""
         return self.search_engine.find_similar_bookmarks(
             bookmark_id, similarity_threshold
         )
 
     def get_bookmark_suggestions(
-        self, current_scene_id: str, context: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, current_scene_id: str, context: str | None = None
+    ) -> list[dict[str, Any]]:
         """Get bookmark suggestions based on current context."""
         return self.search_engine.get_bookmark_suggestions(current_scene_id, context)
 
@@ -208,35 +205,35 @@ class BookmarkManager:
             scene_id, chapter_title, chapter_level, self.data_manager
         )
 
-    def get_chapter_bookmarks(self) -> List[Dict[str, Any]]:
+    def get_chapter_bookmarks(self) -> list[dict[str, Any]]:
         """Get all chapter bookmarks in chronological order."""
         return self.navigation_manager.get_chapter_bookmarks()
 
-    def get_timeline_bookmarks(self) -> List[Dict[str, Any]]:
+    def get_timeline_bookmarks(self) -> list[dict[str, Any]]:
         """Get all bookmarks with scene information for timeline building."""
         return self.navigation_manager.get_timeline_bookmarks()
 
-    def get_chapter_structure(self) -> Dict[int, List[Dict[str, Any]]]:
+    def get_chapter_structure(self) -> dict[int, list[dict[str, Any]]]:
         """Get chapter structure from bookmarks organized by levels."""
         return self.navigation_manager.get_chapter_structure()
 
-    def get_navigation_hierarchy(self) -> Dict[str, Any]:
+    def get_navigation_hierarchy(self) -> dict[str, Any]:
         """Get complete navigation hierarchy including chapters, sections, and bookmarks."""
         return self.navigation_manager.get_navigation_hierarchy()
 
-    def find_next_bookmark(self, current_scene_id: str) -> Optional[Dict[str, Any]]:
+    def find_next_bookmark(self, current_scene_id: str) -> dict[str, Any] | None:
         """Find the next bookmark in the timeline after the current scene."""
         return self.navigation_manager.find_next_bookmark(current_scene_id)
 
-    def find_previous_bookmark(self, current_scene_id: str) -> Optional[Dict[str, Any]]:
+    def find_previous_bookmark(self, current_scene_id: str) -> dict[str, Any] | None:
         """Find the previous bookmark in the timeline before the current scene."""
         return self.navigation_manager.find_previous_bookmark(current_scene_id)
 
-    def get_chapter_for_scene(self, scene_id: str) -> Optional[Dict[str, Any]]:
+    def get_chapter_for_scene(self, scene_id: str) -> dict[str, Any] | None:
         """Find which chapter a scene belongs to."""
         return self.navigation_manager.get_chapter_for_scene(scene_id)
 
-    def organize_by_chapters(self) -> Dict[str, List[Dict[str, Any]]]:
+    def organize_by_chapters(self) -> dict[str, list[dict[str, Any]]]:
         """Organize all bookmarks by their chapter associations."""
         return self.navigation_manager.organize_by_chapters()
 
@@ -245,13 +242,13 @@ class BookmarkManager:
     # =====================================================================
 
     def get_bookmarks_with_scenes(
-        self, bookmark_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, bookmark_type: str | None = None
+    ) -> list[dict[str, Any]]:
         """Legacy method: Get bookmarks with their associated scene information."""
         type_enum = BookmarkType(bookmark_type) if bookmark_type else None
         return self.data_manager.get_bookmarks_with_scenes(type_enum)
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Legacy method: Get bookmark statistics."""
         return self.data_manager.get_stats()
 
@@ -259,7 +256,7 @@ class BookmarkManager:
     # UTILITY METHODS
     # =====================================================================
 
-    def validate_bookmark_integrity(self) -> Dict[str, Any]:
+    def validate_bookmark_integrity(self) -> dict[str, Any]:
         """Validate bookmark data integrity."""
         try:
             all_bookmarks = self.list_bookmarks()
@@ -295,7 +292,7 @@ class BookmarkManager:
                 "issues": [f"Integrity check failed: {e}"],
             }
 
-    def export_bookmarks(self, format: str = "json") -> Dict[str, Any]:
+    def export_bookmarks(self, format: str = "json") -> dict[str, Any]:
         """Export all bookmark data."""
         try:
             bookmarks = self.list_bookmarks()
@@ -323,7 +320,7 @@ class BookmarkManager:
             log_error(f"Bookmark export failed: {e}")
             raise BookmarkManagerException(f"Export failed: {e}")
 
-    def bulk_update_bookmarks(self, updates: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def bulk_update_bookmarks(self, updates: list[dict[str, Any]]) -> dict[str, Any]:
         """Perform bulk updates on multiple bookmarks."""
         try:
             results = {"updated": 0, "failed": 0, "errors": []}

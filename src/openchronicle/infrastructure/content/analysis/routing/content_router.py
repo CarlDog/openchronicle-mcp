@@ -7,12 +7,12 @@ Part of: Phase 5A - Content Analysis Enhancement
 Extracted from: core/content_analyzer.py (lines 1137-1193)
 """
 
-from typing import Dict, List, Any
-
-from ..shared.interfaces import RoutingComponent
+from typing import Any
 
 # Import logging utilities
 from src.openchronicle.shared.logging_system import log_warning
+
+from ..shared.interfaces import RoutingComponent
 
 
 class ContentRouter(RoutingComponent):
@@ -22,17 +22,17 @@ class ContentRouter(RoutingComponent):
         super().__init__(model_manager)
 
     def route_request(
-        self, analysis: Dict[str, Any], context: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, analysis: dict[str, Any], context: dict[str, Any]
+    ) -> dict[str, Any]:
         """Route request and return comprehensive routing recommendations."""
         return self.get_routing_recommendation(analysis)
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process routing request and return routing configuration."""
         analysis = context.get("analysis", {})
         return self.route_request(analysis, context)
 
-    def get_routing_recommendation(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def get_routing_recommendation(self, analysis: dict[str, Any]) -> dict[str, Any]:
         """
         Recommend model routing based on content analysis.
         """
@@ -105,8 +105,8 @@ class ContentRouter(RoutingComponent):
         return recommendation
 
     def get_model_parameters(
-        self, content_type: str, content_flags: List[str]
-    ) -> Dict[str, Any]:
+        self, content_type: str, content_flags: list[str]
+    ) -> dict[str, Any]:
         """Get recommended model parameters for content type and flags."""
         params = {
             "temperature": 0.7,
@@ -140,7 +140,7 @@ class ContentRouter(RoutingComponent):
 
         return params
 
-    def get_safety_configuration(self, content_flags: List[str]) -> Dict[str, Any]:
+    def get_safety_configuration(self, content_flags: list[str]) -> dict[str, Any]:
         """Get safety configuration based on content flags."""
         safety_config = {
             "content_filter": False,

@@ -7,14 +7,13 @@ Extracted from IntelligentResponseEngine for modular architecture.
 Author: OpenChronicle Development Team
 """
 
-import json
-import statistics
-from typing import Dict, List, Any, Optional
-from datetime import datetime
-from pathlib import Path
+from typing import Any
 
-from ..shared import NarrativeComponent, ValidationResult
-from .response_models import ContextAnalysis, ContextQuality, ResponseComplexity
+from ..shared import NarrativeComponent
+from ..shared import ValidationResult
+from .response_models import ContextAnalysis
+from .response_models import ContextQuality
+from .response_models import ResponseComplexity
 
 
 class ContextAnalyzer(NarrativeComponent):
@@ -28,7 +27,7 @@ class ContextAnalyzer(NarrativeComponent):
     - Providing context-based recommendations
     """
 
-    def __init__(self, config: Dict[str, Any] = None):
+    def __init__(self, config: dict[str, Any] = None):
         super().__init__("ContextAnalyzer", config)
 
         # Analysis thresholds
@@ -63,7 +62,7 @@ class ContextAnalyzer(NarrativeComponent):
             }
         )
 
-    def process(self, data: Dict[str, Any]) -> ContextAnalysis:
+    def process(self, data: dict[str, Any]) -> ContextAnalysis:
         """Analyze context data and return analysis results."""
         try:
             context_data = data.get("context", {})
@@ -113,15 +112,15 @@ class ContextAnalyzer(NarrativeComponent):
                 complexity_needs=ResponseComplexity.SIMPLE,
                 content_type="unknown",
                 confidence=0.0,
-                recommendations=[f"Analysis error: {str(e)}"],
+                recommendations=[f"Analysis error: {e!s}"],
             )
 
-    def validate(self, data: Dict[str, Any]) -> ValidationResult:
+    def validate(self, data: dict[str, Any]) -> ValidationResult:
         """Validate context data for analysis."""
         required_fields = ["context"]
         return self._validate_required_fields(data, required_fields)
 
-    def _assess_context_quality(self, context_data: Dict[str, Any]) -> ContextQuality:
+    def _assess_context_quality(self, context_data: dict[str, Any]) -> ContextQuality:
         """Assess the quality of context data."""
         score = 0.0
         max_score = 0.0
@@ -137,7 +136,7 @@ class ContextAnalyzer(NarrativeComponent):
 
         for field, weight in quality_indicators:
             max_score += weight
-            if field in context_data and context_data[field]:
+            if context_data.get(field):
                 if isinstance(context_data[field], (dict, list)):
                     if len(context_data[field]) > 0:
                         score += weight
@@ -153,17 +152,16 @@ class ContextAnalyzer(NarrativeComponent):
         # Map to quality enum
         if quality_percentage >= self.quality_thresholds["excellent"]:
             return ContextQuality.EXCELLENT
-        elif quality_percentage >= self.quality_thresholds["good"]:
+        if quality_percentage >= self.quality_thresholds["good"]:
             return ContextQuality.GOOD
-        elif quality_percentage >= self.quality_thresholds["fair"]:
+        if quality_percentage >= self.quality_thresholds["fair"]:
             return ContextQuality.FAIR
-        elif quality_percentage >= self.quality_thresholds["poor"]:
+        if quality_percentage >= self.quality_thresholds["poor"]:
             return ContextQuality.POOR
-        else:
-            return ContextQuality.MINIMAL
+        return ContextQuality.MINIMAL
 
     def _determine_complexity_needs(
-        self, context_data: Dict[str, Any]
+        self, context_data: dict[str, Any]
     ) -> ResponseComplexity:
         """Determine appropriate response complexity based on context."""
         complexity_score = 0
@@ -199,14 +197,13 @@ class ContextAnalyzer(NarrativeComponent):
         # Map score to complexity
         if complexity_score >= 6:
             return ResponseComplexity.ELABORATE
-        elif complexity_score >= 4:
+        if complexity_score >= 4:
             return ResponseComplexity.COMPLEX
-        elif complexity_score >= 2:
+        if complexity_score >= 2:
             return ResponseComplexity.MODERATE
-        else:
-            return ResponseComplexity.SIMPLE
+        return ResponseComplexity.SIMPLE
 
-    def _identify_content_type(self, context_data: Dict[str, Any]) -> str:
+    def _identify_content_type(self, context_data: dict[str, Any]) -> str:
         """Identify the primary content type from context."""
         user_input = context_data.get("user_input", "").lower()
 
@@ -220,12 +217,11 @@ class ContextAnalyzer(NarrativeComponent):
         # Return type with highest score, or "general" if none found
         if type_scores:
             return max(type_scores.items(), key=lambda x: x[1])[0]
-        else:
-            return "general"
+        return "general"
 
     def _extract_character_context(
-        self, context_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, context_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Extract character-related context."""
         character_context = {}
 
@@ -247,8 +243,8 @@ class ContextAnalyzer(NarrativeComponent):
         return character_context
 
     def _extract_narrative_context(
-        self, context_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, context_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Extract narrative-related context."""
         narrative_context = {}
 
@@ -275,8 +271,8 @@ class ContextAnalyzer(NarrativeComponent):
         return narrative_context
 
     def _extract_emotional_context(
-        self, context_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, context_data: dict[str, Any]
+    ) -> dict[str, Any]:
         """Extract emotional context from data."""
         emotional_context = {}
 
@@ -305,7 +301,7 @@ class ContextAnalyzer(NarrativeComponent):
 
         return emotional_context
 
-    def _identify_key_elements(self, context_data: Dict[str, Any]) -> List[str]:
+    def _identify_key_elements(self, context_data: dict[str, Any]) -> list[str]:
         """Identify key elements in the context."""
         key_elements = []
 
@@ -327,7 +323,7 @@ class ContextAnalyzer(NarrativeComponent):
 
         return key_elements
 
-    def _identify_missing_elements(self, context_data: Dict[str, Any]) -> List[str]:
+    def _identify_missing_elements(self, context_data: dict[str, Any]) -> list[str]:
         """Identify missing important elements."""
         missing_elements = []
 
@@ -347,9 +343,9 @@ class ContextAnalyzer(NarrativeComponent):
         self,
         quality: ContextQuality,
         complexity: ResponseComplexity,
-        key_elements: List[str],
-        missing_elements: List[str],
-    ) -> List[str]:
+        key_elements: list[str],
+        missing_elements: list[str],
+    ) -> list[str]:
         """Generate recommendations based on analysis."""
         recommendations = []
 
@@ -382,7 +378,7 @@ class ContextAnalyzer(NarrativeComponent):
         return recommendations
 
     def _calculate_analysis_confidence(
-        self, context_data: Dict[str, Any], quality: ContextQuality
+        self, context_data: dict[str, Any], quality: ContextQuality
     ) -> float:
         """Calculate confidence in the analysis."""
         base_confidence = {
@@ -405,7 +401,7 @@ class ContextAnalyzer(NarrativeComponent):
         return max(0.0, min(1.0, confidence))
 
     def _validate_required_fields(
-        self, data: Dict[str, Any], required_fields: List[str]
+        self, data: dict[str, Any], required_fields: list[str]
     ) -> ValidationResult:
         """Validate required fields are present."""
         missing_fields = [field for field in required_fields if field not in data]

@@ -4,49 +4,66 @@ Timeline Manager - Core Timeline Building and Management
 Handles the primary timeline building functionality extracted from the legacy
 timeline_builder.py. Provides scene organization, bookmark integration, and
 auto-summary generation in a modular architecture.
+
+This manager now uses dependency injection following hexagonal architecture principles.
 """
 
 import json
-import sys
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Tuple
-from pathlib import Path
+from datetime import UTC
+from datetime import datetime
+from typing import Any, Optional
 
-# Database imports from parent core directory
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.infrastructure.persistence import execute_query, init_database
+# Import domain interfaces (following dependency inversion principle)
+from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from src.openchronicle.domain.ports.memory_port import IMemoryPort
+
 from src.openchronicle.application.services.management.bookmark.bookmark_manager import (
     BookmarkManager,
-)
-from src.openchronicle.domain.services.scenes.scene_orchestrator import (
-    SceneOrchestrator,
-)
-
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-    log_error,
 )
 
 
 class TimelineManager:
-    """Manages core timeline building and scene organization."""
+    """Manages core timeline building and scene organization using dependency injection."""
 
-    def __init__(self, story_id: str):
+    def __init__(self, story_id: str, persistence_port: Optional[IPersistencePort] = None, memory_port: Optional[IMemoryPort] = None):
+        """
+        Initialize timeline manager.
+
+        Args:
+            story_id: Story identifier
+            persistence_port: Persistence interface implementation (injected)
+            memory_port: Memory interface implementation (injected)
+        """
         self.story_id = story_id
+        
+        # If no persistence port provided, create default adapter
+        if persistence_port is None:
+            from src.openchronicle.infrastructure.persistence_adapters.persistence_adapter import PersistenceAdapter
+            self.persistence = PersistenceAdapter()
+        else:
+            self.persistence = persistence_port
+            
+        # If no memory port provided, create default adapter
+        if memory_port is None:
+            from src.openchronicle.infrastructure.persistence_adapters.memory_adapter import MemoryAdapter
+            self.memory = MemoryAdapter()
+        else:
+            self.memory = memory_port
+            
         self.bookmark_manager = BookmarkManager(story_id)
-        init_database(story_id)
+        self._init_database()
+
+    def _init_database(self) -> None:
+        """Initialize database for the story."""
+        self.persistence.init_database(self.story_id)
 
     async def build_full_timeline(
         self, include_bookmarks: bool = True, include_summaries: bool = True
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build complete story timeline with scenes and bookmarks."""
 
         # Get all scenes
-        scenes = execute_query(
+        scenes = self.persistence.self.persistence.execute_query(
             self.story_id,
             """
             SELECT scene_id, timestamp, input, output, memory_snapshot, flags, canon_refs, scene_label
@@ -108,11 +125,11 @@ class TimelineManager:
 
     async def get_scene_context(
         self, scene_id: str, context_range: int = 3
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Get contextual scenes around a specific scene."""
 
         # Get target scene timestamp
-        target_scene = execute_query(
+        target_scene = self.persistence.execute_query(
             self.story_id,
             """
             SELECT timestamp FROM scenes WHERE scene_id = ?
@@ -126,7 +143,7 @@ class TimelineManager:
         target_timestamp = target_scene[0][0]
 
         # Get scenes before and after
-        context_scenes = execute_query(
+        context_scenes = self.persistence.execute_query(
             self.story_id,
             """
             SELECT scene_id, timestamp, input, output, scene_label
@@ -154,7 +171,7 @@ class TimelineManager:
 
     async def _analyze_scene_tone(
         self, input_text: str, output_text: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Analyze tone of scene content."""
         # Basic tone analysis - can be enhanced with content analysis integration
         combined_text = f"{input_text} {output_text}".lower()
@@ -186,8 +203,8 @@ class TimelineManager:
         }
 
     async def _generate_auto_summaries(
-        self, timeline_entries: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, timeline_entries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Generate automatic summaries of timeline segments."""
         scene_entries = [
             entry for entry in timeline_entries if entry["type"] == "scene"
@@ -234,7 +251,7 @@ class TimelineManager:
             "generated_at": datetime.now(UTC).isoformat(),
         }
 
-    async def _get_segment_tone(self, scenes: List[Dict[str, Any]]) -> str:
+    async def _get_segment_tone(self, scenes: list[dict[str, Any]]) -> str:
         """Determine dominant tone for a segment of scenes."""
         tone_counts = {}
 
@@ -246,8 +263,8 @@ class TimelineManager:
         return max(tone_counts, key=tone_counts.get) if tone_counts else "neutral"
 
     def _calculate_timeline_stats(
-        self, timeline_entries: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, timeline_entries: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         """Calculate basic statistics for the timeline."""
         scene_count = sum(1 for entry in timeline_entries if entry["type"] == "scene")
         bookmark_count = sum(

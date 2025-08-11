@@ -5,10 +5,12 @@ This module contains all data structures and type definitions for the OpenChroni
 memory management system.
 """
 
-from dataclasses import dataclass, field
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Union
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import UTC
+from datetime import datetime
 from enum import Enum
+from typing import Any
 
 
 class MemoryType(Enum):
@@ -27,7 +29,7 @@ class MemoryFlag:
 
     name: str
     created: datetime
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -36,7 +38,7 @@ class RecentEvent:
 
     description: str
     timestamp: datetime
-    data: Optional[Dict[str, Any]] = None
+    data: dict[str, Any] | None = None
 
 
 @dataclass
@@ -46,11 +48,11 @@ class WorldEvent:
     description: str
     event_type: str = "general"
     timestamp: datetime = field(default_factory=lambda: datetime.now(UTC))
-    data: Dict[str, Any] = field(default_factory=dict)
-    characters_involved: List[str] = field(default_factory=list)
-    location: Optional[str] = None
+    data: dict[str, Any] = field(default_factory=dict)
+    characters_involved: list[str] = field(default_factory=list)
+    location: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
         return {
             "description": self.description,
@@ -62,7 +64,7 @@ class WorldEvent:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "WorldEvent":
+    def from_dict(cls, data: dict[str, Any]) -> "WorldEvent":
         """Create from dictionary format."""
         timestamp_str = data.get("timestamp", "")
         try:
@@ -86,7 +88,7 @@ class MoodEntry:
 
     mood: str
     timestamp: datetime
-    reason: Optional[str] = None
+    reason: str | None = None
     confidence: float = 1.0
 
 
@@ -96,9 +98,9 @@ class VoiceProfile:
 
     speaking_style: str = ""
     vocabulary_level: str = "moderate"
-    personality_traits: List[str] = field(default_factory=list)
-    speaking_patterns: List[str] = field(default_factory=list)
-    emotional_tendencies: List[str] = field(default_factory=list)
+    personality_traits: list[str] = field(default_factory=list)
+    speaking_patterns: list[str] = field(default_factory=list)
+    emotional_tendencies: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -110,13 +112,13 @@ class CharacterMemory:
     personality: str = ""
     background: str = ""
     current_mood: str = "neutral"
-    mood_history: List[MoodEntry] = field(default_factory=list)
+    mood_history: list[MoodEntry] = field(default_factory=list)
     voice_profile: VoiceProfile = field(default_factory=VoiceProfile)
-    relationships: Dict[str, str] = field(default_factory=dict)
-    arc_progress: Dict[str, Any] = field(default_factory=dict)
-    dialogue_history: List[str] = field(default_factory=list)
+    relationships: dict[str, str] = field(default_factory=dict)
+    arc_progress: dict[str, Any] = field(default_factory=dict)
+    dialogue_history: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
         return {
             "name": self.name,
@@ -139,7 +141,7 @@ class CharacterMemory:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "CharacterMemory":
+    def from_dict(cls, data: dict[str, Any]) -> "CharacterMemory":
         """Create CharacterMemory from dictionary data."""
         # Handle mood_history
         mood_history = []
@@ -198,15 +200,15 @@ class MemoryMetadata:
 class MemoryState:
     """Complete memory state structure."""
 
-    characters: Dict[str, CharacterMemory] = field(default_factory=dict)
-    world_state: Dict[str, Any] = field(default_factory=dict)
-    flags: List[MemoryFlag] = field(default_factory=list)
-    recent_events: List[RecentEvent] = field(default_factory=list)
+    characters: dict[str, CharacterMemory] = field(default_factory=dict)
+    world_state: dict[str, Any] = field(default_factory=dict)
+    flags: list[MemoryFlag] = field(default_factory=list)
+    recent_events: list[RecentEvent] = field(default_factory=list)
     metadata: MemoryMetadata = field(
         default_factory=lambda: MemoryMetadata(last_updated=datetime.now(UTC))
     )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
         return {
             "characters": {
@@ -241,7 +243,7 @@ class MemorySnapshot:
     snapshot_type: str = "scene"
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MemorySnapshot":
+    def from_dict(cls, data: dict[str, Any]) -> "MemorySnapshot":
         """Create MemorySnapshot from dictionary data."""
         # Handle timestamp conversion if needed
         created_at = data.get("created_at")
@@ -279,13 +281,13 @@ class MemorySnapshot:
 class CharacterUpdates:
     """Character update specification."""
 
-    description: Optional[str] = None
-    personality: Optional[str] = None
-    background: Optional[str] = None
-    mood: Optional[str] = None
-    voice_updates: Optional[Dict[str, Any]] = None
-    relationship_updates: Optional[Dict[str, str]] = None
-    arc_updates: Optional[Dict[str, Any]] = None
+    description: str | None = None
+    personality: str | None = None
+    background: str | None = None
+    mood: str | None = None
+    voice_updates: dict[str, Any] | None = None
+    relationship_updates: dict[str, str] | None = None
+    arc_updates: dict[str, Any] | None = None
 
 
 @dataclass
@@ -294,8 +296,8 @@ class MemoryUpdateResult:
 
     success: bool
     message: str
-    updated_fields: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    updated_fields: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 # Configuration Constants

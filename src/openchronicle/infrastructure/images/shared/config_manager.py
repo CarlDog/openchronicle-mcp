@@ -9,9 +9,13 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Any
 
-from .image_models import ImageProvider, ImageConfig, NamingConfig, AutoGenerateConfig
+from .image_models import AutoGenerateConfig
+from .image_models import ImageConfig
+from .image_models import ImageProvider
+from .image_models import NamingConfig
+
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +23,12 @@ logger = logging.getLogger(__name__)
 class ImageConfigManager:
     """Manages configuration for image systems"""
 
-    def __init__(self, story_path: Optional[str] = None):
+    def __init__(self, story_path: str | None = None):
         self.story_path = Path(story_path) if story_path else None
         self._model_registry = None
         self._config_cache = {}
 
-    def load_model_registry(self) -> Dict[str, Any]:
+    def load_model_registry(self) -> dict[str, Any]:
         """Load the model registry configuration."""
         if self._model_registry is not None:
             return self._model_registry
@@ -49,7 +53,7 @@ class ImageConfigManager:
             return self._model_registry
 
         try:
-            with open(config_path, "r", encoding="utf-8") as f:
+            with open(config_path, encoding="utf-8") as f:
                 self._model_registry = json.load(f)
                 logger.info(f"Loaded model registry from {config_path}")
                 return self._model_registry
@@ -62,7 +66,7 @@ class ImageConfigManager:
             }
             return self._model_registry
 
-    def get_default_config(self) -> Dict[str, Any]:
+    def get_default_config(self) -> dict[str, Any]:
         """Get default image system configuration"""
         return {
             "enabled": True,
@@ -84,8 +88,8 @@ class ImageConfigManager:
         }
 
     def get_image_config_from_registry(
-        self, story_path: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, story_path: str | None = None
+    ) -> dict[str, Any]:
         """Extract image configuration from registry and story config"""
         # Use provided story_path or fall back to instance path
         working_story_path = Path(story_path) if story_path else self.story_path
@@ -98,7 +102,7 @@ class ImageConfigManager:
             config_path = working_story_path / "config.json"
             if config_path.exists():
                 try:
-                    with open(config_path, "r", encoding="utf-8") as f:
+                    with open(config_path, encoding="utf-8") as f:
                         story_config = json.load(f)
                 except Exception as e:
                     logger.warning(f"Failed to load story config: {e}")
@@ -148,7 +152,7 @@ class ImageConfigManager:
         }
 
     def get_naming_config(
-        self, custom_config: Optional[Dict[str, str]] = None
+        self, custom_config: dict[str, str] | None = None
     ) -> NamingConfig:
         """Get naming configuration with defaults"""
         default_naming = {
@@ -165,7 +169,7 @@ class ImageConfigManager:
         return default_naming
 
     def get_auto_generate_config(
-        self, custom_config: Optional[Dict[str, Any]] = None
+        self, custom_config: dict[str, Any] | None = None
     ) -> AutoGenerateConfig:
         """Get auto-generation configuration with defaults"""
         default_auto = {
@@ -235,7 +239,7 @@ class ImageConfigManager:
         self._config_cache[cache_key] = config
         return config
 
-    def validate_config(self, config: ImageConfig) -> List[str]:
+    def validate_config(self, config: ImageConfig) -> list[str]:
         """Validate image configuration and return list of issues"""
         issues = []
 
@@ -260,7 +264,7 @@ class ImageConfigManager:
 
         return issues
 
-    def get_fallback_chain(self) -> List[str]:
+    def get_fallback_chain(self) -> list[str]:
         """Get the fallback chain for image generation"""
         config = self.get_image_config_from_registry()
         return config.get("fallback_chain", ["mock"])

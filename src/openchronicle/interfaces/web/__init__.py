@@ -21,6 +21,7 @@ from src.openchronicle.infrastructure import InfrastructureConfig
 from src.openchronicle.infrastructure import InfrastructureContainer
 from starlette.status import HTTP_303_SEE_OTHER
 
+
 # ================================
 # Template Configuration
 # ================================
@@ -816,21 +817,20 @@ def create_web_app() -> FastAPI:
             return RedirectResponse(
                 url=f"/stories/{story.id}", status_code=HTTP_303_SEE_OTHER
             )
-        else:
-            # TODO: Handle validation errors
-            return templates.TemplateResponse(
-                "story_create.html",
-                {
-                    "request": request,
-                    "errors": result.errors,
-                    "title": title,
-                    "description": description,
-                    "genre": genre,
-                    "setting": setting,
-                    "tech_level": tech_level,
-                    "magic_level": magic_level,
-                },
-            )
+        # TODO: Handle validation errors
+        return templates.TemplateResponse(
+            "story_create.html",
+            {
+                "request": request,
+                "errors": result.errors,
+                "title": title,
+                "description": description,
+                "genre": genre,
+                "setting": setting,
+                "tech_level": tech_level,
+                "magic_level": magic_level,
+            },
+        )
 
     @app.get("/stories/{story_id}", response_class=HTMLResponse)
     async def story_detail(request: Request, story_id: str):

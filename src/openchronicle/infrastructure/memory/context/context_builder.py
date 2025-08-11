@@ -5,12 +5,11 @@ Specialized component for generating narrative context from memory data.
 Handles context formatting, prompt generation, and narrative consistency.
 """
 
-from datetime import datetime, UTC
-from typing import Dict, List, Any, Optional, Set
 from dataclasses import dataclass
 
-from ..shared.memory_models import MemorySnapshot, CharacterMemory
 from ..character.character_manager import CharacterManager
+from ..shared.memory_models import CharacterMemory
+from ..shared.memory_models import MemorySnapshot
 
 
 @dataclass
@@ -61,7 +60,7 @@ class ContextBuilder:
     def build_memory_context(
         self,
         memory: MemorySnapshot,
-        primary_characters: List[str] = None,
+        primary_characters: list[str] = None,
         config: ContextConfiguration = None,
     ) -> str:
         """
@@ -146,7 +145,7 @@ class ContextBuilder:
         return self.build_memory_context(memory, config=config)
 
     def build_comprehensive_context(
-        self, memory: MemorySnapshot, primary_characters: List[str] = None
+        self, memory: MemorySnapshot, primary_characters: list[str] = None
     ) -> str:
         """Build comprehensive context with all available information."""
         config = ContextConfiguration(
@@ -177,9 +176,9 @@ class ContextBuilder:
     def _build_character_context(
         self,
         memory: MemorySnapshot,
-        primary_characters: List[str],
+        primary_characters: list[str],
         config: ContextConfiguration,
-    ) -> List[str]:
+    ) -> list[str]:
         """Build character-specific context sections."""
         context_lines = []
         characters = memory.characters
@@ -225,7 +224,7 @@ class ContextBuilder:
 
     def _build_world_state_context(
         self, memory: MemorySnapshot, config: ContextConfiguration
-    ) -> List[str]:
+    ) -> list[str]:
         """Build world state context section."""
         context_lines = []
         world_state = memory.world_state
@@ -239,7 +238,7 @@ class ContextBuilder:
 
     def _build_flags_context(
         self, memory: MemorySnapshot, config: ContextConfiguration
-    ) -> List[str]:
+    ) -> list[str]:
         """Build active flags context section."""
         context_lines = []
         flags = memory.flags
@@ -258,7 +257,7 @@ class ContextBuilder:
 
     def _build_events_context(
         self, memory: MemorySnapshot, config: ContextConfiguration
-    ) -> List[str]:
+    ) -> list[str]:
         """Build recent events context section."""
         context_lines = []
         recent_events = memory.recent_events
@@ -282,7 +281,7 @@ class ContextBuilder:
             mood = character.current_mood or "neutral"
             return f"{character.name}: {mood} mood"
 
-        elif detail_level == "summary":
+        if detail_level == "summary":
             mood = character.current_mood or "neutral"
             state_items = []
             if character.current_state:
@@ -293,10 +292,10 @@ class ContextBuilder:
             )
             return f"{character.name}: {mood} mood, {state_summary}"
 
-        else:  # "full"
-            return self.character_manager.format_character_snapshot_for_prompt(
-                character
-            )
+        # "full"
+        return self.character_manager.format_character_snapshot_for_prompt(
+            character
+        )
 
     def _truncate_context(self, context: str, max_length: int) -> str:
         """Intelligently truncate context to fit length limits."""
@@ -315,10 +314,7 @@ class ContextBuilder:
             line_length = len(line) + 1  # +1 for newline
 
             # Always keep priority sections
-            if any(priority in line for priority in priority_sections):
-                kept_lines.append(line)
-                current_length += line_length
-            elif current_length + line_length <= max_length:
+            if any(priority in line for priority in priority_sections) or current_length + line_length <= max_length:
                 kept_lines.append(line)
                 current_length += line_length
             else:

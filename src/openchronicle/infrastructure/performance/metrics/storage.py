@@ -7,19 +7,18 @@ Handles persistence and efficient querying of metrics data.
 """
 
 import json
-import asyncio
 import sqlite3
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any, Tuple
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
-from dataclasses import asdict
+from typing import Any
 
-from ..interfaces.performance_interfaces import (
-    IMetricsStorage,
-    PerformanceMetrics,
-    MetricsQuery,
-)
-from src.openchronicle.shared.logging_system import get_logger, log_system_event
+from src.openchronicle.shared.logging_system import get_logger
+from src.openchronicle.shared.logging_system import log_system_event
+
+from ..interfaces.performance_interfaces import IMetricsStorage
+from ..interfaces.performance_interfaces import MetricsQuery
+from ..interfaces.performance_interfaces import PerformanceMetrics
 
 
 class MetricsStorage(IMetricsStorage):
@@ -101,7 +100,7 @@ class MetricsStorage(IMetricsStorage):
             self.logger.error(f"Failed to store metrics: {e}")
             raise
 
-    async def retrieve_metrics(self, query: MetricsQuery) -> List[PerformanceMetrics]:
+    async def retrieve_metrics(self, query: MetricsQuery) -> list[PerformanceMetrics]:
         """Retrieve metrics based on query parameters."""
         if not self._initialized:
             await self.initialize()
@@ -112,7 +111,7 @@ class MetricsStorage(IMetricsStorage):
 
             # Build query
             sql_query = "SELECT * FROM performance_metrics WHERE 1=1"
-            params: List[Any] = []
+            params: list[Any] = []
 
             if query.start_time:
                 sql_query += " AND start_time >= ?"
@@ -192,9 +191,9 @@ class MetricsStorage(IMetricsStorage):
 
     async def get_metrics_summary(
         self,
-        time_period: Tuple[datetime, datetime],
-        adapter_filter: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        time_period: tuple[datetime, datetime],
+        adapter_filter: str | None = None,
+    ) -> dict[str, Any]:
         """Get summary statistics for metrics in a time period."""
         if not self._initialized:
             await self.initialize()
@@ -217,7 +216,7 @@ class MetricsStorage(IMetricsStorage):
                 WHERE start_time >= ? AND end_time <= ?
             """
 
-            params: List[Any] = [time_period[0].timestamp(), time_period[1].timestamp()]
+            params: list[Any] = [time_period[0].timestamp(), time_period[1].timestamp()]
 
             if adapter_filter:
                 base_query += " AND adapter_name = ?"
@@ -249,7 +248,7 @@ class MetricsStorage(IMetricsStorage):
                 FROM performance_metrics 
                 WHERE start_time >= ? AND end_time <= ?
             """
-            adapter_params: List[Any] = [
+            adapter_params: list[Any] = [
                 time_period[0].timestamp(),
                 time_period[1].timestamp(),
             ]
@@ -324,7 +323,7 @@ class MetricsStorage(IMetricsStorage):
             self.logger.error(f"Failed to cleanup old metrics: {e}")
             return 0
 
-    async def get_storage_stats(self) -> Dict[str, Any]:
+    async def get_storage_stats(self) -> dict[str, Any]:
         """Get storage statistics and health information."""
         if not self._initialized:
             await self.initialize()

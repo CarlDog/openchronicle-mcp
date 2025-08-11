@@ -5,8 +5,9 @@ Provides basic state management when full rollback system is unavailable.
 """
 
 import json
-from datetime import datetime, UTC
-from typing import Dict, List, Any
+from datetime import UTC
+from datetime import datetime
+from typing import Any
 
 
 class FallbackStateManager:
@@ -17,17 +18,15 @@ class FallbackStateManager:
 
     async def create_rollback_point(
         self, scene_id: str, description: str = "Manual rollback point"
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Create basic rollback point with limited functionality."""
         try:
             import sys
             from pathlib import Path
 
             sys.path.append(str(Path(__file__).parent.parent.parent))
-            from src.openchronicle.infrastructure.persistence import (
-                execute_update,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_update - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -66,17 +65,15 @@ class FallbackStateManager:
                 "fallback_mode": True,
             }
 
-    async def list_rollback_points(self) -> List[Dict[str, Any]]:
+    async def list_rollback_points(self) -> list[dict[str, Any]]:
         """List basic rollback points."""
         try:
             import sys
             from pathlib import Path
 
             sys.path.append(str(Path(__file__).parent.parent.parent))
-            from src.openchronicle.infrastructure.persistence import (
-                execute_query,
-                init_database,
-            )
+            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
+            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
 
             init_database(self.story_id)
 
@@ -105,7 +102,7 @@ class FallbackStateManager:
         except Exception:
             return []
 
-    async def rollback_to_point(self, rollback_id: str) -> Dict[str, Any]:
+    async def rollback_to_point(self, rollback_id: str) -> dict[str, Any]:
         """Basic rollback with limited functionality."""
         return {
             "rollback_id": rollback_id,

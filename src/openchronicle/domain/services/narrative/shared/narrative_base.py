@@ -8,11 +8,12 @@ used across response, mechanics, consistency, and emotional systems.
 Author: OpenChronicle Development Team
 """
 
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Dict, List, Any, Optional, Union, Tuple
+from abc import ABC
+from abc import abstractmethod
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
-import json
+from typing import Any
 
 
 @dataclass
@@ -23,7 +24,7 @@ class NarrativeEvent:
     timestamp: str
     story_id: str
     source_component: str
-    event_data: Dict[str, Any] = field(default_factory=dict)
+    event_data: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.timestamp:
@@ -37,29 +38,27 @@ class ValidationResult:
     is_valid: bool
     confidence: float
     validation_type: str
-    issues: List[str] = field(default_factory=list)
-    recommendations: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    issues: list[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class NarrativeComponent(ABC):
     """Base class for all narrative system components."""
 
-    def __init__(self, component_name: str, config: Dict[str, Any] = None):
+    def __init__(self, component_name: str, config: dict[str, Any] = None):
         self.component_name = component_name
         self.config = config or {}
-        self.event_history: List[NarrativeEvent] = []
-        self.metrics: Dict[str, float] = {}
+        self.event_history: list[NarrativeEvent] = []
+        self.metrics: dict[str, float] = {}
 
     @abstractmethod
-    def process(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def process(self, data: dict[str, Any]) -> dict[str, Any]:
         """Process component-specific data."""
-        pass
 
     @abstractmethod
-    def validate(self, data: Dict[str, Any]) -> ValidationResult:
+    def validate(self, data: dict[str, Any]) -> ValidationResult:
         """Validate component-specific data."""
-        pass
 
     def record_event(self, event: NarrativeEvent) -> None:
         """Record a narrative event."""
@@ -70,15 +69,15 @@ class NarrativeComponent(ABC):
         if len(self.event_history) > max_events:
             self.event_history = self.event_history[-max_events:]
 
-    def get_recent_events(self, limit: int = 10) -> List[NarrativeEvent]:
+    def get_recent_events(self, limit: int = 10) -> list[NarrativeEvent]:
         """Get recent narrative events."""
         return self.event_history[-limit:] if self.event_history else []
 
-    def update_metrics(self, metrics: Dict[str, float]) -> None:
+    def update_metrics(self, metrics: dict[str, float]) -> None:
         """Update component metrics."""
         self.metrics.update(metrics)
 
-    def get_component_status(self) -> Dict[str, Any]:
+    def get_component_status(self) -> dict[str, Any]:
         """Get component status and metrics."""
         return {
             "component_name": self.component_name,
@@ -92,14 +91,14 @@ class StateManager:
     """Shared state management functionality."""
 
     def __init__(self):
-        self.states: Dict[str, Dict[str, Any]] = {}
-        self.state_history: Dict[str, List[Dict[str, Any]]] = {}
+        self.states: dict[str, dict[str, Any]] = {}
+        self.state_history: dict[str, list[dict[str, Any]]] = {}
 
-    def get_state(self, key: str) -> Optional[Dict[str, Any]]:
+    def get_state(self, key: str) -> dict[str, Any] | None:
         """Get current state by key."""
         return self.states.get(key)
 
-    def set_state(self, key: str, state: Dict[str, Any]) -> bool:
+    def set_state(self, key: str, state: dict[str, Any]) -> bool:
         """Set state and record in history."""
         try:
             # Record previous state in history
@@ -120,7 +119,7 @@ class StateManager:
         except Exception:
             return False
 
-    def update_state(self, key: str, updates: Dict[str, Any]) -> bool:
+    def update_state(self, key: str, updates: dict[str, Any]) -> bool:
         """Update specific fields in state."""
         try:
             if key not in self.states:
@@ -133,7 +132,7 @@ class StateManager:
         except Exception:
             return False
 
-    def get_state_history(self, key: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_state_history(self, key: str, limit: int = 10) -> list[dict[str, Any]]:
         """Get state history for key."""
         if key not in self.state_history:
             return []
@@ -153,8 +152,8 @@ class EventProcessor:
     """Shared event processing functionality."""
 
     def __init__(self):
-        self.event_handlers: Dict[str, List[callable]] = {}
-        self.processed_events: List[NarrativeEvent] = []
+        self.event_handlers: dict[str, list[callable]] = {}
+        self.processed_events: list[NarrativeEvent] = []
 
     def register_handler(self, event_type: str, handler: callable) -> bool:
         """Register an event handler for specific event type."""
@@ -166,7 +165,7 @@ class EventProcessor:
         except Exception:
             return False
 
-    def process_event(self, event: NarrativeEvent) -> List[Dict[str, Any]]:
+    def process_event(self, event: NarrativeEvent) -> list[dict[str, Any]]:
         """Process event through registered handlers."""
         results = []
 
@@ -197,7 +196,7 @@ class EventProcessor:
         except Exception as e:
             return [{"error": str(e)}]
 
-    def get_event_statistics(self) -> Dict[str, Any]:
+    def get_event_statistics(self) -> dict[str, Any]:
         """Get event processing statistics."""
         event_types = {}
         for event in self.processed_events:
@@ -218,7 +217,7 @@ class ValidationBase:
 
     @staticmethod
     def validate_required_fields(
-        data: Dict[str, Any], required_fields: List[str]
+        data: dict[str, Any], required_fields: list[str]
     ) -> ValidationResult:
         """Validate required fields are present."""
         missing_fields = [field for field in required_fields if field not in data]
@@ -238,7 +237,7 @@ class ValidationBase:
 
     @staticmethod
     def validate_data_types(
-        data: Dict[str, Any], type_specs: Dict[str, type]
+        data: dict[str, Any], type_specs: dict[str, type]
     ) -> ValidationResult:
         """Validate data types match specifications."""
         issues = []
@@ -266,7 +265,7 @@ class ValidationBase:
 
     @staticmethod
     def validate_ranges(
-        data: Dict[str, Any], range_specs: Dict[str, Tuple[float, float]]
+        data: dict[str, Any], range_specs: dict[str, tuple[float, float]]
     ) -> ValidationResult:
         """Validate numeric values are within specified ranges."""
         issues = []

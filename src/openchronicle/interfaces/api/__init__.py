@@ -22,6 +22,7 @@ from src.openchronicle.application import ApplicationFacade
 from src.openchronicle.infrastructure import InfrastructureConfig
 from src.openchronicle.infrastructure import InfrastructureContainer
 
+
 # ================================
 # Request/Response Models
 # ================================
@@ -31,23 +32,23 @@ class StoryCreateRequest(BaseModel):
     """Request model for creating a new story."""
 
     title: str = Field(..., min_length=1, max_length=200, description="Story title")
-    description: Optional[str] = Field(
+    description: str | None = Field(
         None, max_length=2000, description="Story description"
     )
     world_state: dict[str, Any] = Field(
         default_factory=dict, description="Initial world state"
     )
-    genre: Optional[str] = Field(None, description="Story genre")
-    target_audience: Optional[str] = Field(None, description="Target audience")
+    genre: str | None = Field(None, description="Story genre")
+    target_audience: str | None = Field(None, description="Target audience")
 
 
 class StoryUpdateRequest(BaseModel):
     """Request model for updating an existing story."""
 
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = Field(None, max_length=2000)
-    world_state: Optional[dict[str, Any]] = None
-    status: Optional[str] = None
+    title: str | None = Field(None, min_length=1, max_length=200)
+    description: str | None = Field(None, max_length=2000)
+    world_state: dict[str, Any] | None = None
+    status: str | None = None
 
 
 class CharacterCreateRequest(BaseModel):
@@ -57,10 +58,10 @@ class CharacterCreateRequest(BaseModel):
     personality_traits: dict[str, float] = Field(
         default_factory=dict, description="Personality traits with 0-10 values"
     )
-    background: Optional[str] = Field(
+    background: str | None = Field(
         None, max_length=1000, description="Character background"
     )
-    appearance: Optional[str] = Field(
+    appearance: str | None = Field(
         None, max_length=500, description="Physical appearance"
     )
     goals: list[str] = Field(default_factory=list, description="Character goals")
@@ -78,7 +79,7 @@ class SceneGenerateRequest(BaseModel):
         ..., description="Character IDs participating in scene"
     )
     user_input: str = Field(..., description="User direction for scene")
-    model_preference: Optional[str] = Field(None, description="Preferred AI model")
+    model_preference: str | None = Field(None, description="Preferred AI model")
 
 
 class StoryResponse(BaseModel):
@@ -86,7 +87,7 @@ class StoryResponse(BaseModel):
 
     id: str
     title: str
-    description: Optional[str]
+    description: str | None
     world_state: dict[str, Any]
     status: str
     created_at: datetime
@@ -100,8 +101,8 @@ class CharacterResponse(BaseModel):
     id: str
     name: str
     personality_traits: dict[str, float]
-    background: Optional[str]
-    appearance: Optional[str]
+    background: str | None
+    appearance: str | None
     goals: list[str]
     relationships: dict[str, dict[str, Any]]
     emotional_state: dict[str, float]

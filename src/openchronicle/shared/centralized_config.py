@@ -4,19 +4,24 @@ Week 2 Task 2: Centralized Configuration System
 Creates a unified configuration management system with typed classes for better maintainability.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, Any, List, Optional, Union
-from pathlib import Path
 import json
 import os
 import sys
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from .logging_system import log_info, log_error, log_warning, log_system_event
+from .logging_system import log_error
+from .logging_system import log_info
+from .logging_system import log_system_event
+from .logging_system import log_warning
 
 
 @dataclass
@@ -114,7 +119,7 @@ class SystemConfig:
     environment: str = "development"
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "SystemConfig":
+    def from_dict(cls, data: dict[str, Any]) -> "SystemConfig":
         """Create SystemConfig from dictionary."""
         return cls(
             performance=PerformanceConfig(**data.get("performance", {})),
@@ -128,7 +133,7 @@ class SystemConfig:
             environment=data.get("environment", "development"),
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert SystemConfig to dictionary."""
         return {
             "performance": self.performance.__dict__,
@@ -205,7 +210,7 @@ class CentralizedConfigManager:
         """Load configuration from file or create default."""
         if self.config_path.exists():
             try:
-                with open(self.config_path, "r", encoding="utf-8") as f:
+                with open(self.config_path, encoding="utf-8") as f:
                     data = json.load(f)
 
                 config = SystemConfig.from_dict(data)
@@ -231,7 +236,7 @@ class CentralizedConfigManager:
         self.save_config(config)
         return config
 
-    def save_config(self, config: Optional[SystemConfig] = None) -> bool:
+    def save_config(self, config: SystemConfig | None = None) -> bool:
         """Save configuration to file."""
         if config is None:
             config = self.config
@@ -332,7 +337,7 @@ class CentralizedConfigManager:
             )
             return None
 
-    def validate_config(self) -> List[str]:
+    def validate_config(self) -> list[str]:
         """Validate configuration and auto-create missing directories."""
         issues = []
 
@@ -393,7 +398,7 @@ class CentralizedConfigManager:
 
         return issues
 
-    def get_config_summary(self) -> Dict[str, Any]:
+    def get_config_summary(self) -> dict[str, Any]:
         """Get configuration summary for logging/debugging."""
         return {
             "config_version": self.config.config_version,

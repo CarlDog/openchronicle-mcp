@@ -15,14 +15,20 @@ Key Features:
 
 import json
 import logging
+from datetime import UTC
+from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Union, Literal
-from datetime import datetime, timezone
-from pydantic import BaseModel, Field, validator, ConfigDict, field_validator
+from typing import Any
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import field_validator
+
 
 # UTC for consistent timezone handling
-UTC = timezone.utc
+UTC = UTC
 
 # Setup logging
 logger = logging.getLogger("openchronicle.registry_validation")
@@ -31,7 +37,6 @@ logger = logging.getLogger("openchronicle.registry_validation")
 class SchemaValidationError(Exception):
     """Raised when schema validation fails."""
 
-    pass
 
 
 class ContentType(str, Enum):
@@ -71,24 +76,24 @@ class ModelConfig(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=100, description="Model name")
     priority: int = Field(..., ge=1, le=100, description="Model priority (1-100)")
-    fallbacks: List[str] = Field(
+    fallbacks: list[str] = Field(
         default_factory=list, description="Fallback model names"
     )
     enabled: bool = Field(default=True, description="Whether model is enabled")
-    content_types: List[ContentType] = Field(
+    content_types: list[ContentType] = Field(
         default=[ContentType.SAFE], description="Supported content types"
     )
-    max_tokens: Optional[int] = Field(default=None, ge=1, description="Maximum tokens")
-    temperature: Optional[float] = Field(
+    max_tokens: int | None = Field(default=None, ge=1, description="Maximum tokens")
+    temperature: float | None = Field(
         default=None, ge=0.0, le=2.0, description="Temperature setting"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
     )
 
     @field_validator("fallbacks")
     @classmethod
-    def validate_fallbacks(cls, v: List[str]) -> List[str]:
+    def validate_fallbacks(cls, v: list[str]) -> list[str]:
         """Validate fallback list doesn't contain duplicates."""
         if len(v) != len(set(v)):
             raise ValueError("Fallback list contains duplicates")
@@ -110,10 +115,10 @@ class ContentRoutingConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    nsfw_models: List[str] = Field(
+    nsfw_models: list[str] = Field(
         default_factory=list, description="Models that support NSFW content"
     )
-    safe_models: List[str] = Field(
+    safe_models: list[str] = Field(
         default_factory=list, description="Models for safe content"
     )
     default_nsfw_model: str = Field(..., min_length=1, description="Default NSFW model")
@@ -124,7 +129,7 @@ class ContentRoutingConfig(BaseModel):
 
     @field_validator("nsfw_models", "safe_models")
     @classmethod
-    def validate_model_lists(cls, v: List[str]) -> List[str]:
+    def validate_model_lists(cls, v: list[str]) -> list[str]:
         """Validate model lists don't contain duplicates."""
         if len(v) != len(set(v)):
             raise ValueError("Model list contains duplicates")
@@ -207,7 +212,7 @@ class ModelRegistrySchema(BaseModel):
     metadata: MetadataConfig = Field(
         default_factory=MetadataConfig, description="Registry metadata"
     )
-    models: List[ModelConfig] = Field(
+    models: list[ModelConfig] = Field(
         ..., min_length=1, description="List of model configurations"
     )
     content_routing: ContentRoutingConfig = Field(
@@ -224,7 +229,7 @@ class ModelRegistrySchema(BaseModel):
 
     @field_validator("models")
     @classmethod
-    def validate_unique_model_names(cls, v: List[ModelConfig]) -> List[ModelConfig]:
+    def validate_unique_model_names(cls, v: list[ModelConfig]) -> list[ModelConfig]:
         """Ensure model names are unique."""
         names = [model.name for model in v]
         if len(names) != len(set(names)):
@@ -233,7 +238,7 @@ class ModelRegistrySchema(BaseModel):
 
     @field_validator("models")
     @classmethod
-    def validate_priority_uniqueness(cls, v: List[ModelConfig]) -> List[ModelConfig]:
+    def validate_priority_uniqueness(cls, v: list[ModelConfig]) -> list[ModelConfig]:
         """Ensure priorities are unique."""
         priorities = [model.priority for model in v]
         if len(priorities) != len(set(priorities)):
@@ -295,52 +300,52 @@ class ProviderConfig(BaseModel):
         ..., min_length=1, max_length=100, description="Human-readable provider name"
     )
     enabled: bool = Field(default=True, description="Whether provider is enabled")
-    api_config: Dict[str, Any] = Field(
+    api_config: dict[str, Any] = Field(
         default_factory=dict, description="API configuration"
     )
-    model_list: List[str] = Field(default_factory=list, description="Available models")
+    model_list: list[str] = Field(default_factory=list, description="Available models")
     content_filter: bool = Field(
         default=True, description="Whether content filtering is enabled"
     )
-    rate_limits: Dict[str, int] = Field(
+    rate_limits: dict[str, int] = Field(
         default_factory=dict, description="Rate limit configuration"
     )
-    metadata: Dict[str, Any] = Field(
+    metadata: dict[str, Any] = Field(
         default_factory=dict, description="Additional metadata"
     )
 
     # Additional fields commonly found in model configs (all optional)
-    name: Optional[str] = Field(None, description="Model configuration name")
-    description: Optional[str] = Field(None, description="Model description")
-    adapter_class: Optional[str] = Field(None, description="Adapter class name")
-    capabilities: Optional[Dict[str, Any]] = Field(
+    name: str | None = Field(None, description="Model configuration name")
+    description: str | None = Field(None, description="Model description")
+    adapter_class: str | None = Field(None, description="Adapter class name")
+    capabilities: dict[str, Any] | None = Field(
         None, description="Model capabilities"
     )
-    limits: Optional[Dict[str, Any]] = Field(
+    limits: dict[str, Any] | None = Field(
         None, description="Model limits and constraints"
     )
-    health_check: Optional[Dict[str, Any]] = Field(
+    health_check: dict[str, Any] | None = Field(
         None, description="Health check configuration"
     )
-    validation: Optional[Dict[str, Any]] = Field(
+    validation: dict[str, Any] | None = Field(
         None, description="Validation requirements"
     )
-    cost_tracking: Optional[Dict[str, Any]] = Field(
+    cost_tracking: dict[str, Any] | None = Field(
         None, description="Cost tracking configuration"
     )
-    fallback_chain: Optional[List[str]] = Field(
+    fallback_chain: list[str] | None = Field(
         None, description="Fallback model chain"
     )
-    performance: Optional[Dict[str, Any]] = Field(
+    performance: dict[str, Any] | None = Field(
         None, description="Performance characteristics"
     )
-    local_config: Optional[Dict[str, Any]] = Field(
+    local_config: dict[str, Any] | None = Field(
         None, description="Local deployment configuration"
     )
 
     @field_validator("model_list")
     @classmethod
-    def validate_model_list(cls, v: List[str]) -> List[str]:
+    def validate_model_list(cls, v: list[str]) -> list[str]:
         """Validate model list doesn't contain duplicates."""
         if len(v) != len(set(v)):
             raise ValueError("Model list contains duplicates")
@@ -354,7 +359,7 @@ class RegistryValidator:
         """Initialize the registry validator."""
         self.logger = logging.getLogger("openchronicle.registry_validator")
 
-    def validate_registry(self, config_data: Dict[str, Any]) -> ModelRegistrySchema:
+    def validate_registry(self, config_data: dict[str, Any]) -> ModelRegistrySchema:
         """
         Validate complete registry configuration.
 
@@ -377,7 +382,7 @@ class RegistryValidator:
             self.logger.error(error_msg)
             raise SchemaValidationError(error_msg) from e
 
-    def validate_provider(self, config_data: Dict[str, Any]) -> ProviderConfig:
+    def validate_provider(self, config_data: dict[str, Any]) -> ProviderConfig:
         """
         Validate provider configuration.
 
@@ -400,7 +405,7 @@ class RegistryValidator:
             raise SchemaValidationError(error_msg) from e
 
     def validate_registry_file(
-        self, file_path: Union[str, Path]
+        self, file_path: str | Path
     ) -> ModelRegistrySchema:
         """
         Validate registry configuration from file.
@@ -415,7 +420,7 @@ class RegistryValidator:
             SchemaValidationError: If validation fails
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 config_data = json.load(f)
             return self.validate_registry(config_data)
         except FileNotFoundError:
@@ -423,7 +428,7 @@ class RegistryValidator:
         except json.JSONDecodeError as e:
             raise SchemaValidationError(f"Invalid JSON in registry file: {e}")
 
-    def validate_provider_file(self, file_path: Union[str, Path]) -> ProviderConfig:
+    def validate_provider_file(self, file_path: str | Path) -> ProviderConfig:
         """
         Validate provider configuration from file.
 
@@ -437,7 +442,7 @@ class RegistryValidator:
             SchemaValidationError: If validation fails
         """
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 config_data = json.load(f)
             return self.validate_provider(config_data)
         except FileNotFoundError:
@@ -445,7 +450,7 @@ class RegistryValidator:
         except json.JSONDecodeError as e:
             raise SchemaValidationError(f"Invalid JSON in provider file: {e}")
 
-    def create_backup(self, file_path: Union[str, Path]) -> Path:
+    def create_backup(self, file_path: str | Path) -> Path:
         """
         Create backup of configuration file before modification.
 
@@ -468,7 +473,7 @@ class RegistryValidator:
         return backup_path
 
     def safe_save_registry(
-        self, registry: ModelRegistrySchema, file_path: Union[str, Path]
+        self, registry: ModelRegistrySchema, file_path: str | Path
     ) -> None:
         """
         Safely save registry configuration with backup.
@@ -498,7 +503,7 @@ class RegistryValidator:
         self.logger.info(f"Registry saved to: {file_path}")
 
     def safe_save_provider(
-        self, provider: ProviderConfig, file_path: Union[str, Path]
+        self, provider: ProviderConfig, file_path: str | Path
     ) -> None:
         """
         Safely save provider configuration with backup.
@@ -526,25 +531,25 @@ class RegistryValidator:
 
 
 # Convenience functions for common operations
-def validate_registry_config(config_data: Dict[str, Any]) -> ModelRegistrySchema:
+def validate_registry_config(config_data: dict[str, Any]) -> ModelRegistrySchema:
     """Convenience function to validate registry configuration."""
     validator = RegistryValidator()
     return validator.validate_registry(config_data)
 
 
-def validate_provider_config(config_data: Dict[str, Any]) -> ProviderConfig:
+def validate_provider_config(config_data: dict[str, Any]) -> ProviderConfig:
     """Convenience function to validate provider configuration."""
     validator = RegistryValidator()
     return validator.validate_provider(config_data)
 
 
-def validate_registry_file(file_path: Union[str, Path]) -> ModelRegistrySchema:
+def validate_registry_file(file_path: str | Path) -> ModelRegistrySchema:
     """Convenience function to validate registry file."""
     validator = RegistryValidator()
     return validator.validate_registry_file(file_path)
 
 
-def validate_provider_file(file_path: Union[str, Path]) -> ProviderConfig:
+def validate_provider_file(file_path: str | Path) -> ProviderConfig:
     """Convenience function to validate provider file."""
     validator = RegistryValidator()
     return validator.validate_provider_file(file_path)

@@ -5,11 +5,15 @@ These are the fundamental business objects that represent the core concepts
 of the narrative engine. They contain business logic but no external dependencies.
 """
 
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+import uuid
+from dataclasses import dataclass
+from dataclasses import field
 from datetime import datetime
 from enum import Enum
-import uuid
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 
 class StoryStatus(Enum):
@@ -39,9 +43,9 @@ class Story:
     updated_at: datetime = field(default_factory=datetime.now)
 
     # Core narrative elements
-    world_state: Dict[str, Any] = field(default_factory=dict)
-    active_flags: Dict[str, Any] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    world_state: dict[str, Any] = field(default_factory=dict)
+    active_flags: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def update_world_state(self, key: str, value: Any) -> None:
         """Update world state and refresh timestamp."""
@@ -87,19 +91,19 @@ class Character:
 
     # Character attributes
     description: str = ""
-    personality_traits: Dict[str, Any] = field(default_factory=dict)
+    personality_traits: dict[str, Any] = field(default_factory=dict)
     background: str = ""
-    goals: List[str] = field(default_factory=list)
+    goals: list[str] = field(default_factory=list)
 
     # Dynamic state
     current_mood: str = "neutral"
-    emotional_state: Dict[str, float] = field(default_factory=dict)
-    relationships: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-    memory_profile: Dict[str, Any] = field(default_factory=dict)
+    emotional_state: dict[str, float] = field(default_factory=dict)
+    relationships: dict[str, dict[str, Any]] = field(default_factory=dict)
+    memory_profile: dict[str, Any] = field(default_factory=dict)
     is_active: bool = True
 
     # Development tracking
-    character_arc: List[Dict[str, Any]] = field(default_factory=list)
+    character_arc: list[dict[str, Any]] = field(default_factory=list)
     consistency_score: float = 1.0
 
     # Metadata
@@ -156,7 +160,7 @@ class Scene:
 
     # Scene metadata
     scene_type: str = "narrative"  # narrative, dialogue, action, description
-    participants: List[str] = field(default_factory=list)  # character IDs
+    participants: list[str] = field(default_factory=list)  # character IDs
     location: str = ""
 
     # Technical metadata
@@ -165,9 +169,9 @@ class Scene:
     generation_time: float = 0.0
 
     # State changes
-    memory_snapshot: Optional[Dict[str, Any]] = None
-    world_state_changes: Dict[str, Any] = field(default_factory=dict)
-    character_updates: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    memory_snapshot: dict[str, Any] | None = None
+    world_state_changes: dict[str, Any] = field(default_factory=dict)
+    character_updates: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def add_participant(self, character_id: str) -> None:
         """Add a character as a participant in this scene."""
@@ -175,7 +179,7 @@ class Scene:
             self.participants.append(character_id)
 
     def update_character_state(
-        self, character_id: str, updates: Dict[str, Any]
+        self, character_id: str, updates: dict[str, Any]
     ) -> None:
         """Record character state changes from this scene."""
         if character_id not in self.character_updates:
@@ -188,4 +192,4 @@ class Scene:
 
 
 # Export all entities
-__all__ = ["Story", "Character", "Scene", "StoryStatus"]
+__all__ = ["Character", "Scene", "Story", "StoryStatus"]

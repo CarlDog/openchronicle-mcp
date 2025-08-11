@@ -9,21 +9,21 @@ Author: OpenChronicle Development Team
 
 import json
 import time
-from typing import Dict, List, Any, Optional
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
-from ..shared import NarrativeComponent, ValidationResult, StateManager
-from .response_models import (
-    ResponseRequest,
-    ResponseResult,
-    ResponseContext,
-    ContextAnalysis,
-    ResponsePlan,
-    ResponseEvaluation,
-    ResponseMetrics,
-)
+from ..shared import NarrativeComponent
+from ..shared import StateManager
+from ..shared import ValidationResult
 from .context_analyzer import ContextAnalyzer
+from .response_models import ContextAnalysis
+from .response_models import ResponseContext
+from .response_models import ResponseEvaluation
+from .response_models import ResponseMetrics
+from .response_models import ResponsePlan
+from .response_models import ResponseRequest
+from .response_models import ResponseResult
 from .response_planner import ResponsePlanner
 
 
@@ -41,7 +41,7 @@ class ResponseOrchestrator(NarrativeComponent):
     def __init__(
         self,
         data_dir: str = "storage/response_intelligence",
-        config: Dict[str, Any] = None,
+        config: dict[str, Any] = None,
     ):
         super().__init__("ResponseOrchestrator", config)
 
@@ -59,7 +59,7 @@ class ResponseOrchestrator(NarrativeComponent):
 
         # State management
         self.state_manager = StateManager()
-        self.response_history: List[ResponseResult] = []
+        self.response_history: list[ResponseResult] = []
         self.performance_metrics = ResponseMetrics(
             generation_time=0.0,
             analysis_time=0.0,
@@ -70,7 +70,7 @@ class ResponseOrchestrator(NarrativeComponent):
         # Load existing data
         self._load_orchestrator_data()
 
-    def process(self, data: Dict[str, Any]) -> ResponseResult:
+    def process(self, data: dict[str, Any]) -> ResponseResult:
         """Process a complete response request."""
         start_time = time.time()
 
@@ -154,7 +154,7 @@ class ResponseOrchestrator(NarrativeComponent):
                 error_message=str(e),
             )
 
-    def validate(self, data: Dict[str, Any]) -> ValidationResult:
+    def validate(self, data: dict[str, Any]) -> ValidationResult:
         """Validate response orchestrator data."""
         if "request" not in data:
             return ValidationResult(
@@ -168,7 +168,7 @@ class ResponseOrchestrator(NarrativeComponent):
             is_valid=True, confidence=1.0, validation_type="request_validation"
         )
 
-    def _create_request_from_data(self, data: Dict[str, Any]) -> ResponseRequest:
+    def _create_request_from_data(self, data: dict[str, Any]) -> ResponseRequest:
         """Create ResponseRequest from input data."""
         # Extract context
         context_data = data.get("context", {})
@@ -285,11 +285,11 @@ class ResponseOrchestrator(NarrativeComponent):
                 self.response_history
             )
 
-    def get_response_history(self, limit: int = 10) -> List[ResponseResult]:
+    def get_response_history(self, limit: int = 10) -> list[ResponseResult]:
         """Get recent response history."""
         return self.response_history[-limit:] if self.response_history else []
 
-    def get_performance_summary(self) -> Dict[str, Any]:
+    def get_performance_summary(self) -> dict[str, Any]:
         """Get performance summary."""
         return {
             "total_responses": self.performance_metrics.responses_generated,
@@ -348,7 +348,7 @@ class ResponseOrchestrator(NarrativeComponent):
                     )
                 json.dump(history_data, f, indent=2)
 
-        except Exception as e:
+        except Exception:
             # Don't fail the main operation if saving fails
             pass
 
@@ -358,7 +358,7 @@ class ResponseOrchestrator(NarrativeComponent):
             # Load metrics
             metrics_file = self.data_dir / "performance_metrics.json"
             if metrics_file.exists():
-                with open(metrics_file, "r", encoding="utf-8") as f:
+                with open(metrics_file, encoding="utf-8") as f:
                     metrics_data = json.load(f)
                     self.performance_metrics.generation_time = metrics_data.get(
                         "generation_time", 0.0
@@ -379,6 +379,6 @@ class ResponseOrchestrator(NarrativeComponent):
                         "responses_generated", 0
                     )
 
-        except Exception as e:
+        except Exception:
             # Start fresh if loading fails
             pass

@@ -5,20 +5,20 @@ Extracted from token_manager.py
 Handles token optimization, model selection, and context trimming.
 """
 
-from typing import Dict, List, Optional, Any
 import os
 import sys
-from pathlib import Path
+from typing import Any
+
 
 # Import logging system with fallback
-import os
-import sys
 
 sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "utilities")
 )
 try:
-    from logging_system import log_warning, log_error, log_info
+    from logging_system import log_error
+    from logging_system import log_info
+    from logging_system import log_warning
 except ImportError:
     # Fallback for testing or when logging_system is not available
     def log_warning(message):
@@ -31,8 +31,7 @@ except ImportError:
         print(f"INFO: {message}")
 
 
-from ..shared import TokenOptimizationResult, TokenManagerException, ErrorHandler
-from .tokenizer_manager import TokenizerManager, TokenEstimator
+from .tokenizer_manager import TokenizerManager
 
 
 class ModelSelector:
@@ -44,7 +43,7 @@ class ModelSelector:
 
     def select_optimal_model_for_length(
         self, prompt_length: int, response_length: int
-    ) -> Optional[str]:
+    ) -> str | None:
         """Select the best model based on token requirements."""
         total_tokens = prompt_length + response_length
 
@@ -84,7 +83,7 @@ class ModelSelector:
         return selected
 
     def select_optimal_model(
-        self, token_count: int, requirements: Dict[str, Any]
+        self, token_count: int, requirements: dict[str, Any]
     ) -> str:
         """Select optimal model based on token count and requirements."""
         # Estimate response length (default to 25% of token count)
@@ -102,7 +101,7 @@ class ModelSelector:
 
         return optimal
 
-    def get_model_capabilities(self, model_name: str) -> Dict[str, Any]:
+    def get_model_capabilities(self, model_name: str) -> dict[str, Any]:
         """Get detailed capabilities for a model."""
         try:
             config = self.model_manager.get_adapter_info(model_name)
@@ -119,7 +118,7 @@ class ModelSelector:
 
     def recommend_model_upgrade(
         self, current_model: str, required_tokens: int
-    ) -> Optional[str]:
+    ) -> str | None:
         """Recommend a better model for higher token requirements."""
         current_caps = self.get_model_capabilities(current_model)
         current_limit = current_caps.get("max_tokens", 4096)
@@ -169,12 +168,12 @@ class ContextTrimmer:
 
     def trim_context_intelligently(
         self,
-        context_parts: Dict[str, str],
+        context_parts: dict[str, str],
         target_tokens: int,
         model_name: str,
-        provider: Optional[str] = None,
+        provider: str | None = None,
         strategy: str = "smart",
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """Trim context parts to fit within token limits."""
         current_tokens = sum(
             self.tokenizer_manager.estimate_tokens(part, model_name, provider)
@@ -189,11 +188,11 @@ class ContextTrimmer:
 
     def _trim_by_priority(
         self,
-        context_parts: Dict[str, str],
+        context_parts: dict[str, str],
         target_tokens: int,
         model_name: str,
-        provider: Optional[str] = None,
-    ) -> Dict[str, str]:
+        provider: str | None = None,
+    ) -> dict[str, str]:
         """Trim context based on priority order."""
         # Priority order for trimming (keep most important)
         trim_order = [
@@ -239,11 +238,11 @@ class ContextTrimmer:
 
     def _trim_proportional(
         self,
-        context_parts: Dict[str, str],
+        context_parts: dict[str, str],
         target_tokens: int,
         model_name: str,
-        provider: Optional[str] = None,
-    ) -> Dict[str, str]:
+        provider: str | None = None,
+    ) -> dict[str, str]:
         """Trim all parts proportionally."""
         current_tokens = sum(
             self.tokenizer_manager.estimate_tokens(part, model_name, provider)
@@ -267,11 +266,11 @@ class ContextTrimmer:
 
     def _trim_smart(
         self,
-        context_parts: Dict[str, str],
+        context_parts: dict[str, str],
         target_tokens: int,
         model_name: str,
-        provider: Optional[str] = None,
-    ) -> Dict[str, str]:
+        provider: str | None = None,
+    ) -> dict[str, str]:
         """Smart trimming that preserves important content."""
         # Combine priority-based and proportional strategies
         # First try priority trimming
@@ -324,8 +323,8 @@ class TruncationDetector:
         prompt: str,
         model_name: str,
         max_response_tokens: int = 2048,
-        provider: Optional[str] = None,
-        tokenizer_manager: Optional[TokenizerManager] = None,
+        provider: str | None = None,
+        tokenizer_manager: TokenizerManager | None = None,
     ) -> bool:
         """Check if the prompt + response might exceed model limits."""
         if not tokenizer_manager:
@@ -345,7 +344,7 @@ class TruncationDetector:
 
     def suggest_truncation_fixes(
         self, response: str, truncation_type: str = "auto"
-    ) -> List[str]:
+    ) -> list[str]:
         """Suggest ways to fix truncated responses."""
         suggestions = []
 

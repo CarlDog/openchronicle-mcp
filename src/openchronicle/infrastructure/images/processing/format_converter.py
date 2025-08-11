@@ -5,17 +5,18 @@ Handles image format conversion, optimization, and processing utilities.
 Provides format standardization and optimization for generated images.
 """
 
+import base64
 import io
 import logging
-from pathlib import Path
-from typing import Dict, List, Optional, Any, Tuple
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from PIL import Image, ImageOps
-import base64
+from PIL import Image
 
 from ..shared.image_models import ImageSize
 from ..shared.validation_utils import ImageValidationError
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,24 +59,23 @@ class ImageFormatConverter:
             ImageFormat.GIF,
         }
 
-    def detect_format(self, image_data: bytes) -> Optional[ImageFormat]:
+    def detect_format(self, image_data: bytes) -> ImageFormat | None:
         """Detect image format from binary data"""
         try:
             # Check magic bytes
             if image_data.startswith(b"\x89PNG\r\n\x1a\n"):
                 return ImageFormat.PNG
-            elif image_data.startswith(b"\xff\xd8\xff"):
+            if image_data.startswith(b"\xff\xd8\xff"):
                 return ImageFormat.JPEG
-            elif image_data.startswith(b"RIFF") and b"WEBP" in image_data[:20]:
+            if image_data.startswith(b"RIFF") and b"WEBP" in image_data[:20]:
                 return ImageFormat.WEBP
-            elif image_data.startswith(b"GIF87a") or image_data.startswith(b"GIF89a"):
+            if image_data.startswith(b"GIF87a") or image_data.startswith(b"GIF89a"):
                 return ImageFormat.GIF
-            else:
-                # Try to open with PIL to detect format
-                with Image.open(io.BytesIO(image_data)) as img:
-                    format_name = img.format
-                    if format_name in ["PNG", "JPEG", "WEBP", "GIF"]:
-                        return ImageFormat(format_name)
+            # Try to open with PIL to detect format
+            with Image.open(io.BytesIO(image_data)) as img:
+                format_name = img.format
+                if format_name in ["PNG", "JPEG", "WEBP", "GIF"]:
+                    return ImageFormat(format_name)
 
         except Exception as e:
             logger.warning(f"Could not detect image format: {e}")
@@ -230,7 +230,7 @@ class ImageFormatConverter:
             return image_data  # Return original if optimization fails
 
     def create_thumbnail(
-        self, image_data: bytes, size: Tuple[int, int] = (200, 200)
+        self, image_data: bytes, size: tuple[int, int] = (200, 200)
     ) -> bytes:
         """Create a thumbnail version of the image"""
         try:
@@ -265,7 +265,8 @@ class ImageFormatConverter:
                 watermark = Image.new("RGBA", img.size, (0, 0, 0, 0))
 
                 try:
-                    from PIL import ImageDraw, ImageFont
+                    from PIL import ImageDraw
+                    from PIL import ImageFont
 
                     draw = ImageDraw.Draw(watermark)
 
@@ -325,7 +326,7 @@ class ImageFormatConverter:
             logger.error(f"Watermark addition failed: {e}")
             return image_data  # Return original if watermarking fails
 
-    def get_image_info(self, image_data: bytes) -> Dict[str, Any]:
+    def get_image_info(self, image_data: bytes) -> dict[str, Any]:
         """Get information about an image"""
         try:
             with Image.open(io.BytesIO(image_data)) as img:
@@ -345,7 +346,7 @@ class ImageFormatConverter:
             logger.error(f"Could not get image info: {e}")
             return {"error": str(e)}
 
-    def validate_image_data(self, image_data: bytes) -> Tuple[bool, Optional[str]]:
+    def validate_image_data(self, image_data: bytes) -> tuple[bool, str | None]:
         """Validate that image data is a valid image"""
         try:
             with Image.open(io.BytesIO(image_data)) as img:
@@ -380,11 +381,11 @@ class ImageFormatConverter:
 
     def batch_convert(
         self,
-        image_files: List[str],
+        image_files: list[str],
         target_format: ImageFormat,
         output_dir: str,
         quality: ImageQuality = ImageQuality.HIGH,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Convert multiple image files to target format"""
         results = {"successful": [], "failed": [], "total_processed": 0}
 

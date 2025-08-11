@@ -12,17 +12,15 @@ Key Features:
 - Adapter selection and routing
 """
 
-import asyncio
 import logging
-from typing import Dict, Any, Optional, List
 from contextlib import asynccontextmanager
+from typing import Any
 
-from src.openchronicle.shared.logging_system import (
-    log_info,
-    log_error,
-    log_warning,
-    log_system_event,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
+
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +35,8 @@ class ResponseGenerator:
 
     def __init__(
         self,
-        adapter_registry: Dict[str, Any],
-        config: Dict[str, Any],
+        adapter_registry: dict[str, Any],
+        config: dict[str, Any],
         performance_monitor=None,
     ):
         """
@@ -59,8 +57,8 @@ class ResponseGenerator:
     async def generate_response(
         self,
         prompt: str,
-        adapter_name: Optional[str] = None,
-        story_id: Optional[str] = None,
+        adapter_name: str | None = None,
+        story_id: str | None = None,
         **kwargs,
     ) -> str:
         """
@@ -144,7 +142,7 @@ class ResponseGenerator:
         self,
         adapter_name: str,
         prompt: str,
-        story_id: Optional[str],
+        story_id: str | None,
         tracker: Any,
         **kwargs,
     ) -> str:
@@ -224,7 +222,7 @@ class ResponseGenerator:
         self,
         adapter_name: str,
         prompt: str,
-        story_id: Optional[str],
+        story_id: str | None,
         tracker: Any,
         **kwargs,
     ) -> str:
@@ -283,7 +281,7 @@ class ResponseGenerator:
         prompt: str,
         response: str,
         story_id: str,
-        chain: List[str],
+        chain: list[str],
         **kwargs,
     ):
         """Log the interaction with metadata."""
@@ -315,11 +313,11 @@ class ResponseGenerator:
 
             yield DummyTracker()
 
-    def get_available_adapters(self) -> List[str]:
+    def get_available_adapters(self) -> list[str]:
         """Get list of available adapter names."""
         return list(self.adapters.keys())
 
-    def get_default_adapter(self) -> Optional[str]:
+    def get_default_adapter(self) -> str | None:
         """Get the default adapter name."""
         return self.default_adapter
 

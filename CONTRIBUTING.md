@@ -1,12 +1,25 @@
 # Contributing to OpenChronicle
 
-Thank you for your interest in contributing to OpenChronicle! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to OpenChronicle! This document outlines the process and guidelines for contributing to our AI-powered narrative engine.
+
+## 🏛️ Architecture Principles
+
+OpenChronicle follows **hexagonal architecture** with strict layer boundaries:
+
+- **Domain Layer**: Pure business logic, no external dependencies
+- **Application Layer**: Use cases and workflows  
+- **Infrastructure Layer**: External integrations (databases, APIs, LLMs)
+- **Interface Layer**: User interfaces (CLI, API, web)
+
+**⚠️ CRITICAL: NO BACKWARDS COMPATIBILITY POLICY**  
+We embrace breaking changes for better architecture. When designing improvements, implement them completely and remove old approaches entirely.
 
 ## Development Workflow
 
 ### Prerequisites
 - Python 3.11+
 - Git
+- PowerShell (Windows) or Bash (Linux/macOS)
 - Basic understanding of hexagonal architecture
 
 ### Setup
@@ -15,10 +28,14 @@ Thank you for your interest in contributing to OpenChronicle! This document prov
 git clone https://github.com/OpenChronicle/openchronicle-core.git
 cd openchronicle-core
 
-# Create virtual environment
-python -m venv openchronicle-env
-openchronicle-env\Scripts\activate  # Windows
-# source openchronicle-env/bin/activate  # Linux/Mac
+# Install development dependencies (choose one method)
+make dev-install              # Using Make
+just dev-install              # Using Just (recommended)
+# OR manually:
+pip install -e ".[dev,api,llm]" && pre-commit install
+
+# Verify installation
+make test-fast    # OR: just test-fast
 
 # Install development dependencies
 pip install -e ".[dev]"

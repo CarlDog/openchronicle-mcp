@@ -18,12 +18,12 @@ Usage:
 """
 
 # Import both orchestrators for unified access
-from .analysis import ContentAnalysisOrchestrator
-from .context import ContextOrchestrator
-
 # Export submodules
 from . import analysis
 from . import context
+from .analysis import ContentAnalysisOrchestrator
+from .context import ContextOrchestrator
+
 
 __version__ = "5.0.0"
 __all__ = [

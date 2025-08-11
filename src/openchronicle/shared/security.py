@@ -7,26 +7,22 @@ protection mechanisms for all OpenChronicle components.
 Phase 2 Week 9-10: Security Hardening
 """
 
-import os
-import re
-import hashlib
-import hmac
-import secrets
-import sqlite3
 import json
-from datetime import datetime, UTC
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union, Tuple
-from dataclasses import dataclass, field
+import re
+import sqlite3
+from dataclasses import dataclass
+from dataclasses import field
+from datetime import UTC
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import Any
 
-from .logging_system import (
-    log_system_event,
-    log_info,
-    log_warning,
-    log_error,
-    log_critical,
-)
+from .logging_system import log_critical
+from .logging_system import log_error
+from .logging_system import log_info
+from .logging_system import log_system_event
+from .logging_system import log_warning
 
 
 class SecurityThreatLevel(Enum):
@@ -57,21 +53,21 @@ class SecurityValidationResult:
 
     is_valid: bool
     threat_level: SecurityThreatLevel
-    violation_type: Optional[SecurityViolationType] = None
+    violation_type: SecurityViolationType | None = None
     error_message: str = ""
-    sanitized_value: Optional[Any] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    sanitized_value: Any | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
 class SecurityContext:
     """Security context for operations."""
 
-    user_id: Optional[str] = None
-    session_id: Optional[str] = None
+    user_id: str | None = None
+    session_id: str | None = None
     operation: str = "unknown"
     component: str = "unknown"
-    ip_address: Optional[str] = None
+    ip_address: str | None = None
     timestamp: float = field(default_factory=lambda: datetime.now(UTC).timestamp())
 
 
@@ -188,7 +184,7 @@ class InputValidator:
         )
 
     def validate_file_path(
-        self, path: Union[str, Path], context: SecurityContext
+        self, path: str | Path, context: SecurityContext
     ) -> SecurityValidationResult:
         """Validate file paths to prevent directory traversal and unauthorized access."""
         path_str = str(path)
@@ -272,7 +268,7 @@ class InputValidator:
             )
 
     def validate_json_data(
-        self, data: Union[str, Dict], context: SecurityContext
+        self, data: str | dict, context: SecurityContext
     ) -> SecurityValidationResult:
         """Validate JSON data for security issues."""
         try:
@@ -434,7 +430,7 @@ class SQLSecurityValidator:
         self,
         connection: sqlite3.Connection,
         query: str,
-        parameters: Tuple = (),
+        parameters: tuple = (),
         context: SecurityContext = None,
     ) -> Any:
         """Execute SQL query with security validation."""
@@ -458,7 +454,7 @@ class SQLSecurityValidator:
                 result = cursor.execute(query)
 
             log_info(
-                f"SQL query executed safely",
+                "SQL query executed safely",
                 context_tags={"security": "sql_execution", "user": context.user_id},
             )
 
@@ -490,10 +486,10 @@ class FileAccessManager:
 
     def safe_read_file(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         context: SecurityContext,
         encoding: str = "utf-8",
-    ) -> Tuple[bool, Union[str, bytes]]:
+    ) -> tuple[bool, str | bytes]:
         """Safely read a file with security validation."""
 
         # Validate the path
@@ -514,7 +510,7 @@ class FileAccessManager:
             if not safe_path.is_file():
                 return False, f"Path is not a file: {safe_path}"
 
-            with open(safe_path, "r", encoding=encoding) as f:
+            with open(safe_path, encoding=encoding) as f:
                 content = f.read()
 
             log_info(
@@ -524,7 +520,7 @@ class FileAccessManager:
 
             return True, content
 
-        except (OSError, IOError, UnicodeDecodeError) as e:
+        except (OSError, UnicodeDecodeError) as e:
             log_error(
                 f"File read error: {e}",
                 context_tags={"security": "file_error", "user": context.user_id},
@@ -533,11 +529,11 @@ class FileAccessManager:
 
     def safe_write_file(
         self,
-        file_path: Union[str, Path],
+        file_path: str | Path,
         content: str,
         context: SecurityContext,
         encoding: str = "utf-8",
-    ) -> Tuple[bool, str]:
+    ) -> tuple[bool, str]:
         """Safely write to a file with security validation."""
 
         # Validate the path
@@ -578,7 +574,7 @@ class FileAccessManager:
 
             return True, f"File written: {safe_path}"
 
-        except (OSError, IOError) as e:
+        except OSError as e:
             log_error(
                 f"File write error: {e}",
                 context_tags={"security": "file_error", "user": context.user_id},
@@ -593,8 +589,8 @@ class SecurityMonitor:
     """Monitor and track security events and violations."""
 
     def __init__(self):
-        self.violation_counts: Dict[str, int] = {}
-        self.recent_violations: List[Dict[str, Any]] = []
+        self.violation_counts: dict[str, int] = {}
+        self.recent_violations: list[dict[str, Any]] = []
         self.max_recent_violations = 1000
 
     def record_security_violation(
@@ -652,7 +648,7 @@ class SecurityMonitor:
                 },
             )
 
-    def get_security_summary(self) -> Dict[str, Any]:
+    def get_security_summary(self) -> dict[str, Any]:
         """Get summary of security violations and system health."""
         recent_critical = [
             v
@@ -692,12 +688,11 @@ class SecurityMonitor:
 
         if critical_count > 0:
             return "critical"
-        elif high_count > 5:
+        if high_count > 5:
             return "high_risk"
-        elif len(recent_hour_violations) > 20:
+        if len(recent_hour_violations) > 20:
             return "elevated"
-        else:
-            return "normal"
+        return "normal"
 
 
 # === Global Security Manager ===
@@ -772,7 +767,7 @@ def validate_user_input(
 
 
 def validate_file_path(
-    path: Union[str, Path], user_id: str = None, operation: str = "file_access"
+    path: str | Path, user_id: str = None, operation: str = "file_access"
 ) -> SecurityValidationResult:
     """Convenience function for file path validation."""
     context = SecurityContext(user_id=user_id, operation=operation)
@@ -788,19 +783,19 @@ def validate_sql_query(
 
 
 def safe_read_file(
-    file_path: Union[str, Path], user_id: str = None, encoding: str = "utf-8"
-) -> Tuple[bool, str]:
+    file_path: str | Path, user_id: str = None, encoding: str = "utf-8"
+) -> tuple[bool, str]:
     """Convenience function for safe file reading."""
     context = SecurityContext(user_id=user_id, operation="file_read")
     return security_manager.file_manager.safe_read_file(file_path, context, encoding)
 
 
 def safe_write_file(
-    file_path: Union[str, Path],
+    file_path: str | Path,
     content: str,
     user_id: str = None,
     encoding: str = "utf-8",
-) -> Tuple[bool, str]:
+) -> tuple[bool, str]:
     """Convenience function for safe file writing."""
     context = SecurityContext(user_id=user_id, operation="file_write")
     return security_manager.file_manager.safe_write_file(
@@ -813,6 +808,6 @@ def get_security_manager() -> SecurityManager:
     return security_manager
 
 
-def get_security_summary() -> Dict[str, Any]:
+def get_security_summary() -> dict[str, Any]:
     """Get security monitoring summary."""
     return security_manager.monitor.get_security_summary()

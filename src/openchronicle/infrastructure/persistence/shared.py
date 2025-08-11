@@ -5,9 +5,9 @@ Provides common data structures and configuration classes used across
 all database components.
 """
 
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -27,7 +27,7 @@ class DatabaseConfig:
     enable_fts: bool = True
     fts_version: str = "fts5"
 
-    def get_base_path(self, is_test: Optional[bool] = None) -> str:
+    def get_base_path(self, is_test: bool | None = None) -> str:
         """Get appropriate base path based on test context."""
         if is_test is None:
             is_test = self._is_test_context()
@@ -64,9 +64,9 @@ class DatabaseStats:
 
     # Database file info
     database_path: str = ""
-    last_modified: Optional[str] = None
+    last_modified: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert stats to dictionary for backward compatibility."""
         return {
             "scenes_count": self.scenes_count,
@@ -94,9 +94,9 @@ class FTSIndexInfo:
     total_docs: int = 0
     total_terms: int = 0
     size_bytes: int = 0
-    last_optimized: Optional[str] = None
+    last_optimized: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary."""
         return {
             "table_name": self.table_name,

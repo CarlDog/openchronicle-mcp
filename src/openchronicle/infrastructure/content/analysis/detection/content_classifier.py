@@ -7,14 +7,16 @@ Part of: Phase 5A - Content Analysis Enhancement
 Extracted from: core/content_analyzer.py (lines 579-759)
 """
 
-from typing import Dict, List, Any
+from typing import Any
+
+from src.openchronicle.shared.logging_system import log_error
+
+# Import logging utilities
+from src.openchronicle.shared.logging_system import log_system_event
 
 from ..shared.interfaces import DetectionComponent
 from .keyword_detector import KeywordDetector
 from .transformer_analyzer import TransformerAnalyzer
-
-# Import logging utilities
-from src.openchronicle.shared.logging_system import log_system_event, log_error
 
 
 class ContentClassifier(DetectionComponent):
@@ -27,7 +29,7 @@ class ContentClassifier(DetectionComponent):
         self.keyword_detector = KeywordDetector(model_manager)
         self.transformer_analyzer = TransformerAnalyzer(model_manager, use_transformers)
 
-    def detect_content_type(self, content: str) -> Dict[str, Any]:
+    def detect_content_type(self, content: str) -> dict[str, Any]:
         """Detect content type using hybrid keyword + transformer approach."""
         # Start with keyword-based analysis
         keyword_analysis = self.keyword_detector.detect_content_type(content)
@@ -48,16 +50,16 @@ class ContentClassifier(DetectionComponent):
 
         return combined_analysis
 
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process content and return classification results."""
         return self.detect_content_type(content)
 
     def _combine_analysis_results(
         self,
-        keyword_analysis: Dict[str, Any],
-        transformer_analysis: Dict[str, Any],
+        keyword_analysis: dict[str, Any],
+        transformer_analysis: dict[str, Any],
         user_input: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Combine keyword and transformer analysis for enhanced accuracy."""
         combined = keyword_analysis.copy()
 
@@ -126,11 +128,11 @@ class ContentClassifier(DetectionComponent):
 
         return combined
 
-    def check_transformer_connectivity(self) -> Dict[str, Any]:
+    def check_transformer_connectivity(self) -> dict[str, Any]:
         """Check transformer connectivity status."""
         return self.transformer_analyzer.check_transformer_connectivity()
 
-    def get_analysis_capabilities(self) -> Dict[str, Any]:
+    def get_analysis_capabilities(self) -> dict[str, Any]:
         """Get information about available analysis capabilities."""
         keyword_caps = {
             "available": True,

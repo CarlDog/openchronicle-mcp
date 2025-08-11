@@ -6,30 +6,37 @@ Provides mood and scene type analysis capabilities:
 - Scene type classification
 - Mood timeline analysis
 - Emotional trend detection
+
+This analyzer now uses dependency injection following hexagonal architecture principles.
 """
 
 import json
-import sys
-from typing import Dict, List, Any, Optional
-from pathlib import Path
 from datetime import datetime
+from typing import Any, Optional
 
-# Database imports from parent core directory
-sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.infrastructure.persistence import execute_query
+# Import domain interfaces (following dependency inversion principle)
+from src.openchronicle.domain.ports.persistence_port import IPersistencePort
 
 
 class MoodAnalyzer:
-    """Handles mood analysis and scene type classification."""
+    """Handles mood analysis and scene type classification using dependency injection."""
 
-    def __init__(self, story_id: str):
+    def __init__(self, story_id: str, persistence_port: Optional[IPersistencePort] = None):
         """
         Initialize mood analyzer for a specific story.
 
         Args:
             story_id: Story identifier
+            persistence_port: Persistence interface implementation (injected)
         """
         self.story_id = story_id
+        
+        # If no persistence port provided, create default adapter
+        if persistence_port is None:
+            from src.openchronicle.infrastructure.persistence_adapters.persistence_adapter import PersistenceAdapter
+            self.persistence = PersistenceAdapter()
+        else:
+            self.persistence = persistence_port
 
         # Define mood categories for analysis
         self.mood_categories = {
@@ -63,7 +70,7 @@ class MoodAnalyzer:
             "emotional": ["emotional", "intimate", "personal", "relationship"],
         }
 
-    def get_scenes_by_mood(self, mood: str) -> List[Dict[str, Any]]:
+    def get_scenes_by_mood(self, mood: str) -> list[dict[str, Any]]:
         """
         Get scenes filtered by character mood.
 
@@ -75,7 +82,7 @@ class MoodAnalyzer:
         """
         try:
             # Query scenes with structured tags containing mood information
-            rows = execute_query(
+            rows = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp, input, output, scene_label, structured_tags,
@@ -85,7 +92,8 @@ class MoodAnalyzer:
                 WHERE structured_tags LIKE ?
                 ORDER BY timestamp DESC
             """,
-                (f'%"{mood}"%',),
+                [f'%"{mood}"%']
+            )
             )
 
             results = []
@@ -120,7 +128,7 @@ class MoodAnalyzer:
             print(f"Error getting scenes by mood '{mood}': {e}")
             return []
 
-    def get_scenes_by_type(self, scene_type: str) -> List[Dict[str, Any]]:
+    def get_scenes_by_type(self, scene_type: str) -> list[dict[str, Any]]:
         """
         Get scenes filtered by scene type.
 
@@ -132,7 +140,7 @@ class MoodAnalyzer:
         """
         try:
             # Query scenes with structured tags containing scene type information
-            rows = execute_query(
+            rows = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp, input, output, scene_label, structured_tags,
@@ -142,7 +150,7 @@ class MoodAnalyzer:
                 WHERE structured_tags LIKE ?
                 ORDER BY timestamp DESC
             """,
-                (f'%"scene_type":"{scene_type}"%',),
+                [f'%"scene_type":"{scene_type}"%']
             )
 
             results = []
@@ -179,7 +187,7 @@ class MoodAnalyzer:
             print(f"Error getting scenes by type '{scene_type}': {e}")
             return []
 
-    def get_character_mood_timeline(self, character_name: str) -> List[Dict[str, Any]]:
+    def get_character_mood_timeline(self, character_name: str) -> list[dict[str, Any]]:
         """
         Get mood timeline for a specific character.
 
@@ -191,7 +199,7 @@ class MoodAnalyzer:
         """
         try:
             # Query scenes with character mood information
-            rows = execute_query(
+            rows = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp, structured_tags
@@ -199,7 +207,8 @@ class MoodAnalyzer:
                 WHERE structured_tags LIKE ?
                 ORDER BY timestamp ASC
             """,
-                (f'%"{character_name}"%',),
+                [f'%"{character_name}"%']
+            )
             )
 
             timeline = []
@@ -230,7 +239,7 @@ class MoodAnalyzer:
             print(f"Error getting character mood timeline for '{character_name}': {e}")
             return []
 
-    def get_mood_distribution(self) -> Dict[str, Any]:
+    def get_mood_distribution(self) -> dict[str, Any]:
         """
         Get overall mood distribution across all scenes.
 
@@ -239,13 +248,13 @@ class MoodAnalyzer:
         """
         try:
             # Get all scenes with mood information
-            rows = execute_query(
+            rows = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT structured_tags
                 FROM scenes
                 WHERE structured_tags IS NOT NULL
-            """,
+            """
             )
 
             mood_counts = {}
@@ -306,8 +315,8 @@ class MoodAnalyzer:
             return {"error": str(e)}
 
     def _extract_mood_info(
-        self, structured_tags: Optional[str], target_mood: str
-    ) -> Dict[str, Any]:
+        self, structured_tags: str | None, target_mood: str
+    ) -> dict[str, Any]:
         """Extract mood information from structured tags."""
         if not structured_tags:
             return {}
@@ -329,8 +338,8 @@ class MoodAnalyzer:
             return {}
 
     def _extract_scene_type_info(
-        self, structured_tags: Optional[str]
-    ) -> Dict[str, Any]:
+        self, structured_tags: str | None
+    ) -> dict[str, Any]:
         """Extract scene type information from structured tags."""
         if not structured_tags:
             return {}
@@ -348,8 +357,8 @@ class MoodAnalyzer:
             return {}
 
     def _extract_character_mood(
-        self, structured_tags: Optional[str], character_name: str
-    ) -> Optional[Dict[str, Any]]:
+        self, structured_tags: str | None, character_name: str
+    ) -> dict[str, Any] | None:
         """Extract mood data for a specific character."""
         if not structured_tags:
             return None
@@ -369,7 +378,7 @@ class MoodAnalyzer:
                 return category
         return "neutral"
 
-    def _add_mood_trends(self, timeline: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def _add_mood_trends(self, timeline: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """Add trend analysis to mood timeline."""
         if len(timeline) < 2:
             return timeline

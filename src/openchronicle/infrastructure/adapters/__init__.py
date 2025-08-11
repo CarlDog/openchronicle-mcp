@@ -26,8 +26,8 @@ class ModelConfig:
 
     name: str
     provider: str
-    api_key: Optional[str] = None
-    base_url: Optional[str] = None
+    api_key: str | None = None
+    base_url: str | None = None
     model_id: str = ""
     max_tokens: int = 4000
     temperature: float = 0.7
@@ -52,12 +52,11 @@ class BaseModelAdapter(ABC):
     async def generate_text(
         self,
         prompt: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ) -> str:
         """Generate text using the model."""
-        pass
 
     async def _check_rate_limit(self):
         """Check if we're within rate limits."""
@@ -116,8 +115,8 @@ class MockModelAdapter(BaseModelAdapter):
     async def generate_text(
         self,
         prompt: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ) -> str:
         """Generate mock response."""
@@ -129,12 +128,11 @@ class MockModelAdapter(BaseModelAdapter):
         # Generate a mock response based on prompt content
         if "character" in prompt.lower():
             return "The character responds thoughtfully, considering their motivations and the current situation."
-        elif "action" in prompt.lower():
+        if "action" in prompt.lower():
             return "A dramatic action unfolds, changing the course of the narrative."
-        elif "dialogue" in prompt.lower():
+        if "dialogue" in prompt.lower():
             return '"This is an interesting development," the character remarks with intrigue.'
-        else:
-            return "The story continues to unfold in unexpected ways, revealing new depths to the narrative."
+        return "The story continues to unfold in unexpected ways, revealing new depths to the narrative."
 
 
 class OpenAIAdapter(BaseModelAdapter):
@@ -162,8 +160,8 @@ class OpenAIAdapter(BaseModelAdapter):
     async def generate_text(
         self,
         prompt: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ) -> str:
         """Generate text using OpenAI API."""
@@ -209,8 +207,8 @@ class AnthropicAdapter(BaseModelAdapter):
     async def generate_text(
         self,
         prompt: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ) -> str:
         """Generate text using Anthropic API."""
@@ -242,8 +240,8 @@ class OllamaAdapter(BaseModelAdapter):
     async def generate_text(
         self,
         prompt: str,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
         **kwargs,
     ) -> str:
         """Generate text using Ollama API."""
@@ -271,8 +269,7 @@ class OllamaAdapter(BaseModelAdapter):
                     if response.status == 200:
                         result = await response.json()
                         return result.get("response", "")
-                    else:
-                        raise Exception(f"Ollama API error: {response.status}")
+                    raise Exception(f"Ollama API error: {response.status}")
         except ImportError:
             raise ImportError("aiohttp package not installed. Run: pip install aiohttp")
         except Exception as e:
@@ -298,7 +295,7 @@ class ModelManagerImpl(ModelManager):
         self.fallback_chains[primary] = fallbacks
 
     async def generate_response(
-        self, context: NarrativeContext, model_preference: Optional[str] = None
+        self, context: NarrativeContext, model_preference: str | None = None
     ) -> ModelResponse:
         """Generate AI response using preferred model with fallbacks."""
         start_time = time.time()
@@ -454,12 +451,12 @@ def create_adapter(provider: str, config: ModelConfig) -> BaseModelAdapter:
 
 # Export all adapter components
 __all__ = [
-    "ModelConfig",
+    "AnthropicAdapter",
     "BaseModelAdapter",
     "MockModelAdapter",
-    "OpenAIAdapter",
-    "AnthropicAdapter",
-    "OllamaAdapter",
+    "ModelConfig",
     "ModelManagerImpl",
+    "OllamaAdapter",
+    "OpenAIAdapter",
     "create_adapter",
 ]

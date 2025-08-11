@@ -11,17 +11,15 @@ This service handles the complete story processing workflow:
 Extracted from legacy main.py to fit hexagonal architecture.
 """
 
-from typing import Dict, Any, Optional
-import asyncio
 from dataclasses import dataclass
+from typing import Any
 
 from openchronicle.domain.entities import Story
-from openchronicle.domain.services import (
-    StoryService,
-    CharacterService,
-    SceneService,
-    MemoryService,
-)
+from openchronicle.domain.services import CharacterService
+from openchronicle.domain.services import MemoryService
+from openchronicle.domain.services import SceneService
+from openchronicle.domain.services import StoryService
+
 
 # Infrastructure services will be imported as needed during legacy compatibility
 
@@ -65,10 +63,10 @@ class StoryProcessingService:
         self,
         story_id: str,
         user_input: str,
-        preferred_adapter: Optional[str] = None,
-        max_tokens: Optional[int] = None,
-        temperature: Optional[float] = None,
-    ) -> Dict[str, Any]:
+        preferred_adapter: str | None = None,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> dict[str, Any]:
         """
         Process a single story input through the complete workflow.
 
@@ -155,7 +153,7 @@ class StoryProcessingService:
 
     async def _build_context_with_analysis(
         self, user_input: str, story: Story
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Build context with intelligent analysis."""
         # Use the legacy context orchestrator temporarily
         # TODO: Migrate to proper domain service once available
@@ -203,17 +201,17 @@ class StoryProcessingService:
             return f"[Error generating response: {e}]"
 
     async def _generate_content_flags(
-        self, story_id: str, analysis: Dict[str, Any], ai_response: str
+        self, story_id: str, analysis: dict[str, Any], ai_response: str
     ) -> list:
         """Generate content flags from analysis and AI response."""
         try:
             # Use the legacy content analyzer temporarily
             # TODO: Migrate to proper domain service once available
-            from src.openchronicle.infrastructure.content import (
-                ContentAnalysisOrchestrator as ContentAnalyzer,
-            )
             from src.openchronicle.domain.models.model_orchestrator import (
                 ModelOrchestrator,
+            )
+            from src.openchronicle.infrastructure.content import (
+                ContentAnalysisOrchestrator as ContentAnalyzer,
             )
 
             model_manager = ModelOrchestrator()
@@ -243,9 +241,9 @@ class StoryProcessingService:
         story_id: str,
         user_input: str,
         ai_response: str,
-        memory_snapshot: Optional[Dict[str, Any]] = None,
-        analysis_data: Optional[Dict[str, Any]] = None,
-    ) -> Optional[str]:
+        memory_snapshot: dict[str, Any] | None = None,
+        analysis_data: dict[str, Any] | None = None,
+    ) -> str | None:
         """Log the scene to the story timeline."""
         try:
             # Use the legacy scene orchestrator temporarily
@@ -281,7 +279,7 @@ class StoryProcessingServiceFactory:
         memory_service: MemoryService,
         logging_service: Any,  # Will be proper interface later
         cache_service: Any,  # Will be proper interface later
-        config: Optional[StoryProcessingConfig] = None,
+        config: StoryProcessingConfig | None = None,
     ) -> StoryProcessingService:
         """Create a story processing service with all dependencies."""
         if config is None:

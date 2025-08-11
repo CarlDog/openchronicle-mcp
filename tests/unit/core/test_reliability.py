@@ -6,6 +6,7 @@ import logging
 
 import pytest
 
+
 # Disable excessive logging for tests
 logging.getLogger("openchronicle").setLevel(logging.ERROR)
 logging.getLogger("core").setLevel(logging.ERROR)

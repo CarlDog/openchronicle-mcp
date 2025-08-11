@@ -16,26 +16,21 @@ Provides single entry point for all management operations with backward compatib
 """
 
 import sys
-from typing import Dict, List, Optional, Any, Union
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import (
-    log_system_event,
-    log_info,
-    log_error,
-)
+from src.openchronicle.shared.logging_system import log_error
+from src.openchronicle.shared.logging_system import log_info
+from src.openchronicle.shared.logging_system import log_system_event
 
-from .token import TokenManager
 from .bookmark import BookmarkManager
-from .shared import (
-    ManagementConfig,
-    TokenManagerException,
-    BookmarkManagerException,
-    ConfigValidator,
-)
+from .shared import ConfigValidator
+from .shared import ManagementConfig
+from .token import TokenManager
 
 
 class ManagementOrchestrator:
@@ -46,7 +41,7 @@ class ManagementOrchestrator:
     Provides backward compatibility with legacy token_manager.py and bookmark_manager.py.
     """
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initialize the management orchestrator."""
         try:
             # Validate and set configuration
@@ -57,7 +52,7 @@ class ManagementOrchestrator:
             self.token_manager = TokenManager(self.config.token_config)
 
             # Initialize bookmark managers (per story)
-            self.bookmark_managers: Dict[str, BookmarkManager] = {}
+            self.bookmark_managers: dict[str, BookmarkManager] = {}
 
             log_system_event(
                 "management_orchestrator", "Management orchestrator initialized"
@@ -71,16 +66,16 @@ class ManagementOrchestrator:
     # TOKEN MANAGEMENT INTERFACE
     # =====================================================================
 
-    def count_tokens(self, text: str, model: Optional[str] = None) -> int:
+    def count_tokens(self, text: str, model: str | None = None) -> int:
         """Count tokens in text for specified model."""
         return self.token_manager.count_tokens(text, model)
 
-    def estimate_tokens(self, text: str, model: Optional[str] = None) -> int:
+    def estimate_tokens(self, text: str, model: str | None = None) -> int:
         """Estimate tokens with padding factor."""
         return self.token_manager.estimate_tokens(text, model)
 
     def select_optimal_model(
-        self, text: str, requirements: Optional[Dict[str, Any]] = None
+        self, text: str, requirements: dict[str, Any] | None = None
     ) -> str:
         """Select the optimal model for given text and requirements."""
         return self.token_manager.select_optimal_model(text, requirements)
@@ -89,7 +84,7 @@ class ManagementOrchestrator:
         self,
         text: str,
         max_tokens: int,
-        model: Optional[str] = None,
+        model: str | None = None,
         strategy: str = "truncate_middle",
     ) -> str:
         """Trim context to fit within token limit."""
@@ -101,31 +96,31 @@ class ManagementOrchestrator:
         prompt_tokens: int,
         response_tokens: int,
         usage_type=None,
-        cost: Optional[float] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        cost: float | None = None,
+        metadata: dict[str, Any] | None = None,
     ):
         """Track token usage for analytics."""
         return self.token_manager.track_token_usage(
             model_name, prompt_tokens, response_tokens, usage_type, cost, metadata
         )
 
-    def get_token_usage_stats(self) -> Dict[str, Any]:
+    def get_token_usage_stats(self) -> dict[str, Any]:
         """Get comprehensive token usage statistics."""
         return self.token_manager.get_usage_stats()
 
-    def get_token_cost_analysis(self) -> Dict[str, Any]:
+    def get_token_cost_analysis(self) -> dict[str, Any]:
         """Get detailed token cost analysis."""
         return self.token_manager.get_cost_analysis()
 
     def recommend_model_switch(
-        self, current_model: str, usage_pattern: Optional[Dict[str, Any]] = None
-    ) -> Optional[str]:
+        self, current_model: str, usage_pattern: dict[str, Any] | None = None
+    ) -> str | None:
         """Get model switch recommendations."""
         return self.token_manager.recommend_model_switch(current_model, usage_pattern)
 
     def optimize_token_usage(
-        self, text: str, model: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, text: str, model: str | None = None
+    ) -> dict[str, Any]:
         """Optimize token usage for given text."""
         if model is None:
             model = self.select_optimal_model(text)
@@ -173,9 +168,9 @@ class ManagementOrchestrator:
         story_id: str,
         scene_id: str,
         label: str,
-        description: Optional[str] = None,
+        description: str | None = None,
         bookmark_type: str = "user",
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> int:
         """Create a new bookmark."""
         manager = self.get_bookmark_manager(story_id)
@@ -185,7 +180,7 @@ class ManagementOrchestrator:
 
     def organize_bookmarks_by_category(
         self, story_id: str
-    ) -> Dict[str, List[Dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any]]]:
         """Organize bookmarks by category for better management."""
         manager = self.get_bookmark_manager(story_id)
         all_bookmarks = manager.list_bookmarks(
@@ -211,7 +206,7 @@ class ManagementOrchestrator:
         )
         return organized
 
-    def get_bookmark(self, story_id: str, bookmark_id: int) -> Optional[Dict[str, Any]]:
+    def get_bookmark(self, story_id: str, bookmark_id: int) -> dict[str, Any] | None:
         """Get a bookmark by ID."""
         manager = self.get_bookmark_manager(story_id)
         return manager.get_bookmark(bookmark_id)
@@ -219,10 +214,10 @@ class ManagementOrchestrator:
     def list_bookmarks(
         self,
         story_id: str,
-        bookmark_type: Optional[str] = None,
-        scene_id: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        bookmark_type: str | None = None,
+        scene_id: str | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """List bookmarks with optional filtering."""
         manager = self.get_bookmark_manager(story_id)
         return manager.list_bookmarks(bookmark_type, scene_id, limit)
@@ -231,15 +226,15 @@ class ManagementOrchestrator:
         self,
         story_id: str,
         query: str,
-        bookmark_type: Optional[str] = None,
-        search_fields: Optional[List[str]] = None,
-        limit: Optional[int] = None,
-    ) -> List[Dict[str, Any]]:
+        bookmark_type: str | None = None,
+        search_fields: list[str] | None = None,
+        limit: int | None = None,
+    ) -> list[dict[str, Any]]:
         """Search bookmarks by label or description."""
         manager = self.get_bookmark_manager(story_id)
         return manager.search_bookmarks(query, bookmark_type, search_fields, limit)
 
-    def get_chapter_structure(self, story_id: str) -> Dict[int, List[Dict[str, Any]]]:
+    def get_chapter_structure(self, story_id: str) -> dict[int, list[dict[str, Any]]]:
         """Get chapter structure from bookmarks organized by levels."""
         manager = self.get_bookmark_manager(story_id)
         return manager.get_chapter_structure()
@@ -270,13 +265,13 @@ class ManagementOrchestrator:
         return self.trim_context(text, limit, model)
 
     def get_bookmarks_with_scenes(
-        self, story_id: str, bookmark_type: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
+        self, story_id: str, bookmark_type: str | None = None
+    ) -> list[dict[str, Any]]:
         """Legacy method: Get bookmarks with their associated scene information."""
         manager = self.get_bookmark_manager(story_id)
         return manager.get_bookmarks_with_scenes(bookmark_type)
 
-    def get_bookmark_stats(self, story_id: str) -> Dict[str, Any]:
+    def get_bookmark_stats(self, story_id: str) -> dict[str, Any]:
         """Legacy method: Get bookmark statistics."""
         manager = self.get_bookmark_manager(story_id)
         return manager.get_stats()
@@ -286,8 +281,8 @@ class ManagementOrchestrator:
     # =====================================================================
 
     def analyze_story_content(
-        self, story_id: str, content: str, model: Optional[str] = None
-    ) -> Dict[str, Any]:
+        self, story_id: str, content: str, model: str | None = None
+    ) -> dict[str, Any]:
         """Analyze story content using both token and bookmark insights."""
         try:
             # Token analysis
@@ -330,7 +325,7 @@ class ManagementOrchestrator:
             log_error(f"Story content analysis failed: {e}")
             return {"error": str(e)}
 
-    def optimize_story_navigation(self, story_id: str) -> Dict[str, Any]:
+    def optimize_story_navigation(self, story_id: str) -> dict[str, Any]:
         """Optimize story navigation structure."""
         try:
             manager = self.get_bookmark_manager(story_id)
@@ -372,7 +367,7 @@ class ManagementOrchestrator:
             log_error(f"Story navigation optimization failed: {e}")
             return {"error": str(e)}
 
-    def get_management_stats(self) -> Dict[str, Any]:
+    def get_management_stats(self) -> dict[str, Any]:
         """Get comprehensive management system statistics."""
         try:
             # Token stats
@@ -425,8 +420,8 @@ class ManagementOrchestrator:
         return complexity
 
     def _generate_content_recommendations(
-        self, content: str, token_count: int, bookmarks: List[Dict[str, Any]]
-    ) -> List[str]:
+        self, content: str, token_count: int, bookmarks: list[dict[str, Any]]
+    ) -> list[str]:
         """Generate recommendations based on content and bookmark analysis."""
         recommendations = []
 
@@ -464,7 +459,7 @@ class ManagementOrchestrator:
         self.token_manager.clear_caches()
         log_system_event("management_orchestrator", "All caches cleared")
 
-    def export_all_data(self) -> Dict[str, Any]:
+    def export_all_data(self) -> dict[str, Any]:
         """Export all management data."""
         try:
             # Export token data
@@ -486,7 +481,7 @@ class ManagementOrchestrator:
             log_error(f"Data export failed: {e}")
             raise Exception(f"Export failed: {e}")
 
-    def update_config(self, new_config: Dict[str, Any]):
+    def update_config(self, new_config: dict[str, Any]):
         """Update system configuration."""
         try:
             validated_config = ConfigValidator.validate_management_config(new_config)
@@ -504,7 +499,7 @@ class ManagementOrchestrator:
             log_error(f"Config update failed: {e}")
             raise Exception(f"Config update failed: {e}")
 
-    def get_management_performance_metrics(self) -> Dict[str, Any]:
+    def get_management_performance_metrics(self) -> dict[str, Any]:
         """Get comprehensive performance metrics for management systems."""
         try:
             # Token management metrics

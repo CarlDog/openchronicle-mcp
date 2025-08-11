@@ -15,7 +15,6 @@ from contextlib import asynccontextmanager
 from datetime import UTC
 from datetime import datetime
 from typing import Any
-from typing import Optional
 
 from src.openchronicle.shared.logging_system import log_error
 
@@ -23,6 +22,7 @@ from src.openchronicle.shared.logging_system import log_error
 from src.openchronicle.shared.logging_system import log_info
 from src.openchronicle.shared.logging_system import log_system_event
 from src.openchronicle.shared.logging_system import log_warning
+
 
 UTC = UTC
 
@@ -174,7 +174,7 @@ class PerformanceMonitor:
             }
 
     async def get_model_performance_analytics(
-        self, adapter_name: Optional[str] = None
+        self, adapter_name: str | None = None
     ) -> dict[str, Any]:
         """
         Get detailed performance analytics for specific adapter or all adapters.
@@ -244,29 +244,28 @@ class PerformanceMonitor:
             return self.performance_monitor.track_operation(
                 adapter_name, operation_type, **kwargs
             )
-        else:
-            # Return a no-op context manager if monitoring is disabled
-            @asynccontextmanager
-            async def dummy_tracker():
-                class DummyTracker:
-                    def set_tokens_processed(self, count):
-                        pass
+        # Return a no-op context manager if monitoring is disabled
+        @asynccontextmanager
+        async def dummy_tracker():
+            class DummyTracker:
+                def set_tokens_processed(self, count):
+                    pass
 
-                    def set_response_size(self, size):
-                        pass
+                def set_response_size(self, size):
+                    pass
 
-                    def set_network_latency(self, latency):
-                        pass
+                def set_network_latency(self, latency):
+                    pass
 
-                    def set_processing_time(self, time):
-                        pass
+                def set_processing_time(self, time):
+                    pass
 
-                    def set_quality_score(self, score):
-                        pass
+                def set_quality_score(self, score):
+                    pass
 
-                yield DummyTracker()
+            yield DummyTracker()
 
-            return dummy_tracker()
+        return dummy_tracker()
 
     def get_performance_config(self) -> dict[str, Any]:
         """Get performance tuning configuration from the registry."""
@@ -277,8 +276,7 @@ class PerformanceMonitor:
                 with open(registry_file, encoding="utf-8") as f:
                     registry = json.load(f)
                 return registry.get("performance_tuning", {})
-            else:
-                return {}
+            return {}
         except Exception as e:
             log_error(f"Error getting performance config: {e}")
             return {}
@@ -302,7 +300,7 @@ class PerformanceMonitor:
             return {"available": False, "error": str(e)}
 
     async def optimize_model_performance(
-        self, adapter_name: Optional[str] = None
+        self, adapter_name: str | None = None
     ) -> dict[str, Any]:
         """
         Apply performance optimizations for specific adapter or all adapters.

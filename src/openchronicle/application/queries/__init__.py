@@ -18,7 +18,6 @@ from src.openchronicle.domain import StoryStatus
 class Query(ABC):
     """Base class for all queries."""
 
-    pass
 
 
 class QueryResult:
@@ -64,8 +63,8 @@ class GetStoryQuery(Query):
 class ListStoriesQuery(Query):
     """Query to list stories with filtering options."""
 
-    status_filter: Optional[list[StoryStatus]] = None
-    search_term: Optional[str] = None
+    status_filter: list[StoryStatus] | None = None
+    search_term: str | None = None
     limit: int = 50
     offset: int = 0
     sort_by: str = "updated_at"
@@ -92,7 +91,7 @@ class ListCharactersQuery(Query):
     story_id: str
     active_only: bool = True
     include_relationships: bool = False
-    search_term: Optional[str] = None
+    search_term: str | None = None
 
 
 @dataclass
@@ -111,8 +110,8 @@ class ListScenesQuery(Query):
     story_id: str
     limit: int = 50
     offset: int = 0
-    scene_type_filter: Optional[str] = None
-    participant_filter: Optional[list[str]] = None
+    scene_type_filter: str | None = None
+    participant_filter: list[str] | None = None
     sort_by: str = "created_at"
     sort_order: str = "asc"
 
@@ -151,8 +150,8 @@ class GetCharacterRelationshipsQuery(Query):
     """Query to get character relationship graph."""
 
     story_id: str
-    character_id: Optional[str] = None  # If None, gets all relationships
-    relationship_types: Optional[list[str]] = None
+    character_id: str | None = None  # If None, gets all relationships
+    relationship_types: list[str] | None = None
     include_inactive: bool = False
 
 
@@ -163,8 +162,8 @@ class GetStoryTimelineQuery(Query):
     story_id: str
     limit: int = 100
     offset: int = 0
-    event_types: Optional[list[str]] = None
-    participant_filter: Optional[list[str]] = None
+    event_types: list[str] | None = None
+    participant_filter: list[str] | None = None
 
     def __post_init__(self):
         if self.event_types is None:
@@ -188,7 +187,7 @@ class SearchContentQuery(Query):
     """Query to search across story content."""
 
     search_term: str
-    story_ids: Optional[list[str]] = None
+    story_ids: list[str] | None = None
     content_types: list[str] = None  # ["scenes", "characters", "descriptions"]
     limit: int = 50
     include_highlights: bool = True
@@ -204,9 +203,9 @@ class SearchContentQuery(Query):
 class GetModelUsageQuery(Query):
     """Query to get model usage statistics."""
 
-    story_id: Optional[str] = None
-    time_range: Optional[tuple] = None  # (start_date, end_date)
-    model_names: Optional[list[str]] = None
+    story_id: str | None = None
+    time_range: tuple | None = None  # (start_date, end_date)
+    model_names: list[str] | None = None
 
     def __post_init__(self):
         if self.model_names is None:
@@ -239,21 +238,21 @@ class PaginationInfo:
 
 # Export all queries
 __all__ = [
+    "GetCharacterQuery",
+    "GetCharacterRelationshipsQuery",
+    "GetMemoryStateQuery",
+    "GetModelUsageQuery",
+    "GetSceneQuery",
+    "GetStoryQuery",
+    "GetStoryStatisticsQuery",
+    "GetStoryTimelineQuery",
+    "ListCharactersQuery",
+    "ListScenesQuery",
+    "ListStoriesQuery",
+    "PaginationInfo",
     "Query",
     "QueryResult",
-    "PaginationInfo",
-    "GetStoryQuery",
-    "ListStoriesQuery",
-    "GetCharacterQuery",
-    "ListCharactersQuery",
-    "GetSceneQuery",
-    "ListScenesQuery",
-    "GetMemoryStateQuery",
-    "SearchMemoryQuery",
-    "GetCharacterRelationshipsQuery",
-    "GetStoryTimelineQuery",
-    "GetStoryStatisticsQuery",
     "SearchContentQuery",
-    "GetModelUsageQuery",
+    "SearchMemoryQuery",
     "ValidateStoryConsistencyQuery",
 ]

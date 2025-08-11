@@ -6,8 +6,9 @@ Purpose: Define common interfaces for modular content analysis system
 Part of: Phase 5A - Content Analysis Enhancement
 """
 
-from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional
+from abc import ABC
+from abc import abstractmethod
+from typing import Any
 
 
 class ContentAnalysisComponent(ABC):
@@ -17,33 +18,29 @@ class ContentAnalysisComponent(ABC):
         self.model_manager = model_manager
 
     @abstractmethod
-    async def process(self, content: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    async def process(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Process content and return analysis results."""
-        pass
 
 
 class DetectionComponent(ContentAnalysisComponent):
     """Base for content detection components."""
 
     @abstractmethod
-    def detect_content_type(self, content: str) -> Dict[str, Any]:
+    def detect_content_type(self, content: str) -> dict[str, Any]:
         """Detect content type and classification."""
-        pass
 
 
 class ExtractionComponent(ContentAnalysisComponent):
     """Base for data extraction components."""
 
     @abstractmethod
-    async def extract_data(self, content: str) -> Dict[str, Any]:
+    async def extract_data(self, content: str) -> dict[str, Any]:
         """Extract structured data from content."""
-        pass
 
 
 class RoutingComponent(ContentAnalysisComponent):
     """Base for routing and recommendation components."""
 
     @abstractmethod
-    def get_recommendation(self, analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def get_recommendation(self, analysis: dict[str, Any]) -> dict[str, Any]:
         """Get routing recommendation based on analysis."""
-        pass

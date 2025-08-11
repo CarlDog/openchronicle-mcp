@@ -13,32 +13,51 @@ Following EMBRACE BREAKING CHANGES philosophy for better architecture.
 
 import os
 import sys
-from typing import Dict, Any, Optional, List
 from pathlib import Path
+from typing import Any
+from typing import Optional
+
+from src.openchronicle.domain.ports.registry_port import IRegistryPort
+from src.openchronicle.shared.centralized_config import SystemConfig
+from src.openchronicle.shared.logging_system import log_error
 
 # Import existing specialized components
-from src.openchronicle.shared.logging_system import (
-    log_info,
-    log_error,
-    log_warning,
-    log_system_event,
-)
-from src.openchronicle.infrastructure.registry.registry_manager import RegistryManager
-from src.openchronicle.shared.centralized_config import SystemConfig, ModelConfig
-from src.openchronicle.infrastructure.registry.schema_validation import (
-    validate_provider_config,
-)
+from src.openchronicle.shared.logging_system import log_system_event
+from src.openchronicle.shared.logging_system import log_warning
 
 
 class ConfigurationManager:
     """
-    Simplified configuration manager that coordinates existing specialized components.
+    Configuration manager using dependency injection following hexagonal architecture.
 
-    No longer monolithic - delegates to existing systems:
-    - RegistryManager handles dynamic model discovery
+    Uses registry port interface instead of directly importing infrastructure:
+    - IRegistryPort handles dynamic model discovery
     - centralized_config provides typed configuration classes
-    - schema_validation handles validation logic
+    - Follows dependency inversion principle
     """
+
+    def __init__(self, config: Optional[SystemConfig] = None, registry_port: Optional[IRegistryPort] = None):
+        """
+        Initialize configuration manager.
+
+        Args:
+            config: System configuration instance
+            registry_port: Registry interface implementation (injected)
+        """
+        self.config = config or SystemConfig()
+        
+        # If no registry port provided, create default adapter
+        if registry_port is None:
+            # Conditional import to avoid circular dependencies
+            try:
+                from src.openchronicle.infrastructure.persistence_adapters.registry_adapter import RegistryAdapter
+                self.registry = RegistryAdapter()
+            except ImportError:
+                # Fallback for development/testing
+                self.registry = None
+                log_warning("Registry adapter not available - some features may be limited")
+        else:
+            self.registry = registry_port
 
     def __init__(self, config_path: str = "config"):
         """Initialize with existing components."""
@@ -63,10 +82,10 @@ class ConfigurationManager:
             "Simplified configuration manager ready",
         )
 
-    def _discover_models(self) -> Dict[str, Any]:
+    def _discover_models(self) -> dict[str, Any]:
         """Discover models using existing RegistryManager."""
         try:
-            discovered_providers = self.registry_manager.discover_providers()
+            discovered_providers = self.registry.discover_providers()
 
             if not discovered_providers:
                 log_warning("No providers discovered")
@@ -97,7 +116,7 @@ class ConfigurationManager:
             log_error(f"Model discovery failed: {e}")
             return {"providers": {}, "fallback_chains": {}}
 
-    def _build_global_config(self) -> Dict[str, Any]:
+    def _build_global_config(self) -> dict[str, Any]:
         """Build global configuration using existing SystemConfig."""
         return {
             "defaults": {
@@ -114,7 +133,7 @@ class ConfigurationManager:
             },
         }
 
-    def _build_adapters_config(self) -> Dict[str, Any]:
+    def _build_adapters_config(self) -> dict[str, Any]:
         """Build adapters configuration from discovered models."""
         adapters = {}
 
@@ -162,7 +181,7 @@ class ConfigurationManager:
         """Get global default value."""
         return self.global_config.get("defaults", {}).get(key, fallback)
 
-    def get_fallback_chain(self, model_name: str) -> List[str]:
+    def get_fallback_chain(self, model_name: str) -> list[str]:
         """Get fallback chain for a model."""
         return self.global_config.get("fallback_chains", {}).get(
             model_name, [model_name]
@@ -191,11 +210,11 @@ class ConfigurationManager:
             metadata=adapter_config.get("metadata", {}),
         )
 
-    def get_adapters_config(self) -> Dict[str, Any]:
+    def get_adapters_config(self) -> dict[str, Any]:
         """Get adapters configuration."""
         return self.config
 
-    def list_model_configs(self) -> Dict[str, Any]:
+    def list_model_configs(self) -> dict[str, Any]:
         """List all available model configurations."""
         all_models = {}
         providers = self.registry.get("providers", {})
@@ -209,17 +228,17 @@ class ConfigurationManager:
         return all_models
 
     def validate_model_config(
-        self, config: Dict[str, Any], name: str = ""
-    ) -> Dict[str, Any]:
+        self, config: dict[str, Any], name: str = ""
+    ) -> dict[str, Any]:
         """Validate model configuration using existing schema validation."""
         try:
             # Use existing schema validation
-            validate_provider_config(config)
+            self.registry.validate_config("unknown", config)
             return {"valid": True, "errors": [], "warnings": []}
         except Exception as e:
             return {"valid": False, "errors": [str(e)], "warnings": []}
 
-    def get_configuration_summary(self) -> Dict[str, Any]:
+    def get_configuration_summary(self) -> dict[str, Any]:
         """Get summary of current configuration."""
         adapters = self.config.get("adapters", {})
         providers = self.registry.get("providers", {})
@@ -253,26 +272,26 @@ class ConfigurationManager:
             return False
 
     # Simplified stubs for compatibility (can be extended if needed)
-    def get_content_routing_config(self) -> Dict[str, Any]:
+    def get_content_routing_config(self) -> dict[str, Any]:
         """Get content routing configuration."""
         return {}
 
-    def get_performance_config(self) -> Dict[str, Any]:
+    def get_performance_config(self) -> dict[str, Any]:
         """Get performance configuration."""
         return self.global_config.get("performance", {})
 
-    def get_intelligent_routing_config(self) -> Dict[str, Any]:
+    def get_intelligent_routing_config(self) -> dict[str, Any]:
         """Get intelligent routing configuration."""
         return {"enabled": False}
 
-    def get_base_url_for_provider(self, provider: str) -> Optional[str]:
+    def get_base_url_for_provider(self, provider: str) -> str | None:
         """Get base URL for a provider."""
         # Could be enhanced by reading from model configs if needed
         return None
 
     def get_enabled_models_by_type(
         self, model_type: str = "text"
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Get enabled models of a specific type."""
         models = []
         for model_name, model_config in self.list_model_configs().items():
@@ -284,7 +303,7 @@ class ConfigurationManager:
 
     # Dynamic model management (simplified - no file persistence)
     def add_model_config(
-        self, name: str, config: Dict[str, Any], enabled: bool = True
+        self, name: str, config: dict[str, Any], enabled: bool = True
     ) -> bool:
         """Add model configuration (runtime only)."""
         try:
@@ -343,17 +362,17 @@ class ConfigurationManager:
             return False
 
     @property
-    def adapters_config(self) -> Dict[str, Any]:
+    def adapters_config(self) -> dict[str, Any]:
         """Get adapters configuration."""
         return self.config
 
     def validate_model_config(
-        self, config: Dict[str, Any], name: str = ""
-    ) -> Dict[str, Any]:
+        self, config: dict[str, Any], name: str = ""
+    ) -> dict[str, Any]:
         """Validate model configuration using existing schema validation."""
         try:
             # Use existing schema validation
-            validate_provider_config(config)
+            self.registry.validate_config("unknown", config)
             return {"valid": True, "errors": [], "warnings": []}
         except Exception as e:
             return {"valid": False, "errors": [str(e)], "warnings": []}

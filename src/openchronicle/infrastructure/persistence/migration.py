@@ -4,11 +4,9 @@ Database migration utilities.
 Handles data migration from JSON files to SQLite database.
 """
 
-import sqlite3
 import json
 import os
-from typing import Optional, Dict, Any, List
-from pathlib import Path
+import sqlite3
 
 from .connection import ConnectionManager
 from .operations import DatabaseOperations
@@ -104,7 +102,7 @@ class MigrationManager:
             return True  # No scenes to migrate
 
         try:
-            with open(scenes_file, "r", encoding="utf-8") as f:
+            with open(scenes_file, encoding="utf-8") as f:
                 scenes_data = json.load(f)
 
             if not isinstance(scenes_data, list):
@@ -175,7 +173,7 @@ class MigrationManager:
             return True  # No characters to migrate
 
         try:
-            with open(characters_file, "r", encoding="utf-8") as f:
+            with open(characters_file, encoding="utf-8") as f:
                 characters_data = json.load(f)
 
             if not isinstance(characters_data, dict):
@@ -245,7 +243,7 @@ class MigrationManager:
             return True  # No memory to migrate
 
         try:
-            with open(memory_file, "r", encoding="utf-8") as f:
+            with open(memory_file, encoding="utf-8") as f:
                 memory_data = json.load(f)
 
             if not isinstance(memory_data, list):
@@ -314,7 +312,7 @@ class MigrationManager:
             return True  # No bookmarks to migrate
 
         try:
-            with open(bookmarks_file, "r", encoding="utf-8") as f:
+            with open(bookmarks_file, encoding="utf-8") as f:
                 bookmarks_data = json.load(f)
 
             if not isinstance(bookmarks_data, list):
