@@ -47,6 +47,25 @@ storage/data/memory.db
 storage/data/*.db
 *.jsonl
 *.log
+bandit-report.json
+logs/
+demo_storage/
+config/backups/
+# Storage data (runtime/generated) — keep demo storypack and README only
+storage/characters/
+storage/profiles/
+storage/temp/
+storage/data/
+storage/narrative_*/
+storage/response_intelligence/
+storage/scenes/
+storage/import_analysis.json
+storage/performance_baseline.json
+storage/phase1_health_report.json
+storage/performance_metrics.db
+# Character backups anywhere under storage
+storage/**/backups/
+
 
 # Analysis and development folders
 !core/analysis/
