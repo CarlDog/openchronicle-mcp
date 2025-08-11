@@ -12,8 +12,4 @@ from .keyword_detector import KeywordDetector
 from .transformer_analyzer import TransformerAnalyzer
 from .content_classifier import ContentClassifier
 
-__all__ = [
-    'KeywordDetector',
-    'TransformerAnalyzer', 
-    'ContentClassifier'
-]
+__all__ = ["KeywordDetector", "TransformerAnalyzer", "ContentClassifier"]

@@ -11,33 +11,33 @@ from typing import Optional, Dict, Any
 @dataclass
 class InfrastructureConfig:
     """Configuration for infrastructure layer."""
-    
+
     # Database settings
     database_path: str = "storage/openchronicle.db"
     enable_database_health_checks: bool = True
-    
+
     # Cache settings
     cache_type: str = "memory"  # memory, redis, file
     cache_ttl_seconds: int = 3600
     cache_max_size: int = 1000
-    
+
     # Memory management
     memory_persistence_path: str = "storage/memory"
     memory_auto_cleanup: bool = True
-    
+
     # Logging
     log_level: str = "INFO"
     log_file_path: Optional[str] = "logs/openchronicle.log"
-    
+
     # Model configuration
     default_model_adapter: str = "openai"
     model_config_path: str = "config/model_registry.json"
-    
+
     # File storage
     stories_path: str = "import"
     scenes_path: str = "demo_storage/scenes"
     characters_path: str = "demo_storage/characters"
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary."""
         return {
@@ -54,5 +54,5 @@ class InfrastructureConfig:
             "model_config_path": self.model_config_path,
             "stories_path": self.stories_path,
             "scenes_path": self.scenes_path,
-            "characters_path": self.characters_path
+            "characters_path": self.characters_path,
         }

@@ -12,13 +12,12 @@ Replaces the legacy monolithic scene_logger.py with clean modular architecture.
 
 from .scene_orchestrator import SceneOrchestrator
 
+
 # Main interface for backward compatibility
 def get_scene_orchestrator(story_id: str) -> SceneOrchestrator:
     """Get a scene orchestrator instance for the given story."""
     return SceneOrchestrator(story_id)
 
+
 # Export main components
-__all__ = [
-    'SceneOrchestrator',
-    'get_scene_orchestrator'
-]
+__all__ = ["SceneOrchestrator", "get_scene_orchestrator"]

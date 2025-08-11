@@ -22,17 +22,24 @@ from ...infrastructure import InfrastructureContainer, InfrastructureConfig
 # Request/Response Models
 # ================================
 
+
 class StoryCreateRequest(BaseModel):
     """Request model for creating a new story."""
+
     title: str = Field(..., min_length=1, max_length=200, description="Story title")
-    description: Optional[str] = Field(None, max_length=2000, description="Story description")
-    world_state: Dict[str, Any] = Field(default_factory=dict, description="Initial world state")
+    description: Optional[str] = Field(
+        None, max_length=2000, description="Story description"
+    )
+    world_state: Dict[str, Any] = Field(
+        default_factory=dict, description="Initial world state"
+    )
     genre: Optional[str] = Field(None, description="Story genre")
     target_audience: Optional[str] = Field(None, description="Target audience")
 
 
 class StoryUpdateRequest(BaseModel):
     """Request model for updating an existing story."""
+
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = Field(None, max_length=2000)
     world_state: Optional[Dict[str, Any]] = None
@@ -41,25 +48,38 @@ class StoryUpdateRequest(BaseModel):
 
 class CharacterCreateRequest(BaseModel):
     """Request model for creating a new character."""
+
     name: str = Field(..., min_length=1, max_length=100, description="Character name")
-    personality_traits: Dict[str, float] = Field(default_factory=dict, description="Personality traits with 0-10 values")
-    background: Optional[str] = Field(None, max_length=1000, description="Character background")
-    appearance: Optional[str] = Field(None, max_length=500, description="Physical appearance")
+    personality_traits: Dict[str, float] = Field(
+        default_factory=dict, description="Personality traits with 0-10 values"
+    )
+    background: Optional[str] = Field(
+        None, max_length=1000, description="Character background"
+    )
+    appearance: Optional[str] = Field(
+        None, max_length=500, description="Physical appearance"
+    )
     goals: List[str] = Field(default_factory=list, description="Character goals")
-    relationships: Dict[str, Dict[str, Any]] = Field(default_factory=dict, description="Character relationships")
+    relationships: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict, description="Character relationships"
+    )
 
 
 class SceneGenerateRequest(BaseModel):
     """Request model for generating a new scene."""
+
     story_id: str = Field(..., description="Story ID")
     setting: str = Field(..., description="Scene setting")
-    participant_ids: List[str] = Field(..., description="Character IDs participating in scene")
+    participant_ids: List[str] = Field(
+        ..., description="Character IDs participating in scene"
+    )
     user_input: str = Field(..., description="User direction for scene")
     model_preference: Optional[str] = Field(None, description="Preferred AI model")
 
 
 class StoryResponse(BaseModel):
     """Response model for story data."""
+
     id: str
     title: str
     description: Optional[str]
@@ -72,6 +92,7 @@ class StoryResponse(BaseModel):
 
 class CharacterResponse(BaseModel):
     """Response model for character data."""
+
     id: str
     name: str
     personality_traits: Dict[str, float]
@@ -88,6 +109,7 @@ class CharacterResponse(BaseModel):
 
 class SceneResponse(BaseModel):
     """Response model for scene data."""
+
     id: str
     story_id: str
     setting: str
@@ -101,6 +123,7 @@ class SceneResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     """Response model for health check."""
+
     status: str
     timestamp: datetime
     components: Dict[str, str]
@@ -110,27 +133,26 @@ class HealthResponse(BaseModel):
 # Dependencies
 # ================================
 
+
 class APIContainer:
     """Container for API dependencies."""
-    
+
     def __init__(self):
         # Create default infrastructure configuration
         config = InfrastructureConfig(
-            storage_backend="filesystem",
-            storage_path="storage",
-            cache_type="memory"
+            storage_backend="filesystem", storage_path="storage", cache_type="memory"
         )
         self.infrastructure = InfrastructureContainer(config)
         self.app_facade = None
-    
+
     async def initialize(self):
         """Initialize the application facade."""
         await self.infrastructure.initialize()
         self.app_facade = ApplicationFacade(
             story_orchestrator=self.infrastructure.get_story_orchestrator(),
-            character_orchestrator=self.infrastructure.get_character_orchestrator(), 
+            character_orchestrator=self.infrastructure.get_character_orchestrator(),
             scene_orchestrator=self.infrastructure.get_scene_orchestrator(),
-            memory_manager=self.infrastructure.get_memory_manager()
+            memory_manager=self.infrastructure.get_memory_manager(),
         )
 
 
@@ -149,6 +171,7 @@ async def get_app_facade() -> ApplicationFacade:
 # Application Lifecycle
 # ================================
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle management."""
@@ -156,9 +179,9 @@ async def lifespan(app: FastAPI):
     print("🚀 Starting OpenChronicle API...")
     await _container.initialize()
     print("✅ API ready!")
-    
+
     yield
-    
+
     # Shutdown
     print("🔄 Shutting down OpenChronicle API...")
     await _container.infrastructure.shutdown()
@@ -173,7 +196,7 @@ app = FastAPI(
     title="OpenChronicle API",
     description="Narrative AI engine with advanced character management and story generation",
     version="0.1.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # CORS middleware for web client support
@@ -190,10 +213,12 @@ app.add_middleware(
 # Story Endpoints
 # ================================
 
-@app.post("/api/v1/stories", response_model=StoryResponse, status_code=status.HTTP_201_CREATED)
+
+@app.post(
+    "/api/v1/stories", response_model=StoryResponse, status_code=status.HTTP_201_CREATED
+)
 async def create_story(
-    request: StoryCreateRequest,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    request: StoryCreateRequest, app_facade: ApplicationFacade = Depends(get_app_facade)
 ) -> StoryResponse:
     """Create a new story."""
     try:
@@ -202,15 +227,15 @@ async def create_story(
             description=request.description,
             world_state=request.world_state,
             genre=request.genre,
-            target_audience=request.target_audience
+            target_audience=request.target_audience,
         )
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": result.errors}
+                detail={"errors": result.errors},
             )
-        
+
         story = result.data
         return StoryResponse(
             id=story.id,
@@ -220,31 +245,30 @@ async def create_story(
             status=story.status.value,
             created_at=story.created_at,
             updated_at=story.updated_at,
-            metadata=story.metadata
+            metadata=story.metadata,
         )
-        
+
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create story: {str(e)}"
+            detail=f"Failed to create story: {str(e)}",
         )
 
 
 @app.get("/api/v1/stories/{story_id}", response_model=StoryResponse)
 async def get_story(
-    story_id: str,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    story_id: str, app_facade: ApplicationFacade = Depends(get_app_facade)
 ) -> StoryResponse:
     """Get a story by ID."""
     try:
         result = await app_facade.get_story(story_id)
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Story not found: {story_id}"
+                detail=f"Story not found: {story_id}",
             )
-        
+
         story = result.data
         return StoryResponse(
             id=story.id,
@@ -254,15 +278,15 @@ async def get_story(
             status=story.status.value,
             created_at=story.created_at,
             updated_at=story.updated_at,
-            metadata=story.metadata
+            metadata=story.metadata,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get story: {str(e)}"
+            detail=f"Failed to get story: {str(e)}",
         )
 
 
@@ -270,7 +294,7 @@ async def get_story(
 async def update_story(
     story_id: str,
     request: StoryUpdateRequest,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    app_facade: ApplicationFacade = Depends(get_app_facade),
 ) -> StoryResponse:
     """Update an existing story."""
     try:
@@ -284,15 +308,15 @@ async def update_story(
             update_data["world_state"] = request.world_state
         if request.status is not None:
             update_data["status"] = request.status
-        
+
         result = await app_facade.update_story(story_id, update_data)
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": result.errors}
+                detail={"errors": result.errors},
             )
-        
+
         story = result.data
         return StoryResponse(
             id=story.id,
@@ -302,15 +326,15 @@ async def update_story(
             status=story.status.value,
             created_at=story.created_at,
             updated_at=story.updated_at,
-            metadata=story.metadata
+            metadata=story.metadata,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update story: {str(e)}"
+            detail=f"Failed to update story: {str(e)}",
         )
 
 
@@ -318,18 +342,18 @@ async def update_story(
 async def list_stories(
     skip: int = 0,
     limit: int = 50,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    app_facade: ApplicationFacade = Depends(get_app_facade),
 ) -> List[StoryResponse]:
     """List all stories with pagination."""
     try:
         result = await app_facade.list_stories(skip=skip, limit=limit)
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": result.errors}
+                detail={"errors": result.errors},
             )
-        
+
         stories = result.data
         return [
             StoryResponse(
@@ -340,29 +364,34 @@ async def list_stories(
                 status=story.status.value,
                 created_at=story.created_at,
                 updated_at=story.updated_at,
-                metadata=story.metadata
+                metadata=story.metadata,
             )
             for story in stories
         ]
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list stories: {str(e)}"
+            detail=f"Failed to list stories: {str(e)}",
         )
 
 
 # ================================
-# Character Endpoints  
+# Character Endpoints
 # ================================
 
-@app.post("/api/v1/stories/{story_id}/characters", response_model=CharacterResponse, status_code=status.HTTP_201_CREATED)
+
+@app.post(
+    "/api/v1/stories/{story_id}/characters",
+    response_model=CharacterResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_character(
     story_id: str,
     request: CharacterCreateRequest,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    app_facade: ApplicationFacade = Depends(get_app_facade),
 ) -> CharacterResponse:
     """Create a new character in a story."""
     try:
@@ -373,15 +402,15 @@ async def create_character(
             background=request.background,
             appearance=request.appearance,
             goals=request.goals,
-            relationships=request.relationships
+            relationships=request.relationships,
         )
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": result.errors}
+                detail={"errors": result.errors},
             )
-        
+
         character = result.data
         return CharacterResponse(
             id=character.id,
@@ -395,33 +424,32 @@ async def create_character(
             character_arc=character.character_arc,
             memory_profile=character.memory_profile,
             created_at=character.created_at,
-            updated_at=character.updated_at
+            updated_at=character.updated_at,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create character: {str(e)}"
+            detail=f"Failed to create character: {str(e)}",
         )
 
 
 @app.get("/api/v1/characters/{character_id}", response_model=CharacterResponse)
 async def get_character(
-    character_id: str,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    character_id: str, app_facade: ApplicationFacade = Depends(get_app_facade)
 ) -> CharacterResponse:
     """Get a character by ID."""
     try:
         result = await app_facade.get_character(character_id)
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Character not found: {character_id}"
+                detail=f"Character not found: {character_id}",
             )
-        
+
         character = result.data
         return CharacterResponse(
             id=character.id,
@@ -435,33 +463,34 @@ async def get_character(
             character_arc=character.character_arc,
             memory_profile=character.memory_profile,
             created_at=character.created_at,
-            updated_at=character.updated_at
+            updated_at=character.updated_at,
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get character: {str(e)}"
+            detail=f"Failed to get character: {str(e)}",
         )
 
 
-@app.get("/api/v1/stories/{story_id}/characters", response_model=List[CharacterResponse])
+@app.get(
+    "/api/v1/stories/{story_id}/characters", response_model=List[CharacterResponse]
+)
 async def list_story_characters(
-    story_id: str,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    story_id: str, app_facade: ApplicationFacade = Depends(get_app_facade)
 ) -> List[CharacterResponse]:
     """List all characters in a story."""
     try:
         result = await app_facade.get_story_characters(story_id)
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": result.errors}
+                detail={"errors": result.errors},
             )
-        
+
         characters = result.data
         return [
             CharacterResponse(
@@ -476,17 +505,17 @@ async def list_story_characters(
                 character_arc=character.character_arc,
                 memory_profile=character.memory_profile,
                 created_at=character.created_at,
-                updated_at=character.updated_at
+                updated_at=character.updated_at,
             )
             for character in characters
         ]
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list characters: {str(e)}"
+            detail=f"Failed to list characters: {str(e)}",
         )
 
 
@@ -494,10 +523,13 @@ async def list_story_characters(
 # Scene Endpoints
 # ================================
 
-@app.post("/api/v1/scenes", response_model=SceneResponse, status_code=status.HTTP_201_CREATED)
+
+@app.post(
+    "/api/v1/scenes", response_model=SceneResponse, status_code=status.HTTP_201_CREATED
+)
 async def generate_scene(
     request: SceneGenerateRequest,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    app_facade: ApplicationFacade = Depends(get_app_facade),
 ) -> SceneResponse:
     """Generate a new scene."""
     try:
@@ -506,15 +538,15 @@ async def generate_scene(
             setting=request.setting,
             participant_ids=request.participant_ids,
             user_input=request.user_input,
-            model_preference=request.model_preference
+            model_preference=request.model_preference,
         )
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": result.errors}
+                detail={"errors": result.errors},
             )
-        
+
         scene_data = result.data
         return SceneResponse(
             id=scene_data["scene_id"],
@@ -525,15 +557,15 @@ async def generate_scene(
             user_input=request.user_input,
             character_updates=scene_data.get("character_updates", {}),
             metadata=scene_data.get("metadata", {}),
-            created_at=datetime.now()
+            created_at=datetime.now(),
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate scene: {str(e)}"
+            detail=f"Failed to generate scene: {str(e)}",
         )
 
 
@@ -542,18 +574,18 @@ async def list_story_scenes(
     story_id: str,
     skip: int = 0,
     limit: int = 50,
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    app_facade: ApplicationFacade = Depends(get_app_facade),
 ) -> List[SceneResponse]:
     """List scenes for a story with pagination."""
     try:
         result = await app_facade.get_story_scenes(story_id, skip=skip, limit=limit)
-        
+
         if not result.success:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail={"errors": result.errors}
+                detail={"errors": result.errors},
             )
-        
+
         scenes = result.data
         return [
             SceneResponse(
@@ -565,17 +597,17 @@ async def list_story_scenes(
                 user_input=scene.user_input,
                 character_updates=scene.character_updates,
                 metadata=scene.metadata,
-                created_at=scene.created_at
+                created_at=scene.created_at,
             )
             for scene in scenes
         ]
-        
+
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list scenes: {str(e)}"
+            detail=f"Failed to list scenes: {str(e)}",
         )
 
 
@@ -583,26 +615,25 @@ async def list_story_scenes(
 # Health & System Endpoints
 # ================================
 
+
 @app.get("/api/v1/health", response_model=HealthResponse)
 async def health_check(
-    app_facade: ApplicationFacade = Depends(get_app_facade)
+    app_facade: ApplicationFacade = Depends(get_app_facade),
 ) -> HealthResponse:
     """Health check endpoint."""
     try:
         # Get infrastructure health status
         health_status = await _container.infrastructure.health_check()
-        
+
         return HealthResponse(
             status=health_status["status"],
             timestamp=datetime.now(),
-            components=health_status["components"]
+            components=health_status["components"],
         )
-        
+
     except Exception as e:
         return HealthResponse(
-            status="unhealthy",
-            timestamp=datetime.now(),
-            components={"error": str(e)}
+            status="unhealthy", timestamp=datetime.now(), components={"error": str(e)}
         )
 
 
@@ -618,14 +649,15 @@ async def system_status():
             "stories": "/api/v1/stories",
             "characters": "/api/v1/characters",
             "scenes": "/api/v1/scenes",
-            "health": "/api/v1/health"
-        }
+            "health": "/api/v1/health",
+        },
     }
 
 
 # ================================
 # Development Server
 # ================================
+
 
 def run_dev_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = True):
     """Run the development server."""
@@ -635,7 +667,7 @@ def run_dev_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = True)
         host=host,
         port=port,
         reload=reload,
-        log_level="info"
+        log_level="info",
     )
 
 

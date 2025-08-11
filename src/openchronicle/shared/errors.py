@@ -1,5 +1,6 @@
 """Central error taxonomy for OpenChronicle."""
 
+
 class BaseAppError(Exception):
     """Base error for OpenChronicle."""
 

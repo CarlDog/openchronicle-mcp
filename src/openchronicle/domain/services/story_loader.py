@@ -30,7 +30,7 @@ def load_storypack(name):
 
     # Check for meta.json only
     meta_json_path = os.path.join(path, "meta.json")
-    
+
     if os.path.exists(meta_json_path):
         meta_path = meta_json_path
     else:
@@ -45,5 +45,9 @@ def load_storypack(name):
         "canon_dir": os.path.join(path, "canon"),
         "characters_dir": os.path.join(path, "characters"),
         "memory_dir": os.path.join(path, "memory"),
-        "style_guide": os.path.join(path, "style_guide.json") if os.path.exists(os.path.join(path, "style_guide.json")) else os.path.join(path, "style_guide.md"),
+        "style_guide": (
+            os.path.join(path, "style_guide.json")
+            if os.path.exists(os.path.join(path, "style_guide.json"))
+            else os.path.join(path, "style_guide.md")
+        ),
     }

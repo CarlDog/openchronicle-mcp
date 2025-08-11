@@ -6,7 +6,7 @@ narrative mechanics, consistency validation, and emotional stability management.
 
 This modular system replaces and consolidates:
 - IntelligentResponseEngine (995 lines)
-- NarrativeDiceEngine (796 lines)  
+- NarrativeDiceEngine (796 lines)
 - MemoryConsistencyEngine (698 lines)
 - EmotionalStabilityEngine (570 lines)
 
@@ -20,14 +20,18 @@ Main Components:
 Author: OpenChronicle Development Team
 """
 
-from .narrative_orchestrator import NarrativeOrchestrator, NarrativeState, NarrativeOperation
+from .narrative_orchestrator import (
+    NarrativeOrchestrator,
+    NarrativeState,
+    NarrativeOperation,
+)
 from .shared.narrative_base import (
-    NarrativeComponent, 
-    NarrativeEvent, 
+    NarrativeComponent,
+    NarrativeEvent,
     ValidationResult,
     StateManager,
     EventProcessor,
-    ValidationBase
+    ValidationBase,
 )
 
 # Version info
@@ -37,12 +41,12 @@ __status__ = "Phase 6 Development"
 # Main orchestrator class for external use
 __all__ = [
     "NarrativeOrchestrator",
-    "NarrativeState", 
+    "NarrativeState",
     "NarrativeOperation",
     "NarrativeComponent",
     "NarrativeEvent",
     "ValidationResult",
     "StateManager",
     "EventProcessor",
-    "ValidationBase"
+    "ValidationBase",
 ]

@@ -6,7 +6,7 @@ replacing the previous separate character engines with a unified, modular archit
 
 Components:
 - character_base.py - Base classes and interfaces
-- character_data.py - Unified dataclasses and enums  
+- character_data.py - Unified dataclasses and enums
 - character_storage.py - Character data persistence
 - character_orchestrator.py - Main coordinator
 - stats/ - Character statistics and behavior
@@ -18,28 +18,28 @@ Components:
 __version__ = "1.0.0"
 __all__ = [
     "CharacterOrchestrator",
-    "CharacterEngineBase", 
+    "CharacterEngineBase",
     "CharacterData",
     "CharacterStorage",
     "CharacterStatType",
-    "CharacterBehaviorType", 
+    "CharacterBehaviorType",
     "CharacterRelationType",
     "CharacterInteractionType",
     "StatsBehaviorEngine",
-    "InteractionDynamicsEngine", 
+    "InteractionDynamicsEngine",
     "ConsistencyValidationEngine",
-    "PresentationStyleEngine"
+    "PresentationStyleEngine",
 ]
 
 # Core infrastructure imports
 from .character_orchestrator import CharacterOrchestrator
 from .character_base import CharacterEngineBase
 from .character_data import (
-    CharacterData, 
+    CharacterData,
     CharacterStatType,
     CharacterBehaviorType,
-    CharacterRelationType, 
-    CharacterInteractionType
+    CharacterRelationType,
+    CharacterInteractionType,
 )
 from .character_storage import CharacterStorage
 

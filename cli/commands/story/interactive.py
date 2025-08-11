@@ -22,23 +22,23 @@ if str(current_dir) not in sys.path:
 
 # Import the main application logic
 try:
-    from core.shared.logging_system import log_info, log_error
+    from src.openchronicle.shared.logging_system import log_info, log_error
 except ImportError:
-    # Fallback logging if core.shared.logging_system not available
+    # Fallback logging if logging system not available
     def log_info(msg): print(f"INFO: {msg}")
     def log_error(msg): print(f"ERROR: {msg}")
 
 # Import core components
 try:
-    from core.story_loader import load_storypack
-    from core.content.context import ContextOrchestrator
-    from core.memory import MemoryOrchestrator
-    from core.timeline import TimelineOrchestrator
-    from core.scenes.scene_orchestrator import SceneOrchestrator
-    from core.models.model_orchestrator import ModelOrchestrator
-    from core.content import ContentAnalysisOrchestrator as ContentAnalyzer
-    from core.images import create_image_engine, ImageType
-    from core.database.database_orchestrator import startup_health_check
+    from src.openchronicle.domain.services.story_loader import load_storypack
+    from src.openchronicle.infrastructure.content.context.orchestrator import ContextOrchestrator
+    from src.openchronicle.infrastructure.memory.memory_orchestrator import MemoryOrchestrator
+    from src.openchronicle.domain.services.timeline.timeline_orchestrator import TimelineOrchestrator
+    from src.openchronicle.domain.services.scenes.scene_orchestrator import SceneOrchestrator
+    from src.openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+    from src.openchronicle.infrastructure.content.analysis.orchestrator import ContentAnalysisOrchestrator as ContentAnalyzer
+    from src.openchronicle.infrastructure.images.image_orchestrator import create_image_engine, ImageType
+    from src.openchronicle.infrastructure.persistence.database_orchestrator import startup_health_check
     CORE_AVAILABLE = True
 except ImportError as e:
     print(f"Warning: Core components not available for interactive mode: {e}")
@@ -62,8 +62,8 @@ except ImportError as e:
     CORE_AVAILABLE = False
 
 # Security imports
-from core.shared.security_decorators import secure_input, validate_and_raise, create_security_context
-from core.shared.security import validate_user_input, SecurityThreatLevel
+from src.openchronicle.shared.security_decorators import secure_input, validate_and_raise, create_security_context
+from src.openchronicle.shared.security import validate_user_input, SecurityThreatLevel
 
 # CLI core imports
 from cli.support.output_manager import OutputManager

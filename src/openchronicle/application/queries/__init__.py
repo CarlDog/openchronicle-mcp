@@ -16,24 +16,33 @@ from ...domain import Story, Character, Scene, StoryStatus, MemoryState
 
 class Query(ABC):
     """Base class for all queries."""
+
     pass
 
 
 class QueryResult:
     """Result of query execution."""
-    
-    def __init__(self, success: bool, data: Any = None, message: str = "", errors: List[str] = None):
+
+    def __init__(
+        self,
+        success: bool,
+        data: Any = None,
+        message: str = "",
+        errors: List[str] = None,
+    ):
         self.success = success
         self.data = data
         self.message = message
         self.errors = errors or []
         self.timestamp = datetime.now()
-    
+
     @classmethod
-    def success(cls, data: Any, message: str = "Query executed successfully") -> "QueryResult":
+    def success(
+        cls, data: Any, message: str = "Query executed successfully"
+    ) -> "QueryResult":
         """Create a successful result."""
         return cls(True, data, message)
-    
+
     @classmethod
     def failure(cls, message: str, errors: List[str] = None) -> "QueryResult":
         """Create a failed result."""
@@ -43,6 +52,7 @@ class QueryResult:
 @dataclass
 class GetStoryQuery(Query):
     """Query to retrieve a story by ID."""
+
     story_id: str
     include_characters: bool = True
     include_scenes: bool = False
@@ -52,13 +62,14 @@ class GetStoryQuery(Query):
 @dataclass
 class ListStoriesQuery(Query):
     """Query to list stories with filtering options."""
+
     status_filter: Optional[List[StoryStatus]] = None
     search_term: Optional[str] = None
     limit: int = 50
     offset: int = 0
     sort_by: str = "updated_at"
     sort_order: str = "desc"  # "asc" or "desc"
-    
+
     def __post_init__(self):
         if self.status_filter is None:
             self.status_filter = []
@@ -67,6 +78,7 @@ class ListStoriesQuery(Query):
 @dataclass
 class GetCharacterQuery(Query):
     """Query to retrieve a character by ID."""
+
     character_id: str
     include_relationships: bool = True
     include_memory_profile: bool = False
@@ -75,6 +87,7 @@ class GetCharacterQuery(Query):
 @dataclass
 class ListCharactersQuery(Query):
     """Query to list characters in a story."""
+
     story_id: str
     active_only: bool = True
     include_relationships: bool = False
@@ -84,6 +97,7 @@ class ListCharactersQuery(Query):
 @dataclass
 class GetSceneQuery(Query):
     """Query to retrieve a scene by ID."""
+
     scene_id: str
     include_character_states: bool = True
     include_context: bool = False
@@ -92,6 +106,7 @@ class GetSceneQuery(Query):
 @dataclass
 class ListScenesQuery(Query):
     """Query to list scenes in a story."""
+
     story_id: str
     limit: int = 50
     offset: int = 0
@@ -99,7 +114,7 @@ class ListScenesQuery(Query):
     participant_filter: Optional[List[str]] = None
     sort_by: str = "created_at"
     sort_order: str = "asc"
-    
+
     def __post_init__(self):
         if self.participant_filter is None:
             self.participant_filter = []
@@ -108,6 +123,7 @@ class ListScenesQuery(Query):
 @dataclass
 class GetMemoryStateQuery(Query):
     """Query to retrieve current memory state."""
+
     story_id: str
     include_character_memories: bool = True
     include_world_state: bool = True
@@ -118,11 +134,12 @@ class GetMemoryStateQuery(Query):
 @dataclass
 class SearchMemoryQuery(Query):
     """Query to search memory content."""
+
     story_id: str
     search_term: str
     search_scope: List[str] = None  # ["characters", "events", "world_state", "flags"]
     limit: int = 20
-    
+
     def __post_init__(self):
         if self.search_scope is None:
             self.search_scope = ["characters", "events", "world_state"]
@@ -131,6 +148,7 @@ class SearchMemoryQuery(Query):
 @dataclass
 class GetCharacterRelationshipsQuery(Query):
     """Query to get character relationship graph."""
+
     story_id: str
     character_id: Optional[str] = None  # If None, gets all relationships
     relationship_types: Optional[List[str]] = None
@@ -140,12 +158,13 @@ class GetCharacterRelationshipsQuery(Query):
 @dataclass
 class GetStoryTimelineQuery(Query):
     """Query to get story timeline/chronology."""
+
     story_id: str
     limit: int = 100
     offset: int = 0
     event_types: Optional[List[str]] = None
     participant_filter: Optional[List[str]] = None
-    
+
     def __post_init__(self):
         if self.event_types is None:
             self.event_types = []
@@ -156,6 +175,7 @@ class GetStoryTimelineQuery(Query):
 @dataclass
 class GetStoryStatisticsQuery(Query):
     """Query to get story statistics and metrics."""
+
     story_id: str
     include_character_stats: bool = True
     include_scene_stats: bool = True
@@ -165,12 +185,13 @@ class GetStoryStatisticsQuery(Query):
 @dataclass
 class SearchContentQuery(Query):
     """Query to search across story content."""
+
     search_term: str
     story_ids: Optional[List[str]] = None
     content_types: List[str] = None  # ["scenes", "characters", "descriptions"]
     limit: int = 50
     include_highlights: bool = True
-    
+
     def __post_init__(self):
         if self.story_ids is None:
             self.story_ids = []
@@ -181,10 +202,11 @@ class SearchContentQuery(Query):
 @dataclass
 class GetModelUsageQuery(Query):
     """Query to get model usage statistics."""
+
     story_id: Optional[str] = None
     time_range: Optional[tuple] = None  # (start_date, end_date)
     model_names: Optional[List[str]] = None
-    
+
     def __post_init__(self):
         if self.model_names is None:
             self.model_names = []
@@ -193,6 +215,7 @@ class GetModelUsageQuery(Query):
 @dataclass
 class ValidateStoryConsistencyQuery(Query):
     """Query to validate story consistency."""
+
     story_id: str
     check_character_consistency: bool = True
     check_plot_consistency: bool = True
@@ -204,6 +227,7 @@ class ValidateStoryConsistencyQuery(Query):
 @dataclass
 class PaginationInfo:
     """Pagination information for query results."""
+
     total_count: int
     page_size: int
     current_page: int
@@ -218,17 +242,17 @@ __all__ = [
     "QueryResult",
     "PaginationInfo",
     "GetStoryQuery",
-    "ListStoriesQuery", 
+    "ListStoriesQuery",
     "GetCharacterQuery",
     "ListCharactersQuery",
     "GetSceneQuery",
     "ListScenesQuery",
     "GetMemoryStateQuery",
     "SearchMemoryQuery",
-    "GetCharacterRelationshipsQuery", 
+    "GetCharacterRelationshipsQuery",
     "GetStoryTimelineQuery",
     "GetStoryStatisticsQuery",
     "SearchContentQuery",
     "GetModelUsageQuery",
-    "ValidateStoryConsistencyQuery"
+    "ValidateStoryConsistencyQuery",
 ]

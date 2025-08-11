@@ -6,11 +6,11 @@ by coordinating memory, content analysis, and narrative systems.
 
 Usage:
     from src.openchronicle.infrastructure.content.context import ContextOrchestrator
-    
+
     orchestrator = ContextOrchestrator()
     context = await orchestrator.build_context(story_data, config)
 """
 
 from .orchestrator import ContextOrchestrator
 
-__all__ = ['ContextOrchestrator']
+__all__ = ["ContextOrchestrator"]

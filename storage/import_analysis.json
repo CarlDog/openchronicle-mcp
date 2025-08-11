@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-08-10T21:10:35.428489",
+  "timestamp": "2025-08-10T21:30:58.312137",
   "total_files": 305,
   "analyzed_files": 304,
   "import_analysis": {
@@ -77,20 +77,7 @@
         "openchronicle.interfaces.cli.main",
         "openchronicle.main"
       ],
-      "core_legacy": [
-        "core.content",
-        "core.content.context",
-        "core.database.database_orchestrator",
-        "core.images",
-        "core.memory",
-        "core.models.model_orchestrator",
-        "core.scenes.scene_orchestrator",
-        "core.shared.logging_system",
-        "core.shared.security",
-        "core.shared.security_decorators",
-        "core.story_loader",
-        "core.timeline"
-      ],
+      "core_legacy": [],
       "utilities": [
         "utilities.api_key_manager",
         "utilities.performance_monitor"
@@ -409,11 +396,14 @@
         "src.openchronicle.domain.services.narrative.response.context_analyzer",
         "src.openchronicle.domain.services.scenes",
         "src.openchronicle.domain.services.scenes.scene_orchestrator",
+        "src.openchronicle.domain.services.story_loader",
         "src.openchronicle.domain.services.timeline.timeline_orchestrator",
         "src.openchronicle.infrastructure.content",
         "src.openchronicle.infrastructure.content.analysis",
+        "src.openchronicle.infrastructure.content.analysis.orchestrator",
         "src.openchronicle.infrastructure.content.context",
         "src.openchronicle.infrastructure.content.context.orchestrator",
+        "src.openchronicle.infrastructure.images.image_orchestrator",
         "src.openchronicle.infrastructure.memory",
         "src.openchronicle.infrastructure.memory.async_memory_orchestrator",
         "src.openchronicle.infrastructure.memory.cache_benchmark",
@@ -462,8 +452,8 @@
       "pathlib": 112,
       "json": 84,
       "asyncio": 69,
+      "src.openchronicle.shared.logging_system": 63,
       "sys": 62,
-      "src.openchronicle.shared.logging_system": 62,
       "os": 59,
       "dataclasses": 56,
       "logging": 52,
@@ -476,11 +466,11 @@
       "sqlite3": 14,
       "unittest.mock": 14,
       "rich.console": 12,
+      "src.openchronicle.infrastructure.memory.memory_orchestrator": 12,
+      "src.openchronicle.domain.services.scenes.scene_orchestrator": 12,
       "uuid": 12,
-      "src.openchronicle.domain.services.scenes.scene_orchestrator": 11,
-      "src.openchronicle.infrastructure.memory.memory_orchestrator": 11,
+      "src.openchronicle.domain.models.model_orchestrator": 11,
       "random": 10,
-      "src.openchronicle.domain.models.model_orchestrator": 10,
       "src.openchronicle.infrastructure.memory": 10,
       "tests.mocks.mock_adapters": 10,
       "typer": 9,
@@ -489,24 +479,24 @@
       "shutil": 8,
       "collections": 8,
       "traceback": 8,
+      "src.openchronicle.infrastructure.content.context.orchestrator": 7,
       "rich.table": 7,
       "src.openchronicle.domain.models": 7,
       "src.openchronicle.domain.services.characters": 7,
       "rich.prompt": 6,
       "contextlib": 6,
       "hashlib": 6,
-      "src.openchronicle.infrastructure.content.context.orchestrator": 6,
+      "src.openchronicle.shared.security": 5,
       "aiosqlite": 5,
       "cli.support": 4,
       "rich.panel": 4,
+      "src.openchronicle.domain.services.timeline.timeline_orchestrator": 4,
+      "src.openchronicle.infrastructure.persistence.database_orchestrator": 4,
       "psutil": 4,
       "subprocess": 4,
       "argparse": 4,
       "__future__": 4,
-      "src.openchronicle.infrastructure.content.context": 4,
-      "warnings": 4,
-      "src.openchronicle.infrastructure.performance.model_monitor": 4,
-      "httpx": 4
+      "src.openchronicle.infrastructure.content.context": 4
     },
     "file_import_counts": {
       "cli\\commands\\system\\__init__.py": 35,
@@ -532,78 +522,6 @@
     },
     "problematic_imports": [
       {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.shared.logging_system",
-        "line": 25,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.story_loader",
-        "line": 33,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.content.context",
-        "line": 34,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.memory",
-        "line": 35,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.timeline",
-        "line": 36,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.scenes.scene_orchestrator",
-        "line": 37,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.models.model_orchestrator",
-        "line": 38,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.content",
-        "line": 39,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.images",
-        "line": 40,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.database.database_orchestrator",
-        "line": 41,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.shared.security_decorators",
-        "line": 65,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
-        "file": "cli\\commands\\story\\interactive.py",
-        "module": "core.shared.security",
-        "line": 66,
-        "reason": "Direct core import - violates hexagonal architecture"
-      },
-      {
         "file": "src\\openchronicle\\application\\commands\\__init__.py",
         "module": "...domain",
         "line": 14,
@@ -612,7 +530,7 @@
       {
         "file": "src\\openchronicle\\application\\orchestrators\\__init__.py",
         "module": "...domain",
-        "line": 20,
+        "line": 27,
         "reason": "Deep relative import (level 3) - may break during migration"
       },
       {
@@ -678,37 +596,37 @@
       {
         "file": "src\\openchronicle\\infrastructure\\content\\context\\orchestrator.py",
         "module": "...memory.context",
-        "line": 24,
+        "line": 29,
         "reason": "Deep relative import (level 3) - may break during migration"
       },
       {
         "file": "src\\openchronicle\\infrastructure\\content\\context\\orchestrator.py",
         "module": "...memory.context",
-        "line": 25,
+        "line": 30,
         "reason": "Deep relative import (level 3) - may break during migration"
       },
       {
         "file": "src\\openchronicle\\infrastructure\\content\\context\\orchestrator.py",
         "module": "...memory.context",
-        "line": 26,
+        "line": 31,
         "reason": "Deep relative import (level 3) - may break during migration"
       },
       {
         "file": "src\\openchronicle\\infrastructure\\content\\context\\orchestrator.py",
         "module": "...memory",
-        "line": 31,
+        "line": 40,
         "reason": "Deep relative import (level 3) - may break during migration"
       },
       {
         "file": "src\\openchronicle\\infrastructure\\memory\\persistence\\async_memory_repository.py",
         "module": "...persistence.async_database_orchestrator",
-        "line": 17,
+        "line": 18,
         "reason": "Deep relative import (level 3) - may break during migration"
       },
       {
         "file": "src\\openchronicle\\infrastructure\\memory\\persistence\\memory_repository.py",
         "module": "...persistence.database",
-        "line": 13,
+        "line": 19,
         "reason": "Deep relative import (level 3) - may break during migration"
       },
       {
@@ -1112,7 +1030,7 @@
           "level": 0
         },
         {
-          "module": "core.shared.logging_system",
+          "module": "src.openchronicle.shared.logging_system",
           "names": [
             "log_info",
             "log_error"
@@ -1122,7 +1040,7 @@
           "level": 0
         },
         {
-          "module": "core.story_loader",
+          "module": "src.openchronicle.domain.services.story_loader",
           "names": [
             "load_storypack"
           ],
@@ -1131,7 +1049,7 @@
           "level": 0
         },
         {
-          "module": "core.content.context",
+          "module": "src.openchronicle.infrastructure.content.context.orchestrator",
           "names": [
             "ContextOrchestrator"
           ],
@@ -1140,7 +1058,7 @@
           "level": 0
         },
         {
-          "module": "core.memory",
+          "module": "src.openchronicle.infrastructure.memory.memory_orchestrator",
           "names": [
             "MemoryOrchestrator"
           ],
@@ -1149,7 +1067,7 @@
           "level": 0
         },
         {
-          "module": "core.timeline",
+          "module": "src.openchronicle.domain.services.timeline.timeline_orchestrator",
           "names": [
             "TimelineOrchestrator"
           ],
@@ -1158,7 +1076,7 @@
           "level": 0
         },
         {
-          "module": "core.scenes.scene_orchestrator",
+          "module": "src.openchronicle.domain.services.scenes.scene_orchestrator",
           "names": [
             "SceneOrchestrator"
           ],
@@ -1167,7 +1085,7 @@
           "level": 0
         },
         {
-          "module": "core.models.model_orchestrator",
+          "module": "src.openchronicle.domain.models.model_orchestrator",
           "names": [
             "ModelOrchestrator"
           ],
@@ -1176,7 +1094,7 @@
           "level": 0
         },
         {
-          "module": "core.content",
+          "module": "src.openchronicle.infrastructure.content.analysis.orchestrator",
           "names": [
             "ContentAnalysisOrchestrator"
           ],
@@ -1187,7 +1105,7 @@
           "level": 0
         },
         {
-          "module": "core.images",
+          "module": "src.openchronicle.infrastructure.images.image_orchestrator",
           "names": [
             "create_image_engine",
             "ImageType"
@@ -1197,7 +1115,7 @@
           "level": 0
         },
         {
-          "module": "core.database.database_orchestrator",
+          "module": "src.openchronicle.infrastructure.persistence.database_orchestrator",
           "names": [
             "startup_health_check"
           ],
@@ -1206,7 +1124,7 @@
           "level": 0
         },
         {
-          "module": "core.shared.security_decorators",
+          "module": "src.openchronicle.shared.security_decorators",
           "names": [
             "secure_input",
             "validate_and_raise",
@@ -1217,7 +1135,7 @@
           "level": 0
         },
         {
-          "module": "core.shared.security",
+          "module": "src.openchronicle.shared.security",
           "names": [
             "validate_user_input",
             "SecurityThreatLevel"
@@ -2143,12 +2061,12 @@
           "aliases": {
             "main": "legacy_main"
           },
-          "line": 21,
+          "line": 27,
           "level": 0
         }
       ],
       "relative_imports": [],
-      "line_count": 30,
+      "line_count": 36,
       "success": true
     },
     {
@@ -2198,7 +2116,7 @@
             "ValidateStoryConsistencyQuery"
           ],
           "aliases": {},
-          "line": 36,
+          "line": 42,
           "level": 1
         },
         {
@@ -2215,11 +2133,11 @@
             "ModelManager"
           ],
           "aliases": {},
-          "line": 47,
+          "line": 62,
           "level": 1
         }
       ],
-      "line_count": 159,
+      "line_count": 228,
       "success": true
     },
     {
@@ -2301,7 +2219,7 @@
           "level": 3
         }
       ],
-      "line_count": 206,
+      "line_count": 225,
       "success": true
     },
     {
@@ -2373,7 +2291,7 @@
             "QueryResult"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 26,
           "level": 2
         },
         {
@@ -2389,11 +2307,11 @@
             "ModelResponse"
           ],
           "aliases": {},
-          "line": 20,
+          "line": 27,
           "level": 3
         }
       ],
-      "line_count": 431,
+      "line_count": 463,
       "success": true
     },
     {
@@ -2457,7 +2375,7 @@
           "level": 3
         }
       ],
-      "line_count": 234,
+      "line_count": 258,
       "success": true
     },
     {
@@ -2513,7 +2431,7 @@
           "level": 1
         }
       ],
-      "line_count": 65,
+      "line_count": 68,
       "success": true
     },
     {
@@ -2583,12 +2501,12 @@
         {
           "module": "os",
           "alias": null,
-          "line": 32
+          "line": 39
         },
         {
           "module": "random",
           "alias": null,
-          "line": 65
+          "line": 79
         }
       ],
       "from_imports": [
@@ -2644,7 +2562,7 @@
             "init_database"
           ],
           "aliases": {},
-          "line": 47,
+          "line": 55,
           "level": 0
         }
       ],
@@ -2659,11 +2577,11 @@
             "StatisticsCalculator"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 23,
           "level": 2
         }
       ],
-      "line_count": 396,
+      "line_count": 479,
       "success": true
     },
     {
@@ -2718,7 +2636,7 @@
             "BookmarkValidator"
           ],
           "aliases": {},
-          "line": 16,
+          "line": 20,
           "level": 1
         },
         {
@@ -2727,7 +2645,7 @@
             "BookmarkSearchEngine"
           ],
           "aliases": {},
-          "line": 17,
+          "line": 21,
           "level": 1
         },
         {
@@ -2736,7 +2654,7 @@
             "NavigationManager"
           ],
           "aliases": {},
-          "line": 18,
+          "line": 22,
           "level": 1
         },
         {
@@ -2749,11 +2667,11 @@
             "ConfigValidator"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 23,
           "level": 2
         }
       ],
-      "line_count": 324,
+      "line_count": 382,
       "success": true
     },
     {
@@ -2810,7 +2728,7 @@
             "execute_query"
           ],
           "aliases": {},
-          "line": 27,
+          "line": 31,
           "level": 0
         }
       ],
@@ -2823,11 +2741,11 @@
             "BookmarkManagerException"
           ],
           "aliases": {},
-          "line": 17,
+          "line": 21,
           "level": 2
         }
       ],
-      "line_count": 327,
+      "line_count": 360,
       "success": true
     },
     {
@@ -2884,7 +2802,7 @@
             "execute_query"
           ],
           "aliases": {},
-          "line": 27,
+          "line": 31,
           "level": 0
         }
       ],
@@ -2897,11 +2815,11 @@
             "BookmarkManagerException"
           ],
           "aliases": {},
-          "line": 17,
+          "line": 21,
           "level": 2
         }
       ],
-      "line_count": 364,
+      "line_count": 428,
       "success": true
     },
     {
@@ -2964,7 +2882,7 @@
             "TokenManager"
           ],
           "aliases": {},
-          "line": 27,
+          "line": 31,
           "level": 1
         },
         {
@@ -2973,7 +2891,7 @@
             "BookmarkManager"
           ],
           "aliases": {},
-          "line": 28,
+          "line": 32,
           "level": 1
         },
         {
@@ -2985,11 +2903,11 @@
             "ConfigValidator"
           ],
           "aliases": {},
-          "line": 29,
+          "line": 33,
           "level": 1
         }
       ],
-      "line_count": 481,
+      "line_count": 563,
       "success": true
     },
     {
@@ -3022,7 +2940,7 @@
             "DatabaseHelper"
           ],
           "aliases": {},
-          "line": 16,
+          "line": 22,
           "level": 1
         },
         {
@@ -3034,7 +2952,7 @@
             "ConfigValidator"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 23,
           "level": 1
         },
         {
@@ -3046,11 +2964,11 @@
             "ErrorHandler"
           ],
           "aliases": {},
-          "line": 24,
+          "line": 31,
           "level": 1
         }
       ],
-      "line_count": 54,
+      "line_count": 57,
       "success": true
     },
     {
@@ -3093,7 +3011,7 @@
           "level": 1
         }
       ],
-      "line_count": 194,
+      "line_count": 209,
       "success": true
     },
     {
@@ -3147,7 +3065,7 @@
           "level": 1
         }
       ],
-      "line_count": 210,
+      "line_count": 223,
       "success": true
     },
     {
@@ -3204,7 +3122,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 165,
+      "line_count": 178,
       "success": true
     },
     {
@@ -3282,11 +3200,11 @@
             "TokenUsageType"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 24,
           "level": 1
         }
       ],
-      "line_count": 285,
+      "line_count": 299,
       "success": true
     },
     {
@@ -3394,7 +3312,7 @@
             "log_error"
           ],
           "aliases": {},
-          "line": 18,
+          "line": 21,
           "level": 0
         }
       ],
@@ -3406,7 +3324,7 @@
             "TokenEstimator"
           ],
           "aliases": {},
-          "line": 25,
+          "line": 34,
           "level": 1
         },
         {
@@ -3417,7 +3335,7 @@
             "TruncationDetector"
           ],
           "aliases": {},
-          "line": 26,
+          "line": 35,
           "level": 1
         },
         {
@@ -3428,7 +3346,7 @@
             "UsageRecommender"
           ],
           "aliases": {},
-          "line": 27,
+          "line": 36,
           "level": 1
         },
         {
@@ -3441,11 +3359,11 @@
             "ConfigValidator"
           ],
           "aliases": {},
-          "line": 28,
+          "line": 37,
           "level": 2
         }
       ],
-      "line_count": 306,
+      "line_count": 342,
       "success": true
     },
     {
@@ -3502,7 +3420,7 @@
             "log_info"
           ],
           "aliases": {},
-          "line": 18,
+          "line": 21,
           "level": 0
         }
       ],
@@ -3515,7 +3433,7 @@
             "ErrorHandler"
           ],
           "aliases": {},
-          "line": 25,
+          "line": 34,
           "level": 2
         },
         {
@@ -3525,11 +3443,11 @@
             "TokenEstimator"
           ],
           "aliases": {},
-          "line": 26,
+          "line": 35,
           "level": 1
         }
       ],
-      "line_count": 297,
+      "line_count": 363,
       "success": true
     },
     {
@@ -3588,7 +3506,7 @@
             "log_error"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 22,
           "level": 0
         }
       ],
@@ -3600,11 +3518,11 @@
             "ErrorHandler"
           ],
           "aliases": {},
-          "line": 25,
+          "line": 32,
           "level": 2
         }
       ],
-      "line_count": 145,
+      "line_count": 176,
       "success": true
     },
     {
@@ -3676,11 +3594,11 @@
             "CacheManager"
           ],
           "aliases": {},
-          "line": 18,
+          "line": 22,
           "level": 2
         }
       ],
-      "line_count": 282,
+      "line_count": 332,
       "success": true
     },
     {
@@ -3740,7 +3658,7 @@
             "ContextOrchestrator"
           ],
           "aliases": {},
-          "line": 159,
+          "line": 162,
           "level": 0
         },
         {
@@ -3749,7 +3667,7 @@
             "ModelOrchestrator"
           ],
           "aliases": {},
-          "line": 176,
+          "line": 181,
           "level": 0
         },
         {
@@ -3760,7 +3678,7 @@
           "aliases": {
             "ContentAnalysisOrchestrator": "ContentAnalyzer"
           },
-          "line": 206,
+          "line": 212,
           "level": 0
         },
         {
@@ -3769,7 +3687,7 @@
             "ModelOrchestrator"
           ],
           "aliases": {},
-          "line": 207,
+          "line": 215,
           "level": 0
         },
         {
@@ -3778,12 +3696,12 @@
             "SceneOrchestrator"
           ],
           "aliases": {},
-          "line": 242,
+          "line": 253,
           "level": 0
         }
       ],
       "relative_imports": [],
-      "line_count": 285,
+      "line_count": 298,
       "success": true
     },
     {
@@ -3792,7 +3710,7 @@
         {
           "module": "warnings",
           "alias": null,
-          "line": 8
+          "line": 9
         }
       ],
       "from_imports": [
@@ -3802,7 +3720,7 @@
             "annotations"
           ],
           "aliases": {},
-          "line": 6,
+          "line": 7,
           "level": 0
         },
         {
@@ -3811,12 +3729,12 @@
             "*"
           ],
           "aliases": {},
-          "line": 16,
+          "line": 17,
           "level": 0
         }
       ],
       "relative_imports": [],
-      "line_count": 16,
+      "line_count": 17,
       "success": true
     },
     {
@@ -3825,7 +3743,7 @@
         {
           "module": "warnings",
           "alias": null,
-          "line": 8
+          "line": 9
         }
       ],
       "from_imports": [
@@ -3835,7 +3753,7 @@
             "annotations"
           ],
           "aliases": {},
-          "line": 6,
+          "line": 7,
           "level": 0
         },
         {
@@ -3844,12 +3762,12 @@
             "*"
           ],
           "aliases": {},
-          "line": 16,
+          "line": 17,
           "level": 0
         }
       ],
       "relative_imports": [],
-      "line_count": 16,
+      "line_count": 17,
       "success": true
     },
     {
@@ -3893,7 +3811,7 @@
           "level": 1
         }
       ],
-      "line_count": 52,
+      "line_count": 50,
       "success": true
     },
     {
@@ -3948,7 +3866,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 183,
+      "line_count": 191,
       "success": true
     },
     {
@@ -3999,11 +3917,11 @@
             "ConfigurationManager"
           ],
           "aliases": {},
-          "line": 26,
+          "line": 28,
           "level": 1
         }
       ],
-      "line_count": 38,
+      "line_count": 40,
       "success": true
     },
     {
@@ -4060,7 +3978,7 @@
             "RegistryManager"
           ],
           "aliases": {},
-          "line": 21,
+          "line": 26,
           "level": 0
         },
         {
@@ -4070,7 +3988,7 @@
             "ModelConfig"
           ],
           "aliases": {},
-          "line": 22,
+          "line": 27,
           "level": 0
         },
         {
@@ -4079,7 +3997,7 @@
             "validate_provider_config"
           ],
           "aliases": {},
-          "line": 23,
+          "line": 28,
           "level": 0
         }
       ],
@@ -4090,11 +4008,11 @@
             "ModelConfiguration"
           ],
           "aliases": {},
-          "line": 157,
+          "line": 175,
           "level": 1
         }
       ],
-      "line_count": 341,
+      "line_count": 359,
       "success": true
     },
     {
@@ -4123,12 +4041,12 @@
         {
           "module": "httpx",
           "alias": null,
-          "line": 26
+          "line": 30
         },
         {
           "module": "socket",
           "alias": null,
-          "line": 515
+          "line": 622
         }
       ],
       "from_imports": [
@@ -4180,12 +4098,12 @@
             "urlparse"
           ],
           "aliases": {},
-          "line": 516,
+          "line": 623,
           "level": 0
         }
       ],
       "relative_imports": [],
-      "line_count": 548,
+      "line_count": 664,
       "success": true
     },
     {
@@ -4239,7 +4157,7 @@
             "PerformanceMonitor"
           ],
           "aliases": {},
-          "line": 380,
+          "line": 416,
           "level": 0
         }
       ],
@@ -4250,7 +4168,7 @@
             "ResponseGenerator"
           ],
           "aliases": {},
-          "line": 362,
+          "line": 393,
           "level": 1
         },
         {
@@ -4259,7 +4177,7 @@
             "LifecycleManager"
           ],
           "aliases": {},
-          "line": 368,
+          "line": 400,
           "level": 1
         },
         {
@@ -4268,7 +4186,7 @@
             "ConfigurationManager"
           ],
           "aliases": {},
-          "line": 374,
+          "line": 409,
           "level": 1
         },
         {
@@ -4277,11 +4195,11 @@
             "ModelOrchestrator"
           ],
           "aliases": {},
-          "line": 386,
+          "line": 425,
           "level": 1
         }
       ],
-      "line_count": 387,
+      "line_count": 427,
       "success": true
     },
     {
@@ -4295,7 +4213,7 @@
         {
           "module": "asyncio",
           "alias": null,
-          "line": 446
+          "line": 508
         }
       ],
       "from_imports": [
@@ -4328,7 +4246,7 @@
             "get_container"
           ],
           "aliases": {},
-          "line": 20,
+          "line": 25,
           "level": 0
         },
         {
@@ -4341,7 +4259,7 @@
             "ModelError"
           ],
           "aliases": {},
-          "line": 21,
+          "line": 26,
           "level": 0
         },
         {
@@ -4351,7 +4269,7 @@
             "SecurityThreatLevel"
           ],
           "aliases": {},
-          "line": 24,
+          "line": 33,
           "level": 0
         },
         {
@@ -4362,7 +4280,7 @@
             "log_warning"
           ],
           "aliases": {},
-          "line": 25,
+          "line": 37,
           "level": 0
         },
         {
@@ -4371,7 +4289,7 @@
             "PerformanceMonitor"
           ],
           "aliases": {},
-          "line": 351,
+          "line": 407,
           "level": 0
         },
         {
@@ -4381,7 +4299,7 @@
             "UTC"
           ],
           "aliases": {},
-          "line": 416,
+          "line": 477,
           "level": 0
         }
       ],
@@ -4408,11 +4326,11 @@
             "ConfigurationManager"
           ],
           "aliases": {},
-          "line": 346,
+          "line": 401,
           "level": 1
         }
       ],
-      "line_count": 550,
+      "line_count": 623,
       "success": true
     },
     {
@@ -4465,7 +4383,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 271,
+      "line_count": 332,
       "success": true
     },
     {
@@ -4526,7 +4444,7 @@
             "dataclass"
           ],
           "aliases": {},
-          "line": 521,
+          "line": 598,
           "level": 0
         }
       ],
@@ -4555,7 +4473,7 @@
           "level": 2
         }
       ],
-      "line_count": 647,
+      "line_count": 743,
       "success": true
     },
     {
@@ -4714,7 +4632,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 211,
+      "line_count": 235,
       "success": true
     },
     {
@@ -4782,7 +4700,7 @@
           "level": 1
         }
       ],
-      "line_count": 369,
+      "line_count": 432,
       "success": true
     },
     {
@@ -4863,7 +4781,7 @@
             "StatsBehaviorEngine"
           ],
           "aliases": {},
-          "line": 79,
+          "line": 80,
           "level": 1
         },
         {
@@ -4872,7 +4790,7 @@
             "InteractionDynamicsEngine"
           ],
           "aliases": {},
-          "line": 80,
+          "line": 81,
           "level": 1
         },
         {
@@ -4881,7 +4799,7 @@
             "ConsistencyValidationEngine"
           ],
           "aliases": {},
-          "line": 81,
+          "line": 82,
           "level": 1
         },
         {
@@ -4890,11 +4808,11 @@
             "PresentationStyleEngine"
           ],
           "aliases": {},
-          "line": 82,
+          "line": 83,
           "level": 1
         }
       ],
-      "line_count": 649,
+      "line_count": 738,
       "success": true
     },
     {
@@ -4923,7 +4841,7 @@
         {
           "module": "shutil",
           "alias": null,
-          "line": 321
+          "line": 340
         }
       ],
       "from_imports": [
@@ -4983,7 +4901,7 @@
           "level": 1
         }
       ],
-      "line_count": 329,
+      "line_count": 349,
       "success": true
     },
     {
@@ -5074,7 +4992,7 @@
           "level": 2
         }
       ],
-      "line_count": 490,
+      "line_count": 566,
       "success": true
     },
     {
@@ -5162,7 +5080,7 @@
           "level": 2
         }
       ],
-      "line_count": 456,
+      "line_count": 532,
       "success": true
     },
     {
@@ -5194,12 +5112,12 @@
         {
           "module": "os",
           "alias": null,
-          "line": 70
+          "line": 76
         },
         {
           "module": "json",
           "alias": null,
-          "line": 71
+          "line": 77
         }
       ],
       "from_imports": [
@@ -5236,7 +5154,7 @@
           "level": 2
         }
       ],
-      "line_count": 382,
+      "line_count": 420,
       "success": true
     },
     {
@@ -5325,11 +5243,11 @@
             "CharacterBehaviorInfluence"
           ],
           "aliases": {},
-          "line": 15,
+          "line": 19,
           "level": 2
         }
       ],
-      "line_count": 525,
+      "line_count": 598,
       "success": true
     },
     {
@@ -5359,11 +5277,11 @@
             "ValidationBase"
           ],
           "aliases": {},
-          "line": 24,
+          "line": 28,
           "level": 1
         }
       ],
-      "line_count": 48,
+      "line_count": 52,
       "success": true
     },
     {
@@ -5399,7 +5317,7 @@
           "level": 1
         }
       ],
-      "line_count": 16,
+      "line_count": 12,
       "success": true
     },
     {
@@ -5472,7 +5390,7 @@
           "level": 3
         }
       ],
-      "line_count": 235,
+      "line_count": 243,
       "success": true
     },
     {
@@ -5549,7 +5467,7 @@
           "level": 3
         }
       ],
-      "line_count": 582,
+      "line_count": 644,
       "success": true
     },
     {
@@ -5606,7 +5524,7 @@
           "level": 3
         }
       ],
-      "line_count": 511,
+      "line_count": 554,
       "success": true
     },
     {
@@ -5642,7 +5560,7 @@
           "level": 1
         }
       ],
-      "line_count": 16,
+      "line_count": 12,
       "success": true
     },
     {
@@ -5715,7 +5633,7 @@
           "level": 3
         }
       ],
-      "line_count": 391,
+      "line_count": 421,
       "success": true
     },
     {
@@ -5788,7 +5706,7 @@
           "level": 3
         }
       ],
-      "line_count": 862,
+      "line_count": 942,
       "success": true
     },
     {
@@ -5845,7 +5763,7 @@
           "level": 3
         }
       ],
-      "line_count": 678,
+      "line_count": 700,
       "success": true
     },
     {
@@ -5878,7 +5796,7 @@
             "DiceEngine"
           ],
           "aliases": {},
-          "line": 15,
+          "line": 23,
           "level": 1
         },
         {
@@ -5887,7 +5805,7 @@
             "NarrativeBranchingEngine"
           ],
           "aliases": {},
-          "line": 16,
+          "line": 24,
           "level": 1
         },
         {
@@ -5896,11 +5814,11 @@
             "MechanicsOrchestrator"
           ],
           "aliases": {},
-          "line": 17,
+          "line": 25,
           "level": 1
         }
       ],
-      "line_count": 41,
+      "line_count": 48,
       "success": true
     },
     {
@@ -5946,7 +5864,7 @@
             "log_system_event"
           ],
           "aliases": {},
-          "line": 20,
+          "line": 25,
           "level": 0
         }
       ],
@@ -5972,11 +5890,11 @@
             "NarrativeSystemError"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 24,
           "level": 2
         }
       ],
-      "line_count": 377,
+      "line_count": 372,
       "success": true
     },
     {
@@ -6016,7 +5934,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 288,
+      "line_count": 301,
       "success": true
     },
     {
@@ -6035,7 +5953,7 @@
         {
           "module": "random",
           "alias": null,
-          "line": 339
+          "line": 343
         }
       ],
       "from_imports": [
@@ -6067,7 +5985,7 @@
             "log_system_event"
           ],
           "aliases": {},
-          "line": 23,
+          "line": 30,
           "level": 0
         }
       ],
@@ -6096,7 +6014,7 @@
             "DiceEngine"
           ],
           "aliases": {},
-          "line": 20,
+          "line": 27,
           "level": 1
         },
         {
@@ -6105,7 +6023,7 @@
             "NarrativeBranchingEngine"
           ],
           "aliases": {},
-          "line": 21,
+          "line": 28,
           "level": 1
         },
         {
@@ -6114,11 +6032,11 @@
             "NarrativeSystemError"
           ],
           "aliases": {},
-          "line": 22,
+          "line": 29,
           "level": 2
         }
       ],
-      "line_count": 484,
+      "line_count": 509,
       "success": true
     },
     {
@@ -6164,7 +6082,7 @@
             "log_system_event"
           ],
           "aliases": {},
-          "line": 20,
+          "line": 24,
           "level": 0
         }
       ],
@@ -6189,11 +6107,11 @@
             "NarrativeSystemError"
           ],
           "aliases": {},
-          "line": 19,
+          "line": 23,
           "level": 2
         }
       ],
-      "line_count": 504,
+      "line_count": 571,
       "success": true
     },
     {
@@ -6217,17 +6135,17 @@
         {
           "module": "re",
           "alias": null,
-          "line": 357
+          "line": 365
         },
         {
           "module": "random",
           "alias": null,
-          "line": 358
+          "line": 366
         },
         {
           "module": "random",
           "alias": null,
-          "line": 448
+          "line": 456
         }
       ],
       "from_imports": [
@@ -6303,7 +6221,7 @@
             "ResponseOrchestrator"
           ],
           "aliases": {},
-          "line": 114,
+          "line": 121,
           "level": 1
         },
         {
@@ -6312,7 +6230,7 @@
             "MechanicsOrchestrator"
           ],
           "aliases": {},
-          "line": 115,
+          "line": 122,
           "level": 1
         },
         {
@@ -6321,7 +6239,7 @@
             "ConsistencyOrchestrator"
           ],
           "aliases": {},
-          "line": 116,
+          "line": 123,
           "level": 1
         },
         {
@@ -6330,11 +6248,11 @@
             "EmotionalOrchestrator"
           ],
           "aliases": {},
-          "line": 117,
+          "line": 124,
           "level": 1
         }
       ],
-      "line_count": 937,
+      "line_count": 1009,
       "success": true
     },
     {
@@ -6388,7 +6306,7 @@
           "level": 1
         }
       ],
-      "line_count": 48,
+      "line_count": 46,
       "success": true
     },
     {
@@ -6460,7 +6378,7 @@
           "level": 1
         }
       ],
-      "line_count": 392,
+      "line_count": 423,
       "success": true
     },
     {
@@ -6500,7 +6418,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 157,
+      "line_count": 179,
       "success": true
     },
     {
@@ -6582,7 +6500,7 @@
             "ContextAnalyzer"
           ],
           "aliases": {},
-          "line": 21,
+          "line": 26,
           "level": 1
         },
         {
@@ -6591,11 +6509,11 @@
             "ResponsePlanner"
           ],
           "aliases": {},
-          "line": 22,
+          "line": 27,
           "level": 1
         }
       ],
-      "line_count": 315,
+      "line_count": 384,
       "success": true
     },
     {
@@ -6660,7 +6578,7 @@
           "level": 1
         }
       ],
-      "line_count": 412,
+      "line_count": 461,
       "success": true
     },
     {
@@ -6751,7 +6669,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 295,
+      "line_count": 289,
       "success": true
     },
     {
@@ -6759,7 +6677,7 @@
       "imports": [],
       "from_imports": [],
       "relative_imports": [],
-      "line_count": 29,
+      "line_count": 41,
       "success": true
     },
     {
@@ -6814,7 +6732,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 102,
+      "line_count": 100,
       "success": true
     },
     {
@@ -6832,7 +6750,7 @@
           "level": 1
         }
       ],
-      "line_count": 24,
+      "line_count": 23,
       "success": true
     },
     {
@@ -6859,7 +6777,7 @@
           "level": 1
         }
       ],
-      "line_count": 11,
+      "line_count": 8,
       "success": true
     },
     {
@@ -6918,7 +6836,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 351,
+      "line_count": 412,
       "success": true
     },
     {
@@ -6978,7 +6896,7 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 317,
+      "line_count": 388,
       "success": true
     },
     {
@@ -7005,7 +6923,7 @@
           "level": 1
         }
       ],
-      "line_count": 11,
+      "line_count": 8,
       "success": true
     },
     {
@@ -7061,7 +6979,7 @@
           "level": 2
         }
       ],
-      "line_count": 369,
+      "line_count": 425,
       "success": true
     },
     {
@@ -7117,7 +7035,7 @@
           "level": 2
         }
       ],
-      "line_count": 304,
+      "line_count": 351,
       "success": true
     },
     {
@@ -7144,7 +7062,7 @@
           "level": 1
         }
       ],
-      "line_count": 11,
+      "line_count": 8,
       "success": true
     },
     {
@@ -7203,11 +7121,11 @@
             "SceneFilter"
           ],
           "aliases": {},
-          "line": 20,
+          "line": 24,
           "level": 2
         }
       ],
-      "line_count": 268,
+      "line_count": 297,
       "success": true
     },
     {
@@ -7254,7 +7172,7 @@
           "level": 2
         }
       ],
-      "line_count": 161,
+      "line_count": 178,
       "success": true
     },
     {
@@ -7327,7 +7245,7 @@
             "get_memory_orchestrator"
           ],
           "aliases": {},
-          "line": 216,
+          "line": 230,
           "level": 0
         }
       ],
@@ -7338,7 +7256,7 @@
             "SceneRepository"
           ],
           "aliases": {},
-          "line": 25,
+          "line": 30,
           "level": 1
         },
         {
@@ -7347,7 +7265,7 @@
             "SceneSerializer"
           ],
           "aliases": {},
-          "line": 26,
+          "line": 31,
           "level": 1
         },
         {
@@ -7356,7 +7274,7 @@
             "StatisticsEngine"
           ],
           "aliases": {},
-          "line": 27,
+          "line": 32,
           "level": 1
         },
         {
@@ -7365,7 +7283,7 @@
             "MoodAnalyzer"
           ],
           "aliases": {},
-          "line": 28,
+          "line": 33,
           "level": 1
         },
         {
@@ -7374,7 +7292,7 @@
             "SceneManager"
           ],
           "aliases": {},
-          "line": 29,
+          "line": 34,
           "level": 1
         },
         {
@@ -7383,7 +7301,7 @@
             "LabelingSystem"
           ],
           "aliases": {},
-          "line": 30,
+          "line": 35,
           "level": 1
         },
         {
@@ -7394,7 +7312,7 @@
             "StructuredTags"
           ],
           "aliases": {},
-          "line": 31,
+          "line": 36,
           "level": 1
         },
         {
@@ -7403,11 +7321,11 @@
             "SceneIdGenerator"
           ],
           "aliases": {},
-          "line": 32,
+          "line": 37,
           "level": 1
         }
       ],
-      "line_count": 323,
+      "line_count": 352,
       "success": true
     },
     {
@@ -7437,7 +7355,7 @@
           "level": 1
         }
       ],
-      "line_count": 14,
+      "line_count": 8,
       "success": true
     },
     {
@@ -7451,7 +7369,7 @@
       ],
       "from_imports": [],
       "relative_imports": [],
-      "line_count": 69,
+      "line_count": 70,
       "success": true
     },
     {
@@ -7498,24 +7416,11 @@
         }
       ],
       "relative_imports": [],
-      "line_count": 192,
+      "line_count": 215,
       "success": true
     }
   ],
   "migration_recommendations": [
-    {
-      "priority": "HIGH",
-      "category": "Legacy Core Imports",
-      "issue": "Found 12 different core.* imports",
-      "action": "Replace with src.openchronicle.* imports",
-      "examples": [
-        "core.content",
-        "core.content.context",
-        "core.database.database_orchestrator",
-        "core.images",
-        "core.memory"
-      ]
-    },
     {
       "priority": "MEDIUM",
       "category": "Deep Relative Imports",
@@ -7523,7 +7428,7 @@
       "action": "Convert to absolute imports from src.openchronicle",
       "examples": [
         "src\\openchronicle\\application\\commands\\__init__.py:14",
-        "src\\openchronicle\\application\\orchestrators\\__init__.py:20",
+        "src\\openchronicle\\application\\orchestrators\\__init__.py:27",
         "src\\openchronicle\\application\\queries\\__init__.py:14"
       ]
     },
@@ -7540,7 +7445,7 @@
     {
       "priority": "LOW",
       "category": "Unknown Imports",
-      "issue": "Found 97 unrecognized imports",
+      "issue": "Found 100 unrecognized imports",
       "action": "Review and categorize these imports",
       "examples": [
         "PIL",

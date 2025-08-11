@@ -9,9 +9,9 @@ from .memory_serializer import MemorySerializer, ValidationResult
 from .snapshot_manager import SnapshotManager, RollbackResult
 
 __all__ = [
-    'MemoryRepository',
-    'MemorySerializer', 
-    'ValidationResult',
-    'SnapshotManager',
-    'RollbackResult'
+    "MemoryRepository",
+    "MemorySerializer",
+    "ValidationResult",
+    "SnapshotManager",
+    "RollbackResult",
 ]

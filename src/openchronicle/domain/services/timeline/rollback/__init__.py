@@ -6,6 +6,4 @@ Provides modular state management functionality extracted from legacy systems.
 
 from .state_manager import StateManager
 
-__all__ = [
-    'StateManager'
-]
+__all__ = ["StateManager"]

@@ -3,6 +3,7 @@
 Use openchronicle.application.services.story_processing_service instead.
 This module will be removed in a future release.
 """
+
 from __future__ import annotations
 
 import warnings

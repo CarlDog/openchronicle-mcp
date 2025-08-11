@@ -228,7 +228,7 @@ def analyze_import_dependencies() -> Dict[str, Any]:
     """Analyze import dependencies across the project."""
     project_root = Path(".")
     
-    print("🔍 Analyzing OpenChronicle Import Structure")
+    print("Analyzing OpenChronicle Import Structure")
     print("=" * 50)
     
     # Find all Python files
@@ -365,7 +365,7 @@ def main() -> int:
         return 0
         
     except Exception as e:
-        print(f"\n❌ Error during analysis: {e}")
+        print(f"\nError during analysis: {e}")
         return 1
 
 

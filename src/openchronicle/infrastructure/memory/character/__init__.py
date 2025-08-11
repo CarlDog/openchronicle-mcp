@@ -6,7 +6,7 @@ in the OpenChronicle narrative AI engine.
 
 Components:
 - CharacterManager: Core character memory operations and updates
-- MoodTracker: Advanced mood analysis and emotional state tracking  
+- MoodTracker: Advanced mood analysis and emotional state tracking
 - VoiceManager: Voice profile management and consistency analysis
 
 Usage:
@@ -20,11 +20,11 @@ from .mood_tracker import MoodTracker, MoodAnalysis, MoodPattern
 from .voice_manager import VoiceManager, VoiceAnalysis, VoiceRecommendation
 
 __all__ = [
-    'CharacterManager',
-    'MoodTracker', 
-    'MoodAnalysis',
-    'MoodPattern',
-    'VoiceManager',
-    'VoiceAnalysis', 
-    'VoiceRecommendation'
+    "CharacterManager",
+    "MoodTracker",
+    "MoodAnalysis",
+    "MoodPattern",
+    "VoiceManager",
+    "VoiceAnalysis",
+    "VoiceRecommendation",
 ]

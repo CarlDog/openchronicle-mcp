@@ -6,21 +6,21 @@ Common utilities, base classes, and shared functionality for all narrative compo
 
 from .narrative_base import (
     NarrativeComponent,
-    NarrativeEvent, 
+    NarrativeEvent,
     ValidationResult,
     StateManager,
     EventProcessor,
-    ValidationBase
+    ValidationBase,
 )
 from .narrative_state import NarrativeStateManager, NarrativeState
 
 __all__ = [
     "NarrativeComponent",
     "NarrativeEvent",
-    "ValidationResult", 
+    "ValidationResult",
     "StateManager",
     "EventProcessor",
     "ValidationBase",
     "NarrativeStateManager",
-    "NarrativeState"
+    "NarrativeState",
 ]

@@ -13,7 +13,9 @@ from openchronicle import __version__
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="openchronicle", description="OpenChronicle CLI")
+    parser = argparse.ArgumentParser(
+        prog="openchronicle", description="OpenChronicle CLI"
+    )
     parser.add_argument("--version", action="store_true", help="Print version and exit")
     args = parser.parse_args(argv)
 
@@ -22,7 +24,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     # Placeholder: provide a minimal helpful message for now
-    print("OpenChronicle CLI is installed. Use your project scripts or run 'python -m openchronicle'.")
+    print(
+        "OpenChronicle CLI is installed. Use your project scripts or run 'python -m openchronicle'."
+    )
     return 0
 
 

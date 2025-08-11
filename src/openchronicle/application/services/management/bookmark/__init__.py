@@ -11,9 +11,9 @@ from .search_engine import BookmarkSearchEngine
 from .navigation_manager import NavigationManager
 
 __all__ = [
-    'BookmarkManager',
-    'BookmarkDataManager',
-    'BookmarkValidator',
-    'BookmarkSearchEngine',
-    'NavigationManager'
+    "BookmarkManager",
+    "BookmarkDataManager",
+    "BookmarkValidator",
+    "BookmarkSearchEngine",
+    "NavigationManager",
 ]

@@ -9,8 +9,4 @@ from .emotional_orchestrator import EmotionalOrchestrator
 from .stability_tracker import StabilityTracker
 from .mood_analyzer import MoodAnalyzer
 
-__all__ = [
-    'EmotionalOrchestrator',
-    'StabilityTracker',
-    'MoodAnalyzer'
-]
+__all__ = ["EmotionalOrchestrator", "StabilityTracker", "MoodAnalyzer"]

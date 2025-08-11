@@ -3,6 +3,7 @@
 Use openchronicle.application.cli_app instead.
 This module will be removed in a future release.
 """
+
 from __future__ import annotations
 
 import warnings

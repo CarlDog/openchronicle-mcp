@@ -11,7 +11,7 @@ Components:
 
 Usage:
     from src.openchronicle.infrastructure.content.analysis import ContentAnalysisOrchestrator
-    
+
     analyzer = ContentAnalysisOrchestrator(model_manager)
     result = await analyzer.process(content, context)
 """
@@ -32,24 +32,22 @@ from .routing import ModelSelector, ContentRouter, RecommendationEngine
 __version__ = "5.0.0"
 __all__ = [
     # Main orchestrator
-    'ContentAnalysisOrchestrator',
-    
+    "ContentAnalysisOrchestrator",
     # Component modules
-    'detection',
-    'extraction', 
-    'routing',
-    'shared',
-    
+    "detection",
+    "extraction",
+    "routing",
+    "shared",
     # Individual components
-    'ContentClassifier',
-    'KeywordDetector',
-    'TransformerAnalyzer',
-    'CharacterExtractor',
-    'LocationExtractor',
-    'LoreExtractor',
-    'ModelSelector',
-    'ContentRouter',
-    'RecommendationEngine'
+    "ContentClassifier",
+    "KeywordDetector",
+    "TransformerAnalyzer",
+    "CharacterExtractor",
+    "LocationExtractor",
+    "LoreExtractor",
+    "ModelSelector",
+    "ContentRouter",
+    "RecommendationEngine",
 ]
 
 # Backward compatibility alias

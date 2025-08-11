@@ -11,31 +11,25 @@ from .image_adapter import (
     StabilityImageAdapter,
     MockImageAdapter,
     ImageAdapterRegistry,
-    create_image_registry
+    create_image_registry,
 )
 
 from .storage_manager import ImageStorageManager
 
-from .format_converter import (
-    ImageFormatConverter,
-    ImageFormat,
-    ImageQuality
-)
+from .format_converter import ImageFormatConverter, ImageFormat, ImageQuality
 
 __all__ = [
     # Adapters
-    'ImageAdapter',
-    'OpenAIImageAdapter',
-    'StabilityImageAdapter',
-    'MockImageAdapter',
-    'ImageAdapterRegistry',
-    'create_image_registry',
-    
+    "ImageAdapter",
+    "OpenAIImageAdapter",
+    "StabilityImageAdapter",
+    "MockImageAdapter",
+    "ImageAdapterRegistry",
+    "create_image_registry",
     # Storage
-    'ImageStorageManager',
-    
+    "ImageStorageManager",
     # Format conversion
-    'ImageFormatConverter',
-    'ImageFormat',
-    'ImageQuality'
+    "ImageFormatConverter",
+    "ImageFormat",
+    "ImageQuality",
 ]

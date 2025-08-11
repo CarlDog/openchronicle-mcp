@@ -7,9 +7,15 @@ from openchronicle import __version__
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="openchronicle", description="OpenChronicle CLI")
+    parser = argparse.ArgumentParser(
+        prog="openchronicle", description="OpenChronicle CLI"
+    )
     parser.add_argument("--version", action="store_true", help="Print version and exit")
-    parser.add_argument("--legacy-cli", action="store_true", help="Run legacy CLI entry (may import heavy modules)")
+    parser.add_argument(
+        "--legacy-cli",
+        action="store_true",
+        help="Run legacy CLI entry (may import heavy modules)",
+    )
     args = parser.parse_args(argv)
 
     if args.version:

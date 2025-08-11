@@ -12,8 +12,4 @@ from .model_selector import ModelSelector
 from .content_router import ContentRouter
 from .recommendation_engine import RecommendationEngine
 
-__all__ = [
-    'ModelSelector',
-    'ContentRouter',
-    'RecommendationEngine'
-]
+__all__ = ["ModelSelector", "ContentRouter", "RecommendationEngine"]

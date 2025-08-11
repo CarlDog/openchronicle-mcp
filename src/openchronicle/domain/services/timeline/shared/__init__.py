@@ -6,8 +6,8 @@ from .fallback_state import FallbackStateManager
 from .fallback_navigation import FallbackNavigationManager
 
 __all__ = [
-    'TimelineUtilities',
-    'FallbackTimelineManager', 
-    'FallbackStateManager',
-    'FallbackNavigationManager'
+    "TimelineUtilities",
+    "FallbackTimelineManager",
+    "FallbackStateManager",
+    "FallbackNavigationManager",
 ]

@@ -7,7 +7,7 @@ the power of the template method pattern. Each adapter is reduced from
 
 Available Providers:
 - openai_adapter.py: OpenAI GPT models
-- anthropic_adapter.py: Anthropic Claude models  
+- anthropic_adapter.py: Anthropic Claude models
 - ollama_adapter.py: Local Ollama models
 
 All providers follow the same interface defined by BaseAPIAdapter,
@@ -20,6 +20,6 @@ from .ollama_adapter import OllamaAdapter
 
 __all__ = [
     "OpenAIAdapter",
-    "AnthropicAdapter", 
+    "AnthropicAdapter",
     "OllamaAdapter",
 ]

@@ -212,7 +212,7 @@ def check_import_paths() -> bool:
 
 def main() -> int:
     """Main validation function."""
-    print("🔍 OpenChronicle Development Environment Validation")
+    print("OpenChronicle Development Environment Validation")
     print("=" * 50)
     
     checks = [

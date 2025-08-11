@@ -13,8 +13,12 @@ from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime
 
 from .mechanics_models import (
-    NarrativeBranch, ResolutionResult, OutcomeType, ResolutionType,
-    CharacterPerformance, MechanicsRequest
+    NarrativeBranch,
+    ResolutionResult,
+    OutcomeType,
+    ResolutionType,
+    CharacterPerformance,
+    MechanicsRequest,
 )
 from ..shared.narrative_exceptions import NarrativeSystemError
 from src.openchronicle.shared.logging_system import log_system_event
@@ -22,198 +26,248 @@ from src.openchronicle.shared.logging_system import log_system_event
 
 class NarrativeBranchingEngine:
     """Handles narrative branch creation and path management."""
-    
+
     def __init__(self):
         """Initialize narrative branching engine."""
         self.logger = logging.getLogger(__name__)
-        
+
         # Branch templates for different outcome types
         self.outcome_templates = {
             OutcomeType.CRITICAL_SUCCESS: {
                 "probability_boost": 0.3,
-                "consequence_types": ["major_benefit", "skill_improvement", "reputation_gain"],
-                "transition_types": ["advance_quickly", "unlock_special", "gain_ally"]
+                "consequence_types": [
+                    "major_benefit",
+                    "skill_improvement",
+                    "reputation_gain",
+                ],
+                "transition_types": ["advance_quickly", "unlock_special", "gain_ally"],
             },
             OutcomeType.SUCCESS: {
                 "probability_boost": 0.1,
                 "consequence_types": ["minor_benefit", "progress", "positive_outcome"],
-                "transition_types": ["advance_normally", "continue_scene", "resolve_conflict"]
+                "transition_types": [
+                    "advance_normally",
+                    "continue_scene",
+                    "resolve_conflict",
+                ],
             },
             OutcomeType.PARTIAL_SUCCESS: {
                 "probability_boost": 0.0,
-                "consequence_types": ["mixed_result", "partial_progress", "complication"],
-                "transition_types": ["advance_cautiously", "create_tension", "add_challenge"]
+                "consequence_types": [
+                    "mixed_result",
+                    "partial_progress",
+                    "complication",
+                ],
+                "transition_types": [
+                    "advance_cautiously",
+                    "create_tension",
+                    "add_challenge",
+                ],
             },
             OutcomeType.FAILURE: {
                 "probability_boost": -0.1,
                 "consequence_types": ["setback", "minor_consequence", "delay"],
-                "transition_types": ["retry_needed", "alternate_path", "face_consequence"]
+                "transition_types": [
+                    "retry_needed",
+                    "alternate_path",
+                    "face_consequence",
+                ],
             },
             OutcomeType.CRITICAL_FAILURE: {
                 "probability_boost": -0.3,
                 "consequence_types": ["major_setback", "injury", "equipment_loss"],
-                "transition_types": ["dramatic_change", "emergency_response", "seek_help"]
-            }
+                "transition_types": [
+                    "dramatic_change",
+                    "emergency_response",
+                    "seek_help",
+                ],
+            },
         }
-        
+
         # Resolution type specific branches
         self.resolution_branches = {
             ResolutionType.SKILL_CHECK: {
-                "success_branches": ["demonstrate_expertise", "teach_others", "quick_solution"],
-                "failure_branches": ["learn_lesson", "seek_training", "try_different_approach"]
+                "success_branches": [
+                    "demonstrate_expertise",
+                    "teach_others",
+                    "quick_solution",
+                ],
+                "failure_branches": [
+                    "learn_lesson",
+                    "seek_training",
+                    "try_different_approach",
+                ],
             },
             ResolutionType.COMBAT_ACTION: {
-                "success_branches": ["defeat_enemy", "tactical_advantage", "heroic_moment"],
-                "failure_branches": ["tactical_retreat", "injury_consequence", "equipment_damage"]
+                "success_branches": [
+                    "defeat_enemy",
+                    "tactical_advantage",
+                    "heroic_moment",
+                ],
+                "failure_branches": [
+                    "tactical_retreat",
+                    "injury_consequence",
+                    "equipment_damage",
+                ],
             },
             ResolutionType.SOCIAL_INTERACTION: {
-                "success_branches": ["build_relationship", "gain_information", "social_advantage"],
-                "failure_branches": ["offend_character", "misunderstanding", "social_consequence"]
+                "success_branches": [
+                    "build_relationship",
+                    "gain_information",
+                    "social_advantage",
+                ],
+                "failure_branches": [
+                    "offend_character",
+                    "misunderstanding",
+                    "social_consequence",
+                ],
             },
             ResolutionType.EXPLORATION: {
-                "success_branches": ["major_discovery", "hidden_treasure", "secret_knowledge"],
-                "failure_branches": ["get_lost", "trigger_trap", "waste_resources"]
+                "success_branches": [
+                    "major_discovery",
+                    "hidden_treasure",
+                    "secret_knowledge",
+                ],
+                "failure_branches": ["get_lost", "trigger_trap", "waste_resources"],
             },
             ResolutionType.MAGICAL_ACTION: {
-                "success_branches": ["spectacular_effect", "magical_insight", "arcane_mastery"],
-                "failure_branches": ["magical_mishap", "spell_backfire", "magical_exhaustion"]
-            }
+                "success_branches": [
+                    "spectacular_effect",
+                    "magical_insight",
+                    "arcane_mastery",
+                ],
+                "failure_branches": [
+                    "magical_mishap",
+                    "spell_backfire",
+                    "magical_exhaustion",
+                ],
+            },
         }
-        
-        log_system_event("narrative_branching_initialized", "Narrative branching engine ready")
-    
+
+        log_system_event(
+            "narrative_branching_initialized", "Narrative branching engine ready"
+        )
+
     def create_narrative_branches(
         self,
         resolution_result: ResolutionResult,
         context: Dict[str, Any] = None,
-        max_branches: int = 3
+        max_branches: int = 3,
     ) -> List[NarrativeBranch]:
         """
         Create narrative branches based on resolution result.
-        
+
         Args:
             resolution_result: The resolution that triggers branching
             context: Additional context for branch creation
             max_branches: Maximum number of branches to create
-            
+
         Returns:
             List of narrative branches
         """
         if context is None:
             context = {}
-        
+
         try:
             branches = []
-            
+
             # Get templates for this outcome
             outcome_template = self.outcome_templates.get(
-                resolution_result.outcome,
-                self.outcome_templates[OutcomeType.SUCCESS]
+                resolution_result.outcome, self.outcome_templates[OutcomeType.SUCCESS]
             )
-            
+
             # Get resolution-specific branches
             resolution_template = self.resolution_branches.get(
                 resolution_result.resolution_type,
-                {"success_branches": ["continue"], "failure_branches": ["retry"]}
+                {"success_branches": ["continue"], "failure_branches": ["retry"]},
             )
-            
+
             # Determine if this was a success or failure
             is_success = resolution_result.outcome in [
                 OutcomeType.CRITICAL_SUCCESS,
                 OutcomeType.SUCCESS,
-                OutcomeType.PARTIAL_SUCCESS
+                OutcomeType.PARTIAL_SUCCESS,
             ]
-            
+
             # Select appropriate branch templates
             branch_templates = (
-                resolution_template["success_branches"] if is_success
+                resolution_template["success_branches"]
+                if is_success
                 else resolution_template["failure_branches"]
             )
-            
+
             # Create branches
             for i, template in enumerate(branch_templates[:max_branches]):
                 branch = self._create_branch_from_template(
-                    template,
-                    resolution_result,
-                    outcome_template,
-                    context,
-                    i
+                    template, resolution_result, outcome_template, context, i
                 )
                 branches.append(branch)
-            
+
             # Add a default "continue" branch if needed
             if len(branches) < 2:
                 default_branch = self._create_default_branch(resolution_result, context)
                 branches.append(default_branch)
-            
+
             # Normalize probabilities
             self._normalize_branch_probabilities(branches)
-            
+
             log_system_event(
                 "narrative_branches_created",
-                f"Created {len(branches)} branches for {resolution_result.outcome.value}"
+                f"Created {len(branches)} branches for {resolution_result.outcome.value}",
             )
-            
+
             return branches
-            
+
         except Exception as e:
             self.logger.error(f"Error creating narrative branches: {e}")
             raise NarrativeSystemError(f"Branch creation failed: {e}")
-    
+
     def _create_branch_from_template(
         self,
         template: str,
         resolution_result: ResolutionResult,
         outcome_template: Dict[str, Any],
         context: Dict[str, Any],
-        index: int
+        index: int,
     ) -> NarrativeBranch:
         """Create a branch from a template."""
-        
+
         # Generate branch ID
         branch_id = f"{resolution_result.character_id}_{template}_{index}_{datetime.now().strftime('%H%M%S')}"
-        
+
         # Base probability with outcome modifier
         base_probability = 0.5 + outcome_template.get("probability_boost", 0.0)
-        
+
         # Adjust probability based on success margin
         margin_adjustment = min(0.2, abs(resolution_result.success_margin) * 0.01)
         if resolution_result.success_margin > 0:
             base_probability += margin_adjustment
         else:
             base_probability -= margin_adjustment
-        
+
         # Clamp probability
         probability = max(0.1, min(0.9, base_probability))
-        
+
         # Generate description
         description = self._generate_branch_description(
-            template,
-            resolution_result,
-            context
+            template, resolution_result, context
         )
-        
+
         # Create consequences based on outcome
         consequences = self._generate_consequences(
-            template,
-            resolution_result,
-            outcome_template
+            template, resolution_result, outcome_template
         )
-        
+
         # Create stat changes
         stat_changes = self._generate_stat_changes(
-            template,
-            resolution_result,
-            outcome_template
+            template, resolution_result, outcome_template
         )
-        
+
         # Scene transitions
         scene_transitions = self._generate_scene_transitions(
-            template,
-            resolution_result,
-            context
+            template, resolution_result, context
         )
-        
+
         return NarrativeBranch(
             branch_id=branch_id,
             description=description,
@@ -221,17 +275,17 @@ class NarrativeBranchingEngine:
             stat_changes=stat_changes,
             scene_transitions=scene_transitions,
             character_consequences=consequences,
-            required_outcome=resolution_result.outcome
+            required_outcome=resolution_result.outcome,
         )
-    
+
     def _generate_branch_description(
         self,
         template: str,
         resolution_result: ResolutionResult,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> str:
         """Generate descriptive text for a branch."""
-        
+
         # Template descriptions
         descriptions = {
             "demonstrate_expertise": f"Your skill shines through, impressively {template.replace('_', ' ')}",
@@ -263,35 +317,35 @@ class NarrativeBranchingEngine:
             "arcane_mastery": "Your magical abilities improve significantly",
             "magical_mishap": "The spell goes awry with unexpected results",
             "spell_backfire": "The magic turns against you",
-            "magical_exhaustion": "The attempt drains your magical energies"
+            "magical_exhaustion": "The attempt drains your magical energies",
         }
-        
+
         base_description = descriptions.get(
             template,
-            f"The {resolution_result.resolution_type.value.replace('_', ' ')} has consequences"
+            f"The {resolution_result.resolution_type.value.replace('_', ' ')} has consequences",
         )
-        
+
         # Add context-specific details
         character_name = context.get("character_name", "character")
         location = context.get("current_location", "area")
-        
+
         if "character_name" in context:
             base_description = base_description.replace("You", character_name)
             base_description = base_description.replace("Your", f"{character_name}'s")
-        
+
         return base_description
-    
+
     def _generate_consequences(
         self,
         template: str,
         resolution_result: ResolutionResult,
-        outcome_template: Dict[str, Any]
+        outcome_template: Dict[str, Any],
     ) -> List[str]:
         """Generate consequences for the branch."""
         consequences = []
-        
+
         consequence_types = outcome_template.get("consequence_types", [])
-        
+
         for consequence_type in consequence_types[:2]:  # Limit to 2 consequences
             if consequence_type == "major_benefit":
                 consequences.append("Significant positive outcome")
@@ -313,18 +367,18 @@ class NarrativeBranchingEngine:
                 consequences.append("Significant hindrance")
             elif consequence_type == "injury":
                 consequences.append("Physical harm")
-        
+
         return consequences
-    
+
     def _generate_stat_changes(
         self,
         template: str,
         resolution_result: ResolutionResult,
-        outcome_template: Dict[str, Any]
+        outcome_template: Dict[str, Any],
     ) -> Dict[str, int]:
         """Generate stat changes for the branch."""
         stat_changes = {}
-        
+
         # Base stat changes based on outcome
         if resolution_result.outcome == OutcomeType.CRITICAL_SUCCESS:
             stat_changes["experience"] = random.randint(15, 25)
@@ -339,29 +393,31 @@ class NarrativeBranchingEngine:
             stat_changes["confidence"] = random.randint(-2, 0)
         elif resolution_result.outcome == OutcomeType.CRITICAL_FAILURE:
             stat_changes["confidence"] = random.randint(-5, -2)
-        
+
         # Template-specific changes
         if "expertise" in template or "mastery" in template:
             skill_bonus = random.randint(1, 3)
-            stat_changes[f"{resolution_result.resolution_type.value}_skill"] = skill_bonus
-        
+            stat_changes[f"{resolution_result.resolution_type.value}_skill"] = (
+                skill_bonus
+            )
+
         if "injury" in template:
             stat_changes["health"] = random.randint(-10, -5)
-        
+
         if "treasure" in template:
             stat_changes["wealth"] = random.randint(10, 100)
-        
+
         return stat_changes
-    
+
     def _generate_scene_transitions(
         self,
         template: str,
         resolution_result: ResolutionResult,
-        context: Dict[str, Any]
+        context: Dict[str, Any],
     ) -> List[str]:
         """Generate scene transitions for the branch."""
         transitions = []
-        
+
         # Common transitions based on template
         if "advance" in template:
             transitions.append("progress_to_next_scene")
@@ -371,121 +427,132 @@ class NarrativeBranchingEngine:
             transitions.append("explore_discovery")
         elif "social" in template:
             transitions.append("continue_social_interaction")
-        
+
         # Context-based transitions
         current_scene = context.get("current_scene", "")
         if current_scene:
             if "combat" in current_scene.lower():
-                if resolution_result.outcome in [OutcomeType.SUCCESS, OutcomeType.CRITICAL_SUCCESS]:
+                if resolution_result.outcome in [
+                    OutcomeType.SUCCESS,
+                    OutcomeType.CRITICAL_SUCCESS,
+                ]:
                     transitions.append("end_combat_victorious")
                 else:
                     transitions.append("continue_combat_defensively")
             elif "exploration" in current_scene.lower():
                 transitions.append("continue_exploration")
-        
+
         return transitions if transitions else ["continue_current_scene"]
-    
+
     def _create_default_branch(
-        self,
-        resolution_result: ResolutionResult,
-        context: Dict[str, Any]
+        self, resolution_result: ResolutionResult, context: Dict[str, Any]
     ) -> NarrativeBranch:
         """Create a default continuation branch."""
         branch_id = f"default_{resolution_result.character_id}_{datetime.now().strftime('%H%M%S')}"
-        
+
         return NarrativeBranch(
             branch_id=branch_id,
             description="Continue with the natural flow of events",
             probability=0.6,
             scene_transitions=["continue_current_scene"],
-            character_consequences=["Natural progression"]
+            character_consequences=["Natural progression"],
         )
-    
+
     def _normalize_branch_probabilities(self, branches: List[NarrativeBranch]):
         """Normalize branch probabilities to sum to 1.0."""
         if not branches:
             return
-        
+
         total_probability = sum(branch.probability for branch in branches)
-        
+
         if total_probability > 0:
             for branch in branches:
                 branch.probability = branch.probability / total_probability
-    
+
     def select_branch(
         self,
         branches: List[NarrativeBranch],
         character_performance: Optional[CharacterPerformance] = None,
-        bias_factor: float = 0.0
+        bias_factor: float = 0.0,
     ) -> Optional[NarrativeBranch]:
         """
         Select a branch from available options.
-        
+
         Args:
             branches: Available branches
             character_performance: Character's recent performance
             bias_factor: Bias toward certain outcomes (-1.0 to 1.0)
-            
+
         Returns:
             Selected branch or None
         """
         if not branches:
             return None
-        
+
         # Adjust probabilities based on character performance
         adjusted_branches = []
         for branch in branches:
             adjusted_prob = branch.probability
-            
+
             # Performance-based adjustments
             if character_performance:
                 success_rate = character_performance.calculate_success_rate()
                 if success_rate > 0.7:  # High performer
-                    if branch.required_outcome in [OutcomeType.SUCCESS, OutcomeType.CRITICAL_SUCCESS]:
+                    if branch.required_outcome in [
+                        OutcomeType.SUCCESS,
+                        OutcomeType.CRITICAL_SUCCESS,
+                    ]:
                         adjusted_prob *= 1.2
                 elif success_rate < 0.3:  # Struggling performer
-                    if branch.required_outcome in [OutcomeType.FAILURE, OutcomeType.CRITICAL_FAILURE]:
+                    if branch.required_outcome in [
+                        OutcomeType.FAILURE,
+                        OutcomeType.CRITICAL_FAILURE,
+                    ]:
                         adjusted_prob *= 1.2
-            
+
             # Apply bias factor
             if bias_factor > 0:  # Bias toward success
-                if branch.required_outcome in [OutcomeType.SUCCESS, OutcomeType.CRITICAL_SUCCESS]:
-                    adjusted_prob *= (1 + bias_factor)
+                if branch.required_outcome in [
+                    OutcomeType.SUCCESS,
+                    OutcomeType.CRITICAL_SUCCESS,
+                ]:
+                    adjusted_prob *= 1 + bias_factor
             elif bias_factor < 0:  # Bias toward failure
-                if branch.required_outcome in [OutcomeType.FAILURE, OutcomeType.CRITICAL_FAILURE]:
-                    adjusted_prob *= (1 + abs(bias_factor))
-            
+                if branch.required_outcome in [
+                    OutcomeType.FAILURE,
+                    OutcomeType.CRITICAL_FAILURE,
+                ]:
+                    adjusted_prob *= 1 + abs(bias_factor)
+
             adjusted_branches.append((branch, adjusted_prob))
-        
+
         # Normalize adjusted probabilities
         total_prob = sum(prob for _, prob in adjusted_branches)
         if total_prob <= 0:
             return random.choice(branches)
-        
+
         # Select branch using weighted random choice
         rand_val = random.random() * total_prob
         cumulative = 0.0
-        
+
         for branch, prob in adjusted_branches:
             cumulative += prob
             if rand_val <= cumulative:
                 return branch
-        
+
         # Fallback to last branch
         return adjusted_branches[-1][0] if adjusted_branches else branches[-1]
-    
+
     def evaluate_branch_requirements(
-        self,
-        branch: NarrativeBranch,
-        character_state: Dict[str, Any]
+        self, branch: NarrativeBranch, character_state: Dict[str, Any]
     ) -> bool:
         """
         Check if character meets branch requirements.
-        
+
         Args:
             branch: Branch to evaluate
             character_state: Current character state
-            
+
         Returns:
             True if requirements are met
         """
@@ -494,11 +561,11 @@ class NarrativeBranchingEngine:
             character_skill = character_state.get("skills", {}).get(skill, 0)
             if character_skill < required_level:
                 return False
-        
+
         # Check required items
         character_items = character_state.get("inventory", [])
         for required_item in branch.required_items:
             if required_item not in character_items:
                 return False
-        
+
         return True

@@ -39,19 +39,18 @@ templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 # Web Application Container
 # ================================
 
+
 class WebAppContainer:
     """Container for web application dependencies."""
-    
+
     def __init__(self):
         # Create default infrastructure configuration
         config = InfrastructureConfig(
-            storage_backend="filesystem",
-            storage_path="storage",
-            cache_type="memory"
+            storage_backend="filesystem", storage_path="storage", cache_type="memory"
         )
         self.infrastructure = InfrastructureContainer(config)
         self.app_facade = None
-    
+
     async def initialize(self):
         """Initialize the application facade."""
         await self.infrastructure.initialize()
@@ -59,7 +58,7 @@ class WebAppContainer:
             story_orchestrator=self.infrastructure.get_story_orchestrator(),
             character_orchestrator=self.infrastructure.get_character_orchestrator(),
             scene_orchestrator=self.infrastructure.get_scene_orchestrator(),
-            memory_manager=self.infrastructure.get_memory_manager()
+            memory_manager=self.infrastructure.get_memory_manager(),
         )
 
 
@@ -78,9 +77,10 @@ async def get_app_facade() -> ApplicationFacade:
 # Template Creation Functions
 # ================================
 
+
 def create_base_template():
     """Create the base HTML template."""
-    return '''<!DOCTYPE html>
+    return """<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -165,12 +165,12 @@ def create_base_template():
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     {% block scripts %}{% endblock %}
 </body>
-</html>'''
+</html>"""
 
 
 def create_home_template():
     """Create the home page template."""
-    return '''{% extends "base.html" %}
+    return """{% extends "base.html" %}
 
 {% block title %}Home - OpenChronicle{% endblock %}
 
@@ -284,12 +284,12 @@ def create_home_template():
         </div>
     </div>
 </div>
-{% endblock %}'''
+{% endblock %}"""
 
 
 def create_stories_list_template():
     """Create the stories list template."""
-    return '''{% extends "base.html" %}
+    return """{% extends "base.html" %}
 
 {% block title %}Stories - OpenChronicle{% endblock %}
 
@@ -352,12 +352,12 @@ def create_stories_list_template():
     </a>
 </div>
 {% endif %}
-{% endblock %}'''
+{% endblock %}"""
 
 
 def create_story_create_template():
     """Create the story creation template."""
-    return '''{% extends "base.html" %}
+    return """{% extends "base.html" %}
 
 {% block title %}Create Story - OpenChronicle{% endblock %}
 
@@ -449,12 +449,12 @@ def create_story_create_template():
         </div>
     </div>
 </div>
-{% endblock %}'''
+{% endblock %}"""
 
 
 def create_story_detail_template():
     """Create the story detail template."""
-    return '''{% extends "base.html" %}
+    return """{% extends "base.html" %}
 
 {% block title %}{{ story.title }} - OpenChronicle{% endblock %}
 
@@ -606,12 +606,12 @@ def create_story_detail_template():
         </div>
     </div>
 </div>
-{% endblock %}'''
+{% endblock %}"""
 
 
 def create_status_template():
     """Create the system status template."""
-    return '''{% extends "base.html" %}
+    return """{% extends "base.html" %}
 
 {% block title %}System Status - OpenChronicle{% endblock %}
 
@@ -706,7 +706,7 @@ setTimeout(function() {
     location.reload();
 }, 30000);
 </script>
-{% endblock %}'''
+{% endblock %}"""
 
 
 def setup_templates():
@@ -719,7 +719,7 @@ def setup_templates():
         "story_detail.html": create_story_detail_template(),
         "status.html": create_status_template(),
     }
-    
+
     for filename, content in templates_to_create.items():
         template_path = TEMPLATE_DIR / filename
         if not template_path.exists():
@@ -734,55 +734,52 @@ setup_templates()
 # Web Route Handlers
 # ================================
 
+
 def create_web_app() -> FastAPI:
     """Create the web application with all routes."""
     app = FastAPI(title="OpenChronicle Web Interface")
-    
+
     # Serve static files
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
-    
+
     @app.get("/", response_class=HTMLResponse)
     async def home(request: Request):
         """Home page."""
         app_facade = await get_app_facade()
-        
+
         # Get quick stats
         stories_result = await app_facade.list_stories(limit=5)
         recent_stories = stories_result.data if stories_result.success else []
-        
+
         stats = {
             "stories": len(recent_stories) if recent_stories else 0,
             "characters": 0,  # TODO: implement global character count
-            "scenes": 0,      # TODO: implement global scene count
+            "scenes": 0,  # TODO: implement global scene count
         }
-        
-        return templates.TemplateResponse("home.html", {
-            "request": request,
-            "stats": stats,
-            "recent_stories": recent_stories
-        })
-    
+
+        return templates.TemplateResponse(
+            "home.html",
+            {"request": request, "stats": stats, "recent_stories": recent_stories},
+        )
+
     @app.get("/stories", response_class=HTMLResponse)
     async def stories_list(request: Request):
         """Stories list page."""
         app_facade = await get_app_facade()
-        
+
         result = await app_facade.list_stories(limit=50)
         stories = result.data if result.success else []
-        
-        return templates.TemplateResponse("stories_list.html", {
-            "request": request,
-            "stories": stories
-        })
-    
+
+        return templates.TemplateResponse(
+            "stories_list.html", {"request": request, "stories": stories}
+        )
+
     @app.get("/stories/create", response_class=HTMLResponse)
     async def story_create_form(request: Request):
         """Story creation form."""
-        return templates.TemplateResponse("story_create.html", {
-            "request": request
-        })
-    
+        return templates.TemplateResponse("story_create.html", {"request": request})
+
     @app.post("/stories/create")
     async def story_create_submit(
         request: Request,
@@ -791,11 +788,11 @@ def create_web_app() -> FastAPI:
         genre: str = Form(""),
         setting: str = Form(""),
         tech_level: str = Form(""),
-        magic_level: str = Form("")
+        magic_level: str = Form(""),
     ):
         """Handle story creation form submission."""
         app_facade = await get_app_facade()
-        
+
         # Build world state
         world_state = {}
         if genre:
@@ -806,82 +803,86 @@ def create_web_app() -> FastAPI:
             world_state["tech_level"] = tech_level
         if magic_level:
             world_state["magic_level"] = magic_level
-        
+
         result = await app_facade.create_story(
             title=title,
             description=description if description else None,
-            world_state=world_state
+            world_state=world_state,
         )
-        
+
         if result.success:
             story = result.data
             return RedirectResponse(
-                url=f"/stories/{story.id}",
-                status_code=HTTP_303_SEE_OTHER
+                url=f"/stories/{story.id}", status_code=HTTP_303_SEE_OTHER
             )
         else:
             # TODO: Handle validation errors
-            return templates.TemplateResponse("story_create.html", {
-                "request": request,
-                "errors": result.errors,
-                "title": title,
-                "description": description,
-                "genre": genre,
-                "setting": setting,
-                "tech_level": tech_level,
-                "magic_level": magic_level
-            })
-    
+            return templates.TemplateResponse(
+                "story_create.html",
+                {
+                    "request": request,
+                    "errors": result.errors,
+                    "title": title,
+                    "description": description,
+                    "genre": genre,
+                    "setting": setting,
+                    "tech_level": tech_level,
+                    "magic_level": magic_level,
+                },
+            )
+
     @app.get("/stories/{story_id}", response_class=HTMLResponse)
     async def story_detail(request: Request, story_id: str):
         """Story detail page."""
         app_facade = await get_app_facade()
-        
+
         # Get story
         story_result = await app_facade.get_story(story_id)
         if not story_result.success:
             raise HTTPException(status_code=404, detail="Story not found")
-        
+
         story = story_result.data
-        
+
         # Get characters
         chars_result = await app_facade.get_story_characters(story_id)
         characters = chars_result.data if chars_result.success else []
-        
+
         # Get recent scenes
         scenes_result = await app_facade.get_story_scenes(story_id, limit=5)
         scenes = scenes_result.data if scenes_result.success else []
-        
-        return templates.TemplateResponse("story_detail.html", {
-            "request": request,
-            "story": story,
-            "characters": characters,
-            "scenes": scenes
-        })
-    
+
+        return templates.TemplateResponse(
+            "story_detail.html",
+            {
+                "request": request,
+                "story": story,
+                "characters": characters,
+                "scenes": scenes,
+            },
+        )
+
     @app.get("/status", response_class=HTMLResponse)
     async def status_page(request: Request):
         """System status page."""
         try:
             health_status = await _web_container.infrastructure.health_check()
-            
+
             health = {
                 "status": health_status["status"],
                 "timestamp": datetime.now(),
-                "components": health_status["components"]
+                "components": health_status["components"],
             }
         except Exception as e:
             health = {
                 "status": "error",
                 "timestamp": datetime.now(),
-                "components": {"error": str(e)}
+                "components": {"error": str(e)},
             }
-        
-        return templates.TemplateResponse("status.html", {
-            "request": request,
-            "health": health
-        })
-    
+
+        return templates.TemplateResponse(
+            "status.html", {"request": request, "health": health}
+        )
+
     return app
 
 
@@ -889,10 +890,11 @@ def create_web_app() -> FastAPI:
 # Development Server
 # ================================
 
+
 def run_web_server(host: str = "0.0.0.0", port: int = 8080, reload: bool = True):
     """Run the web development server."""
     import uvicorn
-    
+
     app = create_web_app()
     print(f"🌐 Starting OpenChronicle Web Interface on {host}:{port}")
     uvicorn.run(app, host=host, port=port, reload=reload, log_level="info")

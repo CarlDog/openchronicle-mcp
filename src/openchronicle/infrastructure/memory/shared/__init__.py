@@ -16,26 +16,25 @@ from .memory_models import (
     MemoryState,
     MemorySnapshot,
     CharacterUpdates,
-    MemoryUpdateResult
+    MemoryUpdateResult,
 )
 
 from .memory_utilities import MemoryUtilities
 
 __all__ = [
     # Data models
-    'MemoryType',
-    'MemoryFlag',
-    'RecentEvent',
-    'WorldEvent',
-    'MoodEntry',
-    'VoiceProfile',
-    'CharacterMemory',
-    'MemoryMetadata',
-    'MemoryState',
-    'MemorySnapshot',
-    'CharacterUpdates',
-    'MemoryUpdateResult',
-    
+    "MemoryType",
+    "MemoryFlag",
+    "RecentEvent",
+    "WorldEvent",
+    "MoodEntry",
+    "VoiceProfile",
+    "CharacterMemory",
+    "MemoryMetadata",
+    "MemoryState",
+    "MemorySnapshot",
+    "CharacterUpdates",
+    "MemoryUpdateResult",
     # Utilities
-    'MemoryUtilities'
+    "MemoryUtilities",
 ]

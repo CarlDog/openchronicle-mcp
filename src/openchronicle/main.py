@@ -9,7 +9,7 @@ Usage:
     from src.openchronicle.domain.models import ModelOrchestrator
     from src.openchronicle.infrastructure.memory import MemoryOrchestrator
     from src.openchronicle.domain.services.scenes import SceneOrchestrator
-    
+
 Architecture:
     - Domain Layer: Business models and services (narrative, characters, scenes, timeline)
     - Application Layer: Application services and orchestrators (management)
@@ -39,6 +39,7 @@ from .shared.centralized_config import CentralizedConfigManager
 
 try:
     from .domain.models.model_orchestrator import ModelOrchestrator
+
     MODEL_AVAILABLE = True
 except ImportError as e:
     log_warning(f"ModelOrchestrator not available: {e}")
@@ -47,6 +48,7 @@ except ImportError as e:
 
 try:
     from .infrastructure.memory.memory_orchestrator import MemoryOrchestrator
+
     MEMORY_AVAILABLE = True
 except ImportError as e:
     log_warning(f"MemoryOrchestrator not available: {e}")
@@ -55,6 +57,7 @@ except ImportError as e:
 
 try:
     from .domain.services.scenes.scene_orchestrator import SceneOrchestrator
+
     SCENE_AVAILABLE = True
 except ImportError as e:
     log_warning(f"SceneOrchestrator not available: {e}")
@@ -63,6 +66,7 @@ except ImportError as e:
 
 try:
     from .domain.services.narrative.narrative_orchestrator import NarrativeOrchestrator
+
     NARRATIVE_AVAILABLE = True
 except ImportError as e:
     log_warning(f"NarrativeOrchestrator not available: {e}")
@@ -74,6 +78,7 @@ except ImportError as e:
 
 try:
     from .domain.services.characters.character_orchestrator import CharacterOrchestrator
+
     CHARACTER_AVAILABLE = True
 except ImportError as e:
     log_warning(f"CharacterOrchestrator not available: {e}")
@@ -82,6 +87,7 @@ except ImportError as e:
 
 try:
     from .domain.services.timeline.timeline_orchestrator import TimelineOrchestrator
+
     TIMELINE_AVAILABLE = True
 except ImportError as e:
     log_warning(f"TimelineOrchestrator not available: {e}")
@@ -90,6 +96,7 @@ except ImportError as e:
 
 try:
     from .infrastructure.persistence.database_orchestrator import DatabaseOrchestrator
+
     DATABASE_AVAILABLE = True
 except ImportError as e:
     log_warning(f"DatabaseOrchestrator not available: {e}")
@@ -98,6 +105,7 @@ except ImportError as e:
 
 try:
     from .infrastructure.images.image_orchestrator import ImageOrchestrator
+
     IMAGE_AVAILABLE = True
 except ImportError as e:
     log_warning(f"ImageOrchestrator not available: {e}")
@@ -106,6 +114,7 @@ except ImportError as e:
 
 try:
     from .infrastructure.content.context import ContextOrchestrator
+
     CONTEXT_AVAILABLE = True
 except ImportError as e:
     log_warning(f"ContextOrchestrator not available: {e}")
@@ -114,6 +123,7 @@ except ImportError as e:
 
 try:
     from .infrastructure.content.analysis import ContentAnalysisOrchestrator
+
     ANALYSIS_AVAILABLE = True
 except ImportError as e:
     log_warning(f"ContentAnalysisOrchestrator not available: {e}")
@@ -121,7 +131,11 @@ except ImportError as e:
     ContentAnalysisOrchestrator = None
 
 try:
-    from .infrastructure.performance import PerformanceOrchestrator, ModelPerformanceMonitor
+    from .infrastructure.performance import (
+        PerformanceOrchestrator,
+        ModelPerformanceMonitor,
+    )
+
     PERFORMANCE_AVAILABLE = True
 except ImportError as e:
     log_warning(f"Performance modules not available: {e}")
@@ -131,20 +145,23 @@ except ImportError as e:
 
 # === UTILITY FUNCTIONS ===
 
+
 @dataclass
 class CoreStatus:
     """System health status for core components."""
+
     available_orchestrators: List[str]
     unavailable_orchestrators: List[str]
     total_count: int
     availability_percentage: float
     core_initialized: bool = False
-    
+
 
 def get_version() -> str:
     """Get OpenChronicle core version."""
     try:
         from .. import __version__
+
         return __version__
     except ImportError:
         return "development"
@@ -153,90 +170,95 @@ def get_version() -> str:
 def get_available_orchestrators() -> Dict[str, bool]:
     """Get availability status of all orchestrators."""
     return {
-        'ModelOrchestrator': MODEL_AVAILABLE,
-        'MemoryOrchestrator': MEMORY_AVAILABLE,
-        'SceneOrchestrator': SCENE_AVAILABLE,
-        'NarrativeOrchestrator': NARRATIVE_AVAILABLE,
-        'ContextOrchestrator': CONTEXT_AVAILABLE,
-        'CharacterOrchestrator': CHARACTER_AVAILABLE,
-        'TimelineOrchestrator': TIMELINE_AVAILABLE,
-        'DatabaseOrchestrator': DATABASE_AVAILABLE,
-        'ImageOrchestrator': IMAGE_AVAILABLE,
-        'ContextOrchestrator': CONTEXT_AVAILABLE,
-        'ContentAnalysisOrchestrator': ANALYSIS_AVAILABLE,
-        'PerformanceOrchestrator': PERFORMANCE_AVAILABLE,
-        'ModelPerformanceMonitor': PERFORMANCE_AVAILABLE,
+        "ModelOrchestrator": MODEL_AVAILABLE,
+        "MemoryOrchestrator": MEMORY_AVAILABLE,
+        "SceneOrchestrator": SCENE_AVAILABLE,
+        "NarrativeOrchestrator": NARRATIVE_AVAILABLE,
+        "ContextOrchestrator": CONTEXT_AVAILABLE,
+        "CharacterOrchestrator": CHARACTER_AVAILABLE,
+        "TimelineOrchestrator": TIMELINE_AVAILABLE,
+        "DatabaseOrchestrator": DATABASE_AVAILABLE,
+        "ImageOrchestrator": IMAGE_AVAILABLE,
+        "ContextOrchestrator": CONTEXT_AVAILABLE,
+        "ContentAnalysisOrchestrator": ANALYSIS_AVAILABLE,
+        "PerformanceOrchestrator": PERFORMANCE_AVAILABLE,
+        "ModelPerformanceMonitor": PERFORMANCE_AVAILABLE,
     }
 
 
 async def health_check() -> CoreStatus:
     """
     Perform comprehensive health check of core systems.
-    
+
     Returns:
         CoreStatus: Detailed health information
     """
     log_system_event("system", "Core health check initiated")
-    
+
     orchestrators = get_available_orchestrators()
     available = [name for name, status in orchestrators.items() if status]
     unavailable = [name for name, status in orchestrators.items() if not status]
-    
+
     total = len(orchestrators)
     availability = (len(available) / total) * 100 if total > 0 else 0
-    
+
     status = CoreStatus(
         available_orchestrators=available,
         unavailable_orchestrators=unavailable,
         total_count=total,
         availability_percentage=availability,
-        core_initialized=True
+        core_initialized=True,
     )
-    
+
     if availability < 50:
         log_error(f"Core system health critical: {availability:.1f}% availability")
     elif availability < 80:
         log_warning(f"Core system health degraded: {availability:.1f}% availability")
     else:
         log_info(f"Core system health good: {availability:.1f}% availability")
-    
+
     return status
 
 
 async def initialize_core(config_path: Optional[str] = None) -> bool:
     """
     Initialize core OpenChronicle systems.
-    
+
     Args:
         config_path: Optional path to configuration directory
-        
+
     Returns:
         bool: True if initialization successful
     """
     try:
         log_system_event("system", "Core initialization started")
-        
+
         # Initialize dependency injection container
         container = get_container()
         log_info("Dependency injection container initialized")
-        
+
         # Load centralized configuration
         if config_path:
             config = CentralizedConfigManager(config_path)
         else:
             config = CentralizedConfigManager()
         log_info("Centralized configuration loaded")
-        
+
         # Perform health check
         status = await health_check()
-        
+
         if status.availability_percentage >= 50:
-            log_system_event("system", f"Core initialization successful - {status.availability_percentage:.1f}% availability")
+            log_system_event(
+                "system",
+                f"Core initialization successful - {status.availability_percentage:.1f}% availability",
+            )
             return True
         else:
-            log_error(f"Core initialization failed - only {status.availability_percentage:.1f}% availability")
+            log_error(
+                f"Core initialization failed - only {status.availability_percentage:.1f}% availability"
+            )
             return False
-            
+
     except Exception as e:
         log_error(f"Core initialization failed: {e}")
         return False
@@ -271,41 +293,35 @@ def create_memory_orchestrator(*args, **kwargs) -> Optional[MemoryOrchestrator]:
 
 __all__ = [
     # Primary Orchestrators (Most commonly used)
-    'ModelOrchestrator',
-    'MemoryOrchestrator', 
-    'SceneOrchestrator',
-    'NarrativeOrchestrator',
-    'ContextOrchestrator',
-    
+    "ModelOrchestrator",
+    "MemoryOrchestrator",
+    "SceneOrchestrator",
+    "NarrativeOrchestrator",
+    "ContextOrchestrator",
     # Secondary Services (Specialized workflows)
-    'CharacterOrchestrator',
-    'TimelineOrchestrator',
-    'DatabaseOrchestrator',
-    'ImageOrchestrator',
-    'ContextOrchestrator',
-    'ContentAnalysisOrchestrator',
-    
+    "CharacterOrchestrator",
+    "TimelineOrchestrator",
+    "DatabaseOrchestrator",
+    "ImageOrchestrator",
+    "ContextOrchestrator",
+    "ContentAnalysisOrchestrator",
     # Performance Monitoring
-    'PerformanceOrchestrator',
-    'ModelPerformanceMonitor',
-    
+    "PerformanceOrchestrator",
+    "ModelPerformanceMonitor",
     # Utility Functions
-    'initialize_core',
-    'health_check',
-    'get_version',
-    'get_available_orchestrators',
-    
+    "initialize_core",
+    "health_check",
+    "get_version",
+    "get_available_orchestrators",
     # Factory Functions (Recommended)
-    'create_model_orchestrator',
-    'create_scene_orchestrator', 
-    'create_memory_orchestrator',
-    
+    "create_model_orchestrator",
+    "create_scene_orchestrator",
+    "create_memory_orchestrator",
     # Data Classes
-    'CoreStatus',
-    
+    "CoreStatus",
     # Core Infrastructure (from __init__.py)
-    'OpenChronicleError',
-    'get_container',
+    "OpenChronicleError",
+    "get_container",
 ]
 
 # Initialize logging

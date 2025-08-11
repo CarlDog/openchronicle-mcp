@@ -7,6 +7,4 @@ Components for analyzing performance data and identifying bottlenecks.
 
 from .bottleneck_analyzer import BottleneckAnalyzer
 
-__all__ = [
-    'BottleneckAnalyzer'
-]
+__all__ = ["BottleneckAnalyzer"]
