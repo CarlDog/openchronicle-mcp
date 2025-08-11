@@ -155,8 +155,8 @@ class TestRedisClusterManager:
     """Test Redis cluster management."""
     
     @pytest.mark.asyncio
-    @patch('core.memory.distributed_cache.REDIS_AVAILABLE', True)
-    @patch('core.memory.distributed_cache.redis')
+    @patch('src.openchronicle.infrastructure.memory.distributed_cache.REDIS_AVAILABLE', True)
+    @patch('src.openchronicle.infrastructure.memory.distributed_cache.redis')
     async def test_single_node_initialization(self, mock_redis):
         """Test single node Redis initialization."""
         mock_client = AsyncMock()
@@ -174,9 +174,9 @@ class TestRedisClusterManager:
         assert len(manager.clients) == 1
     
     @pytest.mark.asyncio
-    @patch('core.memory.distributed_cache.REDIS_AVAILABLE', True)
-    @patch('core.memory.distributed_cache.RedisCluster')
-    @patch('core.memory.distributed_cache.redis')
+    @patch('src.openchronicle.infrastructure.memory.distributed_cache.REDIS_AVAILABLE', True)
+    @patch('src.openchronicle.infrastructure.memory.distributed_cache.RedisCluster')
+    @patch('src.openchronicle.infrastructure.memory.distributed_cache.redis')
     async def test_cluster_initialization(self, mock_redis, mock_redis_cluster):
         """Test Redis cluster initialization."""
         mock_client = AsyncMock()
@@ -203,8 +203,8 @@ class TestRedisClusterManager:
         assert len(manager.clients) == 3
     
     @pytest.mark.asyncio
-    @patch('core.memory.distributed_cache.REDIS_AVAILABLE', True)
-    @patch('core.memory.distributed_cache.redis')
+    @patch('src.openchronicle.infrastructure.memory.distributed_cache.REDIS_AVAILABLE', True)
+    @patch('src.openchronicle.infrastructure.memory.distributed_cache.redis')
     async def test_distributed_get_set_operations(self, mock_redis):
         """Test distributed get/set operations through cluster manager."""
         mock_client = AsyncMock()
@@ -534,7 +534,7 @@ class TestIntegrationScenarios:
         assert cache.config.enable_cache_warming is True
     
     @pytest.mark.skipif(True, reason="Production monitoring integration test - requires complex setup") 
-    @patch('core.memory.production_monitoring.setup_production_monitoring')
+    @patch('src.openchronicle.infrastructure.memory.production_monitoring.setup_production_monitoring')
     async def test_full_monitoring_setup(self, mock_setup):
         """Test full monitoring setup integration."""
         mock_cache = AsyncMock()

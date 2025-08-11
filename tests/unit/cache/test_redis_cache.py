@@ -95,7 +95,7 @@ class TestMultiTierCache:
     
     async def test_cache_without_redis(self):
         """Test cache functionality when Redis is unavailable."""
-        with patch('core.memory.redis_cache.REDIS_AVAILABLE', False):
+        with patch('src.openchronicle.infrastructure.memory.redis_cache.REDIS_AVAILABLE', False):
             config = CacheConfig()
             cache = MultiTierCache(config)
             
