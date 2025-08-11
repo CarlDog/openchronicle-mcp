@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 # Import the orchestrator under test
-from src.openchronicle.domain.services.narrative.narrative_orchestrator import (
+from openchronicle.domain.services.narrative.narrative_orchestrator import (
     NarrativeOrchestrator,
 )
 

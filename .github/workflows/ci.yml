@@ -42,7 +42,7 @@ jobs:
         run: |
           echo "🔍 Checking hexagonal architecture compliance..."
           # Domain layer should not import from application/infrastructure
-          DOMAIN_VIOLATIONS=$(grep -r "from src.openchronicle.application\|from src.openchronicle.infrastructure" src/openchronicle/domain/ || true)
+          DOMAIN_VIOLATIONS=$(grep -r "from openchronicle.application\|from openchronicle.infrastructure" src/openchronicle/domain/ || true)
           if [ ! -z "$DOMAIN_VIOLATIONS" ]; then
             echo "❌ DOMAIN LAYER VIOLATION: Domain importing from outer layers!"
             echo "$DOMAIN_VIOLATIONS"

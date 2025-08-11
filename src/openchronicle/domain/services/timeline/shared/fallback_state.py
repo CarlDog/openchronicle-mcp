@@ -11,7 +11,7 @@ from typing import Any
 
 
 
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.domain.ports.persistence_port import IPersistencePort
 from typing import Optional
 
 class FallbackStateManager:

@@ -9,10 +9,10 @@ Extracted from: core/content_analyzer.py (lines 579-759)
 
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_error
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_system_event
 
 from ..shared.interfaces import DetectionComponent
 from .keyword_detector import KeywordDetector

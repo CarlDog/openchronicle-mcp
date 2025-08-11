@@ -5,7 +5,7 @@ Modular management systems for token and bookmark management.
 Provides unified orchestration with backward compatibility.
 
 Usage:
-    from src.openchronicle.application.services.management import ManagementOrchestrator
+    from openchronicle.application.services.management import ManagementOrchestrator
 
     # Unified management
     orchestrator = ManagementOrchestrator(config)
@@ -17,8 +17,8 @@ Usage:
     bookmark_id = orchestrator.create_bookmark(story_id, scene_id, label)
 
     # Individual systems
-    from src.openchronicle.application.services.management.token import TokenManager
-    from src.openchronicle.application.services.management.bookmark import BookmarkManager
+    from openchronicle.application.services.management.token import TokenManager
+    from openchronicle.application.services.management.bookmark import BookmarkManager
 """
 
 from .bookmark import BookmarkManager

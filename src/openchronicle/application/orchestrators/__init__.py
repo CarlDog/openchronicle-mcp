@@ -12,14 +12,14 @@ from datetime import datetime
 from typing import Any
 from typing import Protocol
 
-from src.openchronicle.domain import Character
-from src.openchronicle.domain import CharacterAnalyzer
-from src.openchronicle.domain import MemoryState
-from src.openchronicle.domain import ModelResponse
-from src.openchronicle.domain import NarrativeContext
-from src.openchronicle.domain import Scene
-from src.openchronicle.domain import Story
-from src.openchronicle.domain import StoryGenerator
+from openchronicle.domain import Character
+from openchronicle.domain import CharacterAnalyzer
+from openchronicle.domain import MemoryState
+from openchronicle.domain import ModelResponse
+from openchronicle.domain import NarrativeContext
+from openchronicle.domain import Scene
+from openchronicle.domain import Story
+from openchronicle.domain import StoryGenerator
 
 from ..commands import CommandResult
 from ..commands import CreateCharacterCommand

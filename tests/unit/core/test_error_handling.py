@@ -14,24 +14,24 @@ import asyncio
 import time
 
 import pytest
-from src.openchronicle.shared.error_handling import DatabaseError
-from src.openchronicle.shared.error_handling import ErrorCategory
-from src.openchronicle.shared.error_handling import ErrorContext
-from src.openchronicle.shared.error_handling import ErrorMonitor  # Monitoring
-from src.openchronicle.shared.error_handling import ErrorRecoveryManager
-from src.openchronicle.shared.error_handling import ErrorSeverity
-from src.openchronicle.shared.error_handling import FallbackValueStrategy
-from src.openchronicle.shared.error_handling import MemoryError
-from src.openchronicle.shared.error_handling import ModelError
-from src.openchronicle.shared.error_handling import OpenChronicleError
-from src.openchronicle.shared.error_handling import RetryStrategy
-from src.openchronicle.shared.error_handling import SecurityError
-from src.openchronicle.shared.error_handling import add_recovery_strategy
-from src.openchronicle.shared.error_handling import critical_operation
-from src.openchronicle.shared.error_handling import error_monitor
-from src.openchronicle.shared.error_handling import get_error_monitor
-from src.openchronicle.shared.error_handling import get_error_recovery_manager
-from src.openchronicle.shared.error_handling import with_error_handling  # Decorators
+from openchronicle.shared.error_handling import DatabaseError
+from openchronicle.shared.error_handling import ErrorCategory
+from openchronicle.shared.error_handling import ErrorContext
+from openchronicle.shared.error_handling import ErrorMonitor  # Monitoring
+from openchronicle.shared.error_handling import ErrorRecoveryManager
+from openchronicle.shared.error_handling import ErrorSeverity
+from openchronicle.shared.error_handling import FallbackValueStrategy
+from openchronicle.shared.error_handling import MemoryError
+from openchronicle.shared.error_handling import ModelError
+from openchronicle.shared.error_handling import OpenChronicleError
+from openchronicle.shared.error_handling import RetryStrategy
+from openchronicle.shared.error_handling import SecurityError
+from openchronicle.shared.error_handling import add_recovery_strategy
+from openchronicle.shared.error_handling import critical_operation
+from openchronicle.shared.error_handling import error_monitor
+from openchronicle.shared.error_handling import get_error_monitor
+from openchronicle.shared.error_handling import get_error_recovery_manager
+from openchronicle.shared.error_handling import with_error_handling  # Decorators
 
 
 class TestErrorHierarchy:

@@ -16,11 +16,11 @@ Features:
 from datetime import UTC
 from datetime import datetime
 from typing import Any
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
-from src.openchronicle.domain.ports.persistence_inmemory import (
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
+from openchronicle.domain.ports.persistence_inmemory import (
     InMemorySqlitePersistence,
 )
 

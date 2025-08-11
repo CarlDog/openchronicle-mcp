@@ -10,13 +10,13 @@ import uuid
 
 import typer
 
-from src.openchronicle.domain.ports.persistence_inmemory import (
+from openchronicle.domain.ports.persistence_inmemory import (
     InMemorySqlitePersistence,
 )
-from src.openchronicle.domain.services.timeline.shared.bookmark_manager import (
+from openchronicle.domain.services.timeline.shared.bookmark_manager import (
     SimpleBookmarkManager,
 )
-from src.openchronicle.interfaces.cli.support.output_manager import OutputManager
+from openchronicle.interfaces.cli.support.output_manager import OutputManager
 
 bookmarks_app = typer.Typer(help="Manage story bookmarks")
 

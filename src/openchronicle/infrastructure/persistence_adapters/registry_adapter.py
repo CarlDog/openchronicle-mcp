@@ -8,7 +8,7 @@ to implement the domain interface, maintaining the dependency inversion principl
 from typing import Any
 from typing import Optional
 
-from src.openchronicle.domain.ports.registry_port import IRegistryPort
+from openchronicle.domain.ports.registry_port import IRegistryPort
 
 
 class RegistryAdapter(IRegistryPort):
@@ -18,10 +18,10 @@ class RegistryAdapter(IRegistryPort):
         """Initialize registry adapter."""
         # Import here to avoid circular dependencies
         try:
-            from src.openchronicle.infrastructure.registry.registry_manager import (
+            from openchronicle.infrastructure.registry.registry_manager import (
                 RegistryManager,
             )
-            from src.openchronicle.infrastructure.registry.schema_validation import (
+            from openchronicle.infrastructure.registry.schema_validation import (
                 validate_provider_config,
             )
 

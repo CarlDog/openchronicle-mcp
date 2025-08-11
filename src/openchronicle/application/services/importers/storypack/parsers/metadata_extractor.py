@@ -1,4 +1,4 @@
-from src.openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
+from openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
 """
 OpenChronicle Metadata Extractor
 
@@ -11,7 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.openchronicle.shared.logging_system import get_logger
+from openchronicle.shared.logging_system import get_logger
 
 
 

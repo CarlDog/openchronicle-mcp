@@ -13,20 +13,20 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from src.openchronicle.shared.security import InputValidator
-from src.openchronicle.shared.security import SecurityContext
-from src.openchronicle.shared.security import SecurityMonitor
-from src.openchronicle.shared.security import SecurityThreatLevel
-from src.openchronicle.shared.security import SecurityViolationType
-from src.openchronicle.shared.security import SQLSecurityValidator
-from src.openchronicle.shared.security import security_manager
-from src.openchronicle.shared.security import validate_file_path
-from src.openchronicle.shared.security import validate_sql_query
-from src.openchronicle.shared.security import validate_user_input
-from src.openchronicle.shared.security_decorators import rate_limited
-from src.openchronicle.shared.security_decorators import require_authentication
-from src.openchronicle.shared.security_decorators import secure_input
-from src.openchronicle.shared.security_decorators import secure_operation
+from openchronicle.shared.security import InputValidator
+from openchronicle.shared.security import SecurityContext
+from openchronicle.shared.security import SecurityMonitor
+from openchronicle.shared.security import SecurityThreatLevel
+from openchronicle.shared.security import SecurityViolationType
+from openchronicle.shared.security import SQLSecurityValidator
+from openchronicle.shared.security import security_manager
+from openchronicle.shared.security import validate_file_path
+from openchronicle.shared.security import validate_sql_query
+from openchronicle.shared.security import validate_user_input
+from openchronicle.shared.security_decorators import rate_limited
+from openchronicle.shared.security_decorators import require_authentication
+from openchronicle.shared.security_decorators import secure_input
+from openchronicle.shared.security_decorators import secure_operation
 
 
 class TestInputValidator:
@@ -382,7 +382,7 @@ class TestGlobalSecurityManager:
 
     def test_security_summary(self):
         """Test getting security summary."""
-        from src.openchronicle.shared.security import get_security_summary
+        from openchronicle.shared.security import get_security_summary
 
         summary = get_security_summary()
 

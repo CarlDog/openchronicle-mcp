@@ -7,9 +7,9 @@ Handles FTS5 operations, index optimization, and search capabilities.
 import sqlite3
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_warning
-from src.openchronicle.shared.security import SecurityContext
-from src.openchronicle.shared.security import SQLSecurityValidator
+from openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.security import SecurityContext
+from openchronicle.shared.security import SQLSecurityValidator
 
 from .connection import ConnectionManager
 from .shared import FTSIndexInfo

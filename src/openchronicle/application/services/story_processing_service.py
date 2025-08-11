@@ -157,7 +157,7 @@ class StoryProcessingService:
         """Build context with intelligent analysis."""
         # Use the legacy context orchestrator temporarily
         # TODO: Migrate to proper domain service once available
-        from src.openchronicle.infrastructure.content.context import ContextOrchestrator
+        from openchronicle.infrastructure.content.context import ContextOrchestrator
 
         context_orchestrator = ContextOrchestrator()
         return await context_orchestrator.build_context_with_analysis(
@@ -176,7 +176,7 @@ class StoryProcessingService:
         try:
             # Use the legacy model orchestrator temporarily
             # TODO: Migrate to proper infrastructure adapter once available
-            from src.openchronicle.domain.models.model_orchestrator import (
+            from openchronicle.domain.models.model_orchestrator import (
                 ModelOrchestrator,
             )
 
@@ -207,10 +207,10 @@ class StoryProcessingService:
         try:
             # Use the legacy content analyzer temporarily
             # TODO: Migrate to proper domain service once available
-            from src.openchronicle.domain.models.model_orchestrator import (
+            from openchronicle.domain.models.model_orchestrator import (
                 ModelOrchestrator,
             )
-            from src.openchronicle.infrastructure.content import (
+            from openchronicle.infrastructure.content import (
                 ContentAnalysisOrchestrator as ContentAnalyzer,
             )
 
@@ -248,7 +248,7 @@ class StoryProcessingService:
         try:
             # Use the legacy scene orchestrator temporarily
             # TODO: Migrate to proper domain service once available
-            from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+            from openchronicle.domain.services.scenes.scene_orchestrator import (
                 SceneOrchestrator,
             )
 

@@ -9,17 +9,17 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
-from src.openchronicle.infrastructure.memory.cache_benchmark import (
+from openchronicle.infrastructure.memory.cache_benchmark import (
     CachePerformanceBenchmark,
 )
-from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+from openchronicle.infrastructure.memory.memory_orchestrator import (
     MemoryOrchestrator,
 )
-from src.openchronicle.infrastructure.memory.redis_cache import CacheConfig
-from src.openchronicle.infrastructure.memory.redis_cache import CachedCharacterManager
-from src.openchronicle.infrastructure.memory.redis_cache import CachedMemoryOrchestrator
-from src.openchronicle.infrastructure.memory.redis_cache import CacheMetrics
-from src.openchronicle.infrastructure.memory.redis_cache import MultiTierCache
+from openchronicle.infrastructure.memory.redis_cache import CacheConfig
+from openchronicle.infrastructure.memory.redis_cache import CachedCharacterManager
+from openchronicle.infrastructure.memory.redis_cache import CachedMemoryOrchestrator
+from openchronicle.infrastructure.memory.redis_cache import CacheMetrics
+from openchronicle.infrastructure.memory.redis_cache import MultiTierCache
 
 
 class TestCacheConfig:

@@ -11,8 +11,8 @@ from datetime import datetime
 from datetime import timedelta
 from typing import Any
 
-from src.openchronicle.shared.logging_system import get_logger
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import get_logger
+from openchronicle.shared.logging_system import log_system_event
 
 from .analysis.bottleneck_analyzer import BottleneckAnalyzer
 from .interfaces.performance_interfaces import IAlertManager

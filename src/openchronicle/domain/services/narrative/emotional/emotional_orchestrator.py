@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.shared.json_utilities import JSONUtilities
+from openchronicle.shared.json_utilities import JSONUtilities
 
 from ..shared.narrative_state import NarrativeStateManager
 from .mood_analyzer import MoodAnalyzer

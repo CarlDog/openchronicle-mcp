@@ -18,13 +18,13 @@ import time
 
 import pytest
 import pytest_asyncio
-from src.openchronicle.domain.services.characters import CharacterOrchestrator
-from src.openchronicle.domain.services.scenes import SceneOrchestrator
-from src.openchronicle.infrastructure.content.context import ContextOrchestrator
+from openchronicle.domain.services.characters import CharacterOrchestrator
+from openchronicle.domain.services.scenes import SceneOrchestrator
+from openchronicle.infrastructure.content.context import ContextOrchestrator
 
 # Import core systems
-from src.openchronicle.infrastructure.memory import MemoryOrchestrator
-from src.openchronicle.infrastructure.persistence import DatabaseOrchestrator
+from openchronicle.infrastructure.memory import MemoryOrchestrator
+from openchronicle.infrastructure.persistence import DatabaseOrchestrator
 
 # Import test utilities
 from tests.fixtures.mock_adapters import MockModelOrchestrator

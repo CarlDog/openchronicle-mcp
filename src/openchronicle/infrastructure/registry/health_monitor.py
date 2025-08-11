@@ -22,9 +22,9 @@ from datetime import timedelta
 from enum import Enum
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_system_event
 
 
 logger = logging.getLogger(__name__)

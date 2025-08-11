@@ -14,9 +14,9 @@ from datetime import datetime
 from typing import Any, Optional
 
 # Domain ports only - following hexagonal architecture
-from src.openchronicle.domain.ports.memory_port import IMemoryPort
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
-from src.openchronicle.domain.ports.persistence_inmemory import (
+from openchronicle.domain.ports.memory_port import IMemoryPort
+from openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.domain.ports.persistence_inmemory import (
     InMemorySqlitePersistence,
 )
 

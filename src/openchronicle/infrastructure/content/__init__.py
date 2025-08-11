@@ -9,11 +9,11 @@ Components:
 
 Usage:
     # Content Analysis
-    from src.openchronicle.infrastructure.content.analysis import ContentAnalysisOrchestrator
+    from openchronicle.infrastructure.content.analysis import ContentAnalysisOrchestrator
     analyzer = ContentAnalysisOrchestrator(model_manager)
 
     # Context Building
-    from src.openchronicle.infrastructure.content.context import ContextOrchestrator
+    from openchronicle.infrastructure.content.context import ContextOrchestrator
     context_builder = ContextOrchestrator()
 """
 

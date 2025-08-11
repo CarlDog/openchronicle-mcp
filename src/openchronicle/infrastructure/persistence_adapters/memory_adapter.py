@@ -8,7 +8,7 @@ to implement the domain interface for character memory operations.
 from typing import Any
 from typing import Optional
 
-from src.openchronicle.domain.ports.memory_port import IMemoryPort
+from openchronicle.domain.ports.memory_port import IMemoryPort
 
 
 class MemoryAdapter(IMemoryPort):
@@ -30,7 +30,7 @@ class MemoryAdapter(IMemoryPort):
         """
         try:
             # Import here to avoid circular dependencies
-            from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+            from openchronicle.infrastructure.memory import MemoryOrchestrator
 
             orchestrator = MemoryOrchestrator(story_id)
             return orchestrator.store_character_memory(character_name, memory_data)
@@ -52,7 +52,7 @@ class MemoryAdapter(IMemoryPort):
             Memory data if found, None otherwise
         """
         try:
-            from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+            from openchronicle.infrastructure.memory import MemoryOrchestrator
 
             orchestrator = MemoryOrchestrator(story_id)
             return orchestrator.get_character_memory(character_name)
@@ -75,7 +75,7 @@ class MemoryAdapter(IMemoryPort):
             True if successful, False otherwise
         """
         try:
-            from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+            from openchronicle.infrastructure.memory import MemoryOrchestrator
 
             orchestrator = MemoryOrchestrator(story_id)
             return orchestrator.update_character_memory(character_name, updates)
@@ -95,7 +95,7 @@ class MemoryAdapter(IMemoryPort):
             True if successful, False otherwise
         """
         try:
-            from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+            from openchronicle.infrastructure.memory import MemoryOrchestrator
 
             orchestrator = MemoryOrchestrator(story_id)
             return orchestrator.delete_character_memory(character_name)
@@ -114,7 +114,7 @@ class MemoryAdapter(IMemoryPort):
             List of character names
         """
         try:
-            from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+            from openchronicle.infrastructure.memory import MemoryOrchestrator
 
             orchestrator = MemoryOrchestrator(story_id)
             return orchestrator.list_characters()
@@ -137,7 +137,7 @@ class MemoryAdapter(IMemoryPort):
             import json
             from pathlib import Path
 
-            from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+            from openchronicle.infrastructure.memory import MemoryOrchestrator
 
             orchestrator = MemoryOrchestrator(story_id)
 
@@ -179,7 +179,7 @@ class MemoryAdapter(IMemoryPort):
             import json
             from pathlib import Path
 
-            from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+            from openchronicle.infrastructure.memory import MemoryOrchestrator
 
             # Load backup
             backup_dir = Path(f"storage/memory/{story_id}/backups")

@@ -6,7 +6,7 @@ Tests the token and bookmark management functionality.
 
 
 # Import the orchestrator under test
-from src.openchronicle.application.services.management.management_orchestrator import (
+from openchronicle.application.services.management.management_orchestrator import (
     ManagementOrchestrator,
 )
 

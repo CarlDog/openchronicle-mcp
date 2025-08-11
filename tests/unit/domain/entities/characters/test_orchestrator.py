@@ -6,7 +6,7 @@ Tests character management and consistency functionality.
 
 
 # Import the orchestrator under test
-from src.openchronicle.domain.services.characters.character_orchestrator import (
+from openchronicle.domain.services.characters.character_orchestrator import (
     CharacterOrchestrator,
 )
 

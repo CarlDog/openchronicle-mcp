@@ -18,9 +18,9 @@ from .connection import ConnectionManager
 
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_warning
 
 
 class DatabaseHealthChecker:

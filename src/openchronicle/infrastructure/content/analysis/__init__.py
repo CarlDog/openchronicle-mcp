@@ -10,7 +10,7 @@ Components:
 - Orchestrator: Main coordination interface
 
 Usage:
-    from src.openchronicle.infrastructure.content.analysis import ContentAnalysisOrchestrator
+    from openchronicle.infrastructure.content.analysis import ContentAnalysisOrchestrator
 
     analyzer = ContentAnalysisOrchestrator(model_manager)
     result = await analyzer.process(content, context)

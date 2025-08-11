@@ -12,10 +12,10 @@ import inspect
 from collections.abc import Callable
 from typing import Any
 
-from src.openchronicle.shared.security import SecurityContext
-from src.openchronicle.shared.security import SecurityThreatLevel
-from src.openchronicle.shared.security import SecurityViolationType
-from src.openchronicle.shared.security import security_manager
+from openchronicle.shared.security import SecurityContext
+from openchronicle.shared.security import SecurityThreatLevel
+from openchronicle.shared.security import SecurityViolationType
+from openchronicle.shared.security import security_manager
 
 
 def secure_input(*param_names: str, validation_type: str = "user_input"):

@@ -9,10 +9,10 @@ Extracted from: core/content_analyzer.py (lines 812-880)
 
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_system_event
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_warning
 
 from ..shared.interfaces import RoutingComponent
 

@@ -18,8 +18,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
 
 
 logger = logging.getLogger(__name__)

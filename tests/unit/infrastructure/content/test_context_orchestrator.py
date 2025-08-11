@@ -21,7 +21,7 @@ import pytest
 
 # Test the ContextOrchestrator import availability
 try:
-    from src.openchronicle.infrastructure.content.context.orchestrator import (
+    from openchronicle.infrastructure.content.context.orchestrator import (
         ContextOrchestrator,
     )
 

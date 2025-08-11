@@ -1,4 +1,4 @@
-from src.openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
+from openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
 """
 OpenChronicle Content Parser
 
@@ -16,8 +16,8 @@ try:
 except ImportError:
     CHARDET_AVAILABLE = False
 
-from src.openchronicle.shared.logging_system import get_logger
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import get_logger
+from openchronicle.shared.logging_system import log_system_event
 
 
 

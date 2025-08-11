@@ -19,20 +19,20 @@ from pathlib import Path
 from typing import Any
 from typing import Optional
 
-from src.openchronicle.domain.ports.registry_port import IRegistryPort
-from src.openchronicle.shared.centralized_config import SystemConfig
-from src.openchronicle.shared.logging_system import log_error
+from openchronicle.domain.ports.registry_port import IRegistryPort
+from openchronicle.shared.centralized_config import SystemConfig
+from openchronicle.shared.logging_system import log_error
 
 # Import existing specialized components
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
 
 # Use domain port for registry operations (hexagonal architecture compliance)
-from src.openchronicle.domain.ports.registry_port import IRegistryPort
+from openchronicle.domain.ports.registry_port import IRegistryPort
 
 # Conditional import for legacy compatibility
 try:
-    from src.openchronicle.domain.models.model_interfaces import ModelConfiguration
+    from openchronicle.domain.models.model_interfaces import ModelConfiguration
 except ImportError:
     ModelConfiguration = None
 

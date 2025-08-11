@@ -20,10 +20,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
 
 from .schema_validation import RegistryValidator
 from .schema_validation import SchemaValidationError

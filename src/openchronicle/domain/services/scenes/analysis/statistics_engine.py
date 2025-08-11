@@ -21,7 +21,7 @@ sys.path.append(str(Path(__file__).parent.parent.parent))
 # VIOLATION FIXED: Use dependency injection instead
 
 
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.domain.ports.persistence_port import IPersistencePort
 
 
 class StatisticsEngine:

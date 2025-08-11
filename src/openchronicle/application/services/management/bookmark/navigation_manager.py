@@ -13,8 +13,8 @@ from typing import Any
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
 
 from ..shared import BookmarkManagerException
 from ..shared import BookmarkType
@@ -27,7 +27,7 @@ class NavigationManager:
         self.story_id = story_id
         # Import database utilities with fallback
         try:
-            from src.openchronicle.infrastructure.persistence import execute_query
+            from openchronicle.infrastructure.persistence import execute_query
 
             self.execute_query = execute_query
         except ImportError:

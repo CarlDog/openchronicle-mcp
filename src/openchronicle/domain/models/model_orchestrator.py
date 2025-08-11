@@ -12,17 +12,17 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.shared.dependency_injection import get_container
-from src.openchronicle.shared.error_handling import ErrorCategory
-from src.openchronicle.shared.error_handling import ErrorContext
-from src.openchronicle.shared.error_handling import ErrorSeverity
-from src.openchronicle.shared.error_handling import ModelError
-from src.openchronicle.shared.error_handling import with_error_handling
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_warning
-from src.openchronicle.shared.security_decorators import SecurityThreatLevel
-from src.openchronicle.shared.security_decorators import secure_operation
+from openchronicle.shared.dependency_injection import get_container
+from openchronicle.shared.error_handling import ErrorCategory
+from openchronicle.shared.error_handling import ErrorContext
+from openchronicle.shared.error_handling import ErrorSeverity
+from openchronicle.shared.error_handling import ModelError
+from openchronicle.shared.error_handling import with_error_handling
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.security_decorators import SecurityThreatLevel
+from openchronicle.shared.security_decorators import secure_operation
 
 from .model_interfaces import AdapterStatus
 from .model_interfaces import IModelConfigurationManager

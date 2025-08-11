@@ -10,8 +10,8 @@ from pathlib import Path
 import typer
 from rich.console import Console
 from rich.prompt import Prompt
-from src.openchronicle.interfaces.cli.support.base_command import StoryCommand
-from src.openchronicle.interfaces.cli.support.output_manager import OutputManager
+from openchronicle.interfaces.cli.support.base_command import StoryCommand
+from openchronicle.interfaces.cli.support.output_manager import OutputManager
 
 
 # Import interactive commands
@@ -451,30 +451,30 @@ def import_storypack(
     from rich.progress import Progress
     from rich.progress import SpinnerColumn
     from rich.progress import TextColumn
-    from src.openchronicle.application.services.importers.storypack import AIProcessor
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import AIProcessor
+    from openchronicle.application.services.importers.storypack import (
         ContentClassifier,
     )
-    from src.openchronicle.application.services.importers.storypack import ContentParser
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import ContentParser
+    from openchronicle.application.services.importers.storypack import (
         MetadataExtractor,
     )
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import (
         OutputFormatter,
     )
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import (
         StorypackBuilder,
     )
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import (
         StorypackOrchestrator,
     )
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import (
         StructureAnalyzer,
     )
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import (
         TemplateEngine,
     )
-    from src.openchronicle.application.services.importers.storypack import (
+    from openchronicle.application.services.importers.storypack import (
         ValidationEngine,
     )
 

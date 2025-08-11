@@ -11,12 +11,12 @@ import json
 import re
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_error
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_model_interaction
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_model_interaction
+from openchronicle.shared.logging_system import log_warning
 
 from ..shared.interfaces import ExtractionComponent
 

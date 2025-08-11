@@ -23,12 +23,9 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 # Copy app source to a staging location
-COPY core/ /app-template/core/
+COPY src/ /app-template/src/
 COPY config/ /app-template/config/
 COPY templates/ /app-template/templates/
-COPY storage/ /app-template/storage/
-COPY utilities/ /app-template/utilities/
-COPY tests/ /app-template/tests/
 COPY main.py /app-template/
 COPY README.md /app-template/
 

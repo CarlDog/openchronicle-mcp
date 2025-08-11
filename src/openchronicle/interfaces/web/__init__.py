@@ -16,9 +16,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from src.openchronicle.application import ApplicationFacade
-from src.openchronicle.infrastructure import InfrastructureConfig
-from src.openchronicle.infrastructure import InfrastructureContainer
+from openchronicle.application import ApplicationFacade
+from openchronicle.infrastructure import InfrastructureConfig
+from openchronicle.infrastructure import InfrastructureContainer
 from starlette.status import HTTP_303_SEE_OTHER
 
 

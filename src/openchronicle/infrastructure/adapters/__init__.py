@@ -14,9 +14,9 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.openchronicle.application.orchestrators import ModelManager
-from src.openchronicle.domain import ModelResponse
-from src.openchronicle.domain import NarrativeContext
+from openchronicle.application.orchestrators import ModelManager
+from openchronicle.domain import ModelResponse
+from openchronicle.domain import NarrativeContext
 
 
 @dataclass

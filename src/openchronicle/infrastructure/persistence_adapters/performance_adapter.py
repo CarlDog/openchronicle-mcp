@@ -10,7 +10,7 @@ import uuid
 from typing import Any
 from typing import Optional
 
-from src.openchronicle.domain.ports.performance_port import IPerformancePort
+from openchronicle.domain.ports.performance_port import IPerformancePort
 
 
 class PerformanceAdapter(IPerformancePort):
@@ -22,7 +22,7 @@ class PerformanceAdapter(IPerformancePort):
 
         # Import here to avoid circular dependencies
         try:
-            from src.openchronicle.infrastructure.performance.model_monitor import (
+            from openchronicle.infrastructure.performance.model_monitor import (
                 PerformanceMonitor,
             )
 

@@ -9,10 +9,10 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.infrastructure.persistence.database_orchestrator import (
+from openchronicle.infrastructure.persistence.database_orchestrator import (
     database_orchestrator,
 )
-from src.openchronicle.shared.json_utilities import JSONUtilities
+from openchronicle.shared.json_utilities import JSONUtilities
 
 from ..shared.memory_models import MemoryState
 

@@ -23,9 +23,9 @@ import pytest
 import pytest_asyncio
 
 # Import core systems
-from src.openchronicle.infrastructure.memory import MemoryOrchestrator
-from src.openchronicle.infrastructure.performance import PerformanceOrchestrator
-from src.openchronicle.infrastructure.persistence import DatabaseOrchestrator
+from openchronicle.infrastructure.memory import MemoryOrchestrator
+from openchronicle.infrastructure.performance import PerformanceOrchestrator
+from openchronicle.infrastructure.persistence import DatabaseOrchestrator
 
 # Import test utilities
 from tests.fixtures.mock_adapters import MockModelOrchestrator

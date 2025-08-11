@@ -21,7 +21,7 @@ Architecture:
 """
 
 # VIOLATION FIXED: Use dependency injection instead of direct infrastructure imports
-# from src.openchronicle.infrastructure.performance.model_monitor import PerformanceMonitor
+# from openchronicle.infrastructure.performance.model_monitor import PerformanceMonitor
 
 from .configuration_manager import ConfigurationManager
 from .lifecycle_manager import LifecycleManager

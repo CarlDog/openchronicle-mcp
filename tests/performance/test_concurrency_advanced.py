@@ -9,10 +9,10 @@ import asyncio
 import time
 
 import pytest
-from src.openchronicle.domain.models import ModelOrchestrator
-from src.openchronicle.domain.services.characters import CharacterOrchestrator
-from src.openchronicle.domain.services.scenes import SceneOrchestrator
-from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+from openchronicle.domain.models import ModelOrchestrator
+from openchronicle.domain.services.characters import CharacterOrchestrator
+from openchronicle.domain.services.scenes import SceneOrchestrator
+from openchronicle.infrastructure.memory import MemoryOrchestrator
 
 
 class TestAdvancedConcurrency:
@@ -144,7 +144,7 @@ class TestConcurrencyPerformanceMetrics:
     @pytest.mark.performance
     async def test_concurrent_performance_monitoring(self, clean_test_environment):
         """Test performance monitoring during concurrent operations."""
-        from src.openchronicle.infrastructure.performance.model_monitor import (
+        from openchronicle.infrastructure.performance.model_monitor import (
             PerformanceMonitor,
         )
 

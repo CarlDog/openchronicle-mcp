@@ -15,7 +15,7 @@ from datetime import timedelta
 from difflib import SequenceMatcher
 from typing import Any
 
-from src.openchronicle.shared.json_utilities import JSONUtilities
+from openchronicle.shared.json_utilities import JSONUtilities
 
 
 logger = logging.getLogger(__name__)

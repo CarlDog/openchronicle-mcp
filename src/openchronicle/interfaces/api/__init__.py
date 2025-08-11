@@ -17,9 +17,9 @@ from fastapi import status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pydantic import Field
-from src.openchronicle.application import ApplicationFacade
-from src.openchronicle.infrastructure import InfrastructureConfig
-from src.openchronicle.infrastructure import InfrastructureContainer
+from openchronicle.application import ApplicationFacade
+from openchronicle.infrastructure import InfrastructureConfig
+from openchronicle.infrastructure import InfrastructureContainer
 
 
 # ================================

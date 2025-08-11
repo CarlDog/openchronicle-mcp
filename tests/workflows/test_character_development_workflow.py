@@ -20,12 +20,12 @@ import pytest
 import pytest_asyncio
 
 # Import core systems
-from src.openchronicle.domain.services.characters import CharacterOrchestrator
-from src.openchronicle.infrastructure.content.analysis import (
+from openchronicle.domain.services.characters import CharacterOrchestrator
+from openchronicle.infrastructure.content.analysis import (
     ContentAnalysisOrchestrator,
 )
-from src.openchronicle.infrastructure.memory import MemoryOrchestrator
-from src.openchronicle.infrastructure.persistence import DatabaseOrchestrator
+from openchronicle.infrastructure.memory import MemoryOrchestrator
+from openchronicle.infrastructure.persistence import DatabaseOrchestrator
 
 # Import test utilities
 from tests.fixtures.mock_adapters import MockModelOrchestrator

@@ -11,10 +11,10 @@ from datetime import datetime
 from typing import Any
 
 import psutil
-from src.openchronicle.shared.logging_system import get_logger
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import get_logger
+from openchronicle.shared.logging_system import log_system_event
 
-from src.openchronicle.domain.ports.performance_interface_port import IPerformanceInterfacePort
+from openchronicle.domain.ports.performance_interface_port import IPerformanceInterfacePort
 from ..interfaces.performance_interfaces import IMetricsCollector
 from ..interfaces.performance_interfaces import PerformanceMetrics
 from ..interfaces.performance_interfaces import OperationContext

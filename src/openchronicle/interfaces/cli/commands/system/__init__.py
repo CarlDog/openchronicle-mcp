@@ -13,8 +13,8 @@ from typing import Any
 
 import psutil
 import typer
-from src.openchronicle.interfaces.cli.support.base_command import SystemCommand
-from src.openchronicle.interfaces.cli.support.output_manager import OutputManager
+from openchronicle.interfaces.cli.support.base_command import SystemCommand
+from openchronicle.interfaces.cli.support.output_manager import OutputManager
 
 
 # Placeholder classes for future implementation

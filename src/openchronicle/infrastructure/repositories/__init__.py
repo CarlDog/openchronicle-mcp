@@ -13,10 +13,10 @@ from datetime import datetime
 from pathlib import Path
 
 import aiofiles
-from src.openchronicle.domain import Character
-from src.openchronicle.domain import Scene
-from src.openchronicle.domain import Story
-from src.openchronicle.domain import StoryStatus
+from openchronicle.domain import Character
+from openchronicle.domain import Scene
+from openchronicle.domain import Story
+from openchronicle.domain import StoryStatus
 
 
 class FileSystemStoryRepository:

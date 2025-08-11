@@ -18,9 +18,9 @@ from rich.progress import TextColumn
 from rich.prompt import Confirm
 from rich.prompt import Prompt
 from rich.table import Table
-from src.openchronicle.application import ApplicationFacade
-from src.openchronicle.infrastructure import InfrastructureConfig
-from src.openchronicle.infrastructure import InfrastructureContainer
+from openchronicle.application import ApplicationFacade
+from openchronicle.infrastructure import InfrastructureConfig
+from openchronicle.infrastructure import InfrastructureContainer
 
 
 # ================================

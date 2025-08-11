@@ -21,8 +21,8 @@ if str(current_dir) not in sys.path:
 
 # Import the main application logic
 try:
-    from src.openchronicle.shared.logging_system import log_error
-    from src.openchronicle.shared.logging_system import log_info
+    from openchronicle.shared.logging_system import log_error
+    from openchronicle.shared.logging_system import log_info
 except ImportError:
     # Fallback logging if logging system not available
     def log_info(msg):
@@ -34,28 +34,28 @@ except ImportError:
 
 # Import core components
 try:
-    from src.openchronicle.domain.models.model_orchestrator import ModelOrchestrator
-    from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+    from openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+    from openchronicle.domain.services.scenes.scene_orchestrator import (
         SceneOrchestrator,
     )
-    from src.openchronicle.domain.services.story_loader import load_storypack
-    from src.openchronicle.domain.services.timeline.timeline_orchestrator import (
+    from openchronicle.domain.services.story_loader import load_storypack
+    from openchronicle.domain.services.timeline.timeline_orchestrator import (
         TimelineOrchestrator,
     )
-    from src.openchronicle.infrastructure.content.analysis.orchestrator import (
+    from openchronicle.infrastructure.content.analysis.orchestrator import (
         ContentAnalysisOrchestrator as ContentAnalyzer,
     )
-    from src.openchronicle.infrastructure.content.context.orchestrator import (
+    from openchronicle.infrastructure.content.context.orchestrator import (
         ContextOrchestrator,
     )
-    from src.openchronicle.infrastructure.images.image_orchestrator import ImageType
-    from src.openchronicle.infrastructure.images.image_orchestrator import (
+    from openchronicle.infrastructure.images.image_orchestrator import ImageType
+    from openchronicle.infrastructure.images.image_orchestrator import (
         create_image_engine,
     )
-    from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+    from openchronicle.infrastructure.memory.memory_orchestrator import (
         MemoryOrchestrator,
     )
-    from src.openchronicle.infrastructure.persistence.database_orchestrator import (
+    from openchronicle.infrastructure.persistence.database_orchestrator import (
         startup_health_check,
     )
 
@@ -103,12 +103,12 @@ except ImportError as e:
     CORE_AVAILABLE = False
 
 # Security imports
-from src.openchronicle.interfaces.cli.support.base_command import StoryCommand
+from openchronicle.interfaces.cli.support.base_command import StoryCommand
 
 # CLI core imports
-from src.openchronicle.interfaces.cli.support.output_manager import OutputManager
-from src.openchronicle.shared.security import SecurityThreatLevel
-from src.openchronicle.shared.security import validate_user_input
+from openchronicle.interfaces.cli.support.output_manager import OutputManager
+from openchronicle.shared.security import SecurityThreatLevel
+from openchronicle.shared.security import validate_user_input
 
 
 class InteractiveStorySession:

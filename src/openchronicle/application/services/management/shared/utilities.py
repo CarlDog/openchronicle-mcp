@@ -15,8 +15,8 @@ from typing import Any
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_warning
 
 from .management_models import BookmarkRecord
 from .management_models import TokenUsageRecord

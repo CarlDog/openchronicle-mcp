@@ -8,17 +8,17 @@ to implement the domain interface, maintaining the dependency inversion principl
 from typing import Any
 from typing import Optional
 
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
-from src.openchronicle.infrastructure.persistence.database import (
+from openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.infrastructure.persistence.database import (
     execute_query as _execute_query,
 )
-from src.openchronicle.infrastructure.persistence.database import (
+from openchronicle.infrastructure.persistence.database import (
     execute_update as _execute_update,
 )
-from src.openchronicle.infrastructure.persistence.database import (
+from openchronicle.infrastructure.persistence.database import (
     get_db_path as _get_db_path,
 )
-from src.openchronicle.infrastructure.persistence.database import (
+from openchronicle.infrastructure.persistence.database import (
     init_database as _init_database,
 )
 

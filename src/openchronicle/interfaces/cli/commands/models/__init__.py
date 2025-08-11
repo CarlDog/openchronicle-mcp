@@ -9,8 +9,8 @@ from typing import Any
 
 import typer
 from rich.prompt import Prompt
-from src.openchronicle.interfaces.cli.support.base_command import ModelCommand
-from src.openchronicle.interfaces.cli.support.output_manager import OutputManager
+from openchronicle.interfaces.cli.support.base_command import ModelCommand
+from openchronicle.interfaces.cli.support.output_manager import OutputManager
 
 
 # Create the models command group

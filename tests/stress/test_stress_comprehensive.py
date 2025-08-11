@@ -24,14 +24,14 @@ import pytest
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-from src.openchronicle.domain.models.model_orchestrator import ModelOrchestrator
-from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+from openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+from openchronicle.domain.services.scenes.scene_orchestrator import (
     SceneOrchestrator,
 )
-from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+from openchronicle.infrastructure.memory.memory_orchestrator import (
     MemoryOrchestrator,
 )
-from src.openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_info
 
 from tests.stress.stress_testing_framework import create_stress_test_config
 from tests.stress.stress_testing_framework import create_stress_testing_framework

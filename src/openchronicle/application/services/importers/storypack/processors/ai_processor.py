@@ -1,4 +1,4 @@
-from src.openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
+from openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
 """
 OpenChronicle AI Processor
 
@@ -9,10 +9,10 @@ Handles model integration and content intelligence.
 from pathlib import Path
 from typing import Any
 
-from src.openchronicle.shared.logging_system import get_logger
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import get_logger
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
 
 
 
@@ -32,7 +32,7 @@ class AIProcessor(IAIProcessor):
         """Initialize AI capabilities."""
         try:
             # Import here to avoid circular dependencies
-            from src.openchronicle.infrastructure.content import (
+            from openchronicle.infrastructure.content import (
                 ContentAnalysisOrchestrator,
             )
 
@@ -258,7 +258,7 @@ class AIProcessor(IAIProcessor):
 
         try:
             if not self.content_analyzer:
-                from src.openchronicle.infrastructure.content import (
+                from openchronicle.infrastructure.content import (
                     ContentAnalysisOrchestrator,
                 )
 

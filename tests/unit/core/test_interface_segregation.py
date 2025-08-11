@@ -14,26 +14,26 @@ from unittest.mock import AsyncMock
 from unittest.mock import Mock
 
 import pytest
-from src.openchronicle.domain.models.model_interfaces import AdapterStatus
-from src.openchronicle.domain.models.model_interfaces import IModelLifecycleManager
-from src.openchronicle.domain.models.model_interfaces import IModelResponseGenerator
-from src.openchronicle.domain.models.model_interfaces import ModelConfiguration
-from src.openchronicle.domain.models.model_interfaces import ModelResponse
-from src.openchronicle.domain.models.model_orchestrator import ModelLifecycleManager
-from src.openchronicle.domain.models.model_orchestrator import ModelOrchestrator
-from src.openchronicle.domain.models.model_orchestrator import ModelResponseGenerator
-from src.openchronicle.infrastructure.memory.memory_interfaces import CharacterMemory
-from src.openchronicle.infrastructure.memory.memory_interfaces import (
+from openchronicle.domain.models.model_interfaces import AdapterStatus
+from openchronicle.domain.models.model_interfaces import IModelLifecycleManager
+from openchronicle.domain.models.model_interfaces import IModelResponseGenerator
+from openchronicle.domain.models.model_interfaces import ModelConfiguration
+from openchronicle.domain.models.model_interfaces import ModelResponse
+from openchronicle.domain.models.model_orchestrator import ModelLifecycleManager
+from openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+from openchronicle.domain.models.model_orchestrator import ModelResponseGenerator
+from openchronicle.infrastructure.memory.memory_interfaces import CharacterMemory
+from openchronicle.infrastructure.memory.memory_interfaces import (
     ICharacterMemoryManager,
 )
-from src.openchronicle.infrastructure.memory.memory_interfaces import (
+from openchronicle.infrastructure.memory.memory_interfaces import (
     IMemoryContextBuilder,
 )
-from src.openchronicle.infrastructure.memory.memory_interfaces import IMemoryFlagManager
-from src.openchronicle.infrastructure.memory.memory_interfaces import IMemoryPersistence
-from src.openchronicle.infrastructure.memory.memory_interfaces import IWorldStateManager
-from src.openchronicle.infrastructure.memory.memory_interfaces import MemorySnapshot
-from src.openchronicle.infrastructure.memory.memory_interfaces import WorldState
+from openchronicle.infrastructure.memory.memory_interfaces import IMemoryFlagManager
+from openchronicle.infrastructure.memory.memory_interfaces import IMemoryPersistence
+from openchronicle.infrastructure.memory.memory_interfaces import IWorldStateManager
+from openchronicle.infrastructure.memory.memory_interfaces import MemorySnapshot
+from openchronicle.infrastructure.memory.memory_interfaces import WorldState
 
 
 class TestModelInterfaceSegregation:
@@ -342,8 +342,8 @@ class TestInterfaceSegregationBenefits:
 
     def test_dependency_injection_compatibility(self):
         """Test that segregated interfaces work well with dependency injection."""
-        from src.openchronicle.shared.dependency_injection import DIContainer
-        from src.openchronicle.shared.dependency_injection import ServiceLifetime
+        from openchronicle.shared.dependency_injection import DIContainer
+        from openchronicle.shared.dependency_injection import ServiceLifetime
 
         container = DIContainer()
 

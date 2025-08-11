@@ -10,7 +10,7 @@ from typing import Any
 from typing import Optional
 from typing import Union
 
-from src.openchronicle.domain.ports.storage_port import IStoragePort
+from openchronicle.domain.ports.storage_port import IStoragePort
 
 
 class StorageAdapter(IStoragePort):

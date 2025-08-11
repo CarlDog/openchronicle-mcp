@@ -12,12 +12,12 @@ import warnings
 from io import StringIO
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
 
 from ..shared.interfaces import DetectionComponent
 

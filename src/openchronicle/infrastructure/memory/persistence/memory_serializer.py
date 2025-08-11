@@ -10,7 +10,7 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.shared.json_utilities import JSONUtilities
+from openchronicle.shared.json_utilities import JSONUtilities
 
 from ..shared.memory_models import CharacterMemory
 from ..shared.memory_models import MemoryFlag

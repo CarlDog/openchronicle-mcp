@@ -12,8 +12,8 @@ Components:
 - Interfaces: Clean abstractions for all performance components
 
 Usage:
-    from src.openchronicle.infrastructure.performance import PerformanceOrchestrator, ModelPerformanceMonitor
-    from src.openchronicle.infrastructure.performance import MetricsCollector, BottleneckAnalyzer
+    from openchronicle.infrastructure.performance import PerformanceOrchestrator, ModelPerformanceMonitor
+    from openchronicle.infrastructure.performance import MetricsCollector, BottleneckAnalyzer
 """
 
 # Core performance orchestration

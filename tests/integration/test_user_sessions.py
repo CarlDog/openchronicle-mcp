@@ -8,11 +8,11 @@ Tests complete user interaction workflows and session management.
 import time
 
 import pytest
-from src.openchronicle.domain.models import ModelOrchestrator
-from src.openchronicle.domain.services.characters import CharacterOrchestrator
-from src.openchronicle.domain.services.scenes import SceneOrchestrator
-from src.openchronicle.infrastructure.content.context import ContextOrchestrator
-from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+from openchronicle.domain.models import ModelOrchestrator
+from openchronicle.domain.services.characters import CharacterOrchestrator
+from openchronicle.domain.services.scenes import SceneOrchestrator
+from openchronicle.infrastructure.content.context import ContextOrchestrator
+from openchronicle.infrastructure.memory import MemoryOrchestrator
 
 
 # Enable pytest asyncio mode

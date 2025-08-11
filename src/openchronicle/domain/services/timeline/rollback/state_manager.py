@@ -12,17 +12,17 @@ from datetime import datetime
 from datetime import timedelta
 from typing import Any
 
-from src.openchronicle.domain.ports.persistence_inmemory import (
+from openchronicle.domain.ports.persistence_inmemory import (
     InMemorySqlitePersistence,
 )
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
-from src.openchronicle.domain.ports.memory_port import IMemoryPort
-from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+from openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.domain.ports.memory_port import IMemoryPort
+from openchronicle.domain.services.scenes.scene_orchestrator import (
     SceneOrchestrator,
 )
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_warning
 
 
 class StateManager:

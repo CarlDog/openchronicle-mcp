@@ -1,4 +1,4 @@
-from src.openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
+from openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
 """
 OpenChronicle Validation Engine
 
@@ -9,8 +9,8 @@ Handles all validation logic for the import process.
 import json
 from pathlib import Path
 
-from src.openchronicle.shared.logging_system import get_logger
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import get_logger
+from openchronicle.shared.logging_system import log_system_event
 
 
 

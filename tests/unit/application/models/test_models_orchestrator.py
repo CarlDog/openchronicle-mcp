@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 # Import the orchestrator under test
-from src.openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+from openchronicle.domain.models.model_orchestrator import ModelOrchestrator
 
 # Import enhanced mock adapters for isolated testing
 from tests.fixtures.mock_adapters import MockLLMAdapter

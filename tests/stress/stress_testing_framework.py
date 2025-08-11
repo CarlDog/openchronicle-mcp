@@ -31,16 +31,16 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from src.openchronicle.domain.models.model_orchestrator import ModelOrchestrator
-from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+from openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+from openchronicle.infrastructure.memory.memory_orchestrator import (
     MemoryOrchestrator,
 )
-from src.openchronicle.infrastructure.persistence.database_orchestrator import (
+from openchronicle.infrastructure.persistence.database_orchestrator import (
     startup_health_check,
 )
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_warning
 
 
 @dataclass

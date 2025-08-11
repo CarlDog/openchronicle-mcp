@@ -3,13 +3,13 @@ from datetime import datetime, timezone
 
 import pytest
 
-from src.openchronicle.domain.ports.persistence_inmemory import (
+from openchronicle.domain.ports.persistence_inmemory import (
     InMemorySqlitePersistence,
 )
-from src.openchronicle.domain.services.timeline.shared.bookmark_manager import (
+from openchronicle.domain.services.timeline.shared.bookmark_manager import (
     SimpleBookmarkManager,
 )
-from src.openchronicle.domain.services.timeline.timeline.timeline_manager import (
+from openchronicle.domain.services.timeline.timeline.timeline_manager import (
     TimelineManager,
 )
 

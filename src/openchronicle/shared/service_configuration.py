@@ -89,7 +89,7 @@ class ServiceConfigurator:
         log_info("Configuring configuration services")
 
         try:
-            from src.openchronicle.domain.models.configuration_manager import (
+            from openchronicle.domain.models.configuration_manager import (
                 ConfigurationManager,
             )
 
@@ -123,7 +123,7 @@ class ServiceConfigurator:
         log_info("Configuring database services")
 
         try:
-            from src.openchronicle.infrastructure.persistence.database_orchestrator import (
+            from openchronicle.infrastructure.persistence.database_orchestrator import (
                 DatabaseOrchestrator,
             )
 
@@ -158,7 +158,7 @@ class ServiceConfigurator:
         log_info("Configuring model management services")
 
         try:
-            from src.openchronicle.domain.models.model_orchestrator import (
+            from openchronicle.domain.models.model_orchestrator import (
                 ModelOrchestrator,
             )
 
@@ -204,7 +204,7 @@ class ServiceConfigurator:
         log_info("Configuring memory management services")
 
         try:
-            from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+            from openchronicle.infrastructure.memory.memory_orchestrator import (
                 MemoryOrchestrator,
             )
 
@@ -245,7 +245,7 @@ class ServiceConfigurator:
         log_info("Configuring content analysis services")
 
         try:
-            from src.openchronicle.infrastructure.content.context.orchestrator import (
+            from openchronicle.infrastructure.content.context.orchestrator import (
                 ContextOrchestrator,
             )
 
@@ -279,7 +279,7 @@ class ServiceConfigurator:
         log_info("Configuring scene management services")
 
         try:
-            from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+            from openchronicle.domain.services.scenes.scene_orchestrator import (
                 SceneOrchestrator,
             )
 
@@ -318,7 +318,7 @@ class ServiceConfigurator:
         log_info("Configuring narrative services")
 
         try:
-            from src.openchronicle.domain.services.narrative.narrative_orchestrator import (
+            from openchronicle.domain.services.narrative.narrative_orchestrator import (
                 NarrativeOrchestrator,
             )
 

@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.domain import MemoryState
-from src.openchronicle.domain import StoryStatus
+from openchronicle.domain import MemoryState
+from openchronicle.domain import StoryStatus
 
 
 class Command(ABC):

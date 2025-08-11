@@ -3,11 +3,11 @@ Registry adapter implementing domain ports.
 Infrastructure implementation of registry operations.
 """
 from typing import Dict, Any, Optional, List
-from src.openchronicle.domain.ports.registry_port import IRegistryPort
+from openchronicle.domain.ports.registry_port import IRegistryPort
 
 # Safe import of infrastructure component
 try:
-    from src.openchronicle.infrastructure.registry.registry_manager import RegistryManager
+    from openchronicle.infrastructure.registry.registry_manager import RegistryManager
 except ImportError:
     RegistryManager = None
 

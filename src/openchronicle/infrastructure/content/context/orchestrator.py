@@ -17,25 +17,25 @@ from typing import Any
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.domain.services.narrative import NarrativeOrchestrator
-from src.openchronicle.domain.services.narrative.response.context_analyzer import (
+from openchronicle.domain.services.narrative import NarrativeOrchestrator
+from openchronicle.domain.services.narrative.response.context_analyzer import (
     ContextAnalyzer as NarrativeContextAnalyzer,
 )
 
 # Import supporting systems
-from src.openchronicle.infrastructure.memory import MemoryOrchestrator
+from openchronicle.infrastructure.memory import MemoryOrchestrator
 
 # Import modular context systems
-from src.openchronicle.infrastructure.memory.context import (
+from openchronicle.infrastructure.memory.context import (
     ContextBuilder as MemoryContextBuilder,
 )
-from src.openchronicle.infrastructure.memory.context import (
+from openchronicle.infrastructure.memory.context import (
     ContextConfiguration as MemoryContextConfiguration,
 )
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
 
 from ..analysis.orchestrator import ContentAnalysisOrchestrator
 from ..analysis.orchestrator import (

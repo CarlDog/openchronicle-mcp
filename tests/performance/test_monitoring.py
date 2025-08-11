@@ -12,12 +12,12 @@ import unittest
 from datetime import datetime
 from datetime import timedelta
 
-from src.openchronicle.infrastructure.performance import BottleneckAnalyzer
-from src.openchronicle.infrastructure.performance import MetricsCollector
-from src.openchronicle.infrastructure.performance import MetricsStorage
-from src.openchronicle.infrastructure.performance import OperationContext
-from src.openchronicle.infrastructure.performance import PerformanceMetrics
-from src.openchronicle.infrastructure.performance import PerformanceOrchestrator
+from openchronicle.infrastructure.performance import BottleneckAnalyzer
+from openchronicle.infrastructure.performance import MetricsCollector
+from openchronicle.infrastructure.performance import MetricsStorage
+from openchronicle.infrastructure.performance import OperationContext
+from openchronicle.infrastructure.performance import PerformanceMetrics
+from openchronicle.infrastructure.performance import PerformanceOrchestrator
 
 
 class TestPerformanceMonitoring(unittest.TestCase):
@@ -128,7 +128,7 @@ class TestPerformanceMonitoring(unittest.TestCase):
             await self.storage.store_metrics(metrics)
 
             # Retrieve metrics
-            from src.openchronicle.infrastructure.performance.interfaces.performance_interfaces import (
+            from openchronicle.infrastructure.performance.interfaces.performance_interfaces import (
                 MetricsQuery,
             )
 

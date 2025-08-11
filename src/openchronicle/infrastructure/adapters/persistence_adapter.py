@@ -7,7 +7,7 @@ import asyncio
 import os
 from pathlib import Path
 
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.domain.ports.persistence_port import IPersistencePort
 
 
 class PersistenceAdapter(IPersistencePort):

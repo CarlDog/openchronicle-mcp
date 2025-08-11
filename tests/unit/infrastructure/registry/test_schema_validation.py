@@ -10,32 +10,32 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import (
     ContentRoutingConfig,
 )
-from src.openchronicle.infrastructure.registry.schema_validation import ContentType
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import ContentType
+from openchronicle.infrastructure.registry.schema_validation import (
     FallbackBehaviorConfig,
 )
-from src.openchronicle.infrastructure.registry.schema_validation import ModelConfig
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import ModelConfig
+from openchronicle.infrastructure.registry.schema_validation import (
     ModelRegistrySchema,
 )
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import (
     PerformanceConfig,
 )
-from src.openchronicle.infrastructure.registry.schema_validation import ProviderConfig
-from src.openchronicle.infrastructure.registry.schema_validation import ProviderType
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import ProviderConfig
+from openchronicle.infrastructure.registry.schema_validation import ProviderType
+from openchronicle.infrastructure.registry.schema_validation import (
     RegistryValidator,
 )
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import (
     SchemaValidationError,
 )
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import (
     validate_provider_config,
 )
-from src.openchronicle.infrastructure.registry.schema_validation import (
+from openchronicle.infrastructure.registry.schema_validation import (
     validate_registry_config,
 )
 

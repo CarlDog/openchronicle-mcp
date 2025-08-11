@@ -1,7 +1,7 @@
 import pytest
 from typer.testing import CliRunner
 
-from src.openchronicle.interfaces.cli.main import app
+from openchronicle.interfaces.cli.main import app
 
 
 runner = CliRunner()

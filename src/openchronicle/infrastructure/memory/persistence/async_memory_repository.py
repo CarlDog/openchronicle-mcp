@@ -13,10 +13,10 @@ from functools import lru_cache
 from typing import Any
 
 from cachetools import TTLCache
-from src.openchronicle.infrastructure.persistence.async_database_orchestrator import (
+from openchronicle.infrastructure.persistence.async_database_orchestrator import (
     AsyncDatabaseOrchestrator,
 )
-from src.openchronicle.shared.json_utilities import JSONUtilities
+from openchronicle.shared.json_utilities import JSONUtilities
 
 
 # Setup logging

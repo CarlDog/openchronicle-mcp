@@ -10,8 +10,8 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
-from src.openchronicle.domain.ports.persistence_inmemory import (
+from openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.domain.ports.persistence_inmemory import (
     InMemorySqlitePersistence,
 )
 
@@ -74,7 +74,7 @@ class NavigationManager:
             return history
 
         except Exception as e:
-            from src.openchronicle.shared.logging_system import log_system_event
+            from openchronicle.shared.logging_system import log_system_event
 
             log_system_event("error", f"Navigation history retrieval failed: {e}")
             return []
@@ -134,7 +134,7 @@ class NavigationManager:
             return sorted(results, key=lambda x: x["relevance_score"], reverse=True)
 
         except Exception as e:
-            from src.openchronicle.shared.logging_system import log_system_event
+            from openchronicle.shared.logging_system import log_system_event
 
             log_system_event("error", f"Scene search failed: {e}")
             return []
@@ -215,7 +215,7 @@ class NavigationManager:
             }
 
         except Exception as e:
-            from src.openchronicle.shared.logging_system import log_system_event
+            from openchronicle.shared.logging_system import log_system_event
 
             log_system_event("error", f"Scene context retrieval failed: {e}")
             return {"error": str(e)}
@@ -244,7 +244,7 @@ class NavigationManager:
                 ),
             )
 
-            from src.openchronicle.shared.logging_system import log_system_event
+            from openchronicle.shared.logging_system import log_system_event
 
             log_system_event(
                 "timeline_navigation",
@@ -254,7 +254,7 @@ class NavigationManager:
             return True
 
         except Exception as e:
-            from src.openchronicle.shared.logging_system import log_system_event
+            from openchronicle.shared.logging_system import log_system_event
 
             log_system_event("error", f"Navigation tracking failed: {e}")
             return False
@@ -308,7 +308,7 @@ class NavigationManager:
             }
 
         except Exception as e:
-            from src.openchronicle.shared.logging_system import log_system_event
+            from openchronicle.shared.logging_system import log_system_event
 
             log_system_event("error", f"Navigation statistics failed: {e}")
             return {"error": str(e)}

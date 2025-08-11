@@ -1,4 +1,4 @@
-from src.openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
+from openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
 """
 OpenChronicle Content Classifier
 
@@ -9,7 +9,7 @@ Works independently of AI processing for basic classification.
 import re
 from typing import Any
 
-from src.openchronicle.shared.logging_system import get_logger
+from openchronicle.shared.logging_system import get_logger
 
 
 

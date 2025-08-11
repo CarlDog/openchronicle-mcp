@@ -6,7 +6,7 @@ Validates the new async database implementation.
 import asyncio
 
 import pytest
-from src.openchronicle.infrastructure.persistence.async_database_orchestrator import (
+from openchronicle.infrastructure.persistence.async_database_orchestrator import (
     AsyncDatabaseOrchestrator,
 )
 

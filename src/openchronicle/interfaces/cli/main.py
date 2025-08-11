@@ -11,28 +11,28 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from src.openchronicle.interfaces.cli.support.config_manager import ConfigManager
-from src.openchronicle.interfaces.cli.support.output_manager import OutputManager
+from openchronicle.interfaces.cli.support.config_manager import ConfigManager
+from openchronicle.interfaces.cli.support.output_manager import OutputManager
 
 
 # Import command modules
 commands_imported = {}
 try:
-    from src.openchronicle.interfaces.cli.commands.story import story_app
+    from openchronicle.interfaces.cli.commands.story import story_app
 
     commands_imported["story"] = story_app
 except ImportError as e:
     print(f"Warning: Story commands not available: {e}")
 
 try:
-    from src.openchronicle.interfaces.cli.commands.models import models_app
+    from openchronicle.interfaces.cli.commands.models import models_app
 
     commands_imported["models"] = models_app
 except ImportError as e:
     print(f"Warning: Models commands not available: {e}")
 
 try:
-    from src.openchronicle.interfaces.cli.commands.system import system_app
+    from openchronicle.interfaces.cli.commands.system import system_app
 
     commands_imported["system"] = system_app
 except ImportError as e:
@@ -40,21 +40,21 @@ except ImportError as e:
 
 try:
     # Use unified config commands
-    from src.openchronicle.interfaces.cli.commands.config import config_app
+    from openchronicle.interfaces.cli.commands.config import config_app
 
     commands_imported["config"] = config_app
 except ImportError as e:
     print(f"Warning: Config commands not available: {e}")
 
 try:
-    from src.openchronicle.interfaces.cli.commands.test import test_app
+    from openchronicle.interfaces.cli.commands.test import test_app
 
     commands_imported["test"] = test_app
 except ImportError as e:
     print(f"Warning: Test commands not available: {e}")
 
 try:
-    from src.openchronicle.interfaces.cli.commands.bookmarks import bookmarks_app
+    from openchronicle.interfaces.cli.commands.bookmarks import bookmarks_app
 
     commands_imported["bookmarks"] = bookmarks_app
 except ImportError as e:

@@ -14,8 +14,8 @@ from typing import Any
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import log_system_event
-from src.openchronicle.shared.logging_system import log_warning
+from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_warning
 
 from ..shared import BookmarkManagerException
 from ..shared import BookmarkRecord
@@ -45,7 +45,7 @@ class BookmarkDataManager:
             self.init_database = self._mock_init_database
         else:
             try:
-                from src.openchronicle.infrastructure.persistence.database_orchestrator import (
+                from openchronicle.infrastructure.persistence.database_orchestrator import (
                     database_orchestrator,
                 )
 

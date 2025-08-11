@@ -11,16 +11,16 @@ import time
 import pytest
 
 # Import core orchestrators
-from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+from openchronicle.domain.services.scenes.scene_orchestrator import (
     SceneOrchestrator,
 )
-from src.openchronicle.domain.services.timeline.timeline_orchestrator import (
+from openchronicle.domain.services.timeline.timeline_orchestrator import (
     TimelineOrchestrator,
 )
-from src.openchronicle.infrastructure.content.context.orchestrator import (
+from openchronicle.infrastructure.content.context.orchestrator import (
     ContextOrchestrator,
 )
-from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+from openchronicle.infrastructure.memory.memory_orchestrator import (
     MemoryOrchestrator,
 )
 

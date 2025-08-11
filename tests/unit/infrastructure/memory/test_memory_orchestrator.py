@@ -21,7 +21,7 @@ import pytest
 
 # Test the MemoryOrchestrator import availability
 try:
-    from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+    from openchronicle.infrastructure.memory.memory_orchestrator import (
         MemoryOrchestrator,
     )
 

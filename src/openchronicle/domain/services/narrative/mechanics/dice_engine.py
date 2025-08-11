@@ -11,7 +11,7 @@ import logging
 import random
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_system_event
 
 from ..shared.narrative_exceptions import NarrativeSystemError
 from .mechanics_models import DiceRoll

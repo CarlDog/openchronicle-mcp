@@ -11,7 +11,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_system_event
 
 from .dice_engine import DiceEngine
 from .mechanics_models import CharacterPerformance

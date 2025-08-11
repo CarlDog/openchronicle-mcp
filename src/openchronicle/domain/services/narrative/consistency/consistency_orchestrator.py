@@ -8,7 +8,7 @@ for narrative consistency management across the OpenChronicle system.
 import logging
 from typing import Any
 
-from src.openchronicle.shared.json_utilities import JSONUtilities
+from openchronicle.shared.json_utilities import JSONUtilities
 
 from ..shared.narrative_state import NarrativeStateManager
 from .memory_validator import MemoryValidator

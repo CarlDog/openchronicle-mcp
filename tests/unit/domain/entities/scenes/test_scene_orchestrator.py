@@ -11,7 +11,7 @@ import pytest
 
 # Test the actual orchestrator import
 try:
-    from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+    from openchronicle.domain.services.scenes.scene_orchestrator import (
         SceneOrchestrator,
     )
 

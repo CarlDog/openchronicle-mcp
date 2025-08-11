@@ -14,7 +14,7 @@ from typing import Any
 from typing import Optional
 
 # Import domain interfaces (following dependency inversion principle)
-from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from openchronicle.domain.ports.persistence_port import IPersistencePort
 
 from ..persistence.scene_repository import SceneRepository
 

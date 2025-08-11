@@ -22,10 +22,10 @@ import pytest
 
 
 sys.path.append(str(Path(__file__).parent.parent.parent))
-from src.openchronicle.domain.services.scenes.scene_orchestrator import (
+from openchronicle.domain.services.scenes.scene_orchestrator import (
     SceneOrchestrator,
 )
-from src.openchronicle.infrastructure.persistence.database_orchestrator import (
+from openchronicle.infrastructure.persistence.database_orchestrator import (
     DatabaseOrchestrator,
 )
 
@@ -223,7 +223,7 @@ class TestMemorySystemPerformance:
 
     def test_memory_operation_performance(self, benchmark, temp_story_id):
         """Test memory system operation performance."""
-        from src.openchronicle.infrastructure.memory.memory_orchestrator import (
+        from openchronicle.infrastructure.memory.memory_orchestrator import (
             MemoryOrchestrator,
         )
 

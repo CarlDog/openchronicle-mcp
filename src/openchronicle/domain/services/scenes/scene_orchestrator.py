@@ -19,8 +19,8 @@ from typing import Any
 
 # Add utilities to path for logging system
 sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
 
 from .analysis.mood_analyzer import MoodAnalyzer
 from .analysis.statistics_engine import StatisticsEngine
@@ -33,7 +33,7 @@ from .persistence.scene_serializer import SceneSerializer
 from .shared.id_generator import SceneIdGenerator
 from .shared.scene_models import SceneData
 from .shared.scene_models import StructuredTags
-from src.openchronicle.domain.ports.persistence_inmemory import (
+from openchronicle.domain.ports.persistence_inmemory import (
     InMemorySqlitePersistence,
 )
 

@@ -5,7 +5,7 @@ Professional API for OpenChronicle's core narrative AI engine.
 This module provides programmatic access to all core orchestrators and services.
 
 For CLI usage, use: python main.py [commands]
-For API usage: from src.openchronicle.main import ModelOrchestrator, MemoryOrchestrator, etc.
+For API usage: from openchronicle.main import ModelOrchestrator, MemoryOrchestrator, etc.
 
 Architecture:
     - Domain Layer: Business models and services (narrative, characters, scenes, timeline)

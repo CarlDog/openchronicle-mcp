@@ -10,7 +10,7 @@ Extracted from: core/content_analyzer.py (lines 1753-1875)
 from typing import Any
 
 # Import logging utilities
-from src.openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_error
 
 from ..shared.interfaces import RoutingComponent
 

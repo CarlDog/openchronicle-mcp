@@ -22,12 +22,12 @@ from datetime import UTC
 from datetime import datetime
 from typing import Any
 
-from src.openchronicle.shared.logging_system import log_error
-from src.openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
 
 # Import logging system
-from src.openchronicle.shared.logging_system import log_model_interaction
-from src.openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_model_interaction
+from openchronicle.shared.logging_system import log_system_event
 
 from .adapter_exceptions import AdapterConfigurationError
 from .adapter_exceptions import AdapterConnectionError
