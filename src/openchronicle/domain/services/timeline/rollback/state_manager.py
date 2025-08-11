@@ -2,34 +2,24 @@
 State Manager - Rollback and State Management
 
 Handles rollback point creation, state snapshots, and restoration functionality
-extracted from the legacy rollback_engine.py. Provides versioning and state
-management in a modular architecture.
+using dependency injection via ports (hexagonal architecture). Provides
+versioning and state management with minimal coupling.
 """
 
 import json
-import sys
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
-from pathlib import Path
 from typing import Any
 
-
-# Database imports from parent core directory
-sys.path.append(str(Path(__file__).parent.parent.parent))
+from src.openchronicle.domain.ports.persistence_inmemory import (
+    InMemorySqlitePersistence,
+)
+from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from src.openchronicle.domain.ports.memory_port import IMemoryPort
 from src.openchronicle.domain.services.scenes.scene_orchestrator import (
     SceneOrchestrator,
 )
-
-
-# from src.openchronicle.infrastructure.memory import MemoryOrchestrator - REPLACED WITH DEPENDENCY INJECTION
-# from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-# from src.openchronicle.infrastructure.persistence import execute_update - REPLACED WITH DEPENDENCY INJECTION
-# from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
 from src.openchronicle.shared.logging_system import log_error
 from src.openchronicle.shared.logging_system import log_info
 from src.openchronicle.shared.logging_system import log_warning
@@ -38,11 +28,23 @@ from src.openchronicle.shared.logging_system import log_warning
 class StateManager:
     """Manages rollback points and state restoration."""
 
-    def __init__(self, story_id: str):
+    def __init__(
+        self,
+        story_id: str,
+        *,
+        persistence_port: IPersistencePort | None = None,
+        memory_port: IMemoryPort | None = None,
+        scene_orchestrator: SceneOrchestrator | None = None,
+    ):
         self.story_id = story_id
-        self.memory_orchestrator = MemoryOrchestrator()
-        self.scene_orchestrator = SceneOrchestrator(story_id)
-        init_database(story_id)
+        self.persistence: IPersistencePort = (
+            persistence_port if persistence_port is not None else InMemorySqlitePersistence()
+        )
+        self.memory_port = memory_port
+        self.scene_orchestrator = (
+            scene_orchestrator if scene_orchestrator is not None else SceneOrchestrator(story_id, persistence_port=self.persistence)
+        )
+        self.persistence.init_database(story_id)
 
     async def create_rollback_point(
         self, scene_id: str, description: str = "Manual rollback point"
@@ -62,13 +64,13 @@ class StateManager:
         state_snapshot = await self._create_state_snapshot(scene_id)
 
         # Store rollback point
-        execute_update(
+        self.persistence.execute_update(
             self.story_id,
             """
             INSERT OR REPLACE INTO rollback_points
-            (rollback_id, scene_id, timestamp, description, scene_data, state_snapshot)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """,
+                (rollback_id, scene_id, timestamp, description, scene_data, state_snapshot, story_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
             (
                 rollback_id,
                 scene_id,
@@ -76,6 +78,7 @@ class StateManager:
                 description,
                 json.dumps(scene_data),
                 json.dumps(state_snapshot),
+                self.story_id,
             ),
         )
 
@@ -94,33 +97,34 @@ class StateManager:
     async def list_rollback_points(self) -> list[dict[str, Any]]:
         """List all available rollback points."""
 
-        rows = execute_query(
+        rows = self.persistence.execute_query(
             self.story_id,
             """
             SELECT rollback_id, scene_id, timestamp, description, scene_data, state_snapshot
-            FROM rollback_points ORDER BY timestamp DESC
-        """,
+            FROM rollback_points WHERE story_id = ? ORDER BY timestamp DESC
+            """,
+            (self.story_id,),
         )
 
         rollback_points = []
         for row in rows:
             try:
-                scene_data = json.loads(row[4]) if row[4] else {}
-                state_snapshot = json.loads(row[5]) if row[5] else {}
+                scene_data = json.loads(row.get("scene_data")) if row.get("scene_data") else {}
+                state_snapshot = json.loads(row.get("state_snapshot")) if row.get("state_snapshot") else {}
 
                 rollback_point = {
-                    "id": row[0],
-                    "scene_id": row[1],
-                    "timestamp": row[2],
-                    "description": row[3],
+                    "id": row.get("rollback_id"),
+                    "scene_id": row.get("scene_id"),
+                    "timestamp": row.get("timestamp"),
+                    "description": row.get("description"),
                     "scene_data": scene_data,
                     "state_snapshot": state_snapshot,
-                    "age_hours": self._calculate_age_hours(row[2]),
+                    "age_hours": self._calculate_age_hours(row.get("timestamp")),
                 }
                 rollback_points.append(rollback_point)
 
             except json.JSONDecodeError as e:
-                log_warning(f"Failed to parse rollback point {row[0]}: {e}")
+                log_warning(f"Failed to parse rollback point {row.get('rollback_id')}: {e}")
                 continue
 
         return rollback_points
@@ -129,32 +133,34 @@ class StateManager:
         """Restore story state to a specific rollback point."""
 
         # Get rollback point data
-        rollback_data = execute_query(
+        rollback_data = self.persistence.execute_query(
             self.story_id,
             """
             SELECT rollback_id, scene_id, timestamp, description, scene_data, state_snapshot
-            FROM rollback_points WHERE rollback_id = ?
-        """,
-            (rollback_id,),
+            FROM rollback_points WHERE rollback_id = ? AND story_id = ?
+            """,
+            (rollback_id, self.story_id),
         )
 
         if not rollback_data:
             raise ValueError(f"Rollback point {rollback_id} not found")
 
         rollback_point = rollback_data[0]
-        scene_id = rollback_point[1]
-        scene_data = json.loads(rollback_point[4]) if rollback_point[4] else {}
-        state_snapshot = json.loads(rollback_point[5]) if rollback_point[5] else {}
+        scene_id = rollback_point.get("scene_id")
+        scene_data = (
+            json.loads(rollback_point.get("scene_data")) if rollback_point.get("scene_data") else {}
+        )
+        state_snapshot = (
+            json.loads(rollback_point.get("state_snapshot")) if rollback_point.get("state_snapshot") else {}
+        )
 
         # Perform rollback operations
         restoration_results = []
 
         try:
             # 1. Restore memory state
-            if "memory_state" in state_snapshot:
-                memory_result = await self._restore_memory_state(
-                    state_snapshot["memory_state"]
-                )
+            if "memory_state" in state_snapshot and state_snapshot["memory_state"] and self.memory_port:
+                memory_result = await self._restore_memory_state(state_snapshot["memory_state"])
                 restoration_results.append(
                     {
                         "component": "memory",
@@ -212,27 +218,27 @@ class StateManager:
         cutoff_iso = cutoff_date.isoformat()
 
         # Get rollback points to remove
-        old_points = execute_query(
+        old_points = self.persistence.execute_query(
             self.story_id,
             """
             SELECT rollback_id FROM rollback_points
-            WHERE timestamp < ? ORDER BY timestamp ASC
-        """,
-            (cutoff_iso,),
+            WHERE story_id = ? AND timestamp < ? ORDER BY timestamp ASC
+            """,
+            (self.story_id, cutoff_iso),
         )
 
         if not old_points:
             return {"removed_count": 0, "message": "No old rollback points found"}
 
         # Remove old points
-        removed_ids = [point[0] for point in old_points]
+        removed_ids = [point.get("rollback_id") for point in old_points]
 
-        execute_update(
+        self.persistence.execute_update(
             self.story_id,
             """
-            DELETE FROM rollback_points WHERE timestamp < ?
-        """,
-            (cutoff_iso,),
+            DELETE FROM rollback_points WHERE story_id = ? AND timestamp < ?
+            """,
+            (self.story_id, cutoff_iso),
         )
 
         log_info(f"Cleaned up {len(removed_ids)} old rollback points")
@@ -254,29 +260,41 @@ class StateManager:
 
         try:
             # Capture memory state
-            memory_state = await self.memory_orchestrator.load_current_memory(
-                self.story_id
-            )
-            snapshot["memory_state"] = memory_state
+            if self.memory_port:
+                # Capture all character memories via port
+                characters = self.memory_port.list_character_memories(self.story_id)
+                memory_state: dict[str, Any] = {}
+                for name in characters:
+                    data = self.memory_port.retrieve_memory(self.story_id, name)
+                    if data is not None:
+                        memory_state[name] = data
+                snapshot["memory_state"] = memory_state
 
             # Capture scene count and latest scenes
-            recent_scenes = execute_query(
+            recent_scenes = self.persistence.execute_query(
                 self.story_id,
                 """
                 SELECT scene_id, timestamp FROM scenes
+                WHERE story_id = ?
                 ORDER BY timestamp DESC LIMIT 5
-            """,
+                """,
+                (self.story_id,),
             )
 
             snapshot["recent_scenes"] = [
-                {"scene_id": scene[0], "timestamp": scene[1]} for scene in recent_scenes
+                {"scene_id": scene.get("scene_id"), "timestamp": scene.get("timestamp")} for scene in recent_scenes
             ]
 
             # Capture story metadata
+            total_rows = self.persistence.execute_query(
+                self.story_id,
+                "SELECT COUNT(*) AS count FROM scenes WHERE story_id = ?",
+                (self.story_id,),
+            )
+            total_count = total_rows[0]["count"] if total_rows else 0
+
             snapshot["story_metadata"] = {
-                "total_scenes": len(
-                    execute_query(self.story_id, "SELECT scene_id FROM scenes")
-                ),
+                "total_scenes": total_count,
                 "capture_time": datetime.now(UTC).isoformat(),
             }
 
@@ -290,10 +308,10 @@ class StateManager:
         """Restore memory state from snapshot."""
         try:
             # Use memory orchestrator to restore state
-            await self.memory_orchestrator.restore_memory_snapshot(
-                self.story_id, memory_state
-            )
-            return "Memory state restored successfully"
+            for name, data in memory_state.items():
+                # Use store_memory to restore; overwrites existing entries
+                self.memory_port.store_memory(self.story_id, name, data)
+            return "Memory state restored via IMemoryPort"
         except Exception as e:
             log_error(f"Failed to restore memory state: {e}")
             return f"Memory restoration failed: {e}"
@@ -302,37 +320,37 @@ class StateManager:
         """Remove all scenes that occurred after the target scene."""
 
         # Get target scene timestamp
-        target_scene = execute_query(
+        target_scene = self.persistence.execute_query(
             self.story_id,
             """
-            SELECT timestamp FROM scenes WHERE scene_id = ?
-        """,
-            (target_scene_id,),
+            SELECT timestamp FROM scenes WHERE scene_id = ? AND story_id = ?
+            """,
+            (target_scene_id, self.story_id),
         )
 
         if not target_scene:
             return 0
 
-        target_timestamp = target_scene[0][0]
+        target_timestamp = target_scene[0]["timestamp"]
 
         # Count scenes to remove
-        scenes_to_remove = execute_query(
+        scenes_to_remove = self.persistence.execute_query(
             self.story_id,
             """
-            SELECT COUNT(*) FROM scenes WHERE timestamp > ?
-        """,
-            (target_timestamp,),
+            SELECT COUNT(*) AS count FROM scenes WHERE story_id = ? AND timestamp > ?
+            """,
+            (self.story_id, target_timestamp),
         )
 
-        remove_count = scenes_to_remove[0][0] if scenes_to_remove else 0
+        remove_count = scenes_to_remove[0]["count"] if scenes_to_remove else 0
 
         # Remove scenes after target
-        execute_update(
+        self.persistence.execute_update(
             self.story_id,
             """
-            DELETE FROM scenes WHERE timestamp > ?
-        """,
-            (target_timestamp,),
+            DELETE FROM scenes WHERE story_id = ? AND timestamp > ?
+            """,
+            (self.story_id, target_timestamp),
         )
 
         return remove_count
@@ -349,14 +367,14 @@ class StateManager:
 
     async def _update_rollback_metadata(self, rollback_id: str):
         """Update rollback point metadata after use."""
-        execute_update(
+        self.persistence.execute_update(
             self.story_id,
             """
             UPDATE rollback_points
             SET last_used = ?, usage_count = COALESCE(usage_count, 0) + 1
-            WHERE rollback_id = ?
-        """,
-            (datetime.now(UTC).isoformat(), rollback_id),
+            WHERE rollback_id = ? AND story_id = ?
+            """,
+            (datetime.now(UTC).isoformat(), rollback_id, self.story_id),
         )
 
     def _calculate_age_hours(self, timestamp_iso: str) -> float:

@@ -18,8 +18,17 @@ class InMemorySqlitePersistence(IPersistencePort):
     """Simple in-memory SQLite implementation of IPersistencePort."""
 
     def __init__(self) -> None:
-        self._connections: dict[str, sqlite3.Connection] = {}
-        self._lock = RLock()
+        # Use class-level registries so multiple instances within the same
+        # process share the same per-story in-memory databases. This ensures
+        # CLI subcommands and tests that create new instances still see the
+        # same data for a given story_id.
+        if not hasattr(self.__class__, "_connections_global"):
+            self.__class__._connections_global = {}
+        if not hasattr(self.__class__, "_lock_global"):
+            self.__class__._lock_global = RLock()
+
+        self._connections: dict[str, sqlite3.Connection] = self.__class__._connections_global  # type: ignore[attr-defined]
+        self._lock = self.__class__._lock_global  # type: ignore[attr-defined]
 
     def _get_conn(self, story_id: str) -> sqlite3.Connection:
         with self._lock:
@@ -45,6 +54,49 @@ class InMemorySqlitePersistence(IPersistencePort):
                 scene_label TEXT,
                 structured_tags TEXT,
                 story_id TEXT NOT NULL
+            )
+            """
+        )
+        # Simple navigation history for stats/tracking (denormalized for tests)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS navigation_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                from_scene TEXT NOT NULL,
+                to_scene TEXT NOT NULL,
+                navigation_type TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                story_id TEXT NOT NULL
+            )
+            """
+        )
+        # Rollback points storage for timeline state management
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS rollback_points (
+                rollback_id TEXT PRIMARY KEY,
+                scene_id TEXT NOT NULL,
+                timestamp TEXT NOT NULL,
+                description TEXT,
+                scene_data TEXT,
+                state_snapshot TEXT,
+                last_used TEXT,
+                usage_count INTEGER,
+                story_id TEXT NOT NULL
+            )
+            """
+        )
+        # Optional bookmarks table for timeline bookmarks
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS bookmarks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                story_id TEXT NOT NULL,
+                bookmark_id TEXT,
+                scene_id TEXT,
+                timestamp TEXT,
+                description TEXT,
+                bookmark_data TEXT
             )
             """
         )

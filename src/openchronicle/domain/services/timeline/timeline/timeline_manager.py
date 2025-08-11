@@ -5,18 +5,20 @@ Handles the primary timeline building functionality extracted from the legacy
 timeline_builder.py. Provides scene organization, bookmark integration, and
 auto-summary generation in a modular architecture.
 
-This manager now uses dependency injection following hexagonal architecture principles.
+This manager uses dependency injection following hexagonal architecture principles.
 """
 
 import json
 from datetime import UTC
 from datetime import datetime
-from typing import Any
-from typing import Optional
+from typing import Any, Optional
 
 # Domain ports only - following hexagonal architecture
 from src.openchronicle.domain.ports.memory_port import IMemoryPort
 from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from src.openchronicle.domain.ports.persistence_inmemory import (
+    InMemorySqlitePersistence,
+)
 
 # Bookmark management interface (to be injected, not directly imported)
 from typing import Protocol
@@ -24,11 +26,11 @@ from typing import Protocol
 
 class IBookmarkManager(Protocol):
     """Interface for bookmark management - prevents domain layer violations."""
-    
+
     def create_bookmark(self, story_id: str, scene_index: int, label: str) -> str:
         """Create a new bookmark."""
         ...
-    
+
     def get_bookmarks(self, story_id: str) -> list[dict[str, Any]]:
         """Get all bookmarks for a story."""
         ...
@@ -54,22 +56,12 @@ class TimelineManager:
         """
         self.story_id = story_id
 
-        # If no persistence port provided, this violates hexagonal architecture
-        # The caller should always provide implementations
-        if persistence_port is None:
-            raise ValueError(
-                "TimelineManager requires a persistence_port implementation. "
-                "This follows hexagonal architecture - domain should not import infrastructure."
-            )
-        self.persistence = persistence_port
+        # Prefer injected persistence, otherwise use in-memory port for dev/tests
+        self.persistence: IPersistencePort = (
+            persistence_port if persistence_port is not None else InMemorySqlitePersistence()
+        )
 
-        # If no memory port provided, this violates hexagonal architecture
-        # The caller should always provide implementations
-        if memory_port is None:
-            raise ValueError(
-                "TimelineManager requires a memory_port implementation. "
-                "This follows hexagonal architecture - domain should not import infrastructure."
-            )
+        # Memory port is optional for current features; used for future extensions
         self.memory = memory_port
 
         # Use injected bookmark manager or None (caller responsibility to provide)
@@ -83,58 +75,64 @@ class TimelineManager:
     async def build_full_timeline(
         self, include_bookmarks: bool = True, include_summaries: bool = True
     ) -> dict[str, Any]:
-        """Build complete story timeline with scenes and bookmarks."""
+        """Build complete story timeline with scenes and optional bookmarks/summaries."""
 
-        # Get all scenes
-        scenes = self.persistence.self.persistence.execute_query(
+        # Get all scenes for this story
+        scenes = self.persistence.execute_query(
             self.story_id,
             """
-            SELECT scene_id, timestamp, input, output, memory_snapshot, flags, canon_refs, scene_label
-            FROM scenes ORDER BY timestamp ASC
-        """,
+            SELECT scene_id, timestamp, input, output, memory_snapshot, flags, canon_refs, analysis, scene_label
+            FROM scenes WHERE story_id = ? ORDER BY timestamp ASC
+            """,
+            (self.story_id,),
         )
 
-        timeline_entries = []
+        timeline_entries: list[dict[str, Any]] = []
 
         # Process scenes
         for scene in scenes:
-            entry = {
+            entry: dict[str, Any] = {
                 "type": "scene",
-                "scene_id": scene[0],
-                "timestamp": scene[1],
-                "input": scene[2],
-                "output": scene[3],
-                "memory_snapshot": json.loads(scene[4]) if scene[4] else {},
-                "flags": json.loads(scene[5]) if scene[5] else [],
-                "canon_refs": json.loads(scene[6]) if scene[6] else [],
-                "scene_label": scene[7],
+                "scene_id": scene.get("scene_id"),
+                "timestamp": scene.get("timestamp"),
+                "input": scene.get("input"),
+                "output": scene.get("output"),
+                "memory_snapshot": self._safe_json_load(scene.get("memory_snapshot"), default={}),
+                "flags": self._safe_json_load(scene.get("flags"), default=[]),
+                "canon_refs": self._safe_json_load(scene.get("canon_refs"), default=[]),
+                "analysis": self._safe_json_load(scene.get("analysis"), default={}),
+                "scene_label": scene.get("scene_label"),
             }
 
             # Add tone analysis if available
             if include_summaries:
                 entry["tone_analysis"] = await self._analyze_scene_tone(
-                    scene[2], scene[3]
+                    entry.get("input", ""), entry.get("output", "")
                 )
 
             timeline_entries.append(entry)
 
         # Add bookmarks if requested
-        if include_bookmarks:
-            bookmarks = self.bookmark_manager.get_timeline_bookmarks()
-            for bookmark in bookmarks:
-                timeline_entries.append(
-                    {
-                        "type": "bookmark",
-                        "timestamp": bookmark.get("timestamp", ""),
-                        "bookmark_data": bookmark,
-                    }
-                )
+        if include_bookmarks and self.bookmark_manager is not None:
+            try:
+                bookmarks = self.bookmark_manager.get_bookmarks(self.story_id)
+                for bookmark in bookmarks:
+                    timeline_entries.append(
+                        {
+                            "type": "bookmark",
+                            "timestamp": bookmark.get("timestamp", ""),
+                            "bookmark_data": bookmark,
+                        }
+                    )
+            except Exception:
+                # Bookmark system optional; continue without it
+                pass
 
         # Sort by timestamp
         timeline_entries.sort(key=lambda x: x.get("timestamp", ""))
 
         # Generate auto-summaries if requested
-        timeline_data = {
+        timeline_data: dict[str, Any] = {
             "entries": timeline_entries,
             "summary_stats": self._calculate_timeline_stats(timeline_entries),
         }
@@ -155,15 +153,15 @@ class TimelineManager:
         target_scene = self.persistence.execute_query(
             self.story_id,
             """
-            SELECT timestamp FROM scenes WHERE scene_id = ?
-        """,
-            (scene_id,),
+            SELECT timestamp FROM scenes WHERE scene_id = ? AND story_id = ?
+            """,
+            (scene_id, self.story_id),
         )
 
         if not target_scene:
             return {"error": f"Scene {scene_id} not found"}
 
-        target_timestamp = target_scene[0][0]
+        target_timestamp = target_scene[0]["timestamp"]
 
         # Get scenes before and after
         context_scenes = self.persistence.execute_query(
@@ -171,22 +169,22 @@ class TimelineManager:
             """
             SELECT scene_id, timestamp, input, output, scene_label
             FROM scenes
-            WHERE ABS(strftime('%s', timestamp) - strftime('%s', ?)) <= ?
+            WHERE story_id = ? AND ABS(strftime('%s', timestamp) - strftime('%s', ?)) <= ?
             ORDER BY timestamp ASC
-        """,
-            (target_timestamp, context_range * 3600),
+            """,
+            (self.story_id, target_timestamp, context_range * 3600),
         )  # context_range in hours
 
         return {
             "target_scene_id": scene_id,
             "context_scenes": [
                 {
-                    "scene_id": scene[0],
-                    "timestamp": scene[1],
-                    "input": scene[2],
-                    "output": scene[3],
-                    "scene_label": scene[4],
-                    "is_target": scene[0] == scene_id,
+                    "scene_id": scene.get("scene_id"),
+                    "timestamp": scene.get("timestamp"),
+                    "input": scene.get("input"),
+                    "output": scene.get("output"),
+                    "scene_label": scene.get("scene_label"),
+                    "is_target": scene.get("scene_id") == scene_id,
                 }
                 for scene in context_scenes
             ],
@@ -310,3 +308,12 @@ class TimelineManager:
             "timespan": timespan,
             "entry_types": {"scenes": scene_count, "bookmarks": bookmark_count},
         }
+
+    def _safe_json_load(self, raw: Optional[str], *, default: Any) -> Any:
+        """Safely parse JSON strings, returning default on error or None."""
+        if not raw:
+            return default
+        try:
+            return json.loads(raw)
+        except Exception:
+            return default

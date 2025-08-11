@@ -14,11 +14,16 @@ pip install -r requirements.txt
 # 3) Smoke test
 python -m pytest -q --maxfail=1
 
-# 4) Run
-python .\main.py --test --max-iterations 1
+# 4) Quick system test (unit subset)
+python .\main.py --test
+
+# 5) CLI smoke
+python .\main.py status
+# or
+python .\main.py hello
 ```
 
-**📖 Complete Setup Guide**: See `DEVELOPER_SETUP.md`
+**📖 Complete Setup Guide**: See `DEVELOPER_QUICK_START.md`
 
 ---
 
@@ -67,11 +72,10 @@ OpenChronicle uses a local LLM to analyze and optimize content before sending to
 
 ## 📁 **Documentation**
 
-- **🎯 Development Status**: `DEVELOPMENT_MASTER_PLAN.md` (primary development reference)
-- **🛠️ Developer Setup**: `DEVELOPER_SETUP.md` (complete installation & workflow guide)
-- **🏗️ Architecture**: `.copilot/architecture/module_interactions.md` (technical architecture)
-- **📚 API Documentation**: `docs/` directory
-- **💾 Historical Data**: `.copilot/backup_original_docs/` (consolidated documentation)
+- Current Status: See `.copilot/project_status.json` (single source of truth)
+- Developer Setup: `DEVELOPER_QUICK_START.md`
+- Architecture: `.copilot/architecture/module_interactions.md`
+- More Docs: `docs/`
 
 ---
 
@@ -356,6 +360,32 @@ services:
 - Architecture: `docs/ARCHITECTURE.md`
 - Project Status (authoritative): `.copilot/project_status.json`
 - ADRs: `docs/adr/`
+
+---
+
+## 🧪 Testing
+
+- Fast unit suite (recommended during dev):
+
+```powershell
+python -m pytest tests/unit -q
+```
+
+- Quick system test via CLI (unit subset only):
+
+```powershell
+python .\main.py --test
+```
+
+- Full stress suite (slow; allow a few minutes):
+
+```powershell
+python -m pytest tests/stress -q
+```
+
+Notes:
+- Scene services default to an in-memory domain persistence adapter for tests. You can inject a custom IPersistencePort into `SceneOrchestrator(story_id, persistence_port=...)` when needed.
+- Some performance tests are skipped by default; see markers in `tests/`.
 
 ---
 This project is dual-licensed under AGPL-3.0 for engine code and CC BY-NC-SA 4.0 for story content.

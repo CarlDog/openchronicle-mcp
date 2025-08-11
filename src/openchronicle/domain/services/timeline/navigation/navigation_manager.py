@@ -2,51 +2,72 @@
 Navigation Manager - Timeline Navigation & History
 
 Handles timeline navigation, history tracking, and scene transitions.
-Extracted from legacy timeline_builder.py navigation functionality.
+Refactored to use the IPersistencePort (hexagonal architecture, DI) and align
+queries with the current scenes schema.
 """
 
 from datetime import UTC
 from datetime import datetime
 from typing import Any
 
+from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+from src.openchronicle.domain.ports.persistence_inmemory import (
+    InMemorySqlitePersistence,
+)
+
 
 class NavigationManager:
     """Handles timeline navigation and history tracking."""
 
-    def __init__(self, story_id: str):
+    def __init__(
+        self,
+        story_id: str,
+        *,
+        persistence_port: IPersistencePort | None = None,
+    ):
         self.story_id = story_id
+        # Default to in-memory persistence for local/dev unless injected
+        self.persistence: IPersistencePort = (
+            persistence_port if persistence_port is not None else InMemorySqlitePersistence()
+        )
 
     async def get_navigation_history(self) -> list[dict[str, Any]]:
         """Retrieve navigation history for timeline."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
+            # Ensure DB initialized for this story
+            self.persistence.init_database(self.story_id)
 
-            init_database(self.story_id)
-
-            # Get recent navigation entries
-            rows = execute_query(
+            # Get recent navigation entries (scene_label as title; summary from output)
+            rows = self.persistence.execute_query(
                 self.story_id,
                 """
-                SELECT scene_id, scene_title, timestamp, scene_summary,
-                       navigation_type, user_choice
+                SELECT
+                    scene_id,
+                    scene_label AS scene_title,
+                    timestamp,
+                    substr(output, 1, 200) AS scene_summary
                 FROM scenes
+                WHERE story_id = ?
                 ORDER BY timestamp DESC
                 LIMIT 20
-            """,
+                """,
+                (self.story_id,),
             )
 
             history = []
             for row in rows:
+                title = row.get("scene_title") or "Untitled Scene"
+                ts = row.get("timestamp")
                 history.append(
                     {
-                        "scene_id": row[0],
-                        "title": row[1] or "Untitled Scene",
-                        "timestamp": row[2],
-                        "summary": row[3],
-                        "navigation_type": row[4] or "standard",
-                        "user_choice": row[5],
-                        "display_time": self._format_display_time(row[2]),
+                        "scene_id": row.get("scene_id"),
+                        "title": title,
+                        "timestamp": ts,
+                        "summary": row.get("scene_summary"),
+                        # Defaults for legacy fields not in schema
+                        "navigation_type": "standard",
+                        "user_choice": None,
+                        "display_time": self._format_display_time(ts),
                     }
                 )
 
@@ -66,23 +87,20 @@ class NavigationManager:
     ) -> list[dict[str, Any]]:
         """Find scenes matching navigation criteria."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-            init_database(self.story_id)
+            self.persistence.init_database(self.story_id)
 
             # Build dynamic query based on criteria
             query_parts = [
-                "SELECT scene_id, scene_title, timestamp, scene_summary FROM scenes WHERE 1=1"
+                "SELECT scene_id, scene_label AS scene_title, timestamp, substr(output, 1, 200) AS scene_summary FROM scenes WHERE story_id = ?",
             ]
-            params = []
+            params: list[Any] = [self.story_id]
 
             if title_pattern:
-                query_parts.append("AND scene_title LIKE ?")
+                query_parts.append("AND scene_label LIKE ?")
                 params.append(f"%{title_pattern}%")
 
             if content_pattern:
-                query_parts.append("AND (scene_content LIKE ? OR scene_summary LIKE ?)")
+                query_parts.append("AND (output LIKE ? OR scene_label LIKE ?)")
                 params.extend([f"%{content_pattern}%", f"%{content_pattern}%"])
 
             if time_range:
@@ -96,16 +114,16 @@ class NavigationManager:
             query_parts.append("ORDER BY timestamp DESC LIMIT 50")
             query = " ".join(query_parts)
 
-            rows = execute_query(self.story_id, query, params)
+            rows = self.persistence.execute_query(self.story_id, query, tuple(params))
 
             results = []
             for row in rows:
                 results.append(
                     {
-                        "scene_id": row[0],
-                        "title": row[1] or "Untitled Scene",
-                        "timestamp": row[2],
-                        "summary": row[3],
+                        "scene_id": row.get("scene_id"),
+                        "title": (row.get("scene_title") or "Untitled Scene"),
+                        "timestamp": row.get("timestamp"),
+                        "summary": row.get("scene_summary"),
                         "relevance_score": self._calculate_relevance_score(
                             row, title_pattern, content_pattern
                         ),
@@ -126,51 +144,51 @@ class NavigationManager:
     ) -> dict[str, Any]:
         """Get contextual scenes around target scene."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-            init_database(self.story_id)
+            self.persistence.init_database(self.story_id)
 
             # Get target scene timestamp
-            target_row = execute_query(
+            target_row = self.persistence.execute_query(
                 self.story_id,
                 """
-                SELECT timestamp, scene_title, scene_summary
-                FROM scenes WHERE scene_id = ?
-            """,
-                (scene_id,),
+                SELECT timestamp, scene_label AS scene_title, substr(output, 1, 200) AS scene_summary
+                FROM scenes WHERE scene_id = ? AND story_id = ?
+                """,
+                (scene_id, self.story_id),
             )
 
             if not target_row:
                 return {"error": "Scene not found"}
 
-            target_timestamp = target_row[0][0]
+            target_timestamp = target_row[0]["timestamp"]
 
             # Get surrounding scenes
-            context_rows = execute_query(
+            context_rows = self.persistence.execute_query(
                 self.story_id,
                 """
-                (SELECT scene_id, scene_title, timestamp, scene_summary, 'before' as position
+                (SELECT scene_id, scene_label AS scene_title, timestamp, substr(output, 1, 200) AS scene_summary, 'before' AS position
                  FROM scenes
-                 WHERE timestamp < ?
+                 WHERE story_id = ? AND timestamp < ?
                  ORDER BY timestamp DESC
                  LIMIT ?)
                 UNION ALL
-                (SELECT scene_id, scene_title, timestamp, scene_summary, 'current' as position
+                (SELECT scene_id, scene_label AS scene_title, timestamp, substr(output, 1, 200) AS scene_summary, 'current' AS position
                  FROM scenes
-                 WHERE scene_id = ?)
+                 WHERE story_id = ? AND scene_id = ?)
                 UNION ALL
-                (SELECT scene_id, scene_title, timestamp, scene_summary, 'after' as position
+                (SELECT scene_id, scene_label AS scene_title, timestamp, substr(output, 1, 200) AS scene_summary, 'after' AS position
                  FROM scenes
-                 WHERE timestamp > ?
+                 WHERE story_id = ? AND timestamp > ?
                  ORDER BY timestamp ASC
                  LIMIT ?)
                 ORDER BY timestamp ASC
-            """,
+                """,
                 (
+                    self.story_id,
                     target_timestamp,
                     context_window,
+                    self.story_id,
                     scene_id,
+                    self.story_id,
                     target_timestamp,
                     context_window,
                 ),
@@ -180,12 +198,12 @@ class NavigationManager:
             for row in context_rows:
                 context_scenes.append(
                     {
-                        "scene_id": row[0],
-                        "title": row[1] or "Untitled Scene",
-                        "timestamp": row[2],
-                        "summary": row[3],
-                        "position": row[4],
-                        "is_target": row[0] == scene_id,
+                        "scene_id": row.get("scene_id"),
+                        "title": (row.get("scene_title") or "Untitled Scene"),
+                        "timestamp": row.get("timestamp"),
+                        "summary": row.get("scene_summary"),
+                        "position": row.get("position"),
+                        "is_target": row.get("scene_id") == scene_id,
                     }
                 )
 
@@ -207,20 +225,23 @@ class NavigationManager:
     ) -> bool:
         """Track navigation between scenes."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_update - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-            init_database(self.story_id)
+            self.persistence.init_database(self.story_id)
 
             # Log navigation event
-            execute_update(
+            self.persistence.execute_update(
                 self.story_id,
                 """
                 INSERT INTO navigation_history
-                (from_scene, to_scene, navigation_type, timestamp)
-                VALUES (?, ?, ?, ?)
-            """,
-                (from_scene, to_scene, navigation_type, datetime.now(UTC).isoformat()),
+                    (from_scene, to_scene, navigation_type, timestamp, story_id)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    from_scene,
+                    to_scene,
+                    navigation_type,
+                    datetime.now(UTC).isoformat(),
+                    self.story_id,
+                ),
             )
 
             from src.openchronicle.shared.logging_system import log_system_event
@@ -241,35 +262,41 @@ class NavigationManager:
     async def get_navigation_statistics(self) -> dict[str, Any]:
         """Get navigation pattern statistics."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-            init_database(self.story_id)
+            self.persistence.init_database(self.story_id)
 
             # Count total scenes
-            scene_count = execute_query(self.story_id, "SELECT COUNT(*) FROM scenes")[
-                0
-            ][0]
+            scene_count_rows = self.persistence.execute_query(
+                self.story_id,
+                "SELECT COUNT(*) AS count FROM scenes WHERE story_id = ?",
+                (self.story_id,),
+            )
+            scene_count = scene_count_rows[0]["count"] if scene_count_rows else 0
 
             # Get navigation patterns
-            nav_patterns = execute_query(
+            nav_patterns = self.persistence.execute_query(
                 self.story_id,
                 """
-                SELECT navigation_type, COUNT(*) as count
+                SELECT navigation_type, COUNT(*) AS count
                 FROM navigation_history
+                WHERE story_id = ?
                 GROUP BY navigation_type
                 ORDER BY count DESC
-            """,
+                """,
+                (self.story_id,),
             )
 
             # Get recent activity
-            recent_activity = execute_query(
+            recent_activity_rows = self.persistence.execute_query(
                 self.story_id,
                 """
-                SELECT COUNT(*) FROM scenes
-                WHERE timestamp > datetime('now', '-7 days')
-            """,
-            )[0][0]
+                SELECT COUNT(*) AS count FROM scenes
+                WHERE story_id = ? AND timestamp > datetime('now', '-7 days')
+                """,
+                (self.story_id,),
+            )
+            recent_activity = (
+                recent_activity_rows[0]["count"] if recent_activity_rows else 0
+            )
 
             return {
                 "total_scenes": scene_count,
@@ -358,42 +385,41 @@ class NavigationManager:
     async def _navigate_next(self, current_scene_id: str | None) -> dict[str, Any]:
         """Navigate to next scene in timeline."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-            init_database(self.story_id)
+            self.persistence.init_database(self.story_id)
 
             if not current_scene_id:
                 # Get first scene
-                first_scene = execute_query(
+                first_scene = self.persistence.execute_query(
                     self.story_id,
                     """
-                    SELECT scene_id, scene_title, timestamp FROM scenes
+                    SELECT scene_id, scene_label AS scene_title, timestamp FROM scenes
+                    WHERE story_id = ?
                     ORDER BY timestamp ASC LIMIT 1
-                """,
+                    """,
+                    (self.story_id,),
                 )
                 if first_scene:
                     return {
-                        "target_scene_id": first_scene[0][0],
+                        "target_scene_id": first_scene[0]["scene_id"],
                         "navigation_type": "next",
                         "status": "success",
                     }
                 return {"error": "No scenes found"}
 
             # Find next scene after current
-            next_scene = execute_query(
+            next_scene = self.persistence.execute_query(
                 self.story_id,
                 """
-                SELECT scene_id, scene_title, timestamp FROM scenes
-                WHERE timestamp > (SELECT timestamp FROM scenes WHERE scene_id = ?)
+                SELECT scene_id, scene_label AS scene_title, timestamp FROM scenes
+                WHERE story_id = ? AND timestamp > (SELECT timestamp FROM scenes WHERE scene_id = ? AND story_id = ?)
                 ORDER BY timestamp ASC LIMIT 1
-            """,
-                (current_scene_id,),
+                """,
+                (self.story_id, current_scene_id, self.story_id),
             )
 
             if next_scene:
                 return {
-                    "target_scene_id": next_scene[0][0],
+                    "target_scene_id": next_scene[0]["scene_id"],
                     "navigation_type": "next",
                     "status": "success",
                 }
@@ -405,42 +431,41 @@ class NavigationManager:
     async def _navigate_previous(self, current_scene_id: str | None) -> dict[str, Any]:
         """Navigate to previous scene in timeline."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-            init_database(self.story_id)
+            self.persistence.init_database(self.story_id)
 
             if not current_scene_id:
                 # Get last scene
-                last_scene = execute_query(
+                last_scene = self.persistence.execute_query(
                     self.story_id,
                     """
-                    SELECT scene_id, scene_title, timestamp FROM scenes
+                    SELECT scene_id, scene_label AS scene_title, timestamp FROM scenes
+                    WHERE story_id = ?
                     ORDER BY timestamp DESC LIMIT 1
-                """,
+                    """,
+                    (self.story_id,),
                 )
                 if last_scene:
                     return {
-                        "target_scene_id": last_scene[0][0],
+                        "target_scene_id": last_scene[0]["scene_id"],
                         "navigation_type": "previous",
                         "status": "success",
                     }
                 return {"error": "No scenes found"}
 
             # Find previous scene before current
-            prev_scene = execute_query(
+            prev_scene = self.persistence.execute_query(
                 self.story_id,
                 """
-                SELECT scene_id, scene_title, timestamp FROM scenes
-                WHERE timestamp < (SELECT timestamp FROM scenes WHERE scene_id = ?)
+                SELECT scene_id, scene_label AS scene_title, timestamp FROM scenes
+                WHERE story_id = ? AND timestamp < (SELECT timestamp FROM scenes WHERE scene_id = ? AND story_id = ?)
                 ORDER BY timestamp DESC LIMIT 1
-            """,
-                (current_scene_id,),
+                """,
+                (self.story_id, current_scene_id, self.story_id),
             )
 
             if prev_scene:
                 return {
-                    "target_scene_id": prev_scene[0][0],
+                    "target_scene_id": prev_scene[0]["scene_id"],
                     "navigation_type": "previous",
                     "status": "success",
                 }
@@ -452,18 +477,15 @@ class NavigationManager:
     async def _navigate_jump_to(self, target_scene_id: str) -> dict[str, Any]:
         """Jump to specific scene."""
         try:
-            # from src.openchronicle.infrastructure.persistence import execute_query - REPLACED WITH DEPENDENCY INJECTION
-            # from src.openchronicle.infrastructure.persistence import init_database - REPLACED WITH DEPENDENCY INJECTION
-
-            init_database(self.story_id)
+            self.persistence.init_database(self.story_id)
 
             # Verify scene exists
-            scene = execute_query(
+            scene = self.persistence.execute_query(
                 self.story_id,
                 """
-                SELECT scene_id, scene_title, timestamp FROM scenes WHERE scene_id = ?
-            """,
-                (target_scene_id,),
+                SELECT scene_id, scene_label AS scene_title, timestamp FROM scenes WHERE story_id = ? AND scene_id = ?
+                """,
+                (self.story_id, target_scene_id),
             )
 
             if scene:
@@ -507,22 +529,27 @@ class NavigationManager:
             return timestamp
 
     def _calculate_relevance_score(
-        self, row, title_pattern: str | None, content_pattern: str | None
+        self, row: dict[str, Any], title_pattern: str | None, content_pattern: str | None
     ) -> float:
         """Calculate relevance score for search results."""
         score = 0.0
 
-        if title_pattern and row[1]:
-            if title_pattern.lower() in row[1].lower():
+        title_val = row.get("scene_title")
+        if title_pattern and title_val:
+            if title_pattern.lower() in title_val.lower():
                 score += 10.0
 
-        if content_pattern and row[3]:
-            if content_pattern.lower() in row[3].lower():
+        summary_val = row.get("scene_summary")
+        if content_pattern and summary_val:
+            if content_pattern.lower() in summary_val.lower():
                 score += 5.0
 
         # Recency bonus (newer scenes get slight boost)
         try:
-            dt = datetime.fromisoformat(row[2].replace("Z", "+00:00"))
+            timestamp_val = row.get("timestamp")
+            dt = datetime.fromisoformat(timestamp_val.replace("Z", "+00:00")) if timestamp_val else None
+            if dt is None:
+                return score
             days_old = (datetime.now(UTC) - dt).days
             score += max(0, 2.0 - (days_old * 0.1))
         except:

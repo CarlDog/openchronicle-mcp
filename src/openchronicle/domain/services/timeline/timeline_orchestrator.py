@@ -13,19 +13,16 @@ Features:
 - Enhanced error handling and logging
 """
 
-import sys
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import Any
-
-
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
 from src.openchronicle.shared.logging_system import log_error
 from src.openchronicle.shared.logging_system import log_info
 from src.openchronicle.shared.logging_system import log_system_event
 from src.openchronicle.shared.logging_system import log_warning
+from src.openchronicle.domain.ports.persistence_inmemory import (
+    InMemorySqlitePersistence,
+)
 
 
 class TimelineConfiguration:
@@ -101,12 +98,14 @@ class TimelineOrchestrator:
         self._timeline_manager = None
         self._state_manager = None
         self._navigation_manager = None
-        self._navigation_manager = None
+
+        # Shared persistence for all timeline components (in-memory by default)
+        self._persistence = InMemorySqlitePersistence()
 
         # Initialize logging
         log_system_event(
             "timeline_orchestrator_init",
-            f"Initialized TimelineOrchestrator for story {story_id}",
+            f"Initialized TimelineOrchestrator for story {self.story_id}",
         )
 
     def _get_timeline_manager(self):
@@ -114,8 +113,14 @@ class TimelineOrchestrator:
         if self._timeline_manager is None:
             try:
                 from .timeline.timeline_manager import TimelineManager
+                from .shared.bookmark_manager import SimpleBookmarkManager
 
-                self._timeline_manager = TimelineManager(self.story_id)
+                bookmark_mgr = SimpleBookmarkManager(self._persistence)
+                self._timeline_manager = TimelineManager(
+                    self.story_id,
+                    persistence_port=self._persistence,
+                    bookmark_manager=bookmark_mgr,
+                )
                 log_info(f"Timeline manager loaded for story {self.story_id}")
             except ImportError as e:
                 log_warning(f"Timeline manager not available: {e}")
@@ -128,7 +133,9 @@ class TimelineOrchestrator:
             try:
                 from .rollback.state_manager import StateManager
 
-                self._state_manager = StateManager(self.story_id)
+                self._state_manager = StateManager(
+                    self.story_id, persistence_port=self._persistence
+                )
                 log_info(f"State manager loaded for story {self.story_id}")
             except ImportError as e:
                 log_warning(f"State manager not available: {e}")
@@ -141,7 +148,9 @@ class TimelineOrchestrator:
             try:
                 from .navigation.navigation_manager import NavigationManager
 
-                self._navigation_manager = NavigationManager(self.story_id)
+                self._navigation_manager = NavigationManager(
+                    self.story_id, persistence_port=self._persistence
+                )
                 log_info(f"Navigation manager loaded for story {self.story_id}")
             except ImportError as e:
                 log_warning(f"Navigation manager not available: {e}")

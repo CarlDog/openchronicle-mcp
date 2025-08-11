@@ -174,7 +174,6 @@ def get_available_orchestrators() -> dict[str, bool]:
         "MemoryOrchestrator": MEMORY_AVAILABLE,
         "SceneOrchestrator": SCENE_AVAILABLE,
         "NarrativeOrchestrator": NARRATIVE_AVAILABLE,
-        "ContextOrchestrator": CONTEXT_AVAILABLE,
         "CharacterOrchestrator": CHARACTER_AVAILABLE,
         "TimelineOrchestrator": TIMELINE_AVAILABLE,
         "DatabaseOrchestrator": DATABASE_AVAILABLE,
@@ -234,14 +233,14 @@ async def initialize_core(config_path: str | None = None) -> bool:
         log_system_event("system", "Core initialization started")
 
         # Initialize dependency injection container
-        container = get_container()
+        get_container()
         log_info("Dependency injection container initialized")
 
         # Load centralized configuration
         if config_path:
-            config = CentralizedConfigManager(config_path)
+            CentralizedConfigManager(config_path)
         else:
-            config = CentralizedConfigManager()
+            CentralizedConfigManager()
         log_info("Centralized configuration loaded")
 
         # Perform health check

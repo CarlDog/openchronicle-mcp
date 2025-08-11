@@ -72,6 +72,10 @@ class CharacterCreateRequest(BaseModel):
 class SceneGenerateRequest(BaseModel):
     """Request model for generating a new scene."""
 
+    model_config = {
+        "protected_namespaces": (),  # allow field names starting with 'model_'
+    }
+
     story_id: str = Field(..., description="Story ID")
     setting: str = Field(..., description="Scene setting")
     participant_ids: list[str] = Field(

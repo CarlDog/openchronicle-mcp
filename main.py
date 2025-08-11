@@ -13,6 +13,7 @@ Architecture:
     main.py → src/openchronicle/interfaces/cli/main.py → src/openchronicle/ (core business logic)
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,8 +25,32 @@ def main():
     if str(src_path) not in sys.path:
         sys.path.insert(0, str(src_path))
 
+    # Lightweight pre-parser for a quick system test run
+    # Usage: python main.py --test [optional args ignored]
+    if "--test" in sys.argv:
+        # Remove our flag and any unrelated args we don't support here
+        # Advanced tests are intentionally excluded (stress/perf/chaos/production)
+        print("🧪 Running OpenChronicle system tests (unit only)…")
+        pytest_cmd = [
+            sys.executable,
+            "-m",
+            "pytest",
+            "tests/unit",
+            "-q",
+            "--maxfail=1",
+            "--tb=short",
+            "-m",
+            "not stress and not chaos and not performance and not production and not production_real",
+        ]
+        try:
+            result = subprocess.run(pytest_cmd, check=False)
+            return result.returncode
+        except Exception as e:
+            print(f"❌ Failed to run system tests: {e}")
+            return 1
+
     try:
-        # Import and run the modern CLI from its new location
+    # Import and run the modern CLI from its new location
         from openchronicle.interfaces.cli.main import app
 
         # Pass all command line arguments to the CLI

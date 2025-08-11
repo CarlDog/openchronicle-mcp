@@ -39,21 +39,12 @@ except ImportError as e:
     print(f"Warning: System commands not available: {e}")
 
 try:
-    # Try enhanced config commands first
-    from src.openchronicle.interfaces.cli.commands.config.enhanced import (
-        app as enhanced_config_app,
-    )
+    # Use unified config commands
+    from src.openchronicle.interfaces.cli.commands.config import config_app
 
-    commands_imported["config"] = enhanced_config_app
+    commands_imported["config"] = config_app
 except ImportError as e:
-    print(f"Warning: Enhanced config commands not available: {e}")
-    # Commented out fallback to identify the issue
-    # try:
-    #     # Fallback to legacy config commands
-    #     from src.openchronicle.interfaces.cli.commands.config import config_app
-    #     commands_imported['config'] = config_app
-    # except ImportError as e:
-    #     print(f"Warning: Config commands not available: {e}")
+    print(f"Warning: Config commands not available: {e}")
 
 try:
     from src.openchronicle.interfaces.cli.commands.test import test_app
@@ -61,6 +52,13 @@ try:
     commands_imported["test"] = test_app
 except ImportError as e:
     print(f"Warning: Test commands not available: {e}")
+
+try:
+    from src.openchronicle.interfaces.cli.commands.bookmarks import bookmarks_app
+
+    commands_imported["bookmarks"] = bookmarks_app
+except ImportError as e:
+    print(f"Warning: Bookmarks commands not available: {e}")
 
 COMMANDS_AVAILABLE = len(commands_imported) > 0
 
@@ -166,6 +164,8 @@ if COMMANDS_AVAILABLE:
             app.add_typer(commands_imported["config"], name="config")
         if "test" in commands_imported:
             app.add_typer(commands_imported["test"], name="test")
+        if "bookmarks" in commands_imported:
+            app.add_typer(commands_imported["bookmarks"], name="bookmarks")
     except Exception as e:
         print(f"Warning: Error adding command groups: {e}")
 

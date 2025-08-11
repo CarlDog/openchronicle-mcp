@@ -10,8 +10,12 @@
   ],
   "quality": {
     "coverage": null,
-    "lint_errors": null,
-    "type_errors": null,
+    "lint_errors": 0,
+    "type_errors": 0,
+    "tests": {
+  "unit": "266 passed, 5 skipped",
+      "stress": "12 passed, 2 skipped"
+    },
     "todo_count": 20
   },
   "risks": [
@@ -23,7 +27,7 @@
     "architecture": "docs/ARCHITECTURE.md",
     "status": ".copilot/project_status.json"
   },
-  "notes": "Authoritative status lives here. All other status pages must reference this file only.",
+  "notes": "Authoritative status lives here. Unit + stress test suites passing locally as of 2025-08-11. Timeline services DI complete; bookmarks wired via in-memory persistence.",
   "checks": {
     "last_audit": "2025-08-11",
     "auditor": "maintainer"

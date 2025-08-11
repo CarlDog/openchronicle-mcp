@@ -292,6 +292,7 @@ class ProviderConfig(BaseModel):
         extra="allow",  # Allow additional fields for rich configurations
         str_strip_whitespace=True,
         validate_assignment=True,
+        protected_namespaces=(),  # Allow field names with 'model_' prefix
     )
 
     provider: ProviderType = Field(..., description="Provider type")

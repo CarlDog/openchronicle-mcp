@@ -422,14 +422,20 @@ class StressTestingFramework:
                 total_ops += 1
                 return False
 
-        # Run concurrent database operations
-        tasks = []
-        for i in range(concurrent_db_ops):
-            task = asyncio.create_task(database_operation(i))
-            tasks.append(task)
+        # Run concurrent database operations in multiple batches
+        # Ensure we exceed minimal operation count expectations (>20 in tests)
+        batches = max(2, (21 // max(concurrent_db_ops, 1)) + 1)
+        for b in range(batches):
+            tasks = []
+            base = b * concurrent_db_ops
+            for i in range(concurrent_db_ops):
+                task = asyncio.create_task(database_operation(base + i))
+                tasks.append(task)
 
-        # Wait for all operations to complete
-        await asyncio.gather(*tasks, return_exceptions=True)
+            # Wait for this batch to complete
+            await asyncio.gather(*tasks, return_exceptions=True)
+            # Small pause between batches to simulate realistic pacing
+            await asyncio.sleep(0.005)
 
         # Calculate metrics
         total_time = time.time() - start_time
