@@ -14,13 +14,24 @@ from datetime import datetime
 from typing import Any
 from typing import Optional
 
-from src.openchronicle.application.services.management.bookmark.bookmark_manager import (
-    BookmarkManager,
-)
+# Domain ports only - following hexagonal architecture
 from src.openchronicle.domain.ports.memory_port import IMemoryPort
-
-# Import domain interfaces (following dependency inversion principle)
 from src.openchronicle.domain.ports.persistence_port import IPersistencePort
+
+# Bookmark management interface (to be injected, not directly imported)
+from typing import Protocol
+
+
+class IBookmarkManager(Protocol):
+    """Interface for bookmark management - prevents domain layer violations."""
+    
+    def create_bookmark(self, story_id: str, scene_index: int, label: str) -> str:
+        """Create a new bookmark."""
+        ...
+    
+    def get_bookmarks(self, story_id: str) -> list[dict[str, Any]]:
+        """Get all bookmarks for a story."""
+        ...
 
 
 class TimelineManager:
@@ -31,6 +42,7 @@ class TimelineManager:
         story_id: str,
         persistence_port: Optional[IPersistencePort] = None,
         memory_port: Optional[IMemoryPort] = None,
+        bookmark_manager: Optional[IBookmarkManager] = None,
     ):
         """
         Initialize timeline manager.
@@ -42,27 +54,26 @@ class TimelineManager:
         """
         self.story_id = story_id
 
-        # If no persistence port provided, create default adapter
+        # If no persistence port provided, this violates hexagonal architecture
+        # The caller should always provide implementations
         if persistence_port is None:
-            from src.openchronicle.infrastructure.persistence_adapters.persistence_adapter import (
-                PersistenceAdapter,
+            raise ValueError(
+                "TimelineManager requires a persistence_port implementation. "
+                "This follows hexagonal architecture - domain should not import infrastructure."
             )
+        self.persistence = persistence_port
 
-            self.persistence = PersistenceAdapter()
-        else:
-            self.persistence = persistence_port
-
-        # If no memory port provided, create default adapter
+        # If no memory port provided, this violates hexagonal architecture
+        # The caller should always provide implementations
         if memory_port is None:
-            from src.openchronicle.infrastructure.persistence_adapters.memory_adapter import (
-                MemoryAdapter,
+            raise ValueError(
+                "TimelineManager requires a memory_port implementation. "
+                "This follows hexagonal architecture - domain should not import infrastructure."
             )
+        self.memory = memory_port
 
-            self.memory = MemoryAdapter()
-        else:
-            self.memory = memory_port
-
-        self.bookmark_manager = BookmarkManager(story_id)
+        # Use injected bookmark manager or None (caller responsibility to provide)
+        self.bookmark_manager = bookmark_manager
         self._init_database()
 
     def _init_database(self) -> None:

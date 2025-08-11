@@ -50,23 +50,14 @@ class ConfigurationManager:
         """
         self.config = config or SystemConfig()
 
-        # If no registry port provided, create default adapter
+        # If no registry port provided, this violates hexagonal architecture
+        # The caller should always provide implementations
         if registry_port is None:
-            # Conditional import to avoid circular dependencies
-            try:
-                from src.openchronicle.infrastructure.persistence_adapters.registry_adapter import (
-                    RegistryAdapter,
-                )
-
-                self.registry = RegistryAdapter()
-            except ImportError:
-                # Fallback for development/testing
-                self.registry = None
-                log_warning(
-                    "Registry adapter not available - some features may be limited"
-                )
-        else:
-            self.registry = registry_port
+            raise ValueError(
+                "ConfigurationManager requires a registry_port implementation. "
+                "This follows hexagonal architecture - domain should not import infrastructure."
+            )
+        self.registry = registry_port
 
     def __init__(self, config_path: str = "config"):
         """Initialize with existing components."""

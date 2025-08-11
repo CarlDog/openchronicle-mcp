@@ -34,15 +34,14 @@ class MoodAnalyzer:
         """
         self.story_id = story_id
 
-        # If no persistence port provided, create default adapter
+        # If no persistence port provided, this violates hexagonal architecture
+        # The caller should always provide implementations
         if persistence_port is None:
-            from src.openchronicle.infrastructure.persistence_adapters.persistence_adapter import (
-                PersistenceAdapter,
+            raise ValueError(
+                "MoodAnalyzer requires a persistence_port implementation. "
+                "This follows hexagonal architecture - domain should not import infrastructure."
             )
-
-            self.persistence = PersistenceAdapter()
-        else:
-            self.persistence = persistence_port
+        self.persistence = persistence_port
 
         # Define mood categories for analysis
         self.mood_categories = {

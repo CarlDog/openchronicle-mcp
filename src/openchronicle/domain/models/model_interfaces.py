@@ -366,20 +366,11 @@ class ModelInterfaceFactory:
     @staticmethod
     def create_performance_monitor(config: dict[str, Any]) -> IModelPerformanceMonitor:
         """Create performance monitor implementation using dependency injection."""
-        # Import here to avoid circular dependencies
-        try:
-            from src.openchronicle.infrastructure.persistence_adapters.performance_adapter import (
-                PerformanceAdapter,
-            )
-
-            return PerformanceAdapter()
-        except ImportError:
-            # Fallback mock implementation for development/testing
-            from src.openchronicle.domain.models.mock_implementations import (
-                MockPerformanceMonitor,
-            )
-
-            return MockPerformanceMonitor(config)
+        # This violates hexagonal architecture - should be injected, not created here
+        raise ValueError(
+            "Performance monitor should be injected, not created in domain layer. "
+            "This follows hexagonal architecture - domain should not import infrastructure."
+        )
 
     @staticmethod
     def create_orchestrator(config: dict[str, Any]) -> IModelOrchestrator:

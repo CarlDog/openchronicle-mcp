@@ -35,15 +35,14 @@ class SceneRepository:
         """
         self.story_id = story_id
 
-        # If no persistence port provided, create default adapter
+        # If no persistence port provided, this violates hexagonal architecture
+        # The caller should always provide implementations
         if persistence_port is None:
-            from src.openchronicle.infrastructure.persistence_adapters.persistence_adapter import (
-                PersistenceAdapter,
+            raise ValueError(
+                "SceneRepository requires a persistence_port implementation. "
+                "This follows hexagonal architecture - domain should not import infrastructure."
             )
-
-            self.persistence = PersistenceAdapter()
-        else:
-            self.persistence = persistence_port
+        self.persistence = persistence_port
 
         self._init_database()
 
@@ -166,7 +165,7 @@ class SceneRepository:
             base_query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
             params.extend([limit, offset])
 
-            rows = execute_query(self.story_id, base_query, params)
+            rows = self.persistence.execute_query(base_query, params)
 
             return [self._row_to_scene_data(row) for row in rows]
 
@@ -195,7 +194,7 @@ class SceneRepository:
                     base_query += f" AND {where_clause}"
                     params.extend(filter_params)
 
-            rows = execute_query(self.story_id, base_query, params)
+            rows = self.persistence.execute_query(base_query, params)
             return rows[0]["count"] if rows else 0
 
         except Exception as e:
@@ -213,8 +212,7 @@ class SceneRepository:
             True if successful, False otherwise
         """
         try:
-            execute_update(
-                self.story_id,
+            self.persistence.execute_update(
                 """
                 DELETE FROM scenes WHERE scene_id = ? AND story_id = ?
             """,
@@ -239,8 +237,7 @@ class SceneRepository:
             True if successful, False otherwise
         """
         try:
-            execute_update(
-                self.story_id,
+            self.persistence.execute_update(
                 """
                 UPDATE scenes SET scene_label = ? WHERE scene_id = ? AND story_id = ?
             """,
