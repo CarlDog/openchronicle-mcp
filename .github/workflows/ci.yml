@@ -141,7 +141,7 @@ jobs:
         run: |
           echo "🧪 Running comprehensive test suite..."
           pytest tests/ \
-            --cov=src \
+            --cov=src/openchronicle \
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-report=html \

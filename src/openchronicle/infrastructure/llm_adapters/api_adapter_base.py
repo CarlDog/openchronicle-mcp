@@ -296,5 +296,3 @@ class LocalModelAdapter(BaseAPIAdapter):
             )
 
 
-# Legacy compatibility - maintain old import path temporarily
-BaseAdapter = BaseAPIAdapter  # For backward compatibility during transition

@@ -22,10 +22,6 @@ class FallbackNavigationManager:
     async def get_navigation_history(self) -> list[dict[str, Any]]:
         """Basic navigation history with limited functionality."""
         try:
-            import sys
-            from pathlib import Path
-
-            sys.path.append(str(Path(__file__).parent.parent.parent))
             # Infrastructure dependencies replaced with dependency injection
 
             await self.persistence_port.init_database(self.story_id)

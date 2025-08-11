@@ -66,9 +66,7 @@ def get_fts_stats(story_id: str, is_test=None):
     return _orchestrator.get_fts_stats(story_id, is_test)
 
 
-def check_fts_support():
-    """Legacy alias for has_fts5_support."""
-    return _orchestrator.check_fts_support()
+# No legacy aliases. Use has_fts5_support() directly.
 
 
 # Migration operations

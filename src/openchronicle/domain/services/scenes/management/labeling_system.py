@@ -7,15 +7,7 @@ Handles scene labeling operations:
 - Label organization and validation
 """
 
-import sys
-from pathlib import Path
 from typing import Any
-
-
-# Database imports from parent core directory
-sys.path.append(str(Path(__file__).parent.parent.parent))
-# VIOLATION FIXED: Use dependency injection instead
-# VIOLATION FIXED: Use dependency injection instead
 
 from ..persistence.scene_repository import SceneRepository
 

@@ -9,14 +9,11 @@ This orchestrator coordinates between all context subsystems:
 Replaces the legacy monolithic context_builder.py with a clean orchestration pattern.
 """
 
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
 from openchronicle.domain.services.narrative import NarrativeOrchestrator
 from openchronicle.domain.services.narrative.response.context_analyzer import (
     ContextAnalyzer as NarrativeContextAnalyzer,
@@ -268,6 +265,8 @@ class ContextOrchestrator:
         config: ContextConfiguration | None = None,
     ) -> str:
         """Build context focused on a specific character."""
+        # Ensure subsystems are initialized for direct calls to this method
+        self._ensure_initialized()
         if config is None:
             config = ContextConfiguration(narrative_focus="character")
 

@@ -10,17 +10,13 @@ This orchestrator coordinates between all scene subsystems:
 Replaces the legacy monolithic scene_logger.py with a clean orchestration pattern.
 """
 
-import sys
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
 from openchronicle.shared.logging_system import log_error
 from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_warning
 
 from .analysis.mood_analyzer import MoodAnalyzer
 from .analysis.statistics_engine import StatisticsEngine
@@ -197,6 +193,50 @@ class SceneOrchestrator:
         except Exception as e:
             log_error(f"Error saving scene: {e}")
             return ""
+
+    async def log_scene_fragment(self, story_id: str, fragment: dict[str, Any]) -> bool:
+        """Log a scene fragment for interactive workflows.
+
+        Accepts a preformatted fragment dict and persists it as a scene entry.
+
+        Args:
+            story_id: Story identifier (validated against orchestrator's story)
+            fragment: Dict with keys like scene_id, user_input, ai_response, etc.
+
+        Returns:
+            True on successful persistence, False otherwise
+        """
+        try:
+            if story_id != self.story_id:
+                log_warning(
+                    f"log_scene_fragment called with mismatched story_id: {story_id} != {self.story_id}"
+                )
+
+            user_input = fragment.get("user_input", "")
+            model_output = fragment.get("ai_response", "")
+
+            # Store the fragment metadata inside memory_snapshot for traceability
+            memory_snapshot = {
+                "fragment": {
+                    k: v
+                    for k, v in fragment.items()
+                    if k not in {"user_input", "ai_response"}
+                }
+            }
+
+            scene_label = fragment.get("action_type", "interaction_fragment")
+
+            scene_id = self.save_scene(
+                user_input=user_input,
+                model_output=model_output,
+                memory_snapshot=memory_snapshot,
+                scene_label=scene_label,
+            )
+
+            return bool(scene_id)
+        except Exception as e:
+            log_error(f"Error logging scene fragment: {e}")
+            return False
 
     async def save_scene_async(
         self,

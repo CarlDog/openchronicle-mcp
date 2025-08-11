@@ -5,13 +5,8 @@ Modernized bookmark management system that integrates all bookmark components.
 Provides unified API for bookmark operations, search, and navigation.
 """
 
-import sys
-from pathlib import Path
 from typing import Any
 
-
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
 from openchronicle.shared.logging_system import log_error
 from openchronicle.shared.logging_system import log_system_event
 
@@ -31,7 +26,6 @@ class BookmarkManager:
     Unified bookmark management system.
 
     Integrates bookmark CRUD, search, and navigation into a single API.
-    Maintains backward compatibility with legacy bookmark_manager.py interface.
     """
 
     def __init__(self, story_id: str, config: dict[str, Any] | None = None):
@@ -237,19 +231,16 @@ class BookmarkManager:
         """Organize all bookmarks by their chapter associations."""
         return self.navigation_manager.organize_by_chapters()
 
-    # =====================================================================
-    # LEGACY COMPATIBILITY
-    # =====================================================================
-
+    # Modern API: expose scene-linked queries explicitly
     def get_bookmarks_with_scenes(
-        self, bookmark_type: str | None = None
+        self, bookmark_type: str | BookmarkType | None = None
     ) -> list[dict[str, Any]]:
-        """Legacy method: Get bookmarks with their associated scene information."""
-        type_enum = BookmarkType(bookmark_type) if bookmark_type else None
+        type_enum = (
+            BookmarkType(bookmark_type) if isinstance(bookmark_type, str) else bookmark_type
+        )
         return self.data_manager.get_bookmarks_with_scenes(type_enum)
 
     def get_stats(self) -> dict[str, Any]:
-        """Legacy method: Get bookmark statistics."""
         return self.data_manager.get_stats()
 
     # =====================================================================

@@ -9,17 +9,9 @@ Provides comprehensive statistics and analytics for scenes:
 """
 
 import json
-import sys
 from datetime import datetime
 from datetime import timedelta
-from pathlib import Path
 from typing import Any, Optional
-
-
-# Database imports from parent core directory
-sys.path.append(str(Path(__file__).parent.parent.parent))
-# VIOLATION FIXED: Use dependency injection instead
-
 
 from openchronicle.domain.ports.persistence_port import IPersistencePort
 

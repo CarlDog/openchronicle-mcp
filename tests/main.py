@@ -124,7 +124,12 @@ class TestRunner:
             cmd.append("-q")
 
         if coverage and COVERAGE_AVAILABLE:
-            cmd.extend(["--cov=core", "--cov-report=term-missing", "--cov-report=html"])
+            # Correct package path for src layout
+            cmd.extend([
+                "--cov=src/openchronicle",
+                "--cov-report=term-missing",
+                "--cov-report=html",
+            ])
 
         if parallel:
             cmd.extend(["-n", "auto"])

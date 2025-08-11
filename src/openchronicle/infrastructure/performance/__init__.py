@@ -73,8 +73,7 @@ except ImportError:
     PerformanceMetrics = None
     OperationContext = None
 
-# Backwards compatibility - maintain old import
-PerformanceMonitor = ModelPerformanceMonitor
+# No alias exports that imply backwards compatibility.
 
 
 def get_performance_status():
@@ -121,6 +120,4 @@ __all__ = [
     "get_performance_status",
     "create_performance_orchestrator",
     "create_model_performance_monitor",
-    # Backwards Compatibility
-    "PerformanceMonitor",  # Alias for ModelPerformanceMonitor
 ]

@@ -56,5 +56,3 @@ __all__ = [
     "RecommendationEngine",
 ]
 
-# Backward compatibility alias
-ContentAnalyzer = ContentAnalysisOrchestrator

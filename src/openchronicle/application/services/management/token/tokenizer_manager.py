@@ -5,27 +5,9 @@ Extracted from token_manager.py
 Handles tokenizer management and token estimation for different models.
 """
 
-import os
-import sys
-
 import tiktoken
 
-
-# Import logging system with fallback for missing module
-
-sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "utilities")
-)
-try:
-    from logging_system import log_error
-    from logging_system import log_warning
-except ImportError:
-    # Fallback for testing or when logging_system is not available
-    def log_warning(message):
-        print(f"WARNING: {message}")
-
-    def log_error(message):
-        print(f"ERROR: {message}")
+from openchronicle.shared.logging_system import log_error, log_warning
 
 
 class TokenizerManager:

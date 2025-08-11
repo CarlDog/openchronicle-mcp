@@ -256,12 +256,12 @@ class AsyncMemoryOrchestrator:
         self.repository.clear_cache(story_id)
         self.logger.info(f"Cache cleared for story: {story_id or 'all stories'}")
 
-    # ===== BACKWARDS COMPATIBILITY METHODS =====
+    # ===== ASYNC FLAG AND EVENT OPERATIONS =====
 
     async def add_memory_flag(
         self, story_id: str, flag_name: str, flag_data: Any = None
     ) -> bool:
-        """Add memory flag asynchronously."""
+        """Add or update a memory flag asynchronously."""
         try:
             memory = await self.repository.load_memory(story_id)
             if "flags" not in memory:
@@ -273,7 +273,7 @@ class AsyncMemoryOrchestrator:
             return False
 
     async def remove_memory_flag(self, story_id: str, flag_name: str) -> bool:
-        """Remove memory flag asynchronously."""
+        """Remove a memory flag asynchronously."""
         try:
             memory = await self.repository.load_memory(story_id)
             if "flags" in memory and flag_name in memory["flags"]:
@@ -285,7 +285,7 @@ class AsyncMemoryOrchestrator:
             return False
 
     async def has_memory_flag(self, story_id: str, flag_name: str) -> bool:
-        """Check if memory flag exists asynchronously."""
+        """Check if a memory flag exists asynchronously."""
         try:
             memory = await self.repository.load_memory(story_id)
             return "flags" in memory and flag_name in memory["flags"]
@@ -295,7 +295,7 @@ class AsyncMemoryOrchestrator:
     async def add_recent_event(
         self, story_id: str, event_description: str, event_data: Any = None
     ) -> bool:
-        """Add recent event asynchronously."""
+        """Append a recent event entry asynchronously."""
         try:
             memory = await self.repository.load_memory(story_id)
 

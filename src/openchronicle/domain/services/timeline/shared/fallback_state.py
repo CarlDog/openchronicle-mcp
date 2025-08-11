@@ -27,10 +27,6 @@ class FallbackStateManager:
     ) -> dict[str, Any]:
         """Create basic rollback point with limited functionality."""
         try:
-            import sys
-            from pathlib import Path
-
-            sys.path.append(str(Path(__file__).parent.parent.parent))
             await self.persistence_port.init_database(self.story_id)
 
             rollback_id = (
@@ -61,7 +57,6 @@ class FallbackStateManager:
                 "fallback_mode": True,
                 "limited_functionality": True,
             }
-
         except Exception as e:
             return {
                 "error": f"Fallback rollback creation failed: {e}",
@@ -71,10 +66,6 @@ class FallbackStateManager:
     async def list_rollback_points(self) -> list[dict[str, Any]]:
         """List basic rollback points."""
         try:
-            import sys
-            from pathlib import Path
-
-            sys.path.append(str(Path(__file__).parent.parent.parent))
             await self.persistence_port.init_database(self.story_id)
 
             rows = await self.persistence_port.execute_query(

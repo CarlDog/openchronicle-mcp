@@ -596,24 +596,9 @@ class RegistryManager:
         return str(self.models_dir)
 
 
-# Convenience function for backward compatibility
-def load_dynamic_registry(models_dir: str = "config/models/") -> RegistryManager:
-    """
-    Load the dynamic registry manager with default settings.
-
-    Args:
-        models_dir: Directory containing model configuration files
-
-    Returns:
-        Initialized RegistryManager instance
-    """
-    return RegistryManager(models_dir)
-
-
 # Export main classes
 __all__ = [
     "ConfigurationError",
     "ProviderNotFoundError",
     "RegistryManager",
-    "load_dynamic_registry",
 ]

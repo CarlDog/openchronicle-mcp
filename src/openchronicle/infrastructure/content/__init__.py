@@ -35,5 +35,3 @@ __all__ = [
     "context",
 ]
 
-# Backward compatibility aliases
-ContentAnalyzer = ContentAnalysisOrchestrator

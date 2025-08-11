@@ -27,8 +27,10 @@ class MemoryRepository:
     def load_memory(self, story_id: str) -> MemoryState:
         """Load complete memory state for story."""
         try:
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
             # Query all memory types from database
-            rows = database_orchestrator.database_orchestrator.execute_query(
+            rows = database_orchestrator.execute_query(
                 story_id,
                 """
                 SELECT type, key, value FROM memory
@@ -41,7 +43,7 @@ class MemoryRepository:
             memory_data = {}
             for row in rows:
                 memory_type = row["type"]
-                value = self.json_util.safe_load(row["value"])
+                value = self.json_util.safe_loads(row["value"])
                 if value:
                     memory_data[memory_type] = value
 
@@ -51,9 +53,20 @@ class MemoryRepository:
             # Return default memory structure if loading fails
             return MemoryState()
 
-    def save_memory(self, story_id: str, memory: MemoryState) -> bool:
-        """Save memory state with automatic timestamping."""
+    def save_memory(self, story_id: str, memory: MemoryState | dict[str, Any]) -> bool:
+        """Save memory state with automatic timestamping.
+
+        Accepts either a MemoryState instance or a plain dict that follows the
+        serialized memory structure. Dicts will be converted to MemoryState first
+        to normalize shapes before serialization.
+        """
         try:
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
+            # Normalize input to MemoryState
+            if isinstance(memory, dict):
+                memory = self._deserialize_memory(memory)
+
             serialized_data = self._serialize_memory(memory)
 
             # Update timestamp
@@ -79,7 +92,7 @@ class MemoryRepository:
                             story_id,
                             memory_type,
                             "current",
-                            self.json_util.safe_dump(serialized_data[memory_type]),
+                self.json_util.safe_dumps(serialized_data[memory_type]),
                             datetime.now(UTC).isoformat(),
                         ),
                     )
@@ -92,6 +105,8 @@ class MemoryRepository:
     def load_memory_section(self, story_id: str, section: str) -> dict[str, Any]:
         """Load specific memory section efficiently."""
         try:
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
             rows = database_orchestrator.execute_query(
                 story_id,
                 """
@@ -102,7 +117,7 @@ class MemoryRepository:
             )
 
             if rows:
-                return self.json_util.safe_load(rows[0]["value"]) or {}
+                return self.json_util.safe_loads(rows[0]["value"]) or {}
             return {}
 
         except Exception:
@@ -113,7 +128,9 @@ class MemoryRepository:
     ) -> bool:
         """Update specific memory section efficiently."""
         try:
-            database_orchestrator.execute_update(
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
+        database_orchestrator.execute_update(
                 story_id,
                 """
                 INSERT OR REPLACE INTO memory
@@ -124,7 +141,7 @@ class MemoryRepository:
                     story_id,
                     section,
                     "current",
-                    self.json_util.safe_dump(data),
+            self.json_util.safe_dumps(data),
                     datetime.now(UTC).isoformat(),
                 ),
             )
@@ -136,10 +153,12 @@ class MemoryRepository:
     def create_snapshot(self, story_id: str, scene_id: str, memory: MemoryState) -> str:
         """Create memory snapshot linked to scene."""
         try:
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
             serialized_memory = self._serialize_memory(memory)
             snapshot_id = f"{story_id}_{scene_id}_{datetime.now(UTC).isoformat()}"
 
-            database_orchestrator.execute_update(
+        database_orchestrator.execute_update(
                 story_id,
                 """
                 INSERT INTO memory_history (story_id, scene_id, timestamp, value)
@@ -149,7 +168,7 @@ class MemoryRepository:
                     story_id,
                     scene_id,
                     datetime.now(UTC).isoformat(),
-                    self.json_util.safe_dump(serialized_memory),
+            self.json_util.safe_dumps(serialized_memory),
                 ),
             )
 
@@ -164,6 +183,8 @@ class MemoryRepository:
     def restore_from_snapshot(self, story_id: str, scene_id: str) -> MemoryState | None:
         """Restore memory from specific snapshot."""
         try:
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
             rows = database_orchestrator.execute_query(
                 story_id,
                 """
@@ -176,7 +197,7 @@ class MemoryRepository:
             )
 
             if rows:
-                snapshot_data = self.json_util.safe_load(rows[0]["value"])
+                snapshot_data = self.json_util.safe_loads(rows[0]["value"])
                 if snapshot_data:
                     return self._deserialize_memory(snapshot_data)
 
@@ -188,6 +209,8 @@ class MemoryRepository:
     def get_snapshot_metadata(self, story_id: str) -> list[dict[str, Any]]:
         """Get metadata for all snapshots."""
         try:
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
             rows = database_orchestrator.execute_query(
                 story_id,
                 """
@@ -207,29 +230,60 @@ class MemoryRepository:
             return []
 
     def _serialize_memory(self, memory: MemoryState) -> dict[str, Any]:
-        """Convert MemoryState to dictionary for storage."""
+        """Convert MemoryState to dictionary for storage.
+
+        Robust to lists containing either dataclass instances or dicts for
+        flags/recent_events.
+        """
+        def _serialize_flag(flag_obj: Any) -> dict[str, Any]:
+            if isinstance(flag_obj, dict):
+                name = flag_obj.get("name", "")
+                created = flag_obj.get("created")
+                # Normalize created to isoformat string
+                if hasattr(created, "isoformat"):
+                    created_str = created.isoformat()
+                elif isinstance(created, str):
+                    created_str = created
+                else:
+                    created_str = datetime.now(UTC).isoformat()
+                return {
+                    "name": name,
+                    "created": created_str,
+                    "data": flag_obj.get("data"),
+                }
+            # Dataclass-like
+            return {
+                "name": getattr(flag_obj, "name", ""),
+                "created": getattr(flag_obj, "created", datetime.now(UTC)).isoformat(),
+                "data": getattr(flag_obj, "data", None),
+            }
+
+        def _serialize_event(event_obj: Any) -> dict[str, Any]:
+            if isinstance(event_obj, dict):
+                description = event_obj.get("description", "")
+                ts = event_obj.get("timestamp")
+                if hasattr(ts, "isoformat"):
+                    ts_str = ts.isoformat()
+                elif isinstance(ts, str):
+                    ts_str = ts
+                else:
+                    ts_str = datetime.now(UTC).isoformat()
+                data = event_obj.get("data", {})
+                return {"description": description, "timestamp": ts_str, "data": data}
+            # Dataclass-like
+            description = getattr(event_obj, "description", "")
+            ts = getattr(event_obj, "timestamp", datetime.now(UTC))
+            data = getattr(event_obj, "data", {})
+            return {"description": description, "timestamp": ts.isoformat(), "data": data}
+
         return {
             "characters": {
                 name: self._serialize_character(char)
                 for name, char in memory.characters.items()
             },
             "world_state": memory.world_state,
-            "flags": [
-                {
-                    "name": flag.name,
-                    "created": flag.created.isoformat(),
-                    "data": flag.data,
-                }
-                for flag in memory.flags
-            ],
-            "recent_events": [
-                {
-                    "description": event.description,
-                    "timestamp": event.timestamp.isoformat(),
-                    "data": event.data,
-                }
-                for event in memory.recent_events
-            ],
+            "flags": [_serialize_flag(flag) for flag in memory.flags],
+            "recent_events": [_serialize_event(evt) for evt in memory.recent_events],
             "metadata": {
                 "last_updated": memory.metadata.last_updated.isoformat(),
                 "version": memory.metadata.version,
@@ -280,9 +334,20 @@ class MemoryRepository:
 
         # Metadata
         if "metadata" in data:
-            meta = data["metadata"]
+            meta = data["metadata"] or {}
+            last_updated = meta.get("last_updated")
+            if isinstance(last_updated, str):
+                try:
+                    last_updated_dt = datetime.fromisoformat(last_updated)
+                except Exception:
+                    last_updated_dt = datetime.now(UTC)
+            elif hasattr(last_updated, "isoformat"):
+                last_updated_dt = last_updated
+            else:
+                last_updated_dt = datetime.now(UTC)
+
             memory.metadata = MemoryMetadata(
-                last_updated=datetime.fromisoformat(meta["last_updated"]),
+                last_updated=last_updated_dt,
                 version=meta.get("version", "1.0"),
                 scene_count=meta.get("scene_count", 0),
                 character_count=meta.get("character_count", 0),
@@ -363,6 +428,8 @@ class MemoryRepository:
     def _cleanup_old_snapshots(self, story_id: str, max_snapshots: int = 50) -> None:
         """Clean up old snapshots based on retention policy."""
         try:
+            # Ensure database is initialized (auto-detect test context)
+            database_orchestrator.init_database(story_id)
             database_orchestrator.execute_update(
                 story_id,
                 """

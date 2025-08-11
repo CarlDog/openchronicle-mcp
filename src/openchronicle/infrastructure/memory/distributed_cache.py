@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime
 from typing import Any, Callable
+import sys as _sys
 
 
 try:
@@ -32,6 +33,10 @@ except ImportError:
     RedisCluster = None
 
 from .redis_cache import CacheConfig
+
+# Ensure tests that patch via 'src.openchronicle...' reference the same module
+_alias_name = f"src.{__name__}"
+_sys.modules.setdefault(_alias_name, _sys.modules[__name__])
 from .redis_cache import CacheMetrics
 from .redis_cache import MultiTierCache
 

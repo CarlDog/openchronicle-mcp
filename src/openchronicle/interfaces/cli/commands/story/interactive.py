@@ -5,8 +5,6 @@ Provides a rich interactive storytelling experience through the CLI framework.
 """
 
 import asyncio
-import sys
-from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -14,10 +12,7 @@ from rich.prompt import Prompt
 from rich.status import Status
 
 
-# Add the current directory to Python path for imports
-current_dir = Path(__file__).parent.parent.parent.parent
-if str(current_dir) not in sys.path:
-    sys.path.insert(0, str(current_dir))
+from pathlib import Path
 
 # Import the main application logic
 try:
@@ -49,9 +44,6 @@ try:
         ContextOrchestrator,
     )
     from openchronicle.infrastructure.images.image_orchestrator import ImageType
-    from openchronicle.infrastructure.images.image_orchestrator import (
-        create_image_engine,
-    )
     from openchronicle.infrastructure.memory.memory_orchestrator import (
         MemoryOrchestrator,
     )
@@ -91,8 +83,7 @@ except ImportError as e:
         def __init__(self):
             pass
 
-    def create_image_engine(*args, **kwargs):
-        return None
+    # No image engine factory in fallback
 
     class ImageType:
         pass

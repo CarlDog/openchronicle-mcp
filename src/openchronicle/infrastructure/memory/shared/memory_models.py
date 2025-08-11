@@ -143,34 +143,45 @@ class CharacterMemory:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "CharacterMemory":
         """Create CharacterMemory from dictionary data."""
-        # Handle mood_history
-        mood_history = []
+        # Handle mood_history safely
+        mood_history: list[MoodEntry] = []
         for entry in data.get("mood_history", []):
             if isinstance(entry, dict):
+                ts_val = entry.get("timestamp")
+                if isinstance(ts_val, str):
+                    try:
+                        ts = datetime.fromisoformat(ts_val.replace("Z", "+00:00"))
+                    except Exception:
+                        ts = datetime.now(UTC)
+                elif isinstance(ts_val, datetime):
+                    ts = ts_val
+                else:
+                    ts = datetime.now(UTC)
                 mood_history.append(
                     MoodEntry(
                         mood=entry.get("mood", "neutral"),
-                        context=entry.get("context", ""),
-                        timestamp=entry.get("timestamp", datetime.now()),
+                        timestamp=ts,
+                        reason=entry.get("reason"),
+                        confidence=entry.get("confidence", 1.0),
                     )
                 )
-            else:
+            elif isinstance(entry, MoodEntry):
                 mood_history.append(entry)
 
         # Handle voice_profile
         voice_data = data.get("voice_profile", {})
         if isinstance(voice_data, dict):
             voice_profile = VoiceProfile(
-                style=voice_data.get("style", "neutral"),
-                tone=voice_data.get("tone", "balanced"),
-                vocabulary_complexity=voice_data.get("vocabulary_complexity", "medium"),
-                sentence_structure=voice_data.get("sentence_structure", "standard"),
-                emotional_range=voice_data.get("emotional_range", "moderate"),
+                speaking_style=voice_data.get("speaking_style", ""),
+                vocabulary_level=voice_data.get("vocabulary_level", "moderate"),
+                personality_traits=voice_data.get("personality_traits", []),
                 speaking_patterns=voice_data.get("speaking_patterns", []),
-                quirks=voice_data.get("quirks", []),
+                emotional_tendencies=voice_data.get("emotional_tendencies", []),
             )
+        elif isinstance(voice_data, VoiceProfile):
+            voice_profile = voice_data
         else:
-            voice_profile = voice_data or VoiceProfile()
+            voice_profile = VoiceProfile()
 
         return cls(
             name=data.get("name", ""),
@@ -210,25 +221,39 @@ class MemoryState:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
+        def _serialize_dt(val: Any) -> Any:
+            if isinstance(val, datetime):
+                return val.isoformat()
+            return val
+
         return {
             "characters": {
-                name: char.to_dict() if hasattr(char, "to_dict") else char.__dict__
+                name: char.to_dict() if hasattr(char, "to_dict") else dict(char)
                 for name, char in self.characters.items()
             },
             "world_state": self.world_state,
             "flags": [
-                flag.__dict__ if hasattr(flag, "__dict__") else flag
+                {
+                    "name": getattr(flag, "name", flag.get("name") if isinstance(flag, dict) else ""),
+                    "created": _serialize_dt(getattr(flag, "created", flag.get("created") if isinstance(flag, dict) else datetime.now(UTC))),
+                    "data": getattr(flag, "data", flag.get("data") if isinstance(flag, dict) else None),
+                }
                 for flag in self.flags
             ],
             "recent_events": [
-                event.__dict__ if hasattr(event, "__dict__") else event
-                for event in self.recent_events
+                {
+                    "description": getattr(evt, "description", evt.get("description") if isinstance(evt, dict) else ""),
+                    "timestamp": _serialize_dt(getattr(evt, "timestamp", evt.get("timestamp") if isinstance(evt, dict) else datetime.now(UTC))),
+                    "data": getattr(evt, "data", evt.get("data") if isinstance(evt, dict) else {}),
+                }
+                for evt in self.recent_events
             ],
-            "metadata": (
-                self.metadata.__dict__
-                if hasattr(self.metadata, "__dict__")
-                else self.metadata
-            ),
+            "metadata": {
+                "last_updated": _serialize_dt(getattr(self.metadata, "last_updated", datetime.now(UTC))),
+                "version": getattr(self.metadata, "version", "1.0"),
+                "scene_count": getattr(self.metadata, "scene_count", 0),
+                "character_count": getattr(self.metadata, "character_count", 0),
+            },
         }
 
 

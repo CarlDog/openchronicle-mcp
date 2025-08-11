@@ -14,9 +14,6 @@ from .generation.generation_engine import GenerationEngine
 from .generation.prompt_processor import PromptProcessor
 from .generation.style_manager import StyleManager
 from .image_orchestrator import ImageOrchestrator
-from .image_orchestrator import auto_generate_character_portrait
-from .image_orchestrator import auto_generate_scene_image
-from .image_orchestrator import create_image_engine
 from .processing.format_converter import ImageFormatConverter
 
 # Processing components
@@ -38,9 +35,6 @@ from .shared.validation_utils import ImageValidator
 __all__ = [
     # Main orchestrator and integration functions
     "ImageOrchestrator",
-    "create_image_engine",
-    "auto_generate_character_portrait",
-    "auto_generate_scene_image",
     # Shared models and utilities
     "ImageProvider",
     "ImageSize",

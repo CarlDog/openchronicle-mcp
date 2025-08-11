@@ -13,17 +13,13 @@ Author: OpenChronicle Development Team
 """
 
 import json
-import sys
 import time
+from pathlib import Path
 from dataclasses import asdict
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-
-# Add utilities path
-sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
 from openchronicle.shared.logging_system import log_error
 from openchronicle.shared.logging_system import log_info
 from openchronicle.shared.logging_system import log_system_event

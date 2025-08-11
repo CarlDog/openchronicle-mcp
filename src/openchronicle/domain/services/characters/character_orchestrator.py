@@ -502,6 +502,36 @@ class CharacterOrchestrator(CharacterEventHandler):
         
         return relationships
 
+    async def establish_relationship(
+        self,
+        story_id: str,
+        character1: str,
+        character2: str,
+        relationship_data: dict[str, Any]
+    ) -> bool:
+        """Workflow convenience: establish relationship between two characters.
+
+        Thin wrapper over update_character_relationship for compatibility
+        with workflow tests that expect this method name.
+        """
+        # Update relationship from character1 perspective
+        ok1 = await self.update_character_relationship(
+            story_id=story_id,
+            character_name=character1,
+            other_character=character2,
+            relationship_data=relationship_data,
+        )
+        # Optionally also mirror relationship (basic reciprocal entry)
+        reciprocal_data = relationship_data.copy()
+        reciprocal_data.setdefault("reciprocal", True)
+        ok2 = await self.update_character_relationship(
+            story_id=story_id,
+            character_name=character2,
+            other_character=character1,
+            relationship_data=reciprocal_data,
+        )
+        return bool(ok1 and ok2)
+
     def track_emotional_stability(
         self, character_data: dict[str, Any]
     ) -> dict[str, Any]:
@@ -679,12 +709,12 @@ class CharacterOrchestrator(CharacterEventHandler):
         self, character_id: str, updates: dict[str, Any]
     ) -> bool:
         """Update character information (async wrapper for tests)."""
-        return self.update_character_state(character_id, updates)
+        return await self.update_character_state(character_id, updates)
 
-    def update_character_state(
+    def _update_character_state_sync(
         self, character_id: str, state_updates: dict[str, Any]
     ) -> bool:
-        """Update character state across all providers."""
+        """Synchronous implementation: update character state across all providers."""
         success = True
 
         # Update state in all state providers
@@ -706,39 +736,72 @@ class CharacterOrchestrator(CharacterEventHandler):
 
         return success
 
+    async def update_character_state(self, *args, **kwargs) -> bool:
+        """Async wrapper that supports both call patterns used in workflows and internal code.
+
+        Supported forms:
+        - update_character_state(character_id: str, updates: dict)
+        - update_character_state(story_id: str, character_name: str, updates: dict)
+        """
+        # Try kwargs first
+        if "character_id" in kwargs and "updates" in kwargs:
+            character_id = kwargs["character_id"]
+            updates = kwargs["updates"]
+        elif len(args) == 2 and isinstance(args[1], dict):
+            # Legacy/internal pattern: (character_id, updates)
+            character_id, updates = args[0], args[1]
+        elif len(args) == 3 and isinstance(args[2], dict):
+            # Workflow pattern: (story_id, character_name, updates)
+            _story_id, character_name, updates = args[0], args[1], args[2]
+            character_id = character_name.lower().replace(" ", "_")
+        else:
+            logger.error(
+                f"update_character_state called with unsupported arguments: args={args}, kwargs={kwargs}"
+            )
+            return False
+
+        return self._update_character_state_sync(character_id, updates)
+
     async def update_character_development(
-        self, 
-        story_id: str, 
-        character_name: str, 
-        development_data: dict[str, Any]
+        self,
+        story_id: str,
+        character_name: str,
+        development_data: dict[str, Any],
     ) -> bool:
         """Update character development based on story events - used by workflow tests."""
         # Convert character_name to character_id
         character_id = character_name.lower().replace(" ", "_")
-        
+
         # Extract skill improvements for stat updates
         skill_improvements = development_data.get("skill_improvements", {})
-        
+
         # Update character stats if skill improvements provided
         for skill, value in skill_improvements.items():
             try:
                 # Use string skill name directly and provide reason
-                self.update_character_stat(character_id, skill, value, f"Character development: {development_data.get('event_type', 'unknown event')}")
+                self.update_character_stat(
+                    character_id,
+                    skill,
+                    value,
+                    f"Character development: {development_data.get('event_type', 'unknown event')}",
+                )
             except Exception as e:
-                logger.warning(f"Could not update stat {skill} for {character_id}: {e}")
-        
+                logger.warning(
+                    f"Could not update stat {skill} for {character_id}: {e}"
+                )
+
         # Update general character state with development data
         state_updates = {
             "development_stage": development_data.get("development_stage"),
             "growth_areas": development_data.get("growth_areas", []),
             "challenges_faced": development_data.get("challenges_faced", []),
-            "story_id": story_id
+            "story_id": story_id,
         }
-        
+
         # Filter out None values
         state_updates = {k: v for k, v in state_updates.items() if v is not None}
-        
-        return self.update_character_state(character_id, state_updates)
+
+        return self._update_character_state_sync(character_id, state_updates)
 
     # =============================================================================
     # Character Validation Interface

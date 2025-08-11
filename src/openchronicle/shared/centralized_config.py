@@ -6,17 +6,12 @@ Creates a unified configuration management system with typed classes for better 
 
 import json
 import os
-import sys
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
-# Add project root to path for imports
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
 
 from .logging_system import log_error
 from .logging_system import log_info

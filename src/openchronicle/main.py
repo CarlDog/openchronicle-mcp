@@ -20,11 +20,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-
-# Ensure module can find its dependencies
-current_dir = Path(__file__).parent
-if str(current_dir.parent.parent) not in sys.path:
-    sys.path.insert(0, str(current_dir.parent.parent))
+# NOTE: Removed prior sys.path mutation that inserted the project root.
+# With a proper editable install (pip install -e .) or when tests add the
+# src directory, this is unnecessary and can mask packaging issues.
 
 # Core infrastructure with new paths
 from .shared.centralized_config import CentralizedConfigManager
@@ -160,10 +158,11 @@ class CoreStatus:
 def get_version() -> str:
     """Get OpenChronicle core version."""
     try:
-        from .. import __version__
+        # Single-level relative import was incorrect previously (".." escaped package)
+        from . import __version__  # type: ignore
 
-        return __version__
-    except ImportError:
+        return __version__  # type: ignore[name-defined]
+    except Exception:  # Broad except: fallback for early import edge cases
         return "development"
 
 

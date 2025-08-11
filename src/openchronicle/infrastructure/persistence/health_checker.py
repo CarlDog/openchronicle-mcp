@@ -7,7 +7,6 @@ connection testing, and corruption detection as specified in Development Master 
 
 import asyncio
 import sqlite3
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -15,9 +14,6 @@ from typing import Any
 import aiosqlite
 
 from .connection import ConnectionManager
-
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
 from openchronicle.shared.logging_system import log_error
 from openchronicle.shared.logging_system import log_info
 from openchronicle.shared.logging_system import log_warning

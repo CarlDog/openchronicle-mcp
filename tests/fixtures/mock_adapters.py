@@ -481,7 +481,7 @@ class MockModelOrchestrator:
         self.call_history.append(f"get_fallback_chain:{adapter_name}")
         return [adapter_name, "fallback_adapter"]
 
-    async def generate_response(self, prompt: str, adapter_name: str = "test-mock"):
+    async def generate_response(self, prompt: str, adapter_name: str = "test-mock", **kwargs):
         """Mock response generation."""
         self.call_history.append(f"generate_response:{adapter_name}")
         return TestResponse(
@@ -490,7 +490,7 @@ class MockModelOrchestrator:
         )
 
     async def generate_with_fallback(
-        self, prompt: str, adapter_name: str = "test-mock"
+        self, prompt: str, adapter_name: str = "test-mock", **kwargs
     ):
         """Mock response generation with fallback chain."""
         self.call_history.append(f"generate_with_fallback:{adapter_name}")

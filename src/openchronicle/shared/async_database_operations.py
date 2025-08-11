@@ -177,26 +177,4 @@ class AsyncQueryBuilder:
         return query, tuple(self._params)
 
 
-# Utility functions for backwards compatibility
-async def async_query(
-    story_id: str, query: str, params: tuple = None, is_test: bool = None
-) -> list[dict[str, Any]]:
-    """Execute async query - utility function."""
-    db_ops = AsyncDatabaseOperations(story_id, is_test)
-    return await db_ops.execute_query(query, params)
-
-
-async def async_update(
-    story_id: str, query: str, params: tuple = None, is_test: bool = None
-) -> bool:
-    """Execute async update - utility function."""
-    db_ops = AsyncDatabaseOperations(story_id, is_test)
-    return await db_ops.execute_update(query, params)
-
-
-async def async_insert(
-    story_id: str, query: str, params: tuple = None, is_test: bool = None
-) -> int | None:
-    """Execute async insert - utility function."""
-    db_ops = AsyncDatabaseOperations(story_id, is_test)
-    return await db_ops.execute_insert(query, params)
+# No backwards-compatibility utility functions are provided. Use AsyncDatabaseOperations directly.

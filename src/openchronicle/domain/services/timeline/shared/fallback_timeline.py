@@ -26,11 +26,7 @@ class FallbackTimelineManager:
     ) -> dict[str, Any]:
         """Build minimal timeline with basic scene data."""
         try:
-            # Try to get basic scene data using core database functions
-            import sys
-            from pathlib import Path
-
-            sys.path.append(str(Path(__file__).parent.parent.parent))
+            # Basic scene data via injected persistence port
             await self.persistence_port.init_database(self.story_id)
 
             scenes = await self.persistence_port.execute_query(

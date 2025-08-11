@@ -309,36 +309,6 @@ class ContentAnalysisOrchestrator(ContentAnalysisComponent):
             "components_used": ["error_fallback"],
         }
 
-    # Backward compatibility methods
-    def detect_content_type(self, content: str) -> dict[str, Any]:
-        """Backward compatibility method for content type detection."""
-        try:
-            # Run synchronous detection using the classification component
-            result = asyncio.create_task(self.content_classifier.process(content, {}))
-            return asyncio.get_event_loop().run_until_complete(result)
-        except Exception as e:
-            log_error(f"Backward compatibility detect_content_type failed: {e}")
-            return self.keyword_detector.detect_content_type(content)
-
-    def recommend_generation_model(self, analysis: dict[str, Any]) -> str:
-        """Backward compatibility method for model recommendation."""
-        return self.model_selector.recommend_generation_model(analysis)
-
-    def get_routing_recommendation(self, analysis: dict[str, Any]) -> dict[str, Any]:
-        """Backward compatibility method for routing recommendations."""
-        return self.content_router.get_routing_recommendation(analysis)
-
-    async def extract_character_data(self, content: str) -> dict[str, Any]:
-        """Backward compatibility method for character extraction."""
-        return await self.character_extractor.extract_data(content)
-
-    async def extract_location_data(self, content: str) -> dict[str, Any]:
-        """Backward compatibility method for location extraction."""
-        return await self.location_extractor.extract_data(content)
-
-    async def extract_lore_data(self, content: str) -> dict[str, Any]:
-        """Backward compatibility method for lore extraction."""
-        return await self.lore_extractor.extract_data(content)
 
     def check_transformer_connectivity(self) -> dict[str, Any]:
         """Check transformer connectivity and capabilities."""

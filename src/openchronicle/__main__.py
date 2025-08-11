@@ -11,24 +11,15 @@ def main(argv: list[str] | None = None) -> int:
         prog="openchronicle", description="OpenChronicle CLI"
     )
     parser.add_argument("--version", action="store_true", help="Print version and exit")
-    parser.add_argument(
-        "--legacy-cli",
-        action="store_true",
-        help="Run legacy CLI entry (may import heavy modules)",
-    )
     args = parser.parse_args(argv)
 
     if args.version:
         print(__version__)
         return 0
 
-    if args.legacy_cli:
-        # Import lazily so normal version printing doesn't pull heavy deps
-        from openchronicle.interfaces.cli.main import main as legacy_main
-
-        return legacy_main([])
-
-    print("OpenChronicle installed. Use '--version' or '--legacy-cli' for the old CLI.")
+    # Run modern CLI app directly when no simple flag used
+    from openchronicle.interfaces.cli.main import app as cli_app
+    cli_app()
     return 0
 
 

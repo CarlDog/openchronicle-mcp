@@ -74,6 +74,19 @@ class DatabaseOperations:
                 """
                 )
 
+                # Create memory history table for snapshots
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS memory_history (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        story_id TEXT,
+                        scene_id TEXT,
+                        timestamp TEXT,
+                        value TEXT
+                    )
+                """
+                )
+
                 # Create bookmarks table
                 cursor.execute(
                     """
@@ -141,9 +154,6 @@ class DatabaseOperations:
                 )
                 cursor.execute(
                     "CREATE INDEX IF NOT EXISTS idx_memory_type ON memory(type)"
-                )
-                cursor.execute(
-                    "CREATE INDEX IF NOT EXISTS idx_memory_importance ON memory(importance)"
                 )
                 cursor.execute(
                     "CREATE INDEX IF NOT EXISTS idx_bookmarks_scene_id ON bookmarks(scene_id)"

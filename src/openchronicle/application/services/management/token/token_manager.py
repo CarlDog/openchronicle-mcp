@@ -5,30 +5,11 @@ Modernized token management system that integrates all token components.
 Provides unified API for tokenization, optimization, and usage tracking.
 """
 
-import os
-import sys
 from typing import Any
 
-
-# Import logging system with fallback
-
-sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "utilities")
-)
-try:
-    from logging_system import log_error
-    from logging_system import log_info
-    from logging_system import log_system_event
-except ImportError:
-    # Fallback for testing or when logging_system is not available
-    def log_system_event(event_type, description):
-        print(f"EVENT [{event_type}]: {description}")
-
-    def log_info(message):
-        print(f"INFO: {message}")
-
-    def log_error(message):
-        print(f"ERROR: {message}")
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_system_event
 
 
 from ..shared import ConfigValidator
@@ -50,7 +31,6 @@ class TokenManager:
     Unified token management system.
 
     Integrates tokenization, optimization, and usage tracking into a single API.
-    Maintains backward compatibility with legacy token_manager.py interface.
     """
 
     def __init__(self, config: dict[str, Any] | None = None):
@@ -293,20 +273,14 @@ class TokenManager:
 
         return pattern
 
-    # =====================================================================
-    # LEGACY COMPATIBILITY
-    # =====================================================================
-
+    # Convenience alias methods (no legacy guarantee)
     def get_token_count(self, text: str, model: str = None) -> int:
-        """Legacy method name compatibility."""
         return self.count_tokens(text, model)
 
     def get_optimal_model(self, text: str) -> str:
-        """Legacy method name compatibility."""
         return self.select_optimal_model(text)
 
     def trim_to_limit(self, text: str, limit: int, model: str = None) -> str:
-        """Legacy method name compatibility."""
         return self.trim_context(text, limit, model)
 
     # =====================================================================

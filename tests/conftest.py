@@ -26,8 +26,11 @@ import pytest
 # -----------------------------------------------------------------------------
 # Add the project root to the Python path (prefer editable install in CI)
 project_root = Path(__file__).resolve().parent.parent
-if str(project_root) not in sys.path:
-    sys.path.insert(0, str(project_root))
+src_dir = project_root / "src"
+# Ensure src/ is on path for direct test execution without editable install
+for p in (project_root, src_dir):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 
 # -----------------------------------------------------------------------------

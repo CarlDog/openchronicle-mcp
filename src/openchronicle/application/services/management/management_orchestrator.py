@@ -1,31 +1,14 @@
 """
-Manage# Import logging system with fallback
-import os
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'utilities'))
-try:
-    from logging_system import log_system_event, log_info, log_error
-except ImportError:
-    # Fallback for testing or when logging_system is not available
-    def log_system_event(event_type, description): print(f"EVENT [{event_type}]: {description}")
-    def log_info(message): print(f"INFO: {message}")
-    def log_error(message): print(f"ERROR: {message}")t Systems Orchestrator
+Management Systems Orchestrator
 
 Unified management system that integrates token and bookmark management.
-Provides single entry point for all management operations with backward compatibility.
+Provides a single entry point for all management operations.
 """
 
-import sys
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent / "utilities"))
-from openchronicle.shared.logging_system import log_error
-from openchronicle.shared.logging_system import log_info
-from openchronicle.shared.logging_system import log_system_event
+from openchronicle.shared.logging_system import log_error, log_info, log_system_event
 
 from .bookmark import BookmarkManager
 from .shared import ConfigValidator
@@ -38,7 +21,6 @@ class ManagementOrchestrator:
     Unified management orchestrator for OpenChronicle Core.
 
     Integrates token management and bookmark management into a single API.
-    Provides backward compatibility with legacy token_manager.py and bookmark_manager.py.
     """
 
     def __init__(self, config: dict[str, Any] | None = None):
@@ -248,33 +230,6 @@ class ManagementOrchestrator:
             scene_id, chapter_title, chapter_level
         )
 
-    # =====================================================================
-    # LEGACY COMPATIBILITY INTERFACE
-    # =====================================================================
-
-    def get_token_count(self, text: str, model: str = None) -> int:
-        """Legacy method name compatibility for token counting."""
-        return self.count_tokens(text, model)
-
-    def get_optimal_model(self, text: str) -> str:
-        """Legacy method name compatibility for model selection."""
-        return self.select_optimal_model(text)
-
-    def trim_to_limit(self, text: str, limit: int, model: str = None) -> str:
-        """Legacy method name compatibility for context trimming."""
-        return self.trim_context(text, limit, model)
-
-    def get_bookmarks_with_scenes(
-        self, story_id: str, bookmark_type: str | None = None
-    ) -> list[dict[str, Any]]:
-        """Legacy method: Get bookmarks with their associated scene information."""
-        manager = self.get_bookmark_manager(story_id)
-        return manager.get_bookmarks_with_scenes(bookmark_type)
-
-    def get_bookmark_stats(self, story_id: str) -> dict[str, Any]:
-        """Legacy method: Get bookmark statistics."""
-        manager = self.get_bookmark_manager(story_id)
-        return manager.get_stats()
 
     # =====================================================================
     # UNIFIED OPERATIONS
@@ -517,7 +472,7 @@ class ManagementOrchestrator:
                         "recent_activity": stats.get("recent_activity", 0),
                     }
                 except Exception as e:
-                    log_warning(f"Failed to get bookmark stats for {story_id}: {e}")
+                    log_error(f"Failed to get bookmark stats for {story_id}: {e}")
                     bookmark_metrics[story_id] = {"error": str(e)}
 
             # System performance

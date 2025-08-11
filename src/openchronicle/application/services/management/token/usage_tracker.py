@@ -5,15 +5,10 @@ Extracted from token_manager.py
 Handles token usage tracking, statistics, and cost monitoring.
 """
 
-import sys
 from datetime import UTC
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 
-
-# Add utilities to path for logging system
-sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utilities"))
 from openchronicle.shared.logging_system import log_system_event
 from openchronicle.shared.logging_system import log_warning
 

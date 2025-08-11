@@ -156,29 +156,10 @@ class OpenChronicleCommand(ABC):
 
     def import_core_module(self, module_name: str) -> Any:
         """
-        Safely import a core OpenChronicle module.
-
-        Args:
-            module_name: Name of the module to import (e.g., "models")
-
-        Returns:
-            Imported module
-
-        Raises:
-            ImportError: If module cannot be imported
+        Deprecated: legacy dynamic import. Not used anymore (kept only to avoid runtime breakage if called inadvertently).
+        Raises ImportError explicitly to enforce no-compat policy.
         """
-        try:
-            # Add current directory to path if not already present
-            current_dir = str(Path.cwd())
-            if current_dir not in sys.path:
-                sys.path.insert(0, current_dir)
-
-            # Import the module
-            module = __import__(f"core.{module_name}", fromlist=[module_name])
-            return module
-        except ImportError as e:
-            self.output.error(f"Cannot import core module '{module_name}': {e}")
-            raise
+        raise ImportError("Legacy core.* imports are removed. Use domain/services orchestrators directly.")
 
     def ensure_directory(self, path: str | Path) -> Path:
         """
@@ -337,8 +318,8 @@ class ModelCommand(OpenChronicleCommand):
         """Lazy-load the model manager."""
         if self._model_manager is None:
             try:
-                model_mgmt = self.import_core_module("models")
-                self._model_manager = model_mgmt.ModelOrchestrator()
+                from openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+                self._model_manager = ModelOrchestrator()
             except Exception as e:
                 self.output.error(f"Cannot initialize model manager: {e}")
                 raise
@@ -357,11 +338,15 @@ class StoryCommand(OpenChronicleCommand):
         """Lazy-load the story manager."""
         if self._story_manager is None:
             try:
-                # Import relevant story management modules
-                narrative = self.import_core_module("narrative_systems")
-                # Initialize story manager components
-                # This will be expanded based on actual story management architecture
-                self._story_manager = {"narrative": narrative}
+                from openchronicle.domain.services.narrative.narrative_orchestrator import NarrativeOrchestrator
+                from openchronicle.domain.services.scenes.scene_orchestrator import SceneOrchestrator
+                from openchronicle.domain.services.timeline.timeline_orchestrator import TimelineOrchestrator
+                # Provide a concrete story manager dict for CLI features that expect narrative interfaces
+                self._story_manager = {
+                    "narrative": NarrativeOrchestrator(),
+                    "scenes": SceneOrchestrator,
+                    "timeline": TimelineOrchestrator,
+                }
             except Exception as e:
                 self.output.error(f"Cannot initialize story manager: {e}")
                 raise

@@ -5,30 +5,13 @@ Extracted from token_manager.py
 Handles token optimization, model selection, and context trimming.
 """
 
-import os
-import sys
 from typing import Any
 
-
-# Import logging system with fallback
-
-sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "utilities")
+from openchronicle.shared.logging_system import (
+    log_error,
+    log_info,
+    log_warning,
 )
-try:
-    from logging_system import log_error
-    from logging_system import log_info
-    from logging_system import log_warning
-except ImportError:
-    # Fallback for testing or when logging_system is not available
-    def log_warning(message):
-        print(f"WARNING: {message}")
-
-    def log_error(message):
-        print(f"ERROR: {message}")
-
-    def log_info(message):
-        print(f"INFO: {message}")
 
 
 from .tokenizer_manager import TokenizerManager

@@ -188,22 +188,12 @@ class DatabaseOrchestrator:
         """
         return self.health_checker.get_all_databases()
 
-    # Legacy compatibility methods (maintaining function signatures for seamless transition)
-    def check_fts_support(self) -> bool:
-        """Legacy alias for has_fts5_support."""
-        return self.has_fts5_support()
 
 
 # Convenience instance for global use
 database_orchestrator = DatabaseOrchestrator()
 
 
-# Convenience function for module-level health check access
+# Module-level health check retained as public API convenience
 async def startup_health_check() -> dict[str, Any]:
-    """
-    Run the startup health check using the global orchestrator instance.
-
-    Provided for compatibility with call sites that import a module-level
-    function rather than accessing the method on DatabaseOrchestrator.
-    """
     return await database_orchestrator.startup_health_check()
