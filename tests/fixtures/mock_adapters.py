@@ -462,11 +462,14 @@ class AsyncTestMockAdapter(TestMockAdapter):
 class MockModelOrchestrator:
     """Mock orchestrator for testing model management functionality."""
 
-    def __init__(self):
+    def __init__(self, simulate_failures: bool = False, failure_rate: float = 0.0):
         self.adapters = {}
         self.initialized_adapters = set()
         self.call_history = []
         self.mock_responses = {}
+        self.simulate_failures = simulate_failures
+        self.failure_rate = failure_rate
+        self._failure_count = 0
 
     async def initialize_adapter(self, adapter_name: str):
         """Mock adapter initialization."""
@@ -491,6 +494,17 @@ class MockModelOrchestrator:
     ):
         """Mock response generation with fallback chain."""
         self.call_history.append(f"generate_with_fallback:{adapter_name}")
+        
+        # Simulate failures if enabled
+        if self.simulate_failures:
+            import random
+            if random.random() < self.failure_rate:
+                self._failure_count += 1
+                if self._failure_count >= 3:  # After 3 failures, let it succeed
+                    self._failure_count = 0
+                else:
+                    raise Exception("All adapters in fallback chain failed")
+        
         return TestResponse(
             content=self.mock_responses.get(adapter_name, "Mock fallback response"),
             model=adapter_name,
@@ -504,17 +518,33 @@ class MockModelOrchestrator:
 class MockDatabaseManager:
     """Mock database manager for testing database operations."""
 
-    def __init__(self):
+    def __init__(self, simulate_failures: bool = False, failure_rate: float = 0.0):
         self.connections = {}
         self.query_history = []
         self.mock_results = {}
         self.transaction_count = 0
+        self.simulate_failures = simulate_failures
+        self.failure_rate = failure_rate
+        self._failure_count = 0
 
     async def execute_query(self, query: str, params=None):
         """Mock query execution."""
         self.query_history.append((query, params))
+        
+        # Simulate failures if enabled
+        if self.simulate_failures:
+            import random
+            if random.random() < self.failure_rate:
+                self._failure_count += 1
+                if self._failure_count >= 3:  # After 3 failures, let it succeed
+                    self._failure_count = 0
+                else:
+                    raise Exception("Mock database error")
+        
         q = (query or "").strip().lower()
-        if q.startswith("insert"):
+        if q.startswith("select"):
+            return [{"id": 1, "name": "test", "content": "mock content"}]
+        elif q.startswith(("insert", "update", "delete")):
             return [{"affected_rows": 1, "inserted_id": 1}]
         return self.mock_results.get(query, [])
 

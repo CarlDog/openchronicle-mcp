@@ -75,3 +75,12 @@ class IRegistryPort(ABC):
         Returns:
             True if successful, False otherwise
         """
+
+    @abstractmethod
+    def discover_providers(self) -> dict[str, list[dict[str, Any]]]:
+        """
+        Discover all providers and their configurations.
+
+        Returns:
+            Dictionary mapping provider names to lists of their model configurations
+        """

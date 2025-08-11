@@ -394,6 +394,29 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
         log_system_event("performance_orchestrator", "Monitoring disabled", {})
 
+    async def initialize_monitoring(self, story_id: str) -> bool:
+        """Initialize monitoring for a specific story."""
+        try:
+            # Initialize the orchestrator if not already done
+            if not self._initialized:
+                await self.initialize()
+            
+            # Enable monitoring
+            self.enable_monitoring()
+            
+            # Log initialization
+            log_system_event(
+                "performance_orchestrator", 
+                f"Monitoring initialized for story: {story_id}",
+                {"story_id": story_id}
+            )
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Error initializing monitoring for story {story_id}: {e}")
+            return False
+
     def get_monitoring_status(self) -> dict[str, Any]:
         """Get current monitoring status."""
         return {

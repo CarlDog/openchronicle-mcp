@@ -215,7 +215,7 @@ class MemoryOrchestrator:
         self, story_id: str, character_name: str, updates: dict[str, Any]
     ) -> dict[str, Any]:
         """
-        Update character memory with new information.
+        Update character memory with new information - sync version for integration tests.
 
         Maintains backward compatibility with original function signature.
         """
@@ -234,6 +234,14 @@ class MemoryOrchestrator:
                 f"Error updating character {character_name} for {story_id}: {e}"
             )
             return self.load_current_memory(story_id)
+
+    async def update_character_memory_async(
+        self, story_id: str, character_name: str, updates: dict[str, Any]
+    ) -> dict[str, Any]:
+        """
+        Update character memory with new information - async version for workflows.
+        """
+        return self.update_character_memory(story_id, character_name, updates)
 
     def get_character_memory_snapshot(
         self, story_id: str, character_name: str, format_for_prompt: bool = True
@@ -334,7 +342,7 @@ class MemoryOrchestrator:
         self, story_id: str, character_name: str
     ) -> dict[str, Any]:
         """
-        Get character memory data.
+        Get character memory data - sync version for integration tests.
 
         Maintains backward compatibility with original function signature.
         """
@@ -348,6 +356,14 @@ class MemoryOrchestrator:
                 f"Error getting character memory for {character_name}: {e}"
             )
             return {}
+
+    async def get_character_memory_async(
+        self, story_id: str, character_name: str
+    ) -> dict[str, Any]:
+        """
+        Get character memory data - async version for workflows.
+        """
+        return self.get_character_memory(story_id, character_name)
 
     # ===== WORLD STATE OPERATIONS =====
 
@@ -424,19 +440,30 @@ class MemoryOrchestrator:
             )
             return False
 
-    def add_recent_event(
-        self, story_id: str, event_description: str, event_data: dict[str, Any] = None
+    async def add_recent_event(
+        self, story_id: str, event_description: str | dict[str, Any], event_data: dict[str, Any] = None
     ) -> dict[str, Any]:
         """
         Add a recent event to memory.
 
         Maintains backward compatibility with original function signature.
+        Supports both old format (description, data) and new format (event dict).
         """
         try:
             memory = self.repository.load_memory(story_id)
-            self.world_manager.add_world_event(
-                memory, event_description, event_data=event_data or {}
-            )
+            
+            # Handle both calling patterns
+            if isinstance(event_description, dict):
+                # New format: second parameter is the event data dict
+                event_dict = event_description
+                description = event_dict.get("event_type", "story_event")
+                data = event_dict
+            else:
+                # Old format: description string + optional data dict
+                description = event_description
+                data = event_data or {}
+            
+            self.world_manager.add_world_event(memory, description, event_data=data)
             self.repository.save_memory(story_id, memory)
             return memory.to_dict()
         except Exception as e:
@@ -689,6 +716,26 @@ class MemoryOrchestrator:
             return True
         except Exception as e:
             self.logger.error(f"Error initializing memory orchestrator: {e}")
+            return False
+
+    async def initialize_story_memory(self, story_id: str) -> bool:
+        """Initialize memory for a specific story."""
+        try:
+            # Create default memory structure for the story
+            default_memory = self.repository.create_default_memory_structure()
+            
+            # Store the initial memory state
+            success = self.save_current_memory(story_id, default_memory)
+            
+            if success:
+                self.logger.info(f"Initialized memory for story: {story_id}")
+                return True
+            else:
+                self.logger.error(f"Failed to save initial memory for story: {story_id}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error initializing memory for story {story_id}: {e}")
             return False
 
     async def process_request_dict(

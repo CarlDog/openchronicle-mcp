@@ -23,6 +23,15 @@ class ModelSelector(RoutingComponent):
     def __init__(self, model_manager):
         super().__init__(model_manager)
 
+    def get_recommendation(self, analysis: dict[str, Any]) -> dict[str, Any]:
+        """Get routing recommendation based on analysis."""
+        recommended_model = self.recommend_generation_model(analysis)
+        return {
+            "recommended_model": recommended_model,
+            "routing_metadata": self._get_routing_metadata(analysis, recommended_model),
+            "routing_confidence": analysis.get("confidence", 0.5)
+        }
+
     def route_request(
         self, analysis: dict[str, Any], context: dict[str, Any]
     ) -> dict[str, Any]:

@@ -44,6 +44,20 @@ class RecommendationEngine(RoutingComponent):
         analysis = context.get("analysis", {})
         return self.route_request(analysis, context)
 
+    def get_recommendation(self, content: str, context: dict[str, Any]) -> str:
+        """Get routing recommendation for content."""
+        # Use existing routing logic
+        result = self.route_request(context.get("analysis", {}), context)
+        recommendations = result.get("recommendations", {})
+        
+        # Return primary recommendation or default
+        if recommendations and "primary_recommendation" in recommendations:
+            return recommendations["primary_recommendation"]
+        elif recommendations:
+            # Return first available recommendation
+            return next(iter(recommendations.values()), "default")
+        return "default"
+
     async def suggest_model_management_actions(
         self, content_type: str, system_resources: dict[str, Any] | None = None
     ) -> dict[str, Any]:

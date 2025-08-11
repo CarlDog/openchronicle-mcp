@@ -21,6 +21,10 @@ class ContentRouter(RoutingComponent):
     def __init__(self, model_manager):
         super().__init__(model_manager)
 
+    def get_recommendation(self, analysis: dict[str, Any]) -> dict[str, Any]:
+        """Get routing recommendation based on analysis."""
+        return self.get_routing_recommendation(analysis)
+
     def route_request(
         self, analysis: dict[str, Any], context: dict[str, Any]
     ) -> dict[str, Any]:

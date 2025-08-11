@@ -92,11 +92,16 @@ class ServiceConfigurator:
             from openchronicle.domain.models.configuration_manager import (
                 ConfigurationManager,
             )
+            from openchronicle.infrastructure.adapters.registry_adapter import (
+                RegistryAdapter,
+            )
 
             # Create wrapper that implements interface
             class ConfigurationManagerAdapter(IConfigurationManager):
                 def __init__(self):
-                    self._config_manager = ConfigurationManager()
+                    # Provide proper registry_port dependency
+                    registry_port = RegistryAdapter()
+                    self._config_manager = ConfigurationManager(registry_port=registry_port)
 
                 def get_config(self, section: str) -> dict[str, Any]:
                     if hasattr(self._config_manager, "config"):

@@ -137,10 +137,24 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Character Lifecycle Management
     # =============================================================================
 
-    def create_character(
-        self, character_id: str, character_data: dict | None = None
+    def _create_character_sync(
+        self, 
+        character_id: str = None,
+        character_data: dict | None = None,
+        story_id: str = None,
+        character_name: str = None
     ) -> str:
-        """Create a new character with all components initialized."""
+        """Synchronous character creation - internal use."""
+        # Handle workflow calling pattern
+        if story_id and character_name and character_id is None:
+            character_id = character_name.lower().replace(" ", "_")
+            enhanced_data = (character_data or {}).copy()
+            enhanced_data["story_id"] = story_id
+            enhanced_data["name"] = character_name
+            character_data = enhanced_data
+        elif character_id is None:
+            raise ValueError("Either character_id or (story_id + character_name) must be provided")
+            
         # Create character through storage
         character = self.storage.initialize_character(character_id, character_data)
 
@@ -164,6 +178,34 @@ class CharacterOrchestrator(CharacterEventHandler):
 
         return character_id
 
+    async def create_character(
+        self, 
+        character_id: str = None,
+        character_data: dict | None = None,
+        story_id: str = None,
+        character_name: str = None
+    ) -> str:
+        """Create a new character with all components initialized.
+        
+        Support both legacy (character_id, character_data) and 
+        workflow (story_id, character_name, character_data) calling patterns.
+        """
+        return self._create_character_sync(character_id, character_data, story_id, character_name)
+
+    async def create_character_for_story(
+        self, story_id: str, character_name: str, character_data: dict | None = None
+    ) -> str:
+        """Create a character for a specific story - used by workflow tests."""
+        # For workflow compatibility, use character_name as character_id
+        character_id = character_name.lower().replace(" ", "_")
+        
+        # Add story_id to character data for context
+        enhanced_data = (character_data or {}).copy()
+        enhanced_data["story_id"] = story_id
+        enhanced_data["name"] = character_name
+        
+        return self._create_character_sync(character_id, enhanced_data)
+
     async def add_character(
         self, name: str, description: str = "", traits: dict | None = None
     ) -> str:
@@ -178,7 +220,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         character_id = name.lower().replace(" ", "_")
 
         # Create the character using existing infrastructure
-        result = self.create_character(character_id, character_data)
+        result = self._create_character_sync(character_id, character_data)
 
         logger.info(f"Added character {name} with ID {character_id}")
         return result
@@ -186,6 +228,30 @@ class CharacterOrchestrator(CharacterEventHandler):
     def get_character(self, character_id: str) -> CharacterData | None:
         """Get complete character data."""
         return self.storage.get_character_data(character_id)
+
+    async def get_character_data(self, story_id: str, character_name: str) -> dict[str, Any] | None:
+        """Get character data for workflow tests - async wrapper."""
+        # Convert character_name to character_id
+        character_id = character_name.lower().replace(" ", "_")
+        
+        # Get character data from storage
+        character_data = self.get_character(character_id)
+        if not character_data:
+            return None
+            
+        # Get character state for additional workflow data
+        character_state = self.get_character_state(character_id)
+        
+        # Combine character data and state for workflow use
+        result = {
+            "character_id": character_id,
+            "character_name": character_name,
+            "story_id": story_id,
+            "character_data": character_data.to_dict() if hasattr(character_data, 'to_dict') else str(character_data),
+            "character_state": character_state
+        }
+        
+        return result
 
     def delete_character(self, character_id: str) -> bool:
         """Delete character from all components and storage."""
@@ -383,6 +449,58 @@ class CharacterOrchestrator(CharacterEventHandler):
         )
 
         return True
+
+    async def update_character_relationship(
+        self,
+        story_id: str,
+        character_name: str,
+        other_character: str,
+        relationship_data: dict[str, Any]
+    ) -> bool:
+        """Update character relationship based on story events - used by workflow tests."""
+        # Convert character names to character IDs
+        character_id = character_name.lower().replace(" ", "_")
+        other_character_id = other_character.lower().replace(" ", "_")
+        
+        # Enhance relationship data with workflow context
+        enhanced_data = relationship_data.copy()
+        enhanced_data.update({
+            "character_id": character_id,
+            "other_character_id": other_character_id,
+            "story_id": story_id,
+            "character_name": character_name,
+            "other_character_name": other_character
+        })
+        
+        # Use existing relationship management
+        return self.manage_character_relationship(enhanced_data)
+
+    async def get_character_relationships(
+        self, story_id: str, character_name: str
+    ) -> dict[str, Any]:
+        """Get character relationships for workflow tests."""
+        # Convert character_name to character_id
+        character_id = character_name.lower().replace(" ", "_")
+        
+        # Get character data which may include relationship info
+        character = self.get_character(character_id)
+        if not character:
+            return {}
+        
+        # Try to get relationships from character state
+        character_state = self.get_character_state(character_id)
+        relationships = character_state.get("relationships", {})
+        
+        # If no relationships in state, provide a basic structure
+        if not relationships:
+            relationships = {
+                "story_id": story_id,
+                "character_name": character_name,
+                "relationships": {},
+                "relationship_history": []
+            }
+        
+        return relationships
 
     def track_emotional_stability(
         self, character_data: dict[str, Any]
@@ -587,6 +705,40 @@ class CharacterOrchestrator(CharacterEventHandler):
             )
 
         return success
+
+    async def update_character_development(
+        self, 
+        story_id: str, 
+        character_name: str, 
+        development_data: dict[str, Any]
+    ) -> bool:
+        """Update character development based on story events - used by workflow tests."""
+        # Convert character_name to character_id
+        character_id = character_name.lower().replace(" ", "_")
+        
+        # Extract skill improvements for stat updates
+        skill_improvements = development_data.get("skill_improvements", {})
+        
+        # Update character stats if skill improvements provided
+        for skill, value in skill_improvements.items():
+            try:
+                # Use string skill name directly and provide reason
+                self.update_character_stat(character_id, skill, value, f"Character development: {development_data.get('event_type', 'unknown event')}")
+            except Exception as e:
+                logger.warning(f"Could not update stat {skill} for {character_id}: {e}")
+        
+        # Update general character state with development data
+        state_updates = {
+            "development_stage": development_data.get("development_stage"),
+            "growth_areas": development_data.get("growth_areas", []),
+            "challenges_faced": development_data.get("challenges_faced", []),
+            "story_id": story_id
+        }
+        
+        # Filter out None values
+        state_updates = {k: v for k, v in state_updates.items() if v is not None}
+        
+        return self.update_character_state(character_id, state_updates)
 
     # =============================================================================
     # Character Validation Interface

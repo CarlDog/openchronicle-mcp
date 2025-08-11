@@ -81,6 +81,10 @@ class DatabaseOrchestrator:
         """Initialize database with required tables."""
         return self.operations.init_database(story_id, is_test)
 
+    async def initialize_story_database(self, story_id: str, is_test: bool | None = None) -> bool:
+        """Async wrapper for init_database - used by workflow tests."""
+        return self.init_database(story_id, is_test)
+
     def get_connection(
         self, story_id: str, is_test: bool | None = None
     ) -> sqlite3.Connection:

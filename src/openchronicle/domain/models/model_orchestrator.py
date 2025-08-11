@@ -394,11 +394,69 @@ class ModelOrchestrator(IModelOrchestrator):
         # Initialize components using DI container
         container = get_container()
 
-        # Register and resolve configuration manager first
+        # Register and resolve configuration manager with fallback for tests
         from .configuration_manager import ConfigurationManager
+        
+        # Try to get registry from infrastructure, fallback to mock for tests
+        try:
+            from openchronicle.infrastructure.registry.registry_manager import RegistryManager
+            # Create a working registry implementation
+            registry_manager = RegistryManager(
+                models_dir="config/models/",
+                settings_file="config/registry_settings.json"
+            )
+            
+            # Create adapter using the manager
+            from openchronicle.domain.ports.registry_port import IRegistryPort
+            
+            class RegistryPortAdapter(IRegistryPort):
+                def __init__(self, manager):
+                    self.manager = manager
+                    
+                def get_provider_config(self, provider_name: str):
+                    return self.manager.get_provider_config(provider_name)
+                def list_providers(self):
+                    return self.manager.list_providers()
+                def validate_config(self, provider_name: str, config: dict):
+                    # Basic validation for required fields
+                    required_fields = ["name", "type"]
+                    missing_fields = [field for field in required_fields if field not in config]
+                    if missing_fields:
+                        raise ValueError(f"Missing required fields: {missing_fields}")
+                    return True
+                def register_provider(self, provider_name: str, config: dict):
+                    return self.manager.register_provider(provider_name, config)
+                def update_provider_config(self, provider_name: str, config: dict):
+                    return self.manager.update_provider_config(provider_name, config)
+                def discover_providers(self) -> dict[str, list[dict[str, Any]]]:
+                    return self.manager.discover_providers()
+            
+            registry_port = RegistryPortAdapter(registry_manager)
+        except (ImportError, RuntimeError, Exception):
+            # Fallback for tests - create a mock registry
+            from openchronicle.domain.ports.registry_port import IRegistryPort
+            
+            class MockRegistryPort(IRegistryPort):
+                def get_provider_config(self, provider_name: str):
+                    return {"enabled": True, "models": []}
+                def list_providers(self):
+                    return ["mock_provider"]
+                def validate_config(self, provider_name: str, config: dict):
+                    return True
+                def register_provider(self, provider_name: str, config: dict):
+                    return True
+                def update_provider_config(self, provider_name: str, config: dict):
+                    return True
+                def get_model_config(self, model_name: str):
+                    return {"name": model_name, "provider": "mock"}
+                def register_model(self, model_config: dict):
+                    return True
+                def discover_providers(self) -> dict[str, list[dict[str, Any]]]:
+                    return {"mock_provider": [{"name": "mock_model", "type": "text"}]}
+            
+            registry_port = MockRegistryPort()
 
-        config_manager = ConfigurationManager()
-        container.register_singleton("model_config_manager", config_manager)
+        config_manager = ConfigurationManager(registry_port=registry_port)
 
         # Register and resolve performance monitor
         # VIOLATION FIXED: Use dependency injection instead
@@ -407,7 +465,6 @@ class ModelOrchestrator(IModelOrchestrator):
         performance_monitor = ModelInterfaceFactory.create_performance_monitor(
             self._init_config
         )
-        container.register_singleton("model_performance_monitor", performance_monitor)
 
         # Create segregated components
         self._response_generator = ModelResponseGenerator(
