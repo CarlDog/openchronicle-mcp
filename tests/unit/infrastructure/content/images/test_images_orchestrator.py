@@ -5,7 +5,8 @@ NOTE: Image orchestrator tests need to be implemented.
 For now, providing placeholder test to prevent collection errors.
 """
 
-from tests.skip_markers import skip_unimplemented
+import pytest
+skip_unimplemented = pytest.mark.skip(reason="Not implemented yet")
 
 
 # Skip all tests in this file until implemented

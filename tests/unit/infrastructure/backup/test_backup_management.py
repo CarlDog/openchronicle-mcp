@@ -6,7 +6,8 @@ This test file needs to be updated to test the modern architecture.
 For now, all tests are skipped.
 """
 
-from tests.skip_markers import skip_utilities
+import pytest
+skip_utilities = pytest.mark.skip(reason="Backup utilities not implemented yet")
 
 
 # Skip all tests in this file until updated for modern architecture

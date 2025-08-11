@@ -19,7 +19,7 @@ Registry adapter implementing domain ports.
 Infrastructure implementation of registry operations.
 """
 from typing import Dict, Any, Optional, List
-from src.openchronicle.domain.ports.configuration_port import IRegistryPort
+from src.openchronicle.domain.ports.registry_port import IRegistryPort
 
 # Safe import of infrastructure component
 try:
@@ -88,7 +88,7 @@ except Exception:  # pragma: no cover - optional in some environments
     RegistryManager = None  # type: ignore"""
     
         new_import = """# Use domain port for registry operations (hexagonal architecture compliance)
-from src.openchronicle.domain.ports.configuration_port import IRegistryPort
+from src.openchronicle.domain.ports.registry_port import IRegistryPort
 from typing import Optional"""
         
         if old_import in content:
@@ -132,7 +132,7 @@ from typing import Optional"""
 Dependency injection setup for hexagonal architecture.
 Wire domain ports to infrastructure adapters.
 """
-from src.openchronicle.domain.ports.configuration_port import IRegistryPort
+from src.openchronicle.domain.ports.registry_port import IRegistryPort
 from src.openchronicle.infrastructure.adapters.registry_adapter import RegistryAdapter
 
 

@@ -3,7 +3,7 @@ Registry adapter implementing domain ports.
 Infrastructure implementation of registry operations.
 """
 from typing import Dict, Any, Optional, List
-from src.openchronicle.domain.ports.configuration_port import IRegistryPort
+from src.openchronicle.domain.ports.registry_port import IRegistryPort
 
 # Safe import of infrastructure component
 try:

@@ -4,7 +4,7 @@ ConfigurationManager - Refactored to use existing components
 
 Simplified to coordinate existing specialized components instead of being monolithic:
 - Uses core.shared.centralized_config for typed configuration
-- Uses core.registry.registry_manager for dynamic discovery
+- Uses registry port interface for dynamic discovery (hexagonal architecture)
 - Uses core.registry.schema_validation for validation
 - Focuses on coordination rather than doing everything
 
@@ -28,8 +28,13 @@ from src.openchronicle.shared.logging_system import log_system_event
 from src.openchronicle.shared.logging_system import log_warning
 
 # Use domain port for registry operations (hexagonal architecture compliance)
-from src.openchronicle.domain.ports.configuration_port import IRegistryPort
-from typing import Optional
+from src.openchronicle.domain.ports.registry_port import IRegistryPort
+
+# Conditional import for legacy compatibility
+try:
+    from src.openchronicle.domain.models.model_interfaces import ModelConfiguration
+except ImportError:
+    ModelConfiguration = None
 
 
 class ConfigurationManager:
@@ -46,6 +51,7 @@ class ConfigurationManager:
         self,
         config: Optional[SystemConfig] = None,
         registry_port: Optional[IRegistryPort] = None,
+        config_path: str = "config",
     ):
         """
         Initialize configuration manager.
@@ -53,36 +59,23 @@ class ConfigurationManager:
         Args:
             config: System configuration instance
             registry_port: Registry interface implementation (injected)
+            config_path: Path to configuration directory
         """
         self.config = config or SystemConfig()
+        self.config_path = Path(config_path)
 
-        # If no registry port provided, this violates hexagonal architecture
-        # The caller should always provide implementations
+        # Registry port must be provided via dependency injection (hexagonal architecture)
         if registry_port is None:
             raise ValueError(
                 "ConfigurationManager requires a registry_port implementation. "
                 "This follows hexagonal architecture - domain should not import infrastructure."
             )
-        self.registry = registry_port
-
-    def __init__(self, config_path: str = "config"):
-        """Initialize with existing components."""
-        self.config_path = Path(config_path)
-
-        # Use existing RegistryManager for dynamic discovery
-        if RegistryManager is None:
-            raise ImportError(
-                "RegistryManager not available. Ensure infrastructure.registry is importable."
-            )
-        self.registry_manager = RegistryManager(
-            models_dir=str(self.config_path / "models"),
-            settings_file=str(self.config_path / "registry_settings.json"),
-        )
+        self.registry_port = registry_port
 
         # Use existing SystemConfig for typed configuration
         self.system_config = SystemConfig()
 
-        # Build configuration from dynamic discovery
+        # Build configuration from registry port
         self.registry = self._discover_models()
         self.global_config = self._build_global_config()
         self.config = self._build_adapters_config()
@@ -93,9 +86,10 @@ class ConfigurationManager:
         )
 
     def _discover_models(self) -> dict[str, Any]:
-        """Discover models using existing RegistryManager."""
+        """Discover models using registry port interface."""
         try:
-            discovered_providers = self.registry_manager.discover_providers()
+            # Use registry port to discover providers (hexagonal architecture)
+            discovered_providers = self.registry_port.discover_providers()
 
             if not discovered_providers:
                 log_warning("No providers discovered")
@@ -199,9 +193,11 @@ class ConfigurationManager:
 
     def get_model_configuration(
         self, adapter_name: str
-    ) -> Optional["ModelConfiguration"]:
+    ) -> Optional[Any]:
         """Get configuration for specific model adapter."""
-        from .model_interfaces import ModelConfiguration
+        if ModelConfiguration is None:
+            # ModelConfiguration not available, return dict-based config
+            return self._get_dict_based_config(adapter_name)
 
         # Look up the adapter in our configuration
         adapters = self.config.get("adapters", {})
@@ -237,13 +233,23 @@ class ConfigurationManager:
 
         return all_models
 
+    def _get_dict_based_config(self, adapter_name: str) -> Optional[dict[str, Any]]:
+        """Get configuration as dict when ModelConfiguration is not available."""
+        adapters = self.config.get("adapters", {})
+        if adapter_name not in adapters:
+            return None
+        
+        adapter_config = adapters[adapter_name].copy()
+        adapter_config["fallback_chain"] = self.get_fallback_chain(adapter_name)
+        return adapter_config
+
     def validate_model_config(
         self, config: dict[str, Any], name: str = ""
     ) -> dict[str, Any]:
-        """Validate model configuration using existing schema validation."""
+        """Validate model configuration using registry port interface."""
         try:
-            # Use existing schema validation
-            self.registry_manager.validate_config("unknown", config)
+            # Use registry port for validation (hexagonal architecture)
+            self.registry_port.validate_config("unknown", config)
             return {"valid": True, "errors": [], "warnings": []}
         except Exception as e:
             return {"valid": False, "errors": [str(e)], "warnings": []}
