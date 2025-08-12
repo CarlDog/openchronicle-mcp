@@ -20,9 +20,9 @@ Main Components:
 Author: OpenChronicle Development Team
 """
 
-from .narrative_orchestrator import NarrativeOperation
 from .narrative_orchestrator import NarrativeOrchestrator
-from .narrative_orchestrator import NarrativeState
+from .core.narrative_operation_router import NarrativeOperation
+from .core.narrative_state_manager import NarrativeState
 from .shared.narrative_base import EventProcessor
 from .shared.narrative_base import NarrativeComponent
 from .shared.narrative_base import NarrativeEvent

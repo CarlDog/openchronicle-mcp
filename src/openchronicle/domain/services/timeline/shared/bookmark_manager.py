@@ -39,7 +39,7 @@ class SimpleBookmarkManager:
                 """,
                 (story_id,),
             )
-    except (RuntimeError, ValueError, KeyError, TypeError, OSError):
+        except (RuntimeError, ValueError, KeyError, TypeError, OSError):
             return []
 
         results: list[dict[str, Any]] = []
@@ -79,7 +79,7 @@ class SimpleBookmarkManager:
                 """,
                 (story_id, bookmark_id, scene_id, timestamp, description, json_dumps_safe(data)),
             )
-    except (RuntimeError, ValueError, KeyError, TypeError, OSError):
+        except (RuntimeError, ValueError, KeyError, TypeError, OSError):
             return False
 
     def delete_bookmark(self, story_id: str, bookmark_id: str) -> bool:
@@ -90,7 +90,7 @@ class SimpleBookmarkManager:
                 "DELETE FROM bookmarks WHERE story_id = ? AND bookmark_id = ?",
                 (story_id, bookmark_id),
             )
-    except (RuntimeError, ValueError, KeyError, TypeError, OSError):
+        except (RuntimeError, ValueError, KeyError, TypeError, OSError):
             return False
 
     def clear_bookmarks(self, story_id: str) -> bool:
@@ -99,7 +99,7 @@ class SimpleBookmarkManager:
             return self.persistence.execute_update(
                 story_id, "DELETE FROM bookmarks WHERE story_id = ?", (story_id,)
             )
-    except (RuntimeError, ValueError, KeyError, TypeError, OSError):
+        except (RuntimeError, ValueError, KeyError, TypeError, OSError):
             return False
 
 
