@@ -1,4 +1,9 @@
-from openchronicle.domain.ports.storypack_port import IStorypackProcessorPort\n\n#!/usr/bin/env python3
+#!/usr/bin/env python3
+from openchronicle.application.services.importers.storypack.interfaces import (
+    ImportContext,
+    ImportResult,
+    IOutputFormatter,
+)
 """
 OpenChronicle Output Formatter
 

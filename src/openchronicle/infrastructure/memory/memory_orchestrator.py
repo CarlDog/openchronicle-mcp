@@ -104,6 +104,15 @@ class MemoryOrchestrator:
 
         self._AsyncCompatResult = _AsyncCompatResult
 
+        class _AwaitableDict(dict):
+            """Dict that can be awaited to yield itself (dual sync/async contract)."""
+            def __await__(self):
+                async def _coro():
+                    return self
+                return _coro().__await__()
+
+        self._AwaitableDict = _AwaitableDict
+
     def _awaitable(self, value):
         """Wrap a value to be awaitable while remaining usable synchronously."""
         return self._AsyncCompatResult(value)
@@ -285,15 +294,15 @@ class MemoryOrchestrator:
                 story_id, character_name, updates
             )
             if result.success:
-                # Return current memory state (awaitable-compatible)
-                return self._awaitable(self.repository.load_memory(story_id))
+                # Return current memory state as awaitable dict (sync + async contract)
+                return self._AwaitableDict(self.repository.load_memory(story_id).to_dict())
             self.logger.error(f"Character update failed: {result.warnings}")
-            return self._awaitable(self.repository.load_memory(story_id))
+            return self._AwaitableDict(self.repository.load_memory(story_id).to_dict())
         except Exception as e:
             self.logger.error(
                 f"Error updating character {character_name} for {story_id}: {e}"
             )
-            return self._awaitable(self.repository.load_memory(story_id))
+            return self._AwaitableDict(self.repository.load_memory(story_id).to_dict())
 
     async def update_character_memory_async(
         self, story_id: str, character_name: str, updates: dict[str, Any]
@@ -409,13 +418,13 @@ class MemoryOrchestrator:
         try:
             memory = self.repository.load_memory(story_id)
             if character_name in memory.characters:
-                return self._awaitable(memory.characters[character_name].to_dict())
-            return self._awaitable({})
+                return self._AwaitableDict(memory.characters[character_name].to_dict())
+            return self._AwaitableDict({})
         except Exception as e:
             self.logger.error(
                 f"Error getting character memory for {character_name}: {e}"
             )
-            return self._awaitable({})
+            return self._AwaitableDict({})
 
     async def get_character_memory_async(
         self, story_id: str, character_name: str

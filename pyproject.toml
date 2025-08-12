@@ -96,11 +96,6 @@ testpaths = ["tests"]
 addopts = [
     "--strict-config",
     "--strict-markers",
-    "--cov=src/openchronicle",
-    "--cov-report=term-missing",
-    "--cov-report=html:htmlcov",
-    "--cov-report=xml",
-    "--cov-fail-under=85",
     "--tb=short",
     "--maxfail=10",
     "-ra",

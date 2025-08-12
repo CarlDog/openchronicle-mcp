@@ -13,6 +13,7 @@ services:
       - "8199:8000"
     environment:
       - DEFAULT_STORY_PACK=demo-story
+  - PYTHONPATH=/app/src
       # ===========================================
       # Model Configuration via Environment Variables
       # ===========================================

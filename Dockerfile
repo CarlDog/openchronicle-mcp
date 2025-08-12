@@ -1,9 +1,10 @@
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+  PYTHONDONTWRITEBYTECODE=1 \
+  PIP_NO_CACHE_DIR=1 \
+  PIP_DISABLE_PIP_VERSION_CHECK=1 \
+  PYTHONPATH=/app/src
 
 # Create user/group if they don't already exist
 RUN if ! getent group 100; then groupadd -g 100 appuser; fi && \
@@ -63,8 +64,8 @@ RUN mkdir -p /app/storage /app/logs
 # Don't set USER here - let init script handle user switching
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD gosu 1026:100 python -c "import importlib,sys; importlib.import_module('openchronicle'); sys.exit(0)" \
-  || python -c "import importlib,sys; importlib.import_module('openchronicle'); sys.exit(0)" \
+  CMD gosu 1026:100 python -c "import importlib,sys,os; os.environ.setdefault('PYTHONPATH','/app/src'); importlib.import_module('openchronicle'); sys.exit(0)" \
+  || python -c "import importlib,sys,os; os.environ.setdefault('PYTHONPATH','/app/src'); importlib.import_module('openchronicle'); sys.exit(0)" \
   || exit 1
 
 EXPOSE 8000

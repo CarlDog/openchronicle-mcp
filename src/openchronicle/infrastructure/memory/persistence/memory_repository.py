@@ -92,7 +92,9 @@ class MemoryRepository:
                             story_id,
                             memory_type,
                             "current",
-                self.json_util.safe_dumps(serialized_data[memory_type]),
+                            self.json_util.safe_dumps(
+                                serialized_data[memory_type]
+                            ),
                             datetime.now(UTC).isoformat(),
                         ),
                     )
@@ -130,7 +132,7 @@ class MemoryRepository:
         try:
             # Ensure database is initialized (auto-detect test context)
             database_orchestrator.init_database(story_id)
-        database_orchestrator.execute_update(
+            database_orchestrator.execute_update(
                 story_id,
                 """
                 INSERT OR REPLACE INTO memory
@@ -141,7 +143,7 @@ class MemoryRepository:
                     story_id,
                     section,
                     "current",
-            self.json_util.safe_dumps(data),
+                    self.json_util.safe_dumps(data),
                     datetime.now(UTC).isoformat(),
                 ),
             )
@@ -158,7 +160,7 @@ class MemoryRepository:
             serialized_memory = self._serialize_memory(memory)
             snapshot_id = f"{story_id}_{scene_id}_{datetime.now(UTC).isoformat()}"
 
-        database_orchestrator.execute_update(
+            database_orchestrator.execute_update(
                 story_id,
                 """
                 INSERT INTO memory_history (story_id, scene_id, timestamp, value)
@@ -168,7 +170,7 @@ class MemoryRepository:
                     story_id,
                     scene_id,
                     datetime.now(UTC).isoformat(),
-            self.json_util.safe_dumps(serialized_memory),
+                    self.json_util.safe_dumps(serialized_memory),
                 ),
             )
 
