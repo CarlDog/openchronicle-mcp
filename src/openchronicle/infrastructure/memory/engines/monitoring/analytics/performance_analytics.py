@@ -19,7 +19,7 @@ from datetime import datetime
 from datetime import timedelta
 from typing import Any
 
-from .distributed_cache import DistributedMultiTierCache
+from ....cache_orchestrator import DistributedMultiTierCache
 
 
 @dataclass

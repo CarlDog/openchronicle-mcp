@@ -16,48 +16,48 @@ from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
-from openchronicle.infrastructure.memory.distributed_cache import CachePartitioner
-from openchronicle.infrastructure.memory.distributed_cache import (
+from openchronicle.infrastructure.memory.engines.caching.cluster_manager import CachePartitioner
+from openchronicle.infrastructure.memory.engines.caching.warming_manager import (
     CacheWarmingManager,
 )
-from openchronicle.infrastructure.memory.distributed_cache import ClusterNode
-from openchronicle.infrastructure.memory.distributed_cache import (
+from openchronicle.infrastructure.memory.engines.caching.config import ClusterNode
+from openchronicle.infrastructure.memory.engines.caching.config import (
     DistributedCacheConfig,
 )
-from openchronicle.infrastructure.memory.distributed_cache import (
+from openchronicle.infrastructure.memory.engines.caching.metrics import (
     DistributedCacheMetrics,
 )
-from openchronicle.infrastructure.memory.distributed_cache import (
+from openchronicle.infrastructure.memory.cache_orchestrator import (
     DistributedMultiTierCache,
 )
-from openchronicle.infrastructure.memory.distributed_cache import PartitionConfig
-from openchronicle.infrastructure.memory.distributed_cache import (
+from openchronicle.infrastructure.memory.engines.caching.config import PartitionConfig
+from openchronicle.infrastructure.memory.engines.caching.cluster_manager import (
     RedisClusterManager,
 )
-from openchronicle.infrastructure.memory.distributed_cache import (
+from openchronicle.infrastructure.memory.cache_orchestrator import (
     create_production_distributed_cache,
 )
-from openchronicle.infrastructure.memory.performance_analytics import AlertManager
-from openchronicle.infrastructure.memory.performance_analytics import (
+from openchronicle.infrastructure.memory.engines.monitoring.analytics.performance_analytics import AlertManager
+from openchronicle.infrastructure.memory.engines.monitoring.analytics.performance_analytics import (
     CacheAnalyticsDashboard,
 )
-from openchronicle.infrastructure.memory.performance_analytics import (
+from openchronicle.infrastructure.memory.engines.monitoring.analytics.performance_analytics import (
     MetricsCollector,
 )
-from openchronicle.infrastructure.memory.performance_analytics import (
+from openchronicle.infrastructure.memory.engines.monitoring.analytics.performance_analytics import (
     PerformanceRecommendationEngine,
 )
-from openchronicle.infrastructure.memory.production_monitoring import HealthChecker
-from openchronicle.infrastructure.memory.production_monitoring import (
+from openchronicle.infrastructure.memory.engines.monitoring.health_checker import HealthChecker
+from openchronicle.infrastructure.memory.engines.monitoring.health_checker import (
     HealthCheckResult,
 )
-from openchronicle.infrastructure.memory.production_monitoring import (
+from openchronicle.infrastructure.memory.engines.monitoring.prometheus_exporter import (
     PrometheusExporter,
 )
-from openchronicle.infrastructure.memory.production_monitoring import (
+from openchronicle.infrastructure.memory.engines.monitoring.structured_logger import (
     StructuredLogger,
 )
-from openchronicle.infrastructure.memory.production_monitoring import (
+from openchronicle.infrastructure.memory.engines.monitoring.production_monitoring import (
     setup_production_monitoring,
 )
 
@@ -185,10 +185,10 @@ class TestRedisClusterManager:
 
     @pytest.mark.asyncio
     @patch(
-        "src.openchronicle.infrastructure.memory.distributed_cache.REDIS_AVAILABLE",
+        "src.openchronicle.infrastructure.memory.engines.caching.cluster_manager.REDIS_AVAILABLE",
         True,
     )
-    @patch("src.openchronicle.infrastructure.memory.distributed_cache.redis")
+    @patch("src.openchronicle.infrastructure.memory.engines.caching.cluster_manager.redis")
     async def test_single_node_initialization(self, mock_redis):
         """Test single node Redis initialization."""
         mock_client = AsyncMock()
@@ -207,11 +207,11 @@ class TestRedisClusterManager:
 
     @pytest.mark.asyncio
     @patch(
-        "src.openchronicle.infrastructure.memory.distributed_cache.REDIS_AVAILABLE",
+        "src.openchronicle.infrastructure.memory.engines.caching.cluster_manager.REDIS_AVAILABLE",
         True,
     )
-    @patch("src.openchronicle.infrastructure.memory.distributed_cache.RedisCluster")
-    @patch("src.openchronicle.infrastructure.memory.distributed_cache.redis")
+    @patch("src.openchronicle.infrastructure.memory.engines.caching.cluster_manager.RedisCluster")
+    @patch("src.openchronicle.infrastructure.memory.engines.caching.cluster_manager.redis")
     async def test_cluster_initialization(self, mock_redis, mock_redis_cluster):
         """Test Redis cluster initialization."""
         mock_client = AsyncMock()
@@ -236,10 +236,10 @@ class TestRedisClusterManager:
 
     @pytest.mark.asyncio
     @patch(
-        "src.openchronicle.infrastructure.memory.distributed_cache.REDIS_AVAILABLE",
+        "src.openchronicle.infrastructure.memory.engines.caching.cluster_manager.REDIS_AVAILABLE",
         True,
     )
-    @patch("src.openchronicle.infrastructure.memory.distributed_cache.redis")
+    @patch("src.openchronicle.infrastructure.memory.engines.caching.cluster_manager.redis")
     async def test_distributed_get_set_operations(self, mock_redis):
         """Test distributed get/set operations through cluster manager."""
         mock_client = AsyncMock()
