@@ -112,6 +112,8 @@ class SystemConfig:
     config_version: str = "2.0"
     last_updated: str = field(default_factory=lambda: datetime.now().isoformat())
     environment: str = "development"
+    # Plugin system mode switch (Phase 1 default)
+    mode: str = "storytelling"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "SystemConfig":

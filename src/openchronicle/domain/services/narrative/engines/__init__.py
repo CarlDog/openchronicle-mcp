@@ -1,26 +1,7 @@
-"""
-Narrative Engine Components
+"""TEMP re-export during migration to plugin-based architecture.
 
-Specialized engine components that provide specific narrative functionality.
-These engines handle distinct aspects of narrative generation and validation.
-
-Engine Categories:
-- consistency/ - Memory validation and consistency checking
-- emotional/ - Emotional stability and mood tracking
-- mechanics/ - Dice mechanics, branching, and resolution
-- response/ - Intelligent response generation and quality
+This module exposes narrative engines from the storytelling plugin to
+preserve import compatibility during Phase 1.
 """
 
-# Import orchestrators from each engine category
-from .consistency.consistency_orchestrator import ConsistencyOrchestrator
-from .emotional.emotional_orchestrator import EmotionalOrchestrator
-from .mechanics.mechanics_orchestrator import MechanicsOrchestrator
-from .response.response_orchestrator import ResponseOrchestrator
-
-
-__all__ = [
-    "ConsistencyOrchestrator",
-    "EmotionalOrchestrator",
-    "MechanicsOrchestrator",
-    "ResponseOrchestrator",
-]
+from openchronicle.plugins.storytelling.domain.services.narrative.engines import *  # type: ignore # noqa: F401,F403

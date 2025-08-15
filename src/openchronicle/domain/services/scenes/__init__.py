@@ -1,18 +1,7 @@
-"""
-Scene Systems - Modular Scene Management for OpenChronicle
+"""TEMP re-export during migration to plugin-based architecture.
 
-Provides unified scene operations through orchestrated components:
-- Scene persistence and data management
-- Scene analysis and statistics
-- Scene labeling and organization
-- Rollback and state management
-
-Replaces the legacy monolithic scene_logger.py with clean modular architecture.
+This module exposes scenes services from the storytelling plugin to
+preserve import compatibility during Phase 1.
 """
 
-# Import only the orchestrator here to keep package import side-effect free
-from .scene_orchestrator import SceneOrchestrator
-
-
-# Explicit exports
-__all__ = ["SceneOrchestrator"]
+from openchronicle.plugins.storytelling.domain.services.scenes import *  # type: ignore # noqa: F401,F403
