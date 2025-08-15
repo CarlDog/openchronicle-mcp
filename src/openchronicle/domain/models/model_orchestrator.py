@@ -121,7 +121,15 @@ class ModelResponseGenerator(IModelResponseGenerator):
                 success=True,
             )
 
-        except (asyncio.TimeoutError, OSError, ValueError, RuntimeError, KeyError, TypeError) as e:
+        # Operational exception capture (intentionally exclude broad Exception to avoid masking bugs)
+        except (
+            asyncio.TimeoutError,
+            OSError,
+            ValueError,
+            RuntimeError,
+            KeyError,
+            TypeError,
+        ) as e:
             # Record failure metrics
             self.performance_monitor.record_failure(
                 adapter_name, type(e).__name__, str(e)
@@ -153,9 +161,9 @@ class ModelResponseGenerator(IModelResponseGenerator):
         """Helper to raise fallback chain exhausted error."""
         raise ModelError(
             f"All adapters in fallback chain failed. Last error: {last_error}",
-            category="fallback_exhausted",
+            category=ErrorCategory.MODEL,
             severity=ErrorSeverity.CRITICAL,
-            context=ErrorContext(operation="generate_with_fallback_chain"),
+            context=ErrorContext(operation="generate_with_fallback_chain", component="ModelResponseGenerator"),
             cause=last_error,
         )
 
@@ -192,7 +200,8 @@ class ModelResponseGenerator(IModelResponseGenerator):
         """Get fallback chain for specified adapter."""
         config = self.config_manager.get_model_configuration(adapter_name)
         if config and config.fallback_chain:
-            return config.fallback_chain
+            chain = [c for c in config.fallback_chain if c != adapter_name]
+            return chain
 
         # Default fallback logic
         available_adapters = [
@@ -606,12 +615,36 @@ class ModelOrchestrator(IModelOrchestrator):
     def get_adapter_status(self, adapter_name: str) -> AdapterStatus:
         """Convenience method for adapter status."""
         import asyncio
-
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
+            # Can't call asyncio.run or loop.run_until_complete inside a running loop.
+            # For full health details tests should await lifecycle_manager.health_check_adapter directly.
+            # Here return a best-effort snapshot from cached health info.
+            # Provide best-effort status without blocking.
+            health_info = self._lifecycle_manager.adapter_health.get(adapter_name, {})
+            return AdapterStatus(
+                name=adapter_name,
+                is_available=self._lifecycle_manager.is_adapter_available(adapter_name),
+                is_healthy=self._lifecycle_manager.is_adapter_healthy(adapter_name),
+                last_health_check=health_info.get("last_check", datetime.now(UTC)),
+                error_count=health_info.get("error_count", 0),
+                success_count=health_info.get("success_count", 0),
+                average_response_time=health_info.get("avg_response_time", 0.0),
+                metadata=health_info,
+            )
         return asyncio.run(self._lifecycle_manager.health_check_adapter(adapter_name))
 
     def get_available_adapters(self) -> dict[str, Any]:
         """Get available adapters from configuration."""
-        return self._configuration_manager.list_model_configs()
+        discovered = self._configuration_manager.list_model_configs()
+        runtime_adapters = self._configuration_manager.config.get("adapters", {})
+        for name, cfg in runtime_adapters.items():
+            if name not in discovered:
+                discovered[name] = cfg
+        return discovered
 
     def get_adapter_info(self, adapter_name: str) -> dict[str, Any]:
         """Get adapter information."""
@@ -645,15 +678,15 @@ class ModelOrchestrator(IModelOrchestrator):
 
     def add_model_config(self, provider_name: str, config: dict[str, Any]) -> bool:
         """Convenience method for adding model configuration."""
-        model_config = ModelConfiguration(
-            provider_name=provider_name,
-            model_name=config.get("model_name", provider_name),
+        # ConfigurationManager implements add_model_config (runtime only)
+        return self._configuration_manager.add_model_config(
+            provider_name,
+            {
+                "model_name": config.get("model_name", provider_name),
+                **config,
+            },
             enabled=config.get("enabled", True),
-            config=config,
-            fallback_chain=config.get("fallback_chain", []),
-            metadata=config.get("metadata", {}),
         )
-        return self._configuration_manager.add_model_configuration(model_config)
 
     # Standard API methods for compatibility
     async def process_request(self, request: str, **kwargs) -> ModelResponse:
@@ -724,7 +757,7 @@ class ModelOrchestrator(IModelOrchestrator):
         else:
             return {
                 "success": True,
-                "response": response.response_text,
+                "response": response.content,
                 "adapter_used": response.adapter_name,
                 "metadata": response.metadata,
             }

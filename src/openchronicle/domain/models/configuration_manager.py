@@ -266,6 +266,17 @@ class ConfigurationManager:
     ) -> dict[str, Any]:
         """Validate model configuration using registry port interface."""
         try:
+            # Support both persisted schema (name + type) and minimal runtime additions.
+            # Allow callers to pass model_name instead of name; map automatically.
+            if "name" not in config and "model_name" in config:
+                config["name"] = config["model_name"]
+            # Provide a default runtime type when not explicitly supplied for dynamic models.
+            if "type" not in config:
+                config["type"] = config.get("provider") or "runtime"
+            required = ["name", "type"]
+            missing = [f for f in required if not config.get(f)]
+            if missing:
+                return {"valid": False, "errors": [f"Missing fields: {missing}"], "warnings": []}
             # Use registry port for validation (hexagonal architecture)
             self.registry_port.validate_config("unknown", config)
 

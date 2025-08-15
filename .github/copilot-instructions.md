@@ -15,31 +15,69 @@
 - **File Operations**: Use PowerShell cmdlets (`Remove-Item`, `Get-ChildItem`) not Unix commands
 
 ## Architecture Overview
-OpenChronicle is a narrative AI engine with **13 core modules** using plugin-style model management. The `ModelOrchestrator` (`core/model_management/model_orchestrator.py`) orchestrates 15+ LLM providers with fallback chains and dynamic configuration loading.
+OpenChronicle is a narrative AI engine with modular, segregated model management components. The `ModelOrchestrator` (`src/openchronicle/domain/models/model_orchestrator.py`) coordinates providers through clearly defined interfaces (configuration, lifecycle, performance, response generation) and supports dynamic runtime configuration + fallback chains.
 
-**Critical Pattern**: Always route through `ModelManager` - never instantiate adapters directly.
+**Critical Pattern (Updated)**:
+- Use the domain port `IModelManagementPort` (see `src/openchronicle/domain/ports/model_management_port.py`) or injected orchestrator instance – do NOT instantiate low-level adapters directly.
+- Obtain orchestrator via dependency injection (container) or factory where available instead of manual construction.
+- Favor per-provider JSON configs in `config/models/` over any deprecated monolithic registry file.
 
 ## Core Development Workflows
 
 ### Model Adapter Usage
 ```python
-# Check adapter exists before using
-if adapter_name not in model_manager.adapters:
-    await model_manager.initialize_adapter(adapter_name)
+orchestrator = resolved_orchestrator  # injected
 
-# Use fallback chains for resilience
-chain = model_manager.get_fallback_chain(adapter_name)
-for attempt_adapter in chain:
+# Ensure adapter initialized (idempotent)
+await orchestrator.initialize_adapter(adapter_name)
+
+# Generate with automatic fallback chain handling
+response = await orchestrator.generate_with_fallback(
+    prompt,
+    adapter_name=adapter_name,
+)
+
+# (Advanced) Manual fallback iteration
+for alt in orchestrator.get_fallback_chain(adapter_name):
     try:
-        response = await adapter.generate_response(prompt)
+        response = await orchestrator.generate_with_adapter(prompt, alt)
         break
     except Exception:
         continue
 ```
 
-### Configuration Pattern
-- **Primary**: `config/model_registry.json` (registry-only, single source of truth)
-- **Dynamic**: Use `model_manager.add_model_config()` for runtime additions
+### Configuration Pattern (Modular Registry)
+- **Primary Source**: Individual provider files in `config/models/*.json` (each self-contained; replaces legacy monolithic `model_registry.json`).
+- **Discovery**: Registry manager aggregates all provider files at startup.
+- **Fallback Chains**: Declared per provider JSON (field: `fallback_chain`).
+- **Dynamic Additions**: Use `orchestrator.add_model_config(provider_name, config_dict)` at runtime (persist later by writing new JSON file if needed).
+- **Status**: Query `orchestrator.get_model_status()` for system snapshot.
+
+Example provider file (`config/models/openai_gpt4o.json`):
+```json
+{
+    "provider_name": "openai_gpt4o",
+    "model_name": "gpt-4o",
+    "enabled": true,
+    "fallback_chain": ["openai_gpt35_turbo"],
+    "metadata": {"tier": "primary"},
+    "config": {"temperature": 0.7, "max_tokens": 800}
+}
+```
+
+Runtime addition:
+```python
+orchestrator.add_model_config(
+        "experimental_model",
+        {
+                "model_name": "my-exp-1",
+                "enabled": True,
+                "fallback_chain": ["openai_gpt4o"],
+                "metadata": {"tier": "experimental"},
+                "temperature": 0.2
+        }
+)
+```
 
 ### Memory-Scene Synchronization
 ```python
@@ -114,6 +152,10 @@ See `.copilot/project_status.json` for complete project status.
 **VIOLATION WARNING**: Updating status in multiple files violates clean development principles and creates maintenance debt. Always use the single source of truth system.
 
 ## Key Architecture Files
-- `core/model_management/model_orchestrator.py` - Modern orchestration with SOLID principles
-- `.copilot/architecture/module_interactions.md` - System design
-- `tests/test_model_adapter.py` - Testing patterns and mocking
+- `src/openchronicle/domain/models/model_orchestrator.py` - Segregated orchestrator implementation
+- `src/openchronicle/domain/ports/model_management_port.py` - Domain port for model operations
+- `src/openchronicle/infrastructure/llm_adapters/adapter_factory.py` - Adapter construction & registry interaction
+- `src/openchronicle/infrastructure/registry/registry_manager.py` - Provider config aggregation & validation
+- `.copilot/architecture/module_interactions.md` - System design reference
+- `tests/unit/core/test_interface_segregation.py` - Interface contract tests
+- Workflow & stress tests under `tests/workflows/` and `tests/stress/` for orchestration resilience

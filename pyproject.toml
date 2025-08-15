@@ -91,7 +91,7 @@ include = [
     "LICENSE*",
 ]
 
-# Enhanced pytest configuration
+# Pytest configuration
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
@@ -135,7 +135,7 @@ filterwarnings = [
 ]
 minversion = "7.0"
 
-# Enhanced coverage configuration
+# Coverage configuration
 [tool.coverage.run]
 source = ["src"]
 omit = [

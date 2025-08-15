@@ -26,7 +26,7 @@ Successfully enhanced OpenChronicle's configuration system with modern Pydantic-
 - **`config show [section]`**: Display current configuration
 - **`config set <scope> key value`**: Update CLI, preferences, or system settings
 - **`config export/import`**: Backup & restore configuration
-- **`config` operations** consolidated; deprecated `enhanced.py` removed
+- **`config` operations** consolidated into unified command group
 
 ### ✅ Advanced Features
 - **Auto-Directory Creation**: Storage directories created automatically

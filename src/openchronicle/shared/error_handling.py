@@ -296,35 +296,55 @@ class RetryStrategy(ErrorRecoveryStrategy):
         original_func = original_kwargs.get("_original_func")
         if not original_func:
             raise error
-
         for attempt in range(self.max_retries):
             delay = min(self.base_delay * (2**attempt), self.max_delay)
             await asyncio.sleep(delay)
 
+            log_info(
+                f"Retry attempt {attempt + 1}/{self.max_retries} "
+                f"for {error.context.operation}",
+                context_tags=error.context.to_log_tags(),
+            )
+
             try:
-                log_info(
-                    f"Retry attempt {attempt + 1}/{self.max_retries} "
-                    f"for {error.context.operation}",
-                    context_tags=error.context.to_log_tags(),
-                )
                 return await original_func(
                     *original_args,
-                    **{
-                        k: v
-                        for k, v in original_kwargs.items()
-                        if k != "_original_func"
-                    },
+                    **{k: v for k, v in original_kwargs.items() if k != "_original_func"},
                 )
-            except RECOVERABLE_EXCEPTIONS as retry_error:
+            except OpenChronicleError as oc_err:
+                # Treat recoverable OpenChronicleErrors in allowed categories as retryable
+                if await self.can_recover(oc_err) and attempt < self.max_retries - 1:
+                    continue
+                if await self.can_recover(oc_err) and attempt == self.max_retries - 1:
+                    raise OpenChronicleError(
+                        f"All retry attempts failed. Last error: {oc_err}",
+                        category=oc_err.category,
+                        severity=ErrorSeverity.HIGH,
+                        context=oc_err.context,
+                        cause=oc_err,
+                        recoverable=False,
+                    ) from oc_err
+                # Non-retryable OpenChronicleError: propagate
+                raise
+            except Exception as underlying:
+                # Normalize unexpected exception so retry loop can continue
+                normalized = OpenChronicleError(
+                    str(underlying),
+                    category=error.category,
+                    severity=ErrorSeverity.MEDIUM,
+                    context=error.context,
+                    cause=underlying,
+                    recoverable=True,
+                )
                 if attempt == self.max_retries - 1:
                     raise OpenChronicleError(
-                        f"All retry attempts failed. Last error: {retry_error}",
+                        f"All retry attempts failed. Last error: {underlying}",
                         category=error.category,
                         severity=ErrorSeverity.HIGH,
                         context=error.context,
-                        cause=retry_error,
+                        cause=underlying,
                         recoverable=False,
-                    ) from retry_error
+                    ) from underlying
                 continue
 
 
@@ -427,6 +447,9 @@ def with_error_handling(
                         )
                     except RECOVERABLE_EXCEPTIONS:
                         pass  # Fall through to fallback
+                    except OpenChronicleError:
+                        # Recovery attempt returned unrecoverable OpenChronicleError; apply fallback if provided
+                        pass
 
                 if fallback_result is not None:
                     return fallback_result
