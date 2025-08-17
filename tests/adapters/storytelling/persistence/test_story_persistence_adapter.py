@@ -9,7 +9,7 @@ from tests.contracts.ports.test_persistence_port_contract import PersistencePort
 class TestStoryPersistenceAdapter(PersistencePortContract):
     def make_port(self):
         try:
-            from openchronicle.plugins.storytelling.infrastructure.adapters.story_persistence_adapter import (
+            from openchronicle_old.plugins.storytelling.infrastructure.adapters.story_persistence_adapter import (
                 StoryPersistenceAdapter,
             )
         except Exception:

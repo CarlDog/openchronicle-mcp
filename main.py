@@ -17,8 +17,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from openchronicle.shared.logging_system import log_error
-from openchronicle.shared.logging_system import log_info
+from openchronicle_old.shared.logging_system import log_error
+from openchronicle_old.shared.logging_system import log_info
 
 
 def main():
@@ -60,7 +60,7 @@ def main():
 
     try:
         # Import and run the modern CLI from its new location
-        from openchronicle.interfaces.cli.main import app
+        from openchronicle_old.interfaces.cli.main import app
 
         # Pass all command line arguments to the CLI
         app()

@@ -11,7 +11,7 @@ from tests.contracts.ports.test_content_analysis_port_contract import (
 class TestStoryContentAdapter(ContentAnalysisPortContract):
     def make_port(self):
         try:
-            from openchronicle.plugins.storytelling.infrastructure.content.adapters.story_content_adapter import (
+            from openchronicle_old.plugins.storytelling.infrastructure.content.adapters.story_content_adapter import (
                 StoryContentAdapter,
             )
         except Exception:

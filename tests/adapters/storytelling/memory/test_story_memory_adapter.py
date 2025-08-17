@@ -9,7 +9,7 @@ from tests.contracts.ports.test_memory_port_contract import MemoryPortContract
 class TestStoryMemoryAdapter(MemoryPortContract):
     def make_port(self):
         try:
-            from openchronicle.plugins.storytelling.infrastructure.adapters.story_memory_adapter import (
+            from openchronicle_old.plugins.storytelling.infrastructure.adapters.story_memory_adapter import (
                 StoryMemoryAdapter,
             )
         except Exception:
