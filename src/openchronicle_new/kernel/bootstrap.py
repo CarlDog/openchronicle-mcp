@@ -5,8 +5,15 @@ from __future__ import annotations
 from ..infrastructure.adapters.config_env import ConfigEnv
 from ..infrastructure.adapters.kv_inmemory import InMemoryKV
 from ..infrastructure.adapters.scheduler_asyncio import AsyncIOScheduler
-from ..plugins.registry import Registry as PluginRegistry
 from .container import Container
+
+
+class PluginRegistry:
+    """Minimal plugin registry placeholder."""
+
+    def list_all(self) -> list[str]:
+        return []
+
 
 _container: Container | None = None
 _plugin_registry: PluginRegistry | None = None
