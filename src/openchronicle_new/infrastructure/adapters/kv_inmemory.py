@@ -8,8 +8,6 @@ from typing import Any
 class InMemoryKV:
     """Simple in-memory key-value storage."""
 
-    # TODO: add persistence or eviction strategy if needed
-
     def __init__(self) -> None:
         self._data: dict[str, Any] = {}
 
