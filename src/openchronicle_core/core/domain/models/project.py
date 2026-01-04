@@ -45,6 +45,7 @@ class Task:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     project_id: str = ""
     agent_id: Optional[str] = None
+    parent_task_id: Optional[str] = None
     type: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
     status: TaskStatus = TaskStatus.PENDING

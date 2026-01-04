@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Callable, Protocol
+from typing import Callable, Protocol, Any
 
 from openchronicle_core.core.domain.models.project import Task
 
 
 class TaskHandler(Protocol):
-    async def __call__(self, task: Task, *, context: dict | None = None) -> str: ...
+    async def __call__(self, task: Task, *, context: dict | None = None) -> Any: ...
 
 
 class PluginRegistry(ABC):

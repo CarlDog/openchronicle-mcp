@@ -16,7 +16,9 @@ oc = "openchronicle_core.interfaces.cli.main:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-packages = ["openchronicle_core"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 openchronicle_core = ["**/*.sql"]

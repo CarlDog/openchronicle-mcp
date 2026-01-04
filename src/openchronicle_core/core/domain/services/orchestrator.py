@@ -2,11 +2,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Any
+import hashlib
 
 from openchronicle_core.core.domain.models.project import Agent, Event, Project, Resource, Task, TaskStatus
 from openchronicle_core.core.domain.ports.llm_port import LLMPort
 from openchronicle_core.core.domain.ports.storage_port import StoragePort
 from openchronicle_core.core.domain.ports.plugin_port import PluginRegistry
+from openchronicle_core.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 
 
 class OrchestratorService:
@@ -15,18 +17,23 @@ class OrchestratorService:
         storage: StoragePort,
         llm: LLMPort,
         plugins: PluginRegistry,
+        handler_registry: TaskHandlerRegistry,
         emit_event: Callable[[Event], None],
     ) -> None:
         self.storage = storage
         self.llm = llm
         self.plugins = plugins
+        self.handler_registry = handler_registry
         self.emit_event = emit_event
+        self._builtin_handlers = {
+            "analysis.summary": self._run_analysis_summary,
+            "analysis.worker.summarize": self._run_worker_summarize,
+        }
 
     def create_project(self, name: str, metadata: dict[str, Any] | None = None) -> Project:
         project = Project(name=name, metadata=metadata or {})
         self.storage.add_project(project)
         event = Event(project_id=project.id, type="project_created", payload={"name": name})
-        event.compute_hash()
         self.emit_event(event)
         return project
 
@@ -49,37 +56,54 @@ class OrchestratorService:
         )
         self.storage.add_agent(agent)
         event = Event(project_id=project_id, agent_id=agent.id, type="agent_registered", payload={"name": name, "role": role})
-        event.compute_hash()
         self.emit_event(event)
         return agent
 
-    def submit_task(self, project_id: str, task_type: str, payload: dict[str, Any]) -> Task:
-        task = Task(project_id=project_id, type=task_type, payload=payload)
+    def list_builtin_handlers(self) -> list[str]:
+        return sorted(self._builtin_handlers.keys())
+
+    def list_registered_handlers(self) -> list[str]:
+        return self.handler_registry.list_task_types()
+
+    def submit_task(
+        self,
+        project_id: str,
+        task_type: str,
+        payload: dict[str, Any],
+        parent_task_id: str | None = None,
+        agent_id: str | None = None,
+    ) -> Task:
+        task = Task(project_id=project_id, type=task_type, payload=payload, parent_task_id=parent_task_id, agent_id=agent_id)
         self.storage.add_task(task)
         event = Event(project_id=project_id, task_id=task.id, type="task_submitted", payload={"task_type": task_type})
-        event.compute_hash()
         self.emit_event(event)
         return task
 
-    async def execute_task(self, task_id: str, agent_id: str | None = None) -> str:
+    async def execute_task(self, task_id: str, agent_id: str | None = None) -> Any:
         task = self.storage.get_task(task_id)
         if task is None:
             raise ValueError(f"Task not found: {task_id}")
 
         self.storage.update_task_status(task.id, TaskStatus.RUNNING.value)
         start_event = Event(project_id=task.project_id, task_id=task.id, agent_id=agent_id, type="task_started", payload={})
-        start_event.compute_hash()
         self.emit_event(start_event)
 
-        handler = self.plugins.get_task_handler(task.type)
-        if handler is not None:
-            result = await handler(task, context={"agent_id": agent_id})
+        builtin_handler = self._builtin_handlers.get(task.type)
+        if builtin_handler is not None:
+            result = await builtin_handler(task, agent_id=agent_id)
         else:
-            prompt = task.payload.get("prompt") or task.payload.get("text") or ""
-            result = await self.llm.generate_async(prompt, model=None, parameters=None)
+            registry_handler = self.handler_registry.get(task.type)
+            if registry_handler is not None:
+                result = await registry_handler(task, {"agent_id": agent_id, "emit_event": self.emit_event})
+            else:
+                handler = self.plugins.get_task_handler(task.type)
+                if handler is not None:
+                    result = await handler(task, context={"agent_id": agent_id, "emit_event": self.emit_event})
+                else:
+                    prompt = task.payload.get("prompt") or task.payload.get("text") or ""
+                    result = await self.llm.generate_async(prompt, model=None, parameters=None)
 
         complete_event = Event(project_id=task.project_id, task_id=task.id, agent_id=agent_id, type="task_completed", payload={"result": result})
-        complete_event.compute_hash()
         self.emit_event(complete_event)
         self.storage.update_task_status(task.id, TaskStatus.COMPLETED.value)
         return result
@@ -87,5 +111,88 @@ class OrchestratorService:
     def record_resource(self, resource: Resource) -> None:
         self.storage.add_resource(resource)
         event = Event(project_id=resource.project_id, type="resource_added", payload={"kind": resource.kind, "path": resource.path})
-        event.compute_hash()
         self.emit_event(event)
+
+    def _hash_text(self, text: str) -> str:
+        return hashlib.sha256(text.encode("utf-8")).hexdigest() if text else ""
+
+    def _select_workers(self, project_id: str, count: int) -> list[Agent]:
+        agents = self.storage.list_agents(project_id)
+        workers = [a for a in agents if a.role == "worker"]
+        if len(workers) < count:
+            raise ValueError("Not enough worker agents registered")
+        return workers[:count]
+
+    async def _run_analysis_summary(self, task: Task, agent_id: str | None) -> dict[str, Any]:
+        text = task.payload.get("text") or ""
+        text_hash = self._hash_text(text)
+        self.emit_event(Event(project_id=task.project_id, task_id=task.id, agent_id=agent_id, type="supervisor.received_task", payload={"text_hash": text_hash, "text_length": len(text)}))
+
+        workers = self._select_workers(task.project_id, 2)
+        worker_tasks: list[Task] = []
+        for idx, worker in enumerate(workers):
+            child_payload = {"text": text, "worker_index": idx}
+            child_task = self.submit_task(task.project_id, "analysis.worker.summarize", child_payload, parent_task_id=task.id, agent_id=worker.id)
+            worker_tasks.append(child_task)
+
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="supervisor.dispatched_workers",
+                payload={"worker_task_ids": [t.id for t in worker_tasks], "text_hash": text_hash},
+            )
+        )
+
+        worker_results: list[str] = []
+        for child_task, worker in zip(worker_tasks, workers):
+            result = await self.execute_task(child_task.id, agent_id=worker.id)
+            worker_results.append(result)
+            self.emit_event(
+                Event(
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    agent_id=agent_id,
+                    type="worker.completed",
+                    payload={"worker_task_id": child_task.id, "worker_agent_id": worker.id, "summary": result},
+                )
+            )
+
+        final_summary = self._merge_summaries(worker_results)
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="supervisor.merged_results",
+                payload={"worker_summaries": worker_results, "merge_strategy": "longer_summary"},
+            )
+        )
+        return {"summary": final_summary, "worker_summaries": worker_results}
+
+    async def _run_worker_summarize(self, task: Task, agent_id: str | None) -> str:
+        text = task.payload.get("text") or ""
+        summary = self._simple_summarize(text)
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="worker.generated_summary",
+                payload={"text_hash": self._hash_text(text), "summary": summary},
+            )
+        )
+        return summary
+
+    def _simple_summarize(self, text: str) -> str:
+        cleaned = " ".join(text.split())
+        if len(cleaned) <= 160:
+            return cleaned
+        return cleaned[:150].rsplit(" ", 1)[0] + "..."
+
+    def _merge_summaries(self, summaries: list[str]) -> str:
+        if not summaries:
+            return ""
+        longest = max(summaries, key=lambda s: len(s or ""))
+        return longest

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 
 from openchronicle_core.core.domain.models.project import Agent, Event, Project, Resource, Task, TaskStatus
@@ -21,6 +22,7 @@ class SqliteStore(StoragePort):
         for stmt in schema.ALL_TABLES:
             cur.execute(stmt)
         self._conn.commit()
+        self._ensure_parent_task_column()
 
     # Projects
     def add_project(self, project: Project) -> None:
@@ -61,7 +63,7 @@ class SqliteStore(StoragePort):
 
     def list_agents(self, project_id: str) -> list[Agent]:
         cur = self._conn.cursor()
-        rows = cur.execute("SELECT * FROM agents WHERE project_id=?", (project_id,)).fetchall()
+        rows = cur.execute("SELECT * FROM agents WHERE project_id=? ORDER BY created_at ASC, id ASC", (project_id,)).fetchall()
         return [self._row_to_agent(r) for r in rows]
 
     # Tasks
@@ -69,13 +71,14 @@ class SqliteStore(StoragePort):
         cur = self._conn.cursor()
         cur.execute(
             """
-            INSERT INTO tasks (id, project_id, agent_id, type, payload, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tasks (id, project_id, agent_id, parent_task_id, type, payload, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 task.id,
                 task.project_id,
                 task.agent_id,
+                task.parent_task_id,
                 task.type,
                 json.dumps(task.payload),
                 task.status.value,
@@ -87,9 +90,10 @@ class SqliteStore(StoragePort):
 
     def update_task_status(self, task_id: str, status: str) -> None:
         cur = self._conn.cursor()
+        updated_at = datetime.now(timezone.utc).isoformat()
         cur.execute(
-            "UPDATE tasks SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (status, task_id),
+            "UPDATE tasks SET status=?, updated_at=? WHERE id=?",
+            (status, updated_at, task_id),
         )
         self._conn.commit()
 
@@ -123,7 +127,7 @@ class SqliteStore(StoragePort):
     def list_events(self, task_id: str) -> list[Event]:
         cur = self._conn.cursor()
         rows = cur.execute(
-            "SELECT * FROM events WHERE task_id=? ORDER BY created_at ASC",
+            "SELECT * FROM events WHERE task_id=? ORDER BY created_at ASC, id ASC",
             (task_id,),
         ).fetchall()
         return [self._row_to_event(r) for r in rows]
@@ -176,6 +180,7 @@ class SqliteStore(StoragePort):
             id=row["id"],
             project_id=row["project_id"],
             agent_id=row["agent_id"],
+            parent_task_id=row["parent_task_id"],
             type=row["type"],
             payload=json.loads(row["payload"] or "{}"),
             status=TaskStatus(row["status"]),
@@ -208,6 +213,11 @@ class SqliteStore(StoragePort):
         )
 
     def _parse_dt(self, value: str):
-        from datetime import datetime
-
         return datetime.fromisoformat(value)
+
+    def _ensure_parent_task_column(self) -> None:
+        cur = self._conn.cursor()
+        columns = [row[1] for row in cur.execute("PRAGMA table_info(tasks)").fetchall()]
+        if "parent_task_id" not in columns:
+            cur.execute("ALTER TABLE tasks ADD COLUMN parent_task_id TEXT")
+            self._conn.commit()

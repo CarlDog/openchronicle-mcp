@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
     agent_id TEXT,
+    parent_task_id TEXT,
     type TEXT NOT NULL,
     payload TEXT NOT NULL,
     status TEXT NOT NULL,

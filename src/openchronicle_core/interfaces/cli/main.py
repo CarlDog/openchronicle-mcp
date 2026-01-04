@@ -16,6 +16,20 @@ def _parse_json(value: str) -> dict[str, Any]:
         return {"raw": value}
 
 
+def _ensure_agent(orchestrator, project_id: str, name: str, role: str):
+    existing = [a for a in orchestrator.storage.list_agents(project_id) if a.name == name and a.role == role]
+    if existing:
+        return existing[0]
+    return register_agent.execute(orchestrator, project_id=project_id, name=name, role=role)
+
+
+def _ensure_demo_agents(orchestrator, project_id: str):
+    supervisor = _ensure_agent(orchestrator, project_id, "Supervisor", "supervisor")
+    worker1 = _ensure_agent(orchestrator, project_id, "Worker 1", "worker")
+    worker2 = _ensure_agent(orchestrator, project_id, "Worker 2", "worker")
+    return supervisor, worker1, worker2
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="oc", description="OpenChronicle v2 minimal CLI")
     sub = parser.add_subparsers(dest="command")
@@ -40,6 +54,12 @@ def main(argv: list[str] | None = None) -> int:
 
     show_cmd = sub.add_parser("show-task", help="Show task timeline")
     show_cmd.add_argument("task_id")
+
+    demo_cmd = sub.add_parser("demo-summary", help="Run supervisor+worker summary demo")
+    demo_cmd.add_argument("project_id")
+    demo_cmd.add_argument("text")
+
+    list_handlers_cmd = sub.add_parser("list-handlers", help="List registered task handlers")
 
     args = parser.parse_args(argv)
     container = CoreContainer()
@@ -82,6 +102,29 @@ def main(argv: list[str] | None = None) -> int:
         events = show_task.timeline(orchestrator, args.task_id)
         for e in events:
             print(f"{e.created_at.isoformat()} {e.type} {e.payload}")
+        return 0
+
+    if args.command == "demo-summary":
+        supervisor, worker1, worker2 = _ensure_demo_agents(orchestrator, args.project_id)
+        task = run_task.submit(orchestrator, args.project_id, "analysis.summary", {"text": args.text})
+
+        async def _run_demo():
+            result = await run_task.execute(orchestrator, task.id, agent_id=supervisor.id)
+            print(json.dumps(result, indent=2))
+            print(f"task_id: {task.id}")
+
+        asyncio.run(_run_demo())
+        return 0
+
+    if args.command == "list-handlers":
+        builtins = orchestrator.list_builtin_handlers()
+        plugins = orchestrator.list_registered_handlers()
+        print("Built-in handlers:")
+        for h in builtins:
+            print(f"  {h}")
+        print("Plugin handlers:")
+        for h in plugins:
+            print(f"  {h}")
         return 0
 
     parser.print_help()
