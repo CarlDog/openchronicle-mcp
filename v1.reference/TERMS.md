@@ -9,6 +9,7 @@ OpenChronicle is a local-first, self-hosted interactive storytelling engine. Thi
 All content generated using OpenChronicle — including stories, characters, world settings, images, and metadata — is the sole responsibility of the user. The OpenChronicle development team, contributors, and maintainers do **not** monitor, store, review, or endorse user content.
 
 You, the user, are responsible for:
+
 - Ensuring your content complies with local laws
 - Respecting third-party intellectual property rights
 - Handling any ethical or legal implications of the stories you create
@@ -26,6 +27,7 @@ We do **not** condone or support illegal or harmful material (e.g., non-consensu
 ## 💥 Derivative / Copyrighted Works
 
 You may create fanfiction, parodies, or reinterpretations of existing fictional universes. However, it is your responsibility to:
+
 - Understand relevant copyright and fair use laws
 - Avoid distributing infringing works without permission
 - Not use OpenChronicle to commercially exploit third-party IP

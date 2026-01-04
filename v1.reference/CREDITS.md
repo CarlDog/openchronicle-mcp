@@ -5,11 +5,13 @@ OpenChronicle was built with the generous support of open source communities, AI
 ## AI-Assisted Development
 
 This codebase was developed with help from the following AI tools:
+
 - **ChatGPT-4o** (OpenAI)
 - **Claude 4.0** (Anthropic)
 - **GitHub Copilot** (powered by OpenAI Codex)
 
 These tools contributed to:
+
 - Architectural planning
 - Code generation and refinement
 - Markdown and documentation scaffolding
@@ -18,6 +20,7 @@ These tools contributed to:
 ## Code Inspiration and Examples
 
 Some functionality or concepts may have been inspired by public code examples and community contributions, including:
+
 - Various GitHub repositories under open source licenses (MIT, Apache-2.0, GPL, etc.)
 - Python standard library patterns and open-source CLI frameworks
 - Public LLM routing and content filtering templates

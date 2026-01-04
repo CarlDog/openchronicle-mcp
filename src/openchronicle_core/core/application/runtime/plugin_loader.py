@@ -4,15 +4,16 @@ import importlib
 import pkgutil
 import sys
 from pathlib import Path
+from typing import Any
 
-from openchronicle_core.core.domain.ports.plugin_port import PluginRegistry, TaskHandler
 from openchronicle_core.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle_core.core.domain.ports.plugin_port import PluginRegistry, TaskHandler
 
 
 class InMemoryPluginRegistry(PluginRegistry):
     def __init__(self) -> None:
         self._task_handlers: dict[str, TaskHandler] = {}
-        self._agent_templates: list[dict] = []
+        self._agent_templates: list[dict[str, Any]] = []
 
     def register_task_handler(self, task_type: str, handler: TaskHandler) -> None:
         self._task_handlers[task_type] = handler
@@ -20,10 +21,10 @@ class InMemoryPluginRegistry(PluginRegistry):
     def get_task_handler(self, task_type: str) -> TaskHandler | None:
         return self._task_handlers.get(task_type)
 
-    def register_agent_template(self, agent: dict) -> None:
+    def register_agent_template(self, agent: dict[str, Any]) -> None:
         self._agent_templates.append(agent)
 
-    def list_agent_templates(self) -> list[dict]:
+    def list_agent_templates(self) -> list[dict[str, Any]]:
         return list(self._agent_templates)
 
 
@@ -33,7 +34,7 @@ class PluginLoader:
         self.registry = InMemoryPluginRegistry()
         self.handler_registry = handler_registry or TaskHandlerRegistry()
 
-    def load_plugins(self, context: dict | None = None) -> None:
+    def load_plugins(self, context: dict[str, Any] | None = None) -> None:
         if not self.plugins_dir.exists():
             return
         project_root = str(self.plugins_dir.resolve().parent)

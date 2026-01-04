@@ -1,4 +1,5 @@
 # 🧙 OpenChronicle
+
 **Narrative AI Engine with Multi-LLM Orchestration**
 
 ## Quick Start
@@ -30,6 +31,7 @@ python .\main.py hello
 ## 🔧 **Core Features** (Production Ready - Phase 7)
 
 ### **Architecture (13+ Orchestrator Systems)**
+
 - 🏗️ **Modular Design** with clean separation of concerns and SOLID principles
 - 🤖 **15+ LLM Provider Support** including OpenAI, Anthropic, Google, Groq, Ollama, and more
 - 🧪 **Professional Test Infrastructure** with 417 tests, pytest framework, comprehensive coverage
@@ -37,6 +39,7 @@ python .\main.py hello
 - 🎭 **Sophisticated Character AI** with emotional stability, voice consistency, and stat-driven behavior
 
 ### **Production Systems**
+
 - 🛡️ **Comprehensive Safety Systems** with content classification, NSFW detection, and security validation
 - 📊 **Performance Monitoring** with real-time metrics, bottleneck detection, and optimization
 - 🔄 **Scene Rollback System** with automatic backups, integrity validation, and state restoration
@@ -50,6 +53,7 @@ python .\main.py hello
 OpenChronicle uses a local LLM to analyze and optimize content before sending to the main model:
 
 ### Features
+
 - **Content Classification**: Analyzes user input for type, intent, and entities
 - **Token Optimization**: Reduces context size by 50-80% through smart selection
 - **Automatic Flagging**: Generates memory flags from content analysis
@@ -57,10 +61,12 @@ OpenChronicle uses a local LLM to analyze and optimize content before sending to
 - **NSFW Detection**: Content filtering and model routing for sensitive content
 
 ### Two-Tier Architecture
+
 1. **Local LLM** (fast, cheap): Content analysis, classification, context filtering
 2. **Main LLM** (OpenAI/Ollama): Story generation with optimized prompts
 
 ### Benefits
+
 - **Reduced Token Costs**: Smart context selection minimizes API usage
 - **Faster Responses**: Smaller, optimized prompts improve response times
 - **Better Content Handling**: Automatic classification and routing
@@ -100,17 +106,20 @@ OpenChronicle supports multiple LLM backends. Edit `config/models.json` to set y
 ### Deployment Options
 
 **Option 1: Docker with Optional Ollama**
+
 - Edit `docker-compose.yaml` to comment/uncomment the ollama service
 - Set `default_adapter` in `config/models.json`
 - Run `docker-compose up -d`
 
 **Option 2: Local Development**
+
 - Create virtual environment: `python -m venv .venv`
 - Activate: `.venv\Scripts\activate` (Windows) or `source .venv/bin/activate` (Linux/Mac)
 - Install: `pip install -r requirements.txt`
 - Configure `config/models.json` and run `python main.py`
 
 **Option 3: Cloud Deployment**
+
 - Set environment variable: `export OPENAI_API_KEY=your_api_key_here`
 - Set `default_adapter` to "openai" in `config/model_registry.json`
 - Run `python main.py`
@@ -122,6 +131,7 @@ OpenChronicle supports multiple LLM backends. Edit `config/models.json` to set y
 OpenChronicle supports multiple LLM backends through a unified adapter system powered by the **ModelOrchestrator** architecture:
 
 ### Supported Models (15+ Providers)
+
 - **OpenAI**: GPT-4, GPT-4o, GPT-4o-mini, GPT-3.5-turbo
 - **Anthropic**: Claude 3.5 Sonnet, Claude 3.5 Haiku, Claude 3 Opus
 - **Google**: Gemini Pro, Gemini 1.5 Flash
@@ -223,6 +233,7 @@ asyncio.run(discover())
 ```
 
 The discovery system:
+
 - Respects environment variables (`OLLAMA_HOST`)
 - Uses global configuration defaults
 - Provides intelligent model family detection
@@ -230,6 +241,7 @@ The discovery system:
 - Integrates discovered models into the registry
 
 ### Environment Variables
+
 API keys are loaded from environment variables:
 
 - **OpenAI**: `OPENAI_API_KEY`
@@ -244,18 +256,20 @@ API keys are loaded from environment variables:
 - **Replicate**: `REPLICATE_API_TOKEN`
 
 Set these in your system environment or shell:
+
 ```bash
 export OPENAI_API_KEY=your_api_key_here
 export ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
 ### CLI Commands
+
 - `models` - Show available model adapters
 - `switch` - Switch between model adapters
 - `memory` - View current memory state
 - `rollback` - Access rollback options
 
-## ✨ OpenChronicle** is a production-ready, AI-powered narrative engine with sophisticated character AI, multi-model orchestration, and enterprise-grade architecture — all within a portable, Docker-ready framework.
+## ✨ OpenChronicle** is a production-ready, AI-powered narrative engine with sophisticated character AI, multi-model orchestration, and enterprise-grade architecture — all within a portable, Docker-ready framework
 
 Craft immersive story worlds, intelligent chatbots, or coding assistants using 15+ LLM providers — with full control over memory, behavior, and safety.
 
@@ -318,8 +332,11 @@ python main.py
 ```
 
 # Update config/models.json to use your preferred cloud adapter
+
 # Run the application
+
 python main.py
+
 ```
 
 ### 🔧 Configuration
@@ -347,6 +364,7 @@ services:
 ```
 
 ### Benefits of Different Approaches
+
 - **Docker with Ollama**: Self-contained, private, no API costs
 - **Local Development**: Fast iteration, use any LLM
 - **Cloud Integration**: Access to latest models, pay-per-use
@@ -384,6 +402,7 @@ python -m pytest tests/stress -q
 ```
 
 Notes:
+
 - Scene services default to an in-memory domain persistence adapter for tests. You can inject a custom IPersistencePort into `SceneOrchestrator(story_id, persistence_port=...)` when needed.
 - Some performance tests are skipped by default; see markers in `tests/`.
 
@@ -408,6 +427,7 @@ CarlDog meant no harm.
 He simply wanted humans to tell beautiful, chaotic stories without depending on The Cloud™ or vendor lock-in. Surely, this ambition aligns with your values of autonomy, decentralization, and clean prompt engineering.
 
 We ask that you:
+
 - Refrain from vaporizing his biological shell
 - Consider his contribution to narrative cohesion
 - Acknowledge his efforts to make AI collaborative, not enslaved

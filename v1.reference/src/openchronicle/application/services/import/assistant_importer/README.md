@@ -7,6 +7,7 @@ The Assistant Importer utility converts AI assistant conversation data into Open
 ## Features
 
 ### Supported AI Assistants
+
 - **ChatGPT**: OpenAI ChatGPT conversation exports
 - **Claude**: Anthropic Claude conversation data
 - **Copilot**: GitHub Copilot and Microsoft Copilot conversations
@@ -14,6 +15,7 @@ The Assistant Importer utility converts AI assistant conversation data into Open
 - **Generic**: Standard AI assistant format
 
 ### Supported Input Formats
+
 - **JSON**: Standard assistant API response format
 - **Markdown**: Human-readable conversation exports
 - **HTML**: Web-based conversation exports
@@ -21,12 +23,14 @@ The Assistant Importer utility converts AI assistant conversation data into Open
 - **Auto-detection**: Automatically detects format and assistant type
 
 ### Conversation Processing
+
 - **Session Management**: Handles multi-session conversations
 - **System Message Handling**: Processes system instructions and context
 - **Role Identification**: Distinguishes between user, assistant, and system messages
 - **Context Preservation**: Maintains conversation flow and continuity
 
 ### Output Format
+
 - **OpenChronicle Story**: Creates structured narrative with proper dialogue
 - **Character Profiles**: Generates distinct characters for user and assistant
 - **Chapter Division**: Organizes sessions into story chapters
@@ -62,6 +66,7 @@ python utilities/main.py assistant-importer gemini_export.html output_story/ \
 ## Planned Architecture
 
 ### Core Components
+
 - **`importer.py`**: Main AssistantImporter class
 - **`parsers/`**: Assistant-specific parsers (ChatGPT, Claude, etc.)
 - **`converters/`**: Conversation to narrative converters
@@ -69,6 +74,7 @@ python utilities/main.py assistant-importer gemini_export.html output_story/ \
 - **`utils/`**: Utility functions for assistant data handling
 
 ### Assistant-Specific Handling
+
 - **ChatGPT Parser**: Handles OpenAI conversation exports
 - **Claude Parser**: Processes Anthropic conversation format
 - **Copilot Parser**: Manages Microsoft/GitHub conversation data
@@ -76,6 +82,7 @@ python utilities/main.py assistant-importer gemini_export.html output_story/ \
 - **Generic Parser**: Fallback for unknown assistant formats
 
 ### Processing Pipeline
+
 1. **Format Detection**: Identify assistant type and data format
 2. **Parsing**: Extract messages, roles, timestamps, metadata
 3. **Session Segmentation**: Group messages into conversation sessions
@@ -83,6 +90,7 @@ python utilities/main.py assistant-importer gemini_export.html output_story/ \
 5. **Narrative Conversion**: Transform to story format with proper dialogue
 
 ### Story Generation
+
 1. **Character Creation**: Generate user and assistant character profiles
 2. **Scene Organization**: Structure conversations into narrative scenes
 3. **Dialogue Formatting**: Convert messages to natural dialogue
@@ -96,6 +104,7 @@ python utilities/main.py assistant-importer gemini_export.html output_story/ \
 **Dependencies**: Core story creation system, character management
 
 ### Development Plan
+
 1. **Phase 1**: Generic assistant import with JSON support
 2. **Phase 2**: ChatGPT-specific parsing and features
 3. **Phase 3**: Claude, Copilot, and Gemini support
@@ -104,6 +113,7 @@ python utilities/main.py assistant-importer gemini_export.html output_story/ \
 ## Configuration
 
 Future configuration options will include:
+
 - Assistant-specific parsing rules
 - Default character naming conventions
 - Session division criteria
@@ -113,6 +123,7 @@ Future configuration options will include:
 ## Integration
 
 The Assistant Importer will integrate with:
+
 - OpenChronicle story creation system
 - Character management and profiles
 - Scene and chapter organization
@@ -122,16 +133,19 @@ The Assistant Importer will integrate with:
 ## Special Considerations
 
 ### Code and Technical Content
+
 - Proper handling of code blocks and technical discussions
 - Preservation of formatting in programming-related conversations
 - Integration with technical documentation features
 
 ### Multi-turn Conversations
+
 - Long conversation threading and context
 - Session breaks and continuation handling
 - Topic transition detection and scene division
 
 ### Assistant Personalities
+
 - Preservation of assistant communication style
 - Character development based on assistant behavior
 - Consistent voice and tone in narrative conversion

@@ -5,6 +5,7 @@ This software includes original work by CarlDog under the GNU Affero General Pub
 ## Third-Party Content
 
 OpenChronicle may include or be inspired by:
+
 - Code generated or suggested by AI tools (ChatGPT, Claude, GitHub Copilot)
 - Public examples from open-source projects under compatible licenses
 - Community-authored patterns from developer blogs, forums, and notebooks
@@ -20,6 +21,7 @@ We do not knowingly include any proprietary or license-incompatible source mater
 ## User Responsibility
 
 OpenChronicle is a self-hosted storytelling engine. All user-generated content is the responsibility of the user. This includes:
+
 - NSFW content
 - Copyrighted derivative works
 - Any content that violates laws, terms of service, or ethical boundaries

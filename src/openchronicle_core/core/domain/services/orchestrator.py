@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from typing import Any
-import hashlib
 
+from openchronicle_core.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 from openchronicle_core.core.domain.models.project import Agent, Event, Project, Resource, Task, TaskStatus
 from openchronicle_core.core.domain.ports.llm_port import LLMPort
-from openchronicle_core.core.domain.ports.storage_port import StoragePort
 from openchronicle_core.core.domain.ports.plugin_port import PluginRegistry
-from openchronicle_core.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle_core.core.domain.ports.storage_port import StoragePort
 
 
 class OrchestratorService:
@@ -55,7 +55,9 @@ class OrchestratorService:
             tags=tags or [],
         )
         self.storage.add_agent(agent)
-        event = Event(project_id=project_id, agent_id=agent.id, type="agent_registered", payload={"name": name, "role": role})
+        event = Event(
+            project_id=project_id, agent_id=agent.id, type="agent_registered", payload={"name": name, "role": role}
+        )
         self.emit_event(event)
         return agent
 
@@ -73,7 +75,9 @@ class OrchestratorService:
         parent_task_id: str | None = None,
         agent_id: str | None = None,
     ) -> Task:
-        task = Task(project_id=project_id, type=task_type, payload=payload, parent_task_id=parent_task_id, agent_id=agent_id)
+        task = Task(
+            project_id=project_id, type=task_type, payload=payload, parent_task_id=parent_task_id, agent_id=agent_id
+        )
         self.storage.add_task(task)
         event = Event(project_id=project_id, task_id=task.id, type="task_submitted", payload={"task_type": task_type})
         self.emit_event(event)
@@ -85,7 +89,9 @@ class OrchestratorService:
             raise ValueError(f"Task not found: {task_id}")
 
         self.storage.update_task_status(task.id, TaskStatus.RUNNING.value)
-        start_event = Event(project_id=task.project_id, task_id=task.id, agent_id=agent_id, type="task_started", payload={})
+        start_event = Event(
+            project_id=task.project_id, task_id=task.id, agent_id=agent_id, type="task_started", payload={}
+        )
         self.emit_event(start_event)
 
         builtin_handler = self._builtin_handlers.get(task.type)
@@ -103,14 +109,24 @@ class OrchestratorService:
                     prompt = task.payload.get("prompt") or task.payload.get("text") or ""
                     result = await self.llm.generate_async(prompt, model=None, parameters=None)
 
-        complete_event = Event(project_id=task.project_id, task_id=task.id, agent_id=agent_id, type="task_completed", payload={"result": result})
+        complete_event = Event(
+            project_id=task.project_id,
+            task_id=task.id,
+            agent_id=agent_id,
+            type="task_completed",
+            payload={"result": result},
+        )
         self.emit_event(complete_event)
         self.storage.update_task_status(task.id, TaskStatus.COMPLETED.value)
         return result
 
     def record_resource(self, resource: Resource) -> None:
         self.storage.add_resource(resource)
-        event = Event(project_id=resource.project_id, type="resource_added", payload={"kind": resource.kind, "path": resource.path})
+        event = Event(
+            project_id=resource.project_id,
+            type="resource_added",
+            payload={"kind": resource.kind, "path": resource.path},
+        )
         self.emit_event(event)
 
     def _hash_text(self, text: str) -> str:
@@ -126,13 +142,23 @@ class OrchestratorService:
     async def _run_analysis_summary(self, task: Task, agent_id: str | None) -> dict[str, Any]:
         text = task.payload.get("text") or ""
         text_hash = self._hash_text(text)
-        self.emit_event(Event(project_id=task.project_id, task_id=task.id, agent_id=agent_id, type="supervisor.received_task", payload={"text_hash": text_hash, "text_length": len(text)}))
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="supervisor.received_task",
+                payload={"text_hash": text_hash, "text_length": len(text)},
+            )
+        )
 
         workers = self._select_workers(task.project_id, 2)
         worker_tasks: list[Task] = []
         for idx, worker in enumerate(workers):
             child_payload = {"text": text, "worker_index": idx}
-            child_task = self.submit_task(task.project_id, "analysis.worker.summarize", child_payload, parent_task_id=task.id, agent_id=worker.id)
+            child_task = self.submit_task(
+                task.project_id, "analysis.worker.summarize", child_payload, parent_task_id=task.id, agent_id=worker.id
+            )
             worker_tasks.append(child_task)
 
         self.emit_event(

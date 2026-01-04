@@ -44,4 +44,3 @@ Events link via `prev_hash` → `hash`, enabling tamper-evident timelines per ta
 - Extend plugin metadata (manifests, capabilities, tool registration).
 - Build HTTP API with auth and streaming.
 - Replace mock adapters with real clients and config-driven routing.
-

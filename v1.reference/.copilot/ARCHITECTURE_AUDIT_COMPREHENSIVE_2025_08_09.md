@@ -11,6 +11,7 @@
 ## A) Inventory (Actual)
 
 ### Directory Tree Structure
+
 ```
 openchronicle-core/                           # ❌ FLAT LAYOUT (NOT src/)
 ├── .github/                                  # GitHub-specific configs
@@ -69,6 +70,7 @@ openchronicle-core/                           # ❌ FLAT LAYOUT (NOT src/)
 ```
 
 ### Entry Points Identified
+
 1. **`main.py`** (817 lines) - Primary application entry with god module antipattern
 2. **`cli/main.py`** - CLI framework entry point
 3. **`core/main.py`** - Core API entry point
@@ -76,6 +78,7 @@ openchronicle-core/                           # ❌ FLAT LAYOUT (NOT src/)
 5. **`utilities/main.py`** - Utilities CLI entry point
 
 ### Frameworks & Technologies Detected
+
 - **Testing**: pytest with comprehensive markers (asyncio, integration, performance, stress)
 - **AI/ML**: OpenAI, Anthropic, Transformers, PyTorch integration
 - **Database**: SQLAlchemy, aiosqlite for async operations
@@ -84,6 +87,7 @@ openchronicle-core/                           # ❌ FLAT LAYOUT (NOT src/)
 - **Caching**: Redis support via aioredis
 
 ### Cross-cutting Concerns
+
 - **Configuration**: Mixed JSON files in `config/` + Python modules in `core/shared/`
 - **Logging**: Custom system in `core/shared/logging_system.py`
 - **Error Handling**: Custom framework in `core/shared/error_handling.py`
@@ -269,12 +273,14 @@ openchronicle-core/
 ## 2) Naming & Boundaries
 
 ### File & Package Naming Rules
+
 - **snake_case** for all modules and packages
 - **Descriptive names**: `story_generator.py`, not `generator.py`
 - **No generic utils**: Replace `shared/` with specific packages
 - **Test naming**: `test_<module_name>.py` mirrors source structure
 
 ### Import Rules & Dependencies
+
 ```python
 # ALLOWED dependency directions:
 # interfaces → application → domain
@@ -292,6 +298,7 @@ from openchronicle.domain import infrastructure  # wrong direction
 ```
 
 ### Entry Point Placement
+
 ```toml
 [project.scripts]
 openchronicle = "openchronicle.interfaces.cli.main:main"
@@ -337,6 +344,7 @@ settings = Settings()
 ## 4) Logging & Error Handling
 
 ### Exception Hierarchy
+
 ```python
 # src/openchronicle/shared/exceptions/base.py
 class OpenChronicleError(Exception):
@@ -357,6 +365,7 @@ class ValidationError(OpenChronicleError):
 ```
 
 ### Logging Configuration
+
 ```python
 # src/openchronicle/shared/logging/setup.py
 import logging.config
@@ -390,6 +399,7 @@ LOGGING_CONFIG = {
 ## 5) Typing & Style
 
 ### pyproject.toml Configuration
+
 ```toml
 [tool.mypy]
 python_version = "3.11"
@@ -426,12 +436,14 @@ target-version = ["py311"]
 ## 6) Testing Strategy
 
 ### Test Organization
+
 - **Unit tests**: Mirror `src/` structure exactly
 - **Integration tests**: Test component interactions
 - **Performance tests**: Benchmark critical paths
 - **Fixtures**: Centralized in `tests/fixtures/`
 
 ### Coverage & Quality Gates
+
 ```toml
 [tool.coverage.run]
 source = ["src"]
@@ -450,6 +462,7 @@ fail_under = 85
 ## 7) Docs & Decisions
 
 ### Architecture Decision Records (ADRs)
+
 ```markdown
 # docs/adr/template.md
 # [NUMBER]. [TITLE]
@@ -470,6 +483,7 @@ What becomes easier or more difficult to do because of this change?
 ## 8) CI/CD Skeleton
 
 ### GitHub Actions Pipeline
+
 ```yaml
 name: CI/CD
 on: [push, pull_request]
@@ -516,6 +530,7 @@ jobs:
 ## Phase 0 — Baseline (Quick Wins) - 1 week
 
 ### Checklist
+
 - [ ] Create complete `pyproject.toml` with project metadata and tool configs
 - [ ] Add `.pre-commit-config.yaml` with ruff, black, isort, mypy
 - [ ] Add minimal GitHub Actions CI pipeline (lint + test + type)
@@ -525,9 +540,13 @@ jobs:
 - [ ] Create base exception hierarchy
 
 ### Effort: **S (Small)**
+
 ### Risks: **Low** - These are additive changes with no breaking impact
+
 ### Mitigation: Test each change incrementally
-### Success Criteria:
+
+### Success Criteria
+
 - pyproject.toml validates with `python -m build --check`
 - Pre-commit hooks run successfully
 - CI pipeline executes without errors
@@ -536,6 +555,7 @@ jobs:
 ## Phase 1 — Structure & Naming (Major Refactor) - 2 weeks
 
 ### Checklist
+
 - [ ] Create `src/openchronicle/` directory structure
 - [ ] Move `core/` packages into domain/application/infrastructure layers
 - [ ] Resolve duplicate `main.py` files with clear naming
@@ -546,12 +566,17 @@ jobs:
 - [ ] Update entry points in pyproject.toml
 
 ### Effort: **L (Large)**
+
 ### Risks: **HIGH** - Major refactoring with potential breaking changes
-### Mitigation:
+
+### Mitigation
+
 - Create branch for migration
 - Move packages incrementally with test validation
 - Keep old structure until new one is fully validated
-### Success Criteria:
+
+### Success Criteria
+
 - All imports resolve correctly
 - All tests pass with new structure
 - Package can be installed with `pip install -e .`
@@ -560,6 +585,7 @@ jobs:
 ## Phase 2 — Testing & Typing - 2 weeks
 
 ### Checklist
+
 - [ ] Restructure tests to mirror `src/` layout exactly
 - [ ] Create centralized fixtures in `tests/fixtures/`
 - [ ] Add parametrized tests for common patterns
@@ -570,9 +596,13 @@ jobs:
 - [ ] Remove log files from repository
 
 ### Effort: **M (Medium)**
+
 ### Risks: **MEDIUM** - Type checking may reveal hidden bugs
+
 ### Mitigation: Enable mypy gradually, fix type errors incrementally
-### Success Criteria:
+
+### Success Criteria
+
 - Tests mirror source structure 1:1
 - Coverage reaches 75% minimum
 - Mypy passes on all typed modules
@@ -581,6 +611,7 @@ jobs:
 ## Phase 3 — Hardening & CI/CD - 1 week
 
 ### Checklist
+
 - [ ] Add comprehensive GitHub Actions matrix (multiple Python versions)
 - [ ] Implement import layering rules with ruff
 - [ ] Add security scanning with bandit
@@ -591,9 +622,13 @@ jobs:
 - [ ] Raise coverage gate to 85%
 
 ### Effort: **M (Medium)**
+
 ### Risks: **Low** - Infrastructure improvements with minimal code impact
+
 ### Mitigation: Test CI changes on feature branches first
-### Success Criteria:
+
+### Success Criteria
+
 - Full CI/CD pipeline with all quality gates
 - Development workflow documented and scripted
 - Security best practices implemented
@@ -604,6 +639,7 @@ jobs:
 # DELIVERABLE #4 — READY-TO-GENERATE ARTIFACTS
 
 ## pyproject.toml
+
 ```toml
 [project]
 name = "openchronicle"
@@ -744,6 +780,7 @@ target-version = ["py311"]
 ```
 
 ## .pre-commit-config.yaml
+
 ```yaml
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -784,6 +821,7 @@ repos:
 ```
 
 ## .github/workflows/ci.yml
+
 ```yaml
 name: CI
 
@@ -876,6 +914,7 @@ jobs:
 ```
 
 ## docs/ARCHITECTURE.md
+
 ```markdown
 # OpenChronicle Architecture
 
@@ -920,6 +959,7 @@ See `docs/adr/` for detailed architecture decision records.
 ```
 
 ## docs/adr/template.md
+
 ```markdown
 # [NUMBER]. [TITLE]
 
@@ -943,54 +983,55 @@ What other options were evaluated?
 ```
 
 ## Makefile
+
 ```makefile
 .PHONY: help install dev-install clean lint format type test test-cov test-watch run build docs
 
 help:  ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+ @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 install:  ## Install production dependencies
-	pip install -e .
+ pip install -e .
 
 dev-install:  ## Install development dependencies
-	pip install -e ".[dev,api,llm]"
-	pre-commit install
+ pip install -e ".[dev,api,llm]"
+ pre-commit install
 
 clean:  ## Clean build artifacts
-	rm -rf build/ dist/ *.egg-info/
-	find . -type d -name __pycache__ -exec rm -rf {} +
-	find . -type f -name "*.pyc" -delete
+ rm -rf build/ dist/ *.egg-info/
+ find . -type d -name __pycache__ -exec rm -rf {} +
+ find . -type f -name "*.pyc" -delete
 
 lint:  ## Run linting
-	ruff check src tests
-	black --check src tests
-	mypy src
-	bandit -r src/
+ ruff check src tests
+ black --check src tests
+ mypy src
+ bandit -r src/
 
 format:  ## Format code
-	black src tests
-	ruff check --fix src tests
+ black src tests
+ ruff check --fix src tests
 
 type:  ## Run type checking
-	mypy src
+ mypy src
 
 test:  ## Run tests
-	pytest
+ pytest
 
 test-cov:  ## Run tests with coverage
-	pytest --cov=src --cov-report=term-missing --cov-report=html
+ pytest --cov=src --cov-report=term-missing --cov-report=html
 
 test-watch:  ## Run tests in watch mode
-	pytest-watch
+ pytest-watch
 
 run:  ## Run the application
-	python -m openchronicle.interfaces.cli
+ python -m openchronicle.interfaces.cli
 
 build:  ## Build package
-	python -m build
+ python -m build
 
 docs:  ## Build documentation
-	mkdocs build
+ mkdocs build
 ```
 
 ---

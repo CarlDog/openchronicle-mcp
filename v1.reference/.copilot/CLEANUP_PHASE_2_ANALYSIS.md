@@ -12,7 +12,8 @@
 **Status**: ❗ **NEEDS CONSOLIDATION**
 **Risk**: 🔴 **High** (developer confusion, maintenance burden)
 
-#### **Current Entry Points Analysis**:
+#### **Current Entry Points Analysis**
+
 ```bash
 main.py                           # ✅ KEEP - Legacy routing entry point (53 lines)
 ├─ Routes to: src/openchronicle/main.py
@@ -49,6 +50,7 @@ src/openchronicle/interfaces/cli/main.py  # 🤔 REVIEW - Duplicate CLI?
 ```
 
 **Recommendation**:
+
 - **Keep**: `main.py`, `tests/main.py`, `src/openchronicle/main.py`
 - **Review**: `cli/main.py` vs `src/openchronicle/interfaces/cli/main.py` for duplication
 - **Archive**: `utilities/main.py` until importers are implemented
@@ -61,7 +63,8 @@ src/openchronicle/interfaces/cli/main.py  # 🤔 REVIEW - Duplicate CLI?
 **Status**: ⚠️ **CLEANUP RECOMMENDED**
 **Risk**: 🟡 **Medium** (disk space, test pollution)
 
-#### **Temp Directory Analysis**:
+#### **Temp Directory Analysis**
+
 ```bash
 storage/temp/test_data/
 ├── 50+ test_story_* directories    # Generated test data
@@ -72,6 +75,7 @@ storage/temp/test_data/
 ```
 
 **Recommendation**:
+
 - **Clean regularly** - Keep only recent test data (last 7 days)
 - **Archive old data** - Move to `storage/temp/archive/` if needed
 - **Add to .gitignore** - Prevent committing test artifacts
@@ -84,7 +88,8 @@ storage/temp/test_data/
 **Status**: ⚠️ **PREMATURE IMPLEMENTATION**
 **Risk**: 🟢 **Low** (just maintenance burden)
 
-#### **Utilities Assessment**:
+#### **Utilities Assessment**
+
 ```bash
 utilities/main.py                 # 400 lines, 0 working features
 ├── chatbot_importer/            # Directory exists, no implementation
@@ -94,6 +99,7 @@ utilities/main.py                 # 400 lines, 0 working features
 ```
 
 **Recommendation**:
+
 - **Archive utilities/main.py** until importers are implemented
 - **Keep directories** for future implementation
 - **Review storypack_import/** for obsolescence
@@ -106,7 +112,8 @@ utilities/main.py                 # 400 lines, 0 working features
 **Status**: ✅ **ACCEPTABLE AS-IS**
 **Risk**: 🟢 **Low** (just visual clutter)
 
-#### **Minimal Directories**:
+#### **Minimal Directories**
+
 ```bash
 analysis/                        # Empty directory
 artifacts/                       # Contains templates and CI configs
@@ -122,6 +129,7 @@ examples/                       # May contain example files
 ### 🗃️ **CATEGORY 5: COMPLETED DOCUMENTATION (ALREADY HANDLED)**
 
 **Status**: ✅ **COMPLETED IN PHASE 1**
+
 - Migration planning docs archived to `.copilot/archive/completed/`
 - Historical documents preserved but organized
 - No further action needed
@@ -133,6 +141,7 @@ examples/                       # May contain example files
 ### **🔥 IMMEDIATE (High Value, Low Risk)**
 
 #### **1. Clean Test Data Accumulation**
+
 ```bash
 # Remove test data older than 7 days
 find storage/temp/test_data -type d -name "test_story_*" -mtime +7 -exec rm -rf {} \;
@@ -143,6 +152,7 @@ remove: test_story_* (generated test instances)
 ```
 
 #### **2. Review Utilities Implementation Status**
+
 ```bash
 # Archive unimplemented utilities framework
 mkdir -p .copilot/archive/unimplemented/
@@ -155,12 +165,14 @@ echo "# Utilities archived until importers are implemented" > utilities/README_A
 ### **📋 REVIEW PHASE (Requires Analysis)**
 
 #### **1. CLI Entry Point Duplication**
+
 - **Compare**: `cli/main.py` vs `src/openchronicle/interfaces/cli/main.py`
 - **Determine**: Which provides better functionality
 - **Consolidate**: Keep the better implementation
 - **Redirect**: Route other to chosen implementation
 
 #### **2. Legacy Storypack Import**
+
 - **Assess**: `utilities/storypack_import/` vs new `storypack_importer`
 - **Determine**: If legacy version still needed
 - **Archive**: Legacy if new version complete
@@ -168,6 +180,7 @@ echo "# Utilities archived until importers are implemented" > utilities/README_A
 ### **🧹 FINAL POLISH (Optional, Low Priority)**
 
 #### **1. Add READMEs to Empty Directories**
+
 ```bash
 # Add purpose documentation to minimal directories
 echo "# Future examples will be placed here" > examples/README.md
@@ -176,6 +189,7 @@ echo "# Analysis tools and reports" > analysis/README_PURPOSE.md
 ```
 
 #### **2. Update .gitignore for Test Data**
+
 ```gitignore
 # Test data artifacts
 storage/temp/test_data/test_story_*/
@@ -187,16 +201,19 @@ storage/temp/perf_test_*/
 ## 🏗️ **IMPLEMENTATION PLAN**
 
 ### **Phase 2A: Immediate Cleanup (Today)**
+
 1. ✅ **Clean test data** - Remove old generated test directories
 2. ✅ **Archive utilities/main.py** - Until importers implemented
 3. ✅ **Update .gitignore** - Prevent test artifact commits
 
 ### **Phase 2B: Analysis & Review (1-2 days)**
+
 1. 📋 **Compare CLI implementations** - Determine best approach
 2. 📋 **Review storypack import** - Legacy vs new
 3. 📋 **Consolidate entry points** - Reduce confusion
 
 ### **Phase 2C: Final Polish (Optional)**
+
 1. 🧹 **Add directory documentation** - Purpose clarification
 2. 🧹 **Organize remaining files** - Final organization pass
 
@@ -204,18 +221,21 @@ storage/temp/perf_test_*/
 
 ## 📊 **ESTIMATED CLEANUP IMPACT**
 
-### **Disk Space Savings**:
+### **Disk Space Savings**
+
 - **Test data cleanup**: ~50-100MB
 - **Utilities archival**: ~50KB
 - **Total estimated**: **~50-100MB**
 
-### **Maintenance Benefits**:
+### **Maintenance Benefits**
+
 - ✅ **Reduced confusion** from fewer entry points
 - ✅ **Cleaner test environment** from regular data cleanup
 - ✅ **Less maintenance burden** from unimplemented features
 - ✅ **Professional appearance** from organized structure
 
-### **Developer Experience**:
+### **Developer Experience**
+
 - ✅ **Clear entry points** with defined purposes
 - ✅ **Clean workspace** without test artifacts
 - ✅ **Focused codebase** without premature implementations
@@ -226,17 +246,20 @@ storage/temp/perf_test_*/
 ## ✅ **PHASE 2 CLEANUP CHECKLIST**
 
 ### **Immediate Actions**
+
 - [ ] **Clean storage/temp/test_data/** - Remove old test instances
 - [ ] **Archive utilities/main.py** - Until importers implemented
 - [ ] **Update .gitignore** - Prevent test data commits
 - [ ] **Test system** - Verify functionality intact
 
 ### **Review Actions**
+
 - [ ] **Compare CLI entry points** - Identify best implementation
 - [ ] **Review storypack systems** - Legacy vs new
 - [ ] **Plan consolidation** - Reduce entry point confusion
 
 ### **Optional Polish**
+
 - [ ] **Add directory READMEs** - Document purposes
 - [ ] **Final organization** - Any remaining optimizations
 

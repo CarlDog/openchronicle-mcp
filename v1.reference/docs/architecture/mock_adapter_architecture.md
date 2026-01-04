@@ -11,12 +11,15 @@ openchronicle-core/
 ```
 
 ## 📦 Production Mock Adapter
+
 **Location**: `core/adapters/providers/mock_adapter.py`
 
 ### Purpose
+
 User-configurable mock adapter for development, prototyping, and demonstration environments where realistic behavior is important.
 
 ### Key Features
+
 - **Realistic Response Generation**: Multiple personality types (creative, analytical, balanced, concise)
 - **Configurable Behavior**: Quality levels, response length, creativity settings
 - **Realistic Timing**: Simulates actual API response times with variance
@@ -25,6 +28,7 @@ User-configurable mock adapter for development, prototyping, and demonstration e
 - **Production Ready**: Proper error handling, logging, and state management
 
 ### Configuration Example
+
 ```json
 {
   "mock_creative_writer": {
@@ -40,18 +44,22 @@ User-configurable mock adapter for development, prototyping, and demonstration e
 ```
 
 ### Use Cases
+
 - **Development Environment**: No API costs while developing features
 - **Demonstrations**: Reliable responses for showcasing OpenChronicle
 - **Prototyping**: Quick testing of narrative flows without external dependencies
 - **Offline Testing**: Full functionality without internet connection
 
 ## 🧪 Test Mock Adapter
+
 **Location**: `tests/mocks/mock_adapters.py`
 
 ### Purpose
+
 Specialized testing framework with predictable, controllable behavior for reliable component testing.
 
 ### Key Features
+
 - **Deterministic Responses**: Consistent, predictable outputs for test reliability
 - **Response Queuing**: Pre-define specific responses for test scenarios
 - **Error Injection**: Controlled error simulation for edge case testing
@@ -60,6 +68,7 @@ Specialized testing framework with predictable, controllable behavior for reliab
 - **Performance Optimization**: Instant responses for fast test execution
 
 ### Usage Example
+
 ```python
 # Setup test adapter
 test_adapter = TestMockAdapter('test-model', response_pattern='story')
@@ -80,6 +89,7 @@ assert response.assert_contains("Expected")
 ```
 
 ### Use Cases
+
 - **Unit Testing**: Predictable responses for component validation
 - **Integration Testing**: Controlled behavior for system interactions
 - **Performance Testing**: Fast execution without realistic delays
@@ -100,6 +110,7 @@ assert response.assert_contains("Expected")
 ## 🔄 Integration Points
 
 ### Production Mock Integration
+
 ```python
 # Configured through model registry
 model_manager.load_model_config("mock_creative_writer")
@@ -107,6 +118,7 @@ response = await model_manager.generate_response(prompt)
 ```
 
 ### Test Mock Integration
+
 ```python
 # Direct instantiation in tests
 mock_orchestrator = MockModelOrchestrator()
@@ -117,12 +129,14 @@ response = await mock_orchestrator.generate_response(prompt)
 ## 📈 Benefits
 
 ### Production Mock Benefits
+
 - **No API Costs**: Develop without external API charges
 - **Offline Capability**: Full functionality without internet
 - **Consistent Demos**: Reliable behavior for presentations
 - **Rapid Prototyping**: Quick iteration without API limits
 
 ### Test Mock Benefits
+
 - **Fast Test Execution**: No artificial delays
 - **Reliable Test Results**: Deterministic behavior
 - **Easy Debugging**: Controllable responses and state
@@ -131,6 +145,7 @@ response = await mock_orchestrator.generate_response(prompt)
 ## 🛠️ Implementation Notes
 
 Both mock adapters are designed to be:
+
 - **Drop-in Replacements**: Compatible with existing adapter interfaces
 - **Independently Maintained**: Separate codebases for different concerns
 - **Fully Featured**: Complete implementations of their respective use cases

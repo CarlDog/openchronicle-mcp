@@ -5,8 +5,8 @@ from typing import Any
 from openchronicle_core.core.application.runtime.plugin_loader import PluginLoader
 from openchronicle_core.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 from openchronicle_core.core.domain.services.orchestrator import OrchestratorService
-from openchronicle_core.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle_core.core.infrastructure.llm.openai_adapter import OpenAIAdapter
+from openchronicle_core.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle_core.core.infrastructure.persistence.sqlite_store import SqliteStore
 
 

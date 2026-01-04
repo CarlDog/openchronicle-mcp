@@ -7,17 +7,21 @@
 **OpenChronicle is INTERNAL-ONLY development - EMBRACE BREAKING CHANGES for better architecture. When we design a better method, implement it completely and remove the old approach entirely. NO compatibility layers, NO migration paths, NO "legacy" code.**
 
 ## Development Environment
+
 **Platform**: Windows with PowerShell 5.1
 **Critical Requirements**:
+
 - **PowerShell Syntax**: Use `;` for command chaining, NOT `&&`
 - **Path Format**: Use Windows backslash paths in PowerShell contexts
 - **Test Patience**: 400+ tests take time - allow sufficient execution time
 - **File Operations**: Use PowerShell cmdlets (`Remove-Item`, `Get-ChildItem`) not Unix commands
 
 ## Architecture Overview
+
 OpenChronicle is a narrative AI engine with modular, segregated model management components. The `ModelOrchestrator` (`src/openchronicle/domain/models/model_orchestrator.py`) coordinates providers through clearly defined interfaces (configuration, lifecycle, performance, response generation) and supports dynamic runtime configuration + fallback chains.
 
 **Critical Pattern (Updated)**:
+
 - Use the domain port `IModelManagementPort` (see `src/openchronicle/domain/ports/model_management_port.py`) or injected orchestrator instance – do NOT instantiate low-level adapters directly.
 - Obtain orchestrator via dependency injection (container) or factory where available instead of manual construction.
 - Favor per-provider JSON configs in `config/models/` over any deprecated monolithic registry file.
@@ -25,6 +29,7 @@ OpenChronicle is a narrative AI engine with modular, segregated model management
 ## Core Development Workflows
 
 ### Model Adapter Usage
+
 ```python
 orchestrator = resolved_orchestrator  # injected
 
@@ -47,6 +52,7 @@ for alt in orchestrator.get_fallback_chain(adapter_name):
 ```
 
 ### Configuration Pattern (Modular Registry)
+
 - **Primary Source**: Individual provider files in `config/models/*.json` (each self-contained; replaces legacy monolithic `model_registry.json`).
 - **Discovery**: Registry manager aggregates all provider files at startup.
 - **Fallback Chains**: Declared per provider JSON (field: `fallback_chain`).
@@ -54,6 +60,7 @@ for alt in orchestrator.get_fallback_chain(adapter_name):
 - **Status**: Query `orchestrator.get_model_status()` for system snapshot.
 
 Example provider file (`config/models/openai_gpt4o.json`):
+
 ```json
 {
     "provider_name": "openai_gpt4o",
@@ -66,6 +73,7 @@ Example provider file (`config/models/openai_gpt4o.json`):
 ```
 
 Runtime addition:
+
 ```python
 orchestrator.add_model_config(
         "experimental_model",
@@ -80,6 +88,7 @@ orchestrator.add_model_config(
 ```
 
 ### Memory-Scene Synchronization
+
 ```python
 # ALWAYS update memory before logging scenes
 memory_manager.update_character_memory(story_id, character_updates)
@@ -87,6 +96,7 @@ scene_logger.save_scene(story_id, scene_data, memory_snapshot)
 ```
 
 ## Testing & Development Commands
+
 ```powershell
 # Quick validation
 python -c "from openchronicle.domain.models.model_orchestrator import ModelOrchestrator; print('OK')"
@@ -108,11 +118,13 @@ Get-ChildItem "directory" | Measure-Object
 ```
 
 ## Docker Development
+
 - **Init Pattern**: `/usr/local/bin/init-app.sh` copies `/app-template/` → `/app/` on first run
 - **Volume**: External mount `/volume1/docker/openchronicle:/app` for persistence
 - **Network**: `ollama_openchronicle` external network with ollama-alpha:11434
 
 ## Project-Specific Conventions
+
 - **Logging**: Import from `utilities/logging_system`, use `log_system_event(type, description)`
 - **Transformers**: Check `TRANSFORMERS_AVAILABLE` before import (graceful fallback)
 - **Async**: All model operations use async/await patterns with proper exception handling
@@ -123,12 +135,14 @@ Get-ChildItem "directory" | Measure-Object
 **CRITICAL RULE**: OpenChronicle uses a **single source of truth** for all project status tracking.
 
 ### **THE SYSTEM (follow exactly):**
+
 1. **`.copilot/project_status.json`** = ONLY place where project status is maintained
 2. **All other files** = Reference the JSON, NEVER duplicate status information
 3. **Status updates** = Update ONLY the JSON file, never scatter across multiple files
 4. **No exceptions** = Sprint docs, roadmaps, READMEs all reference the JSON
 
 ### **When updating project status:**
+
 ```bash
 # ✅ CORRECT: Update single source of truth
 Edit: .copilot/project_status.json
@@ -144,6 +158,7 @@ Edit: sprint_action_items.md, mvp_roadmap.md, README.md, etc.
 ```
 
 ### **Reference pattern for other files:**
+
 ```markdown
 ## Current Status
 See `.copilot/project_status.json` for complete project status.
@@ -152,6 +167,7 @@ See `.copilot/project_status.json` for complete project status.
 **VIOLATION WARNING**: Updating status in multiple files violates clean development principles and creates maintenance debt. Always use the single source of truth system.
 
 ## Key Architecture Files
+
 - `src/openchronicle/domain/models/model_orchestrator.py` - Segregated orchestrator implementation
 - `src/openchronicle/domain/ports/model_management_port.py` - Domain port for model operations
 - `src/openchronicle/infrastructure/llm_adapters/adapter_factory.py` - Adapter construction & registry interaction

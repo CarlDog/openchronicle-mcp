@@ -4,9 +4,9 @@ import asyncio
 import hashlib
 from typing import Any
 
-from openchronicle_core.core.domain.models.project import Event, Task  # type: ignore[import]
-from openchronicle_core.core.domain.ports.plugin_port import PluginRegistry  # type: ignore[import]
-from openchronicle_core.core.application.runtime.task_handler_registry import TaskHandlerRegistry  # type: ignore[import]
+from openchronicle_core.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle_core.core.domain.models.project import Event, Task
+from openchronicle_core.core.domain.ports.plugin_port import PluginRegistry
 
 
 def _hash_text(text: str) -> str:
@@ -47,6 +47,8 @@ async def _story_draft_handler(task: Task, context: dict[str, Any] | None = None
     return {"draft": draft}
 
 
-def register(registry: PluginRegistry, handler_registry: TaskHandlerRegistry, context: dict | None = None) -> None:
+def register(
+    registry: PluginRegistry, handler_registry: TaskHandlerRegistry, context: dict[str, Any] | None = None
+) -> None:
     handler_registry.register("story.draft", _story_draft_handler)
     registry.register_agent_template({"role": "storyteller", "description": "Generates narrative drafts."})

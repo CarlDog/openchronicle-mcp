@@ -11,6 +11,7 @@ OpenChronicle's evolved modular architecture has created legitimate naming confl
 ## Core Issues Identified
 
 ### 1. **Multiple Entry Points (`main.py`)**
+
 ```
 main.py                    # Root application entry point (817 lines)
 cli/main.py               # CLI framework entry point (250 lines)
@@ -20,6 +21,7 @@ utilities/main.py         # Utilities CLI entry point (varies)
 ```
 
 ### 2. **Orchestrator Name Collisions (`orchestrator.py`)**
+
 ```
 core/performance/orchestrator.py                    # Performance monitoring
 core/content/analysis/orchestrator.py               # Content analysis
@@ -33,6 +35,7 @@ utilities/storypack_import/orchestrator.py          # Storypack import
 ```
 
 ### 3. **Test File Conflicts (`test_*.py`)**
+
 ```
 tests/unit/database/test_async_operations.py        # Database async tests (212 lines)
 tests/unit/memory/test_async_operations.py          # Memory async tests (354 lines)
@@ -58,6 +61,7 @@ Following senior Python development best practices, we implement a **domain-pref
 #### **Pattern**: `{domain}_{component}_{type}.py`
 
 **Examples**:
+
 - `core_performance_orchestrator.py` (instead of `core/performance/orchestrator.py`)
 - `cli_backup_orchestrator.py` (instead of `cli/lib/backup/orchestrator.py`)
 - `test_database_async_operations.py` (instead of `test_async_operations.py`)
@@ -65,6 +69,7 @@ Following senior Python development best practices, we implement a **domain-pref
 #### **Entry Points Pattern**: `{layer}_main.py`
 
 **Examples**:
+
 - `app_main.py` (root application entry)
 - `cli_main.py` (CLI framework entry)
 - `core_main.py` (core API entry)
@@ -76,6 +81,7 @@ Following senior Python development best practices, we implement a **domain-pref
 ### **Phase 1: Entry Points Modernization**
 
 #### **1.1 Root Application Entry**
+
 ```
 CURRENT: main.py
 NEW:     app_main.py
@@ -84,6 +90,7 @@ IMPACT:  Update Dockerfile, tasks.json, documentation
 ```
 
 #### **1.2 Specialized Entry Points**
+
 ```
 CURRENT: cli/main.py
 NEW:     cli/cli_main.py
@@ -105,6 +112,7 @@ PURPOSE: Utilities CLI entry point
 ### **Phase 2: Orchestrator Disambiguation**
 
 #### **2.1 Core Orchestrators (Domain-Prefixed)**
+
 ```
 CURRENT: core/performance/orchestrator.py
 NEW:     core/performance/performance_orchestrator.py
@@ -117,6 +125,7 @@ NEW:     core/content/context/content_context_orchestrator.py
 ```
 
 #### **2.2 CLI Orchestrators (CLI-Prefixed)**
+
 ```
 CURRENT: cli/lib/apikeys/orchestrator.py
 NEW:     cli/lib/apikeys/cli_apikeys_orchestrator.py
@@ -135,6 +144,7 @@ NEW:     cli/lib/profiling/cli_profiling_orchestrator.py
 ```
 
 #### **2.3 Utilities Orchestrators (Utilities-Prefixed)**
+
 ```
 CURRENT: utilities/storypack_import/orchestrator.py
 NEW:     utilities/storypack_import/storypack_import_orchestrator.py
@@ -143,6 +153,7 @@ NEW:     utilities/storypack_import/storypack_import_orchestrator.py
 ### **Phase 3: Test File Disambiguation**
 
 #### **3.1 Async Operations Tests (Domain-Prefixed)**
+
 ```
 CURRENT: tests/unit/database/test_async_operations.py
 NEW:     tests/unit/database/test_database_async_operations.py
@@ -152,6 +163,7 @@ NEW:     tests/unit/memory/test_memory_async_operations.py
 ```
 
 #### **3.2 Backup Management Tests (Purpose-Clarified)**
+
 ```
 CURRENT: tests/unit/backup_management/test_backup_management.py
 NEW:     tests/unit/backup_management/test_backup_management_placeholder.py
@@ -161,6 +173,7 @@ NEW:     tests/unit/backup/test_backup_operations.py
 ```
 
 #### **3.3 Orchestrator Tests (Domain-Prefixed)**
+
 ```
 CURRENT: tests/unit/characters/test_orchestrator.py
 NEW:     tests/unit/characters/test_character_orchestrator.py
@@ -183,6 +196,7 @@ NEW:     tests/unit/timeline/test_timeline_orchestrator.py
 ### **Step 1: File Renaming with Import Updates**
 
 #### **Automated Renaming Script**
+
 ```powershell
 # Rename files systematically
 $renames = @{
@@ -203,7 +217,9 @@ foreach ($old in $renames.Keys) {
 ```
 
 #### **Import Path Updates**
+
 For each renamed file, update all references:
+
 1. **Import statements** in Python files
 2. **Task definitions** in `tasks.json`
 3. **Docker commands** in `Dockerfile`
@@ -213,6 +229,7 @@ For each renamed file, update all references:
 ### **Step 2: Update Configuration Files**
 
 #### **Tasks.json Updates**
+
 ```json
 {
     "label": "Run Main",
@@ -222,13 +239,16 @@ For each renamed file, update all references:
 ```
 
 #### **Dockerfile Updates**
+
 ```dockerfile
 COPY app_main.py /app-template/
 CMD ["python", "app_main.py"]
 ```
 
 #### **Documentation Updates**
+
 Update all references in:
+
 - `README.md`
 - `DEVELOPER_SETUP.md`
 - `DEVELOPMENT_MASTER_PLAN.md`
@@ -237,6 +257,7 @@ Update all references in:
 ### **Step 3: Import Statement Updates**
 
 #### **Systematic Import Updates**
+
 ```python
 # Update all imports to use new names
 from core.performance.performance_orchestrator import PerformanceOrchestrator
@@ -247,6 +268,7 @@ from utilities.storypack_import.storypack_import_orchestrator import StorypackIm
 ### **Step 4: Validation and Testing**
 
 #### **Validation Checklist**
+
 - [ ] **File Renaming Complete**: All target files renamed successfully
 - [ ] **Import Updates Applied**: All Python imports updated
 - [ ] **Configuration Updated**: tasks.json, Dockerfile, docs updated
@@ -258,21 +280,25 @@ from utilities.storypack_import.storypack_import_orchestrator import StorypackIm
 ## Benefits of This Architecture
 
 ### **1. Pytest Collection Success**
+
 - **No Import Conflicts**: Each file has a unique name
 - **Clear Test Discovery**: Tests easily identifiable by domain
 - **Parallel Execution**: No module name collisions
 
 ### **2. Developer Experience Improvement**
+
 - **Intuitive Naming**: File purpose clear from name
 - **Better IDE Support**: Unique names improve autocomplete
 - **Easier Navigation**: Clear file organization
 
 ### **3. Maintenance Benefits**
+
 - **Reduced Confusion**: No ambiguity about file purpose
 - **Easier Refactoring**: Clear dependencies between components
 - **Future-Proof**: Naming convention scales with growth
 
 ### **4. Production Benefits**
+
 - **Debugging Clarity**: Stack traces show clear component names
 - **Monitoring Integration**: Component names align with metrics
 - **Documentation Alignment**: File names match architectural docs
@@ -280,15 +306,18 @@ from utilities.storypack_import.storypack_import_orchestrator import StorypackIm
 ## Implementation Timeline
 
 ### **Week 1: Core Infrastructure (Days 1-3)**
+
 - [x] **Day 1**: Analysis and architecture design (COMPLETE)
 - [ ] **Day 2**: Entry points renaming and configuration updates
 - [ ] **Day 3**: Orchestrator file renaming and import updates
 
 ### **Week 1: Test Infrastructure (Days 4-5)**
+
 - [ ] **Day 4**: Test file renaming and pytest validation
 - [ ] **Day 5**: Full test suite validation and documentation updates
 
 ### **Success Metrics**
+
 - [ ] **100% Pytest Collection**: All tests discoverable without conflicts
 - [ ] **Zero Import Errors**: All imports resolve correctly
 - [ ] **Application Functionality**: All entry points work as expected
@@ -297,11 +326,13 @@ from utilities.storypack_import.storypack_import_orchestrator import StorypackIm
 ## Risk Mitigation
 
 ### **Backup Strategy**
+
 - **Git Commits**: Commit each phase separately for easy rollback
 - **Backup Branch**: Create backup branch before starting
 - **Incremental Testing**: Test after each major rename batch
 
 ### **Validation Strategy**
+
 - **Import Testing**: Test imports after each file rename
 - **Functionality Testing**: Verify application works after each phase
 - **Pytest Validation**: Run collection tests frequently
@@ -311,16 +342,19 @@ from utilities.storypack_import.storypack_import_orchestrator import StorypackIm
 This filename resolution aligns with OpenChronicle's strategic goals:
 
 ### **Days 6-7 Validation Requirements**
+
 - ✅ **Code Organization**: Clear, professional file organization
 - ✅ **Test Infrastructure**: Robust testing framework with clear naming
 - ✅ **Documentation**: Accurate documentation reflecting actual architecture
 
 ### **Phase 1 Foundation Goals**
+
 - ✅ **Professional Structure**: Enterprise-grade code organization
 - ✅ **Maintainability**: Clear naming reduces maintenance overhead
 - ✅ **Scalability**: Naming convention supports future growth
 
 ### **No Backwards Compatibility Philosophy**
+
 - ✅ **Complete Modernization**: New naming convention applied throughout
 - ✅ **No Legacy Support**: Old file names completely removed
 - ✅ **Clean Architecture**: Consistent, professional naming standards

@@ -1,9 +1,11 @@
 # Storypack Importer
 
 ## Overview
+
 The Storypack Importer is a utility for importing storypack files into OpenChronicle format. This utility is designed to replace the legacy `storypack_import` functionality with a more robust, flexible, and maintainable implementation.
 
 ## Purpose
+
 - Import existing storypack files (.zip, .json, .tar.gz) into OpenChronicle
 - Validate storypack structure and content
 - Convert legacy formats to current OpenChronicle schema
@@ -11,6 +13,7 @@ The Storypack Importer is a utility for importing storypack files into OpenChron
 - Support batch processing of multiple storypacks
 
 ## Features (Planned)
+
 - **Multi-Format Support**: Handle various storypack formats and versions
 - **Schema Validation**: Ensure imported data meets OpenChronicle standards
 - **Legacy Compatibility**: Import older storypack formats with automatic conversion
@@ -21,6 +24,7 @@ The Storypack Importer is a utility for importing storypack files into OpenChron
 - **Selective Import**: Choose specific stories or characters to import
 
 ## Usage (When Implemented)
+
 ```bash
 # Import a single storypack
 python utilities/main.py storypack-importer path/to/storypack.zip
@@ -39,6 +43,7 @@ python utilities/main.py storypack-importer path/to/storypack.zip --stories "Sto
 ```
 
 ## Command-Line Options (Planned)
+
 - `--validate-strict`: Strict validation mode with comprehensive checks
 - `--batch`: Process all storypacks in a directory
 - `--preview-only`: Show storypack contents without importing
@@ -50,13 +55,16 @@ python utilities/main.py storypack-importer path/to/storypack.zip --stories "Sto
 - `--dry-run`: Show what would be imported without making changes
 
 ## Implementation Status
+
 - **Status**: Planning/Stub Phase
 - **Priority**: High (replacement for legacy system)
 - **Dependencies**: Core story system, database systems
 - **Testing**: Comprehensive test suite planned for various storypack formats
 
 ## Development Notes
+
 This utility will completely replace the existing `storypack_import` functionality:
+
 - More robust error handling
 - Better validation and reporting
 - Support for newer storypack formats
@@ -64,6 +72,7 @@ This utility will completely replace the existing `storypack_import` functionali
 - Integration with OpenChronicle's modern architecture
 
 ## Related Systems
+
 - Story Loading System
 - Database Management
 - Validation Engine

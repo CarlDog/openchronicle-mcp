@@ -5,6 +5,7 @@
 **Pattern**: `{provider}_{model_identifier}.json`
 
 **Examples**:
+
 - `ollama_mistral_7b.json` (instead of `ollama_mistral:7b`)
 - `ollama_llama3_8b.json`
 - `openai_gpt4.json`

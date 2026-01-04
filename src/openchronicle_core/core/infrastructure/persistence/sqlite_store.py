@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from openchronicle_core.core.domain.models.project import Agent, Event, Project, Resource, Task, TaskStatus
@@ -63,7 +63,9 @@ class SqliteStore(StoragePort):
 
     def list_agents(self, project_id: str) -> list[Agent]:
         cur = self._conn.cursor()
-        rows = cur.execute("SELECT * FROM agents WHERE project_id=? ORDER BY created_at ASC, id ASC", (project_id,)).fetchall()
+        rows = cur.execute(
+            "SELECT * FROM agents WHERE project_id=? ORDER BY created_at ASC, id ASC", (project_id,)
+        ).fetchall()
         return [self._row_to_agent(r) for r in rows]
 
     # Tasks
@@ -90,7 +92,7 @@ class SqliteStore(StoragePort):
 
     def update_task_status(self, task_id: str, status: str) -> None:
         cur = self._conn.cursor()
-        updated_at = datetime.now(timezone.utc).isoformat()
+        updated_at = datetime.now(UTC).isoformat()
         cur.execute(
             "UPDATE tasks SET status=?, updated_at=? WHERE id=?",
             (status, updated_at, task_id),
@@ -212,7 +214,7 @@ class SqliteStore(StoragePort):
             created_at=self._parse_dt(row["created_at"]),
         )
 
-    def _parse_dt(self, value: str):
+    def _parse_dt(self, value: str) -> datetime:
         return datetime.fromisoformat(value)
 
     def _ensure_parent_task_column(self) -> None:

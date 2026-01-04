@@ -2,7 +2,7 @@
 
 ## Current State Analysis
 
-### CLI Structure Issues Identified:
+### CLI Structure Issues Identified
 
 1. **Dual CLI Structure**:
    - Root `main.py` - Legacy compatibility wrapper
@@ -22,12 +22,13 @@
 ## Recommended Consolidation Approach
 
 ### Option 1: Typer-First Approach (RECOMMENDED)
+
 - Make `cli/main.py` the canonical CLI entry point
 - Root `main.py` becomes simple router to CLI
 - Core business logic stays in `src/openchronicle/`
 - Clean separation: CLI layer → Application layer → Domain layer
 
-### Implementation Steps:
+### Implementation Steps
 
 1. **Enhance CLI Framework**:
    - Complete Typer command implementation in `cli/commands/`
@@ -49,20 +50,23 @@
    - Clean abstraction between interface and domain
    - Proper error handling and output formatting
 
-## Benefits of This Approach:
+## Benefits of This Approach
+
 - Clear architectural separation
 - Professional CLI experience with Typer
 - Maintains hexagonal architecture principles
 - Reduces maintenance complexity
 - Better testability
 
-## Files to Modify:
+## Files to Modify
+
 - `main.py` (simplify)
 - `cli/main.py` (enhance)
 - `cli/commands/` (complete implementation)
 - `src/openchronicle/main.py` (remove CLI concerns)
 
-## Success Criteria:
+## Success Criteria
+
 - Single, clear entry point for users
 - Complete CLI command coverage
 - No sys.path manipulations

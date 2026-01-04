@@ -7,13 +7,16 @@
 ## Context
 
 ### Problem Statement
+
 The project started with a monolithic structure in the `core/` directory, leading to:
+
 - Tight coupling between business logic and external concerns
 - Difficulty testing components in isolation
 - Unclear dependency relationships
 - Hard to maintain and extend codebase
 
 ### Constraints
+
 - Must maintain existing functionality during migration
 - No breaking changes to user-facing interfaces
 - Preserve excellent test coverage (96.7%)
@@ -22,6 +25,7 @@ The project started with a monolithic structure in the `core/` directory, leadin
 ## Decision
 
 ### Chosen Approach
+
 Adopt hexagonal (ports and adapters) architecture with the following structure:
 
 ```
@@ -34,6 +38,7 @@ src/openchronicle/
 ```
 
 ### Alternatives Considered
+
 - **Layered Architecture**: Rejected due to potential for layer violations
 - **Microservices**: Rejected as premature for current scale
 - **Keep Monolithic**: Rejected due to maintenance burden
@@ -41,6 +46,7 @@ src/openchronicle/
 ## Consequences
 
 ### Positive
+
 - Clear separation of concerns and dependency boundaries
 - Easier testing through dependency injection
 - Flexible infrastructure swapping (database, LLM providers)
@@ -48,12 +54,14 @@ src/openchronicle/
 - Support for test-driven development
 
 ### Negative
+
 - Initial migration effort required
 - More complex project structure
 - Learning curve for new developers
 - Potential over-engineering for simple features
 
 ### Neutral
+
 - More files and directories to navigate
 - Different import patterns required
 - Need to establish new conventions
@@ -61,6 +69,7 @@ src/openchronicle/
 ## Implementation
 
 ### Action Items
+
 - [x] Create `src/openchronicle/` structure
 - [x] Implement domain entities and services
 - [x] Build application layer with CQRS
@@ -70,6 +79,7 @@ src/openchronicle/
 - [ ] Remove dual architecture
 
 ### Validation
+
 - All tests continue to pass during migration
 - No functionality regression
 - Improved development velocity post-migration

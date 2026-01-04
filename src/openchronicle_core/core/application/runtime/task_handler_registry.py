@@ -5,7 +5,6 @@ from typing import Any
 
 from openchronicle_core.core.domain.models.project import Task
 
-
 TaskHandlerCallable = Callable[[Task, dict[str, Any] | None], Awaitable[Any]]
 
 

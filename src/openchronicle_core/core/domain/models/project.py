@@ -4,13 +4,13 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class TaskStatus(str, Enum):
@@ -44,8 +44,8 @@ class Agent:
 class Task:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     project_id: str = ""
-    agent_id: Optional[str] = None
-    parent_task_id: Optional[str] = None
+    agent_id: str | None = None
+    parent_task_id: str | None = None
     type: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
     status: TaskStatus = TaskStatus.PENDING
@@ -57,8 +57,8 @@ class Task:
 class Event:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     project_id: str = ""
-    task_id: Optional[str] = None
-    agent_id: Optional[str] = None
+    task_id: str | None = None
+    agent_id: str | None = None
     type: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=_utc_now)

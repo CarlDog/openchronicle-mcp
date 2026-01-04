@@ -7,6 +7,7 @@ The OpenChronicle Modular Storypack Import System replaces the monolithic 57KB `
 ## Architecture
 
 ### Core Principles
+
 - **Single Responsibility**: Each component has one clear purpose
 - **Interface Segregation**: Focused interfaces with minimal surface area
 - **Dependency Injection**: Components receive dependencies rather than hard-coding them
@@ -16,6 +17,7 @@ The OpenChronicle Modular Storypack Import System replaces the monolithic 57KB `
 ### Components
 
 #### Interfaces (`interfaces/`)
+
 - **IContentParser**: File discovery and content reading operations
 - **IMetadataExtractor**: Metadata extraction from content and files
 - **IStructureAnalyzer**: Directory structure analysis and organization
@@ -27,21 +29,25 @@ The OpenChronicle Modular Storypack Import System replaces the monolithic 57KB `
 - **IOutputFormatter**: Result formatting and report generation
 
 #### Parsers (`parsers/`)
+
 - **ContentParser**: Discovers files, categorizes content, handles encoding detection
 - **MetadataExtractor**: Extracts metadata using patterns and analysis
 - **StructureAnalyzer**: Analyzes directory structures and suggests organization
 
 #### Processors (`processors/`)
+
 - **AIProcessor**: Integrates with OpenChronicle's AI capabilities
 - **ContentClassifier**: Classifies content using heuristics and patterns
 - **ValidationEngine**: Validates content formats and system readiness
 
 #### Generators (`generators/`)
+
 - **StorypackBuilder**: Creates storypack structures and organizes files
 - **TemplateEngine**: Loads and processes templates for storypack creation
 - **OutputFormatter**: Formats results and generates comprehensive reports
 
 #### Orchestrator
+
 - **StorypackOrchestrator**: Main coordination class using dependency injection
 - Manages 8-phase import process
 - Handles async operations and error management
@@ -50,6 +56,7 @@ The OpenChronicle Modular Storypack Import System replaces the monolithic 57KB `
 ## Usage
 
 ### Command Line Interface
+
 ```bash
 # Basic import
 python utilities/storypack_import_cli.py /path/to/content "My Storypack"
@@ -63,6 +70,7 @@ python utilities/storypack_import_cli.py /path/to/content "My Storypack" \
 ```
 
 ### Programmatic Usage
+
 ```python
 from utilities.storypack_import import StorypackOrchestrator
 from utilities.storypack_import.parsers import ContentParser, MetadataExtractor, StructureAnalyzer
@@ -109,11 +117,13 @@ print(summary)
 ## Testing
 
 Run the comprehensive test suite:
+
 ```bash
 python utilities/test_modular_import.py
 ```
 
 Tests validate:
+
 - Component instantiation
 - Dependency injection
 - Interface compliance
@@ -122,6 +132,7 @@ Tests validate:
 ## Migration from Legacy System
 
 The modular system replaces `storypack_importer.py` with:
+
 - **Better organization**: 9 focused components vs 1 monolithic file
 - **Improved testability**: Each component can be tested independently
 - **Enhanced maintainability**: Clear separation of concerns

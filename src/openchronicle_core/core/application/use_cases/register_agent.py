@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
-
+from openchronicle_core.core.domain.models.project import Agent
 from openchronicle_core.core.domain.services.orchestrator import OrchestratorService
 
 
@@ -13,7 +12,7 @@ def execute(
     provider: str = "",
     model: str = "",
     tags: list[str] | None = None,
-):
+) -> Agent:
     return orchestrator.register_agent(
         project_id=project_id,
         name=name,

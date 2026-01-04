@@ -10,5 +10,7 @@ class LLMPort(ABC):
         """Generate a response synchronously."""
 
     @abstractmethod
-    async def generate_async(self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None) -> str:
+    async def generate_async(
+        self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None
+    ) -> str:
         """Async variant for orchestration pipelines."""

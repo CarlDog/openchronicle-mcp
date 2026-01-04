@@ -42,7 +42,8 @@ core/__pycache__/             # Python cache files
 **Status**: ⚠️ **REVIEW BEFORE REMOVAL**
 **Risk**: 🟡 **Medium** (some may have historical value)
 
-#### **Immediately Safe to Archive**:
+#### **Immediately Safe to Archive**
+
 ```bash
 .copilot/ARCHITECTURAL_MIGRATION_PHASES.md     # Plan complete
 .copilot/MIGRATION_READY_TO_EXECUTE.md         # Execution complete
@@ -53,7 +54,8 @@ docs/MIGRATION_TRACKING.md                     # Migration complete
 docs/MIGRATION_PROGRESS_BOARD.md               # Migration complete
 ```
 
-#### **Keep for Historical Reference**:
+#### **Keep for Historical Reference**
+
 ```bash
 .copilot/MIGRATION_SUCCESS_REPORT.md           # SUCCESS RECORD - KEEP
 docs/adr/0003-migration-completion-success.md  # ADR RECORD - KEEP
@@ -68,7 +70,8 @@ docs/architecture/migration_patterns.md        # REFERENCE - KEEP
 **Status**: ❌ **CONSOLIDATION NEEDED**
 **Risk**: 🔴 **High** (confusion for developers)
 
-#### **Current Main Files**:
+#### **Current Main Files**
+
 ```bash
 main.py                                # ✅ PRIMARY ENTRY POINT (keep)
 cli/main.py                           # ❓ CLI entry point (review)
@@ -87,12 +90,14 @@ src/openchronicle/interfaces/cli/main.py  # ❓ CLI interface (review)
 **Target**: Files marked as obsolete or backup
 **Status**: ⚠️ **SAFE TO REMOVE AFTER VERIFICATION**
 
-#### **Clearly Obsolete**:
+#### **Clearly Obsolete**
+
 ```bash
 src/openchronicle/shared/dependency_injection_old.py  # Marked as "old"
 ```
 
-#### **Character Backup Files** (Low Priority):
+#### **Character Backup Files** (Low Priority)
+
 ```bash
 storage/characters/backups/*.json     # 20+ backup files from Aug 8
 # Review: Keep recent backups, archive older ones
@@ -105,7 +110,8 @@ storage/characters/backups/*.json     # 20+ backup files from Aug 8
 **Target**: Completed task and planning documents
 **Status**: ✅ **SAFE TO ARCHIVE**
 
-#### **Move to Archive**:
+#### **Move to Archive**
+
 ```bash
 .copilot/CLI_REORGANIZATION_COMPLETE.md        # CLI reorganization done
 .copilot/CLI_INTEGRATION_COMPLETE.md           # CLI integration done
@@ -120,25 +126,29 @@ storage/characters/backups/*.json     # 20+ backup files from Aug 8
 ## 🗓️ **CLEANUP EXECUTION PLAN**
 
 ### **🔥 IMMEDIATE (Today)**
-1. **Delete entire `core/` directory** - Safe, only contains __pycache__
+
+1. **Delete entire `core/` directory** - Safe, only contains **pycache**
 2. **Remove obsolete files** - `dependency_injection_old.py`
 3. **Archive completed docs** - Move to `.copilot/archive/completed/`
 
 ### **📋 REVIEW PHASE (Next 1-2 days)**
+
 1. **Audit main.py files** - Determine which are actually needed
 2. **Review migration docs** - Decide what to keep vs archive
 3. **Clean backup files** - Keep recent, archive old
 
 ### **🧹 FINAL POLISH (Optional)**
+
 1. **Archive completed documentation** to reduce clutter
 2. **Organize remaining docs** by category
-3. **Update .gitignore** to prevent future __pycache__ commits
+3. **Update .gitignore** to prevent future **pycache** commits
 
 ---
 
 ## 🛡️ **SAFETY RECOMMENDATIONS**
 
-### **Before Any Deletion**:
+### **Before Any Deletion**
+
 ```bash
 # 1. Create backup branch
 git checkout -b cleanup/post-migration-cleanup
@@ -151,7 +161,8 @@ python -m pytest tests/ -v
 grep -r "from core" src/ || echo "✅ No core imports found"
 ```
 
-### **After Each Cleanup Step**:
+### **After Each Cleanup Step**
+
 ```bash
 # 1. Test that system still works
 python -c "from src.openchronicle.domain.entities import Story; print('✅ Domain imports work')"
@@ -167,19 +178,22 @@ git add -A && git commit -m "cleanup: removed [description]"
 
 ## 📊 **CLEANUP IMPACT ANALYSIS**
 
-### **Disk Space Savings**:
-- **core/ directory**: ~50-100MB (mostly __pycache__)
+### **Disk Space Savings**
+
+- **core/ directory**: ~50-100MB (mostly **pycache**)
 - **Migration docs**: ~2-5MB
 - **Backup files**: ~10-20MB
 - **Total estimated**: **~70-125MB freed**
 
-### **Developer Experience**:
+### **Developer Experience**
+
 - ✅ **Reduced confusion** from legacy directory structure
 - ✅ **Cleaner codebase** easier to navigate
 - ✅ **Faster searches** without obsolete files
 - ✅ **Clear single architecture** without dual structure
 
-### **Maintenance Benefits**:
+### **Maintenance Benefits**
+
 - ✅ **No legacy maintenance burden**
 - ✅ **Reduced CI/CD scanning time**
 - ✅ **Cleaner git history** going forward
@@ -190,6 +204,7 @@ git add -A && git commit -m "cleanup: removed [description]"
 ## 🎯 **RECOMMENDED IMMEDIATE ACTIONS**
 
 ### **Quick Win #1: Delete Legacy Core**
+
 ```bash
 # SAFE - Only contains __pycache__ files
 rm -rf core/
@@ -197,6 +212,7 @@ git add -A && git commit -m "cleanup: remove legacy core/ directory (post-migrat
 ```
 
 ### **Quick Win #2: Remove Obsolete Files**
+
 ```bash
 # SAFE - Explicitly marked as old
 rm src/openchronicle/shared/dependency_injection_old.py
@@ -204,6 +220,7 @@ git add -A && git commit -m "cleanup: remove obsolete dependency injection file"
 ```
 
 ### **Quick Win #3: Archive Completed Docs**
+
 ```bash
 # SAFE - Tasks are complete
 mkdir -p .copilot/archive/completed

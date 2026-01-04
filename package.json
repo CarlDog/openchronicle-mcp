@@ -1,0 +1,13 @@
+{
+  "name": "openchronicle-core-tools",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Development tools for OpenChronicle Core",
+  "scripts": {
+    "lint:md": "markdownlint-cli2 \"**/*.md\" \"!node_modules\" \"!.venv\"",
+    "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\" \"!node_modules\" \"!.venv\""
+  },
+  "devDependencies": {
+    "markdownlint-cli2": "^0.12.0"
+  }
+}

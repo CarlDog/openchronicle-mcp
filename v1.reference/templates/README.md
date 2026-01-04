@@ -1,6 +1,7 @@
 # 📋 **OpenChronicle Template System Guide**
 
 ## **🎯 Overview**
+
 OpenChronicle templates provide flexible, import-adaptable character and scene definitions with granular optional controls. Templates maintain user choice while supporting sophisticated organizational features.
 
 ---
@@ -8,6 +9,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ## **📂 Template Files**
 
 ### **Core Templates:**
+
 - **`character_template.json`** - Comprehensive character profiles with expandable arrays
 - **`location_template.json`** - Unified location template for rooms, buildings, regions, or worlds
 - **`scene_template.json`** - Scene metadata with optional enhancements
@@ -16,6 +18,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 - **`instructions_template.json`** - AI behavior guidance
 
 ### **Advanced World-Building Templates (Optional):**
+
 - **`world_template.json`** - Sophisticated world systems (magical geography, calendar, cultures)
 - **`narrative_template.json`** - Faction networks and narrative progression mechanics
 - **`content_template.json`** - Procedural content generation (creatures, loot, encounters)
@@ -28,6 +31,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ## **🔧 Key Features**
 
 ### **1. Granular Optional Control**
+
 ```json
 {
   "required_field": "{{PLACEHOLDER}}",
@@ -42,12 +46,14 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ```
 
 ### **2. Import Adaptability**
+
 - **Expandable Arrays:** All arrays can grow to accommodate unlimited entries
 - **Dynamic Relationships:** Supports family, friend, enemy, lover, mentor, rival, etc.
 - **Flexible Structure:** Import processes can expand arrays dynamically
 - **No Data Truncation:** Template shows minimum structure, not maximum
 
 ### **3. Smart Application Processing**
+
 - **Ignores:** Empty strings, null values, unmodified placeholders
 - **Processes:** Only fields with actual content
 - **Validates:** Required fields must have meaningful values
@@ -57,6 +63,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ## **📋 Character Template Structure**
 
 ### **Required Fields (5):**
+
 - `name` - Character name
 - `basic_info.age` - Character age
 - `physical_description.hair` - Hair description
@@ -64,6 +71,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 - `personality.core_traits` - Core personality traits (array)
 
 ### **Optional Sections (12):**
+
 1. **`title`** - Character title/role
 2. **`basic_info`** - Race, gender, occupation, origin
 3. **`physical_description`** - Height, build, clothing
@@ -82,6 +90,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ## **🔄 Import Guidelines**
 
 ### **Array Expansion Example:**
+
 ```json
 // Template provides ONE relationship:
 "important_people": [
@@ -102,6 +111,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ```
 
 ### **Physical Modifications Scaling:**
+
 ```json
 // Import supports unlimited modifications:
 "physical_modifications": {
@@ -120,6 +130,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ## **💡 Usage Examples**
 
 ### **Minimal Character (Required Only):**
+
 ```json
 {
   "name": "Alexandra Thompson",
@@ -130,6 +141,7 @@ OpenChronicle templates provide flexible, import-adaptable character and scene d
 ```
 
 ### **Enhanced Character (Optional Features):**
+
 ```json
 {
   "name": "Marcus Knight",

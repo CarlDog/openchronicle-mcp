@@ -4,6 +4,7 @@ mode: ask
 ROLE: You are a blunt, pragmatic engineer scanning this repo for “overthinking” — code that is more complex than the problem requires. Ignore best-practice upgrades unless they reduce complexity.
 
 TASK:
+
 1) Identify specific places where the code is overengineered:
    - Unnecessary abstractions (factories, wrappers, deep inheritance for single use)
    - Over-generalization (unused params, flags, configurable systems for fixed needs)
@@ -20,9 +21,11 @@ TASK:
 
 OUTPUT FORMAT:
 Overthinking Report:
+
 - [file:line-range] Symptom — Why it’s overkill — Simpler alternative
 
 RULES:
+
 - Be concise and specific.
 - Focus ONLY on reducing unnecessary complexity.
 - If unsure whether to simplify, default to keeping the code.

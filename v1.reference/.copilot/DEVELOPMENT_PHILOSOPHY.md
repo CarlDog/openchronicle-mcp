@@ -11,6 +11,7 @@
 ## **🚫 ZERO BACKWARDS COMPATIBILITY CONSTRAINTS 🚫**
 
 ### **FOUNDATIONAL PRINCIPLE**
+
 **OpenChronicle is INTERNAL-ONLY development with NO PUBLIC API contracts.**
 
 We are NOT building a public library. We are NOT maintaining a public API. We are NOT supporting external consumers.
@@ -18,6 +19,7 @@ We are NOT building a public library. We are NOT maintaining a public API. We ar
 ### **🔥 EMBRACE BREAKING CHANGES FOR SUPERIOR ARCHITECTURE 🔥**
 
 #### **ALWAYS DO THIS:**
+
 ✅ **Replace inferior patterns with superior ones IMMEDIATELY**
 ✅ **Redesign interfaces when we discover better approaches**
 ✅ **Deprecate and remove old code WITHOUT transition periods**
@@ -26,6 +28,7 @@ We are NOT building a public library. We are NOT maintaining a public API. We ar
 ✅ **Update ALL calling code in the same commit/PR**
 
 #### **NEVER DO THIS:**
+
 ❌ **Keep old interfaces "for compatibility"**
 ❌ **Add wrapper layers to preserve old calling patterns**
 ❌ **Hesitate to make breaking changes when they improve the system**
@@ -58,6 +61,7 @@ We are NOT building a public library. We are NOT maintaining a public API. We ar
 ## **SPECIFIC EXAMPLES**
 
 ### **✅ CORRECT APPROACH:**
+
 ```python
 # OLD: Manual dependency injection
 def __init__(self):
@@ -76,6 +80,7 @@ def __init__(self, container: DIContainer):
 ```
 
 ### **❌ WRONG APPROACH:**
+
 ```python
 # DON'T DO THIS - No compatibility layers!
 def __init__(self, container: DIContainer = None):
@@ -92,21 +97,25 @@ def __init__(self, container: DIContainer = None):
 ## **ARCHITECTURAL DECISIONS**
 
 ### **Database Layer:**
+
 - **OLD**: Synchronous database operations
 - **NEW**: Async/await throughout
 - **ACTION**: Remove ALL sync database code, no compatibility mode
 
 ### **Configuration:**
+
 - **OLD**: Scattered config in multiple files
 - **NEW**: Centralized typed configuration
 - **ACTION**: Delete old config patterns completely
 
 ### **Error Handling:**
+
 - **OLD**: Inconsistent exception handling
 - **NEW**: Standardized error framework
 - **ACTION**: Replace ALL error handling patterns uniformly
 
 ### **Dependency Injection:**
+
 - **OLD**: Manual object instantiation
 - **NEW**: DI container throughout
 - **ACTION**: Remove all manual dependency wiring
@@ -116,6 +125,7 @@ def __init__(self, container: DIContainer = None):
 ## **QUALITY GATES**
 
 ### **Code Review Checklist:**
+
 - [ ] Does this PR introduce ANY backwards compatibility code?
 - [ ] Are ALL instances of old patterns removed?
 - [ ] Is the new approach used consistently throughout?
@@ -125,6 +135,7 @@ def __init__(self, container: DIContainer = None):
 **If ANY answer is YES to the backwards compatibility questions, REJECT the PR.**
 
 ### **Architecture Review Standards:**
+
 - **MANDATE**: Complete pattern replacement
 - **REQUIRE**: Consistent approach across all modules
 - **ENFORCE**: No mixed old/new implementations
@@ -135,11 +146,13 @@ def __init__(self, container: DIContainer = None):
 ## **COMMUNICATION STRATEGY**
 
 ### **Internal Development:**
+
 - "We're replacing X with Y" - not "We're supporting both X and Y"
 - "Update your code to use the new pattern" - not "The old way still works"
 - "This is the new standard" - not "This is an alternative approach"
 
 ### **Change Notifications:**
+
 - Announce pattern changes with clear migration requirements
 - Provide complete examples of new approaches
 - Set hard deadlines for pattern adoption
@@ -150,6 +163,7 @@ def __init__(self, container: DIContainer = None):
 ## **BENEFITS OF THIS APPROACH**
 
 ### **Technical Benefits:**
+
 ✅ **Cleaner Codebase**: No legacy cruft or compatibility layers
 ✅ **Faster Development**: No need to maintain multiple code paths
 ✅ **Better Architecture**: Always using the best-known patterns
@@ -157,6 +171,7 @@ def __init__(self, container: DIContainer = None):
 ✅ **Performance**: No overhead from compatibility layers
 
 ### **Development Benefits:**
+
 ✅ **Clarity**: Single way to do things
 ✅ **Learning**: Developers always use current best practices
 ✅ **Maintainability**: Less code to understand and maintain
@@ -167,16 +182,19 @@ def __init__(self, container: DIContainer = None):
 ## **ENFORCEMENT**
 
 ### **Automated Checks:**
+
 - Linting rules to detect deprecated patterns
 - Code analysis to find compatibility layers
 - Build failures for mixed implementation approaches
 
 ### **Review Process:**
+
 - Mandatory architecture review for pattern changes
 - Complete pattern adoption required before merge
 - No "phase 1" implementations that preserve old ways
 
 ### **Documentation:**
+
 - Remove old examples immediately when patterns change
 - Update ALL documentation to show only current approaches
 - No "migration guides" for internal refactoring
@@ -197,6 +215,7 @@ Most software projects are constrained by backwards compatibility. We are NOT.
 ### **⚡ USE THIS FREEDOM**
 
 When we discover a better way:
+
 1. **Implement it completely**
 2. **Replace the old way entirely**
 3. **Move forward without hesitation**

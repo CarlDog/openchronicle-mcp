@@ -1,0 +1,9 @@
+[tool.mypy]
+files = ["openchronicle-core"]
+ignore_missing_imports = true
+strict = true
+autofix = true
+
+[build-system]
+requires = ["mypy"]
+build-backend = "setuptools.build_meta"

@@ -18,6 +18,7 @@ Perform a comprehensive assessment of this Python codebase. For every module, cl
 - Test coverage (where applicable)
 
 Generate a structured report in Markdown format with:
+
 1. A list of detected violations grouped by file
 2. A brief explanation of each issue
 3. Specific recommendations for how to improve or refactor the code

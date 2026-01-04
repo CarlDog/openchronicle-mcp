@@ -21,10 +21,11 @@
 
 ## 🚨 **PHASE 1: CRITICAL DUPLICATION REMOVAL** ✅
 
-### **Issue 1.1: ContentClassifier Duplication** 
+### **Issue 1.1: ContentClassifier Duplication**
+
 - **Status:** ✅ COMPLETED
 - **Priority:** CRITICAL
-- **Files:** 
+- **Files:**
   - `src/openchronicle/application/services/importers/storypack/processors/content_classifier.py` (328 lines) ✅ KEEP
   - `utilities/storypack_import/processors/content_classifier.py` (325 lines) ❌ REMOVED
 - **Actions:**
@@ -35,8 +36,9 @@
 - **Resolution:** Successfully removed duplicate, confirmed no broken imports, tests pass
 
 ### **Issue 1.2: Storypack Import System Duplication**
+
 - **Status:** ✅ COMPLETED
-- **Priority:** HIGH 
+- **Priority:** HIGH
 - **Files:**
   - `utilities/storypack_import/` (entire directory) ❌ REMOVED
   - `src/openchronicle/application/services/importers/storypack/` ✅ KEEP
@@ -48,6 +50,7 @@
 - **Resolution:** Completely removed utilities/storypack_import/ directory, no broken imports found
 
 ### **Issue 1.3: Entry Point Confusion**
+
 - **Status:** ✅ ANALYSIS COMPLETE - NO ACTION NEEDED
 - **Priority:** MEDIUM
 - **Files:**
@@ -66,7 +69,8 @@
 
 ## 🎯 **PHASE 2: MODULE BREAKDOWN** 🟡 (2/3 complete)
 
-### **Issue 2.1: interfaces/cli/commands/system/__init__.py (1,517 lines)**
+### **Issue 2.1: interfaces/cli/commands/system/**init**.py (1,517 lines)**
+
 - **Status:** ✅ COMPLETED
 - **Split Plan:**
   - `system_info.py` - System information and diagnostics ✅
@@ -78,6 +82,7 @@
 - **Resolution:** Successfully modularized with clear separation of concerns, tests passing
 
 ### **Issue 2.2: narrative_orchestrator.py (1,003 lines)**
+
 - **Status:** ✅ COMPLETED
 - **Split Plan:**
   - `narrative_state_manager.py` (234 lines) - State management and persistence ✅
@@ -89,6 +94,7 @@
 - **Resolution:** Successfully modularized with clear separation of concerns, tests passing
 
 ### **Issue 2.3: character_orchestrator.py (804 lines)**
+
 - **Status:** ⚪ Pending
 - **Split Plan:**
   - `emotional/analyzers/pattern_detector.py`
@@ -101,6 +107,7 @@
 ## 🔥 **PHASE 3: EXCEPTION HYGIENE**
 
 ### **Critical Violations (400+ instances)**
+
 - **Status:** ⚪ Pending
 - **Pattern:** `except Exception:` and `except Exception as e:`
 - **Top Violators:**
@@ -110,6 +117,7 @@
   - `infrastructure/persistence/`: 30+ violations
 
 ### **Actions Required:**
+
 - [ ] Create specific exception hierarchy
 - [ ] Replace broad exceptions with specific handling
 - [ ] Add proper error propagation
@@ -120,11 +128,13 @@
 ## 🏗️ **PHASE 4: ARCHITECTURAL CLEANUP**
 
 ### **Entry Point Consolidation**
+
 - **Status:** ⚪ Pending
 - **Current State:** 6 different main.py files
 - **Target State:** Clear, documented purposes for each
 
 ### **Import Path Standardization**
+
 - **Status:** ⚪ Pending
 - **Issue:** Mixed import patterns between utilities/ and application/
 - **Target:** Consistent `from openchronicle.` pattern
@@ -134,12 +144,14 @@
 ## 📈 **METRICS & VALIDATION**
 
 ### **Code Quality Targets**
+
 - [ ] **75% reduction** in code duplication
 - [ ] **90% reduction** in broad exception handling
 - [ ] **60% reduction** in average file size
 - [ ] **100% elimination** of competing implementations
 
 ### **Validation Gates**
+
 - [ ] All tests pass after each phase
 - [ ] No new linting violations introduced
 - [ ] Exception hygiene tool shows improvement
@@ -159,11 +171,13 @@
 ## 📝 **NOTES & DECISIONS**
 
 ### **Architecture Decisions**
+
 - **ContentClassifier:** Keep application layer version, remove utilities version
 - **Import Pattern:** Standardize on `from openchronicle.` format
 - **Exception Strategy:** Move to specific exception hierarchy
 
 ### **Risk Mitigation**
+
 - Run focused workflow test after each change
 - Validate imports before removing files
 - Keep backup references during transition

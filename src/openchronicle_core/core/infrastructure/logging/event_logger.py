@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Callable
-
 from openchronicle_core.core.domain.models.project import Event
 from openchronicle_core.core.domain.ports.storage_port import StoragePort
 

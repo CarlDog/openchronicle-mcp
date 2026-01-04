@@ -11,6 +11,7 @@
 OpenChronicle has been successfully transformed from monolithic components into a comprehensive **orchestrator-based modular architecture**. The system now features 13+ specialized orchestrators with professional test infrastructure (417 tests), SOLID principles implementation, and ultra-clean workspace organization representing the completion of a major architectural modernization.
 
 ### **Architecture Philosophy**
+
 - **Orchestrator Pattern**: Every major system has a single entry point orchestrator
 - **Clean Separation**: Clear domain boundaries with standardized interfaces
 - **Test-Driven Quality**: Professional pytest infrastructure with comprehensive coverage
@@ -19,6 +20,7 @@ OpenChronicle has been successfully transformed from monolithic components into 
 - **SOLID Principles**: Interface segregation, dependency injection, modern patterns
 
 ### **Key Metrics**
+
 - **Total Files**: 164 Python files in core module
 - **Total Lines**: 35,668 lines of code
 - **Test Coverage**: 417 tests with modern infrastructure
@@ -81,33 +83,44 @@ OpenChronicle has been successfully transformed from monolithic components into 
                     │ • Event track   │    │ • Style enforce │
                     │ • Visual out    │    │ • Writing style │
                     └─────────────────┘    └─────────────────┘
+
 ```
 
 ## Data Flow Patterns
 
 ### 1. Scene Generation Flow
 ```
+
 User Input → content_analyzer → memory_manager → context_builder → model_adapter → scene_logger
+
 ```
 
 ### 2. Memory Update Flow
 ```
+
 Scene Output → content_analyzer → memory_manager → database
+
 ```
 
 ### 3. Rollback Flow
 ```
+
 User Request → rollback_engine → database → memory_manager → scene_logger
+
 ```
 
 ### 4. Dynamic Model Management Flow
 ```
+
 User Request → model_adapter.add_model_config() → validate_config → update_registry → centralized_logging
+
 ```
 
 ### 5. Model Health Monitoring Flow
 ```
+
 Scheduled Check → model_adapter.health_check() → provider_status → registry_update → logging
+
 ```
 
 ## Dynamic Model Management Architecture
@@ -115,6 +128,7 @@ Scheduled Check → model_adapter.health_check() → provider_status → registr
 The ModelManager class provides runtime model configuration management:
 
 ```
+
 ┌─────────────────────────────────────────────────────────────────┐
 │                        ModelManager                             │
 ├─────────────────────────────────────────────────────────────────┤
@@ -143,6 +157,7 @@ The ModelManager class provides runtime model configuration management:
                         │ • Content routing   │
                         │ • Health status     │
                         └─────────────────────┘
+
 ```
 
 ### Configuration Flow

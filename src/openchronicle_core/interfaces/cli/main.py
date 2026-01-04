@@ -6,24 +6,33 @@ import json
 from typing import Any
 
 from openchronicle_core.core.application.runtime.container import CoreContainer
-from openchronicle_core.core.application.use_cases import create_project, list_projects, register_agent, run_task, show_task
+from openchronicle_core.core.application.use_cases import (
+    create_project,
+    list_projects,
+    register_agent,
+    run_task,
+    show_task,
+)
+from openchronicle_core.core.domain.models.project import Agent
+from openchronicle_core.core.domain.services.orchestrator import OrchestratorService
 
 
 def _parse_json(value: str) -> dict[str, Any]:
     try:
-        return json.loads(value)
+        result: dict[str, Any] = json.loads(value)
+        return result
     except json.JSONDecodeError:
         return {"raw": value}
 
 
-def _ensure_agent(orchestrator, project_id: str, name: str, role: str):
+def _ensure_agent(orchestrator: OrchestratorService, project_id: str, name: str, role: str) -> Agent:
     existing = [a for a in orchestrator.storage.list_agents(project_id) if a.name == name and a.role == role]
     if existing:
         return existing[0]
     return register_agent.execute(orchestrator, project_id=project_id, name=name, role=role)
 
 
-def _ensure_demo_agents(orchestrator, project_id: str):
+def _ensure_demo_agents(orchestrator: OrchestratorService, project_id: str) -> tuple[Agent, Agent, Agent]:
     supervisor = _ensure_agent(orchestrator, project_id, "Supervisor", "supervisor")
     worker1 = _ensure_agent(orchestrator, project_id, "Worker 1", "worker")
     worker2 = _ensure_agent(orchestrator, project_id, "Worker 2", "worker")
@@ -92,9 +101,10 @@ def main(argv: list[str] | None = None) -> int:
         payload = _parse_json(args.payload)
         task = run_task.submit(orchestrator, args.project_id, args.task_type, payload)
 
-        async def _run():
+        async def _run() -> None:
             result = await run_task.execute(orchestrator, task.id, agent_id=args.agent_id)
             print(result)
+
         asyncio.run(_run())
         return 0
 
@@ -108,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
         supervisor, worker1, worker2 = _ensure_demo_agents(orchestrator, args.project_id)
         task = run_task.submit(orchestrator, args.project_id, "analysis.summary", {"text": args.text})
 
-        async def _run_demo():
+        async def _run_demo() -> None:
             result = await run_task.execute(orchestrator, task.id, agent_id=supervisor.id)
             print(json.dumps(result, indent=2))
             print(f"task_id: {task.id}")

@@ -13,6 +13,8 @@ class OpenAIAdapter(LLMPort):
     def generate(self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None) -> str:
         return f"[openai mock:{model or self.model}] {prompt}"
 
-    async def generate_async(self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None) -> str:
+    async def generate_async(
+        self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None
+    ) -> str:
         await asyncio.sleep(0)
         return self.generate(prompt, model=model, parameters=parameters)
