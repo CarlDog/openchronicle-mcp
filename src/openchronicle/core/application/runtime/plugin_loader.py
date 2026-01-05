@@ -43,7 +43,7 @@ class PluginLoader:
         return self.plugins_dir.resolve().parent
 
     def load_plugins(self, context: dict[str, Any] | None = None) -> None:
-        """Load plugins from filesystem by file path (no sys.path manipulation)."""
+        """Load plugins from filesystem as packages (no sys.path manipulation)."""
         repo_root = self._find_repo_root()
         plugins_root = repo_root / self.plugins_dir
 
@@ -59,29 +59,75 @@ class PluginLoader:
             if not plugin_file.exists():
                 continue
 
-            plugin_name = plugin_dir.name
-            self._load_plugin(plugin_name, plugin_file, context)
+            # Check for __init__.py - required for package semantics
+            init_file = plugin_dir / "__init__.py"
+            if not init_file.exists():
+                print(
+                    f"ERROR: Plugin '{plugin_dir.name}' is missing __init__.py. "
+                    f"Plugins must be packages to support relative imports. Skipping.",
+                    file=sys.stderr,
+                )
+                continue
 
-    def _load_plugin(self, plugin_name: str, plugin_file: Path, context: dict[str, Any] | None) -> None:
-        """Load a single plugin by file path using importlib.util."""
-        # Use unique module name to avoid collisions
-        module_name = f"oc_plugin_{plugin_name}"
+            plugin_name = plugin_dir.name
+            self._load_plugin(plugin_name, plugin_dir, init_file, plugin_file, context)
+
+    def _load_plugin(
+        self, plugin_name: str, plugin_dir: Path, init_file: Path, plugin_file: Path, context: dict[str, Any] | None
+    ) -> None:
+        """Load a plugin as a package via file path, enabling relative imports."""
+        # Step 1: Load the package (__init__.py) to establish the plugin namespace
+        package_name = f"oc_plugins.{plugin_name}"
 
         try:
-            spec = importlib.util.spec_from_file_location(module_name, plugin_file)
-            if spec is None or spec.loader is None:
-                print(f"Failed to create spec for plugin {plugin_name} at {plugin_file}", file=sys.stderr)
+            # Create package spec with submodule_search_locations for relative imports
+            package_spec = importlib.util.spec_from_file_location(
+                package_name, init_file, submodule_search_locations=[str(plugin_dir)]
+            )
+            if package_spec is None or package_spec.loader is None:
+                print(f"Failed to create package spec for plugin {plugin_name} at {init_file}", file=sys.stderr)
                 return
 
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
+            package_module = importlib.util.module_from_spec(package_spec)
+            # Add to sys.modules so submodules can resolve relative imports
+            sys.modules[package_name] = package_module
+            package_spec.loader.exec_module(package_module)
 
         except Exception as exc:
-            print(f"Failed to load plugin {plugin_name} from {plugin_file}: {exc}", file=sys.stderr)
+            print(f"Failed to load plugin package {plugin_name} from {init_file}: {exc}", file=sys.stderr)
+            # Clean up sys.modules on failure
+            sys.modules.pop(package_name, None)
             return
 
-        # Call register function if it exists
-        if not hasattr(module, "register"):
+        # Step 2: Load plugin.py as a submodule of the package
+        plugin_module_name = f"{package_name}.plugin"
+
+        try:
+            plugin_spec = importlib.util.spec_from_file_location(plugin_module_name, plugin_file)
+            if plugin_spec is None or plugin_spec.loader is None:
+                print(f"Failed to create spec for plugin.py in {plugin_name} at {plugin_file}", file=sys.stderr)
+                sys.modules.pop(package_name, None)
+                return
+
+            plugin_module = importlib.util.module_from_spec(plugin_spec)
+            sys.modules[plugin_module_name] = plugin_module
+            plugin_spec.loader.exec_module(plugin_module)
+
+        except Exception as exc:
+            print(f"Failed to load plugin.py for {plugin_name} from {plugin_file}: {exc}", file=sys.stderr)
+            # Clean up sys.modules on failure
+            sys.modules.pop(plugin_module_name, None)
+            sys.modules.pop(package_name, None)
+
+        except Exception as exc:
+            print(f"Failed to load plugin.py for {plugin_name} from {plugin_file}: {exc}", file=sys.stderr)
+            # Clean up sys.modules on failure
+            sys.modules.pop(plugin_module_name, None)
+            sys.modules.pop(package_name, None)
+            return
+
+        # Step 3: Call register function on the plugin module
+        if not hasattr(plugin_module, "register"):
             print(
                 f"Plugin {plugin_name} at {plugin_file} does not have a register() function",
                 file=sys.stderr,
@@ -89,7 +135,7 @@ class PluginLoader:
             return
 
         try:
-            module.register(self.registry, self.handler_registry, context)
+            plugin_module.register(self.registry, self.handler_registry, context)
         except Exception as exc:
             print(f"Failed to register plugin {plugin_name}: {exc}", file=sys.stderr)
 

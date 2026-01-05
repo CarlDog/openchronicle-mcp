@@ -94,6 +94,7 @@ class OrchestratorService:
         )
         self.emit_event(start_event)
 
+        # Route task execution through handlers (built-in → TaskHandlerRegistry → LLM fallback)
         builtin_handler = self._builtin_handlers.get(task.type)
         if builtin_handler is not None:
             result = await builtin_handler(task, agent_id=agent_id)
@@ -102,12 +103,9 @@ class OrchestratorService:
             if registry_handler is not None:
                 result = await registry_handler(task, {"agent_id": agent_id, "emit_event": self.emit_event})
             else:
-                handler = self.plugins.get_task_handler(task.type)
-                if handler is not None:
-                    result = await handler(task, context={"agent_id": agent_id, "emit_event": self.emit_event})
-                else:
-                    prompt = task.payload.get("prompt") or task.payload.get("text") or ""
-                    result = await self.llm.generate_async(prompt, model=None, parameters=None)
+                # Default LLM fallback for unhandled task types
+                prompt = task.payload.get("prompt") or task.payload.get("text") or ""
+                result = await self.llm.generate_async(prompt, model=None, parameters=None)
 
         complete_event = Event(
             project_id=task.project_id,

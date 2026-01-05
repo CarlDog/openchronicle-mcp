@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 from typing import Any
 
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 from openchronicle.core.domain.models.project import Event, Task
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 
-
-def _hash_text(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest() if text else ""
+from .helpers import format_draft, hash_text
 
 
 async def _story_draft_handler(task: Task, context: dict[str, Any] | None = None) -> dict[str, str]:
@@ -27,11 +24,11 @@ async def _story_draft_handler(task: Task, context: dict[str, Any] | None = None
                 task_id=task.id,
                 agent_id=agent_id,
                 type="plugin.received_task",
-                payload={"text_hash": _hash_text(prompt)},
+                payload={"text_hash": hash_text(prompt)},
             )
         )
 
-    draft = f"[storytelling draft] {prompt}"
+    draft = format_draft(prompt)
 
     if emit_event:
         emit_event(

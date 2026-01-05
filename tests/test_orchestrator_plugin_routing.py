@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -12,6 +11,9 @@ from openchronicle.core.domain.ports.llm_port import LLMPort
 from openchronicle.core.domain.services.orchestrator import OrchestratorService
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class FakeLLM(LLMPort):
@@ -63,3 +65,36 @@ async def test_story_draft_routes_through_plugin_and_emits_events(tmp_path: Path
         "plugin.completed_task",
         "task_completed",
     ]
+
+
+@pytest.mark.asyncio
+async def test_orchestrator_routes_only_through_task_handler_registry(tmp_path: Path) -> None:
+    """Verify orchestrator uses TaskHandlerRegistry as single source of truth for handlers."""
+    db_path = tmp_path / "test.db"
+    storage = SqliteStore(db_path=str(db_path))
+    storage.init_schema()
+    event_logger = EventLogger(storage)
+
+    handler_registry = TaskHandlerRegistry()
+    plugin_loader = PluginLoader(plugins_dir="plugins", handler_registry=handler_registry)
+    plugin_loader.load_plugins()
+
+    orchestrator = OrchestratorService(
+        storage=storage,
+        llm=FakeLLM(),
+        plugins=plugin_loader.registry_instance(),
+        handler_registry=plugin_loader.handler_registry_instance(),
+        emit_event=event_logger.append,
+    )
+
+    # Verify the handler is in TaskHandlerRegistry
+    assert handler_registry.get("story.draft") is not None
+
+    # Execute task - should route through TaskHandlerRegistry, not PluginRegistry
+    project = orchestrator.create_project("Test")
+    task = orchestrator.submit_task(project.id, "story.draft", {"prompt": "Via registry"})
+    result = await orchestrator.execute_task(task.id)
+
+    # Verify result came from the handler in TaskHandlerRegistry
+    assert result == {"draft": "[storytelling draft] Via registry"}
+    assert storage.get_task(task.id).status == TaskStatus.COMPLETED  # type: ignore[union-attr]
