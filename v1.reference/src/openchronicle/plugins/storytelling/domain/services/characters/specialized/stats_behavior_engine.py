@@ -23,9 +23,7 @@ from ..core.character_data import CharacterStatType
 logger = logging.getLogger(__name__)
 
 
-class StatsBehaviorEngine(
-    CharacterEngineBase, CharacterBehaviorProvider, CharacterValidationProvider
-):
+class StatsBehaviorEngine(CharacterEngineBase, CharacterBehaviorProvider, CharacterValidationProvider):
     """
     Manages character statistics, trait-based behavior, and stat progression.
 
@@ -41,15 +39,13 @@ class StatsBehaviorEngine(
         self.stat_range = self.config.get("stat_range", (1, 10))
         self.default_stat_value = self.config.get("default_stat_value", 5)
         self.progression_enabled = self.config.get("progression_enabled", True)
-        self.temporary_modifier_max_duration = self.config.get(
-            "temp_modifier_max_hours", 24
-        )
+        self.temporary_modifier_max_duration = self.config.get("temp_modifier_max_hours", 24)
 
         # Behavior templates and interactions
         self.behavior_templates: dict[str, dict] = self._initialize_behavior_templates()
-        self.stat_interactions: dict[
-            str, list[tuple[CharacterStatType, CharacterStatType]]
-        ] = self._initialize_stat_interactions()
+        self.stat_interactions: dict[str, list[tuple[CharacterStatType, CharacterStatType]]] = (
+            self._initialize_stat_interactions()
+        )
 
         # Stat influence thresholds
         self.thresholds = {
@@ -72,9 +68,7 @@ class StatsBehaviorEngine(
                 if isinstance(value, (int, float)):
                     try:
                         stat_type = CharacterStatType(stat_name)
-                        stats.update_stat(
-                            stat_type, int(value), "Character initialization"
-                        )
+                        stats.update_stat(stat_type, int(value), "Character initialization")
                     except ValueError:
                         self.logger.warning(f"Unknown stat type: {stat_name}")
 
@@ -131,14 +125,10 @@ class StatsBehaviorEngine(
         expiry = datetime.now() + timedelta(hours=duration_hours)
         stats.temporary_modifiers[stat_type] = (modifier, expiry)
 
-        self.logger.info(
-            f"Added temporary modifier {modifier} to {stat_type.value} for {character_id}"
-        )
+        self.logger.info(f"Added temporary modifier {modifier} to {stat_type.value} for {character_id}")
         return True
 
-    def get_effective_stat(
-        self, character_id: str, stat_type: CharacterStatType
-    ) -> int | None:
+    def get_effective_stat(self, character_id: str, stat_type: CharacterStatType) -> int | None:
         """Get effective stat value including temporary modifiers."""
         stats = self.get_character_data(character_id)
         return stats.get_effective_stat(stat_type) if stats else None
@@ -147,9 +137,7 @@ class StatsBehaviorEngine(
     # Behavior Provider Interface
     # =============================================================================
 
-    def get_behavior_context(
-        self, character_id: str, situation_type: str = "general"
-    ) -> dict[str, Any]:
+    def get_behavior_context(self, character_id: str, situation_type: str = "general") -> dict[str, Any]:
         """Generate behavior context based on character statistics."""
         stats = self.get_character_data(character_id)
         if not stats:
@@ -165,28 +153,20 @@ class StatsBehaviorEngine(
 
         # Get category averages
         for category in CharacterStatCategory:
-            context["category_averages"][
-                category.value
-            ] = stats.get_stat_category_average(category)
+            context["category_averages"][category.value] = stats.get_stat_category_average(category)
 
         # Get stat influences for situation
         for stat_type in CharacterStatType:
             stat_value = stats.get_effective_stat(stat_type)
-            influences = self._get_stat_influences(
-                stat_type, stat_value, situation_type
-            )
+            influences = self._get_stat_influences(stat_type, stat_value, situation_type)
             context["stat_influences"].extend([inf.to_dict() for inf in influences])
 
         # Generate behavioral tendencies
-        context["behavioral_tendencies"] = self._generate_behavioral_tendencies(
-            stats, situation_type
-        )
+        context["behavioral_tendencies"] = self._generate_behavioral_tendencies(stats, situation_type)
 
         return context
 
-    def generate_response_modifiers(
-        self, character_id: str, content_type: str = "dialogue"
-    ) -> dict[str, Any]:
+    def generate_response_modifiers(self, character_id: str, content_type: str = "dialogue") -> dict[str, Any]:
         """Generate response modifiers based on character stats."""
         stats = self.get_character_data(character_id)
         if not stats:
@@ -223,9 +203,7 @@ class StatsBehaviorEngine(
     # Validation Provider Interface
     # =============================================================================
 
-    def validate_character_action(
-        self, character_id: str, action: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def validate_character_action(self, character_id: str, action: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate if action is consistent with character stats."""
         stats = self.get_character_data(character_id)
         if not stats:
@@ -268,14 +246,7 @@ class StatsBehaviorEngine(
             # Extreme values without progression path reduce consistency
             if (
                 stat_value >= 9
-                and len(
-                    [
-                        p
-                        for p in stats.progression_history
-                        if p.stat_type == progression.stat_type
-                    ]
-                )
-                < 3
+                and len([p for p in stats.progression_history if p.stat_type == progression.stat_type]) < 3
             ):
                 consistency_score -= 0.05
 
@@ -309,17 +280,11 @@ class StatsBehaviorEngine(
                 self.character_data[character_id] = stats
                 self.logger.info(f"Imported stats data for character {character_id}")
             except (KeyError, AttributeError) as e:
-                self.logger.exception(
-                    "Character stats data structure error for"
-                )
+                self.logger.exception("Character stats data structure error for")
             except (ValueError, TypeError) as e:
-                self.logger.exception(
-                    "Character stats data validation error for"
-                )
+                self.logger.exception("Character stats data validation error for")
             except Exception as e:
-                self.logger.exception(
-                    "Failed to import stats data for"
-                )
+                self.logger.exception("Failed to import stats data for")
 
     # =============================================================================
     # Private Helper Methods
@@ -383,9 +348,7 @@ class StatsBehaviorEngine(
             CharacterStatType.HUMOR: CharacterBehaviorType.SPEECH_PATTERN,
         }
 
-        behavior_type = behavior_mapping.get(
-            stat_type, CharacterBehaviorType.SPEECH_PATTERN
-        )
+        behavior_type = behavior_mapping.get(stat_type, CharacterBehaviorType.SPEECH_PATTERN)
 
         influence = CharacterBehaviorInfluence(
             stat_type=stat_type,
@@ -399,9 +362,7 @@ class StatsBehaviorEngine(
         influences.append(influence)
         return influences
 
-    def _get_behavior_examples(
-        self, stat_type: CharacterStatType, value: int, situation: str
-    ) -> list[str]:
+    def _get_behavior_examples(self, stat_type: CharacterStatType, value: int, situation: str) -> list[str]:
         """Get behavior examples for a stat type and value."""
         examples = []
         level = self._get_stat_level_description(value)
@@ -459,9 +420,7 @@ class StatsBehaviorEngine(
 
         return limitations
 
-    def _generate_behavioral_tendencies(
-        self, stats: CharacterStats, situation_type: str
-    ) -> dict[str, str]:
+    def _generate_behavioral_tendencies(self, stats: CharacterStats, situation_type: str) -> dict[str, str]:
         """Generate behavioral tendencies for the character."""
         tendencies = {}
 
@@ -539,9 +498,7 @@ class StatsBehaviorEngine(
 
         return modifiers
 
-    def _validate_stat_update(
-        self, stats: CharacterStats, action: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def _validate_stat_update(self, stats: CharacterStats, action: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate stat update action."""
         new_value = action.get("new_value", 5)
         reason = action.get("reason", "")
@@ -560,9 +517,7 @@ class StatsBehaviorEngine(
 
         return True, None
 
-    def _validate_decision(
-        self, stats: CharacterStats, action: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def _validate_decision(self, stats: CharacterStats, action: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate decision action against character stats."""
         decision_type = action.get("decision_type", "")
         required_stats = action.get("required_stats", {})
@@ -581,9 +536,7 @@ class StatsBehaviorEngine(
 
         return True, None
 
-    def _validate_behavior(
-        self, stats: CharacterStats, action: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def _validate_behavior(self, stats: CharacterStats, action: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate behavior action against character stats."""
         behavior_type = action.get("behavior_type", "")
 

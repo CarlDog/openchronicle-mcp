@@ -162,7 +162,7 @@ class MemoryPortAdapter(IMemoryPort):
         try:
             # Use existing repository to load memory state
             infrastructure_memory_state = self.memory_repository.load_memory(unit_id)
-            
+
             # Convert infrastructure models to domain models
             domain_characters = {}
             for char_id, infra_char in infrastructure_memory_state.characters.items():
@@ -180,7 +180,7 @@ class MemoryPortAdapter(IMemoryPort):
                             })
                         elif isinstance(dialogue, dict):
                             dialogue_history.append(dialogue)
-                
+
                 domain_char = DomainCharacterMemory(
                     name=infra_char.name,
                     dialogue_history=dialogue_history,
@@ -189,7 +189,7 @@ class MemoryPortAdapter(IMemoryPort):
                     relationships=getattr(infra_char, 'relationships', {})
                 )
                 domain_characters[char_id] = domain_char
-            
+
             return MemoryState(
                 characters=domain_characters,
                 story_metadata={}  # Infrastructure model doesn't have domain metadata at top level
@@ -212,7 +212,7 @@ class MemoryPortAdapter(IMemoryPort):
                         dialogue_history.append(dialogue.get("content", ""))
                     else:
                         dialogue_history.append(str(dialogue))
-                
+
                 infra_char = InfraCharacterMemory(
                     name=domain_char.name,
                     dialogue_history=dialogue_history,
@@ -220,13 +220,13 @@ class MemoryPortAdapter(IMemoryPort):
                     relationships=domain_char.relationships
                 )
                 infra_characters[char_id] = infra_char
-            
+
             # Create infrastructure memory state
             from openchronicle.infrastructure.memory.shared.memory_models import MemoryState as InfraMemoryState
             infra_memory_state = InfraMemoryState(
                 characters=infra_characters
             )
-            
+
             # Save using existing repository
             return self.memory_repository.save_memory(unit_id, infra_memory_state)
         except Exception as e:

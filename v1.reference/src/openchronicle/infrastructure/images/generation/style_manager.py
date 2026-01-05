@@ -124,9 +124,7 @@ class StyleManager:
 
         return compatible_presets
 
-    def apply_style_preset(
-        self, preset_name: str, existing_modifiers: list[str] | None = None
-    ) -> list[str]:
+    def apply_style_preset(self, preset_name: str, existing_modifiers: list[str] | None = None) -> list[str]:
         """Apply style preset to existing modifiers"""
 
         preset = self.get_style_preset(preset_name)
@@ -150,9 +148,7 @@ class StyleManager:
     ) -> dict[str, Any]:
         """Optimize generation parameters for specific provider"""
 
-        provider_name = (
-            provider.value if isinstance(provider, ImageProvider) else str(provider)
-        )
+        provider_name = provider.value if isinstance(provider, ImageProvider) else str(provider)
 
         # Get provider-specific settings
         provider_config = self.provider_settings.get(provider_name, {})
@@ -173,9 +169,7 @@ class StyleManager:
         elif provider_name == "stability":
             params.update(
                 {
-                    "model": provider_config.get(
-                        "default_model", "stable-diffusion-xl"
-                    ),
+                    "model": provider_config.get("default_model", "stable-diffusion-xl"),
                     "cfg_scale": provider_config.get("cfg_scale", 7),
                     "steps": provider_config.get("steps", 50),
                     "sampler": provider_config.get("sampler", "DPM++ 2M Karras"),
@@ -200,9 +194,7 @@ class StyleManager:
             return False
 
         # Check if subject already has a portrait
-        has_portrait = any(
-            img.image_type == ImageType.ENTITY for img in existing_images
-        )
+        has_portrait = any(img.image_type == ImageType.ENTITY for img in existing_images)
 
         if has_portrait:
             logger.info(f"Subject {entity_name} already has a portrait")
@@ -214,9 +206,7 @@ class StyleManager:
 
         importance_levels = {"low": 1, "normal": 2, "high": 3, "critical": 4}
 
-        if importance_levels.get(importance, 2) >= importance_levels.get(
-            min_importance, 2
-        ):
+        if importance_levels.get(importance, 2) >= importance_levels.get(min_importance, 2):
             return True
 
         return False
@@ -233,32 +223,23 @@ class StyleManager:
             return False
 
         # Check for trigger conditions
-        triggers = self.auto_generate.get(
-            "frame_triggers", ["major_event", "new_location"]
-        )
+        triggers = self.auto_generate.get("frame_triggers", ["major_event", "new_location"])
 
         # Simple trigger detection (can be enhanced)
         should_generate = False
 
-        if (
-            "major_event" in triggers
-            and frame_data.get("importance", "normal") == "high"
-        ):
+        if "major_event" in triggers and frame_data.get("importance", "normal") == "high":
             should_generate = True
 
         if "new_location" in triggers and frame_data.get("new_location", False):
             should_generate = True
 
-        if ("entity_introduction") in triggers and frame_data.get(
-            "new_entity", False
-        ):
+        if ("entity_introduction") in triggers and frame_data.get("new_entity", False):
             should_generate = True
 
         # Context-based triggers
         if context:
-            if ("frame_transition") in triggers and context.get(
-                "location_changed", False
-            ):
+            if ("frame_transition") in triggers and context.get("location_changed", False):
                 should_generate = True
 
             if "dramatic_moment" in triggers and context.get("tension_level", 0) > 7:
@@ -266,9 +247,7 @@ class StyleManager:
 
         return should_generate
 
-    def get_recommended_size(
-        self, image_type: ImageType, provider: ImageProvider | None = None
-    ) -> ImageSize:
+    def get_recommended_size(self, image_type: ImageType, provider: ImageProvider | None = None) -> ImageSize:
         """Get recommended image size for type and provider"""
 
         # Type-based recommendations
@@ -283,9 +262,7 @@ class StyleManager:
 
         # Provider-specific adjustments
         if provider:
-            provider_name = (
-                provider.value if isinstance(provider, ImageProvider) else str(provider)
-            )
+            provider_name = provider.value if isinstance(provider, ImageProvider) else str(provider)
             provider_config = self.provider_settings.get(provider_name, {})
 
             # Check for provider size preferences
@@ -296,9 +273,7 @@ class StyleManager:
                 try:
                     return ImageSize(preferred_size)
                 except ValueError:
-                    logger.warning(
-                        f"Invalid size preference '{preferred_size}' for {provider_name}"
-                    )
+                    logger.warning(f"Invalid size preference '{preferred_size}' for {provider_name}")
 
         return base_size
 
@@ -326,18 +301,12 @@ class StyleManager:
 
         # Check for art style consistency
         art_styles_in_new = [s for s in style_keywords if "art" in s or "style" in s]
-        art_styles_in_existing = [
-            s for s in existing_styles if "art" in s or "style" in s
-        ]
+        art_styles_in_existing = [s for s in existing_styles if "art" in s or "style" in s]
 
         if art_styles_in_existing and art_styles_in_new:
             if not any(style in art_styles_in_existing for style in art_styles_in_new):
-                validation["warnings"].append(
-                    "Art style may be inconsistent with existing images"
-                )
-                validation["suggestions"].append(
-                    f"Consider using similar style: {art_styles_in_existing[0]}"
-                )
+                validation["warnings"].append("Art style may be inconsistent with existing images")
+                validation["suggestions"].append(f"Consider using similar style: {art_styles_in_existing[0]}")
 
         return validation
 
@@ -368,9 +337,7 @@ class StyleManager:
         """Get statistics about style usage"""
 
         total_presets = len(self.style_presets)
-        custom_presets = sum(
-            1 for p in self.style_presets.values() if p.get("custom", False)
-        )
+        custom_presets = sum(1 for p in self.style_presets.values() if p.get("custom", False))
 
         # Count presets by image type
         type_counts = {}

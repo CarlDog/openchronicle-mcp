@@ -11,15 +11,14 @@ import json
 import re
 from typing import Any
 
-from openchronicle.shared.exceptions import ModelInitializationError, ModelNotFoundError
+from openchronicle.shared.exceptions import ModelInitializationError
+from openchronicle.shared.exceptions import ModelNotFoundError
 
 # Import logging utilities
-from openchronicle.shared.logging_system import (
-    log_error,
-    log_info,
-    log_model_interaction,
-    log_warning,
-)
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_model_interaction
+from openchronicle.shared.logging_system import log_warning
 
 from ..shared.interfaces import ExtractionComponent
 

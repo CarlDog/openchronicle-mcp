@@ -25,16 +25,12 @@ LOGGING_CONFIG: dict[str, Any] = {
     "disable_existing_loggers": False,
     "formatters": {
         "standard": {
-            "format": (
-                "%(asctime)s - %(name)s - %(levelname)s - "
-                "%(correlation_id)s - %(message)s"
-            ),
+            "format": ("%(asctime)s - %(name)s - %(levelname)s - " "%(correlation_id)s - %(message)s"),
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
         "detailed": {
             "format": (
-                "%(asctime)s - %(name)s - %(levelname)s - %(correlation_id)s - "
-                "%(funcName)s:%(lineno)d - %(message)s"
+                "%(asctime)s - %(name)s - %(levelname)s - %(correlation_id)s - " "%(funcName)s:%(lineno)d - %(message)s"
             ),
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
@@ -47,9 +43,7 @@ LOGGING_CONFIG: dict[str, Any] = {
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
     },
-    "filters": {
-        "correlation": {"()": "src.openchronicle.shared.logging.CorrelationFilter"}
-    },
+    "filters": {"correlation": {"()": "src.openchronicle.shared.logging.CorrelationFilter"}},
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
@@ -97,9 +91,7 @@ class CorrelationFilter(logging.Filter):
         return True
 
 
-def setup_logging(
-    config: dict[str, Any] | None = None, log_level: str = "INFO"
-) -> None:
+def setup_logging(config: dict[str, Any] | None = None, log_level: str = "INFO") -> None:
     """
     Setup logging configuration for the application.
 
@@ -194,9 +186,7 @@ def log_system_event(event_type: str, description: str, **kwargs) -> None:
     logger.info(f"[{event_type}] {description}", extra=kwargs)
 
 
-def log_performance_metric(
-    metric_name: str, value: float, unit: str = "ms", **kwargs
-) -> None:
+def log_performance_metric(metric_name: str, value: float, unit: str = "ms", **kwargs) -> None:
     """Log a performance metric."""
     logger = get_logger("openchronicle.performance")
     logger.info(f"METRIC {metric_name}={value}{unit}", extra=kwargs)

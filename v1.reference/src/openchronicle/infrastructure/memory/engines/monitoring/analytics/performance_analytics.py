@@ -66,21 +66,16 @@ class MetricsCollector:
         self.metrics_history = [
             s
             for s in self.metrics_history
-            if datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00"))
-            > cutoff_time
+            if datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00")) > cutoff_time
         ]
 
-    def get_time_series(
-        self, metric_path: str, hours: int = 1
-    ) -> list[tuple[datetime, float]]:
+    def get_time_series(self, metric_path: str, hours: int = 1) -> list[tuple[datetime, float]]:
         """Get time series data for a specific metric."""
         cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
 
         series = []
         for snapshot in self.metrics_history:
-            timestamp = datetime.fromisoformat(
-                snapshot["timestamp"].replace("Z", "+00:00")
-            )
+            timestamp = datetime.fromisoformat(snapshot["timestamp"].replace("Z", "+00:00"))
             if timestamp <= cutoff_time:
                 continue
 
@@ -108,8 +103,7 @@ class MetricsCollector:
         relevant_snapshots = [
             s
             for s in self.metrics_history
-            if datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00"))
-            > cutoff_time
+            if datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00")) > cutoff_time
         ]
 
         if not relevant_snapshots:
@@ -155,9 +149,7 @@ class MetricsCollector:
         if operations_counts:
             total_ops = sum(operations_counts)
             time_span = len(relevant_snapshots) * 60  # Assuming 1-minute intervals
-            aggregated["avg_ops_per_minute"] = (
-                total_ops / (time_span / 60) if time_span > 0 else 0
-            )
+            aggregated["avg_ops_per_minute"] = total_ops / (time_span / 60) if time_span > 0 else 0
 
         return aggregated
 
@@ -237,9 +229,7 @@ class AlertManager:
 
         return new_alerts
 
-    def _check_single_rule(
-        self, rule: AlertRule, metrics: dict[str, Any]
-    ) -> PerformanceAlert | None:
+    def _check_single_rule(self, rule: AlertRule, metrics: dict[str, Any]) -> PerformanceAlert | None:
         """Check a single alert rule."""
         value = self._get_metric_value(metrics, rule.metric_path)
         if value is None:
@@ -265,9 +255,7 @@ class AlertManager:
 
         return None
 
-    def _check_wildcard_rule(
-        self, rule: AlertRule, metrics: dict[str, Any]
-    ) -> list[PerformanceAlert]:
+    def _check_wildcard_rule(self, rule: AlertRule, metrics: dict[str, Any]) -> list[PerformanceAlert]:
         """Check rule with wildcard metric path."""
         alerts = []
 
@@ -325,9 +313,7 @@ class AlertManager:
     def cleanup_old_alerts(self, hours: int = 24):
         """Remove old resolved alerts."""
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
-        self.active_alerts = [
-            a for a in self.active_alerts if not a.resolved or a.timestamp > cutoff
-        ]
+        self.active_alerts = [a for a in self.active_alerts if not a.resolved or a.timestamp > cutoff]
 
 
 class PerformanceRecommendationEngine:
@@ -388,10 +374,7 @@ class PerformanceRecommendationEngine:
         if len(hit_rate_trend) > 5:
             # Check if hit rate is declining
             recent_rates = [rate for _, rate in hit_rate_trend[-5:]]
-            if all(
-                recent_rates[i] > recent_rates[i + 1]
-                for i in range(len(recent_rates) - 1)
-            ):
+            if all(recent_rates[i] > recent_rates[i + 1] for i in range(len(recent_rates) - 1)):
                 recommendations.append(
                     {
                         "type": "trend",
@@ -430,12 +413,8 @@ class CacheAnalyticsDashboard:
             return
 
         self._monitoring_active = True
-        self._monitoring_task = asyncio.create_task(
-            self._monitoring_loop(interval_seconds)
-        )
-        self.logger.info(
-            f"Dashboard monitoring started (interval: {interval_seconds}s)"
-        )
+        self._monitoring_task = asyncio.create_task(self._monitoring_loop(interval_seconds))
+        self.logger.info(f"Dashboard monitoring started (interval: {interval_seconds}s)")
 
     async def stop_monitoring(self):
         """Stop monitoring."""
@@ -550,8 +529,7 @@ class CacheAnalyticsDashboard:
             "metrics_history": [
                 s
                 for s in self.metrics_collector.metrics_history
-                if datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00"))
-                > cutoff_time
+                if datetime.fromisoformat(s["timestamp"].replace("Z", "+00:00")) > cutoff_time
             ],
             "alerts": [asdict(alert) for alert in self.alert_manager.active_alerts],
             "aggregated_metrics": self.metrics_collector.get_aggregated_metrics(hours),
@@ -571,9 +549,7 @@ class CacheAnalyticsDashboard:
         daily_metrics = self.metrics_collector.get_aggregated_metrics(24)
 
         # Get recommendations
-        recommendations = self.recommendation_engine.analyze_performance(
-            current_metrics, self.metrics_collector
-        )
+        recommendations = self.recommendation_engine.analyze_performance(current_metrics, self.metrics_collector)
 
         # Get cluster overview
         cluster_overview = self.get_cluster_overview()
@@ -582,10 +558,7 @@ class CacheAnalyticsDashboard:
             "report_timestamp": datetime.now(UTC).isoformat(),
             "summary": {
                 "overall_health": (
-                    "healthy"
-                    if cluster_overview["healthy_nodes"]
-                    == cluster_overview["total_nodes"]
-                    else "degraded"
+                    "healthy" if cluster_overview["healthy_nodes"] == cluster_overview["total_nodes"] else "degraded"
                 ),
                 "total_operations": current_metrics.get("total_operations", 0),
                 "overall_hit_rate": current_metrics.get("overall_hit_rate", 0),
@@ -595,9 +568,7 @@ class CacheAnalyticsDashboard:
             "hourly_aggregates": hourly_metrics,
             "daily_aggregates": daily_metrics,
             "cluster_overview": cluster_overview,
-            "active_alerts": [
-                asdict(alert) for alert in self.alert_manager.get_active_alerts()
-            ],
+            "active_alerts": [asdict(alert) for alert in self.alert_manager.get_active_alerts()],
             "recommendations": recommendations,
             "cache_warming": current_metrics.get("cache_warming", {}),
             "partitions": current_metrics.get("partitions", {}),
@@ -607,9 +578,7 @@ class CacheAnalyticsDashboard:
 
 
 # Convenience function for quick dashboard setup
-async def create_cache_dashboard(
-    cache: DistributedMultiTierCache, auto_start: bool = True
-) -> CacheAnalyticsDashboard:
+async def create_cache_dashboard(cache: DistributedMultiTierCache, auto_start: bool = True) -> CacheAnalyticsDashboard:
     """Create and optionally start cache analytics dashboard."""
     dashboard = CacheAnalyticsDashboard(cache)
 

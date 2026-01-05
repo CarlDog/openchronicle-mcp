@@ -5,8 +5,12 @@ Provides base migration interfaces and neutral migration infrastructure
 that can be extended by domain-specific plugins.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from abc import ABC
+from abc import abstractmethod
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 
 class BaseMigrationManager(ABC):

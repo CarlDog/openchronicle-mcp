@@ -129,12 +129,8 @@ class KeywordDetector(DetectionComponent):
         confidence = 0.0
 
         # Enhanced NSFW content detection with severity levels
-        explicit_matches = sum(
-            1 for keyword in self.nsfw_explicit if keyword in text_lower
-        )
-        suggestive_matches = sum(
-            1 for keyword in self.nsfw_suggestive if keyword in text_lower
-        )
+        explicit_matches = sum(1 for keyword in self.nsfw_explicit if keyword in text_lower)
+        suggestive_matches = sum(1 for keyword in self.nsfw_suggestive if keyword in text_lower)
         mature_matches = sum(1 for keyword in self.nsfw_mature if keyword in text_lower)
 
         if explicit_matches > 0:
@@ -151,35 +147,26 @@ class KeywordDetector(DetectionComponent):
             confidence = min(0.7, 0.4 + (mature_matches * 0.1))
 
         # Creative content detection
-        creative_matches = sum(
-            1 for keyword in self.creative_keywords if keyword in text_lower
-        )
+        creative_matches = sum(1 for keyword in self.creative_keywords if keyword in text_lower)
         if creative_matches > 0 and content_type == "general":
             content_type = "creative"
             content_flags.append("creative")
             confidence = min(0.8, 0.4 + (creative_matches * 0.1))
 
         # Analysis content detection
-        analysis_matches = sum(
-            1 for keyword in self.analysis_keywords if keyword in text_lower
-        )
+        analysis_matches = sum(1 for keyword in self.analysis_keywords if keyword in text_lower)
         if analysis_matches > 0 and content_type == "general":
             content_type = "analysis"
             content_flags.append("analysis")
             confidence = min(0.7, 0.3 + (analysis_matches * 0.1))
 
         # Action content detection
-        action_matches = sum(
-            1 for keyword in self.action_keywords if keyword in text_lower
-        )
+        action_matches = sum(1 for keyword in self.action_keywords if keyword in text_lower)
         if action_matches > 0:
             content_flags.append("action")
 
         # Dialogue content detection
-        if any(
-            marker in user_input
-            for marker in ['"', "'", "say", "tell", "ask", "whisper", "shout"]
-        ):
+        if any(marker in user_input for marker in ['"', "'", "say", "tell", "ask", "whisper", "shout"]):
             content_flags.append("dialogue")
 
         # Simple/quick response detection
@@ -201,10 +188,7 @@ class KeywordDetector(DetectionComponent):
         lines = content.split("\n")
 
         # Look for simple patterns
-        has_dialogue = any(
-            line.strip().startswith('"') or line.strip().startswith("'")
-            for line in lines
-        )
+        has_dialogue = any(line.strip().startswith('"') or line.strip().startswith("'") for line in lines)
         has_headers = any(line.strip().startswith("#") for line in lines)
         has_markdown = "**" in content or "*" in content or "[" in content
 

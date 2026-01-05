@@ -46,9 +46,7 @@ class AnthropicAdapter(BaseAPIAdapter):
 
             content = response.content[0].text if response.content else ""
             if not content:
-                raise AdapterResponseError(
-                    self.get_provider_name(), "Empty response received from Anthropic"
-                )
+                raise AdapterResponseError(self.get_provider_name(), "Empty response received from Anthropic")
 
             return content.strip()
 
@@ -57,15 +55,11 @@ class AnthropicAdapter(BaseAPIAdapter):
 
             raise AdapterTimeoutError(self.get_provider_name(), self.timeout) from None
         except (KeyError, AttributeError, ValueError, TypeError) as e:
-            raise AdapterResponseError(
-                self.get_provider_name(), f"Malformed response: {e}"
-            ) from e
+            raise AdapterResponseError(self.get_provider_name(), f"Malformed response: {e}") from e
         except Exception as e:
             msg = str(e).lower()
             if "429" in msg or "rate limit" in msg:
                 from ..adapter_exceptions import AdapterRateLimitError
 
                 raise AdapterRateLimitError(self.get_provider_name()) from e
-            raise AdapterResponseError(
-                self.get_provider_name(), f"Anthropic API request failed: {e}"
-            ) from e
+            raise AdapterResponseError(self.get_provider_name(), f"Anthropic API request failed: {e}") from e

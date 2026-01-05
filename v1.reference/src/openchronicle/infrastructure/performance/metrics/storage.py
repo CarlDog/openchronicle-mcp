@@ -181,9 +181,7 @@ class MetricsStorage(IMetricsStorage):
                 "Metrics retrieved",
                 {
                     "count": len(metrics_list),
-                    "start_time": (
-                        query.start_time.isoformat() if query.start_time else None
-                    ),
+                    "start_time": (query.start_time.isoformat() if query.start_time else None),
                     "end_time": query.end_time.isoformat() if query.end_time else None,
                     "adapter_names": query.adapter_names,
                     "operation_types": query.operation_types,
@@ -370,16 +368,8 @@ class MetricsStorage(IMetricsStorage):
                 "file_size_mb": round(file_size_mb, 2),
                 "storage_path": str(self.storage_path),
                 "date_range": {
-                    "earliest": (
-                        datetime.fromtimestamp(date_range[0]).isoformat()
-                        if date_range[0]
-                        else None
-                    ),
-                    "latest": (
-                        datetime.fromtimestamp(date_range[1]).isoformat()
-                        if date_range[1]
-                        else None
-                    ),
+                    "earliest": (datetime.fromtimestamp(date_range[0]).isoformat() if date_range[0] else None),
+                    "latest": (datetime.fromtimestamp(date_range[1]).isoformat() if date_range[1] else None),
                 },
                 "initialized": self._initialized,
             }

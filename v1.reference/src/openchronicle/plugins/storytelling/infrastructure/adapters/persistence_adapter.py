@@ -5,10 +5,12 @@ Implements the IPersistencePort interface for storytelling-specific persistence 
 Bridges between core domain ports and storytelling infrastructure.
 """
 
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 from openchronicle.domain.ports.persistence_port import IPersistencePort
-from openchronicle.shared.logging_system import log_error, log_info
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
 
 
 class StorytellingPersistenceAdapter(IPersistencePort):

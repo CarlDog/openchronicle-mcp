@@ -73,9 +73,7 @@ def get_fts_stats(story_id: str, is_test=None):
 def migrate_from_json(story_id: str):
     """Migrate data from JSON files to database."""
     # Removed from core; handled by plugins
-    raise ImportError(
-        "migrate_from_json is no longer available in core. Use plugin-provided migration managers."
-    )
+    raise ImportError("migrate_from_json is no longer available in core. Use plugin-provided migration managers.")
 
 
 def cleanup_json_files(story_id: str):

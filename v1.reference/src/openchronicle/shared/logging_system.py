@@ -59,11 +59,7 @@ class OpenChronicleLogger:
         import sys
 
         # Check if pytest is running or if we're in a test directory context
-        return (
-            "pytest" in sys.modules
-            or "unittest" in sys.modules
-            or any("test" in module for module in sys.modules)
-        )
+        return "pytest" in sys.modules or "unittest" in sys.modules or any("test" in module for module in sys.modules)
 
     def _setup_logger(self) -> logging.Logger:
         """Set up main application logger with contextual formatting."""
@@ -79,9 +75,7 @@ class OpenChronicleLogger:
 
         console_handler = logging.StreamHandler(sys.stdout)
         console_handler.setLevel(logging.INFO)
-        console_formatter = ContextualFormatter(
-            "%(asctime)s - %(name)s - %(levelname)s%(context_tags)s - %(message)s"
-        )
+        console_formatter = ContextualFormatter("%(asctime)s - %(name)s - %(levelname)s%(context_tags)s - %(message)s")
         console_handler.setFormatter(console_formatter)
         logger.addHandler(console_handler)
 
@@ -94,8 +88,7 @@ class OpenChronicleLogger:
         )
         file_handler.setLevel(logging.INFO)
         file_formatter = ContextualFormatter(
-            "%(asctime)s - %(name)s - %(levelname)s - "
-            "%(funcName)s:%(lineno)d%(context_tags)s - %(message)s"
+            "%(asctime)s - %(name)s - %(levelname)s - " "%(funcName)s:%(lineno)d%(context_tags)s - %(message)s"
         )
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
@@ -119,9 +112,7 @@ class OpenChronicleLogger:
             encoding="utf-8",  # Explicit UTF-8 encoding for Windows compatibility
         )
         maintenance_handler.setLevel(logging.INFO)
-        maintenance_formatter = logging.Formatter(
-            "%(asctime)s - %(levelname)s - %(message)s"
-        )
+        maintenance_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
         maintenance_handler.setFormatter(maintenance_formatter)
         logger.addHandler(maintenance_handler)
 
@@ -137,9 +128,7 @@ class OpenChronicleLogger:
         **kwargs,
     ):
         """Log info message with optional context tags."""
-        self._log_with_context(
-            logging.INFO, message, story_id, scene_id, model, context_tags, **kwargs
-        )
+        self._log_with_context(logging.INFO, message, story_id, scene_id, model, context_tags, **kwargs)
 
     def debug(
         self,
@@ -151,9 +140,7 @@ class OpenChronicleLogger:
         **kwargs,
     ):
         """Log debug message with optional context tags."""
-        self._log_with_context(
-            logging.DEBUG, message, story_id, scene_id, model, context_tags, **kwargs
-        )
+        self._log_with_context(logging.DEBUG, message, story_id, scene_id, model, context_tags, **kwargs)
 
     def warning(
         self,
@@ -165,9 +152,7 @@ class OpenChronicleLogger:
         **kwargs,
     ):
         """Log warning message with optional context tags."""
-        self._log_with_context(
-            logging.WARNING, message, story_id, scene_id, model, context_tags, **kwargs
-        )
+        self._log_with_context(logging.WARNING, message, story_id, scene_id, model, context_tags, **kwargs)
 
     def error(
         self,
@@ -179,9 +164,7 @@ class OpenChronicleLogger:
         **kwargs,
     ):
         """Log error message with optional context tags."""
-        self._log_with_context(
-            logging.ERROR, message, story_id, scene_id, model, context_tags, **kwargs
-        )
+        self._log_with_context(logging.ERROR, message, story_id, scene_id, model, context_tags, **kwargs)
 
     def critical(
         self,
@@ -193,9 +176,7 @@ class OpenChronicleLogger:
         **kwargs,
     ):
         """Log critical message with optional context tags."""
-        self._log_with_context(
-            logging.CRITICAL, message, story_id, scene_id, model, context_tags, **kwargs
-        )
+        self._log_with_context(logging.CRITICAL, message, story_id, scene_id, model, context_tags, **kwargs)
 
     def _log_with_context(
         self,
@@ -271,9 +252,7 @@ class OpenChronicleLogger:
         with open(model_log_path, "a") as f:
             f.write(json.dumps(log_entry) + "\n")
 
-    def log_error_with_context(
-        self, error: Exception, context: dict[str, Any] | None = None
-    ):
+    def log_error_with_context(self, error: Exception, context: dict[str, Any] | None = None):
         """Log error with additional context."""
         error_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -288,13 +267,9 @@ class OpenChronicleLogger:
             f.write(json.dumps(error_entry) + "\n")
 
         # Also log to main logger
-        self.logger.error(
-            f"Error: {error_entry['error_type']}: {error_entry['error_message']}"
-        )
+        self.logger.error(f"Error: {error_entry['error_type']}: {error_entry['error_message']}")
 
-    def log_system_event(
-        self, event_type: str, description: str, data: dict[str, Any] | None = None
-    ):
+    def log_system_event(self, event_type: str, description: str, data: dict[str, Any] | None = None):
         """Log system events (startup, shutdown, configuration changes, etc.)."""
         event_entry = {
             "timestamp": datetime.now().isoformat(),
@@ -321,14 +296,8 @@ class OpenChronicleLogger:
                     file_stat = log_file.stat()
                     stats["files"][log_file.name] = {
                         "size": file_stat.st_size,
-                        "modified": datetime.fromtimestamp(
-                            file_stat.st_mtime
-                        ).isoformat(),
-                        "lines": (
-                            self._count_lines(log_file)
-                            if log_file.suffix in [".log", ".jsonl"]
-                            else 0
-                        ),
+                        "modified": datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
+                        "lines": (self._count_lines(log_file) if log_file.suffix in [".log", ".jsonl"] else 0),
                     }
 
         return stats
@@ -471,9 +440,7 @@ def log_critical(
     )
 
 
-def log_maintenance_action(
-    action: str, details: dict[str, Any] | None = None, status: str = "success"
-):
+def log_maintenance_action(action: str, details: dict[str, Any] | None = None, status: str = "success"):
     """Log maintenance action."""
     get_logger().log_maintenance_action(action, details, status)
 
@@ -486,14 +453,10 @@ def log_model_interaction(
     metadata: dict[str, Any] | None = None,
 ):
     """Log model interaction."""
-    get_logger().log_model_interaction(
-        story_id, model, prompt_length, response_length, metadata
-    )
+    get_logger().log_model_interaction(story_id, model, prompt_length, response_length, metadata)
 
 
-def log_system_event(
-    event_type: str, description: str, data: dict[str, Any] | None = None
-):
+def log_system_event(event_type: str, description: str, data: dict[str, Any] | None = None):
     """Log system event."""
     get_logger().log_system_event(event_type, description, data)
 
@@ -514,6 +477,7 @@ if __name__ == "__main__":
 
     # Show statistics
     from rich.console import Console
+
     stats = logger.get_log_statistics()
     Console().print("Log Statistics:")
     Console().print_json(data=stats)

@@ -41,9 +41,7 @@ class QueryResult:
         self.timestamp = datetime.now()
 
     @classmethod
-    def success(
-        cls, data: Any, message: str = "Query executed successfully"
-    ) -> "QueryResult":
+    def success(cls, data: Any, message: str = "Query executed successfully") -> "QueryResult":
         """Create a successful result."""
         return cls(True, data, message)
 

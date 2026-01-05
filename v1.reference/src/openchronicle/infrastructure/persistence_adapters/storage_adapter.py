@@ -40,9 +40,7 @@ class StorageAdapter(IStoragePort):
                 with open(full_path, "wb") as f:
                     f.write(content)
         except OSError as e:
-            log_error(
-                f"File save error: {e}", context_tags=["storage", "file", "save", "error"]
-            )
+            log_error(f"File save error: {e}", context_tags=["storage", "file", "save", "error"])
             return False
         else:
             return True
@@ -68,9 +66,7 @@ class StorageAdapter(IStoragePort):
             if non_printables > max(3, len(text) * 0.1):
                 return raw
         except OSError as e:
-            log_error(
-                f"File load error: {e}", context_tags=["storage", "file", "load", "error"]
-            )
+            log_error(f"File load error: {e}", context_tags=["storage", "file", "load", "error"])
             return None
         else:
             return text
@@ -82,9 +78,7 @@ class StorageAdapter(IStoragePort):
             if full_path.exists():
                 full_path.unlink()
         except OSError as e:
-            log_error(
-                f"File delete error: {e}", context_tags=["storage", "file", "delete", "error"]
-            )
+            log_error(f"File delete error: {e}", context_tags=["storage", "file", "delete", "error"])
             return False
         else:
             return True
@@ -103,9 +97,7 @@ class StorageAdapter(IStoragePort):
                     files.append(str(rel).replace("\\", "/"))
             return sorted(files)
         except OSError as e:
-            log_error(
-                f"File listing error: {e}", context_tags=["storage", "file", "list", "error"]
-            )
+            log_error(f"File listing error: {e}", context_tags=["storage", "file", "list", "error"])
             return []
 
     def create_directory(self, story_id: str, directory_path: str) -> bool:
@@ -114,9 +106,7 @@ class StorageAdapter(IStoragePort):
             target_path = story_path / directory_path
             target_path.mkdir(parents=True, exist_ok=True)
         except OSError as e:
-            log_error(
-                f"Directory creation error: {e}", context_tags=["storage", "directory", "create", "error"]
-            )
+            log_error(f"Directory creation error: {e}", context_tags=["storage", "directory", "create", "error"])
             return False
         else:
             return True
@@ -138,9 +128,7 @@ class StorageAdapter(IStoragePort):
                 "extension": full_path.suffix,
             }
         except OSError as e:
-            log_error(
-                f"File metadata error: {e}", context_tags=["storage", "file", "metadata", "error"]
-            )
+            log_error(f"File metadata error: {e}", context_tags=["storage", "file", "metadata", "error"])
             return None
 
     def backup_story_files(self, story_id: str, backup_name: str) -> bool:
@@ -148,17 +136,12 @@ class StorageAdapter(IStoragePort):
             story_path = self._get_story_path(story_id)
             backup_dir = self.base_path / "backups" / story_id
             backup_dir.mkdir(parents=True, exist_ok=True)
-            backup_file = (
-                backup_dir
-                / f"{backup_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tar.gz"
-            )
+            backup_file = backup_dir / f"{backup_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.tar.gz"
             with tarfile.open(backup_file, "w:gz") as tar:
                 tar.add(story_path, arcname=story_id)
         except (OSError, tarfile.TarError) as e:
             # Neutral phrasing while keeping context tags for compatibility
-            log_error(
-                f"Unit files backup error: {e}", context_tags=["storage", "unit", "backup", "error"]
-            )
+            log_error(f"Unit files backup error: {e}", context_tags=["storage", "unit", "backup", "error"])
             return False
         else:
             return True
@@ -174,9 +157,7 @@ class StorageAdapter(IStoragePort):
                 tar.extractall(self.base_path)
         except (OSError, tarfile.TarError) as e:
             # Neutral phrasing while keeping context tags for compatibility
-            log_error(
-                f"Unit files restore error: {e}", context_tags=["storage", "unit", "restore", "error"]
-            )
+            log_error(f"Unit files restore error: {e}", context_tags=["storage", "unit", "restore", "error"])
             return False
         else:
             return True

@@ -38,9 +38,7 @@ class IDatabaseOperations(ABC):
         """Create database tables."""
 
     @abstractmethod
-    async def get_character_data(
-        self, db_path: str, character_id: str
-    ) -> dict[str, Any] | None:
+    async def get_character_data(self, db_path: str, character_id: str) -> dict[str, Any] | None:
         """Get character data from database."""
 
 
@@ -77,9 +75,7 @@ class ILifecycleManager(ABC):
     """Interface for adapter lifecycle management."""
 
     @abstractmethod
-    async def initialize_adapter(
-        self, name: str, max_retries: int = 2, graceful_degradation: bool = True
-    ) -> bool:
+    async def initialize_adapter(self, name: str, max_retries: int = 2, graceful_degradation: bool = True) -> bool:
         """Initialize a specific adapter."""
 
     @abstractmethod
@@ -117,9 +113,7 @@ class IModelOrchestrator(ABC):
     """Interface for model orchestration."""
 
     @abstractmethod
-    async def initialize_adapter(
-        self, name: str, max_retries: int = 2, graceful_degradation: bool = True
-    ) -> bool:
+    async def initialize_adapter(self, name: str, max_retries: int = 2, graceful_degradation: bool = True) -> bool:
         """Initialize a specific adapter."""
 
     @abstractmethod
@@ -146,9 +140,7 @@ class IMemoryRepository(ABC):
         """Get character memory data."""
 
     @abstractmethod
-    async def update_character_memory(
-        self, character_id: str, updates: dict[str, Any]
-    ) -> bool:
+    async def update_character_memory(self, character_id: str, updates: dict[str, Any]) -> bool:
         """Update character memory."""
 
 
@@ -160,9 +152,7 @@ class ICharacterManager(ABC):
         """Get character data."""
 
     @abstractmethod
-    def update_character_state(
-        self, character_id: str, updates: dict[str, Any]
-    ) -> bool:
+    def update_character_state(self, character_id: str, updates: dict[str, Any]) -> bool:
         """Update character state."""
 
 
@@ -170,9 +160,7 @@ class IContextBuilder(ABC):
     """Interface for context building."""
 
     @abstractmethod
-    async def build_scene_context(
-        self, story_id: str, scene_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def build_scene_context(self, story_id: str, scene_data: dict[str, Any]) -> dict[str, Any]:
         """Build context for a scene."""
 
 
@@ -184,9 +172,7 @@ class IMemoryOrchestrator(ABC):
         """Get character memory."""
 
     @abstractmethod
-    async def create_scene_context(
-        self, story_id: str, scene_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def create_scene_context(self, story_id: str, scene_data: dict[str, Any]) -> dict[str, Any]:
         """Create scene context."""
 
 
@@ -224,9 +210,7 @@ class IContentAnalyzer(ABC):
     """Interface for content analysis."""
 
     @abstractmethod
-    async def analyze_content(
-        self, content: str, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def analyze_content(self, content: str, context: dict[str, Any]) -> dict[str, Any]:
         """Analyze content and return insights."""
 
 
@@ -234,9 +218,7 @@ class IContextOrchestrator(ABC):
     """Interface for context orchestration."""
 
     @abstractmethod
-    async def build_context_with_analysis(
-        self, content: str, story_id: str
-    ) -> dict[str, Any]:
+    async def build_context_with_analysis(self, content: str, story_id: str) -> dict[str, Any]:
         """Build context with analysis."""
 
 
@@ -249,9 +231,7 @@ class INarrativeOrchestrator(ABC):
     """Interface for narrative orchestration."""
 
     @abstractmethod
-    async def process_narrative_request(
-        self, story_id: str, request: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def process_narrative_request(self, story_id: str, request: dict[str, Any]) -> dict[str, Any]:
         """Process narrative request."""
 
 

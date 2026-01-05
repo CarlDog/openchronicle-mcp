@@ -31,9 +31,7 @@ from ..shared.scene_models import SceneFilter
 class SceneRepository:
     """Handles scene data persistence and retrieval using dependency injection."""
 
-    def __init__(
-        self, story_id: str, persistence_port: Optional[IPersistencePort] = None
-    ):
+    def __init__(self, story_id: str, persistence_port: Optional[IPersistencePort] = None):
         """
         Initialize repository for a specific story.
 
@@ -102,7 +100,7 @@ class SceneRepository:
                 f"Error saving scene {scene_data.scene_id}: {e}",
                 story_id=self.story_id,
                 scene_id=scene_data.scene_id,
-                context_tags=["scene","repository","save","error"],
+                context_tags=["scene", "repository", "save", "error"],
             )
             raise SaveSceneError(str(e)) from e
 
@@ -139,7 +137,7 @@ class SceneRepository:
                 f"Error loading scene {scene_id}: {e}",
                 story_id=self.story_id,
                 scene_id=scene_id,
-                context_tags=["scene","repository","load","error"],
+                context_tags=["scene", "repository", "load", "error"],
             )
             raise LoadSceneError(str(e)) from e
 
@@ -190,7 +188,7 @@ class SceneRepository:
             log_error(
                 f"Error listing scenes: {e}",
                 story_id=self.story_id,
-                context_tags=["scene","repository","list","error"],
+                context_tags=["scene", "repository", "list", "error"],
             )
             raise ListScenesError(str(e)) from e
 
@@ -222,7 +220,7 @@ class SceneRepository:
             log_error(
                 f"Error counting scenes: {e}",
                 story_id=self.story_id,
-                context_tags=["scene","repository","count","error"],
+                context_tags=["scene", "repository", "count", "error"],
             )
             raise CountScenesError(str(e)) from e
 
@@ -250,7 +248,7 @@ class SceneRepository:
                 f"Error deleting scene {scene_id}: {e}",
                 story_id=self.story_id,
                 scene_id=scene_id,
-                context_tags=["scene","repository","delete","error"],
+                context_tags=["scene", "repository", "delete", "error"],
             )
             return False
         else:
@@ -281,7 +279,7 @@ class SceneRepository:
                 f"Error updating scene label for {scene_id}: {e}",
                 story_id=self.story_id,
                 scene_id=scene_id,
-                context_tags=["scene","repository","update_label","error"],
+                context_tags=["scene", "repository", "update_label", "error"],
             )
             return False
         else:
@@ -307,11 +305,7 @@ class SceneRepository:
         memory_snapshot = json.loads(row_dict.get("memory_snapshot", "{}"))
         flags = json.loads(row_dict.get("flags", "[]"))
         context_refs = json.loads(row_dict.get("canon_refs", "[]"))
-        analysis_data = (
-            json.loads(row_dict.get("analysis", "null"))
-            if row_dict.get("analysis")
-            else None
-        )
+        analysis_data = json.loads(row_dict.get("analysis", "null")) if row_dict.get("analysis") else None
 
         return SceneData(
             scene_id=row_dict["scene_id"],

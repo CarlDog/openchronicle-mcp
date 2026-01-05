@@ -170,7 +170,7 @@ class OrchestratorService:
         )
 
         worker_results: list[str] = []
-        for child_task, worker in zip(worker_tasks, workers):
+        for child_task, worker in zip(worker_tasks, workers, strict=False):
             result = await self.execute_task(child_task.id, agent_id=worker.id)
             worker_results.append(result)
             self.emit_event(
@@ -218,5 +218,4 @@ class OrchestratorService:
     def _merge_summaries(self, summaries: list[str]) -> str:
         if not summaries:
             return ""
-        longest = max(summaries, key=lambda s: len(s or ""))
-        return longest
+        return max(summaries, key=lambda s: len(s or ""))

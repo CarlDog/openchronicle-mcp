@@ -39,11 +39,7 @@ class SceneSerializer:
             "canon_refs": scene_data.context_refs,
             "analysis": scene_data.analysis_data,
             "scene_label": scene_data.scene_label,
-            "structured_tags": (
-                scene_data.structured_tags.get_tags()
-                if scene_data.structured_tags
-                else {}
-            ),
+            "structured_tags": (scene_data.structured_tags.get_tags() if scene_data.structured_tags else {}),
         }
 
     def serialize_scene_summary(self, scene_data: SceneData) -> dict[str, Any]:
@@ -61,23 +57,17 @@ class SceneSerializer:
             "timestamp": scene_data.timestamp,
             "scene_label": scene_data.scene_label,
             "input_preview": (
-                scene_data.user_input[:100] + "..."
-                if len(scene_data.user_input) > 100
-                else scene_data.user_input
+                scene_data.user_input[:100] + "..." if len(scene_data.user_input) > 100 else scene_data.user_input
             ),
             "output_preview": (
-                scene_data.model_output[:100] + "..."
-                if len(scene_data.model_output) > 100
-                else scene_data.model_output
+                scene_data.model_output[:100] + "..." if len(scene_data.model_output) > 100 else scene_data.model_output
             ),
             "character_count": len(scene_data.memory_snapshot.get("characters", {})),
             "flags_count": len(scene_data.flags),
             "has_analysis": scene_data.analysis_data is not None,
         }
 
-    def serialize_scenes_list(
-        self, scenes: list[SceneData], summary: bool = False
-    ) -> list[dict[str, Any]]:
+    def serialize_scenes_list(self, scenes: list[SceneData], summary: bool = False) -> list[dict[str, Any]]:
         """
         Serialize a list of scenes.
 
@@ -144,7 +134,7 @@ class SceneSerializer:
 
                 log_error(
                     f"Error deserializing scene {scene_dict.get('scene_id', 'unknown')}: {e}",
-                    context_tags=["scene","serializer","deserialize","error"],
+                    context_tags=["scene", "serializer", "deserialize", "error"],
                 )
                 continue
 

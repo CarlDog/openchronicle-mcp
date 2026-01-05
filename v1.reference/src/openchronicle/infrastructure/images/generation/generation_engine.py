@@ -94,9 +94,7 @@ class GenerationEngine:
     def _save_metadata(self):
         """Save image metadata to JSON file"""
         try:
-            data = {
-                image_id: meta.to_dict() for image_id, meta in self.metadata.items()
-            }
+            data = {image_id: meta.to_dict() for image_id, meta in self.metadata.items()}
 
             with open(self.metadata_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)

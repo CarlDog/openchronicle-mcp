@@ -14,8 +14,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
 
-from openchronicle.shared.exceptions import ModelError
 from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import ModelError
 from openchronicle.shared.retry_policy import RetryPolicy
 
 
@@ -60,7 +60,7 @@ class AIProcessor:
             self.retry_policy = RetryPolicy(
                 max_attempts=self.config.max_retry_attempts,
                 base_delay=self.config.retry_base_delay,
-                retry_exceptions=(Exception,)  # TODO: narrow to specific exceptions
+                retry_exceptions=(Exception,),  # TODO: narrow to specific exceptions
             )
         else:
             self.retry_policy = None
@@ -171,9 +171,7 @@ class AIProcessor:
             from openchronicle.domain.ports.content_analysis_port import IContentAnalysisPort
 
             class MockContentAnalysisPort(IContentAnalysisPort):
-                async def generate_content_flags(
-                    self, analysis: dict[str, Any], content: str
-                ) -> list[dict[str, Any]]:
+                async def generate_content_flags(self, analysis: dict[str, Any], content: str) -> list[dict[str, Any]]:
                     return [{"name": "mock_flag", "value": "test", "type": "content"}]
 
                 async def analyze_content_sentiment(self, content: str) -> dict[str, Any]:
@@ -218,9 +216,7 @@ class AIProcessor:
             analysis_data = await self.analyze_content(content)
 
         if self.content_analysis_port is not None:
-            return await self.content_analysis_port.generate_content_flags(
-                analysis_data, content
-            )
+            return await self.content_analysis_port.generate_content_flags(analysis_data, content)
         else:
             # Fallback
             return [

@@ -53,9 +53,7 @@ class ModelResponseGenerator(IModelResponseGenerator):
         log_info("Initialized ModelResponseGenerator")
 
     @with_error_handling(
-        context=ErrorContext(
-            operation="generate_response", component="ModelResponseGenerator"
-        ),
+        context=ErrorContext(operation="generate_response", component="ModelResponseGenerator"),
         fallback_result=None,
     )
     @secure_operation(
@@ -79,9 +77,7 @@ class ModelResponseGenerator(IModelResponseGenerator):
                 if use_fallback:
                     fallback_chain = self.get_fallback_chain(adapter_name)
                     if fallback_chain:
-                        return await self.generate_with_fallback_chain(
-                            prompt, fallback_chain, model_params
-                        )
+                        return await self.generate_with_fallback_chain(prompt, fallback_chain, model_params)
 
                 raise ModelError(
                     f"Adapter {adapter_name} not available",
@@ -97,25 +93,17 @@ class ModelResponseGenerator(IModelResponseGenerator):
             adapter = self.adapters[adapter_name]
 
             # Generate response
-            response_content = await adapter.generate_response(
-                prompt, **(model_params or {})
-            )
+            response_content = await adapter.generate_response(prompt, **(model_params or {}))
 
             # Record success metrics
             response_time = (datetime.now(UTC) - start_time).total_seconds()
             self.performance_monitor.record_response_time(adapter_name, response_time)
-            self.performance_monitor.record_success(
-                adapter_name, len(prompt), len(response_content)
-            )
+            self.performance_monitor.record_success(adapter_name, len(prompt), len(response_content))
 
             return ModelResponse(
                 content=response_content,
                 adapter_name=adapter_name,
-                model_name=(
-                    adapter.model_name
-                    if hasattr(adapter, "model_name")
-                    else adapter_name
-                ),
+                model_name=(adapter.model_name if hasattr(adapter, "model_name") else adapter_name),
                 metadata=model_params or {},
                 timestamp=datetime.now(UTC),
                 success=True,
@@ -131,19 +119,13 @@ class ModelResponseGenerator(IModelResponseGenerator):
             TypeError,
         ) as e:
             # Record failure metrics
-            self.performance_monitor.record_failure(
-                adapter_name, type(e).__name__, str(e)
-            )
+            self.performance_monitor.record_failure(adapter_name, type(e).__name__, str(e))
 
             if use_fallback:
                 fallback_chain = self.get_fallback_chain(adapter_name)
                 if fallback_chain:
-                    log_warning(
-                        f"Primary adapter {adapter_name} failed, trying fallback: {e}"
-                    )
-                    return await self.generate_with_fallback_chain(
-                        prompt, fallback_chain, model_params
-                    )
+                    log_warning(f"Primary adapter {adapter_name} failed, trying fallback: {e}")
+                    return await self.generate_with_fallback_chain(prompt, fallback_chain, model_params)
 
             raise ModelError(
                 f"Response generation failed: {e}",
@@ -178,9 +160,7 @@ class ModelResponseGenerator(IModelResponseGenerator):
 
         for adapter_name in adapter_chain:
             try:
-                return await self.generate_response(
-                    prompt, adapter_name, model_params, use_fallback=False
-                )
+                return await self.generate_response(prompt, adapter_name, model_params, use_fallback=False)
             except (
                 ModelError,
                 asyncio.TimeoutError,
@@ -204,9 +184,7 @@ class ModelResponseGenerator(IModelResponseGenerator):
             return chain
 
         # Default fallback logic
-        available_adapters = [
-            name for name in self.adapters.keys() if name != adapter_name
-        ]
+        available_adapters = [name for name in self.adapters.keys() if name != adapter_name]
         return available_adapters[:3]  # Limit to 3 fallbacks
 
 
@@ -224,9 +202,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
         log_info("Initialized ModelLifecycleManager")
 
     @with_error_handling(
-        context=ErrorContext(
-            operation="initialize_adapter", component="ModelLifecycleManager"
-        ),
+        context=ErrorContext(operation="initialize_adapter", component="ModelLifecycleManager"),
         fallback_result=False,
     )
     async def initialize_adapter(self, adapter_name: str, max_retries: int = 2) -> bool:
@@ -244,9 +220,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
 
                 # Initialize adapter (this would be adapter-specific logic)
                 # For now, we'll simulate initialization
-                log_info(
-                    f"Initializing adapter {adapter_name} (attempt {attempt + 1}/{max_retries + 1})"
-                )
+                log_info(f"Initializing adapter {adapter_name} (attempt {attempt + 1}/{max_retries + 1})")
 
                 # Simulate adapter initialization
                 await asyncio.sleep(0.1)  # Simulated initialization time
@@ -262,9 +236,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
                 log_info(f"Successfully initialized adapter {adapter_name}")
 
             except (ImportError, ModuleNotFoundError) as e:
-                log_warning(
-                    f"Adapter module unavailable for {adapter_name} (attempt {attempt + 1}): {e}"
-                )
+                log_warning(f"Adapter module unavailable for {adapter_name} (attempt {attempt + 1}): {e}")
                 if attempt == max_retries:
                     self.adapter_health[adapter_name] = {
                         "status": "failed",
@@ -275,12 +247,10 @@ class ModelLifecycleManager(IModelLifecycleManager):
                     return False
                 await asyncio.sleep(1.0 * (attempt + 1))  # Exponential backoff
             except (ValueError, TypeError, AttributeError) as e:
-                log_warning(
-                    f"Configuration error for adapter {adapter_name} (attempt {attempt + 1}): {e}"
-                )
+                log_warning(f"Configuration error for adapter {adapter_name} (attempt {attempt + 1}): {e}")
                 if attempt == max_retries:
                     self.adapter_health[adapter_name] = {
-                        "status": "failed", 
+                        "status": "failed",
                         "last_check": datetime.now(UTC),
                         "error_count": attempt + 1,
                         "last_error": f"Configuration error: {str(e)}",
@@ -288,9 +258,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
                     return False
                 await asyncio.sleep(1.0 * (attempt + 1))
             except Exception as e:
-                log_warning(
-                    f"Unexpected error initializing adapter {adapter_name} (attempt {attempt + 1}): {e}"
-                )
+                log_warning(f"Unexpected error initializing adapter {adapter_name} (attempt {attempt + 1}): {e}")
                 if attempt == max_retries:
                     self.adapter_health[adapter_name] = {
                         "status": "failed",
@@ -308,9 +276,7 @@ class ModelLifecycleManager(IModelLifecycleManager):
     async def initialize_all_adapters(self, max_concurrent: int = 3) -> dict[str, bool]:
         """Initialize all configured adapters with concurrency control."""
         available_configs = self.config_manager.get_available_models()
-        enabled_adapters = [
-            name for name, config in available_configs.items() if config.enabled
-        ]
+        enabled_adapters = [name for name, config in available_configs.items() if config.enabled]
 
         results = {}
         semaphore = asyncio.Semaphore(max_concurrent)
@@ -497,14 +463,19 @@ class ModelOrchestrator(IModelOrchestrator):
             class MockRegistryPort(IRegistryPort):
                 def get_provider_config(self, provider_name: str):
                     return {"enabled": True, "models": []}
+
                 def list_providers(self):
                     return ["mock_provider"]
+
                 def validate_config(self, provider_name: str, config: dict):
                     return True
+
                 def register_provider(self, provider_name: str, config: dict):
                     return True
+
                 def update_provider_config(self, provider_name: str, config: dict):
                     return True
+
                 def discover_providers(self) -> dict[str, list[dict[str, Any]]]:
                     return {"mock_provider": [{"name": "mock_model", "type": "text"}]}
 
@@ -516,14 +487,10 @@ class ModelOrchestrator(IModelOrchestrator):
         # VIOLATION FIXED: Use dependency injection instead
         from .model_interfaces import ModelInterfaceFactory
 
-        performance_monitor = ModelInterfaceFactory.create_performance_monitor(
-            self._init_config
-        )
+        performance_monitor = ModelInterfaceFactory.create_performance_monitor(self._init_config)
 
         # Create segregated components
-        self._response_generator = ModelResponseGenerator(
-            self.adapters, config_manager, performance_monitor
-        )
+        self._response_generator = ModelResponseGenerator(self.adapters, config_manager, performance_monitor)
         self._lifecycle_manager = ModelLifecycleManager(self.adapters, config_manager)
         self._configuration_manager = config_manager
         self._performance_monitor = performance_monitor
@@ -555,9 +522,7 @@ class ModelOrchestrator(IModelOrchestrator):
         return self._performance_monitor
 
     # Convenience methods that delegate to appropriate interfaces
-    async def generate_response(
-        self, prompt: str, adapter_name: str = None, context=None, **kwargs
-    ) -> ModelResponse:
+    async def generate_response(self, prompt: str, adapter_name: str = None, context=None, **kwargs) -> ModelResponse:
         """Convenience method for response generation."""
         # If no adapter specified, use default
         if not adapter_name:
@@ -577,9 +542,7 @@ class ModelOrchestrator(IModelOrchestrator):
             enhanced_prompt = prompt
 
         try:
-            return await self._response_generator.generate_response(
-                enhanced_prompt, adapter_name, **kwargs
-            )
+            return await self._response_generator.generate_response(enhanced_prompt, adapter_name, **kwargs)
         except ModelError as e:
             # If adapter not available, provide mock response for tests
             if "not available" in str(e) or "Adapter" in str(e):
@@ -615,6 +578,7 @@ class ModelOrchestrator(IModelOrchestrator):
     def get_adapter_status(self, adapter_name: str) -> AdapterStatus:
         """Convenience method for adapter status."""
         import asyncio
+
         try:
             loop = asyncio.get_running_loop()
         except RuntimeError:
@@ -660,11 +624,7 @@ class ModelOrchestrator(IModelOrchestrator):
     @property
     def config(self) -> dict[str, Any]:
         """Access to configuration."""
-        return (
-            self._configuration_manager.config
-            if hasattr(self._configuration_manager, "config")
-            else {}
-        )
+        return self._configuration_manager.config if hasattr(self._configuration_manager, "config") else {}
 
     @property
     def default_adapter(self) -> str:
@@ -701,11 +661,7 @@ class ModelOrchestrator(IModelOrchestrator):
                 "name": status.name,
                 "available": status.is_available,
                 "healthy": status.is_healthy,
-                "last_check": (
-                    status.last_health_check.isoformat()
-                    if status.last_health_check
-                    else None
-                ),
+                "last_check": (status.last_health_check.isoformat() if status.last_health_check else None),
                 "error_count": status.error_count,
                 "success_count": status.success_count,
                 "average_response_time": status.average_response_time,
@@ -733,9 +689,7 @@ class ModelOrchestrator(IModelOrchestrator):
             # Fallback to basic initialization
             return True
 
-    async def process_request_dict(
-        self, request_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def process_request_dict(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """Process request with dict format - common interface method."""
         prompt = request_data.get("prompt", "")
         adapter = request_data.get("adapter")

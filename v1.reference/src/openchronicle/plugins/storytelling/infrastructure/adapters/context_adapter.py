@@ -8,7 +8,9 @@ decoupled from core infrastructure.
 from typing import Any
 
 from openchronicle.domain.ports.context_port import IContextPort
-from openchronicle.shared.logging_system import log_error, log_info, log_warning
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
+from openchronicle.shared.logging_system import log_warning
 
 
 class StorytellingContextAdapter(IContextPort):

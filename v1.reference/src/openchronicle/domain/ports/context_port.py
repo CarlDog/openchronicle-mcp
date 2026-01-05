@@ -14,9 +14,7 @@ class IContextPort(ABC):
     """Interface for context building operations."""
 
     @abstractmethod
-    async def build_context_with_analysis(
-        self, user_input: str, story_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def build_context_with_analysis(self, user_input: str, story_data: dict[str, Any]) -> dict[str, Any]:
         """
         Build context with intelligent analysis.
 
@@ -29,9 +27,7 @@ class IContextPort(ABC):
         """
 
     @abstractmethod
-    async def build_basic_context(
-        self, user_input: str, story_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def build_basic_context(self, user_input: str, story_data: dict[str, Any]) -> dict[str, Any]:
         """
         Build basic context without analysis.
 
@@ -44,9 +40,7 @@ class IContextPort(ABC):
         """
 
     @abstractmethod
-    async def extract_context_metadata(
-        self, context: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def extract_context_metadata(self, context: dict[str, Any]) -> dict[str, Any]:
         """
         Extract metadata from context.
 

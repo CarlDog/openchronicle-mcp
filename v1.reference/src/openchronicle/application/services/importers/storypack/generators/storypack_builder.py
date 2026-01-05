@@ -16,8 +16,8 @@ from typing import Any
 from openchronicle.application.services.importers.storypack.interfaces import ContentFile
 from openchronicle.application.services.importers.storypack.interfaces import ImportContext
 from openchronicle.application.services.importers.storypack.interfaces import IStorypackBuilder
-from openchronicle.shared.exceptions import InfrastructureError
 from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import InfrastructureError
 from openchronicle.shared.exceptions import ValidationError
 from openchronicle.shared.logging_system import get_logger
 from openchronicle.shared.logging_system import log_system_event
@@ -81,21 +81,15 @@ class StorypackBuilder(IStorypackBuilder):
             )
 
         except (OSError, IOError, PermissionError) as e:
-            self.logger.exception(
-                "File system error creating storypack structure at"
-            )
+            self.logger.exception("File system error creating storypack structure at")
             raise InfrastructureError(f"Failed to create storypack structure: {e}") from e
         except Exception as e:
-            self.logger.exception(
-                "Unexpected error creating storypack structure at"
-            )
+            self.logger.exception("Unexpected error creating storypack structure at")
             raise ApplicationError(f"Unexpected storypack creation failure: {e}") from e
         else:
             return storypack_path
 
-    def generate_metadata_file(
-        self, context: ImportContext, content_summary: dict[str, Any]
-    ) -> dict[str, Any]:
+    def generate_metadata_file(self, context: ImportContext, content_summary: dict[str, Any]) -> dict[str, Any]:
         """
         Generate the meta.json file for the storypack.
 
@@ -120,9 +114,7 @@ class StorypackBuilder(IStorypackBuilder):
                 "import_timestamp": datetime.now(UTC).isoformat(),
                 "total_files_imported": content_summary.get("total_files", 0),
                 "ai_processing_used": context.ai_available,
-                "content_categories": list(
-                    content_summary.get("files_by_category", {}).keys()
-                ),
+                "content_categories": list(content_summary.get("files_by_category", {}).keys()),
             },
             "content_stats": {
                 "total_files": content_summary.get("total_files", 0),
@@ -202,9 +194,7 @@ class StorypackBuilder(IStorypackBuilder):
             for content_file in files:
                 try:
                     # Generate target filename
-                    target_filename = self._generate_target_filename(
-                        content_file, target_dir
-                    )
+                    target_filename = self._generate_target_filename(content_file, target_dir)
                     target_file_path = target_dir / target_filename
 
                     # Copy file with content processing
@@ -213,20 +203,14 @@ class StorypackBuilder(IStorypackBuilder):
                     organized_files[category].append(target_file_path)
 
                 except (OSError, IOError, PermissionError) as e:
-                    self.logger.exception(
-                        f"File system error organizing file {content_file.path}"
-                    )
+                    self.logger.exception(f"File system error organizing file {content_file.path}")
                     continue
                 except Exception as e:
-                    self.logger.exception(
-                        f"Unexpected error organizing file {content_file.path}"
-                    )
+                    self.logger.exception(f"Unexpected error organizing file {content_file.path}")
                     continue
 
         # Remove empty categories from result
-        organized_files = {
-            cat: files for cat, files in organized_files.items() if files
-        }
+        organized_files = {cat: files for cat, files in organized_files.items() if files}
 
         log_system_event(
             "storypack_builder",
@@ -234,9 +218,7 @@ class StorypackBuilder(IStorypackBuilder):
             {
                 "target_path": str(target_path),
                 "categories_organized": list(organized_files.keys()),
-                "total_files_organized": sum(
-                    len(files) for files in organized_files.values()
-                ),
+                "total_files_organized": sum(len(files) for files in organized_files.values()),
             },
         )
 
@@ -251,13 +233,9 @@ class StorypackBuilder(IStorypackBuilder):
             with open(readme_path, "w", encoding="utf-8") as f:
                 f.write(readme_content)
         except (OSError, IOError, PermissionError) as e:
-            self.logger.warning(
-                f"File system error creating directory README for {category}: {e}"
-            )
+            self.logger.warning(f"File system error creating directory README for {category}: {e}")
         except Exception as e:
-            self.logger.warning(
-                f"Unexpected error creating directory README for {category}: {e}"
-            )
+            self.logger.warning(f"Unexpected error creating directory README for {category}: {e}")
 
     def _create_main_readme(self, storypack_path: Path, context: ImportContext) -> None:
         """Create the main README file for the storypack."""
@@ -421,22 +399,16 @@ Narrative files can include:
 """,
         }
 
-        return content_descriptions.get(
-            category, f"# {category.title()}\n\nContent files for {category}."
-        )
+        return content_descriptions.get(category, f"# {category.title()}\n\nContent files for {category}.")
 
-    def _generate_target_filename(
-        self, content_file: ContentFile, target_dir: Path
-    ) -> str:
+    def _generate_target_filename(self, content_file: ContentFile, target_dir: Path) -> str:
         """Generate an appropriate filename for the target location."""
         original_name = content_file.path.stem
         original_extension = content_file.path.suffix
 
         # Clean up the filename
         clean_name = original_name.replace(" ", "_").replace("-", "_")
-        clean_name = "".join(
-            c for c in clean_name if c.isalnum() or c in ["_", "."]
-        ).lower()
+        clean_name = "".join(c for c in clean_name if c.isalnum() or c in ["_", "."]).lower()
 
         # Ensure it's not empty
         if not clean_name:
@@ -472,42 +444,28 @@ Narrative files can include:
 
         except (OSError, IOError, PermissionError) as e:
             # If processing fails due to file system issues, fall back to direct copy
-            self.logger.warning(
-                f"File system error during content processing for {source_path}, copying directly: {e}"
-            )
+            self.logger.warning(f"File system error during content processing for {source_path}, copying directly: {e}")
             try:
                 shutil.copy2(source_path, target_path)
             except (OSError, IOError, PermissionError) as copy_error:
-                self.logger.exception(
-                    f"File system error copying {source_path} to"
-                )
+                self.logger.exception(f"File system error copying {source_path} to")
                 raise InfrastructureError(f"Failed to copy file: {copy_error}") from copy_error
             except Exception as copy_error:
-                self.logger.exception(
-                    f"Unexpected error copying {source_path} to"
-                )
+                self.logger.exception(f"Unexpected error copying {source_path} to")
                 raise ApplicationError(f"Unexpected file copy failure: {copy_error}") from copy_error
         except Exception as e:
             # If processing fails for other reasons, fall back to direct copy
-            self.logger.warning(
-                f"Unexpected error during content processing for {source_path}, copying directly: {e}"
-            )
+            self.logger.warning(f"Unexpected error during content processing for {source_path}, copying directly: {e}")
             try:
                 shutil.copy2(source_path, target_path)
             except (OSError, IOError, PermissionError) as copy_error:
-                self.logger.exception(
-                    f"File system error copying {source_path} to"
-                )
+                self.logger.exception(f"File system error copying {source_path} to")
                 raise InfrastructureError(f"Failed to copy file: {copy_error}") from copy_error
             except Exception as copy_error:
-                self.logger.exception(
-                    f"Unexpected error copying {source_path} to"
-                )
+                self.logger.exception(f"Unexpected error copying {source_path} to")
                 raise ApplicationError(f"Unexpected file copy failure: {copy_error}") from copy_error
 
-    def _convert_to_json_format(
-        self, content: str, source_path: Path
-    ) -> dict[str, Any]:
+    def _convert_to_json_format(self, content: str, source_path: Path) -> dict[str, Any]:
         """Convert content to standardized JSON format."""
         # If already JSON, parse and return
         if source_path.suffix.lower() == ".json":
@@ -544,9 +502,7 @@ Narrative files can include:
         headers = header_pattern.findall(content)
 
         for level_hashes, title in headers:
-            structure["headers"].append(
-                {"level": len(level_hashes), "title": title.strip()}
-            )
+            structure["headers"].append({"level": len(level_hashes), "title": title.strip()})
 
         # Extract metadata-like fields (key: value patterns)
         metadata_pattern = re.compile(r"^\*\*([^*]+)\*\*:\s*(.+)$", re.MULTILINE)

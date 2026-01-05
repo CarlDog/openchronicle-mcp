@@ -43,9 +43,7 @@ class CharacterBehaviorEngine:
             self.behavior_providers.remove(provider)
             logger.info(f"Unregistered behavior provider: {provider.__class__.__name__}")
 
-    def generate_behavior_context(
-        self, character_id: str, situation_type: str = "general"
-    ) -> dict[str, Any]:
+    def generate_behavior_context(self, character_id: str, situation_type: str = "general") -> dict[str, Any]:
         """Generate comprehensive behavior context for character."""
         context = {
             "character_id": character_id,
@@ -57,29 +55,19 @@ class CharacterBehaviorEngine:
         # Gather context from all behavior providers
         for provider in self.behavior_providers:
             try:
-                provider_context = provider.get_behavior_context(
-                    character_id, situation_type
-                )
+                provider_context = provider.get_behavior_context(character_id, situation_type)
                 context.update(provider_context)
                 logger.debug(f"Added context from {provider.__class__.__name__}")
             except (AttributeError, KeyError) as e:
-                logger.exception(
-                    f"Provider data structure error in {provider.__class__.__name__}"
-                )
+                logger.exception(f"Provider data structure error in {provider.__class__.__name__}")
             except (ValueError, TypeError) as e:
-                logger.exception(
-                    f"Provider parameter error in {provider.__class__.__name__}"
-                )
+                logger.exception(f"Provider parameter error in {provider.__class__.__name__}")
             except Exception as e:
-                logger.exception(
-                    f"Error getting behavior context from {provider.__class__.__name__}"
-                )
+                logger.exception(f"Error getting behavior context from {provider.__class__.__name__}")
 
         return context
 
-    def generate_response_modifiers(
-        self, character_id: str, content_type: str = "dialogue"
-    ) -> dict[str, Any]:
+    def generate_response_modifiers(self, character_id: str, content_type: str = "dialogue") -> dict[str, Any]:
         """Generate response modifiers for character content generation."""
         modifiers = {
             "character_id": character_id,
@@ -90,29 +78,19 @@ class CharacterBehaviorEngine:
         # Gather modifiers from all behavior providers
         for provider in self.behavior_providers:
             try:
-                provider_modifiers = provider.generate_response_modifiers(
-                    character_id, content_type
-                )
+                provider_modifiers = provider.generate_response_modifiers(character_id, content_type)
                 modifiers.update(provider_modifiers)
                 logger.debug(f"Added modifiers from {provider.__class__.__name__}")
             except (AttributeError, KeyError) as e:
-                logger.exception(
-                    f"Provider data structure error in {provider.__class__.__name__}"
-                )
+                logger.exception(f"Provider data structure error in {provider.__class__.__name__}")
             except (ValueError, TypeError) as e:
-                logger.exception(
-                    f"Provider parameter error in {provider.__class__.__name__}"
-                )
+                logger.exception(f"Provider parameter error in {provider.__class__.__name__}")
             except Exception as e:
-                logger.exception(
-                    f"Error getting response modifiers from {provider.__class__.__name__}"
-                )
+                logger.exception(f"Error getting response modifiers from {provider.__class__.__name__}")
 
         return modifiers
 
-    def adapt_character_style(
-        self, character_id: str, adaptation_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def adapt_character_style(self, character_id: str, adaptation_data: dict[str, Any]) -> dict[str, Any]:
         """
         Adapt character style based on story context and interactions.
 

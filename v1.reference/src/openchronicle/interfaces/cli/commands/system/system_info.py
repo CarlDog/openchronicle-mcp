@@ -44,7 +44,8 @@ class SystemInfoCommand(SystemCommand):
                 "timestamp": datetime.now().isoformat(),
                 "uptime": None,  # TODO: Track application uptime
                 "memory_usage": dict(psutil.virtual_memory()._asdict()),
-                "disk_usage": dict(psutil.disk_usage("/")._asdict()) if platform.system() != "Windows"
+                "disk_usage": dict(psutil.disk_usage("/")._asdict())
+                if platform.system() != "Windows"
                 else dict(psutil.disk_usage("C:\\")._asdict()),
                 "cpu_count": psutil.cpu_count(),
                 "cpu_usage": psutil.cpu_percent(interval=1),
@@ -66,6 +67,7 @@ class SystemInfoCommand(SystemCommand):
         """Get list of installed Python packages."""
         try:
             import pkg_resources
+
             return [f"{pkg.project_name}=={pkg.version}" for pkg in pkg_resources.working_set]
         except ImportError:
             return ["Unable to list packages - pkg_resources not available"]
@@ -84,8 +86,7 @@ def system_info(
         "-f",
         help="Output format (table, json, yaml)",
     ),
-    save_to: str
-    | None = typer.Option(
+    save_to: str | None = typer.Option(
         None,
         "--save",
         "-s",
@@ -104,6 +105,7 @@ def system_info(
         elif output_format == "yaml":
             try:
                 import yaml
+
                 output = yaml.dump(info, default_flow_style=False)
             except ImportError:
                 output_manager.error("YAML output requires PyYAML package")

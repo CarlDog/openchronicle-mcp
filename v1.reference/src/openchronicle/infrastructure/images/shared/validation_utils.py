@@ -37,9 +37,7 @@ class ImageValidator:
             issues.append("Prompt too short (min 3 characters)")
 
         # Check for potentially problematic content
-        if any(
-            word in request.prompt.lower() for word in ["nsfw", "explicit", "graphic"]
-        ):
+        if any(word in request.prompt.lower() for word in ["nsfw", "explicit", "graphic"]):
             issues.append("Prompt may contain inappropriate content")
 
         # Validate provider compatibility
@@ -49,9 +47,7 @@ class ImageValidator:
                 ImageSize.PORTRAIT_512,
                 ImageSize.LANDSCAPE_768,
             ]:
-                issues.append(
-                    f"OpenAI DALL-E does not support size {request.size.value}"
-                )
+                issues.append(f"OpenAI DALL-E does not support size {request.size.value}")
 
         # Validate style parameter
         if request.style and len(request.style) > 200:
@@ -96,9 +92,7 @@ class ImageValidator:
         if not metadata.image_id:
             issues.append("Image ID is required")
         elif not re.match(r"^[a-zA-Z0-9_-]+$", metadata.image_id):
-            issues.append(
-                "Image ID must contain only alphanumeric characters, underscores, and hyphens"
-            )
+            issues.append("Image ID must contain only alphanumeric characters, underscores, and hyphens")
 
         if not metadata.prompt:
             issues.append("Prompt is required in metadata")
@@ -109,9 +103,7 @@ class ImageValidator:
         if not metadata.file_path:
             issues.append("File path is required in metadata")
         elif not os.path.exists(metadata.file_path):
-            issues.append(
-                f"Metadata references non-existent file: {metadata.file_path}"
-            )
+            issues.append(f"Metadata references non-existent file: {metadata.file_path}")
 
         # Validate timestamp format
         try:
@@ -131,9 +123,7 @@ class ImageValidator:
         return issues
 
     @staticmethod
-    def validate_file_path(
-        file_path: str, create_dirs: bool = False
-    ) -> tuple[bool, str | None]:
+    def validate_file_path(file_path: str, create_dirs: bool = False) -> tuple[bool, str | None]:
         """Validate a file path for image storage"""
         try:
             path = Path(file_path)
@@ -221,9 +211,7 @@ class ImageValidator:
         prompt_lower = prompt.lower()
         for keyword in unsafe_keywords:
             if keyword in prompt_lower:
-                warnings.append(
-                    f"Prompt contains potentially unsafe keyword: '{keyword}'"
-                )
+                warnings.append(f"Prompt contains potentially unsafe keyword: '{keyword}'")
 
         # Check for very long prompts that might be problematic
         if len(prompt) > 1000:
@@ -238,9 +226,7 @@ class ImageValidator:
         return is_safe, warnings
 
     @staticmethod
-    def validate_storage_space(
-        directory: str, required_mb: float = 50.0
-    ) -> tuple[bool, str | None]:
+    def validate_storage_space(directory: str, required_mb: float = 50.0) -> tuple[bool, str | None]:
         """Check if there's enough storage space for image generation"""
         try:
             import shutil

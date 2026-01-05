@@ -285,9 +285,7 @@ class ValidationBase:
     """Base validation patterns used across narrative components."""
 
     @staticmethod
-    def validate_required_fields(
-        data: dict[str, Any], required_fields: list[str]
-    ) -> ValidationResult:
+    def validate_required_fields(data: dict[str, Any], required_fields: list[str]) -> ValidationResult:
         """Validate required fields are present."""
         missing_fields = [field for field in required_fields if field not in data]
 
@@ -300,14 +298,10 @@ class ValidationBase:
                 recommendations=[f"Add {field} to data" for field in missing_fields],
             )
 
-        return ValidationResult(
-            is_valid=True, confidence=1.0, validation_type="required_fields"
-        )
+        return ValidationResult(is_valid=True, confidence=1.0, validation_type="required_fields")
 
     @staticmethod
-    def validate_data_types(
-        data: dict[str, Any], type_specs: dict[str, type]
-    ) -> ValidationResult:
+    def validate_data_types(data: dict[str, Any], type_specs: dict[str, type]) -> ValidationResult:
         """Validate data types match specifications."""
         issues = []
 
@@ -315,10 +309,7 @@ class ValidationBase:
             if field in data:
                 value = data[field]
                 if not isinstance(value, expected_type):
-                    issues.append(
-                        f"Field '{field}' should be {expected_type.__name__}, "
-                        f"got {type(value).__name__}"
-                    )
+                    issues.append(f"Field '{field}' should be {expected_type.__name__}, " f"got {type(value).__name__}")
 
         if issues:
             return ValidationResult(
@@ -328,14 +319,10 @@ class ValidationBase:
                 issues=issues,
             )
 
-        return ValidationResult(
-            is_valid=True, confidence=1.0, validation_type="data_types"
-        )
+        return ValidationResult(is_valid=True, confidence=1.0, validation_type="data_types")
 
     @staticmethod
-    def validate_ranges(
-        data: dict[str, Any], range_specs: dict[str, tuple[float, float]]
-    ) -> ValidationResult:
+    def validate_ranges(data: dict[str, Any], range_specs: dict[str, tuple[float, float]]) -> ValidationResult:
         """Validate numeric values are within specified ranges."""
         issues = []
 
@@ -344,14 +331,9 @@ class ValidationBase:
                 value = data[field]
                 if isinstance(value, (int, float)):
                     if value < min_val or value > max_val:
-                        issues.append(
-                            f"Field '{field}' value {value} outside range "
-                            f"[{min_val}, {max_val}]"
-                        )
+                        issues.append(f"Field '{field}' value {value} outside range " f"[{min_val}, {max_val}]")
 
         if issues:
-            return ValidationResult(
-                is_valid=False, confidence=0.5, validation_type="ranges", issues=issues
-            )
+            return ValidationResult(is_valid=False, confidence=0.5, validation_type="ranges", issues=issues)
 
         return ValidationResult(is_valid=True, confidence=1.0, validation_type="ranges")

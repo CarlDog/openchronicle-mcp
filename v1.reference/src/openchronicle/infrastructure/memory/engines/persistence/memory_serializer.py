@@ -74,9 +74,7 @@ class MemorySerializer:
 
             # Deserialize characters
             if "characters" in validated_data:
-                memory.characters = self._deserialize_characters(
-                    validated_data["characters"]
-                )
+                memory.characters = self._deserialize_characters(validated_data["characters"])
 
             # Deserialize world state
             if "world_state" in validated_data:
@@ -88,9 +86,7 @@ class MemorySerializer:
 
             # Deserialize recent events
             if "recent_events" in validated_data:
-                memory.recent_events = self._deserialize_events(
-                    validated_data["recent_events"]
-                )
+                memory.recent_events = self._deserialize_events(validated_data["recent_events"])
 
             # Deserialize metadata
             if "metadata" in validated_data:
@@ -120,9 +116,7 @@ class MemorySerializer:
 
             # Validate mood history length
             if len(character.mood_history) > 20:
-                warnings.append(
-                    f"Character {char_name} mood history too long, truncating"
-                )
+                warnings.append(f"Character {char_name} mood history too long, truncating")
                 character.mood_history = character.mood_history[-20:]
                 corrected_fields.append(f"{char_name}.mood_history")
 
@@ -143,9 +137,7 @@ class MemorySerializer:
             corrected_fields=corrected_fields,
         )
 
-    def _serialize_characters(
-        self, characters: dict[str, CharacterMemory]
-    ) -> dict[str, Any]:
+    def _serialize_characters(self, characters: dict[str, CharacterMemory]) -> dict[str, Any]:
         """Serialize characters dictionary."""
         result = {}
         for name, character in characters.items():
@@ -177,9 +169,7 @@ class MemorySerializer:
             }
         return result
 
-    def _deserialize_characters(
-        self, data: dict[str, Any]
-    ) -> dict[str, CharacterMemory]:
+    def _deserialize_characters(self, data: dict[str, Any]) -> dict[str, CharacterMemory]:
         """Deserialize characters with error handling."""
         characters = {}
         for name, char_data in data.items():
@@ -190,9 +180,7 @@ class MemorySerializer:
                 characters[name] = CharacterMemory(name=name)
         return characters
 
-    def _deserialize_single_character(
-        self, name: str, data: dict[str, Any]
-    ) -> CharacterMemory:
+    def _deserialize_single_character(self, name: str, data: dict[str, Any]) -> CharacterMemory:
         """Deserialize single character with validation."""
         # Mood history
         mood_history = []
@@ -235,10 +223,7 @@ class MemorySerializer:
 
     def _serialize_flags(self, flags: list[MemoryFlag]) -> list[dict[str, Any]]:
         """Serialize memory flags."""
-        return [
-            {"name": flag.name, "created": flag.created.isoformat(), "data": flag.data}
-            for flag in flags
-        ]
+        return [{"name": flag.name, "created": flag.created.isoformat(), "data": flag.data} for flag in flags]
 
     def _deserialize_flags(self, data: list[dict[str, Any]]) -> list[MemoryFlag]:
         """Deserialize memory flags with error handling."""

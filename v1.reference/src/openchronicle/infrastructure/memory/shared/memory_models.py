@@ -126,14 +126,9 @@ class CharacterMemory:
             "personality": self.personality,
             "background": self.background,
             "current_mood": self.current_mood,
-            "mood_history": [
-                entry.__dict__ if hasattr(entry, "__dict__") else entry
-                for entry in self.mood_history
-            ],
+            "mood_history": [entry.__dict__ if hasattr(entry, "__dict__") else entry for entry in self.mood_history],
             "voice_profile": (
-                self.voice_profile.__dict__
-                if hasattr(self.voice_profile, "__dict__")
-                else self.voice_profile
+                self.voice_profile.__dict__ if hasattr(self.voice_profile, "__dict__") else self.voice_profile
             ),
             "relationships": self.relationships,
             "arc_progress": self.arc_progress,
@@ -216,12 +211,11 @@ class MemoryState:
     world_state: dict[str, Any] = field(default_factory=dict)
     flags: list[MemoryFlag] = field(default_factory=list)
     recent_events: list[RecentEvent] = field(default_factory=list)
-    metadata: MemoryMetadata = field(
-        default_factory=lambda: MemoryMetadata(last_updated=datetime.now(UTC))
-    )
+    metadata: MemoryMetadata = field(default_factory=lambda: MemoryMetadata(last_updated=datetime.now(UTC)))
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
+
         def _serialize_dt(val: Any) -> Any:
             if isinstance(val, datetime):
                 return val.isoformat()
@@ -236,10 +230,9 @@ class MemoryState:
             "flags": [
                 {
                     "name": getattr(flag, "name", flag.get("name") if isinstance(flag, dict) else ""),
-                    "created": _serialize_dt(getattr(
-                        flag, "created",
-                        flag.get("created") if isinstance(flag, dict) else datetime.now(UTC)
-                    )),
+                    "created": _serialize_dt(
+                        getattr(flag, "created", flag.get("created") if isinstance(flag, dict) else datetime.now(UTC))
+                    ),
                     "data": getattr(flag, "data", flag.get("data") if isinstance(flag, dict) else None),
                 }
                 for flag in self.flags
@@ -247,10 +240,9 @@ class MemoryState:
             "recent_events": [
                 {
                     "description": getattr(evt, "description", evt.get("description") if isinstance(evt, dict) else ""),
-                    "timestamp": _serialize_dt(getattr(
-                        evt, "timestamp",
-                        evt.get("timestamp") if isinstance(evt, dict) else datetime.now(UTC)
-                    )),
+                    "timestamp": _serialize_dt(
+                        getattr(evt, "timestamp", evt.get("timestamp") if isinstance(evt, dict) else datetime.now(UTC))
+                    ),
                     "data": getattr(evt, "data", evt.get("data") if isinstance(evt, dict) else {}),
                 }
                 for evt in self.recent_events
@@ -275,7 +267,7 @@ class MemorySnapshot:
     created_at: datetime
     # Use string composition to avoid guardrail keyword match while preserving value
     # Compose default to avoid literal keyword while keeping value
-    snapshot_type: str = ("sc" + "ene")
+    snapshot_type: str = "sc" + "ene"
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "MemorySnapshot":
@@ -299,9 +291,7 @@ class MemorySnapshot:
                 flags=memory_state.get("flags", []),
             )
         elif memory_state is None:
-            memory_state = MemoryState(
-                characters={}, world_state={}, recent_events=[], flags=[]
-            )
+            memory_state = MemoryState(characters={}, world_state={}, recent_events=[], flags=[])
 
         return cls(
             story_id=data.get("story_id", ""),

@@ -5,7 +5,8 @@ This module provides command-line interfaces for interactive storytelling
 and story management. It serves as the CLI interface layer in the hexagonal architecture.
 """
 
-from openchronicle.infrastructure.bootstrap import build_facade, get_facade
+from openchronicle.infrastructure.bootstrap import build_facade
+from openchronicle.infrastructure.bootstrap import get_facade
 
 
 def _facade(name="story"):

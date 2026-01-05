@@ -170,9 +170,7 @@ class ConnectionManager:
         """Get connection statistics."""
         return {
             "active_connections": len(self.active_connections),
-            "total_subscriptions": sum(
-                len(subs) for subs in self.subscriptions.values()
-            ),
+            "total_subscriptions": sum(len(subs) for subs in self.subscriptions.values()),
             "connections": {
                 client_id: {
                     "subscriptions": [et.value for et in subs],
@@ -228,9 +226,7 @@ class EventBus:
         # Broadcast to WebSocket clients
         await self.connection_manager.broadcast(event)
 
-    def get_recent_events(
-        self, event_types: list[EventType] | None = None, limit: int = 50
-    ) -> list[Event]:
+    def get_recent_events(self, event_types: list[EventType] | None = None, limit: int = 50) -> list[Event]:
         """Get recent events, optionally filtered by type."""
         events = self.event_history
 
@@ -261,9 +257,7 @@ class BackgroundTaskManager:
 
         # Start periodic tasks
         self.add_periodic_task("heartbeat", self._heartbeat_task, interval=30)
-        self.add_periodic_task(
-            "memory_cleanup", self._memory_cleanup_task, interval=300
-        )
+        self.add_periodic_task("memory_cleanup", self._memory_cleanup_task, interval=300)
         self.add_periodic_task("health_check", self._health_check_task, interval=60)
 
     async def stop(self):
@@ -282,9 +276,7 @@ class BackgroundTaskManager:
         self.tasks.clear()
         self.periodic_tasks.clear()
 
-    def add_periodic_task(
-        self, task_id: str, coro_func: Callable, interval: int, immediate: bool = False
-    ):
+    def add_periodic_task(self, task_id: str, coro_func: Callable, interval: int, immediate: bool = False):
         """Add a periodic background task."""
         if task_id in self.periodic_tasks:
             return  # Task already exists
@@ -458,9 +450,7 @@ class EventApplication:
 
     def __init__(self):
         # Create default infrastructure configuration
-        config = InfrastructureConfig(
-            storage_backend="filesystem", storage_path="storage", cache_type="memory"
-        )
+        config = InfrastructureConfig(storage_backend="filesystem", storage_path="storage", cache_type="memory")
         self.infrastructure = InfrastructureContainer(config)
         self.app_facade = None
         self.connection_manager = ConnectionManager()
@@ -554,13 +544,9 @@ def create_event_app() -> FastAPI:
                 ]
 
             # Connect client
-            actual_client_id = await event_app.connection_manager.connect(
-                websocket, client_id, subscriptions
-            )
+            actual_client_id = await event_app.connection_manager.connect(websocket, client_id, subscriptions)
 
-            print(
-                f"Client {actual_client_id} connected with subscriptions: {[s.value for s in subscriptions]}"
-            )
+            print(f"Client {actual_client_id} connected with subscriptions: {[s.value for s in subscriptions]}")
 
             # Keep connection alive and handle incoming messages
             while True:
@@ -605,15 +591,11 @@ def create_event_app() -> FastAPI:
             "background_tasks": {
                 task_id: {
                     "interval": info["interval"],
-                    "last_run": (
-                        info["last_run"].isoformat() if info["last_run"] else None
-                    ),
+                    "last_run": (info["last_run"].isoformat() if info["last_run"] else None),
                     "run_count": info["run_count"],
                 }
                 for task_id, info in (
-                    event_app.background_manager.periodic_tasks.items()
-                    if event_app.background_manager
-                    else {}
+                    event_app.background_manager.periodic_tasks.items() if event_app.background_manager else {}
                 ).items()
             },
         }

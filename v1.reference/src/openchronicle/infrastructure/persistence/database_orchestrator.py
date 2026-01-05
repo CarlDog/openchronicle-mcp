@@ -13,7 +13,8 @@ from .connection import ConnectionManager
 from .fts import FTSManager
 from .health_checker import DatabaseHealthChecker
 from .operations import get_operations_registry
-from .shared import DatabaseConfig, DatabaseStats
+from .shared import DatabaseConfig
+from .shared import DatabaseStats
 
 
 class DatabaseOrchestrator:
@@ -62,9 +63,7 @@ class DatabaseOrchestrator:
 
     def migrate_from_json(self, story_id: str) -> bool:  # noqa: ARG002
         """DEPRECATED: Migrate data using backward compatibility function."""
-        raise ImportError(
-            "migrate_from_json is no longer available in core. Use plugin-provided migration managers."
-        )
+        raise ImportError("migrate_from_json is no longer available in core. Use plugin-provided migration managers.")
 
     @property
     def health_checker(self) -> DatabaseHealthChecker:
@@ -187,9 +186,7 @@ class DatabaseOrchestrator:
 
         with self.connection_manager.get_connection(story_id, is_test) as conn:
             cur = conn.cursor()
-            tables = cur.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;"
-            ).fetchall()
+            tables = cur.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;").fetchall()
             stats = DatabaseStats()
             stats.total_tables = len(tables)
             stats.database_path = self.connection_manager.get_db_path(story_id, is_test)

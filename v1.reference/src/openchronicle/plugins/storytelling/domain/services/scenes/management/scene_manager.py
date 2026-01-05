@@ -71,7 +71,7 @@ class SceneManager:
                     f"Target scene {scene_id} not found",
                     story_id=self.story_id,
                     scene_id=scene_id,
-                    context_tags=["scene","rollback","not_found"],
+                    context_tags=["scene", "rollback", "not_found"],
                 )
                 return False
 
@@ -95,7 +95,7 @@ class SceneManager:
                     f"No scenes to rollback after {scene_id}",
                     story_id=self.story_id,
                     scene_id=scene_id,
-                    context_tags=["scene","rollback","no_op"],
+                    context_tags=["scene", "rollback", "no_op"],
                 )
                 return True  # Nothing to rollback, but operation successful
 
@@ -120,7 +120,7 @@ class SceneManager:
                 f"Rollback successful: removed {len(scenes_to_remove)} scenes after {scene_id}",
                 story_id=self.story_id,
                 scene_id=scene_id,
-                context_tags=["scene","rollback","success"],
+                context_tags=["scene", "rollback", "success"],
             )
 
         except (RuntimeError, ValueError, KeyError, TypeError) as e:  # narrowed
@@ -128,7 +128,7 @@ class SceneManager:
                 f"Error rolling back to scene {scene_id}: {e}",
                 story_id=self.story_id,
                 scene_id=scene_id,
-                context_tags=["scene","rollback","error"],
+                context_tags=["scene", "rollback", "error"],
             )
             raise RollbackSceneError(str(e)) from e
         else:
@@ -175,13 +175,12 @@ class SceneManager:
                         "scene_id": scene["scene_id"],
                         "timestamp": scene["timestamp"],
                         "scene_label": scene.get("scene_label"),
-                        "content_length": scene["input_length"]
-                        + scene["output_length"],
+                        "content_length": scene["input_length"] + scene["output_length"],
                     }
                     for scene in scenes_to_remove
                 ],
                 "warning": f"This will permanently delete {len(scenes_to_remove)} scenes "
-                          f"created after the target scene.",
+                f"created after the target scene.",
             }
 
         except (RuntimeError, ValueError, KeyError, TypeError) as e:
@@ -213,9 +212,7 @@ class SceneManager:
                     {
                         "type": "empty_content",
                         "count": len(empty_scenes),
-                        "scenes": [
-                            scene["scene_id"] for scene in empty_scenes[:5]
-                        ],  # Show first 5
+                        "scenes": [scene["scene_id"] for scene in empty_scenes[:5]],  # Show first 5
                         "description": "Scenes with missing input or output content",
                     }
                 )
@@ -235,9 +232,7 @@ class SceneManager:
                     {
                         "type": "invalid_timestamps",
                         "count": len(invalid_timestamps),
-                        "scenes": [
-                            scene["scene_id"] for scene in invalid_timestamps[:5]
-                        ],
+                        "scenes": [scene["scene_id"] for scene in invalid_timestamps[:5]],
                         "description": "Scenes with missing or invalid timestamps",
                     }
                 )
@@ -361,12 +356,8 @@ class SceneManager:
                     }
                     for scene in referencing_scenes
                 ],
-                "bookmarks": [
-                    {"bookmark_id": bm["bookmark_id"], "label": bm["label"]}
-                    for bm in bookmark_references
-                ],
-                "has_dependencies": len(referencing_scenes) > 0
-                or len(bookmark_references) > 0,
+                "bookmarks": [{"bookmark_id": bm["bookmark_id"], "label": bm["label"]} for bm in bookmark_references],
+                "has_dependencies": len(referencing_scenes) > 0 or len(bookmark_references) > 0,
             }
 
         except (RuntimeError, ValueError, KeyError, TypeError) as e:

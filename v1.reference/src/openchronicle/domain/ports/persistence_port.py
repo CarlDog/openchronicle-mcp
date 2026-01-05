@@ -15,9 +15,7 @@ class IPersistencePort(ABC):
     """Interface for persistence operations."""
 
     @abstractmethod
-    def execute_query(
-        self, story_id: str, query: str, params: Optional[dict[str, Any]] = None
-    ) -> list[dict[str, Any]]:
+    def execute_query(self, story_id: str, query: str, params: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
         """
         Execute a database query.
 
@@ -31,9 +29,7 @@ class IPersistencePort(ABC):
         """
 
     @abstractmethod
-    def execute_update(
-        self, story_id: str, query: str, params: Optional[dict[str, Any]] = None
-    ) -> bool:
+    def execute_update(self, story_id: str, query: str, params: Optional[dict[str, Any]] = None) -> bool:
         """
         Execute a database update operation.
 

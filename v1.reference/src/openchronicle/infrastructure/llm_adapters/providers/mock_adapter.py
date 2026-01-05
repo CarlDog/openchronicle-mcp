@@ -236,9 +236,7 @@ class MockAdapter:
         # Detect content type
         if any(word in prompt_lower for word in ["continue", "content", "compose"]):
             context["type"] = "content_continuation"
-        elif any(
-            word in prompt_lower for word in ["entity", "dialogue", "said", "speak"]
-        ):
+        elif any(word in prompt_lower for word in ["entity", "dialogue", "said", "speak"]):
             context["type"] = "entity_interaction"
 
         # Extract participant mentions
@@ -248,9 +246,7 @@ class MockAdapter:
 
         return context
 
-    async def _generate_contextual_response(
-        self, context: dict[str, Any], prompt: str
-    ) -> str:
+    async def _generate_contextual_response(self, context: dict[str, Any], prompt: str) -> str:
         """Generate response based on analyzed context."""
         response_type = context["type"]
 

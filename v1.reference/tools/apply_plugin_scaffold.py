@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-import shutil, sys
+import shutil
+import sys
 from pathlib import Path
+
 
 def main():
     import argparse
+
     ap = argparse.ArgumentParser(description="Apply storytelling plugin scaffold (safe in-memory adapters)")
     ap.add_argument("--repo-root", default=".", help="Repository root")
     ap.add_argument("--dry-run", action="store_true", help="Preview without writing")
@@ -29,6 +32,7 @@ def main():
             continue
         out.write_text(p.read_text(encoding="utf-8"), encoding="utf-8")
         print(f"[WRITE] {out.relative_to(ROOT)}")
+
 
 if __name__ == "__main__":
     main()

@@ -20,15 +20,11 @@ class MockPerformanceMonitor(IModelPerformanceMonitor):
         """Record response time for performance tracking."""
         pass
 
-    def record_success(
-        self, adapter_name: str, prompt_length: int, response_length: int
-    ) -> None:
+    def record_success(self, adapter_name: str, prompt_length: int, response_length: int) -> None:
         """Record successful operation metrics."""
         pass
 
-    def record_failure(
-        self, adapter_name: str, error_type: str, error_message: str
-    ) -> None:
+    def record_failure(self, adapter_name: str, error_type: str, error_message: str) -> None:
         """Record failure metrics for analysis."""
         pass
 
@@ -44,15 +40,11 @@ class MockPerformanceMonitor(IModelPerformanceMonitor):
         """Get success rate for adapter in time window."""
         return 1.0
 
-    def get_average_response_time(
-        self, adapter_name: str, window_hours: int = 24
-    ) -> float:
+    def get_average_response_time(self, adapter_name: str, window_hours: int = 24) -> float:
         """Get average response time for adapter in time window."""
         return 0.1
 
-    def get_error_analysis(
-        self, adapter_name: str, window_hours: int = 24
-    ) -> dict[str, Any]:
+    def get_error_analysis(self, adapter_name: str, window_hours: int = 24) -> dict[str, Any]:
         """Get error analysis for adapter in time window."""
         return {"errors": [], "error_rate": 0.0, "most_common_error": None}
 

@@ -237,9 +237,7 @@ class RegistryManager:
                     # Content-driven processing: use "provider" field, not filename
                     provider_name = model_config.get("provider")
                     if not provider_name:
-                        log_warning(
-                            f"Config file {json_file} missing 'provider' field, skipping"
-                        )
+                        log_warning(f"Config file {json_file} missing 'provider' field, skipping")
                         continue
 
                     # Group models by provider
@@ -417,9 +415,7 @@ class RegistryManager:
 
             # Check if file already exists
             if config_path.exists():
-                log_warning(
-                    f"Configuration file {config_path} already exists, will overwrite"
-                )
+                log_warning(f"Configuration file {config_path} already exists, will overwrite")
 
             # Save configuration to file
             with open(config_path, "w", encoding="utf-8") as f:
@@ -428,9 +424,7 @@ class RegistryManager:
             # Re-discover providers to include new configuration
             self.discover_providers()
 
-            log_system_event(
-                "model_config_added", f"Added model configuration: {config_name}"
-            )
+            log_system_event("model_config_added", f"Added model configuration: {config_name}")
         except (OSError, SchemaValidationError, TypeError, ValueError) as e:
             log_error(
                 f"Failed to add model configuration {config_name}: {e}",
@@ -463,9 +457,7 @@ class RegistryManager:
             # Re-discover providers to update internal state
             self.discover_providers()
 
-            log_system_event(
-                "model_config_removed", f"Removed model configuration: {config_name}"
-            )
+            log_system_event("model_config_removed", f"Removed model configuration: {config_name}")
         except OSError as e:
             log_error(
                 f"Failed to remove model configuration {config_name}: {e}",
@@ -519,9 +511,7 @@ class RegistryManager:
             global_settings = self.global_settings.get("global_settings", {})
             if global_settings.get("enable_fallbacks", True):
                 # Add all enabled providers as ultimate fallbacks (excluding primary)
-                enabled_providers = [
-                    p for p in self.get_enabled_providers() if p != provider_name
-                ]
+                enabled_providers = [p for p in self.get_enabled_providers() if p != provider_name]
                 for provider in enabled_providers:
                     if provider not in fallback_chain:
                         fallback_chain.append(provider)

@@ -37,16 +37,9 @@ def database_optimize(
         "-d",
         help="Show what would be optimized without making changes",
     ),
-    target: str
-    | None = typer.Option(
-        None, "--target", "-t", help="Specific database file to optimize"
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Show detailed optimization progress"
-    ),
-    analyze_only: bool = typer.Option(
-        False, "--analyze", "-a", help="Only analyze databases, don't optimize"
-    ),
+    target: str | None = typer.Option(None, "--target", "-t", help="Specific database file to optimize"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show detailed optimization progress"),
+    analyze_only: bool = typer.Option(False, "--analyze", "-a", help="Only analyze databases, don't optimize"),
 ):
     """
     Optimize SQLite databases for better performance.
@@ -76,13 +69,9 @@ def database_optimize(
 
         console.print("🗄️  [bold blue]Database Optimization[/bold blue]")
         if dry_run:
-            console.print(
-                "   🏃 [yellow]Dry Run Mode - No changes will be made[/yellow]"
-            )
+            console.print("   🏃 [yellow]Dry Run Mode - No changes will be made[/yellow]")
         elif analyze_only:
-            console.print(
-                "   🔍 [blue]Analysis Mode - No optimization will be performed[/blue]"
-            )
+            console.print("   🔍 [blue]Analysis Mode - No optimization will be performed[/blue]")
         console.print()
 
         with Progress(
@@ -150,33 +139,17 @@ def database_optimize(
                         _format_file_size(size_before),
                         _format_file_size(size_after),
                         _format_file_size(space_saved),
-                        status
+                        status,
                     )
 
                 except (OSError, IOError, PermissionError) as e:
-                    table.add_row(
-                        str(db_path.name),
-                        "Unknown",
-                        "Unknown",
-                        "0 B",
-                        f"❌ File Error: {str(e)[:30]}..."
-                    )
+                    table.add_row(str(db_path.name), "Unknown", "Unknown", "0 B", f"❌ File Error: {str(e)[:30]}...")
                 except (ValueError, TypeError) as e:
                     table.add_row(
-                        str(db_path.name),
-                        "Unknown",
-                        "Unknown",
-                        "0 B",
-                        f"❌ Parameter Error: {str(e)[:30]}..."
+                        str(db_path.name), "Unknown", "Unknown", "0 B", f"❌ Parameter Error: {str(e)[:30]}..."
                     )
                 except Exception as e:
-                    table.add_row(
-                        str(db_path.name),
-                        "Unknown",
-                        "Unknown",
-                        "0 B",
-                        f"❌ Error: {str(e)[:30]}..."
-                    )
+                    table.add_row(str(db_path.name), "Unknown", "Unknown", "0 B", f"❌ Error: {str(e)[:30]}...")
 
             console.print(table)
             console.print(f"\n📈 Summary: {optimized_count} database(s) processed")
@@ -202,17 +175,10 @@ def database_optimize(
 
 @database_app.command("health")
 def database_health(
-    target: str
-    | None = typer.Option(None, "--target", "-t", help="Specific database to check"),
-    detailed: bool = typer.Option(
-        False, "--detailed", "-d", help="Show detailed health information"
-    ),
-    fix_issues: bool = typer.Option(
-        False, "--fix", "-f", help="Attempt to fix detected issues"
-    ),
-    output_format: str = typer.Option(
-        "table", "--format", help="Output format (table, json)"
-    ),
+    target: str | None = typer.Option(None, "--target", "-t", help="Specific database to check"),
+    detailed: bool = typer.Option(False, "--detailed", "-d", help="Show detailed health information"),
+    fix_issues: bool = typer.Option(False, "--fix", "-f", help="Attempt to fix detected issues"),
+    output_format: str = typer.Option("table", "--format", help="Output format (table, json)"),
 ):
     """
     Check database health and integrity.
@@ -284,7 +250,7 @@ def database_health(
                         "integrity": "OK",
                         "performance": "Good",
                         "issues": [],
-                        "status": "Healthy"
+                        "status": "Healthy",
                     }
 
                     # Simulate some checks
@@ -295,29 +261,20 @@ def database_health(
                     health_results.append(health_result)
 
                 except (OSError, IOError, PermissionError) as e:
-                    health_results.append({
-                        "database": str(db_path.name),
-                        "status": "File Access Error",
-                        "error": str(e)
-                    })
+                    health_results.append(
+                        {"database": str(db_path.name), "status": "File Access Error", "error": str(e)}
+                    )
                 except (ValueError, TypeError) as e:
-                    health_results.append({
-                        "database": str(db_path.name),
-                        "status": "Parameter Error",
-                        "error": str(e)
-                    })
+                    health_results.append({"database": str(db_path.name), "status": "Parameter Error", "error": str(e)})
                 except Exception as e:
-                    health_results.append({
-                        "database": str(db_path.name),
-                        "status": "Error",
-                        "error": str(e)
-                    })
+                    health_results.append({"database": str(db_path.name), "status": "Error", "error": str(e)})
 
                 progress.advance(task)
 
         # Display results
         if output_format == "json":
             import json
+
             console.print(json.dumps(health_results, indent=2))
         else:
             table = Table(title="Database Health Report")
@@ -330,14 +287,7 @@ def database_health(
 
             for result in health_results:
                 if "error" in result:
-                    table.add_row(
-                        result["database"],
-                        "Unknown",
-                        "Unknown",
-                        "Unknown",
-                        result["error"],
-                        "❌ Error"
-                    )
+                    table.add_row(result["database"], "Unknown", "Unknown", "Unknown", result["error"], "❌ Error")
                 else:
                     table.add_row(
                         result["database"],
@@ -345,7 +295,7 @@ def database_health(
                         result["integrity"],
                         result["performance"],
                         ", ".join(result["issues"]) if result["issues"] else "None",
-                        "✅ " + result["status"] if result["status"] == "Healthy" else "⚠️ " + result["status"]
+                        "✅ " + result["status"] if result["status"] == "Healthy" else "⚠️ " + result["status"],
                     )
 
             console.print(table)
@@ -370,7 +320,7 @@ def _format_file_size(size_bytes: int) -> str:
     if size_bytes == 0:
         return "0 B"
 
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+    for unit in ["B", "KB", "MB", "GB", "TB"]:
         if size_bytes < 1024.0:
             return f"{size_bytes:.1f} {unit}"
         size_bytes /= 1024.0

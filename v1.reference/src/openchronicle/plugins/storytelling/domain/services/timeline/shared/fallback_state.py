@@ -21,16 +21,12 @@ class FallbackStateManager:
 
         self.story_id = story_id
 
-    async def create_rollback_point(
-        self, scene_id: str, description: str = "Manual rollback point"
-    ) -> dict[str, Any]:
+    async def create_rollback_point(self, scene_id: str, description: str = "Manual rollback point") -> dict[str, Any]:
         """Create basic rollback point with limited functionality."""
         try:
             self.persistence_port.init_database(self.story_id)
 
-            rollback_id = (
-                f"fallback_{scene_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
-            )
+            rollback_id = f"fallback_{scene_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
 
             self.persistence_port.execute_update(
                 self.story_id,

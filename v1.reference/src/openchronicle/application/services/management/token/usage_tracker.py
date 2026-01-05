@@ -109,16 +109,10 @@ class UsageTracker:
 
         # Add session summary
         detailed_stats["session_summary"] = {
-            "start_time": min(
-                record.timestamp for record in self.usage_records
-            ).isoformat(),
-            "end_time": max(
-                record.timestamp for record in self.usage_records
-            ).isoformat(),
+            "start_time": min(record.timestamp for record in self.usage_records).isoformat(),
+            "end_time": max(record.timestamp for record in self.usage_records).isoformat(),
             "duration_minutes": self._calculate_session_duration(),
-            "unique_models": len(
-                set(record.model_name for record in self.usage_records)
-            ),
+            "unique_models": len(set(record.model_name for record in self.usage_records)),
         }
 
         return detailed_stats
@@ -131,9 +125,7 @@ class UsageTracker:
         model_records = [r for r in self.usage_records if r.model_name == model_name]
         return StatisticsCalculator.calculate_token_stats(model_records)
 
-    def get_recent_usage(
-        self, model_name: str, limit: int = 10
-    ) -> list[dict[str, Any]]:
+    def get_recent_usage(self, model_name: str, limit: int = 10) -> list[dict[str, Any]]:
         """Get recent usage records for a model."""
         cache_key = f"recent_{model_name}"
         recent = self.cache.get(cache_key) or []
@@ -141,16 +133,12 @@ class UsageTracker:
 
     def get_cost_analysis(self) -> dict[str, Any]:
         """Get detailed cost analysis."""
-        total_cost = sum(
-            self.model_stats[model]["total_cost"] for model in self.model_stats
-        )
+        total_cost = sum(self.model_stats[model]["total_cost"] for model in self.model_stats)
 
         if total_cost == 0:
             return {"total_cost": 0, "cost_by_model": {}, "recommendations": []}
 
-        cost_by_model = {
-            model: stats["total_cost"] for model, stats in self.model_stats.items()
-        }
+        cost_by_model = {model: stats["total_cost"] for model, stats in self.model_stats.items()}
 
         # Sort by cost (highest first)
         sorted_costs = sorted(cost_by_model.items(), key=lambda x: x[1], reverse=True)
@@ -159,16 +147,12 @@ class UsageTracker:
         if len(sorted_costs) > 1:
             highest_cost_model, highest_cost = sorted_costs[0]
             if highest_cost > total_cost * 0.5:  # If one model is >50% of costs
-                recommendations.append(
-                    f"Consider reducing usage of {highest_cost_model} (${highest_cost:.4f})"
-                )
+                recommendations.append(f"Consider reducing usage of {highest_cost_model} (${highest_cost:.4f})")
 
         return {
             "total_cost": total_cost,
             "cost_by_model": cost_by_model,
-            "cost_distribution": [
-                (model, cost / total_cost) for model, cost in sorted_costs
-            ],
+            "cost_distribution": [(model, cost / total_cost) for model, cost in sorted_costs],
             "recommendations": recommendations,
         }
 
@@ -239,9 +223,7 @@ class CostCalculator:
         custom_rates: dict[str, float] | None = None,
     ) -> float:
         """Estimate cost for estimated token usage."""
-        return self.calculate_cost(
-            model_name, estimated_tokens // 2, estimated_tokens // 2, custom_rates
-        )
+        return self.calculate_cost(model_name, estimated_tokens // 2, estimated_tokens // 2, custom_rates)
 
     def get_cost_comparison(
         self,
@@ -250,10 +232,7 @@ class CostCalculator:
         custom_rates: dict[str, float] | None = None,
     ) -> dict[str, float]:
         """Compare costs across multiple models for the same token count."""
-        return {
-            model: self.estimate_cost(model, token_count, custom_rates)
-            for model in models
-        }
+        return {model: self.estimate_cost(model, token_count, custom_rates) for model in models}
 
 
 class UsageRecommender:
@@ -278,9 +257,7 @@ class UsageRecommender:
             current_cost = costs.get(current_model, float("inf"))
 
             cheaper_models = [
-                model
-                for model, cost in costs.items()
-                if cost < current_cost * 0.5 and model != current_model
+                model for model, cost in costs.items() if cost < current_cost * 0.5 and model != current_model
             ]
 
             if cheaper_models:
@@ -290,9 +267,7 @@ class UsageRecommender:
 
         if usage_pattern.get("frequent_truncation", False):
             # Recommend models with higher token limits (would need model capability data)
-            log_warning(
-                "Frequent truncation detected - consider upgrading to higher-capacity model"
-            )
+            log_warning("Frequent truncation detected - consider upgrading to higher-capacity model")
 
         if usage_pattern.get("low_usage", False):
             # Recommend cheaper models for light usage

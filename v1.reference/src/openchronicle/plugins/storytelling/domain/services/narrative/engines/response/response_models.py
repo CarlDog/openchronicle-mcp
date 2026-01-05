@@ -60,12 +60,8 @@ class ContextAnalysis:
 
     # Analysis results
     confidence: float = 0.0  # Confidence in analysis (0-1)
-    key_elements: list[str] = field(
-        default_factory=list
-    )  # Important context elements identified
-    missing_elements: list[str] = field(
-        default_factory=list
-    )  # Important elements that are missing
+    key_elements: list[str] = field(default_factory=list)  # Important context elements identified
+    missing_elements: list[str] = field(default_factory=list)  # Important elements that are missing
     recommendations: list[str] = field(default_factory=list)  # Analysis recommendations
 
 
@@ -82,12 +78,8 @@ class ResponsePlan:
     # Planning details
     estimated_length: int = 0  # Estimated response length
     key_points: list[str] = field(default_factory=list)  # Key points to address
-    context_integration: dict[str, Any] = field(
-        default_factory=dict
-    )  # How to integrate context
-    quality_targets: dict[str, float] = field(
-        default_factory=dict
-    )  # Quality metrics to target
+    context_integration: dict[str, Any] = field(default_factory=dict)  # How to integrate context
+    quality_targets: dict[str, float] = field(default_factory=dict)  # Quality metrics to target
 
 
 @dataclass
@@ -122,12 +114,8 @@ class ResponseMetrics:
 
     # Usage statistics
     responses_generated: int = 0  # Total responses generated
-    strategies_used: dict[str, int] = field(
-        default_factory=dict
-    )  # Strategy usage counts
-    context_types_handled: dict[str, int] = field(
-        default_factory=dict
-    )  # Context type counts
+    strategies_used: dict[str, int] = field(default_factory=dict)  # Strategy usage counts
+    context_types_handled: dict[str, int] = field(default_factory=dict)  # Context type counts
 
 
 @dataclass

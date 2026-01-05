@@ -6,6 +6,7 @@ Neutral terminology is used in comments/docstrings. To preserve backward
 compatibility, legacy file names are constructed at runtime without embedding
 those words directly in source.
 """
+
 import asyncio
 import json
 import os
@@ -43,12 +44,12 @@ class PersistenceAdapter(IPersistencePort):
             # Legacy names retained; semantic meaning is frame list
             scenes_file = story_path / ("sc" + "enes.json")
             if not scenes_file.exists():
-                scenes_file.write_text("[]", encoding='utf-8')
+                scenes_file.write_text("[]", encoding="utf-8")
 
             # Legacy name retained; semantic meaning is unit sequence
             timeline_file = story_path / ("time" + "line.json")
             if not timeline_file.exists():
-                timeline_file.write_text("[]", encoding='utf-8')
+                timeline_file.write_text("[]", encoding="utf-8")
 
         except (OSError, IOError, PermissionError) as e:
             print(f"File system error initializing unit database for {story_id}: {e}")
@@ -118,7 +119,7 @@ class PersistenceAdapter(IPersistencePort):
             scenes_file = story_path / ("sc" + "enes.json")
 
             if scenes_file.exists():
-                scenes = json.loads(scenes_file.read_text(encoding='utf-8'))
+                scenes = json.loads(scenes_file.read_text(encoding="utf-8"))
                 return scenes[-limit:] if scenes else []
 
         except (OSError, IOError, PermissionError) as e:
@@ -140,9 +141,9 @@ class PersistenceAdapter(IPersistencePort):
             scenes_file = story_path / ("sc" + "enes.json")
 
             if scenes_file.exists():
-                scenes = json.loads(scenes_file.read_text(encoding='utf-8'))
+                scenes = json.loads(scenes_file.read_text(encoding="utf-8"))
                 for frame in scenes:
-                    if frame.get('id') == scene_id:
+                    if frame.get("id") == scene_id:
                         return frame
 
         except (OSError, IOError, PermissionError) as e:
@@ -164,14 +165,14 @@ class PersistenceAdapter(IPersistencePort):
             scenes_file = story_path / ("sc" + "enes.json")
 
             if scenes_file.exists():
-                scenes = json.loads(scenes_file.read_text(encoding='utf-8'))
+                scenes = json.loads(scenes_file.read_text(encoding="utf-8"))
 
                 for frame in scenes:
-                    if frame.get('id') == scene_id:
+                    if frame.get("id") == scene_id:
                         frame.update(state_data)
                         break
 
-                scenes_file.write_text(json.dumps(scenes, indent=2), encoding='utf-8')
+                scenes_file.write_text(json.dumps(scenes, indent=2), encoding="utf-8")
                 return True
 
         except (OSError, IOError, PermissionError) as e:
@@ -194,7 +195,7 @@ class PersistenceAdapter(IPersistencePort):
         try:
             scenes_file = story_path / ("sc" + "enes.json")
             if scenes_file.exists():
-                return json.loads(scenes_file.read_text(encoding='utf-8'))
+                return json.loads(scenes_file.read_text(encoding="utf-8"))
 
         except (OSError, IOError, PermissionError) as e:
             print(f"File system error querying frames: {e}")
@@ -213,7 +214,7 @@ class PersistenceAdapter(IPersistencePort):
         try:
             timeline_file = story_path / ("time" + "line.json")
             if timeline_file.exists():
-                return json.loads(timeline_file.read_text(encoding='utf-8'))
+                return json.loads(timeline_file.read_text(encoding="utf-8"))
 
         except (OSError, IOError, PermissionError) as e:
             print(f"File system error querying sequence: {e}")

@@ -26,19 +26,13 @@ class FTSManager:
         """Check if SQLite supports FTS5."""
         try:
             with sqlite3.connect(":memory:") as conn:
-                context = SecurityContext(
-                    operation="fts5_check", component="FTSManager"
-                )
+                context = SecurityContext(operation="fts5_check", component="FTSManager")
                 query = "CREATE VIRTUAL TABLE test_fts USING fts5(content)"
 
                 # Validate the query
-                validation_result = self.sql_validator.validate_sql_query(
-                    query, context
-                )
+                validation_result = self.sql_validator.validate_sql_query(query, context)
                 if not validation_result.is_valid:
-                    log_warning(
-                        f"FTS5 check query validation failed: {validation_result.error_message}"
-                    )
+                    log_warning(f"FTS5 check query validation failed: {validation_result.error_message}")
                     return False
 
                 cursor = conn.cursor()
@@ -55,9 +49,7 @@ class FTSManager:
 
         try:
             with self.connection_manager.get_connection(story_id, is_test) as conn:
-                context = SecurityContext(
-                    operation="optimize_fts", component="FTSManager", user_id=story_id
-                )
+                context = SecurityContext(operation="optimize_fts", component="FTSManager", user_id=story_id)
 
                 # Get list of FTS tables using secure query execution
                 list_query = """
@@ -65,9 +57,7 @@ class FTSManager:
                     WHERE type='table' AND name LIKE '%_fts'
                 """
 
-                cursor = self.sql_validator.execute_safe_query(
-                    conn, list_query, (), context
-                )
+                cursor = self.sql_validator.execute_safe_query(conn, list_query, (), context)
                 fts_tables = [row[0] for row in cursor.fetchall()]
 
                 # Optimize each FTS table
@@ -78,18 +68,12 @@ class FTSManager:
                             log_warning(f"Invalid FTS table name skipped: {table}")
                             continue
 
-                        optimize_query = (
-                            f"INSERT INTO {table}({table}) VALUES('optimize')"
-                        )
+                        optimize_query = f"INSERT INTO {table}({table}) VALUES('optimize')"
 
                         # Validate and execute optimization query
-                        validation_result = self.sql_validator.validate_sql_query(
-                            optimize_query, context
-                        )
+                        validation_result = self.sql_validator.validate_sql_query(optimize_query, context)
                         if validation_result.is_valid:
-                            self.sql_validator.execute_safe_query(
-                                conn, optimize_query, (), context
-                            )
+                            self.sql_validator.execute_safe_query(conn, optimize_query, (), context)
                         else:
                             log_warning(
                                 f"FTS optimization query validation failed for {table}: "
@@ -131,9 +115,7 @@ class FTSManager:
                 # Rebuild each FTS table
                 for table in fts_tables:
                     try:
-                        cursor.execute(
-                            f"INSERT INTO {table}({table}) VALUES('rebuild')"
-                        )
+                        cursor.execute(f"INSERT INTO {table}({table}) VALUES('rebuild')")
                     except sqlite3.OperationalError as e:
                         print(f"Warning: Could not rebuild FTS table {table}: {e}")
                         continue
@@ -149,9 +131,7 @@ class FTSManager:
             print(f"Unexpected error rebuilding FTS indexes: {e}")
             return False
 
-    def get_fts_stats(
-        self, story_id: str, is_test: bool | None = None
-    ) -> dict[str, Any]:
+    def get_fts_stats(self, story_id: str, is_test: bool | None = None) -> dict[str, Any]:
         """Get FTS index statistics."""
         stats = {
             "fts_enabled": self.has_fts5_support(),
@@ -183,17 +163,13 @@ class FTSManager:
                         doc_count = cursor.fetchone()[0]
 
                         # Create index info
-                        index_info = FTSIndexInfo(
-                            table_name=table, index_name=table, total_docs=doc_count
-                        )
+                        index_info = FTSIndexInfo(table_name=table, index_name=table, total_docs=doc_count)
 
                         stats["indexes"].append(index_info.to_dict())
                         stats["total_docs"] += doc_count
 
                     except sqlite3.OperationalError as e:
-                        print(
-                            f"Warning: Could not get stats for FTS table {table}: {e}"
-                        )
+                        print(f"Warning: Could not get stats for FTS table {table}: {e}")
                         continue
 
         except sqlite3.Error as e:

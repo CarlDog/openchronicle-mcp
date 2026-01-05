@@ -27,9 +27,7 @@ class ConnectionManager:
         db_path = self.get_db_path(story_id, is_test)
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
-    def get_connection(
-        self, story_id: str, is_test: bool | None = None
-    ) -> sqlite3.Connection:
+    def get_connection(self, story_id: str, is_test: bool | None = None) -> sqlite3.Connection:
         """Get a database connection for the specified unit."""
         self.ensure_db_dir(story_id, is_test)
         db_path = self.get_db_path(story_id, is_test)

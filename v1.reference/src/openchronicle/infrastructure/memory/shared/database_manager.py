@@ -150,9 +150,7 @@ class DatabaseManager:
 
             # Convert rows to dictionaries
             columns = [description[0] for description in cursor.description]
-            results = [
-                dict(zip(columns, row, strict=False)) for row in cursor.fetchall()
-            ]
+            results = [dict(zip(columns, row, strict=False)) for row in cursor.fetchall()]
 
         except sqlite3.Error as e:
             # Handle SQLite-specific errors during query execution
@@ -309,34 +307,30 @@ class DatabaseManager:
 
         return cursor.lastrowid
 
-    def get_character_state(
-        self, story_id: str, character_id: str
-    ) -> dict[str, Any] | None:
+    def get_character_state(self, story_id: str, character_id: str) -> dict[str, Any] | None:
         """
-    Retrieve entity state from database.
+        Retrieve entity state from database.
 
-        Args:
-            story_id: Story identifier
-            character_id: Participant/entity identifier
+            Args:
+                story_id: Story identifier
+                character_id: Participant/entity identifier
 
-        Returns:
-            Entity state dictionary or None if not found
+            Returns:
+                Entity state dictionary or None if not found
         """
         query = "SELECT * FROM character_states WHERE story_id = ? AND character_id = ?"
         results = self.execute_query(query, (story_id, character_id))
 
         return results[0] if results else None
 
-    def store_character_state(
-        self, story_id: str, character_id: str, state_data: str
-    ) -> None:
+    def store_character_state(self, story_id: str, character_id: str, state_data: str) -> None:
         """
-    Store entity state in database.
+        Store entity state in database.
 
-        Args:
-            story_id: Story identifier
-            character_id: Participant/entity identifier
-            state_data: JSON-serialized entity state
+            Args:
+                story_id: Story identifier
+                character_id: Participant/entity identifier
+                state_data: JSON-serialized entity state
         """
         query = """
             INSERT OR REPLACE INTO character_states

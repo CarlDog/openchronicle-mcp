@@ -45,9 +45,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         self.logger.info("Consistency validation engine initialized")
 
-    def initialize_character(
-        self, character_id: str, **kwargs
-    ) -> CharacterConsistencyProfile:
+    def initialize_character(self, character_id: str, **kwargs) -> CharacterConsistencyProfile:
         """Initialize character consistency profile."""
         if character_id in self.character_data:
             return self.character_data[character_id]
@@ -69,9 +67,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         return profile
 
-    def get_character_data(
-        self, character_id: str
-    ) -> CharacterConsistencyProfile | None:
+    def get_character_data(self, character_id: str) -> CharacterConsistencyProfile | None:
         """Get character consistency profile."""
         return self.character_data.get(character_id)
 
@@ -93,26 +89,18 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
                     profile = self.get_character_data(char_name)
                     if not profile:
-                        profile = self.initialize_character(
-                            char_name, character_data=char_data
-                        )
+                        profile = self.initialize_character(char_name, character_data=char_data)
                     else:
                         self._process_character_data(char_name, char_data, profile)
 
                     self.logger.info(f"Loaded consistency data for {char_name}")
 
                 except (KeyError, AttributeError) as e:
-                    self.logger.exception(
-                        "Character data structure error loading consistency data for"
-                    )
+                    self.logger.exception("Character data structure error loading consistency data for")
                 except (ValueError, TypeError) as e:
-                    self.logger.exception(
-                        "Character data validation error for"
-                    )
+                    self.logger.exception("Character data validation error for")
                 except Exception as e:
-                    self.logger.exception(
-                        "Failed to load character consistency data for"
-                    )
+                    self.logger.exception("Failed to load character consistency data for")
 
     # =============================================================================
     # Motivation Anchoring
@@ -142,9 +130,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         profile.motivation_anchors.append(anchor)
 
-        self.logger.info(
-            f"Added motivation anchor for {character_id}: {motivation_type}"
-        )
+        self.logger.info(f"Added motivation anchor for {character_id}: {motivation_type}")
         return anchor.anchor_id
 
     def remove_motivation_anchor(self, character_id: str, anchor_id: str) -> bool:
@@ -164,9 +150,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         return False
 
-    def get_character_motivations(
-        self, character_id: str
-    ) -> list[CharacterMotivationAnchor]:
+    def get_character_motivations(self, character_id: str) -> list[CharacterMotivationAnchor]:
         """Get all motivation anchors for character."""
         profile = self.get_character_data(character_id)
         return profile.motivation_anchors if profile else []
@@ -252,9 +236,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         return False
 
-    def get_unresolved_violations(
-        self, character_id: str
-    ) -> list[CharacterConsistencyViolation]:
+    def get_unresolved_violations(self, character_id: str) -> list[CharacterConsistencyViolation]:
         """Get unresolved violations for character."""
         profile = self.get_character_data(character_id)
         if not profile:
@@ -266,9 +248,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     # Validation Provider Interface
     # =============================================================================
 
-    def validate_character_action(
-        self, character_id: str, action: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def validate_character_action(self, character_id: str, action: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate if action is consistent with character."""
         profile = self.get_character_data(character_id)
         if not profile:
@@ -305,9 +285,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
     # Behavioral Pattern Analysis
     # =============================================================================
 
-    def add_behavioral_pattern(
-        self, character_id: str, pattern: dict[str, Any]
-    ) -> None:
+    def add_behavioral_pattern(self, character_id: str, pattern: dict[str, Any]) -> None:
         """Add behavioral pattern observation."""
         if character_id not in self.behavioral_patterns:
             self.behavioral_patterns[character_id] = []
@@ -317,9 +295,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         # Limit pattern history
         if len(self.behavioral_patterns[character_id]) > 100:
-            self.behavioral_patterns[character_id] = self.behavioral_patterns[
-                character_id
-            ][-100:]
+            self.behavioral_patterns[character_id] = self.behavioral_patterns[character_id][-100:]
 
     def analyze_behavioral_drift(self, character_id: str) -> dict[str, Any]:
         """Analyze behavioral drift over time."""
@@ -383,29 +359,19 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
                 self.character_data[character_id] = profile
 
             # Import behavioral patterns
-            self.behavioral_patterns[character_id] = character_data.get(
-                "behavioral_patterns", []
-            )
+            self.behavioral_patterns[character_id] = character_data.get("behavioral_patterns", [])
 
             # Import emotional states
-            self.emotional_states[character_id] = character_data.get(
-                "emotional_states", {}
-            )
+            self.emotional_states[character_id] = character_data.get("emotional_states", {})
 
             self.logger.info(f"Imported consistency data for character {character_id}")
 
         except (KeyError, AttributeError) as e:
-            self.logger.exception(
-                "Character data structure error importing consistency data for"
-            )
+            self.logger.exception("Character data structure error importing consistency data for")
         except (ValueError, TypeError) as e:
-            self.logger.exception(
-                "Character data validation error importing consistency data for"
-            )
+            self.logger.exception("Character data validation error importing consistency data for")
         except Exception as e:
-            self.logger.exception(
-                "Failed to import consistency data for"
-            )
+            self.logger.exception("Failed to import consistency data for")
 
     # =============================================================================
     # Private Helper Methods
@@ -438,9 +404,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
         for anchor_data in motivation_data:
             if isinstance(anchor_data, dict):
                 anchor = CharacterMotivationAnchor(
-                    anchor_id=anchor_data.get(
-                        "anchor_id", f"{char_name}_{len(profile.motivation_anchors)}"
-                    ),
+                    anchor_id=anchor_data.get("anchor_id", f"{char_name}_{len(profile.motivation_anchors)}"),
                     character_id=char_name,
                     motivation_type=anchor_data.get("motivation_type", "general"),
                     description=anchor_data.get("description", ""),
@@ -480,13 +444,9 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
                     if value >= 8 or value <= 2:  # Extreme values
                         profile.locked_traits.add(stat_name)
 
-    def _update_consistency_score(
-        self, profile: CharacterConsistencyProfile, change: float
-    ) -> None:
+    def _update_consistency_score(self, profile: CharacterConsistencyProfile, change: float) -> None:
         """Update consistency score with bounds checking."""
-        profile.consistency_score = max(
-            0.0, min(1.0, profile.consistency_score + change)
-        )
+        profile.consistency_score = max(0.0, min(1.0, profile.consistency_score + change))
 
     def _validate_motivation_change(
         self, profile: CharacterConsistencyProfile, action: dict[str, Any]
@@ -566,9 +526,7 @@ class ConsistencyValidationEngine(CharacterEngineBase, CharacterValidationProvid
 
         return themes
 
-    def _calculate_theme_similarity(
-        self, themes1: set[str], themes2: set[str]
-    ) -> float:
+    def _calculate_theme_similarity(self, themes1: set[str], themes2: set[str]) -> float:
         """Calculate similarity between two theme sets."""
         if not themes1 and not themes2:
             return 1.0

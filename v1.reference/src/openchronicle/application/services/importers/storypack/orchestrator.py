@@ -11,8 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from openchronicle.shared.exceptions import InfrastructureError
 from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import InfrastructureError
 from openchronicle.shared.exceptions import ValidationError
 from openchronicle.shared.logging_system import get_logger
 from openchronicle.shared.logging_system import log_error
@@ -132,9 +132,7 @@ class StorypackOrchestrator:
         # Load templates (optional)
         if templates_dir:
             try:
-                self._available_templates = self._template_engine.load_templates(
-                    templates_dir
-                )
+                self._available_templates = self._template_engine.load_templates(templates_dir)
                 self._templates_loaded = len(self._available_templates) > 0
                 if self._templates_loaded:
                     log_info(f"✓ Loaded {len(self._available_templates)} templates")
@@ -237,15 +235,11 @@ class StorypackOrchestrator:
 
             # Phase 3: Structure Analysis
             log_info("Phase 3: Analyzing directory structure...")
-            structure_analysis = self._structure_analyzer.analyze_directory_structure(
-                source_path
-            )
+            structure_analysis = self._structure_analyzer.analyze_directory_structure(source_path)
 
             # Phase 4: Content Processing
             log_info("Phase 4: Processing content files...")
-            processed_content = await self._process_content_files(
-                discovered_files, context
-            )
+            processed_content = await self._process_content_files(discovered_files, context)
 
             # Phase 5: Storypack Generation
             log_info("Phase 5: Building storypack structure...")
@@ -253,18 +247,12 @@ class StorypackOrchestrator:
 
             # Phase 6: Content Organization
             log_info("Phase 6: Organizing content files...")
-            organized_files = self._storypack_builder.organize_content_files(
-                discovered_files, storypack_path
-            )
+            organized_files = self._storypack_builder.organize_content_files(discovered_files, storypack_path)
 
             # Phase 7: Metadata Generation
             log_info("Phase 7: Generating storypack metadata...")
-            content_summary = self._generate_content_summary(
-                processed_content, structure_analysis
-            )
-            metadata = self._storypack_builder.generate_metadata_file(
-                context, content_summary
-            )
+            content_summary = self._generate_content_summary(processed_content, structure_analysis)
+            metadata = self._storypack_builder.generate_metadata_file(context, content_summary)
 
             # Phase 8: Final Validation
             log_info("Phase 8: Validating generated storypack...")
@@ -287,9 +275,7 @@ class StorypackOrchestrator:
                 "storypack_metadata": metadata,
                 "content_summary": content_summary,
                 "structure_analysis": structure_analysis,
-                "organized_files": {
-                    cat: len(files) for cat, files in organized_files.items()
-                },
+                "organized_files": {cat: len(files) for cat, files in organized_files.items()},
                 "import_mode": import_mode,
                 "ai_used": context.ai_available,
                 "templates_used": self._templates_loaded,
@@ -423,19 +409,13 @@ class StorypackOrchestrator:
             for content_file in files:
                 try:
                     # Read file content
-                    content, encoding = self._content_parser.read_file_content(
-                        content_file.path
-                    )
+                    content, encoding = self._content_parser.read_file_content(content_file.path)
 
                     # Extract metadata
-                    metadata = self._metadata_extractor.extract_basic_metadata(
-                        content, content_file.path
-                    )
+                    metadata = self._metadata_extractor.extract_basic_metadata(content, content_file.path)
 
                     # Classify content
-                    classification = self._content_classifier.classify_by_content(
-                        content
-                    )
+                    classification = self._content_classifier.classify_by_content(content)
 
                     file_result = {
                         "file_path": str(content_file.path),
@@ -449,19 +429,13 @@ class StorypackOrchestrator:
                     # AI analysis if available
                     if context.ai_available:
                         try:
-                            ai_analysis = await self._ai_processor.analyze_content(
-                                content, content_file.path, context
-                            )
+                            ai_analysis = await self._ai_processor.analyze_content(content, content_file.path, context)
                             file_result["ai_analysis"] = ai_analysis
                         except (ApplicationError, ValidationError) as e:
-                            log_warning(
-                                f"Service/validation error during AI analysis for {content_file.path}: {e}"
-                            )
+                            log_warning(f"Service/validation error during AI analysis for {content_file.path}: {e}")
                             file_result["ai_analysis"] = {"error": f"Service error: {str(e)}"}
                         except Exception as e:
-                            log_warning(
-                                f"Unexpected error during AI analysis for {content_file.path}: {e}"
-                            )
+                            log_warning(f"Unexpected error during AI analysis for {content_file.path}: {e}")
                             file_result["ai_analysis"] = {"error": f"Unexpected error: {str(e)}"}
 
                     category_results.append(file_result)
@@ -504,9 +478,7 @@ class StorypackOrchestrator:
                     candidate_info["categories"][category] = len(files)
 
             # Estimate import time (rough heuristic)
-            candidate_info["estimated_import_time"] = max(
-                30, total_files * 5
-            )  # seconds
+            candidate_info["estimated_import_time"] = max(30, total_files * 5)  # seconds
 
             # Recommend import mode
             if total_files > 10 and self._ai_initialized:
@@ -541,9 +513,7 @@ class StorypackOrchestrator:
 
             # Collect unique content types
             for file_info in files:
-                summary["content_types_detected"].add(
-                    file_info.get("classification", "unknown")
-                )
+                summary["content_types_detected"].add(file_info.get("classification", "unknown"))
 
         # Convert set to list for JSON serialization
         summary["content_types_detected"] = list(summary["content_types_detected"])

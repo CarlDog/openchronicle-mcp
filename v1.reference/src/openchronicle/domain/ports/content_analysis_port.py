@@ -14,9 +14,7 @@ class IContentAnalysisPort(ABC):
     """Interface for content analysis operations."""
 
     @abstractmethod
-    async def generate_content_flags(
-        self, analysis: dict[str, Any], content: str
-    ) -> list[dict[str, Any]]:
+    async def generate_content_flags(self, analysis: dict[str, Any], content: str) -> list[dict[str, Any]]:
         """
         Generate content flags based on analysis and content.
 

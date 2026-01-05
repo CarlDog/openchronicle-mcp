@@ -1,28 +1,27 @@
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Protocol
 
 
 class Registers(Protocol):
-    def register(self, container: Dict[str, Any]) -> None:
-        ...
+    def register(self, container: Dict[str, Any]) -> None: ...
 
 
 class RegistersCLI(Protocol):
-    def register_cli(self, app: Any) -> None:
-        ...
+    def register_cli(self, app: Any) -> None: ...
 
 
 class Plugin(Protocol):
     """Protocol for OpenChronicle plugins with optional CLI registration."""
 
-    def metadata(self) -> Dict[str, Any]:
-        ...
+    def metadata(self) -> Dict[str, Any]: ...
 
-    def register(self, container: Dict[str, Any]) -> None:
-        ...
+    def register(self, container: Dict[str, Any]) -> None: ...
 
     # Optional CLI registration
-    def register_cli(self, app: Any) -> None:
-        ...
+    def register_cli(self, app: Any) -> None: ...
 
 
 def load_plugin(mode: str):

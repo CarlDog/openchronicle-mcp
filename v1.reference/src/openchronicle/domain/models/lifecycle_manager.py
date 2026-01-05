@@ -62,18 +62,14 @@ class LifecycleManager:
         self.disabled_adapters = {}
         self.api_key_status = {}
 
-        log_system_event(
-            "lifecycle_manager_initialized", "Adapter lifecycle management ready"
-        )
+        log_system_event("lifecycle_manager_initialized", "Adapter lifecycle management ready")
 
     def _raise_missing_dependencies_error(self, adapter_type: str, name: str, error: ImportError) -> None:
         """Helper to raise missing dependencies error."""
         error_msg = f"Missing dependencies for {adapter_type} adapter {name}: {error}"
         raise RuntimeError(error_msg) from error
 
-    async def initialize_adapter(
-        self, name: str, max_retries: int = 2, graceful_degradation: bool = True
-    ) -> bool:
+    async def initialize_adapter(self, name: str, max_retries: int = 2, graceful_degradation: bool = True) -> bool:
         """
         Initialize a specific adapter with enhanced error handling.
 
@@ -106,18 +102,14 @@ class LifecycleManager:
                 # Check if it's a provider that needs to be in the model registry
                 available_adapters = list(self.config["adapters"].keys())
                 similar_adapters = [
-                    a
-                    for a in available_adapters
-                    if name.lower() in a.lower() or a.lower() in name.lower()
+                    a for a in available_adapters if name.lower() in a.lower() or a.lower() in name.lower()
                 ]
 
                 error_msg = f"Adapter '{name}' not found in configuration."
                 if similar_adapters:
                     error_msg += f" Did you mean: {', '.join(similar_adapters)}?"
                 else:
-                    error_msg += (
-                        f" Available adapters: {', '.join(sorted(available_adapters))}"
-                    )
+                    error_msg += f" Available adapters: {', '.join(sorted(available_adapters))}"
 
             log_system_event("adapter_initialization_error", error_msg)
 
@@ -138,29 +130,21 @@ class LifecycleManager:
         adapter_config = self.config["adapters"][name]
         adapter_type = adapter_config.get("type", "unknown")
 
-        log_system_event(
-            "adapter_initialization", f"Initializing {adapter_type} adapter: {name}"
-        )
+        log_system_event("adapter_initialization", f"Initializing {adapter_type} adapter: {name}")
 
         # Attempt initialization with retry logic
         last_exception = None
         for attempt in range(max_retries + 1):
             try:
                 # Pre-initialization validation with enhanced API key checking
-                validation_result = self._validate_adapter_prerequisites(
-                    name, adapter_config, adapter_type
-                )
+                validation_result = self._validate_adapter_prerequisites(name, adapter_config, adapter_type)
                 if not validation_result["valid"]:
                     # Track disabled adapter with detailed information
                     self.disabled_adapters[name] = {
                         "type": adapter_type,
                         "reason": validation_result["reason"],
-                        "can_enable_later": validation_result.get(
-                            "can_enable_later", True
-                        ),
-                        "recommendation": validation_result.get(
-                            "recommendation", "Check configuration"
-                        ),
+                        "can_enable_later": validation_result.get("can_enable_later", True),
+                        "recommendation": validation_result.get("recommendation", "Check configuration"),
                         "last_check": datetime.now(UTC).isoformat(),
                         "config": adapter_config,
                     }
@@ -177,23 +161,19 @@ class LifecycleManager:
                         self.api_key_status[adapter_type] = {
                             "available": False,
                             "reason": validation_result["reason"],
-                            "recommendation": validation_result.get(
-                                "recommendation", ""
-                            ),
+                            "recommendation": validation_result.get("recommendation", ""),
                             "last_validated": datetime.now(UTC).isoformat(),
                         }
 
                     if graceful_degradation:
-                        log_error(
-                            f"Skipping {name} due to failed prerequisites: {validation_result['reason']}"
-                        )
+                        log_error(f"Skipping {name} due to failed prerequisites: {validation_result['reason']}")
                         log_system_event(
                             "adapter_initialization_skipped",
                             f"Skipped {name}: {validation_result['reason']}",
                         )
                         return False
 
-                    _raise_prerequisites_error(validation_result['reason'])
+                    _raise_prerequisites_error(validation_result["reason"])
                 # Track successful validation
                 if adapter_type in [
                     "openai",
@@ -214,12 +194,8 @@ class LifecycleManager:
                 adapter = self._create_adapter_instance(adapter_type, adapter_config)
 
                 # Initialize with timeout protection
-                initialization_timeout = adapter_config.get(
-                    "initialization_timeout", 30.0
-                )
-                success = await asyncio.wait_for(
-                    adapter.initialize(), timeout=initialization_timeout
-                )
+                initialization_timeout = adapter_config.get("initialization_timeout", 30.0)
+                success = await asyncio.wait_for(adapter.initialize(), timeout=initialization_timeout)
 
                 if success:
                     self.adapters[name] = adapter
@@ -230,13 +206,9 @@ class LifecycleManager:
                         "status": "active",
                         "initialized_at": datetime.now(UTC).isoformat(),
                         "model_name": adapter_config.get("model_name", name),
-                        "description": adapter_config.get(
-                            "description", f"{adapter_type} adapter"
-                        ),
+                        "description": adapter_config.get("description", f"{adapter_type} adapter"),
                         "supports_nsfw": adapter_config.get("supports_nsfw", False),
-                        "content_types": adapter_config.get(
-                            "content_types", ["general"]
-                        ),
+                        "content_types": adapter_config.get("content_types", ["general"]),
                     }
 
                     # Remove from disabled adapters if it was there
@@ -253,17 +225,14 @@ class LifecycleManager:
             except TimeoutError as e:
                 last_exception = e
                 error_msg = (
-                    f"Timeout initializing {adapter_type} adapter {name} "
-                    f"(attempt {attempt + 1}/{max_retries + 1})"
+                    f"Timeout initializing {adapter_type} adapter {name} " f"(attempt {attempt + 1}/{max_retries + 1})"
                 )
                 log_error(error_msg)
                 log_system_event("adapter_initialization_timeout", error_msg)
 
             except ImportError as e:
                 # Dependencies missing - don't retry
-                error_msg = (
-                    f"Missing dependencies for {adapter_type} adapter {name}: {e}"
-                )
+                error_msg = f"Missing dependencies for {adapter_type} adapter {name}: {e}"
                 log_error(error_msg)
                 log_system_event("adapter_initialization_dependency_error", error_msg)
                 if graceful_degradation:
@@ -272,11 +241,7 @@ class LifecycleManager:
 
             except (ConnectionError, OSError) as e:
                 # Network/connection issues - retry (handle httpx.ConnectError if available)
-                if (
-                    httpx
-                    and hasattr(httpx, "ConnectError")
-                    and isinstance(e, httpx.ConnectError)
-                ):
+                if httpx and hasattr(httpx, "ConnectError") and isinstance(e, httpx.ConnectError):
                     pass  # This is also a connection error
                 last_exception = e
                 error_msg = (
@@ -289,9 +254,7 @@ class LifecycleManager:
                 if attempt < max_retries:
                     # Exponential backoff for retries
                     wait_time = 2**attempt
-                    log_info(
-                        f"Retrying {name} initialization in {wait_time} seconds..."
-                    )
+                    log_info(f"Retrying {name} initialization in {wait_time} seconds...")
                     await asyncio.sleep(wait_time)
 
             except (ConnectionError, TimeoutError, OSError) as e:
@@ -304,9 +267,7 @@ class LifecycleManager:
                 if attempt < max_retries:
                     # Exponential backoff for connectivity issues
                     wait_time = 2**attempt
-                    log_info(
-                        f"Retrying {name} initialization in {wait_time} seconds..."
-                    )
+                    log_info(f"Retrying {name} initialization in {wait_time} seconds...")
                     await asyncio.sleep(wait_time)
                 else:
                     break
@@ -320,9 +281,7 @@ class LifecycleManager:
                 # Only retry configuration errors once in case of race conditions
                 if attempt < min(max_retries, 1):
                     wait_time = 1
-                    log_info(
-                        f"Retrying {name} initialization once in {wait_time} second..."
-                    )
+                    log_info(f"Retrying {name} initialization once in {wait_time} second...")
                     await asyncio.sleep(wait_time)
                 else:
                     break
@@ -336,9 +295,7 @@ class LifecycleManager:
                 # For unknown errors, only retry if it might be transient
                 if attempt < max_retries and self._is_potentially_transient_error(e):
                     wait_time = 1 + attempt
-                    log_info(
-                        f"Retrying {name} initialization in {wait_time} seconds..."
-                    )
+                    log_info(f"Retrying {name} initialization in {wait_time} seconds...")
                     await asyncio.sleep(wait_time)
                 else:
                     break
@@ -363,9 +320,7 @@ class LifecycleManager:
             log_error(f"Safe initialization failed for {name}: {e}")
             return False
 
-    def add_model_config(
-        self, name: str, config: dict[str, Any], enabled: bool = True
-    ) -> bool:
+    def add_model_config(self, name: str, config: dict[str, Any], enabled: bool = True) -> bool:
         """Add a new model configuration dynamically to the registry."""
         try:
             registry_file = os.path.join("config", "model_registry.json")
@@ -564,9 +519,7 @@ class LifecycleManager:
                 "cohere",
                 "mistral",
             ]:
-                api_validation = self._validate_api_key_smart(
-                    name, adapter_config, validation_type
-                )
+                api_validation = self._validate_api_key_smart(name, adapter_config, validation_type)
                 if not api_validation["valid"]:
                     return api_validation
 
@@ -584,13 +537,9 @@ class LifecycleManager:
             # For Ollama specifically, test the default URL and verify it has models
             elif validation_type == "ollama":
                 provider_config = (
-                    self.global_config.get("environment_config", {})
-                    .get("providers", {})
-                    .get("ollama", {})
+                    self.global_config.get("environment_config", {}).get("providers", {}).get("ollama", {})
                 )
-                default_base_url = provider_config.get(
-                    "default_base_url", "http://localhost:11434"
-                )
+                default_base_url = provider_config.get("default_base_url", "http://localhost:11434")
                 if not self._test_connectivity(default_base_url):
                     return {
                         "valid": False,
@@ -615,16 +564,10 @@ class LifecycleManager:
                 "recommendation": "Adapter ready for use",
             }
 
-    def _validate_api_key_smart(
-        self, name: str, adapter_config: dict[str, Any], provider_type: str
-    ) -> dict[str, Any]:
+    def _validate_api_key_smart(self, name: str, adapter_config: dict[str, Any], provider_type: str) -> dict[str, Any]:
         """Registry-driven API key validation that works with any provider defined in the model registry."""
         # Get provider validation config from registry
-        provider_config = (
-            self.global_config.get("environment_config", {})
-            .get("providers", {})
-            .get(provider_type)
-        )
+        provider_config = self.global_config.get("environment_config", {}).get("providers", {}).get(provider_type)
         if not provider_config:
             return {
                 "valid": False,
@@ -643,13 +586,9 @@ class LifecycleManager:
             }
 
         # Check for API key in configuration or environment
-        api_key = adapter_config.get("api_key") or os.getenv(
-            validation_config.get("env_var", "")
-        )
+        api_key = adapter_config.get("api_key") or os.getenv(validation_config.get("env_var", ""))
         if not api_key:
-            env_var = validation_config.get(
-                "env_var", f"{provider_type.upper()}_API_KEY"
-            )
+            env_var = validation_config.get("env_var", f"{provider_type.upper()}_API_KEY")
             return {
                 "valid": False,
                 "reason": f"Missing API key for {provider_type}",
@@ -707,9 +646,7 @@ class LifecycleManager:
         ]
         return any(indicator in error_str for indicator in transient_indicators)
 
-    def _create_adapter_instance(
-        self, adapter_type: str, adapter_config: dict[str, Any]
-    ):
+    def _create_adapter_instance(self, adapter_type: str, adapter_config: dict[str, Any]):
         """Create an instance of the specified adapter type."""
 
         # This would normally import and create the appropriate adapter

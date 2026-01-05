@@ -84,21 +84,15 @@ class ResponseGenerator:
             adapter_name = await self._get_emergency_fallback_adapter()
 
         # Start performance tracking if available
-        tracker_context = self._get_performance_tracker(
-            adapter_name, "generate", len(prompt)
-        )
+        tracker_context = self._get_performance_tracker(adapter_name, "generate", len(prompt))
 
         async with tracker_context as tracker:
             # Use fallback chain if configured
             if self._has_fallback_chain(adapter_name):
-                return await self._generate_with_fallback_chain(
-                    adapter_name, prompt, story_id, tracker, **kwargs
-                )
+                return await self._generate_with_fallback_chain(adapter_name, prompt, story_id, tracker, **kwargs)
 
             # Single adapter logic
-            return await self._generate_with_single_adapter(
-                adapter_name, prompt, story_id, tracker, **kwargs
-            )
+            return await self._generate_with_single_adapter(adapter_name, prompt, story_id, tracker, **kwargs)
 
     async def _get_emergency_fallback_adapter(self) -> str:
         """
@@ -116,15 +110,11 @@ class ResponseGenerator:
             return "transformers"
 
         # Second priority: Try to find any available adapter (excluding mock adapters)
-        available_adapters = [
-            name for name in self.adapters.keys() if not name.startswith("mock")
-        ]
+        available_adapters = [name for name in self.adapters.keys() if not name.startswith("mock")]
 
         if available_adapters:
             adapter_name = available_adapters[0]
-            log_warning(
-                f"No default adapter specified, using emergency fallback: {adapter_name}"
-            )
+            log_warning(f"No default adapter specified, using emergency fallback: {adapter_name}")
             return adapter_name
 
         raise RuntimeError(
@@ -134,10 +124,7 @@ class ResponseGenerator:
 
     def _has_fallback_chain(self, adapter_name: str) -> bool:
         """Check if adapter has a configured fallback chain."""
-        return (
-            "fallback_chains" in self.config
-            and adapter_name in self.config["fallback_chains"]
-        )
+        return "fallback_chains" in self.config and adapter_name in self.config["fallback_chains"]
 
     async def _generate_with_fallback_chain(
         self,
@@ -165,17 +152,13 @@ class ResponseGenerator:
         """
         chain = self.config["fallback_chains"][adapter_name]
         log_info(f"Using fallback chain for {adapter_name}: {chain}")
-        log_system_event(
-            "fallback_chain_usage", f"Using fallback chain for {adapter_name}: {chain}"
-        )
+        log_system_event("fallback_chain_usage", f"Using fallback chain for {adapter_name}: {chain}")
 
         for attempt_adapter in chain:
             try:
                 # Skip unavailable adapters
                 if not self._is_adapter_available(attempt_adapter):
-                    log_info(
-                        f"Skipping adapter '{attempt_adapter}' in fallback chain - not available"
-                    )
+                    log_info(f"Skipping adapter '{attempt_adapter}' in fallback chain - not available")
                     continue
 
                 # Generate response with this adapter
@@ -214,9 +197,7 @@ class ResponseGenerator:
                 ConnectionError,
             ) as e:
                 log_error(f"Adapter {attempt_adapter} failed: {e}")
-                log_system_event(
-                    "fallback_chain_failure", f"Adapter {attempt_adapter} failed: {e}"
-                )
+                log_system_event("fallback_chain_failure", f"Adapter {attempt_adapter} failed: {e}")
             else:
                 return response
                 continue
@@ -254,8 +235,7 @@ class ResponseGenerator:
         """
         if adapter_name not in self.adapters:
             raise KeyError(
-                f"Adapter '{adapter_name}' not available. "
-                f"Available adapters: {list(self.adapters.keys())}"
+                f"Adapter '{adapter_name}' not available. " f"Available adapters: {list(self.adapters.keys())}"
             )
 
         adapter = self.adapters[adapter_name]
@@ -274,9 +254,7 @@ class ResponseGenerator:
 
     def _is_adapter_available(self, adapter_name: str) -> bool:
         """Check if adapter is available in both registry and configuration."""
-        return adapter_name in self.adapters and adapter_name in self.config.get(
-            "adapters", {}
-        )
+        return adapter_name in self.adapters and adapter_name in self.config.get("adapters", {})
 
     def _update_tracker_metrics(self, tracker: Any, response: str):
         """Update performance tracker with response metrics."""
@@ -303,9 +281,7 @@ class ResponseGenerator:
         adapter.log_interaction(story_id, prompt, response, metadata)
 
     @asynccontextmanager
-    async def _get_performance_tracker(
-        self, adapter_name: str, operation: str, prompt_length: int
-    ):
+    async def _get_performance_tracker(self, adapter_name: str, operation: str, prompt_length: int):
         """Get performance tracker context manager."""
         if self.performance_monitor:
             async with self.performance_monitor.track_model_operation(

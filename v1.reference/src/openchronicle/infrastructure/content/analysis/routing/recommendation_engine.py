@@ -21,17 +21,13 @@ class RecommendationEngine(RoutingComponent):
     def __init__(self, model_manager):
         super().__init__(model_manager)
 
-    def route_request(
-        self, analysis: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def route_request(self, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Route recommendation request based on content type and system state."""
         content_type = analysis.get("content_type", "general")
         system_resources = context.get("system_resources")
 
         # This would be async in the original, but we'll make it sync for consistency
-        recommendations = self._suggest_model_management_actions_sync(
-            content_type, system_resources
-        )
+        recommendations = self._suggest_model_management_actions_sync(content_type, system_resources)
 
         return {
             "recommendations": recommendations,
@@ -71,9 +67,7 @@ class RecommendationEngine(RoutingComponent):
         Returns:
             Dictionary with suggested actions
         """
-        return self._suggest_model_management_actions_sync(
-            content_type, system_resources
-        )
+        return self._suggest_model_management_actions_sync(content_type, system_resources)
 
     def _suggest_model_management_actions_sync(
         self, content_type: str, system_resources: dict[str, Any] | None = None
@@ -92,9 +86,7 @@ class RecommendationEngine(RoutingComponent):
             working_models = self._get_working_models(content_type)
 
             # Analyze system state and generate suggestions
-            working_analysis_models = [
-                m for m in working_models if m not in ["mock", "mock_image"]
-            ]
+            working_analysis_models = [m for m in working_models if m not in ["mock", "mock_image"]]
 
             if len(working_models) == 0:
                 suggestions["priority"] = "high"
@@ -124,8 +116,7 @@ class RecommendationEngine(RoutingComponent):
                     {
                         "type": "expand_options",
                         "description": (
-                            f"Limited model options for {content_type} - "
-                            "install additional models for redundancy"
+                            f"Limited model options for {content_type} - " "install additional models for redundancy"
                         ),
                         "commands": self._get_install_commands(content_type),
                     }
@@ -151,9 +142,7 @@ class RecommendationEngine(RoutingComponent):
             # Check for API key opportunities
             api_models = ["openai", "anthropic", "groq", "gemini"]
             missing_api_models = [
-                name
-                for name in api_models
-                if name in all_models and len(working_analysis_models) < 3
+                name for name in api_models if name in all_models and len(working_analysis_models) < 3
             ]
             if missing_api_models and len(working_analysis_models) < 3:
                 suggestions["actions"].append(
@@ -161,10 +150,7 @@ class RecommendationEngine(RoutingComponent):
                         "type": "enable_api_models",
                         "description": "Enable cloud API models for better performance and reliability",
                         "models": missing_api_models,
-                        "commands": [
-                            f"Add API key for {model}"
-                            for model in missing_api_models[:2]
-                        ],
+                        "commands": [f"Add API key for {model}" for model in missing_api_models[:2]],
                     }
                 )
 
@@ -204,18 +190,14 @@ class RecommendationEngine(RoutingComponent):
         """Get list of working models for content type."""
         # Simplified version - in full implementation would test model connectivity
         all_models = self.model_manager.list_model_configs()
-        return [
-            name for name, config in all_models.items() if config.get("enabled", True)
-        ]
+        return [name for name, config in all_models.items() if config.get("enabled", True)]
 
     def _get_install_commands(self, content_type: str) -> list[str]:
         """Get installation commands for content type."""
         commands = []
 
         if content_type == "analysis":
-            commands.extend(
-                ["ollama pull llama3.1:8b-instruct", "ollama pull llama3.2:3b-instruct"]
-            )
+            commands.extend(["ollama pull llama3.1:8b-instruct", "ollama pull llama3.2:3b-instruct"])
         elif content_type == "creative":
             commands.extend(["ollama pull llama3.1:8b", "ollama pull mixtral:8x7b"])
         else:
@@ -234,15 +216,11 @@ class RecommendationEngine(RoutingComponent):
     def _get_system_state(self) -> dict[str, Any]:
         """Get current system state summary."""
         all_models = self.model_manager.list_model_configs()
-        enabled_models = [
-            name for name, config in all_models.items() if config.get("enabled", True)
-        ]
+        enabled_models = [name for name, config in all_models.items() if config.get("enabled", True)]
 
         return {
             "total_models": len(all_models),
             "enabled_models": len(enabled_models),
-            "available_adapters": getattr(
-                self.model_manager, "get_available_adapters", list
-            )(),
+            "available_adapters": getattr(self.model_manager, "get_available_adapters", list)(),
             "default_adapter": getattr(self.model_manager, "default_adapter", "mock"),
         }

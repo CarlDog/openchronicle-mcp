@@ -1,5 +1,6 @@
 class StoryPersistenceAdapter:
     """In-memory persistence adapter satisfying PersistencePortContract."""
+
     def __init__(self, backing_store=None):
         self._store = {}
         self._seq = 0

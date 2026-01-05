@@ -49,9 +49,7 @@ class Story:
         self.world_state[key] = value
         self.updated_at = datetime.now()
 
-    def add_flag(
-        self, flag_name: str, description: str, flag_type: str = "general"
-    ) -> None:
+    def add_flag(self, flag_name: str, description: str, flag_type: str = "general") -> None:
         """Add a story flag for tracking narrative elements."""
         self.active_flags[flag_name] = {
             "description": description,
@@ -112,9 +110,7 @@ class Character:
         self.emotional_state[emotion] = max(0.0, min(1.0, intensity))
         self.updated_at = datetime.now()
 
-    def add_relationship(
-        self, other_character_id: str, relationship_type: str, strength: float = 0.5
-    ) -> None:
+    def add_relationship(self, other_character_id: str, relationship_type: str, strength: float = 0.5) -> None:
         """Add or update a relationship with another character."""
         self.relationships[other_character_id] = {
             "type": relationship_type,
@@ -123,9 +119,7 @@ class Character:
         }
         self.updated_at = datetime.now()
 
-    def add_development_event(
-        self, event_description: str, impact_level: float = 0.5
-    ) -> None:
+    def add_development_event(self, event_description: str, impact_level: float = 0.5) -> None:
         """Record a character development event."""
         self.character_arc.append(
             {
@@ -175,9 +169,7 @@ class Scene:
         if character_id not in self.participants:
             self.participants.append(character_id)
 
-    def update_character_state(
-        self, character_id: str, updates: dict[str, Any]
-    ) -> None:
+    def update_character_state(self, character_id: str, updates: dict[str, Any]) -> None:
         """Record character state changes from this scene."""
         if character_id not in self.character_updates:
             self.character_updates[character_id] = {}

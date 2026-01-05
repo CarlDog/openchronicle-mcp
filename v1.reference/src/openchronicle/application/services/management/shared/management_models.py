@@ -106,11 +106,7 @@ class BookmarkRecord:
             label=data["label"],
             description=data.get("description"),
             bookmark_type=BookmarkType(data.get("bookmark_type", "user")),
-            created_at=(
-                datetime.fromisoformat(data["created_at"])
-                if "created_at" in data
-                else datetime.now(UTC)
-            ),
+            created_at=(datetime.fromisoformat(data["created_at"]) if "created_at" in data else datetime.now(UTC)),
             metadata=data.get("metadata", {}),
         )
 

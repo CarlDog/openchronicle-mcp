@@ -64,9 +64,7 @@ class PerformanceMonitor:
         # Initialize performance monitoring
         self._initialize_performance_monitoring()
 
-        log_system_event(
-            "performance_monitor_initialized", "Performance monitoring system ready"
-        )
+        log_system_event("performance_monitor_initialized", "Performance monitoring system ready")
 
     def _initialize_performance_monitoring(self) -> None:
         """Initialize performance monitoring system."""
@@ -98,9 +96,7 @@ class PerformanceMonitor:
             self.performance_monitor = None
             self.monitoring_enabled = False
 
-    async def generate_performance_report(
-        self, time_window_hours: int = 24
-    ) -> dict[str, Any]:
+    async def generate_performance_report(self, time_window_hours: int = 24) -> dict[str, Any]:
         """
         Generate comprehensive performance diagnostic report.
 
@@ -114,16 +110,12 @@ class PerformanceMonitor:
             return {
                 "success": False,
                 "error": "Performance monitoring not available",
-                "recommendations": [
-                    "Install psutil package to enable performance monitoring"
-                ],
+                "recommendations": ["Install psutil package to enable performance monitoring"],
             }
 
         try:
             # Generate comprehensive report
-            report = self.performance_monitor.generate_performance_report(
-                time_window_hours
-            )
+            report = self.performance_monitor.generate_performance_report(time_window_hours)
 
             # Save report to file
             report_file = self.performance_monitor.save_report_to_file(report)
@@ -154,8 +146,7 @@ class PerformanceMonitor:
                 "summary": {
                     "time_period": report.time_period,
                     "total_operations": report.total_operations,
-                    "success_rate": report.successful_operations
-                    / max(report.total_operations, 1),
+                    "success_rate": report.successful_operations / max(report.total_operations, 1),
                     "avg_duration": report.avg_duration,
                     "efficiency_score": report.avg_efficiency_score,
                     "bottlenecks_found": len(report.bottlenecks),
@@ -165,9 +156,7 @@ class PerformanceMonitor:
                     "fastest_models": report.fastest_models[:3],
                     "most_efficient_models": report.most_efficient_models[:3],
                     "critical_issues": [
-                        b.description
-                        for b in report.bottlenecks
-                        if b.severity in ["critical", "high"]
+                        b.description for b in report.bottlenecks if b.severity in ["critical", "high"]
                     ],
                 },
             }
@@ -179,7 +168,7 @@ class PerformanceMonitor:
                 "error": f"Data validation error: {str(e)}",
                 "recommendations": [
                     "Check performance monitoring system configuration",
-                    "Verify performance data integrity"
+                    "Verify performance data integrity",
                 ],
             }
         except (OSError, IOError) as e:
@@ -187,9 +176,7 @@ class PerformanceMonitor:
             return {
                 "success": False,
                 "error": f"File system error: {str(e)}",
-                "recommendations": [
-                    "Check file system permissions and disk space"
-                ],
+                "recommendations": ["Check file system permissions and disk space"],
             }
         except Exception as e:
             log_error(f"Unexpected error generating performance report: {e}")
@@ -198,13 +185,11 @@ class PerformanceMonitor:
                 "error": f"Unexpected error: {str(e)}",
                 "recommendations": [
                     "Check performance monitoring system configuration",
-                    "Review system logs for detailed error information"
+                    "Review system logs for detailed error information",
                 ],
             }
 
-    async def get_model_performance_analytics(
-        self, adapter_name: str | None = None
-    ) -> dict[str, Any]:
+    async def get_model_performance_analytics(self, adapter_name: str | None = None) -> dict[str, Any]:
         """
         Get detailed performance analytics for specific adapter or all adapters.
 
@@ -227,9 +212,7 @@ class PerformanceMonitor:
 
             # Add current adapter status
             if adapter_name:
-                adapters_to_analyze = (
-                    [adapter_name] if adapter_name in self.adapters else []
-                )
+                adapters_to_analyze = [adapter_name] if adapter_name in self.adapters else []
             else:
                 adapters_to_analyze = list(self.adapters.keys())
 
@@ -273,9 +256,7 @@ class PerformanceMonitor:
                 tracker.set_tokens_processed(len(result.split()))
         """
         if self.monitoring_enabled and self.performance_monitor:
-            return self.performance_monitor.track_operation(
-                adapter_name, operation_type, **kwargs
-            )
+            return self.performance_monitor.track_operation(adapter_name, operation_type, **kwargs)
 
         # Return a no-op context manager if monitoring is disabled
         @asynccontextmanager
@@ -340,9 +321,7 @@ class PerformanceMonitor:
             log_error(f"Failed to get system health summary: {e}")
             return {"available": False, "error": str(e)}
 
-    async def optimize_model_performance(
-        self, adapter_name: str | None = None
-    ) -> dict[str, Any]:
+    async def optimize_model_performance(self, adapter_name: str | None = None) -> dict[str, Any]:
         """
         Apply performance optimizations for specific adapter or all adapters.
 
@@ -403,17 +382,13 @@ class PerformanceMonitor:
                     updates[adapter_name]["speed_score"] = speed_score
 
             # Add efficiency rankings
-            for i, (adapter_name, efficiency_score) in enumerate(
-                report.most_efficient_models
-            ):
+            for i, (adapter_name, efficiency_score) in enumerate(report.most_efficient_models):
                 if adapter_name in updates:
                     updates[adapter_name]["efficiency_rank"] = i + 1
                     updates[adapter_name]["efficiency_score"] = efficiency_score
 
             # Add reliability rankings
-            for i, (adapter_name, reliability_score) in enumerate(
-                report.most_reliable_models
-            ):
+            for i, (adapter_name, reliability_score) in enumerate(report.most_reliable_models):
                 if adapter_name in updates:
                     updates[adapter_name]["reliability_rank"] = i + 1
                     updates[adapter_name]["reliability_score"] = reliability_score
@@ -496,9 +471,7 @@ class PerformanceMonitor:
             }
 
         self.adapter_performance[adapter_name]["success_count"] += 1
-        log_info(
-            f"Recorded success for {adapter_name}: {input_tokens} in, {output_tokens} out"
-        )
+        log_info(f"Recorded success for {adapter_name}: {input_tokens} in, {output_tokens} out")
 
     def record_failure(self, adapter_name: str, error_type: str, error_message: str):
         """Record failed operation for adapter."""
@@ -510,9 +483,7 @@ class PerformanceMonitor:
             }
 
         self.adapter_performance[adapter_name]["failure_count"] += 1
-        log_warning(
-            f"Recorded failure for {adapter_name}: {error_type} - {error_message}"
-        )
+        log_warning(f"Recorded failure for {adapter_name}: {error_type} - {error_message}")
 
     def get_performance_summary(self, adapter_name: str = None) -> dict[str, Any]:
         """Get performance summary for adapter or all adapters."""

@@ -14,19 +14,17 @@ from openchronicle.domain.ports.memory_port import IMemoryPort
 class MemoryAdapter(IMemoryPort):
     """Concrete implementation of memory operations using existing infrastructure."""
 
-    def store_memory(
-        self, story_id: str, character_name: str, memory_data: dict[str, Any]
-    ) -> bool:
+    def store_memory(self, story_id: str, character_name: str, memory_data: dict[str, Any]) -> bool:
         """
-    Store participant memory data.
+        Store participant memory data.
 
-        Args:
-            story_id: Unit identifier
-            character_name: Participant name
-            memory_data: Memory data to store
+            Args:
+                story_id: Unit identifier
+                character_name: Participant name
+                memory_data: Memory data to store
 
-        Returns:
-            True if successful, False otherwise
+            Returns:
+                True if successful, False otherwise
         """
         try:
             # Import here to avoid circular dependencies
@@ -44,18 +42,16 @@ class MemoryAdapter(IMemoryPort):
             print(f"Memory storage error: {e}")
             return False
 
-    def retrieve_memory(
-        self, story_id: str, character_name: str
-    ) -> Optional[dict[str, Any]]:
+    def retrieve_memory(self, story_id: str, character_name: str) -> Optional[dict[str, Any]]:
         """
-    Retrieve participant memory data.
+        Retrieve participant memory data.
 
-        Args:
-            story_id: Unit identifier
-            character_name: Participant name
+            Args:
+                story_id: Unit identifier
+                character_name: Participant name
 
-        Returns:
-            Memory data if found, None otherwise
+            Returns:
+                Memory data if found, None otherwise
         """
         try:
             from openchronicle.infrastructure.memory import MemoryOrchestrator
@@ -72,19 +68,17 @@ class MemoryAdapter(IMemoryPort):
             print(f"Memory retrieval error: {e}")
             return None
 
-    def update_memory(
-        self, story_id: str, character_name: str, updates: dict[str, Any]
-    ) -> bool:
+    def update_memory(self, story_id: str, character_name: str, updates: dict[str, Any]) -> bool:
         """
-    Update participant memory data.
+        Update participant memory data.
 
-        Args:
-            story_id: Unit identifier
-            character_name: Participant name
-            updates: Memory updates to apply
+            Args:
+                story_id: Unit identifier
+                character_name: Participant name
+                updates: Memory updates to apply
 
-        Returns:
-            True if successful, False otherwise
+            Returns:
+                True if successful, False otherwise
         """
         try:
             from openchronicle.infrastructure.memory import MemoryOrchestrator
@@ -103,14 +97,14 @@ class MemoryAdapter(IMemoryPort):
 
     def delete_memory(self, story_id: str, character_name: str) -> bool:
         """
-    Delete participant memory data.
+        Delete participant memory data.
 
-        Args:
-            story_id: Unit identifier
-            character_name: Participant name
+            Args:
+                story_id: Unit identifier
+                character_name: Participant name
 
-        Returns:
-            True if successful, False otherwise
+            Returns:
+                True if successful, False otherwise
         """
         try:
             from openchronicle.infrastructure.memory import MemoryOrchestrator
@@ -129,13 +123,13 @@ class MemoryAdapter(IMemoryPort):
 
     def list_character_memories(self, story_id: str) -> list[str]:
         """
-    List all participants with memory data.
+        List all participants with memory data.
 
-        Args:
-            story_id: Unit identifier
+            Args:
+                story_id: Unit identifier
 
-        Returns:
-            List of participant names
+            Returns:
+                List of participant names
         """
         try:
             from openchronicle.infrastructure.memory import MemoryOrchestrator

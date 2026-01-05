@@ -24,9 +24,7 @@ class PromptProcessor:
         self.config = config
         self.style_defaults = config.get("style_defaults", {})
 
-    def build_character_prompt(
-        self, character_name: str, character_data: dict[str, Any]
-    ) -> str:
+    def build_character_prompt(self, character_name: str, character_data: dict[str, Any]) -> str:
         """Build optimized prompt for subject portrait generation"""
 
         prompt_parts = []
@@ -52,9 +50,7 @@ class PromptProcessor:
                 prompt_parts.append(f"demeanor: {personality['demeanor']}")
 
         # Use fallback if no description available
-        prompt = (
-            ", ".join(prompt_parts) if prompt_parts else f"Portrait of {character_name}"
-        )
+        prompt = ", ".join(prompt_parts) if prompt_parts else f"Portrait of {character_name}"
         return self._optimize_prompt(prompt, ImageType.ENTITY)
 
     def build_scene_prompt(
@@ -86,9 +82,7 @@ class PromptProcessor:
         prompt = ", ".join(prompt_parts) if prompt_parts else f"Frame {scene_id}"
         return self._optimize_prompt(prompt, ImageType.FRAME)
 
-    def build_location_prompt(
-        self, location_name: str, location_data: dict[str, Any]
-    ) -> str:
+    def build_location_prompt(self, location_name: str, location_data: dict[str, Any]) -> str:
         """Build optimized prompt for location image generation"""
 
         prompt_parts = []
@@ -113,9 +107,7 @@ class PromptProcessor:
             else:
                 prompt_parts.append(str(features))
 
-        prompt = (
-            ", ".join(prompt_parts) if prompt_parts else f"Location: {location_name}"
-        )
+        prompt = ", ".join(prompt_parts) if prompt_parts else f"Location: {location_name}"
 
         return self._optimize_prompt(prompt, ImageType.LOCATION)
 
@@ -174,9 +166,7 @@ class PromptProcessor:
 
         return base_prompt
 
-    def enhance_prompt_with_style(
-        self, base_prompt: str, style_modifiers: list[str]
-    ) -> str:
+    def enhance_prompt_with_style(self, base_prompt: str, style_modifiers: list[str]) -> str:
         """Enhance prompt with additional style modifiers"""
 
         if not style_modifiers:
@@ -230,41 +220,27 @@ class PromptProcessor:
 
         # Check prompt length
         if len(prompt) < 10:
-            validation_result["warnings"].append(
-                "Prompt is very short, may produce poor results"
-            )
+            validation_result["warnings"].append("Prompt is very short, may produce poor results")
             validation_result["suggestions"].append("Add more descriptive details")
 
         if len(prompt) > 500:
-            validation_result["warnings"].append(
-                "Prompt is very long, may be truncated by provider"
-            )
-            validation_result["suggestions"].append(
-                "Consider shortening to key details"
-            )
+            validation_result["warnings"].append("Prompt is very long, may be truncated by provider")
+            validation_result["suggestions"].append("Consider shortening to key details")
 
         # Check for potentially problematic content
         problematic_terms = self.config.get("problematic_terms", [])
         for term in problematic_terms:
             if term.lower() in prompt.lower():
-                validation_result["warnings"].append(
-                    f"Prompt contains potentially problematic term: {term}"
-                )
-                validation_result["suggestions"].append(
-                    "Consider rephrasing to avoid content policy issues"
-                )
+                validation_result["warnings"].append(f"Prompt contains potentially problematic term: {term}")
+                validation_result["suggestions"].append("Consider rephrasing to avoid content policy issues")
 
         # Check for missing key elements
         if ("entity") in prompt.lower() and "face" not in prompt.lower():
-            validation_result["suggestions"].append(
-                "Consider adding facial description for subject images"
-            )
+            validation_result["suggestions"].append("Consider adding facial description for subject images")
 
         return validation_result
 
-    def get_prompt_suggestions(
-        self, image_type: ImageType, base_data: dict[str, Any]
-    ) -> list[str]:
+    def get_prompt_suggestions(self, image_type: ImageType, base_data: dict[str, Any]) -> list[str]:
         """Get suggestions for improving prompts"""
 
         suggestions: list[str] = []
@@ -283,9 +259,7 @@ class PromptProcessor:
 
         elif image_type == ImageType.LOCATION:
             if "type" not in base_data:
-                suggestions.append(
-                    "Specify location type (indoor/outdoor, building type)"
-                )
+                suggestions.append("Specify location type (indoor/outdoor, building type)")
             if "features" not in base_data:
                 suggestions.append("Add distinctive architectural features")
 

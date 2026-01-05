@@ -87,9 +87,7 @@ class ApplicationFacade:
         """Execute a command through the appropriate orchestrator."""
 
         # Story commands
-        if isinstance(
-            command, (CreateStoryCommand, UpdateStoryCommand, DeleteStoryCommand)
-        ):
+        if isinstance(command, (CreateStoryCommand, UpdateStoryCommand, DeleteStoryCommand)):
             return await self.story.handle_command(command)
 
         # Character commands

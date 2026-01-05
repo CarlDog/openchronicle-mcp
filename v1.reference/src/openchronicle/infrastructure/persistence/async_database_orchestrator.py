@@ -117,9 +117,7 @@ class AsyncDatabaseOrchestrator:
         return await self.operations.execute_many(story_id, query, params_list, is_test)
 
     # Database management
-    async def get_database_info(
-        self, story_id: str, is_test: bool | None = None
-    ) -> dict[str, Any]:
+    async def get_database_info(self, story_id: str, is_test: bool | None = None) -> dict[str, Any]:
         """Get database information and statistics."""
         return await self.operations.get_database_info(story_id, is_test)
 
@@ -127,15 +125,11 @@ class AsyncDatabaseOrchestrator:
         """Run integrity check on database."""
         return await self.operations.check_integrity(story_id, is_test)
 
-    async def optimize_database(
-        self, story_id: str, is_test: bool | None = None
-    ) -> bool:
+    async def optimize_database(self, story_id: str, is_test: bool | None = None) -> bool:
         """Optimize database performance."""
         return await self.operations.optimize_database(story_id, is_test)
 
-    async def check_connection(
-        self, story_id: str, is_test: bool | None = None
-    ) -> bool:
+    async def check_connection(self, story_id: str, is_test: bool | None = None) -> bool:
         """Test database connection."""
         return await self.connection_manager.check_connection(story_id, is_test)
 
@@ -146,9 +140,7 @@ class AsyncDatabaseOrchestrator:
         for story_id in story_ids:
             try:
                 connection_ok = await self.check_connection(story_id)
-                integrity_ok = (
-                    await self.check_integrity(story_id) if connection_ok else False
-                )
+                integrity_ok = await self.check_integrity(story_id) if connection_ok else False
                 results[story_id] = connection_ok and integrity_ok
             except Exception as e:
                 print(f"Health check failed for {story_id}: {e}")

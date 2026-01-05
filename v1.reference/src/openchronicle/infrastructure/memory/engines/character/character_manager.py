@@ -36,9 +36,7 @@ class CharacterManager:
         """Initialize manager."""
         self.repository = repository or MemoryRepository()
 
-    def update_character(
-        self, story_id: str, character_name: str, updates: dict[str, Any]
-    ) -> CharacterUpdateResult:
+    def update_character(self, story_id: str, character_name: str, updates: dict[str, Any]) -> CharacterUpdateResult:
         """Update entity memory with comprehensive tracking."""
         try:
             # Load current memory
@@ -63,9 +61,7 @@ class CharacterManager:
             new_mood = None
             if "mood" in updates and updates["mood"] is not None:
                 new_mood = updates["mood"]
-                self._update_character_mood(
-                    entity, new_mood, updates.get("mood_reason")
-                )
+                self._update_character_mood(entity, new_mood, updates.get("mood_reason"))
                 updated_fields.append("mood")
 
             # Handle voice profile updates
@@ -130,9 +126,7 @@ class CharacterManager:
                 warnings=[f"Unexpected update failure: {e!s}"],
             )
 
-    def get_character_memory(
-        self, story_id: str, character_name: str
-    ) -> CharacterMemory | None:
+    def get_character_memory(self, story_id: str, character_name: str) -> CharacterMemory | None:
         """Get entity memory data."""
         try:
             memory = self.repository.load_memory(story_id)
@@ -231,9 +225,7 @@ class CharacterManager:
         try:
             entity = self.get_character_memory(story_id, character_name)
             if not entity or not entity.voice_profile:
-                return (
-                    "Ch" + f"aracter: {character_name} (no specific voice profile available)"
-                )
+                return "Ch" + f"aracter: {character_name} (no specific voice profile available)"
 
             voice = entity.voice_profile
             voice_prompt = "Ch" + f"aracter: {character_name}\n"
@@ -245,19 +237,13 @@ class CharacterManager:
                 voice_prompt += f"Vocabulary Level: {voice.vocabulary_level}\n"
 
             if voice.personality_traits:
-                voice_prompt += (
-                    f"Personality Traits: {', '.join(voice.personality_traits)}\n"
-                )
+                voice_prompt += f"Personality Traits: {', '.join(voice.personality_traits)}\n"
 
             if voice.speaking_patterns:
-                voice_prompt += (
-                    f"Speaking Patterns: {', '.join(voice.speaking_patterns)}\n"
-                )
+                voice_prompt += f"Speaking Patterns: {', '.join(voice.speaking_patterns)}\n"
 
             if voice.emotional_tendencies:
-                voice_prompt += (
-                    f"Emotional Tendencies: {', '.join(voice.emotional_tendencies)}\n"
-                )
+                voice_prompt += f"Emotional Tendencies: {', '.join(voice.emotional_tendencies)}\n"
 
             # Add current mood context
             if entity.current_mood != "neutral":
@@ -274,9 +260,7 @@ class CharacterManager:
         except Exception as e:
             return "Ch" + f"aracter: {character_name} (voice profile unavailable - unexpected error)"
 
-    def add_dialogue_entry(
-        self, story_id: str, character_name: str, dialogue: str, max_history: int = 50
-    ) -> bool:
+    def add_dialogue_entry(self, story_id: str, character_name: str, dialogue: str, max_history: int = 50) -> bool:
         """Add dialogue entry to entity history."""
         try:
             memory = self.repository.load_memory(story_id)
@@ -330,9 +314,7 @@ class CharacterManager:
             # Update current mood
             entity.current_mood = new_mood
 
-    def _update_voice_profile(
-        self, entity: CharacterMemory, voice_updates: dict[str, Any]
-    ) -> None:
+    def _update_voice_profile(self, entity: CharacterMemory, voice_updates: dict[str, Any]) -> None:
         """Internal method to update voice profile."""
         # Initialize voice profile if it doesn't exist
         if not entity.voice_profile:
@@ -354,7 +336,5 @@ class CharacterManager:
                     setattr(entity.voice_profile, field, voice_updates[field])
                 elif isinstance(voice_updates[field], str):
                     # Convert comma-separated string to list
-                    value_list = [
-                        item.strip() for item in voice_updates[field].split(",")
-                    ]
+                    value_list = [item.strip() for item in voice_updates[field].split(",")]
                     setattr(entity.voice_profile, field, value_list)

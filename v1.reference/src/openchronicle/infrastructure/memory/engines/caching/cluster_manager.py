@@ -12,6 +12,7 @@ from typing import Any
 try:
     import redis
     from redis.cluster import RedisCluster
+
     REDIS_AVAILABLE = True
 except ImportError:
     redis = None
@@ -82,9 +83,7 @@ class RedisClusterManager:
         self.partitioner = None
 
         if config.cluster_nodes:
-            self.partitioner = CachePartitioner(
-                config.partition_config or PartitionConfig([]), config.cluster_nodes
-            )
+            self.partitioner = CachePartitioner(config.partition_config or PartitionConfig([]), config.cluster_nodes)
 
     async def initialize_cluster(self):
         """Initialize Redis cluster connections."""
@@ -106,15 +105,12 @@ class RedisClusterManager:
                         )
                         await client.ping()
                         self.clients[i] = client
-                        self.logger.info(
-                            f"Connected to Redis node {i}: {node.host}:{node.port}"
-                        )
+                        self.logger.info(f"Connected to Redis node {i}: {node.host}:{node.port}")
 
                 # Initialize cluster client if enough nodes
                 if len(self.config.cluster_nodes) >= 3 and RedisCluster is not None:
                     cluster_startup_nodes = [
-                        {"host": node.host, "port": node.port}
-                        for node in self.config.cluster_nodes
+                        {"host": node.host, "port": node.port} for node in self.config.cluster_nodes
                     ]
 
                     self.cluster_client = RedisCluster(
@@ -145,9 +141,7 @@ class RedisClusterManager:
                 )
                 await client.ping()
                 self.clients[0] = client
-                self.logger.info(
-                    f"Connected to single Redis node: {self.config.redis_host}:{self.config.redis_port}"
-                )
+                self.logger.info(f"Connected to single Redis node: {self.config.redis_host}:{self.config.redis_port}")
         except Exception as e:
             self.logger.exception("Failed to initialize single Redis node")
 
@@ -192,19 +186,12 @@ class RedisClusterManager:
                     except TypeError:
                         client.ping()
                     self.clients[i] = client
-                    self.logger.info(
-                        f"Connected to Redis node {i}: {node.host}:{node.port}"
-                    )
+                    self.logger.info(f"Connected to Redis node {i}: {node.host}:{node.port}")
 
                 # Optional cluster logical client
-                if (
-                    len(self.config.cluster_nodes) >= 3
-                    and RedisCluster is not None
-                    and not self.cluster_client
-                ):
+                if len(self.config.cluster_nodes) >= 3 and RedisCluster is not None and not self.cluster_client:
                     cluster_startup_nodes = [
-                        {"host": node.host, "port": node.port}
-                        for node in self.config.cluster_nodes
+                        {"host": node.host, "port": node.port} for node in self.config.cluster_nodes
                     ]
                     try:
                         self.cluster_client = RedisCluster(
@@ -217,16 +204,12 @@ class RedisClusterManager:
                             await ping_result
                         self.logger.info("Redis cluster client initialized")
                     except Exception:
-                        self.logger.warning(
-                            "Cluster client initialization failed; continuing with node clients only"
-                        )
+                        self.logger.warning("Cluster client initialization failed; continuing with node clients only")
 
             # Always attempt single-node fallback if no clients were created
             if not self.clients:
                 await self._initialize_single_node()
         except Exception:
-            self.logger.exception(
-                "Redis initialization error; attempting single-node fallback"
-            )
+            self.logger.exception("Redis initialization error; attempting single-node fallback")
             if not self.clients:
                 await self._initialize_single_node()

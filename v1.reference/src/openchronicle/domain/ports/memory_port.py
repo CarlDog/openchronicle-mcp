@@ -15,9 +15,7 @@ class IMemoryPort(ABC):
     """Interface for memory operations."""
 
     @abstractmethod
-    def store_memory(
-        self, story_id: str, character_name: str, memory_data: dict[str, Any]
-    ) -> bool:
+    def store_memory(self, story_id: str, character_name: str, memory_data: dict[str, Any]) -> bool:
         """
         Store character memory data.
 
@@ -31,9 +29,7 @@ class IMemoryPort(ABC):
         """
 
     @abstractmethod
-    def retrieve_memory(
-        self, story_id: str, character_name: str
-    ) -> Optional[dict[str, Any]]:
+    def retrieve_memory(self, story_id: str, character_name: str) -> Optional[dict[str, Any]]:
         """
         Retrieve character memory data.
 
@@ -46,9 +42,7 @@ class IMemoryPort(ABC):
         """
 
     @abstractmethod
-    def update_memory(
-        self, story_id: str, character_name: str, updates: dict[str, Any]
-    ) -> bool:
+    def update_memory(self, story_id: str, character_name: str, updates: dict[str, Any]) -> bool:
         """
         Update character memory data.
 

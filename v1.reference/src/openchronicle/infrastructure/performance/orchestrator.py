@@ -78,21 +78,9 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
                         "metrics_collector": type(self.metrics_collector).__name__,
                         "metrics_storage": type(self.metrics_storage).__name__,
                         "bottleneck_analyzer": type(self.bottleneck_analyzer).__name__,
-                        "trend_analyzer": (
-                            type(self.trend_analyzer).__name__
-                            if self.trend_analyzer
-                            else None
-                        ),
-                        "report_generator": (
-                            type(self.report_generator).__name__
-                            if self.report_generator
-                            else None
-                        ),
-                        "alert_manager": (
-                            type(self.alert_manager).__name__
-                            if self.alert_manager
-                            else None
-                        ),
+                        "trend_analyzer": (type(self.trend_analyzer).__name__ if self.trend_analyzer else None),
+                        "report_generator": (type(self.report_generator).__name__ if self.report_generator else None),
+                        "alert_manager": (type(self.alert_manager).__name__ if self.alert_manager else None),
                     }
                 },
             )
@@ -111,9 +99,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
         try:
             # Start metrics collection
-            operation_id = await self.metrics_collector.start_operation_tracking(
-                context
-            )
+            operation_id = await self.metrics_collector.start_operation_tracking(context)
 
             log_system_event(
                 "performance_orchestrator",
@@ -144,9 +130,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
         try:
             # Finish metrics collection
-            metrics = await self.metrics_collector.finish_operation_tracking(
-                operation_id, success, error_message
-            )
+            metrics = await self.metrics_collector.finish_operation_tracking(operation_id, success, error_message)
 
             # Store metrics
             await self.metrics_storage.store_metrics(metrics)
@@ -167,9 +151,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
             )
 
         except Exception as e:
-            self.logger.exception(
-                "Failed to finish operation monitoring for"
-            )
+            self.logger.exception("Failed to finish operation monitoring for")
             return self._create_fallback_metrics(operation_id, success, error_message)
         else:
             return metrics
@@ -204,24 +186,16 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
             metrics = await self.metrics_storage.retrieve_metrics(query)
 
             # Get storage summary
-            storage_summary = await self.metrics_storage.get_metrics_summary(
-                time_period, adapter_filter
-            )
+            storage_summary = await self.metrics_storage.get_metrics_summary(time_period, adapter_filter)
 
             # Perform bottleneck analysis
-            bottleneck_report = await self.bottleneck_analyzer.analyze_bottlenecks(
-                metrics
-            )
+            bottleneck_report = await self.bottleneck_analyzer.analyze_bottlenecks(metrics)
 
             # Identify slow operations
-            slow_operations = await self.bottleneck_analyzer.identify_slow_operations(
-                metrics
-            )
+            slow_operations = await self.bottleneck_analyzer.identify_slow_operations(metrics)
 
             # Analyze resource usage patterns
-            resource_patterns = (
-                await self.bottleneck_analyzer.analyze_resource_usage_patterns(metrics)
-            )
+            resource_patterns = await self.bottleneck_analyzer.analyze_resource_usage_patterns(metrics)
 
             # Compile comprehensive analysis
             analysis = {
@@ -243,9 +217,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
             # Add trend analysis if available
             if self.trend_analyzer:
-                trend_analysis = await self.trend_analyzer.analyze_trends(
-                    metrics, time_period
-                )
+                trend_analysis = await self.trend_analyzer.analyze_trends(metrics, time_period)
                 analysis["trend_analysis"] = asdict(trend_analysis)
 
             log_system_event(
@@ -255,10 +227,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
                     "metrics_analyzed": len(metrics),
                     "bottlenecks_found": len(bottleneck_report.bottleneck_patterns),
                     "slow_operations": len(slow_operations),
-                    "time_period_hours": (
-                        time_period[1] - time_period[0]
-                    ).total_seconds()
-                    / 3600,
+                    "time_period_hours": (time_period[1] - time_period[0]).total_seconds() / 3600,
                 },
             )
 
@@ -314,14 +283,10 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
         try:
             # Clean up storage
-            deleted_metrics = await self.metrics_storage.cleanup_old_metrics(
-                retention_days
-            )
+            deleted_metrics = await self.metrics_storage.cleanup_old_metrics(retention_days)
 
             # Clean up stale operations in collector
-            cleaned_operations = await self.metrics_collector.cleanup_stale_operations(
-                24
-            )  # 24 hours
+            cleaned_operations = await self.metrics_collector.cleanup_stale_operations(24)  # 24 hours
 
             cleanup_stats = {
                 "deleted_metrics": deleted_metrics,
@@ -329,9 +294,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
                 "retention_days": retention_days,
             }
 
-            log_system_event(
-                "performance_orchestrator", "Data cleanup completed", cleanup_stats
-            )
+            log_system_event("performance_orchestrator", "Data cleanup completed", cleanup_stats)
 
         except Exception as e:
             self.logger.exception("Failed to cleanup old data")
@@ -357,9 +320,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
             # Use report generator if available
             if self.report_generator:
-                formatted_report = await self.report_generator.generate_report(
-                    analysis, report_format
-                )
+                formatted_report = await self.report_generator.generate_report(analysis, report_format)
                 return formatted_report
             # Return analysis as basic report
             return {
@@ -406,9 +367,7 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
 
             # Log initialization
             log_system_event(
-                "performance_orchestrator",
-                f"Monitoring initialized for unit: {story_id}",
-                {"unit_id": story_id}
+                "performance_orchestrator", f"Monitoring initialized for unit: {story_id}", {"unit_id": story_id}
             )
 
         except Exception as e:
@@ -426,17 +385,9 @@ class PerformanceOrchestrator(IPerformanceOrchestrator):
                 "metrics_collector": type(self.metrics_collector).__name__,
                 "metrics_storage": type(self.metrics_storage).__name__,
                 "bottleneck_analyzer": type(self.bottleneck_analyzer).__name__,
-                "trend_analyzer": (
-                    type(self.trend_analyzer).__name__ if self.trend_analyzer else None
-                ),
-                "report_generator": (
-                    type(self.report_generator).__name__
-                    if self.report_generator
-                    else None
-                ),
-                "alert_manager": (
-                    type(self.alert_manager).__name__ if self.alert_manager else None
-                ),
+                "trend_analyzer": (type(self.trend_analyzer).__name__ if self.trend_analyzer else None),
+                "report_generator": (type(self.report_generator).__name__ if self.report_generator else None),
+                "alert_manager": (type(self.alert_manager).__name__ if self.alert_manager else None),
             },
         }
 

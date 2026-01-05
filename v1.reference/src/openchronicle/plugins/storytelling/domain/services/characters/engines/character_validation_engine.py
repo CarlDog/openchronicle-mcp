@@ -101,9 +101,7 @@ class CharacterValidationEngine:
                         character.character_id, context
                     )
                     if not provider_valid:
-                        validation_result["issues"].append(
-                            f"{provider.__class__.__name__}: {provider_error}"
-                        )
+                        validation_result["issues"].append(f"{provider.__class__.__name__}: {provider_error}")
                 except (AttributeError, KeyError) as e:
                     logger.exception(f"Validation provider data structure error in {provider.__class__.__name__}")
                     if self.strict_validation:
@@ -131,7 +129,7 @@ class CharacterValidationEngine:
         except Exception as e:
             logger.exception("Error validating character consistency")
             return {
-                "character_id": getattr(character, 'character_id', 'unknown'),
+                "character_id": getattr(character, "character_id", "unknown"),
                 "valid": False,
                 "error": str(e),
                 "timestamp": datetime.now().isoformat(),
@@ -139,9 +137,7 @@ class CharacterValidationEngine:
         else:
             return validation_result
 
-    def validate_character_action(
-        self, character: CharacterData, action_data: dict[str, Any]
-    ) -> Tuple[bool, str]:
+    def validate_character_action(self, character: CharacterData, action_data: dict[str, Any]) -> Tuple[bool, str]:
         """
         Validate a proposed character action.
 
@@ -174,9 +170,7 @@ class CharacterValidationEngine:
                 # Use external validation providers for unknown actions
                 for provider in self.validation_providers:
                     try:
-                        valid, error = provider.validate_character_action(
-                            character.character_id, action_data
-                        )
+                        valid, error = provider.validate_character_action(character.character_id, action_data)
                         if not valid:
                             return False, error
                     except (AttributeError, KeyError) as e:
@@ -285,15 +279,11 @@ class CharacterValidationEngine:
             relationship_strength = relationship_data.get("strength")
             if isinstance(relationship_strength, (int, float)):
                 if relationship_strength < -1 or relationship_strength > 1:
-                    issues.append(
-                        f"Relationship strength with {character_id} outside valid range [-1,1]"
-                    )
+                    issues.append(f"Relationship strength with {character_id} outside valid range [-1,1]")
 
         return issues
 
-    def _validate_stat_update_action(
-        self, character: CharacterData, action_data: dict[str, Any]
-    ) -> Tuple[bool, str]:
+    def _validate_stat_update_action(self, character: CharacterData, action_data: dict[str, Any]) -> Tuple[bool, str]:
         """Validate stat update action."""
         stat_type = action_data.get("stat_type")
         new_value = action_data.get("new_value")
@@ -316,9 +306,7 @@ class CharacterValidationEngine:
 
         return True, ""
 
-    def _validate_relationship_action(
-        self, character: CharacterData, action_data: dict[str, Any]
-    ) -> Tuple[bool, str]:
+    def _validate_relationship_action(self, character: CharacterData, action_data: dict[str, Any]) -> Tuple[bool, str]:
         """Validate relationship management action."""
         relationship_data = action_data.get("data", {})
 
@@ -347,9 +335,7 @@ class CharacterValidationEngine:
 
         return True, ""
 
-    def _validate_dialogue_action(
-        self, character: CharacterData, action_data: dict[str, Any]
-    ) -> Tuple[bool, str]:
+    def _validate_dialogue_action(self, character: CharacterData, action_data: dict[str, Any]) -> Tuple[bool, str]:
         """Validate dialogue action."""
         content = action_data.get("content", "")
 

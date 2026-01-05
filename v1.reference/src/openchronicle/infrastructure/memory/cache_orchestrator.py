@@ -33,6 +33,7 @@ from .engines.caching.warming_manager import CacheWarmingManager
 
 try:
     from cachetools import TTLCache
+
     CACHETOOLS_AVAILABLE = True
 except ImportError:
     TTLCache = None
@@ -41,6 +42,7 @@ except ImportError:
 try:
     import redis
     import redis.exceptions
+
     REDIS_AVAILABLE = True
 except ImportError:
     redis = None
@@ -68,7 +70,7 @@ class RetryPolicy:
             except self.retry_exceptions as e:
                 last_exception = e
                 if attempt < self.max_attempts - 1:
-                    await asyncio.sleep(self.base_delay * (2 ** attempt))
+                    await asyncio.sleep(self.base_delay * (2**attempt))
                 continue
 
         raise last_exception
@@ -93,7 +95,8 @@ class DistributedMultiTierCache(MultiTierCache):
         # Local memory cache
         if self.config.enable_local_cache and CACHETOOLS_AVAILABLE:
             self.local_cache = TTLCache(
-                maxsize=self.config.local_cache_size, ttl=300  # 5 minutes local TTL
+                maxsize=self.config.local_cache_size,
+                ttl=300,  # 5 minutes local TTL
             )
         else:
             self.local_cache = None
@@ -116,8 +119,7 @@ class DistributedMultiTierCache(MultiTierCache):
         """Start background monitoring task."""
 
         async def monitor():
-            policy = RetryPolicy(max_attempts=3, base_delay=0.5,
-                               retry_exceptions=(CacheError, CacheConnectionError))
+            policy = RetryPolicy(max_attempts=3, base_delay=0.5, retry_exceptions=(CacheError, CacheConnectionError))
             while True:
                 try:
                     await asyncio.sleep(self.config.metrics_collection_interval)
@@ -136,6 +138,7 @@ class DistributedMultiTierCache(MultiTierCache):
                     self.logger.exception("Unexpected monitoring error")
                     # For truly unexpected errors, we still continue but log more detail
                     import traceback
+
                     self.logger.debug(f"Full traceback: {traceback.format_exc()}")
 
         self._monitoring_task = asyncio.create_task(monitor())
@@ -151,9 +154,7 @@ class DistributedMultiTierCache(MultiTierCache):
                     info = await client.info()
                     response_time = time.time() - start_time
 
-                    self.metrics.record_cluster_operation(
-                        f"node_{node_index}", "info", True, response_time
-                    )
+                    self.metrics.record_cluster_operation(f"node_{node_index}", "info", True, response_time)
 
                     # Log important Redis metrics
                     memory_used = info.get("used_memory_human", "unknown")
@@ -168,20 +169,12 @@ class DistributedMultiTierCache(MultiTierCache):
                     )
 
                 except (CacheConnectionError, ConnectionError, OSError) as e:
-                    self.metrics.record_cluster_operation(
-                        f"node_{node_index}", "info", False, time.time() - start_time
-                    )
-                    self.logger.warning(
-                        f"Connection failed to node {node_index}: {e}"
-                    )
+                    self.metrics.record_cluster_operation(f"node_{node_index}", "info", False, time.time() - start_time)
+                    self.logger.warning(f"Connection failed to node {node_index}: {e}")
                     raise CacheConnectionError(f"Node {node_index} unreachable: {e}") from e
                 except (redis.exceptions.RedisError, CacheError) as e:
-                    self.metrics.record_cluster_operation(
-                        f"node_{node_index}", "info", False, time.time() - start_time
-                    )
-                    self.logger.warning(
-                        f"Redis operation failed on node {node_index}: {e}"
-                    )
+                    self.metrics.record_cluster_operation(f"node_{node_index}", "info", False, time.time() - start_time)
+                    self.logger.warning(f"Redis operation failed on node {node_index}: {e}")
                     raise CacheError(f"Redis operation failed: {e}") from e
 
         except (CacheError, CacheConnectionError):
@@ -227,14 +220,10 @@ class DistributedMultiTierCache(MultiTierCache):
                         _,
                         key_hash,
                     ) = self.cluster_manager.partitioner.get_partition_for_key(key)
-                    self.metrics.record_partition_operation(
-                        f"partition_{node_index}", "get", key_hash
-                    )
+                    self.metrics.record_partition_operation(f"partition_{node_index}", "get", key_hash)
 
                 # Record cluster metrics
-                self.metrics.record_cluster_operation(
-                    f"node_{node_index}", "get", True, redis_time
-                )
+                self.metrics.record_cluster_operation(f"node_{node_index}", "get", True, redis_time)
 
                 if redis_value is not None:
                     self.metrics.record_hit("redis")
@@ -246,30 +235,20 @@ class DistributedMultiTierCache(MultiTierCache):
                         if self.local_cache is not None:
                             self.local_cache[key] = value
                     except json.JSONDecodeError:
-                        self.logger.exception(
-                            "Failed to deserialize Redis value for key"
-                        )
+                        self.logger.exception("Failed to deserialize Redis value for key")
                     else:
                         return value
                 else:
                     self.metrics.record_miss("redis")
 
             except Exception as e:
-                self.logger.exception(
-                    f"Redis error for key {key} on node"
-                )
-                self.metrics.record_cluster_operation(
-                    f"node_{node_index}", "get", False, time.time() - redis_start
-                )
+                self.logger.exception(f"Redis error for key {key} on node")
+                self.metrics.record_cluster_operation(f"node_{node_index}", "get", False, time.time() - redis_start)
 
         # Tier 3: Fallback function (usually database)
         if fallback_func:
             self.logger.debug(f"Cache miss, calling fallback for: {key}")
-            value = (
-                await fallback_func()
-                if asyncio.iscoroutinefunction(fallback_func)
-                else fallback_func()
-            )
+            value = await fallback_func() if asyncio.iscoroutinefunction(fallback_func) else fallback_func()
 
             if value is not None:
                 # Store in cache with appropriate TTL
@@ -302,47 +281,33 @@ class DistributedMultiTierCache(MultiTierCache):
                 response_time = time.time() - start_time
 
                 # Record metrics
-                self.metrics.record_cluster_operation(
-                    f"node_{node_index}", "set", True, response_time
-                )
+                self.metrics.record_cluster_operation(f"node_{node_index}", "set", True, response_time)
 
                 if self.cluster_manager.partitioner:
                     (
                         _,
                         key_hash,
                     ) = self.cluster_manager.partitioner.get_partition_for_key(key)
-                    self.metrics.record_partition_operation(
-                        f"partition_{node_index}", "set", key_hash
-                    )
+                    self.metrics.record_partition_operation(f"partition_{node_index}", "set", key_hash)
 
-                self.logger.debug(
-                    f"Cached in Redis: {key} (node {node_index}, TTL: {ttl}s)"
-                )
+                self.logger.debug(f"Cached in Redis: {key} (node {node_index}, TTL: {ttl}s)")
 
                 # Handle replication if configured
                 await self._replicate_to_replicas(key, value, ttl, node_index)
 
             except Exception as e:
-                self.logger.exception(
-                    f"Redis cache error for key {key} on node"
-                )
-                self.metrics.record_cluster_operation(
-                    f"node_{node_index}", "set", False, time.time() - start_time
-                )
+                self.logger.exception(f"Redis cache error for key {key} on node")
+                self.metrics.record_cluster_operation(f"node_{node_index}", "set", False, time.time() - start_time)
                 success = False
 
         return success
 
-    async def _replicate_to_replicas(
-        self, key: str, value: Any, ttl: int, primary_index: int
-    ):
+    async def _replicate_to_replicas(self, key: str, value: Any, ttl: int, primary_index: int):
         """Replicate data to replica nodes if configured."""
         if not self.cluster_manager.partitioner:
             return
 
-        replica_indices = self.cluster_manager.partitioner.get_replica_nodes(
-            primary_index
-        )
+        replica_indices = self.cluster_manager.partitioner.get_replica_nodes(primary_index)
         if not replica_indices:
             return
 
@@ -355,13 +320,9 @@ class DistributedMultiTierCache(MultiTierCache):
                     await replica_client.setex(f"replica:{key}", ttl, serialized)
                     self.logger.debug(f"Replicated {key} to node {replica_index}")
                 except Exception as e:
-                    self.logger.warning(
-                        f"Replication failed for {key} to node {replica_index}: {e}"
-                    )
+                    self.logger.warning(f"Replication failed for {key} to node {replica_index}: {e}")
 
-    async def warm_cache(
-        self, story_ids: list[str], character_names: dict[str, list[str]]
-    ) -> dict[str, Any]:
+    async def warm_cache(self, story_ids: list[str], character_names: dict[str, list[str]]) -> dict[str, Any]:
         """Warm cache with commonly accessed data."""
         if not self.config.enable_cache_warming:
             return {"warming_disabled": True}
@@ -372,12 +333,10 @@ class DistributedMultiTierCache(MultiTierCache):
         memory_results = await self.warming_manager.warm_memory_snapshots(story_ids)
         results["memory_snapshots"] = memory_results
 
-    # Warm participant data
+        # Warm participant data
         character_results = {}
         for story_id, names in character_names.items():
-            story_results = await self.warming_manager.warm_character_cache(
-                story_id, names
-            )
+            story_results = await self.warming_manager.warm_character_cache(story_id, names)
             character_results[story_id] = story_results
 
         results["characters"] = character_results

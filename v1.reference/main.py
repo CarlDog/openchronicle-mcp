@@ -33,10 +33,7 @@ def main():
     if "--test" in sys.argv:
         # Remove our flag and any unrelated args we don't support here
         # Advanced tests are intentionally excluded (stress/perf/chaos/production)
-        log_info(
-            "Running OpenChronicle system tests (unit only)…",
-            context_tags=["startup", "test"]
-        )
+        log_info("Running OpenChronicle system tests (unit only)…", context_tags=["startup", "test"])
         pytest_cmd = [
             sys.executable,
             "-m",
@@ -68,17 +65,15 @@ def main():
     except ImportError as e:
         log_error(
             f"Error loading OpenChronicle CLI: {e}",
-            context_tags=["startup","cli","import_error"],
+            context_tags=["startup", "cli", "import_error"],
         )
         log_info(
             "Please ensure all dependencies are installed: pip install -e .",
-            context_tags=["startup","cli","hint"],
+            context_tags=["startup", "cli", "hint"],
         )
         return 1
     except (RuntimeError, ValueError, OSError) as e:  # narrowed from broad Exception
-        log_error(
-            f"Unexpected error: {e}", context_tags=["startup", "cli", "error"]
-        )
+        log_error(f"Unexpected error: {e}", context_tags=["startup", "cli", "error"])
         return 1
 
 
@@ -86,5 +81,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except KeyboardInterrupt:
-        log_info("Interrupted by user", context_tags=["shutdown","keyboard_interrupt"])
+        log_info("Interrupted by user", context_tags=["shutdown", "keyboard_interrupt"])
         sys.exit(0)

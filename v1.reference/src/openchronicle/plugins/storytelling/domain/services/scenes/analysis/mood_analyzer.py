@@ -24,9 +24,7 @@ from openchronicle.shared.logging_system import log_error_with_context
 class MoodAnalyzer:
     """Handles mood analysis and scene type classification using dependency injection."""
 
-    def __init__(
-        self, story_id: str, persistence_port: Optional[IPersistencePort] = None
-    ):
+    def __init__(self, story_id: str, persistence_port: Optional[IPersistencePort] = None):
         """
         Initialize mood analyzer for a specific story.
 
@@ -111,16 +109,8 @@ class MoodAnalyzer:
                     "scene_id": row["scene_id"],
                     "timestamp": row["timestamp"],
                     "scene_label": row.get("scene_label"),
-                    "input_preview": (
-                        row["input"][:200] + "..."
-                        if len(row["input"]) > 200
-                        else row["input"]
-                    ),
-                    "output_preview": (
-                        row["output"][:200] + "..."
-                        if len(row["output"]) > 200
-                        else row["output"]
-                    ),
+                    "input_preview": (row["input"][:200] + "..." if len(row["input"]) > 200 else row["input"]),
+                    "output_preview": (row["output"][:200] + "..." if len(row["output"]) > 200 else row["output"]),
                     "input_length": row["input_length"],
                     "output_length": row["output_length"],
                     "mood_details": mood_info,
@@ -172,16 +162,8 @@ class MoodAnalyzer:
                     "timestamp": row["timestamp"],
                     "scene_label": row.get("scene_label"),
                     "scene_type": scene_type,
-                    "input_preview": (
-                        row["input"][:200] + "..."
-                        if len(row["input"]) > 200
-                        else row["input"]
-                    ),
-                    "output_preview": (
-                        row["output"][:200] + "..."
-                        if len(row["output"]) > 200
-                        else row["output"]
-                    ),
+                    "input_preview": (row["input"][:200] + "..." if len(row["input"]) > 200 else row["input"]),
+                    "output_preview": (row["output"][:200] + "..." if len(row["output"]) > 200 else row["output"]),
                     "input_length": row["input_length"],
                     "output_length": row["output_length"],
                 }
@@ -236,9 +218,7 @@ class MoodAnalyzer:
 
             timeline = []
             for row in rows:
-                mood_data = self._extract_character_mood(
-                    row.get("structured_tags"), character_name
-                )
+                mood_data = self._extract_character_mood(row.get("structured_tags"), character_name)
 
                 if mood_data:
                     timeline_entry = {
@@ -247,9 +227,7 @@ class MoodAnalyzer:
                         "character_name": character_name,
                         "mood": mood_data.get("mood", "neutral"),
                         "stability": mood_data.get("stability", 1.0),
-                        "mood_category": self._categorize_mood(
-                            mood_data.get("mood", "neutral")
-                        ),
+                        "mood_category": self._categorize_mood(mood_data.get("mood", "neutral")),
                     }
                     timeline.append(timeline_entry)
 
@@ -258,20 +236,22 @@ class MoodAnalyzer:
 
         except (AttributeError, KeyError) as e:
             log_error_with_context(
-                e, {
+                e,
+                {
                     "operation": "get_character_mood_timeline_data_error",
                     "story_id": self.story_id,
-                    "character_name": character_name
-                }
+                    "character_name": character_name,
+                },
             )
             return []
         except Exception as e:
             log_error_with_context(
-                e, {
+                e,
+                {
                     "operation": "get_character_mood_timeline",
                     "story_id": self.story_id,
-                    "character_name": character_name
-                }
+                    "character_name": character_name,
+                },
             )
             return []
         else:
@@ -331,20 +311,14 @@ class MoodAnalyzer:
             # Categorize moods
             categorized_moods = {}
             for category, moods in self.mood_categories.items():
-                categorized_moods[category] = sum(
-                    mood_counts.get(mood, 0) for mood in moods
-                )
+                categorized_moods[category] = sum(mood_counts.get(mood, 0) for mood in moods)
 
             return {
                 "total_scenes_with_moods": total_scenes_with_moods,
                 "mood_distribution": mood_counts,
                 "mood_categories": categorized_moods,
                 "character_mood_breakdown": character_mood_counts,
-                "most_common_mood": (
-                    max(mood_counts.items(), key=lambda x: x[1])[0]
-                    if mood_counts
-                    else "neutral"
-                ),
+                "most_common_mood": (max(mood_counts.items(), key=lambda x: x[1])[0] if mood_counts else "neutral"),
                 "generated_at": datetime.utcnow().isoformat(),
             }
 
@@ -352,9 +326,7 @@ class MoodAnalyzer:
             log_error_with_context(e, {"operation": "get_mood_distribution", "story_id": self.story_id})
             return {"error": str(e)}
 
-    def _extract_mood_info(
-        self, structured_tags: str | None, target_mood: str
-    ) -> dict[str, Any]:
+    def _extract_mood_info(self, structured_tags: str | None, target_mood: str) -> dict[str, Any]:
         """Extract mood information from structured tags."""
         if not structured_tags:
             return {}
@@ -392,9 +364,7 @@ class MoodAnalyzer:
         except (json.JSONDecodeError, TypeError):
             return {}
 
-    def _extract_character_mood(
-        self, structured_tags: str | None, character_name: str
-    ) -> dict[str, Any] | None:
+    def _extract_character_mood(self, structured_tags: str | None, character_name: str) -> dict[str, Any] | None:
         """Extract mood data for a specific character."""
         if not structured_tags:
             return None

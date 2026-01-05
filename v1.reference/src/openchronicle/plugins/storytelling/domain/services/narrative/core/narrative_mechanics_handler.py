@@ -79,9 +79,7 @@ class NarrativeMechanicsHandler:
                 "timestamp": datetime.now().isoformat(),
             }
 
-            log_info(
-                f"Dice roll: {dice_expression} = {total} (rolls: {rolls}, modifier: {modifier})"
-            )
+            log_info(f"Dice roll: {dice_expression} = {total} (rolls: {rolls}, modifier: {modifier})")
 
         except (ValueError, TypeError) as e:
             log_error(f"Invalid dice expression parameters '{dice_expression}': {e}")
@@ -132,33 +130,23 @@ class NarrativeMechanicsHandler:
 
             # Evaluate based on branch type
             if branch_type == "character_decision":
-                evaluation["recommendations"].append(
-                    "Consider character motivations and past decisions"
-                )
+                evaluation["recommendations"].append("Consider character motivations and past decisions")
                 evaluation["difficulty"] = "moderate"
 
             elif branch_type == "plot_progression":
-                evaluation["recommendations"].append(
-                    "Ensure plot consistency with established elements"
-                )
+                evaluation["recommendations"].append("Ensure plot consistency with established elements")
                 evaluation["difficulty"] = "high"
 
             elif branch_type == "dialogue_choice":
-                evaluation["recommendations"].append(
-                    "Maintain character voice and relationship dynamics"
-                )
+                evaluation["recommendations"].append("Maintain character voice and relationship dynamics")
                 evaluation["difficulty"] = "low"
 
             elif branch_type == "conflict_resolution":
-                evaluation["recommendations"].append(
-                    "Balance narrative tension with character agency"
-                )
+                evaluation["recommendations"].append("Balance narrative tension with character agency")
                 evaluation["difficulty"] = "high"
 
             else:
-                evaluation["recommendations"].append(
-                    "Generic narrative evaluation applied"
-                )
+                evaluation["recommendations"].append("Generic narrative evaluation applied")
                 evaluation["difficulty"] = "moderate"
 
             # Calculate tension modifier based on evaluation
@@ -171,9 +159,7 @@ class NarrativeMechanicsHandler:
             evaluation["tension_modifier"] = tension_modifier
             evaluation["timestamp"] = datetime.now().isoformat()
 
-            log_info(
-                f"Evaluated narrative branch for {character_id} in {story_id}: {branch_type}"
-            )
+            log_info(f"Evaluated narrative branch for {character_id} in {story_id}: {branch_type}")
 
         except Exception as e:
             log_error(f"Error evaluating narrative branch: {e}")
@@ -204,13 +190,7 @@ class NarrativeMechanicsHandler:
         context = context or {}
 
         # Base difficulty values
-        difficulty_values = {
-            "trivial": 0.1,
-            "easy": 0.3,
-            "moderate": 0.5,
-            "hard": 0.7,
-            "extreme": 0.9
-        }
+        difficulty_values = {"trivial": 0.1, "easy": 0.3, "moderate": 0.5, "hard": 0.7, "extreme": 0.9}
 
         base_value = difficulty_values.get(base_difficulty, 0.5)
 
@@ -231,22 +211,22 @@ class NarrativeMechanicsHandler:
                     "An unexpected visitor arrives",
                     "The weather changes dramatically",
                     "A memory surfaces unexpectedly",
-                    "Something important is discovered"
+                    "Something important is discovered",
                 ],
                 "social": [
                     "A misunderstanding arises between characters",
                     "An old friend appears unexpectedly",
                     "A secret is accidentally revealed",
                     "Someone asks for help",
-                    "A celebration is interrupted"
+                    "A celebration is interrupted",
                 ],
                 "conflict": [
                     "A challenge must be faced immediately",
                     "Opposition appears to block progress",
                     "A moral dilemma presents itself",
                     "Time runs short for an important decision",
-                    "Resources become scarce"
-                ]
+                    "Resources become scarce",
+                ],
             }
 
             templates = event_templates.get(event_type, event_templates["general"])
@@ -263,7 +243,7 @@ class NarrativeMechanicsHandler:
                 "intensity": intensity,
                 "timing": timing,
                 "tension_impact": random.uniform(-0.3, 0.3),
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except Exception as e:
@@ -283,6 +263,6 @@ class NarrativeMechanicsHandler:
                 "roll_dice",
                 "evaluate_narrative_branch",
                 "calculate_difficulty_modifier",
-                "generate_random_event"
-            ]
+                "generate_random_event",
+            ],
         }

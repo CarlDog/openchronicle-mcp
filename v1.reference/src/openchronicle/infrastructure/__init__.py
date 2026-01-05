@@ -29,24 +29,27 @@ Architecture Principles:
 import warnings
 from typing import Optional
 
-from openchronicle.shared.exceptions import (
-    ApplicationError,
-    ConfigurationError,
-    InfrastructureError,
-    ModelError,
-)
-from .adapters import (
-    AnthropicAdapter,
-    BaseModelAdapter,
-    MockModelAdapter,
-    ModelConfig,
-    ModelManagementAdapter,
-    OllamaAdapter,
-    OpenAIAdapter,
-    create_adapter,
-)
-from .cache import BaseCache, CacheEntry, FileSystemCache, InMemoryCache, ModelResponseCache, create_cache
+from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import ConfigurationError
+from openchronicle.shared.exceptions import InfrastructureError
+from openchronicle.shared.exceptions import ModelError
+
+from .adapters import AnthropicAdapter
+from .adapters import BaseModelAdapter
+from .adapters import MockModelAdapter
+from .adapters import ModelConfig
+from .adapters import ModelManagementAdapter
+from .adapters import OllamaAdapter
+from .adapters import OpenAIAdapter
+from .adapters import create_adapter
+from .cache import BaseCache
+from .cache import CacheEntry
+from .cache import FileSystemCache
+from .cache import InMemoryCache
+from .cache import ModelResponseCache
+from .cache import create_cache
 from .memory import MemoryOrchestrator
+
 
 # Note: Domain-specific repositories are implemented in plugins; core remains neutral.
 
@@ -59,9 +62,9 @@ class InfrastructureConfig:
         storage_backend: str = "filesystem",
         storage_path: str = "storage",
         cache_type: str = "memory",
-    cache_config: Optional[dict] = None,
-    model_configs: Optional[dict] = None,
-    database_url: Optional[str] = None,
+        cache_config: Optional[dict] = None,
+        model_configs: Optional[dict] = None,
+        database_url: Optional[str] = None,
     ):
         self.storage_backend = storage_backend
         self.storage_path = storage_path
@@ -91,10 +94,10 @@ class InfrastructureContainer:
     # Repository factories
     def get_story_repository(self):
         """
-    DEPRECATED: Domain repositories moved to plugins.
+        DEPRECATED: Domain repositories moved to plugins.
 
-        Core no longer provides or imports plugin repositories. Resolve the
-        repository via the plugin container/DI and call it directly.
+            Core no longer provides or imports plugin repositories. Resolve the
+            repository via the plugin container/DI and call it directly.
         """
         warnings.warn(
             "get_story_repository is deprecated and removed from core. Use the appropriate domain plugin via DI.",
@@ -107,7 +110,7 @@ class InfrastructureContainer:
 
     def get_character_repository(self):
         """
-    DEPRECATED: Domain-specific repositories moved to plugins.
+        DEPRECATED: Domain-specific repositories moved to plugins.
         """
         warnings.warn(
             "get_character_repository is deprecated and removed from core. Use the appropriate domain plugin via DI.",
@@ -120,7 +123,7 @@ class InfrastructureContainer:
 
     def get_scene_repository(self):
         """
-    DEPRECATED: Domain-specific repositories moved to plugins.
+        DEPRECATED: Domain-specific repositories moved to plugins.
         """
         warnings.warn(
             "get_scene_repository is deprecated and removed from core. Use the appropriate domain plugin via DI.",

@@ -2,6 +2,7 @@
 Performance interface port for domain layer operations.
 Abstract interfaces for performance operations without dependency violations.
 """
+
 from abc import ABC
 from abc import abstractmethod
 from typing import Any

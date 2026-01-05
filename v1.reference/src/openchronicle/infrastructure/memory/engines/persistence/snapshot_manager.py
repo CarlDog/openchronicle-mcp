@@ -34,9 +34,7 @@ class SnapshotManager:
     def create_snapshot(self, story_id: str, scene_id: str) -> str:
         """Create memory snapshot for current frame (legacy id retained)."""
         current_memory = self.repository.load_memory(story_id)
-        snapshot_id = self.repository.create_snapshot(
-            story_id, scene_id, current_memory
-        )
+        snapshot_id = self.repository.create_snapshot(story_id, scene_id, current_memory)
 
         if snapshot_id:
             return snapshot_id
@@ -155,9 +153,7 @@ class SnapshotManager:
 
         restored_world_keys_only = restored_world_keys - current_world_keys
         if restored_world_keys_only:
-            changes.append(
-                f"World state restored: {', '.join(restored_world_keys_only)}"
-            )
+            changes.append(f"World state restored: {', '.join(restored_world_keys_only)}")
 
         # Flag changes
         current_flags = {flag.name for flag in current.flags}
@@ -174,8 +170,6 @@ class SnapshotManager:
 
         # Event changes
         if len(current.recent_events) != len(restored.recent_events):
-            changes.append(
-                f"Recent events count: {len(current.recent_events)} → {len(restored.recent_events)}"
-            )
+            changes.append(f"Recent events count: {len(current.recent_events)} → {len(restored.recent_events)}")
 
         return changes

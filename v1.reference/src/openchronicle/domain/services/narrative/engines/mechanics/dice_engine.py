@@ -174,9 +174,7 @@ class DiceEngine:
         # Standard dice
         return random.randint(config["min"], config["sides"])
 
-    def roll_d20(
-        self, modifier: int = 0, advantage: bool = False, disadvantage: bool = False
-    ) -> DiceRoll:
+    def roll_d20(self, modifier: int = 0, advantage: bool = False, disadvantage: bool = False) -> DiceRoll:
         """Convenience method for d20 rolls."""
         return self.roll_dice(DiceType.D20, 1, modifier, advantage, disadvantage)
 
@@ -381,9 +379,7 @@ class DiceEngine:
             "results": results[:100],  # First 100 for sampling
         }
 
-    def validate_roll_parameters(
-        self, dice_type: DiceType, count: int, modifier: int
-    ) -> bool:
+    def validate_roll_parameters(self, dice_type: DiceType, count: int, modifier: int) -> bool:
         """Validate dice roll parameters."""
         if count <= 0 or count > 100:  # Reasonable limits
             return False

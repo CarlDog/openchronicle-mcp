@@ -79,9 +79,7 @@ class CharacterStatsEngine:
             # Validate new value if enabled
             if self.stat_validation_enabled:
                 if not self._validate_stat_value(stat_type, new_value):
-                    logger.warning(
-                        f"Stat value {new_value} invalid for {stat_type.value}"
-                    )
+                    logger.warning(f"Stat value {new_value} invalid for {stat_type.value}")
                     return False
 
             # Apply stat caps if enabled
@@ -91,9 +89,7 @@ class CharacterStatsEngine:
             # Update stat
             character.stats.update_stat(stat_type, new_value, reason, scene_context)
 
-            logger.info(
-                f"Updated {stat_type.value} to {new_value} for character {character.character_id}: {reason}"
-            )
+            logger.info(f"Updated {stat_type.value} to {new_value} for character {character.character_id}: {reason}")
 
         except (ValueError, TypeError, AttributeError) as e:
             logger.exception("Invalid data or parameters updating character stat")
@@ -104,9 +100,7 @@ class CharacterStatsEngine:
         else:
             return True
 
-    def get_effective_stat(
-        self, character: CharacterData, stat_type: CharacterStatType
-    ) -> int | None:
+    def get_effective_stat(self, character: CharacterData, stat_type: CharacterStatType) -> int | None:
         """
         Get effective character stat value including modifiers.
 
@@ -194,9 +188,7 @@ class CharacterStatsEngine:
 
         return True
 
-    def _calculate_additional_modifiers(
-        self, character: CharacterData, stat_type: CharacterStatType
-    ) -> int:
+    def _calculate_additional_modifiers(self, character: CharacterData, stat_type: CharacterStatType) -> int:
         """
         Calculate additional modifiers from equipment, effects, etc.
 
@@ -316,7 +308,7 @@ class CharacterStatsEngine:
         """
         try:
             if not character or not character.stats:
-                summary = {"character_id": getattr(character, 'character_id', 'unknown'), "has_stats": False}
+                summary = {"character_id": getattr(character, "character_id", "unknown"), "has_stats": False}
             else:
                 summary = {
                     "character_id": character.character_id,
@@ -341,7 +333,7 @@ class CharacterStatsEngine:
 
         except Exception as e:
             logger.exception("Error getting stat summary")
-            return {"character_id": getattr(character, 'character_id', 'unknown'), "error": str(e)}
+            return {"character_id": getattr(character, "character_id", "unknown"), "error": str(e)}
         else:
             return summary
 

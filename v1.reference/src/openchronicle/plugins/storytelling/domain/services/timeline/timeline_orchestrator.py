@@ -71,8 +71,7 @@ class TimelineMetrics:
             "rollback_operations": self.rollback_operations,
             "navigation_requests": self.navigation_requests,
             "errors": self.errors_count,
-            "success_rate": (self.operations_count - self.errors_count)
-            / max(1, self.operations_count),
+            "success_rate": (self.operations_count - self.errors_count) / max(1, self.operations_count),
             "uptime_seconds": uptime,
         }
 
@@ -134,9 +133,7 @@ class TimelineOrchestrator:
             try:
                 from .rollback.state_manager import StateManager
 
-                self._state_manager = StateManager(
-                    self.story_id, persistence_port=self._persistence
-                )
+                self._state_manager = StateManager(self.story_id, persistence_port=self._persistence)
                 log_info(f"State manager loaded for story {self.story_id}")
             except ImportError as e:
                 log_warning(f"State manager not available: {e}")
@@ -149,18 +146,14 @@ class TimelineOrchestrator:
             try:
                 from .navigation.navigation_manager import NavigationManager
 
-                self._navigation_manager = NavigationManager(
-                    self.story_id, persistence_port=self._persistence
-                )
+                self._navigation_manager = NavigationManager(self.story_id, persistence_port=self._persistence)
                 log_info(f"Navigation manager loaded for story {self.story_id}")
             except ImportError as e:
                 log_warning(f"Navigation manager not available: {e}")
                 self._navigation_manager = self._create_fallback_navigation_manager()
         return self._navigation_manager
 
-    async def build_timeline(
-        self, include_bookmarks: bool = True, include_summaries: bool = True
-    ) -> dict[str, Any]:
+    async def build_timeline(self, include_bookmarks: bool = True, include_summaries: bool = True) -> dict[str, Any]:
         """
         Build complete story timeline with scenes, bookmarks, and navigation.
 
@@ -187,9 +180,7 @@ class TimelineOrchestrator:
             # Add navigation metadata
             if include_bookmarks:
                 navigation_manager = self._get_navigation_manager()
-                timeline_data[
-                    "navigation"
-                ] = await navigation_manager.build_navigation_structure(timeline_data)
+                timeline_data["navigation"] = await navigation_manager.build_navigation_structure(timeline_data)
 
             # Add metrics
             processing_time = self._get_current_time_ms() - start_time
@@ -203,9 +194,7 @@ class TimelineOrchestrator:
             }
 
             self.metrics.record_operation("timeline_build", True)
-            log_info(
-                f"Timeline built successfully for {self.story_id} ({processing_time}ms)"
-            )
+            log_info(f"Timeline built successfully for {self.story_id} ({processing_time}ms)")
 
         except (
             OpenChronicleError,
@@ -223,9 +212,7 @@ class TimelineOrchestrator:
         else:
             return timeline_data
 
-    async def create_rollback_point(
-        self, scene_id: str, description: str = "Manual rollback point"
-    ) -> dict[str, Any]:
+    async def create_rollback_point(self, scene_id: str, description: str = "Manual rollback point") -> dict[str, Any]:
         """
         Create a rollback point for state restoration.
 
@@ -242,14 +229,10 @@ class TimelineOrchestrator:
         try:
             state_manager = self._get_state_manager()
 
-            rollback_data = await state_manager.create_rollback_point(
-                scene_id, description
-            )
+            rollback_data = await state_manager.create_rollback_point(scene_id, description)
 
             self.metrics.record_operation("rollback", True)
-            log_info(
-                f"Rollback point created for scene {scene_id}: {rollback_data['id']}"
-            )
+            log_info(f"Rollback point created for scene {scene_id}: {rollback_data['id']}")
 
         except (
             OpenChronicleError,

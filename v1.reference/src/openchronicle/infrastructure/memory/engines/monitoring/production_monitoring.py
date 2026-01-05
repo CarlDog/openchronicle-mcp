@@ -54,9 +54,7 @@ class ProductionMonitoring:
         self._monitoring_active = False
         self._monitoring_tasks = []
 
-    async def start_production_monitoring(
-        self, metrics_interval: int = 60, health_check_interval: int = 30
-    ):
+    async def start_production_monitoring(self, metrics_interval: int = 60, health_check_interval: int = 30):
         """Start production monitoring with specified intervals."""
         if self._monitoring_active:
             return
@@ -64,15 +62,11 @@ class ProductionMonitoring:
         self._monitoring_active = True
 
         # Start metrics collection
-        metrics_task = asyncio.create_task(
-            self._metrics_monitoring_loop(metrics_interval)
-        )
+        metrics_task = asyncio.create_task(self._metrics_monitoring_loop(metrics_interval))
         self._monitoring_tasks.append(metrics_task)
 
         # Start health checks
-        health_task = asyncio.create_task(
-            self._health_monitoring_loop(health_check_interval)
-        )
+        health_task = asyncio.create_task(self._health_monitoring_loop(health_check_interval))
         self._monitoring_tasks.append(health_task)
 
         self.logger.info(
@@ -137,13 +131,9 @@ class ProductionMonitoring:
         """Get current health status."""
         return await self.health_checker.comprehensive_health_check()
 
-    async def benchmark_production_performance(
-        self, duration_seconds: int = 300
-    ) -> dict[str, Any]:
+    async def benchmark_production_performance(self, duration_seconds: int = 300) -> dict[str, Any]:
         """Run production performance benchmark."""
-        self.logger.info(
-            f"Starting production benchmark for {duration_seconds} seconds"
-        )
+        self.logger.info(f"Starting production benchmark for {duration_seconds} seconds")
 
         start_time = time.time()
         end_time = start_time + duration_seconds
@@ -188,22 +178,17 @@ class ProductionMonitoring:
             "operations_completed": operations_completed,
             "operations_per_second": operations_completed / actual_duration,
             "errors": errors,
-            "error_rate": (
-                errors / operations_completed if operations_completed > 0 else 0
-            ),
+            "error_rate": (errors / operations_completed if operations_completed > 0 else 0),
             "initial_metrics": initial_metrics,
             "final_metrics": final_metrics,
             "performance_improvement": {
-                "hit_rate_delta": final_metrics.get("overall_hit_rate", 0)
-                - initial_metrics.get("overall_hit_rate", 0),
+                "hit_rate_delta": final_metrics.get("overall_hit_rate", 0) - initial_metrics.get("overall_hit_rate", 0),
                 "response_time_delta": final_metrics.get("avg_redis_response_ms", 0)
                 - initial_metrics.get("avg_redis_response_ms", 0),
             },
         }
 
-        self.structured_logger.log_cache_event(
-            "production_benchmark", benchmark_results
-        )
+        self.structured_logger.log_cache_event("production_benchmark", benchmark_results)
         self.logger.info(
             f"Benchmark completed: {operations_completed} ops in {actual_duration:.1f}s ({operations_completed/actual_duration:.1f} ops/sec)"
         )
@@ -235,9 +220,7 @@ class ProductionMonitoring:
         config = configs.get(env, configs["development"])
 
         # Apply configuration
-        logging.getLogger("openchronicle.cache").setLevel(
-            getattr(logging, config["log_level"])
-        )
+        logging.getLogger("openchronicle.cache").setLevel(getattr(logging, config["log_level"]))
 
         self.logger.info(f"Monitoring configured for {env} environment")
 

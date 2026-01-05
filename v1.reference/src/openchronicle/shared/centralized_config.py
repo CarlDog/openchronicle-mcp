@@ -156,9 +156,9 @@ class CentralizedConfigManager:
         # Load or create default configuration
         self.config = self._load_or_create_config()
 
-    # NOTE: Directory provisioning deferred to explicit call to avoid
-    # side-effects at import/instantiation.
-    # Call self.provision_storage() explicitly where startup bootstrapping occurs.
+        # NOTE: Directory provisioning deferred to explicit call to avoid
+        # side-effects at import/instantiation.
+        # Call self.provision_storage() explicitly where startup bootstrapping occurs.
 
         log_system_event(
             "config_manager_initialized",
@@ -195,9 +195,7 @@ class CentralizedConfigManager:
                 context_tags=["config", "auto_create", "startup"],
             )
             for path in created_paths:
-                log_info(
-                    f"Created directory: {path}", context_tags=["config", "directory"]
-                )
+                log_info(f"Created directory: {path}", context_tags=["config", "directory"])
         else:
             log_info(
                 "All storage directories already exist",
@@ -212,9 +210,7 @@ class CentralizedConfigManager:
                     data = json.load(f)
 
                 config = SystemConfig.from_dict(data)
-                log_info(
-                    "Configuration loaded successfully", context_tags=["config", "load"]
-                )
+                log_info("Configuration loaded successfully", context_tags=["config", "load"])
             except (OSError, json.JSONDecodeError) as e:  # Narrowed exception
                 log_error(
                     f"Failed to load configuration: {e}",
@@ -250,18 +246,14 @@ class CentralizedConfigManager:
             with open(self.config_path, "w", encoding="utf-8") as f:
                 json.dump(config.to_dict(), f, indent=2)
 
-            log_info(
-                "Configuration saved successfully", context_tags=["config", "save"]
-            )
+            log_info("Configuration saved successfully", context_tags=["config", "save"])
             log_system_event(
                 "config_saved",
                 "System configuration saved",
                 {"path": str(self.config_path)},
             )
         except (OSError, IOError) as e:  # Narrowed from broad Exception
-            log_error(
-                f"Failed to save configuration: {e}", context_tags=["config", "error"]
-            )
+            log_error(f"Failed to save configuration: {e}", context_tags=["config", "error"])
             return False
         else:
             return True
@@ -361,9 +353,7 @@ class CentralizedConfigManager:
 
             # Verify path is accessible after creation
             if not path.exists():
-                issues.append(
-                    f"Storage path still does not exist after creation attempt: {path}"
-                )
+                issues.append(f"Storage path still does not exist after creation attempt: {path}")
             elif not os.access(path, os.W_OK):
                 issues.append(f"Storage path is not writable: {path}")
 

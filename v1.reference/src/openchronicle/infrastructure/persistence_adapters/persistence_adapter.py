@@ -19,9 +19,7 @@ from openchronicle.infrastructure.persistence.database import init_database as _
 class PersistenceAdapter(IPersistencePort):
     """Concrete implementation of persistence operations using existing infrastructure."""
 
-    def execute_query(
-        self, story_id: str, query: str, params: Optional[dict[str, Any]] = None
-    ) -> list[dict[str, Any]]:
+    def execute_query(self, story_id: str, query: str, params: Optional[dict[str, Any]] = None) -> list[dict[str, Any]]:
         """
         Execute a database query.
 
@@ -55,9 +53,7 @@ class PersistenceAdapter(IPersistencePort):
             print(f"Unexpected database query error: {e}")
             return []
 
-    def execute_update(
-        self, story_id: str, query: str, params: Optional[dict[str, Any]] = None
-    ) -> bool:
+    def execute_update(self, story_id: str, query: str, params: Optional[dict[str, Any]] = None) -> bool:
         """
         Execute a database update operation.
 

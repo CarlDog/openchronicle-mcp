@@ -21,8 +21,8 @@ from pydantic import Field
 from openchronicle.application import ApplicationFacade
 from openchronicle.infrastructure import InfrastructureConfig
 from openchronicle.infrastructure import InfrastructureContainer
-from openchronicle.shared.exceptions import ConfigurationError
 from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import ConfigurationError
 from openchronicle.shared.exceptions import ValidationError
 
 
@@ -35,12 +35,8 @@ class StoryCreateRequest(BaseModel):
     """Request model for creating a new story."""
 
     title: str = Field(..., min_length=1, max_length=200, description="Story title")
-    description: str | None = Field(
-        None, max_length=2000, description="Story description"
-    )
-    world_state: dict[str, Any] = Field(
-        default_factory=dict, description="Initial world state"
-    )
+    description: str | None = Field(None, max_length=2000, description="Story description")
+    world_state: dict[str, Any] = Field(default_factory=dict, description="Initial world state")
     genre: str | None = Field(None, description="Story genre")
     target_audience: str | None = Field(None, description="Target audience")
 
@@ -61,16 +57,10 @@ class CharacterCreateRequest(BaseModel):
     personality_traits: dict[str, float] = Field(
         default_factory=dict, description="Personality traits with 0-10 values"
     )
-    background: str | None = Field(
-        None, max_length=1000, description="Character background"
-    )
-    appearance: str | None = Field(
-        None, max_length=500, description="Physical appearance"
-    )
+    background: str | None = Field(None, max_length=1000, description="Character background")
+    appearance: str | None = Field(None, max_length=500, description="Physical appearance")
     goals: list[str] = Field(default_factory=list, description="Character goals")
-    relationships: dict[str, dict[str, Any]] = Field(
-        default_factory=dict, description="Character relationships"
-    )
+    relationships: dict[str, dict[str, Any]] = Field(default_factory=dict, description="Character relationships")
 
 
 class SceneGenerateRequest(BaseModel):
@@ -82,9 +72,7 @@ class SceneGenerateRequest(BaseModel):
 
     story_id: str = Field(..., description="Story ID")
     setting: str = Field(..., description="Scene setting")
-    participant_ids: list[str] = Field(
-        ..., description="Character IDs participating in scene"
-    )
+    participant_ids: list[str] = Field(..., description="Character IDs participating in scene")
     user_input: str = Field(..., description="User direction for scene")
     model_preference: str | None = Field(None, description="Preferred AI model")
 
@@ -151,9 +139,7 @@ class APIContainer:
 
     def __init__(self):
         # Create default infrastructure configuration
-        config = InfrastructureConfig(
-            storage_backend="filesystem", storage_path="storage", cache_type="memory"
-        )
+        config = InfrastructureConfig(storage_backend="filesystem", storage_path="storage", cache_type="memory")
         self.infrastructure = InfrastructureContainer(config)
         self.app_facade = None
 
@@ -226,9 +212,7 @@ app.add_middleware(
 # ================================
 
 
-@app.post(
-    "/api/v1/stories", response_model=StoryResponse, status_code=status.HTTP_201_CREATED
-)
+@app.post("/api/v1/stories", response_model=StoryResponse, status_code=status.HTTP_201_CREATED)
 async def create_story(
     request: StoryCreateRequest, app_facade: ApplicationFacade = Depends(get_app_facade)
 ) -> StoryResponse:
@@ -291,9 +275,7 @@ async def create_story(
 
 
 @app.get("/api/v1/stories/{story_id}", response_model=StoryResponse)
-async def get_story(
-    story_id: str, app_facade: ApplicationFacade = Depends(get_app_facade)
-) -> StoryResponse:
+async def get_story(story_id: str, app_facade: ApplicationFacade = Depends(get_app_facade)) -> StoryResponse:
     """Get a story by ID."""
     try:
         result = await app_facade.get_story(story_id)
@@ -585,9 +567,7 @@ async def get_character(
         ) from e
 
 
-@app.get(
-    "/api/v1/stories/{story_id}/characters", response_model=list[CharacterResponse]
-)
+@app.get("/api/v1/stories/{story_id}/characters", response_model=list[CharacterResponse])
 async def list_story_characters(
     story_id: str, app_facade: ApplicationFacade = Depends(get_app_facade)
 ) -> list[CharacterResponse]:
@@ -644,9 +624,7 @@ async def list_story_characters(
 # ================================
 
 
-@app.post(
-    "/api/v1/scenes", response_model=SceneResponse, status_code=status.HTTP_201_CREATED
-)
+@app.post("/api/v1/scenes", response_model=SceneResponse, status_code=status.HTTP_201_CREATED)
 async def generate_scene(
     request: SceneGenerateRequest,
     app_facade: ApplicationFacade = Depends(get_app_facade),
@@ -772,9 +750,7 @@ async def health_check(
         )
 
     except Exception as e:
-        return HealthResponse(
-            status="unhealthy", timestamp=datetime.now(), components={"error": str(e)}
-        )
+        return HealthResponse(status="unhealthy", timestamp=datetime.now(), components={"error": str(e)})
 
 
 @app.get("/api/v1/status")

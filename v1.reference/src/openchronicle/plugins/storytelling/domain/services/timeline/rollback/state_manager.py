@@ -38,14 +38,13 @@ class StateManager:
         )
         self.memory_port = memory_port
         self.scene_orchestrator = (
-            scene_orchestrator if scene_orchestrator is not None else
-            SceneOrchestrator(story_id, persistence_port=self.persistence)
+            scene_orchestrator
+            if scene_orchestrator is not None
+            else SceneOrchestrator(story_id, persistence_port=self.persistence)
         )
         self.persistence.init_database(story_id)
 
-    async def create_rollback_point(
-        self, scene_id: str, description: str = "Manual rollback point"
-    ) -> dict[str, Any]:
+    async def create_rollback_point(self, scene_id: str, description: str = "Manual rollback point") -> dict[str, Any]:
         """Create a rollback point at a specific scene."""
 
         # Verify scene exists
@@ -53,9 +52,7 @@ class StateManager:
         if not scene_data:
             raise ValueError(f"Scene {scene_id} not found")
 
-        rollback_id = (
-            f"rollback_{scene_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
-        )
+        rollback_id = f"rollback_{scene_id}_{datetime.now(UTC).strftime('%Y%m%d_%H%M%S')}"
 
         # Create comprehensive state snapshot
         state_snapshot = await self._create_state_snapshot(scene_id)
@@ -144,9 +141,7 @@ class StateManager:
 
         rollback_point = rollback_data[0]
         scene_id = rollback_point.get("scene_id")
-        scene_data = (
-            json.loads(rollback_point.get("scene_data")) if rollback_point.get("scene_data") else {}
-        )
+        scene_data = json.loads(rollback_point.get("scene_data")) if rollback_point.get("scene_data") else {}
         state_snapshot = (
             json.loads(rollback_point.get("state_snapshot")) if rollback_point.get("state_snapshot") else {}
         )
@@ -178,9 +173,7 @@ class StateManager:
 
             # 3. Restore scene state if needed
             scene_result = await self._restore_scene_state(scene_id, scene_data)
-            restoration_results.append(
-                {"component": "scene", "status": "success", "details": scene_result}
-            )
+            restoration_results.append({"component": "scene", "status": "success", "details": scene_result})
 
             # 4. Update rollback metadata
             await self._update_rollback_metadata(rollback_id)
@@ -206,9 +199,7 @@ class StateManager:
                 "error": str(e),
             }
 
-    async def cleanup_old_rollback_points(
-        self, retention_days: int = 30
-    ) -> dict[str, Any]:
+    async def cleanup_old_rollback_points(self, retention_days: int = 30) -> dict[str, Any]:
         """Clean up rollback points older than specified days."""
 
         cutoff_date = datetime.now(UTC) - timedelta(days=retention_days)
@@ -356,9 +347,7 @@ class StateManager:
 
         return remove_count
 
-    async def _restore_scene_state(
-        self, scene_id: str, scene_data: dict[str, Any]
-    ) -> str:
+    async def _restore_scene_state(self, scene_id: str, scene_data: dict[str, Any]) -> str:
         """Restore specific scene state if needed."""
         # For now, just verify scene exists
         current_scene = self.scene_orchestrator.load_scene(scene_id)

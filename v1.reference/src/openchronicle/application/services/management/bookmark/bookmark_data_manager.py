@@ -28,7 +28,7 @@ class BookmarkDataManager:
     def __init__(self, story_id: str, persistence_port: "IPersistencePort | None" = None):
         self.story_id = story_id
         self.persistence_port = persistence_port
-        
+
         # Initialize persistence interface
         if self.persistence_port is not None:
             # Use injected port - set up wrapper methods for compatibility

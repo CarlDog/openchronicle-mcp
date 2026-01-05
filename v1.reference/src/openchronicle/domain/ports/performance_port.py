@@ -28,9 +28,7 @@ class IPerformancePort(ABC):
         """
 
     @abstractmethod
-    def end_monitoring(
-        self, session_id: str, success: bool = True, error: Optional[str] = None
-    ) -> dict[str, Any]:
+    def end_monitoring(self, session_id: str, success: bool = True, error: Optional[str] = None) -> dict[str, Any]:
         """
         End monitoring session and get metrics.
 
@@ -65,9 +63,7 @@ class IPerformancePort(ABC):
         """
 
     @abstractmethod
-    def record_usage(
-        self, model_name: str, tokens_used: int, cost: float = 0.0
-    ) -> bool:
+    def record_usage(self, model_name: str, tokens_used: int, cost: float = 0.0) -> bool:
         """
         Record model usage statistics.
 
@@ -81,9 +77,7 @@ class IPerformancePort(ABC):
         """
 
     @abstractmethod
-    def get_usage_stats(
-        self, model_name: str, timeframe: str = "day"
-    ) -> dict[str, Any]:
+    def get_usage_stats(self, model_name: str, timeframe: str = "day") -> dict[str, Any]:
         """
         Get usage statistics for a model.
 

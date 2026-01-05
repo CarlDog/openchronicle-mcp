@@ -41,9 +41,7 @@ class AdapterConfigurationError(AdapterError):
         self.provider = provider
         self.config_issue = config_issue
         if provider and config_issue:
-            super().__init__(
-                f"Configuration error for {provider} adapter: {config_issue}"
-            )
+            super().__init__(f"Configuration error for {provider} adapter: {config_issue}")
         elif config_issue:
             super().__init__(f"Adapter configuration error: {config_issue}")
         else:
@@ -53,15 +51,11 @@ class AdapterConfigurationError(AdapterError):
 class AdapterConnectionError(AdapterError):
     """Raised when adapter cannot connect to its service."""
 
-    def __init__(
-        self, provider: str | None = None, connection_issue: str | None = None
-    ):
+    def __init__(self, provider: str | None = None, connection_issue: str | None = None):
         self.provider = provider
         self.connection_issue = connection_issue
         if provider and connection_issue:
-            super().__init__(
-                f"Connection error for {provider} adapter: {connection_issue}"
-            )
+            super().__init__(f"Connection error for {provider} adapter: {connection_issue}")
         elif connection_issue:
             super().__init__(f"Adapter connection error: {connection_issue}")
         else:
@@ -85,15 +79,11 @@ class AdapterResponseError(AdapterError):
 class AdapterTimeoutError(AdapterError):
     """Raised when adapter operation times out."""
 
-    def __init__(
-        self, provider: str | None = None, timeout_duration: float | None = None
-    ):
+    def __init__(self, provider: str | None = None, timeout_duration: float | None = None):
         self.provider = provider
         self.timeout_duration = timeout_duration
         if provider and timeout_duration:
-            super().__init__(
-                f"Timeout error for {provider} adapter after {timeout_duration}s"
-            )
+            super().__init__(f"Timeout error for {provider} adapter after {timeout_duration}s")
         elif timeout_duration:
             super().__init__(f"Adapter timeout after {timeout_duration}s")
         else:
@@ -107,9 +97,7 @@ class AdapterRateLimitError(AdapterError):
         self.provider = provider
         self.retry_after = retry_after
         if provider and retry_after:
-            super().__init__(
-                f"Rate limit error for {provider} adapter, retry after {retry_after}s"
-            )
+            super().__init__(f"Rate limit error for {provider} adapter, retry after {retry_after}s")
         elif provider:
             super().__init__(f"Rate limit error for {provider} adapter")
         else:

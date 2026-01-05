@@ -79,9 +79,7 @@ class StructuredTags:
                     "scene_complexity": analysis_data.get("complexity", "medium"),
                     "dialogue_ratio": analysis_data.get("dialogue_ratio", 0.0),
                     "action_density": analysis_data.get("action_density", 0.0),
-                    "emotional_intensity": analysis_data.get(
-                        "emotional_intensity", 0.0
-                    ),
+                    "emotional_intensity": analysis_data.get("emotional_intensity", 0.0),
                 }
             )
 
@@ -171,11 +169,7 @@ class Scene:
             input=scene_data.user_input,
             output=scene_data.model_output,
             scene_label=scene_data.scene_label,
-            metadata=(
-                scene_data.structured_tags.get_tags()
-                if scene_data.structured_tags
-                else {}
-            ),
+            metadata=(scene_data.structured_tags.get_tags() if scene_data.structured_tags else {}),
         )
 
 
@@ -197,9 +191,7 @@ class SceneFilter:
         params = []
 
         if self.mood:
-            conditions.append(
-                "JSON_EXTRACT(structured_tags, '$.character_moods') LIKE ?"
-            )
+            conditions.append("JSON_EXTRACT(structured_tags, '$.character_moods') LIKE ?")
             params.append(f'%"{self.mood}"%')
 
         if self.scene_type:
@@ -211,9 +203,7 @@ class SceneFilter:
             params.append(self.scene_label)
 
         if self.character_name:
-            conditions.append(
-                "JSON_EXTRACT(structured_tags, '$.character_moods') LIKE ?"
-            )
+            conditions.append("JSON_EXTRACT(structured_tags, '$.character_moods') LIKE ?")
             params.append(f'%"{self.character_name}"%')
 
         if self.has_analysis is not None:

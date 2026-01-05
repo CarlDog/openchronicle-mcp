@@ -143,9 +143,7 @@ class ImageFormatConverter:
                     background = Image.new("RGB", img.size, (255, 255, 255))
                     if img.mode == "P":
                         img = img.convert("RGBA")
-                    background.paste(
-                        img, mask=img.split()[-1] if "A" in img.mode else None
-                    )
+                    background.paste(img, mask=img.split()[-1] if "A" in img.mode else None)
                     img = background
 
                 # Prepare save parameters
@@ -167,13 +165,9 @@ class ImageFormatConverter:
 
         except (OSError, ValueError, UnidentifiedImageError) as e:
             logger.exception("Format conversion failed")
-            raise ImageValidationError(
-                f"Could not convert to {target_format.value}: {e}"
-            ) from e
+            raise ImageValidationError(f"Could not convert to {target_format.value}: {e}") from e
 
-    def resize_image(
-        self, image_data: bytes, target_size: ImageSize, maintain_aspect: bool = True
-    ) -> bytes:
+    def resize_image(self, image_data: bytes, target_size: ImageSize, maintain_aspect: bool = True) -> bytes:
         """Resize image to target dimensions"""
         try:
             target_width, target_height = map(int, target_size.value.split("x"))
@@ -181,23 +175,17 @@ class ImageFormatConverter:
             with Image.open(io.BytesIO(image_data)) as img:
                 if maintain_aspect:
                     # Calculate aspect ratio preserving resize
-                    img.thumbnail(
-                        (target_width, target_height), Image.Resampling.LANCZOS
-                    )
+                    img.thumbnail((target_width, target_height), Image.Resampling.LANCZOS)
 
                     # Create new image with target size and center the resized image
-                    new_img = Image.new(
-                        "RGB", (target_width, target_height), (255, 255, 255)
-                    )
+                    new_img = Image.new("RGB", (target_width, target_height), (255, 255, 255))
                     paste_x = (target_width - img.width) // 2
                     paste_y = (target_height - img.height) // 2
                     new_img.paste(img, (paste_x, paste_y))
                     img = new_img
                 else:
                     # Direct resize (may distort aspect ratio)
-                    img = img.resize(
-                        (target_width, target_height), Image.Resampling.LANCZOS
-                    )
+                    img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
 
                 # Save to bytes
                 output = io.BytesIO()
@@ -222,9 +210,7 @@ class ImageFormatConverter:
             for quality in quality_levels:
                 # Try WEBP first (better compression)
                 try:
-                    optimized = self.convert_format(
-                        image_data, ImageFormat.WEBP, quality
-                    )
+                    optimized = self.convert_format(image_data, ImageFormat.WEBP, quality)
                     if len(optimized) / 1024 <= max_size_kb:
                         return optimized
                 except (ImageValidationError, OSError, ValueError, UnidentifiedImageError):
@@ -233,9 +219,7 @@ class ImageFormatConverter:
 
                 # Try JPEG
                 try:
-                    optimized = self.convert_format(
-                        image_data, ImageFormat.JPEG, quality
-                    )
+                    optimized = self.convert_format(image_data, ImageFormat.JPEG, quality)
                     if len(optimized) / 1024 <= max_size_kb:
                         return optimized
                 except (ImageValidationError, OSError, ValueError, UnidentifiedImageError):
@@ -251,31 +235,23 @@ class ImageFormatConverter:
                     new_width = int(width * scale)
                     new_height = int(height * scale)
 
-                    resized = img.resize(
-                        (new_width, new_height), Image.Resampling.LANCZOS
-                    )
+                    resized = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
                     output = io.BytesIO()
-                    resized.save(
-                        output, format="WEBP", quality=ImageQuality.MEDIUM.value
-                    )
+                    resized.save(output, format="WEBP", quality=ImageQuality.MEDIUM.value)
 
                     if len(output.getvalue()) / 1024 <= max_size_kb:
                         return output.getvalue()
 
             # Last resort: return heavily compressed version
-            logger.warning(
-                f"Could not optimize image under {max_size_kb}KB, using maximum compression"
-            )
+            logger.warning(f"Could not optimize image under {max_size_kb}KB, using maximum compression")
             return self.convert_format(image_data, ImageFormat.WEBP, ImageQuality.LOW)
 
         except (OSError, ValueError, UnidentifiedImageError) as e:
             logger.exception("Image optimization failed")
             return image_data  # Return original if optimization fails
 
-    def create_thumbnail(
-        self, image_data: bytes, size: tuple[int, int] = (200, 200)
-    ) -> bytes:
+    def create_thumbnail(self, image_data: bytes, size: tuple[int, int] = (200, 200)) -> bytes:
         """Create a thumbnail version of the image"""
         try:
             with Image.open(io.BytesIO(image_data)) as img:
@@ -345,9 +321,7 @@ class ImageFormatConverter:
 
                     # Draw watermark with transparency
                     alpha = int(255 * opacity)
-                    draw.text(
-                        (x, y), watermark_text, fill=(255, 255, 255, alpha), font=font
-                    )
+                    draw.text((x, y), watermark_text, fill=(255, 255, 255, alpha), font=font)
 
                     # Composite watermark onto image
                     img = Image.alpha_composite(img, watermark)
@@ -380,8 +354,7 @@ class ImageFormatConverter:
                     "size": img.size,
                     "width": img.width,
                     "height": img.height,
-                    "has_transparency": img.mode in ("RGBA", "LA")
-                    or "transparency" in img.info,
+                    "has_transparency": img.mode in ("RGBA", "LA") or "transparency" in img.info,
                     "file_size_bytes": len(image_data),
                     "file_size_kb": len(image_data) / 1024,
                     "aspect_ratio": img.width / img.height if img.height > 0 else 0,
@@ -440,9 +413,7 @@ class ImageFormatConverter:
             try:
                 input_path = Path(file_path)
                 if not input_path.exists():
-                    results["failed"].append(
-                        {"file": file_path, "error": "File not found"}
-                    )
+                    results["failed"].append({"file": file_path, "error": "File not found"})
                     continue
 
                 # Read input file

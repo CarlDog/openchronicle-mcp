@@ -65,9 +65,7 @@ class BookmarkManagerConfig:
     def from_dict(cls, data: dict[str, Any]) -> "BookmarkManagerConfig":
         """Create config from dictionary."""
         return cls(
-            default_bookmark_type=BookmarkType(
-                data.get("default_bookmark_type", "user")
-            ),
+            default_bookmark_type=BookmarkType(data.get("default_bookmark_type", "user")),
             max_search_results=data.get("max_search_results", 100),
             enable_full_text_search=data.get("enable_full_text_search", True),
             cache_size=data.get("cache_size", 500),
@@ -105,9 +103,7 @@ class ManagementConfig:
         return cls(
             token_config=data.get("token_config", {}),
             bookmark_config=data.get("bookmark_config", {}),
-            enable_cross_system_analytics=data.get(
-                "enable_cross_system_analytics", True
-            ),
+            enable_cross_system_analytics=data.get("enable_cross_system_analytics", True),
             cache_size=data.get("cache_size", 1000),
         )
 
@@ -171,12 +167,8 @@ class ConfigValidator:
         validated["cache_size"] = max(1, config.get("cache_size", 500))
 
         # Validate boolean values
-        validated["enable_full_text_search"] = bool(
-            config.get("enable_full_text_search", True)
-        )
-        validated["auto_create_chapters"] = bool(
-            config.get("auto_create_chapters", True)
-        )
+        validated["enable_full_text_search"] = bool(config.get("enable_full_text_search", True))
+        validated["auto_create_chapters"] = bool(config.get("auto_create_chapters", True))
 
         # Validate chapter detection keywords
         keywords = config.get(
@@ -195,17 +187,11 @@ class ConfigValidator:
         validated = {}
 
         # Validate sub-configs
-        validated["token_config"] = ConfigValidator.validate_token_config(
-            config.get("token_config", {})
-        )
-        validated["bookmark_config"] = ConfigValidator.validate_bookmark_config(
-            config.get("bookmark_config", {})
-        )
+        validated["token_config"] = ConfigValidator.validate_token_config(config.get("token_config", {}))
+        validated["bookmark_config"] = ConfigValidator.validate_bookmark_config(config.get("bookmark_config", {}))
 
         # Validate other settings
-        validated["enable_cross_system_analytics"] = bool(
-            config.get("enable_cross_system_analytics", True)
-        )
+        validated["enable_cross_system_analytics"] = bool(config.get("enable_cross_system_analytics", True))
         validated["cache_size"] = max(1, config.get("cache_size", 1000))
 
         return validated

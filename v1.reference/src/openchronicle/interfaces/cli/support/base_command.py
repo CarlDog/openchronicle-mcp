@@ -216,9 +216,7 @@ class OpenChronicleCommand(ABC):
             self.output.error(f"Error reading {path}: {e}")
             raise
 
-    def write_json_file(
-        self, file_path: str | Path, data: dict[str, Any], indent: int = 2
-    ):
+    def write_json_file(self, file_path: str | Path, data: dict[str, Any], indent: int = 2):
         """
         Safely write data to a JSON file.
 
@@ -330,6 +328,7 @@ class ModelCommand(OpenChronicleCommand):
         if self._model_manager is None:
             try:
                 from openchronicle.domain.models.model_orchestrator import ModelOrchestrator
+
                 self._model_manager = ModelOrchestrator()
             except (RuntimeError, ValueError, KeyError, ImportError, TypeError) as e:
                 self.output.error(f"Cannot initialize model manager: {e}")
@@ -352,6 +351,7 @@ class StoryCommand(OpenChronicleCommand):
                 from openchronicle.domain.services.narrative.narrative_orchestrator import NarrativeOrchestrator
                 from openchronicle.domain.services.scenes.scene_orchestrator import SceneOrchestrator
                 from openchronicle.domain.services.timeline.timeline_orchestrator import TimelineOrchestrator
+
                 # Provide a concrete story manager dict for CLI features that expect narrative interfaces
                 self._story_manager = {
                     "narrative": NarrativeOrchestrator(),

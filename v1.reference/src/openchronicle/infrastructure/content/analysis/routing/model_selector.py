@@ -29,12 +29,10 @@ class ModelSelector(RoutingComponent):
         return {
             "recommended_model": recommended_model,
             "routing_metadata": self._get_routing_metadata(analysis, recommended_model),
-            "routing_confidence": analysis.get("confidence", 0.5)
+            "routing_confidence": analysis.get("confidence", 0.5),
         }
 
-    def route_request(
-        self, analysis: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def route_request(self, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Route content generation request to the best model."""
         recommended_model = self.recommend_generation_model(analysis)
 
@@ -64,23 +62,17 @@ class ModelSelector(RoutingComponent):
         # High-confidence NSFW content
         if ("explicit" in content_flags) and confidence > 0.7:
             candidates = content_routing.get("nsfw_models", [])
-            routing_reason = (
-                f"Explicit content detected with {confidence:.2f} confidence"
-            )
+            routing_reason = f"Explicit content detected with {confidence:.2f} confidence"
 
         # Suggestive or mature content with sufficient confidence
-        elif (
-            "suggestive" in content_flags or "mature" in content_flags
-        ) and confidence > 0.5:
+        elif ("suggestive" in content_flags or "mature" in content_flags) and confidence > 0.5:
             candidates = content_routing.get("nsfw_models", [])
             routing_reason = f"Mature content detected with {confidence:.2f} confidence"
 
         # NSFW content type but low confidence - route to safe models
         elif content_type == "nsfw" and confidence <= 0.5:
             candidates = content_routing.get("safe_models", [])
-            routing_reason = (
-                f"Low-confidence NSFW content ({confidence:.2f}) routed to safe models"
-            )
+            routing_reason = f"Low-confidence NSFW content ({confidence:.2f}) routed to safe models"
 
         # Creative content
         elif content_type == "creative" or "creative" in content_flags:
@@ -104,28 +96,18 @@ class ModelSelector(RoutingComponent):
 
         # Filter for enabled models
         enabled_models = [
-            name
-            for name in candidates
-            if self.model_manager.list_model_configs()
-            .get(name, {})
-            .get("enabled", True)
+            name for name in candidates if self.model_manager.list_model_configs().get(name, {}).get("enabled", True)
         ]
 
         if not enabled_models:
             log_warning(f"No enabled models for routing decision: {routing_reason}")
             # Fallback to any enabled model
             all_models = self.model_manager.list_model_configs()
-            enabled_models = [
-                name
-                for name, config in all_models.items()
-                if config.get("enabled", True)
-            ]
+            enabled_models = [name for name, config in all_models.items() if config.get("enabled", True)]
 
             if enabled_models:
                 recommended = enabled_models[0]
-                routing_reason = (
-                    f"Fallback to {recommended} (no suitable models enabled)"
-                )
+                routing_reason = f"Fallback to {recommended} (no suitable models enabled)"
             else:
                 recommended = "mock"
                 routing_reason = "Emergency fallback to mock model"
@@ -133,9 +115,7 @@ class ModelSelector(RoutingComponent):
                     "WARNING: Using mock adapter for AI processing - this is for testing only and "
                     "will not provide real AI functionality!"
                 )
-                log_warning(
-                    "Please configure a real AI model (Ollama, OpenAI, Anthropic, etc.) for production use."
-                )
+                log_warning("Please configure a real AI model (Ollama, OpenAI, Anthropic, etc.) for production use.")
         else:
             recommended = enabled_models[0]  # First in priority order
 
@@ -147,9 +127,7 @@ class ModelSelector(RoutingComponent):
 
         return recommended
 
-    def _get_routing_metadata(
-        self, analysis: dict[str, Any], selected_model: str
-    ) -> dict[str, Any]:
+    def _get_routing_metadata(self, analysis: dict[str, Any], selected_model: str) -> dict[str, Any]:
         """Get metadata about the routing decision."""
         return {
             "content_type": analysis.get("content_type", "general"),

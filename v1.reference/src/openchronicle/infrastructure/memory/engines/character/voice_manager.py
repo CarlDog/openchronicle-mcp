@@ -111,9 +111,7 @@ class VoiceManager:
             dominant_traits = self._extract_dominant_traits(voice)
 
             # Calculate speaking style consistency (based on how well defined it is)
-            style_consistency = self._calculate_style_consistency(
-                voice, character.dialogue_history
-            )
+            style_consistency = self._calculate_style_consistency(voice, character.dialogue_history)
 
             return VoiceAnalysis(
                 character_name=character.name,
@@ -144,9 +142,7 @@ class VoiceManager:
                 voice_completeness=0.0,
             )
 
-    def generate_voice_recommendations(
-        self, character: CharacterMemory
-    ) -> list[VoiceRecommendation]:
+    def generate_voice_recommendations(self, character: CharacterMemory) -> list[VoiceRecommendation]:
         """Generate recommendations for improving voice profile."""
         recommendations = []
 
@@ -221,9 +217,7 @@ class VoiceManager:
 
         return recommendations
 
-    def generate_voice_prompt(
-        self, character: CharacterMemory, context: str = ""
-    ) -> str:
+    def generate_voice_prompt(self, character: CharacterMemory, context: str = "") -> str:
         """Generate comprehensive voice prompt for AI generation."""
         if not character.voice_profile:
             return f"Character: {character.name} (no specific voice profile available)"
@@ -244,21 +238,15 @@ class VoiceManager:
 
         # Personality traits
         if voice.personality_traits:
-            prompt_parts.append(
-                f"Personality Traits: {', '.join(voice.personality_traits)}"
-            )
+            prompt_parts.append(f"Personality Traits: {', '.join(voice.personality_traits)}")
 
         # Speaking patterns
         if voice.speaking_patterns:
-            prompt_parts.append(
-                f"Speaking Patterns: {', '.join(voice.speaking_patterns)}"
-            )
+            prompt_parts.append(f"Speaking Patterns: {', '.join(voice.speaking_patterns)}")
 
         # Emotional tendencies
         if voice.emotional_tendencies:
-            prompt_parts.append(
-                f"Emotional Tendencies: {', '.join(voice.emotional_tendencies)}"
-            )
+            prompt_parts.append(f"Emotional Tendencies: {', '.join(voice.emotional_tendencies)}")
 
         # Current mood context
         if character.current_mood and character.current_mood != "neutral":
@@ -270,9 +258,7 @@ class VoiceManager:
             prompt_parts.append("Recent dialogue style reference:")
             for dialogue in recent_dialogue:
                 # Remove timestamp if present
-                clean_dialogue = (
-                    dialogue.split("] ", 1)[-1] if "] " in dialogue else dialogue
-                )
+                clean_dialogue = dialogue.split("] ", 1)[-1] if "] " in dialogue else dialogue
                 prompt_parts.append(f'  "{clean_dialogue}"')
 
         # Additional context
@@ -281,9 +267,7 @@ class VoiceManager:
 
         return "\n".join(prompt_parts)
 
-    def update_voice_profile(
-        self, character: CharacterMemory, voice_updates: dict[str, Any]
-    ) -> bool:
+    def update_voice_profile(self, character: CharacterMemory, voice_updates: dict[str, Any]) -> bool:
         """Update character voice profile with validation."""
         try:
             # Initialize voice profile if needed
@@ -310,11 +294,7 @@ class VoiceManager:
                         setattr(voice, field, new_value)
                     elif isinstance(new_value, str):
                         # Handle comma-separated strings
-                        value_list = [
-                            item.strip()
-                            for item in new_value.split(",")
-                            if item.strip()
-                        ]
+                        value_list = [item.strip() for item in new_value.split(",") if item.strip()]
                         setattr(voice, field, value_list)
 
             # Validate vocabulary level
@@ -334,9 +314,7 @@ class VoiceManager:
         else:
             return True
 
-    def extract_voice_from_dialogue(
-        self, dialogue_history: list[str]
-    ) -> dict[str, Any]:
+    def extract_voice_from_dialogue(self, dialogue_history: list[str]) -> dict[str, Any]:
         """Extract voice characteristics from dialogue history."""
         if not dialogue_history:
             return {}
@@ -351,9 +329,7 @@ class VoiceManager:
         # Analyze dialogue for patterns
         for dialogue in dialogue_history:
             # Remove timestamps
-            clean_dialogue = (
-                dialogue.split("] ", 1)[-1] if "] " in dialogue else dialogue
-            )
+            clean_dialogue = dialogue.split("] ", 1)[-1] if "] " in dialogue else dialogue
 
             # Look for speech patterns
             if "..." in clean_dialogue:
@@ -435,9 +411,7 @@ class VoiceManager:
 
         return traits[:3]  # Maximum 3 dominant traits
 
-    def _calculate_style_consistency(
-        self, voice: VoiceProfile, dialogue_history: list[str]
-    ) -> float:
+    def _calculate_style_consistency(self, voice: VoiceProfile, dialogue_history: list[str]) -> float:
         """Calculate speaking style consistency."""
         if not voice.speaking_style:
             return 0.0
@@ -447,9 +421,7 @@ class VoiceManager:
 
         # Enhance score if we have dialogue examples
         if dialogue_history and len(dialogue_history) >= 3:
-            base_score = min(
-                1.0, base_score + 0.2
-            )  # Bonus for having dialogue examples
+            base_score = min(1.0, base_score + 0.2)  # Bonus for having dialogue examples
 
         return base_score
 

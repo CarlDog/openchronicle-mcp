@@ -8,7 +8,8 @@ Handles voice consistency, style analysis, and prompt generation.
 from dataclasses import dataclass
 from typing import Any
 
-from ...shared.memory_models import CharacterMemory, VoiceProfile
+from ...shared.memory_models import CharacterMemory
+from ...shared.memory_models import VoiceProfile
 
 
 @dataclass

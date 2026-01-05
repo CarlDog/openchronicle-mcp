@@ -109,25 +109,18 @@ class MetricsCollector(IMetricsCollector):
                     "duration": duration,
                     "success": success,
                     "cpu_delta": metrics.cpu_usage_after - metrics.cpu_usage_before,
-                    "memory_delta": metrics.memory_usage_after
-                    - metrics.memory_usage_before,
+                    "memory_delta": metrics.memory_usage_after - metrics.memory_usage_before,
                 },
             )
 
         except (KeyError, AttributeError) as e:
-            self.logger.exception(
-                "Performance metrics data structure error for"
-            )
+            self.logger.exception("Performance metrics data structure error for")
             return self._create_fallback_metrics(operation_id, success, error_message)
         except (ValueError, TypeError) as e:
-            self.logger.exception(
-                "Performance metrics parameter error for"
-            )
+            self.logger.exception("Performance metrics parameter error for")
             return self._create_fallback_metrics(operation_id, success, error_message)
         except Exception as e:
-            self.logger.exception(
-                "Failed to finish operation tracking for"
-            )
+            self.logger.exception("Failed to finish operation tracking for")
             return self._create_fallback_metrics(operation_id, success, error_message)
         else:
             return metrics

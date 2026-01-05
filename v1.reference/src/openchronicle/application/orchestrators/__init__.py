@@ -22,9 +22,9 @@ from openchronicle.domain import NarrativeContext
 from openchronicle.domain import Scene
 from openchronicle.domain import Story
 from openchronicle.domain import StoryGenerator
-from openchronicle.shared.exceptions import ModelError
 from openchronicle.shared.error_handling import NarrativeError
 from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import ModelError
 from openchronicle.shared.exceptions import ValidationError
 
 
@@ -83,9 +83,7 @@ class SceneRepository(Protocol):
         """Get scene by ID."""
         ...
 
-    async def get_by_story(
-        self, story_id: str, limit: int = 50, offset: int = 0
-    ) -> list[Scene]:
+    async def get_by_story(self, story_id: str, limit: int = 50, offset: int = 0) -> list[Scene]:
         """Get scenes for a story."""
         ...
 
@@ -105,9 +103,7 @@ class MemoryManager(Protocol):
 class ModelManager(Protocol):
     """Model management interface - DEPRECATED: Use IModelManagementPort from domain.ports instead."""
 
-    async def generate_response(
-        self, context: NarrativeContext, model_preference: str | None = None
-    ) -> ModelResponse:
+    async def generate_response(self, context: NarrativeContext, model_preference: str | None = None) -> ModelResponse:
         """Generate AI response."""
         ...
 
@@ -160,9 +156,7 @@ class StoryOrchestrator(BaseOrchestrator):
             )
 
             if not validation_result.is_valid:
-                return CommandResult.failure(
-                    "Story concept validation failed", validation_result.errors
-                )
+                return CommandResult.failure("Story concept validation failed", validation_result.errors)
 
             # Save to repository
             success = await self.story_repo.save(story)
@@ -219,9 +213,7 @@ class StoryOrchestrator(BaseOrchestrator):
 
             # Update memory if world state changed
             if command.world_state_updates:
-                await self.memory_manager.update_memory(
-                    story.id, {"world_state": command.world_state_updates}
-                )
+                await self.memory_manager.update_memory(story.id, {"world_state": command.world_state_updates})
 
             return CommandResult.success("Story updated successfully", story)
 
@@ -276,9 +268,7 @@ class CharacterOrchestrator(BaseOrchestrator):
             )
 
             if not validation_result.is_valid:
-                return CommandResult.failure(
-                    "Character concept validation failed", validation_result.errors
-                )
+                return CommandResult.failure("Character concept validation failed", validation_result.errors)
 
             # Save character
             success = await self.character_repo.save(character)
@@ -359,24 +349,16 @@ class NarrativeOrchestrator(BaseOrchestrator):
             # Generate coherent narrative
             narrative_result = self.story_generator.generate_coherent_narrative(
                 context=context,
-                participant_characters=[
-                    char for char in characters if char.id in command.participant_ids
-                ],
+                participant_characters=[char for char in characters if char.id in command.participant_ids],
             )
 
             if not narrative_result.is_valid:
-                return CommandResult.failure(
-                    "Narrative generation validation failed", narrative_result.errors
-                )
+                return CommandResult.failure("Narrative generation validation failed", narrative_result.errors)
 
             # Get AI response
-            model_response = await self.model_management_port.generate_response(
-                context, command.model_preference
-            )
+            model_response = await self.model_management_port.generate_response(context, command.model_preference)
 
-            if not model_response.content or model_response.finish_reason.startswith(
-                "error"
-            ):
+            if not model_response.content or model_response.finish_reason.startswith("error"):
                 error_msg = getattr(model_response, "finish_reason", "Unknown error")
                 return CommandResult.failure("AI generation failed", [error_msg])
 
@@ -388,15 +370,11 @@ class NarrativeOrchestrator(BaseOrchestrator):
                     consistency_result = self.character_analyzer.analyze_consistency(
                         character=character,
                         scene_content=model_response.content,
-                        previous_scenes=await self.scene_repo.get_by_story(
-                            command.story_id, limit=10
-                        ),
+                        previous_scenes=await self.scene_repo.get_by_story(command.story_id, limit=10),
                     )
 
                     if consistency_result.has_updates:
-                        character_updates[
-                            char_id
-                        ] = consistency_result.suggested_updates
+                        character_updates[char_id] = consistency_result.suggested_updates
 
             return CommandResult.success(
                 "Scene generated successfully",

@@ -41,9 +41,7 @@ class EmotionalOrchestrator:
         # Configuration settings
         self.emotion_memory_limit = self.config.get("emotion_memory_limit", 50)
         self.dialogue_memory_limit = self.config.get("dialogue_memory_limit", 20)
-        self.behavior_cooldown_duration = self.config.get(
-            "behavior_cooldown_duration", 300
-        )
+        self.behavior_cooldown_duration = self.config.get("behavior_cooldown_duration", 300)
         self.similarity_threshold = self.config.get("similarity_threshold", 0.8)
         self.loop_detection_threshold = self.config.get("loop_detection_threshold", 3)
 
@@ -73,28 +71,20 @@ class EmotionalOrchestrator:
                 "timestamp": datetime.now(),
             }
 
-            tracking_result = self.stability_tracker.track_emotional_state(
-                character_id, emotional_state
-            )
+            tracking_result = self.stability_tracker.track_emotional_state(character_id, emotional_state)
 
             # Analyze for emotional patterns and loops
-            loop_analysis = self.mood_analyzer.detect_emotional_loops(
-                character_id, emotion, intensity, context
-            )
+            loop_analysis = self.mood_analyzer.detect_emotional_loops(character_id, emotion, intensity, context)
 
             # Check for instability patterns
-            stability_analysis = self.stability_tracker.analyze_stability_patterns(
-                character_id
-            )
+            stability_analysis = self.stability_tracker.analyze_stability_patterns(character_id)
 
             result = {
                 "tracking_result": tracking_result,
                 "loop_analysis": loop_analysis,
                 "stability_analysis": stability_analysis,
                 "emotional_state": (
-                    emotional_state.__dict__
-                    if hasattr(emotional_state, "__dict__")
-                    else emotional_state
+                    emotional_state.__dict__ if hasattr(emotional_state, "__dict__") else emotional_state
                 ),
                 "timestamp": datetime.now().isoformat(),
             }
@@ -146,9 +136,7 @@ class EmotionalOrchestrator:
         """
         cooldown_duration = duration or self.behavior_cooldown_duration
 
-        return self.stability_tracker.trigger_behavior_cooldown(
-            character_id, behavior, cooldown_duration
-        )
+        return self.stability_tracker.trigger_behavior_cooldown(character_id, behavior, cooldown_duration)
 
     def detect_dialogue_similarity(self, character_id: str, new_dialogue: str) -> float:
         """
@@ -163,9 +151,7 @@ class EmotionalOrchestrator:
         """
         return self.mood_analyzer.detect_dialogue_similarity(character_id, new_dialogue)
 
-    def detect_emotional_loops(
-        self, character_id: str, text: str
-    ) -> list[dict[str, Any]]:
+    def detect_emotional_loops(self, character_id: str, text: str) -> list[dict[str, Any]]:
         """
         Detect emotional and behavioral loops in character responses.
 
@@ -190,14 +176,10 @@ class EmotionalOrchestrator:
         """
         try:
             # Get current emotional state
-            current_state = self.stability_tracker.get_current_emotional_state(
-                character_id
-            )
+            current_state = self.stability_tracker.get_current_emotional_state(character_id)
 
             # Get recent emotional history
-            emotional_history = self.stability_tracker.get_emotional_history(
-                character_id, limit=10
-            )
+            emotional_history = self.stability_tracker.get_emotional_history(character_id, limit=10)
 
             # Get mood analysis
             mood_analysis = self.mood_analyzer.analyze_current_mood(character_id)
@@ -218,9 +200,7 @@ class EmotionalOrchestrator:
             logger.exception("Error getting emotional context")
             return {"error": str(e)}
 
-    def generate_anti_loop_prompt(
-        self, character_id: str, detected_loops: list[dict[str, Any]]
-    ) -> str:
+    def generate_anti_loop_prompt(self, character_id: str, detected_loops: list[dict[str, Any]]) -> str:
         """
         Generate prompt to break detected emotional/behavioral loops.
 
@@ -231,9 +211,7 @@ class EmotionalOrchestrator:
         Returns:
             Anti-loop prompt string
         """
-        return self.mood_analyzer.generate_anti_loop_prompt(
-            character_id, detected_loops
-        )
+        return self.mood_analyzer.generate_anti_loop_prompt(character_id, detected_loops)
 
     def analyze_emotional_stability(self, character_id: str) -> dict[str, Any]:
         """
@@ -247,9 +225,7 @@ class EmotionalOrchestrator:
         """
         try:
             # Get stability metrics
-            stability_score = self.stability_tracker.calculate_stability_score(
-                character_id
-            )
+            stability_score = self.stability_tracker.calculate_stability_score(character_id)
 
             # Get pattern analysis
             patterns = self.mood_analyzer.analyze_emotional_patterns(character_id)
@@ -344,15 +320,11 @@ class EmotionalOrchestrator:
 
             # Import stability data
             if "stability_data" in data:
-                stability_result = self.stability_tracker.import_character_data(
-                    data["stability_data"]
-                )
+                stability_result = self.stability_tracker.import_character_data(data["stability_data"])
 
             # Import mood data
             if "mood_data" in data:
-                mood_result = self.mood_analyzer.import_character_data(
-                    data["mood_data"]
-                )
+                mood_result = self.mood_analyzer.import_character_data(data["mood_data"])
 
             return {
                 "character_id": character_id,
@@ -376,28 +348,18 @@ class EmotionalOrchestrator:
         recommendations = []
 
         if stability_score < 0.3:
-            recommendations.append(
-                "Critical: Consider major narrative intervention to stabilize character"
-            )
+            recommendations.append("Critical: Consider major narrative intervention to stabilize character")
         elif stability_score < 0.6:
-            recommendations.append(
-                "Warning: Character showing signs of emotional instability"
-            )
+            recommendations.append("Warning: Character showing signs of emotional instability")
 
         if loops.get("total_loops", 0) > 5:
-            recommendations.append(
-                "High loop count detected - implement anti-loop measures"
-            )
+            recommendations.append("High loop count detected - implement anti-loop measures")
 
         if patterns.get("emotional_variance", 0) > 0.8:
-            recommendations.append(
-                "High emotional variance - consider emotional anchoring"
-            )
+            recommendations.append("High emotional variance - consider emotional anchoring")
 
         if behaviors.get("cooldown_violations", 0) > 3:
-            recommendations.append(
-                "Frequent cooldown violations - adjust behavior timing"
-            )
+            recommendations.append("Frequent cooldown violations - adjust behavior timing")
 
         if not recommendations:
             recommendations.append("Emotional stability within normal parameters")

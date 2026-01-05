@@ -66,9 +66,7 @@ class DIEnabledOrchestrator(ABC):
         # Initialize dependencies through DI
         self._initialize_dependencies()
 
-        if hasattr(self.config, "enable_logging") and getattr(
-            self.config, "enable_logging", True
-        ):
+        if hasattr(self.config, "enable_logging") and getattr(self.config, "enable_logging", True):
             log_info(f"{self.__class__.__name__} initialized with dependency injection")
 
     def _ensure_services_configured(self):
@@ -110,14 +108,10 @@ class DIModelOrchestrator(DIEnabledOrchestrator):
         self.configuration_manager = self.resolve_optional(IConfigurationManager)
         self.logger = self.resolve_optional(ILogger)
 
-    async def initialize_adapter(
-        self, name: str, max_retries: int = 2, graceful_degradation: bool = True
-    ) -> bool:
+    async def initialize_adapter(self, name: str, max_retries: int = 2, graceful_degradation: bool = True) -> bool:
         """Initialize adapter through DI."""
         if self.model_orchestrator:
-            return await self.model_orchestrator.initialize_adapter(
-                name, max_retries, graceful_degradation
-            )
+            return await self.model_orchestrator.initialize_adapter(name, max_retries, graceful_degradation)
         return False
 
     async def generate_response(
@@ -129,9 +123,7 @@ class DIModelOrchestrator(DIEnabledOrchestrator):
     ) -> str:
         """Generate response through DI."""
         if self.model_orchestrator:
-            return await self.model_orchestrator.generate_response(
-                prompt, adapter_name, story_id, **kwargs
-            )
+            return await self.model_orchestrator.generate_response(prompt, adapter_name, story_id, **kwargs)
         return ""
 
 
@@ -155,14 +147,10 @@ class DIMemoryOrchestrator(DIEnabledOrchestrator):
             return await self.memory_orchestrator.get_character_memory(character_id)
         return {}
 
-    async def create_scene_context(
-        self, story_id: str, scene_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def create_scene_context(self, story_id: str, scene_data: dict[str, Any]) -> dict[str, Any]:
         """Create scene context through DI."""
         if self.memory_orchestrator:
-            return await self.memory_orchestrator.create_scene_context(
-                story_id, scene_data
-            )
+            return await self.memory_orchestrator.create_scene_context(story_id, scene_data)
         return {}
 
 
@@ -184,9 +172,7 @@ class DISceneOrchestrator(DIEnabledOrchestrator):
     async def generate_scene(self, user_input: str) -> dict[str, Any]:
         """Generate scene through DI."""
         if self.scene_orchestrator:
-            return await self.scene_orchestrator.generate_scene(
-                self.story_id, user_input
-            )
+            return await self.scene_orchestrator.generate_scene(self.story_id, user_input)
         return {}
 
 
@@ -203,14 +189,10 @@ class DINarrativeOrchestrator(DIEnabledOrchestrator):
         self.mechanics_orchestrator = self.resolve_optional(IMechanicsOrchestrator)
         self.logger = self.resolve_optional(ILogger)
 
-    async def process_narrative_request(
-        self, story_id: str, request: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def process_narrative_request(self, story_id: str, request: dict[str, Any]) -> dict[str, Any]:
         """Process narrative request through DI."""
         if self.narrative_orchestrator:
-            return await self.narrative_orchestrator.process_narrative_request(
-                story_id, request
-            )
+            return await self.narrative_orchestrator.process_narrative_request(story_id, request)
         return {}
 
 
@@ -228,14 +210,10 @@ class DIContextOrchestrator(DIEnabledOrchestrator):
         self.content_analyzer = self.resolve_optional(IContentAnalyzer)
         self.logger = self.resolve_optional(ILogger)
 
-    async def build_context_with_analysis(
-        self, content: str, story_id: str
-    ) -> dict[str, Any]:
+    async def build_context_with_analysis(self, content: str, story_id: str) -> dict[str, Any]:
         """Build context with analysis through DI."""
         if self.context_orchestrator:
-            return await self.context_orchestrator.build_context_with_analysis(
-                content, story_id
-            )
+            return await self.context_orchestrator.build_context_with_analysis(content, story_id)
         return {}
 
 
@@ -256,9 +234,7 @@ def create_di_memory_orchestrator(
     return DIMemoryOrchestrator(config)
 
 
-def create_di_scene_orchestrator(
-    story_id: str, container: DIContainer | None = None
-) -> DISceneOrchestrator:
+def create_di_scene_orchestrator(story_id: str, container: DIContainer | None = None) -> DISceneOrchestrator:
     """Create DI-enabled scene orchestrator."""
     config = OrchestratorConfig(container=container)
     return DISceneOrchestrator(story_id, config)

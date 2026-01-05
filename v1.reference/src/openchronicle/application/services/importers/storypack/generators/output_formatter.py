@@ -36,9 +36,7 @@ class OutputFormatter(IOutputFormatter):
             "datetime_format": "%Y-%m-%d %H:%M:%S",
         }
 
-    def format_import_result(
-        self, result: ImportResult, format_type: str = "summary"
-    ) -> str:
+    def format_import_result(self, result: ImportResult, format_type: str = "summary") -> str:
         """
         Format import result for display.
 
@@ -66,9 +64,7 @@ class OutputFormatter(IOutputFormatter):
             self.logger.exception("Unexpected error formatting import result")
             return f"Unexpected error formatting result: {e}"
 
-    def generate_report(
-        self, result: ImportResult, report_type: str = "standard"
-    ) -> dict[str, Any]:
+    def generate_report(self, result: ImportResult, report_type: str = "standard") -> dict[str, Any]:
         """
         Generate comprehensive import report.
 
@@ -98,9 +94,7 @@ class OutputFormatter(IOutputFormatter):
             self.logger.exception("Unexpected error generating report")
             return self._create_error_report(e, result)
 
-    def save_report(
-        self, report: dict[str, Any], output_path: Path, format_type: str = "json"
-    ) -> bool:
+    def save_report(self, report: dict[str, Any], output_path: Path, format_type: str = "json") -> bool:
         """
         Save report to file.
 
@@ -136,9 +130,7 @@ class OutputFormatter(IOutputFormatter):
         """Format import results for display."""
         return self.format_import_result(result, "summary")
 
-    def generate_readme(
-        self, context: ImportContext, content_summary: dict[str, Any]
-    ) -> str:
+    def generate_readme(self, context: ImportContext, content_summary: dict[str, Any]) -> str:
         """Generate README content for the storypack."""
         readme_lines = [
             f"# {context.storypack_name}",
@@ -247,22 +239,16 @@ class OutputFormatter(IOutputFormatter):
             for file_path in result.generated_files[:10]:  # Show first 10
                 sections.append(f"  - {file_path}")
             if len(result.generated_files) > 10:
-                sections.append(
-                    f"  ... and {len(result.generated_files) - 10} more files"
-                )
+                sections.append(f"  ... and {len(result.generated_files) - 10} more files")
 
         # Errors section
         if result.errors:
             sections.append(f"\n=== ERRORS ({len(result.errors)}) ===")
-            for i, error in enumerate(
-                result.errors[: self.formatting_options["max_error_display"]]
-            ):
+            for i, error in enumerate(result.errors[: self.formatting_options["max_error_display"]]):
                 sections.append(f"{i+1}. {error}")
 
             if len(result.errors) > self.formatting_options["max_error_display"]:
-                remaining = (
-                    len(result.errors) - self.formatting_options["max_error_display"]
-                )
+                remaining = len(result.errors) - self.formatting_options["max_error_display"]
                 sections.append(f"... and {remaining} more errors")
 
         # Warnings section
@@ -280,21 +266,11 @@ class OutputFormatter(IOutputFormatter):
             for key, value in result.metadata.items():
                 if key not in ["files_by_category"]:  # Skip already displayed
                     if isinstance(value, (dict, list)):
-                        sections.append(
-                            f"{key}: {type(value).__name__} with {len(value)} items"
-                        )
+                        sections.append(f"{key}: {type(value).__name__} with {len(value)} items")
                     else:
                         value_str = str(value)
-                        if (
-                            len(value_str)
-                            > self.formatting_options["max_summary_length"]
-                        ):
-                            value_str = (
-                                value_str[
-                                    : self.formatting_options["max_summary_length"]
-                                ]
-                                + "..."
-                            )
+                        if len(value_str) > self.formatting_options["max_summary_length"]:
+                            value_str = value_str[: self.formatting_options["max_summary_length"]] + "..."
                         sections.append(f"{key}: {value_str}")
 
         return "\n".join(sections)
@@ -305,9 +281,7 @@ class OutputFormatter(IOutputFormatter):
         result_dict = {
             "success": result.success,
             "storypack_name": result.storypack_name,
-            "storypack_path": str(result.storypack_path)
-            if result.storypack_path
-            else None,
+            "storypack_path": str(result.storypack_path) if result.storypack_path else None,
             "files_processed": result.files_processed,
             "generated_files": [str(f) for f in result.generated_files],
             "processing_time": result.processing_time,
@@ -323,18 +297,14 @@ class OutputFormatter(IOutputFormatter):
         """Create base report structure."""
         return {
             "report_info": {
-                "generated_at": datetime.now().strftime(
-                    self.formatting_options["datetime_format"]
-                ),
+                "generated_at": datetime.now().strftime(self.formatting_options["datetime_format"]),
                 "report_version": "1.0",
                 "openchronicle_version": "current",  # Would be filled from actual version
             },
             "import_summary": {
                 "success": result.success,
                 "storypack_name": result.storypack_name,
-                "storypack_path": str(result.storypack_path)
-                if result.storypack_path
-                else None,
+                "storypack_path": str(result.storypack_path) if result.storypack_path else None,
                 "files_processed": result.files_processed,
                 "processing_time": result.processing_time,
                 "created_at": result.created_at,
@@ -346,9 +316,7 @@ class OutputFormatter(IOutputFormatter):
             },
         }
 
-    def _enhance_standard_report(
-        self, base_report: dict[str, Any], result: ImportResult
-    ) -> dict[str, Any]:
+    def _enhance_standard_report(self, base_report: dict[str, Any], result: ImportResult) -> dict[str, Any]:
         """Enhance report with standard details."""
         report = base_report.copy()
 
@@ -365,23 +333,18 @@ class OutputFormatter(IOutputFormatter):
         # Add key metadata
         if result.metadata:
             report["import_details"] = {
-                key: value
-                for key, value in result.metadata.items()
-                if key not in ["files_by_category"]
+                key: value for key, value in result.metadata.items() if key not in ["files_by_category"]
             }
 
         return report
 
-    def _enhance_technical_report(
-        self, base_report: dict[str, Any], result: ImportResult
-    ) -> dict[str, Any]:
+    def _enhance_technical_report(self, base_report: dict[str, Any], result: ImportResult) -> dict[str, Any]:
         """Enhance report with technical details."""
         report = self._enhance_standard_report(base_report, result)
 
         # Add technical metrics
         report["technical_metrics"] = {
-            "processing_efficiency": result.files_processed
-            / max(result.processing_time, 0.001),
+            "processing_efficiency": result.files_processed / max(result.processing_time, 0.001),
             "error_rate": len(result.errors) / max(result.files_processed, 1),
             "success_rate": 1.0 if result.success else 0.0,
         }
@@ -399,17 +362,13 @@ class OutputFormatter(IOutputFormatter):
 
         return report
 
-    def _enhance_executive_report(
-        self, base_report: dict[str, Any], result: ImportResult
-    ) -> dict[str, Any]:
+    def _enhance_executive_report(self, base_report: dict[str, Any], result: ImportResult) -> dict[str, Any]:
         """Enhance report with executive summary."""
         report = base_report.copy()
 
         # Executive summary
         report["executive_summary"] = {
-            "status": "Completed Successfully"
-            if result.success
-            else "Completed with Issues",
+            "status": "Completed Successfully" if result.success else "Completed with Issues",
             "key_metrics": {
                 "files_imported": result.files_processed,
                 "time_taken": f"{result.processing_time:.1f} seconds",
@@ -433,41 +392,27 @@ class OutputFormatter(IOutputFormatter):
         recommendations = []
 
         if result.errors:
-            recommendations.append(
-                "Review and address import errors before using the storypack"
-            )
+            recommendations.append("Review and address import errors before using the storypack")
 
         if result.warnings:
-            recommendations.append(
-                "Consider addressing warnings to improve content quality"
-            )
+            recommendations.append("Consider addressing warnings to improve content quality")
 
         if result.files_processed > 100:
-            recommendations.append(
-                "Large import completed - consider organizing content into subcategories"
-            )
+            recommendations.append("Large import completed - consider organizing content into subcategories")
 
         if result.processing_time > 60:
-            recommendations.append(
-                "Long processing time - consider using AI processing for better efficiency"
-            )
+            recommendations.append("Long processing time - consider using AI processing for better efficiency")
 
         if not recommendations:
-            recommendations.append(
-                "Import completed successfully - storypack is ready for use"
-            )
+            recommendations.append("Import completed successfully - storypack is ready for use")
 
         return recommendations
 
-    def _create_error_report(
-        self, error: Exception, result: ImportResult
-    ) -> dict[str, Any]:
+    def _create_error_report(self, error: Exception, result: ImportResult) -> dict[str, Any]:
         """Create error report when report generation fails."""
         return {
             "report_info": {
-                "generated_at": datetime.now().strftime(
-                    self.formatting_options["datetime_format"]
-                ),
+                "generated_at": datetime.now().strftime(self.formatting_options["datetime_format"]),
                 "status": "error",
                 "error": str(error),
             },

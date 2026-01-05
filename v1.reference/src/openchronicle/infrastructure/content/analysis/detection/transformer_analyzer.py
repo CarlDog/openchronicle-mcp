@@ -27,18 +27,10 @@ try:
     import warnings
 
     # Suppress specific transformers warnings about unused weights and deprecations
-    warnings.filterwarnings(
-        "ignore", message="Some weights of.*were not used when initializing.*"
-    )
-    warnings.filterwarnings(
-        "ignore", message=".*This IS expected if you are initializing.*"
-    )
-    warnings.filterwarnings(
-        "ignore", message=".*This IS NOT expected if you are initializing.*"
-    )
-    warnings.filterwarnings(
-        "ignore", message=".*return_all_scores.*is now deprecated.*"
-    )
+    warnings.filterwarnings("ignore", message="Some weights of.*were not used when initializing.*")
+    warnings.filterwarnings("ignore", message=".*This IS expected if you are initializing.*")
+    warnings.filterwarnings("ignore", message=".*This IS NOT expected if you are initializing.*")
+    warnings.filterwarnings("ignore", message=".*return_all_scores.*is now deprecated.*")
 
     # Set transformers library logging to ERROR level to suppress console output
     import logging
@@ -62,9 +54,7 @@ try:
     log_info("Transformers library loaded - advanced classification enabled")
 except ImportError:
     TRANSFORMERS_AVAILABLE = False
-    log_warning(
-        "Transformers library not available - using keyword-based classification only"
-    )
+    log_warning("Transformers library not available - using keyword-based classification only")
 
 
 class TransformerAnalyzer(DetectionComponent):
@@ -109,9 +99,7 @@ class TransformerAnalyzer(DetectionComponent):
                     device = 0 if torch.cuda.is_available() else -1
 
                     # Enhanced model loading with SSL/Network error handling
-                    def load_model_safely(
-                        task: str, model_name: str, description: str
-                    ) -> Any:
+                    def load_model_safely(task: str, model_name: str, description: str) -> Any:
                         """Load transformer model with SSL/network error handling."""
                         try:
                             log_info(f"Loading {description} model: {model_name}")
@@ -146,13 +134,9 @@ class TransformerAnalyzer(DetectionComponent):
                                 log_warning(
                                     f"SSL/Network error loading {description} model '{model_name}': {model_error}"
                                 )
-                                log_warning(
-                                    "Enterprise firewall may be blocking access to huggingface.co"
-                                )
+                                log_warning("Enterprise firewall may be blocking access to huggingface.co")
                             else:
-                                log_error(
-                                    f"Error loading {description} model '{model_name}': {model_error}"
-                                )
+                                log_error(f"Error loading {description} model '{model_name}': {model_error}")
                             return None
 
                     # NSFW Content Detection
@@ -188,14 +172,10 @@ class TransformerAnalyzer(DetectionComponent):
                         if model is not None
                     )
                     if models_loaded == 0:
-                        log_warning(
-                            "No transformer models could be loaded - falling back to keyword-based analysis"
-                        )
+                        log_warning("No transformer models could be loaded - falling back to keyword-based analysis")
                         self.use_transformers = False
                     else:
-                        log_info(
-                            f"Successfully loaded {models_loaded}/3 transformer models"
-                        )
+                        log_info(f"Successfully loaded {models_loaded}/3 transformer models")
                         if models_loaded < 3:
                             log_info(
                                 "Partial transformer functionality available - some analysis will use keyword fallbacks"
@@ -234,15 +214,11 @@ class TransformerAnalyzer(DetectionComponent):
                     "connection",
                 ]
             ):
-                log_warning(
-                    f"Network/SSL issue detected while downloading transformer models: {e}"
-                )
+                log_warning(f"Network/SSL issue detected while downloading transformer models: {e}")
                 log_warning(
                     "This is likely due to enterprise firewall/proxy settings blocking external AI model downloads"
                 )
-                log_warning(
-                    "Falling back to keyword-based content analysis (transformers disabled)"
-                )
+                log_warning("Falling back to keyword-based content analysis (transformers disabled)")
                 log_system_event(
                     "ssl_fallback_triggered",
                     f"SSL/Network error triggered transformer fallback: {type(e).__name__}",
@@ -262,9 +238,7 @@ class TransformerAnalyzer(DetectionComponent):
 
             # Log fallback strategy for user awareness
             log_info("Content analysis will use keyword-based classification methods")
-            log_info(
-                "For full transformer support, ensure network access to huggingface.co or use local models"
-            )
+            log_info("For full transformer support, ensure network access to huggingface.co or use local models")
 
     def _analyze_with_transformers(self, user_input: str) -> dict[str, Any]:
         """Use transformer models for advanced content analysis."""
@@ -292,11 +266,7 @@ class TransformerAnalyzer(DetectionComponent):
 
                 # toxic-bert returns TOXIC or NOT_TOXIC
                 analysis["transformer_results"]["nsfw"] = nsfw_result
-                if (
-                    isinstance(nsfw_result, dict)
-                    and "label" in nsfw_result
-                    and "score" in nsfw_result
-                ):
+                if isinstance(nsfw_result, dict) and "label" in nsfw_result and "score" in nsfw_result:
                     if nsfw_result["label"] == "TOXIC":
                         analysis["nsfw_score"] = nsfw_result["score"]
                     else:
@@ -312,11 +282,7 @@ class TransformerAnalyzer(DetectionComponent):
                         sentiment_result = sentiment_result[0]  # type: ignore
 
                 analysis["transformer_results"]["sentiment"] = sentiment_result
-                if (
-                    isinstance(sentiment_result, dict)
-                    and "label" in sentiment_result
-                    and "score" in sentiment_result
-                ):
+                if isinstance(sentiment_result, dict) and "label" in sentiment_result and "score" in sentiment_result:
                     analysis["sentiment"] = sentiment_result["label"].lower()
                     analysis["sentiment_score"] = sentiment_result["score"]
 
@@ -330,11 +296,7 @@ class TransformerAnalyzer(DetectionComponent):
                         emotion_result = emotion_result[0]  # type: ignore
 
                 analysis["transformer_results"]["emotion"] = emotion_result
-                if (
-                    isinstance(emotion_result, dict)
-                    and "label" in emotion_result
-                    and "score" in emotion_result
-                ):
+                if isinstance(emotion_result, dict) and "label" in emotion_result and "score" in emotion_result:
                     analysis["emotions"] = {
                         "primary_emotion": emotion_result["label"],
                         "confidence": emotion_result["score"],
@@ -398,34 +360,20 @@ class TransformerAnalyzer(DetectionComponent):
         }
 
         if not TRANSFORMERS_AVAILABLE:
-            status["recommendations"].append(
-                "Install transformers library: pip install transformers torch"
-            )
+            status["recommendations"].append("Install transformers library: pip install transformers torch")
 
         if TRANSFORMERS_AVAILABLE and not self.use_transformers:
-            status["recommendations"].append(
-                "Transformers disabled due to initialization errors"
-            )
+            status["recommendations"].append("Transformers disabled due to initialization errors")
             status["recommendations"].append("Check logs for SSL/network error details")
 
-        models_failed = sum(
-            1 for loaded in status["models_loaded"].values() if not loaded
-        )
+        models_failed = sum(1 for loaded in status["models_loaded"].values() if not loaded)
         if models_failed > 0:
-            status["recommendations"].append(
-                f"{models_failed}/3 transformer models failed to load"
-            )
-            status["recommendations"].append(
-                "This is likely due to SSL/network restrictions"
-            )
+            status["recommendations"].append(f"{models_failed}/3 transformer models failed to load")
+            status["recommendations"].append("This is likely due to SSL/network restrictions")
             status["recommendations"].append("Solutions:")
             status["recommendations"].append("  1. Configure corporate proxy settings")
-            status["recommendations"].append(
-                "  2. Whitelist huggingface.co in firewall"
-            )
+            status["recommendations"].append("  2. Whitelist huggingface.co in firewall")
             status["recommendations"].append("  3. Use offline transformer models")
-            status["recommendations"].append(
-                "  4. Accept keyword-based fallback analysis"
-            )
+            status["recommendations"].append("  4. Accept keyword-based fallback analysis")
 
         return status

@@ -59,9 +59,7 @@ class TokenManager:
             self.usage_tracker = UsageTracker(cache_size=self.config.cache_size)
 
             self.cost_calculator = CostCalculator()
-            self.recommender = UsageRecommender(
-                self.usage_tracker, self.cost_calculator
-            )
+            self.recommender = UsageRecommender(self.usage_tracker, self.cost_calculator)
 
             # Initialize model registry
             self.model_configs = self.config.model_configs
@@ -100,9 +98,7 @@ class TokenManager:
     # OPTIMIZATION INTERFACE
     # =====================================================================
 
-    def select_optimal_model(
-        self, text: str, requirements: dict[str, Any] | None = None
-    ) -> str:
+    def select_optimal_model(self, text: str, requirements: dict[str, Any] | None = None) -> str:
         """Select the optimal model for given text and requirements."""
         token_count = self.count_tokens(text)
         return self.optimizer.select_optimal_model(token_count, requirements or {})
@@ -118,23 +114,17 @@ class TokenManager:
         model = model or self.config.default_model
         return self.trimmer.trim_context(text, max_tokens, model, strategy)
 
-    def check_truncation_risk(
-        self, text: str, model: str | None = None
-    ) -> dict[str, Any]:
+    def check_truncation_risk(self, text: str, model: str | None = None) -> dict[str, Any]:
         """Check if text might be truncated by model."""
         model = model or self.config.default_model
         return self.truncation_detector.check_truncation_risk(text, model)
 
-    def split_text_for_model(
-        self, text: str, model: str | None = None, chunk_size: int | None = None
-    ) -> list[str]:
+    def split_text_for_model(self, text: str, model: str | None = None, chunk_size: int | None = None) -> list[str]:
         """Split text into chunks that fit model limits."""
         model = model or self.config.default_model
         if chunk_size is None:
             model_config = self.model_configs.get(model, {})
-            chunk_size = (
-                model_config.get("max_tokens", 4096) - self.config.safety_margin
-            )
+            chunk_size = model_config.get("max_tokens", 4096) - self.config.safety_margin
 
         return self.trimmer.split_text(text, chunk_size, model)
 
@@ -154,13 +144,9 @@ class TokenManager:
         """Track token usage for analytics."""
         # Calculate cost if not provided
         if cost is None:
-            cost = self.cost_calculator.calculate_cost(
-                model_name, prompt_tokens, response_tokens
-            )
+            cost = self.cost_calculator.calculate_cost(model_name, prompt_tokens, response_tokens)
 
-        self.usage_tracker.track_token_usage(
-            model_name, prompt_tokens, response_tokens, usage_type, cost, metadata
-        )
+        self.usage_tracker.track_token_usage(model_name, prompt_tokens, response_tokens, usage_type, cost, metadata)
 
     def get_usage_stats(self) -> dict[str, Any]:
         """Get comprehensive usage statistics."""
@@ -174,14 +160,10 @@ class TokenManager:
         """Get detailed cost analysis."""
         return self.usage_tracker.get_cost_analysis()
 
-    def recommend_model_switch(
-        self, current_model: str, usage_pattern: dict[str, Any] | None = None
-    ) -> str | None:
+    def recommend_model_switch(self, current_model: str, usage_pattern: dict[str, Any] | None = None) -> str | None:
         """Get model switch recommendations."""
         pattern = usage_pattern or self._analyze_usage_pattern(current_model)
-        return self.recommender.recommend_model_switch(
-            current_model, pattern, self.config.available_models
-        )
+        return self.recommender.recommend_model_switch(current_model, pattern, self.config.available_models)
 
     # =====================================================================
     # UTILITY METHODS
@@ -225,9 +207,7 @@ class TokenManager:
         token_count = self.estimate_tokens(text)
 
         # Check costs for all available models
-        costs = self.cost_calculator.get_cost_comparison(
-            self.config.available_models, token_count
-        )
+        costs = self.cost_calculator.get_cost_comparison(self.config.available_models, token_count)
 
         # Filter models under budget
         affordable_models = [model for model, cost in costs.items() if cost <= max_cost]
@@ -247,9 +227,7 @@ class TokenManager:
             "recommended_model": best_model,
             "estimated_cost": costs[best_model],
             "token_count": token_count,
-            "alternatives": [
-                (m, costs[m]) for m in affordable_models if m != best_model
-            ],
+            "alternatives": [(m, costs[m]) for m in affordable_models if m != best_model],
         }
 
     def _analyze_usage_pattern(self, model: str) -> dict[str, Any]:
@@ -308,9 +286,7 @@ class TokenManager:
         """Update system configuration."""
         try:
             validated_config = ConfigValidator.validate_token_config(new_config)
-            self.config = TokenManagerConfig.from_dict(
-                {**self.config.to_dict(), **validated_config}
-            )
+            self.config = TokenManagerConfig.from_dict({**self.config.to_dict(), **validated_config})
             log_system_event("token_system", "Configuration updated")
         except Exception as e:
             log_error(f"Failed to update config: {e}")

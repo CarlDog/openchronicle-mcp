@@ -30,6 +30,7 @@ class LabelingSystem:
         """
         self.story_id = story_id
         self.repository = repository
+
     # Centralized logging via shared.logging_system helpers (no per-instance logger)
 
     def update_scene_label(self, scene_id: str, scene_label: str) -> bool:
@@ -76,7 +77,7 @@ class LabelingSystem:
                     "operation": "update_scene_label",
                     "story_id": self.story_id,
                     "scene_id": scene_id,
-                    "error_type": "validation_error"
+                    "error_type": "validation_error",
                 },
             )
             return False
@@ -124,16 +125,8 @@ class LabelingSystem:
                     "scene_id": row["scene_id"],
                     "timestamp": row["timestamp"],
                     "scene_label": row["scene_label"],
-                    "input_preview": (
-                        row["input"][:200] + "..."
-                        if len(row["input"]) > 200
-                        else row["input"]
-                    ),
-                    "output_preview": (
-                        row["output"][:200] + "..."
-                        if len(row["output"]) > 200
-                        else row["output"]
-                    ),
+                    "input_preview": (row["input"][:200] + "..." if len(row["input"]) > 200 else row["input"]),
+                    "output_preview": (row["output"][:200] + "..." if len(row["output"]) > 200 else row["output"]),
                     "input_length": row["input_length"],
                     "output_length": row["output_length"],
                     "total_length": row["input_length"] + row["output_length"],
@@ -147,7 +140,7 @@ class LabelingSystem:
                     "operation": "get_scenes_by_label",
                     "story_id": self.story_id,
                     "scene_label": scene_label,
-                    "error_type": "database_error"
+                    "error_type": "database_error",
                 },
             )
             return []
@@ -158,7 +151,7 @@ class LabelingSystem:
                     "operation": "get_scenes_by_label",
                     "story_id": self.story_id,
                     "scene_label": scene_label,
-                    "error_type": "data_processing_error"
+                    "error_type": "data_processing_error",
                 },
             )
             return []
@@ -202,16 +195,8 @@ class LabelingSystem:
                     "scene_id": row["scene_id"],
                     "timestamp": row["timestamp"],
                     "scene_label": row["scene_label"],
-                    "input_preview": (
-                        row["input"][:200] + "..."
-                        if len(row["input"]) > 200
-                        else row["input"]
-                    ),
-                    "output_preview": (
-                        row["output"][:200] + "..."
-                        if len(row["output"]) > 200
-                        else row["output"]
-                    ),
+                    "input_preview": (row["input"][:200] + "..." if len(row["input"]) > 200 else row["input"]),
+                    "output_preview": (row["output"][:200] + "..." if len(row["output"]) > 200 else row["output"]),
                     "input_length": row["input_length"],
                     "output_length": row["output_length"],
                     "total_length": row["input_length"] + row["output_length"],
@@ -292,19 +277,11 @@ class LabelingSystem:
                 "total_scenes": total_scenes,
                 "labeled_scenes": labeled_scenes,
                 "unlabeled_scenes": unlabeled_scenes,
-                "labeling_percentage": (
-                    round((labeled_scenes / total_scenes) * 100, 1)
-                    if total_scenes > 0
-                    else 0
-                ),
+                "labeling_percentage": (round((labeled_scenes / total_scenes) * 100, 1) if total_scenes > 0 else 0),
                 "unique_labels": len(label_counts),
                 "label_distribution": label_distribution,
-                "most_used_label": (
-                    label_counts[0]["scene_label"] if label_counts else None
-                ),
-                "average_scenes_per_label": (
-                    round(labeled_scenes / len(label_counts), 1) if label_counts else 0
-                ),
+                "most_used_label": (label_counts[0]["scene_label"] if label_counts else None),
+                "average_scenes_per_label": (round(labeled_scenes / len(label_counts), 1) if label_counts else 0),
             }
 
         except Exception as e:
@@ -342,20 +319,13 @@ class LabelingSystem:
             if any(word in content for word in ["fight", "battle", "attack", "combat"]):
                 suggestions.append("action")
 
-            if any(
-                word in content
-                for word in ["talk", "conversation", "discuss", "say", "speak"]
-            ):
+            if any(word in content for word in ["talk", "conversation", "discuss", "say", "speak"]):
                 suggestions.append("dialogue")
 
-            if any(
-                word in content for word in ["love", "kiss", "romantic", "intimate"]
-            ):
+            if any(word in content for word in ["love", "kiss", "romantic", "intimate"]):
                 suggestions.append("romance")
 
-            if any(
-                word in content for word in ["mystery", "secret", "hidden", "discover"]
-            ):
+            if any(word in content for word in ["mystery", "secret", "hidden", "discover"]):
                 suggestions.append("mystery")
 
             if any(word in content for word in ["travel", "journey", "move", "walk"]):
@@ -573,8 +543,10 @@ class LabelingSystem:
             if "error" in stats:
                 return "error"
 
-            return (f"active ({stats['labeled_scenes']}/{stats['total_scenes']} scenes labeled, "
-                    f"{stats['unique_labels']} unique labels)")
+            return (
+                f"active ({stats['labeled_scenes']}/{stats['total_scenes']} scenes labeled, "
+                f"{stats['unique_labels']} unique labels)"
+            )
         except (AttributeError, KeyError) as e:
             log_error_with_context(
                 e,

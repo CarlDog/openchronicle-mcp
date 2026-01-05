@@ -25,13 +25,9 @@ class CacheWarmingManager:
         self.logger = logging.getLogger("openchronicle.cache.warming")
         self.warming_tasks = {}
 
-    async def warm_character_cache(
-        self, story_id: str, character_names: list[str]
-    ) -> dict[str, bool]:
+    async def warm_character_cache(self, story_id: str, character_names: list[str]) -> dict[str, bool]:
         """Warm cache with participant data."""
-        self.logger.info(
-            f"Warming participant cache for unit {story_id}: {len(character_names)} participants"
-        )
+        self.logger.info(f"Warming participant cache for unit {story_id}: {len(character_names)} participants")
 
         results = {}
         batch_size = self.cache_manager.config.warming_batch_size
@@ -49,20 +45,14 @@ class CacheWarmingManager:
             for character_name, result in zip(batch, batch_results, strict=False):
                 results[character_name] = not isinstance(result, Exception)
                 if isinstance(result, Exception):
-                    self.logger.error(
-                        f"Failed to warm cache for {character_name}: {result}"
-                    )
+                    self.logger.error(f"Failed to warm cache for {character_name}: {result}")
 
         success_count = sum(1 for success in results.values() if success)
         success_rate = success_count / len(results) if results else 0
 
-        self.cache_manager.metrics.warming_metrics.update(
-            {"operations": len(results), "success_rate": success_rate}
-        )
+        self.cache_manager.metrics.warming_metrics.update({"operations": len(results), "success_rate": success_rate})
 
-        self.logger.info(
-            f"Cache warming completed: {success_count}/{len(results)} successful"
-        )
+        self.logger.info(f"Cache warming completed: {success_count}/{len(results)} successful")
         return results
 
     async def _warm_single_character(self, story_id: str, character_name: str) -> bool:
@@ -84,9 +74,7 @@ class CacheWarmingManager:
             await self.cache_manager.set(cache_key, character_data)
 
             warming_time = (time.time() - start_time) * 1000
-            current_avg = self.cache_manager.metrics.warming_metrics.get(
-                "avg_time_ms", 0
-            )
+            current_avg = self.cache_manager.metrics.warming_metrics.get("avg_time_ms", 0)
             # Simple moving average
             new_avg = (current_avg + warming_time) / 2
             self.cache_manager.metrics.warming_metrics["avg_time_ms"] = new_avg
@@ -104,16 +92,12 @@ class CacheWarmingManager:
 
     async def warm_memory_snapshots(self, story_ids: list[str]) -> dict[str, bool]:
         """Warm cache with memory snapshots."""
-        self.logger.info(
-            f"Warming memory snapshot cache for {len(story_ids)} units"
-        )
+        self.logger.info(f"Warming memory snapshot cache for {len(story_ids)} units")
 
         results = {}
         for story_id in story_ids:
             try:
-                cache_key = self.cache_manager._make_key(
-                    "snapshot", story_id, "current"
-                )
+                cache_key = self.cache_manager._make_key("snapshot", story_id, "current")
 
                 # Simulate memory snapshot data
                 snapshot_data = {
@@ -127,19 +111,13 @@ class CacheWarmingManager:
                 results[story_id] = True
 
             except (AttributeError, KeyError) as e:
-                self.logger.exception(
-                    "Data structure error warming memory snapshot for unit"
-                )
+                self.logger.exception("Data structure error warming memory snapshot for unit")
                 results[story_id] = False
             except (ConnectionError, TimeoutError) as e:
-                self.logger.exception(
-                    "Network error warming memory snapshot for unit"
-                )
+                self.logger.exception("Network error warming memory snapshot for unit")
                 results[story_id] = False
             except Exception as e:
-                self.logger.exception(
-                    "Failed to warm memory snapshot for unit"
-                )
+                self.logger.exception("Failed to warm memory snapshot for unit")
                 results[story_id] = False
 
         return results

@@ -97,13 +97,9 @@ class WorldStateManager:
             WorldStateUpdate record
         """
         try:
-            validated_updates = self._validate_world_state_updates(
-                updates, memory.world_state
-            )
+            validated_updates = self._validate_world_state_updates(updates, memory.world_state)
             memory.world_state.update(validated_updates)
-            update_record = WorldStateUpdate(
-                updates=validated_updates, source=source, description=description
-            )
+            update_record = WorldStateUpdate(updates=validated_updates, source=source, description=description)
             self._log_world_state_changes(validated_updates, source)
         except (TypeError, ValueError, KeyError, AttributeError):
             return WorldStateUpdate(updates={}, description="Update failed")
@@ -198,9 +194,7 @@ class WorldStateManager:
             self._cleanup_expired_flags(memory)
 
         except (TypeError, ValueError, KeyError, AttributeError):
-            return MemoryFlag(
-                name=flag_name, flag_type="error", timestamp=datetime.now(UTC)
-            )
+            return MemoryFlag(name=flag_name, flag_type="error", timestamp=datetime.now(UTC))
         else:
             return flag
 
@@ -225,9 +219,7 @@ class WorldStateManager:
         except (TypeError, ValueError, KeyError, AttributeError):
             return False
 
-    def get_active_flags(
-        self, memory: MemorySnapshot, flag_type: str = None
-    ) -> list[MemoryFlag]:
+    def get_active_flags(self, memory: MemorySnapshot, flag_type: str = None) -> list[MemoryFlag]:
         """Get all active flags, optionally filtered by type."""
         try:
             # Clean up expired flags
@@ -243,9 +235,7 @@ class WorldStateManager:
         else:
             return flags
 
-    def query_events(
-        self, memory: MemorySnapshot, event_filter: EventFilter
-    ) -> list[WorldEvent]:
+    def query_events(self, memory: MemorySnapshot, event_filter: EventFilter) -> list[WorldEvent]:
         """Query events based on filter criteria."""
         try:
             events = []
@@ -254,10 +244,7 @@ class WorldStateManager:
                 event = WorldEvent.from_dict(event_data)
 
                 # Apply filters
-                if (
-                    event_filter.event_type
-                    and event.event_type != event_filter.event_type
-                ):
+                if event_filter.event_type and event.event_type != event_filter.event_type:
                     continue
 
                 if event_filter.character_involved:
@@ -294,11 +281,7 @@ class WorldStateManager:
                     categories_present.append(category)
 
             # Check for missing critical states
-            missing_critical = [
-                state
-                for state in self.critical_world_states
-                if state not in world_state
-            ]
+            missing_critical = [state for state in self.critical_world_states if state not in world_state]
 
             # Detect potential inconsistencies
             inconsistencies = self._detect_world_state_inconsistencies(world_state)
@@ -323,9 +306,7 @@ class WorldStateManager:
                 completeness_score=0.0,
             )
 
-    def get_world_state_summary(
-        self, memory: MemorySnapshot, category: str = None
-    ) -> dict[str, Any]:
+    def get_world_state_summary(self, memory: MemorySnapshot, category: str = None) -> dict[str, Any]:
         """Get a summary of world state, optionally filtered by category."""
         try:
             world_state = memory.world_state
@@ -333,20 +314,14 @@ class WorldStateManager:
             if category and category in self.world_categories:
                 # Filter by category
                 category_states = self.world_categories[category]
-                return {
-                    key: value
-                    for key, value in world_state.items()
-                    if key in category_states
-                }
+                return {key: value for key, value in world_state.items() if key in category_states}
             # Return all world state
             return dict(world_state)
 
         except (TypeError, ValueError, KeyError, AttributeError):
             return {}
 
-    def _validate_world_state_updates(
-        self, updates: dict[str, Any], current_state: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _validate_world_state_updates(self, updates: dict[str, Any], current_state: dict[str, Any]) -> dict[str, Any]:
         """Validate world state updates for consistency."""
         validated = {}
 
@@ -354,9 +329,7 @@ class WorldStateManager:
             # Basic validation
             if key and value is not None:
                 # Convert to string for consistency
-                validated[key] = (
-                    str(value) if not isinstance(value, (dict, list)) else value
-                )
+                validated[key] = str(value) if not isinstance(value, (dict, list)) else value
 
         return validated
 
@@ -386,9 +359,7 @@ class WorldStateManager:
                 memory.world_state["threat_level"] = "high"
 
             # Peace-related events
-            if any(
-                word in event_desc_lower for word in ["peace", "treaty", "celebration"]
-            ):
+            if any(word in event_desc_lower for word in ["peace", "treaty", "celebration"]):
                 memory.world_state["threat_level"] = "low"
 
         except (TypeError, ValueError, KeyError, AttributeError):
@@ -405,9 +376,7 @@ class WorldStateManager:
                 expires_at_str = flag_data.get("expires_at")
                 if expires_at_str:
                     try:
-                        expires_at = datetime.fromisoformat(
-                            expires_at_str.replace("Z", "+00:00")
-                        )
+                        expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
                         if current_time < expires_at:
                             active_flags.append(flag_data)
                     except (ValueError, TypeError):
@@ -422,9 +391,7 @@ class WorldStateManager:
             # Optional cleanup failed
             pass
 
-    def _detect_world_state_inconsistencies(
-        self, world_state: dict[str, Any]
-    ) -> list[str]:
+    def _detect_world_state_inconsistencies(self, world_state: dict[str, Any]) -> list[str]:
         """Detect potential inconsistencies in world state."""
         inconsistencies = []
 
@@ -443,9 +410,7 @@ class WorldStateManager:
                 threat = str(world_state["threat_level"]).lower()
 
                 if "prosperous" in economic and "high" in threat:
-                    inconsistencies.append(
-                        "High threat level contradicts prosperous economy"
-                    )
+                    inconsistencies.append("High threat level contradicts prosperous economy")
 
             # Season vs weather
             if "season" in world_state and "weather" in world_state:

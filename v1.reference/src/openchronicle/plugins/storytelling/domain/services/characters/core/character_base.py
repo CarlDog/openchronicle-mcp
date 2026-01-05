@@ -95,10 +95,7 @@ class CharacterDataMixin:
             elif isinstance(value, Enum):
                 data[key] = value.value
             elif isinstance(value, list) and value and hasattr(value[0], "to_dict"):
-                data[key] = [
-                    item.to_dict() if hasattr(item, "to_dict") else item
-                    for item in value
-                ]
+                data[key] = [item.to_dict() if hasattr(item, "to_dict") else item for item in value]
 
         return data
 
@@ -131,10 +128,7 @@ class CharacterEventHandler:
 
     def unsubscribe_from_event(self, event_type: str, handler: callable) -> bool:
         """Unsubscribe from character events."""
-        if (
-            event_type in self.event_handlers
-            and handler in self.event_handlers[event_type]
-        ):
+        if event_type in self.event_handlers and handler in self.event_handlers[event_type]:
             self.event_handlers[event_type].remove(handler)
             return True
         return False
@@ -163,9 +157,7 @@ class CharacterEventHandler:
                 except Exception as e:
                     logger.exception("Error in event handler for")
 
-    def get_event_history(
-        self, event_type: str | None = None, character_id: str | None = None
-    ) -> list[dict[str, Any]]:
+    def get_event_history(self, event_type: str | None = None, character_id: str | None = None) -> list[dict[str, Any]]:
         """Get filtered event history."""
         history = self.event_history
 
@@ -173,9 +165,7 @@ class CharacterEventHandler:
             history = [e for e in history if e["type"] == event_type]
 
         if character_id:
-            history = [
-                e for e in history if e["data"].get("character_id") == character_id
-            ]
+            history = [e for e in history if e["data"].get("character_id") == character_id]
 
         return history
 
@@ -191,9 +181,7 @@ class CharacterStateProvider(ABC):
         """Get current character state."""
 
     @abstractmethod
-    def update_character_state(
-        self, character_id: str, state_updates: dict[str, Any]
-    ) -> bool:
+    def update_character_state(self, character_id: str, state_updates: dict[str, Any]) -> bool:
         """Update character state."""
 
 
@@ -201,15 +189,11 @@ class CharacterBehaviorProvider(ABC):
     """Interface for components that influence character behavior."""
 
     @abstractmethod
-    def get_behavior_context(
-        self, character_id: str, situation_type: str
-    ) -> dict[str, Any]:
+    def get_behavior_context(self, character_id: str, situation_type: str) -> dict[str, Any]:
         """Get behavior context for character in given situation."""
 
     @abstractmethod
-    def generate_response_modifiers(
-        self, character_id: str, content_type: str
-    ) -> dict[str, Any]:
+    def generate_response_modifiers(self, character_id: str, content_type: str) -> dict[str, Any]:
         """Get response modifiers for character content generation."""
 
 
@@ -217,9 +201,7 @@ class CharacterValidationProvider(ABC):
     """Interface for components that validate character consistency."""
 
     @abstractmethod
-    def validate_character_action(
-        self, character_id: str, action: dict[str, Any]
-    ) -> tuple[bool, str | None]:
+    def validate_character_action(self, character_id: str, action: dict[str, Any]) -> tuple[bool, str | None]:
         """Validate if action is consistent with character."""
 
     @abstractmethod

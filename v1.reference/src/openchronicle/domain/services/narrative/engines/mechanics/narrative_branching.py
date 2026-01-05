@@ -143,9 +143,7 @@ class NarrativeBranchingEngine:
             },
         }
 
-        log_system_event(
-            "narrative_branching_initialized", "Narrative branching engine ready"
-        )
+        log_system_event("narrative_branching_initialized", "Narrative branching engine ready")
 
     def create_narrative_branches(
         self,
@@ -203,16 +201,12 @@ class NarrativeBranchingEngine:
 
             # Select appropriate branch templates
             branch_templates = (
-                resolution_template["success_branches"]
-                if is_success
-                else resolution_template["failure_branches"]
+                resolution_template["success_branches"] if is_success else resolution_template["failure_branches"]
             )
 
             # Create branches
             for i, template in enumerate(branch_templates[:max_branches]):
-                branch = self._create_branch_from_template(
-                    template, resolution_result, outcome_template, context, i
-                )
+                branch = self._create_branch_from_template(template, resolution_result, outcome_template, context, i)
                 branches.append(branch)
 
             # Add a default "continue" branch if needed
@@ -302,24 +296,16 @@ class NarrativeBranchingEngine:
         probability = max(0.1, min(0.9, base_probability))
 
         # Generate description
-        description = self._generate_branch_description(
-            template, resolution_result, context
-        )
+        description = self._generate_branch_description(template, resolution_result, context)
 
         # Create consequences based on outcome
-        consequences = self._generate_consequences(
-            template, resolution_result, outcome_template
-        )
+        consequences = self._generate_consequences(template, resolution_result, outcome_template)
 
         # Create stat changes
-        stat_changes = self._generate_stat_changes(
-            template, resolution_result, outcome_template
-        )
+        stat_changes = self._generate_stat_changes(template, resolution_result, outcome_template)
 
         # Scene transitions
-        scene_transitions = self._generate_scene_transitions(
-            template, resolution_result, context
-        )
+        scene_transitions = self._generate_scene_transitions(template, resolution_result, context)
 
         return NarrativeBranch(
             branch_id=branch_id,
@@ -450,9 +436,7 @@ class NarrativeBranchingEngine:
         # Template-specific changes
         if "expertise" in template or "mastery" in template:
             skill_bonus = random.randint(1, 3)
-            stat_changes[
-                f"{resolution_result.resolution_type.value}_skill"
-            ] = skill_bonus
+            stat_changes[f"{resolution_result.resolution_type.value}_skill"] = skill_bonus
 
         if "injury" in template:
             stat_changes["health"] = random.randint(-10, -5)
@@ -497,9 +481,7 @@ class NarrativeBranchingEngine:
 
         return transitions if transitions else ["continue_current_scene"]
 
-    def _create_default_branch(
-        self, resolution_result: ResolutionResult, context: dict[str, Any]
-    ) -> NarrativeBranch:
+    def _create_default_branch(self, resolution_result: ResolutionResult, context: dict[str, Any]) -> NarrativeBranch:
         """Create a default continuation branch."""
         branch_id = f"default_{resolution_result.character_id}_{datetime.now().strftime('%H%M%S')}"
 
@@ -596,9 +578,7 @@ class NarrativeBranchingEngine:
         # Fallback to last branch
         return adjusted_branches[-1][0] if adjusted_branches else branches[-1]
 
-    def evaluate_branch_requirements(
-        self, branch: NarrativeBranch, character_state: dict[str, Any]
-    ) -> bool:
+    def evaluate_branch_requirements(self, branch: NarrativeBranch, character_state: dict[str, Any]) -> bool:
         """
         Check if character meets branch requirements.
 

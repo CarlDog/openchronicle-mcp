@@ -127,16 +127,12 @@ class HealthMonitor:
         # Initialize performance metrics for all adapters
         for adapter_name in adapters:
             if adapter_name not in self.performance_metrics:
-                self.performance_metrics[adapter_name] = PerformanceMetrics(
-                    adapter_name
-                )
+                self.performance_metrics[adapter_name] = PerformanceMetrics(adapter_name)
 
         # Start monitoring task
         self.monitoring_task = asyncio.create_task(self._monitoring_loop(adapters))
         log_info("Health monitoring started")
-        log_system_event(
-            "health_monitoring_started", f"Monitoring {len(adapters)} adapters"
-        )
+        log_system_event("health_monitoring_started", f"Monitoring {len(adapters)} adapters")
 
     async def stop_monitoring(self):
         """Stop health monitoring."""
@@ -172,9 +168,7 @@ class HealthMonitor:
 
         for adapter_name, adapter in adapters.items():
             if self.registry_manager.should_health_check(adapter_name):
-                task = asyncio.create_task(
-                    self._check_adapter_health(adapter_name, adapter)
-                )
+                task = asyncio.create_task(self._check_adapter_health(adapter_name, adapter))
                 tasks.append(task)
 
         if tasks:
@@ -187,9 +181,7 @@ class HealthMonitor:
                 elif isinstance(result, Exception):
                     log_error(f"Health check task failed: {result}")
 
-    async def _check_adapter_health(
-        self, adapter_name: str, adapter: Any
-    ) -> HealthCheckResult:
+    async def _check_adapter_health(self, adapter_name: str, adapter: Any) -> HealthCheckResult:
         """Perform health check on a single adapter."""
         start_time = datetime.now(UTC)
 
@@ -197,9 +189,7 @@ class HealthMonitor:
             # Use adapter's health check if available
             if hasattr(adapter, "health_check"):
                 timeout = self.health_config.get("health_check_timeout", 10.0)
-                is_healthy = await asyncio.wait_for(
-                    adapter.health_check(), timeout=timeout
-                )
+                is_healthy = await asyncio.wait_for(adapter.health_check(), timeout=timeout)
             else:
                 # Basic health check - verify initialization
                 is_healthy = getattr(adapter, "initialized", False)
@@ -207,13 +197,9 @@ class HealthMonitor:
             response_time = (datetime.now(UTC) - start_time).total_seconds()
 
             # Determine status based on response time and health
-            if not is_healthy or response_time > self.health_config.get(
-                "unhealthy_response_threshold", 10.0
-            ):
+            if not is_healthy or response_time > self.health_config.get("unhealthy_response_threshold", 10.0):
                 status = HealthStatus.UNHEALTHY
-            elif response_time > self.health_config.get(
-                "degraded_response_threshold", 5.0
-            ):
+            elif response_time > self.health_config.get("degraded_response_threshold", 5.0):
                 status = HealthStatus.DEGRADED
             else:
                 status = HealthStatus.HEALTHY
@@ -222,11 +208,7 @@ class HealthMonitor:
                 adapter_name=adapter_name,
                 status=status,
                 response_time=response_time,
-                metadata={
-                    "health_check_method": (
-                        "adapter" if hasattr(adapter, "health_check") else "basic"
-                    )
-                },
+                metadata={"health_check_method": ("adapter" if hasattr(adapter, "health_check") else "basic")},
             )
 
         except (ConnectionError, TimeoutError) as e:
@@ -281,24 +263,18 @@ class HealthMonitor:
             if metrics.average_response_time == 0:
                 metrics.average_response_time = result.response_time
             else:
-                metrics.average_response_time = (
-                    0.8 * metrics.average_response_time + 0.2 * result.response_time
-                )
+                metrics.average_response_time = 0.8 * metrics.average_response_time + 0.2 * result.response_time
 
             # Update uptime percentage
             if metrics.total_requests > 0:
-                metrics.uptime_percentage = (
-                    metrics.successful_requests / metrics.total_requests
-                ) * 100
+                metrics.uptime_percentage = (metrics.successful_requests / metrics.total_requests) * 100
 
         # Handle alerts and recovery
         await self._handle_health_change(result)
 
         # Log significant status changes
         if result.status != HealthStatus.HEALTHY:
-            log_error(
-                f"Health issue detected for {adapter_name}: {result.status.value}"
-            )
+            log_error(f"Health issue detected for {adapter_name}: {result.status.value}")
             if result.error_message:
                 log_error(f"Error details: {result.error_message}")
 
@@ -308,26 +284,18 @@ class HealthMonitor:
 
         # Check for consecutive failures
         recent_results = self.get_recent_results(adapter_name, count=3)
-        consecutive_failures = all(
-            r.status != HealthStatus.HEALTHY for r in recent_results
-        )
+        consecutive_failures = all(r.status != HealthStatus.HEALTHY for r in recent_results)
 
         if consecutive_failures and len(recent_results) >= 3:
-            log_error(
-                f"Adapter {adapter_name} has {len(recent_results)} consecutive failures"
-            )
+            log_error(f"Adapter {adapter_name} has {len(recent_results)} consecutive failures")
 
             # Trigger auto-recovery if enabled
             if self.health_config.get("auto_recovery_enabled", True):
                 await self._attempt_recovery(adapter_name)
 
         # Send alerts for degraded performance
-        if result.status == HealthStatus.DEGRADED and self.health_config.get(
-            "alert_on_degraded", True
-        ):
-            log_system_event(
-                "adapter_degraded", f"Adapter {adapter_name} performance degraded"
-            )
+        if result.status == HealthStatus.DEGRADED and self.health_config.get("alert_on_degraded", True):
+            log_system_event("adapter_degraded", f"Adapter {adapter_name} performance degraded")
 
     async def _attempt_recovery(self, adapter_name: str):
         """Attempt to recover an unhealthy adapter."""
@@ -350,20 +318,14 @@ class HealthMonitor:
         for adapter_name in self.health_results:
             old_count = len(self.health_results[adapter_name])
             self.health_results[adapter_name] = [
-                result
-                for result in self.health_results[adapter_name]
-                if result.timestamp > cutoff_time
+                result for result in self.health_results[adapter_name] if result.timestamp > cutoff_time
             ]
             new_count = len(self.health_results[adapter_name])
 
             if old_count != new_count:
-                log_info(
-                    f"Cleaned up {old_count - new_count} old health results for {adapter_name}"
-                )
+                log_info(f"Cleaned up {old_count - new_count} old health results for {adapter_name}")
 
-    def get_recent_results(
-        self, adapter_name: str, count: int = 10
-    ) -> list[HealthCheckResult]:
+    def get_recent_results(self, adapter_name: str, count: int = 10) -> list[HealthCheckResult]:
         """Get recent health check results for an adapter."""
         results = self.health_results.get(adapter_name, [])
         return sorted(results, key=lambda r: r.timestamp, reverse=True)[:count]
@@ -379,37 +341,19 @@ class HealthMonitor:
     def get_overall_health_summary(self) -> dict[str, Any]:
         """Get overall health summary for all adapters."""
         total_adapters = len(self.current_status)
-        healthy_count = sum(
-            1
-            for status in self.current_status.values()
-            if status == HealthStatus.HEALTHY
-        )
-        degraded_count = sum(
-            1
-            for status in self.current_status.values()
-            if status == HealthStatus.DEGRADED
-        )
-        unhealthy_count = sum(
-            1
-            for status in self.current_status.values()
-            if status == HealthStatus.UNHEALTHY
-        )
+        healthy_count = sum(1 for status in self.current_status.values() if status == HealthStatus.HEALTHY)
+        degraded_count = sum(1 for status in self.current_status.values() if status == HealthStatus.DEGRADED)
+        unhealthy_count = sum(1 for status in self.current_status.values() if status == HealthStatus.UNHEALTHY)
 
         return {
             "total_adapters": total_adapters,
             "healthy": healthy_count,
             "degraded": degraded_count,
             "unhealthy": unhealthy_count,
-            "overall_health_percentage": (
-                (healthy_count / total_adapters * 100) if total_adapters > 0 else 0
-            ),
+            "overall_health_percentage": ((healthy_count / total_adapters * 100) if total_adapters > 0 else 0),
             "monitoring_active": self.monitoring_active,
             "last_check": max(
-                (
-                    r.timestamp
-                    for results in self.health_results.values()
-                    for r in results
-                ),
+                (r.timestamp for results in self.health_results.values() for r in results),
                 default=None,
             ),
         }

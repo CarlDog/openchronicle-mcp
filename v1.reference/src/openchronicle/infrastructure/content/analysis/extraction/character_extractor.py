@@ -79,20 +79,14 @@ Return empty object {{}} if no clear character information found."""
             response = await adapter.generate_response(prompt)
 
             # Log actual response length
-            log_model_interaction(
-                "character_extraction", model, len(prompt), len(response)
-            )
+            log_model_interaction("character_extraction", model, len(prompt), len(response))
 
             # Try to parse JSON response
             try:
                 result = json.loads(response)
-                log_info(
-                    f"Successfully extracted character data: {result.get('name', 'multiple/unknown')}"
-                )
+                log_info(f"Successfully extracted character data: {result.get('name', 'multiple/unknown')}")
             except json.JSONDecodeError:
-                log_warning(
-                    "Failed to parse character extraction JSON, attempting cleanup"
-                )
+                log_warning("Failed to parse character extraction JSON, attempting cleanup")
                 # Try to extract JSON from response
                 json_match = re.search(r"\{.*\}", response, re.DOTALL)
                 if json_match:
@@ -117,9 +111,7 @@ Return empty object {{}} if no clear character information found."""
         """Process content and extract character data."""
         return await self.extract_data(content)
 
-    async def extract_characters(
-        self, content: str, content_name: str
-    ) -> list[dict[str, Any]]:
+    async def extract_characters(self, content: str, content_name: str) -> list[dict[str, Any]]:
         """
         Extract characters from content for import analysis.
 

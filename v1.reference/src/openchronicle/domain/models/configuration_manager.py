@@ -113,9 +113,7 @@ class ConfigurationManager:
             # Extract fallback chains from model configs
             for _provider_name, models in discovered_providers.items():
                 for model_config in models:
-                    model_name = model_config.get(
-                        "name", model_config.get("config_name")
-                    )
+                    model_name = model_config.get("name", model_config.get("config_name"))
                     fallbacks = model_config.get("fallback_chain", [model_name])
                     if fallbacks and model_name:
                         registry["fallback_chains"][model_name] = fallbacks
@@ -180,11 +178,7 @@ class ConfigurationManager:
                 adapters[model_name] = {
                     "type": model_config.get("provider", provider_name),
                     "enabled": True,
-                    **{
-                        k: v
-                        for k, v in model_config.items()
-                        if k not in ["name", "enabled", "config_name"]
-                    },
+                    **{k: v for k, v in model_config.items() if k not in ["name", "enabled", "config_name"]},
                 }
 
         return {"adapters": adapters}
@@ -205,13 +199,9 @@ class ConfigurationManager:
 
     def get_fallback_chain(self, model_name: str) -> list[str]:
         """Get fallback chain for a model."""
-        return self.global_config.get("fallback_chains", {}).get(
-            model_name, [model_name]
-        )
+        return self.global_config.get("fallback_chains", {}).get(model_name, [model_name])
 
-    def get_model_configuration(
-        self, adapter_name: str
-    ) -> Optional[Any]:
+    def get_model_configuration(self, adapter_name: str) -> Optional[Any]:
         """Get configuration for specific model adapter."""
         if ModelConfiguration is None:
             # ModelConfiguration not available, return dict-based config
@@ -261,9 +251,7 @@ class ConfigurationManager:
         adapter_config["fallback_chain"] = self.get_fallback_chain(adapter_name)
         return adapter_config
 
-    def validate_model_config(
-        self, config: dict[str, Any], name: str = ""
-    ) -> dict[str, Any]:
+    def validate_model_config(self, config: dict[str, Any], name: str = "") -> dict[str, Any]:
         """Validate model configuration using registry port interface."""
         try:
             # Support both persisted schema (name + type) and minimal runtime additions.
@@ -297,13 +285,7 @@ class ConfigurationManager:
         return {
             "total_providers": len(providers),
             "total_models": len(adapters),
-            "enabled_models": len(
-                [
-                    name
-                    for name, config in adapters.items()
-                    if config.get("enabled", True)
-                ]
-            ),
+            "enabled_models": len([name for name, config in adapters.items() if config.get("enabled", True)]),
             "providers_list": list(providers.keys()),
         }
 
@@ -314,9 +296,7 @@ class ConfigurationManager:
             self.global_config = self._build_global_config()
             self.config = self._build_adapters_config()
 
-            log_system_event(
-                "configuration_reloaded", "Configuration reloaded successfully"
-            )
+            log_system_event("configuration_reloaded", "Configuration reloaded successfully")
 
         except (ConnectionError, TimeoutError) as e:
             log_error(f"Network error during configuration reload: {e}")
@@ -348,22 +328,16 @@ class ConfigurationManager:
         # Could be enhanced by reading from model configs if needed
         return None
 
-    def get_enabled_models_by_type(
-        self, model_type: str = "text"
-    ) -> list[dict[str, Any]]:
+    def get_enabled_models_by_type(self, model_type: str = "text") -> list[dict[str, Any]]:
         """Get enabled models of a specific type."""
         models = []
         for _model_name, model_config in self.list_model_configs().items():
-            if model_config.get("type") == model_type and model_config.get(
-                "enabled", True
-            ):
+            if model_config.get("type") == model_type and model_config.get("enabled", True):
                 models.append(model_config)
         return models
 
     # Dynamic model management (simplified - no file persistence)
-    def add_model_config(
-        self, name: str, config: dict[str, Any], enabled: bool = True
-    ) -> bool:
+    def add_model_config(self, name: str, config: dict[str, Any], enabled: bool = True) -> bool:
         """Add model configuration (runtime only)."""
         try:
             # Validate using existing schema validation
@@ -435,4 +409,3 @@ class ConfigurationManager:
     def adapters_config(self) -> dict[str, Any]:
         """Get adapters configuration."""
         return self.config
-

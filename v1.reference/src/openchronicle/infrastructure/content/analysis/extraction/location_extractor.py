@@ -80,20 +80,14 @@ Return empty object {{}} if no clear location information found."""
             response = await adapter.generate_response(prompt)
 
             # Log actual response length
-            log_model_interaction(
-                "location_extraction", model, len(prompt), len(response)
-            )
+            log_model_interaction("location_extraction", model, len(prompt), len(response))
 
             # Try to parse JSON response
             try:
                 result = json.loads(response)
-                log_info(
-                    f"Successfully extracted location data: {result.get('name', 'multiple/unknown')}"
-                )
+                log_info(f"Successfully extracted location data: {result.get('name', 'multiple/unknown')}")
             except json.JSONDecodeError:
-                log_warning(
-                    "Failed to parse location extraction JSON, attempting cleanup"
-                )
+                log_warning("Failed to parse location extraction JSON, attempting cleanup")
                 # Try to extract JSON from response
                 json_match = re.search(r"\{.*\}", response, re.DOTALL)
                 if json_match:

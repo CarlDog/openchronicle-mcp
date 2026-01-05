@@ -147,12 +147,7 @@ class MemoryUtilities:
         mention_factor = min(character_mentions * 0.1, 0.3)
 
         # Combine factors
-        importance = (
-            base_score * type_weight
-            + content_factor * 0.2
-            + mention_factor
-            + emotion_intensity * 0.3
-        )
+        importance = base_score * type_weight + content_factor * 0.2 + mention_factor + emotion_intensity * 0.3
 
         return min(max(importance, 0.0), 1.0)
 
@@ -241,9 +236,7 @@ class MemoryUtilities:
                 other_words = set(other_memory.get("content", "").lower().split())
 
                 if content_words and other_words:
-                    similarity = len(content_words.intersection(other_words)) / len(
-                        content_words.union(other_words)
-                    )
+                    similarity = len(content_words.intersection(other_words)) / len(content_words.union(other_words))
 
                     if similarity >= similarity_threshold:
                         similar_memories.append(other_memory)
@@ -295,9 +288,7 @@ class MemoryUtilities:
         merged["content"] = " | ".join(unique_content)
 
         # Update importance to maximum
-        merged["importance_score"] = max(
-            m.get("importance_score", 0.0) for m in memories
-        )
+        merged["importance_score"] = max(m.get("importance_score", 0.0) for m in memories)
 
         # Update timestamp to most recent
         timestamps = [m.get("timestamp") for m in memories if m.get("timestamp")]
@@ -377,9 +368,7 @@ class MemoryUtilities:
 
         total_memories = len(memories)
         character_memories = sum(1 for m in memories if m.get("character_id"))
-        world_memories = sum(
-            1 for m in memories if m.get("memory_type") == "world_event"
-        )
+        world_memories = sum(1 for m in memories if m.get("memory_type") == "world_event")
 
         # Count recent memories (last 24 hours)
         recent_cutoff = datetime.now() - timedelta(hours=24)
@@ -403,16 +392,10 @@ class MemoryUtilities:
                 importance_scores.append(importance)
 
         # Calculate average importance
-        average_importance = (
-            sum(importance_scores) / len(importance_scores)
-            if importance_scores
-            else 0.0
-        )
+        average_importance = sum(importance_scores) / len(importance_scores) if importance_scores else 0.0
 
         # Estimate storage size
-        storage_size = sum(
-            len(MemoryUtilities.serialize_memory_data(m)) for m in memories
-        )
+        storage_size = sum(len(MemoryUtilities.serialize_memory_data(m)) for m in memories)
 
         return MemoryMetrics(
             total_memories=total_memories,

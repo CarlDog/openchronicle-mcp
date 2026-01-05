@@ -1,5 +1,6 @@
 class StoryContentAdapter:
     """Minimal content analysis adapter used by contract tests."""
+
     def __init__(self, model=None):
         self.model = model or "dummy"
 

@@ -3,6 +3,7 @@
 Lightweight infrastructure to progressively replace ad-hoc try/except blocks.
 Deliberately small surface area; expand with cancellation, metrics later.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -17,11 +18,11 @@ from .exceptions import InfrastructureError
 
 # Default retriable exceptions - focus on transient infrastructure failures
 DEFAULT_RETRIABLE_EXCEPTIONS = (
-    ConnectionError,          # Network connectivity issues
-    OSError,                 # System-level errors (file access, etc.)
-    TimeoutError,            # Timeout-related errors
-    InfrastructureError,     # Our custom infrastructure errors
-    asyncio.TimeoutError,    # Async timeout errors
+    ConnectionError,  # Network connectivity issues
+    OSError,  # System-level errors (file access, etc.)
+    TimeoutError,  # Timeout-related errors
+    InfrastructureError,  # Our custom infrastructure errors
+    asyncio.TimeoutError,  # Async timeout errors
 )
 
 
@@ -64,11 +65,12 @@ def retryable(*exceptions: Type[Exception]):
             # This will retry on ConnectionError and TimeoutError
             pass
     """
+
     def decorator(func):
         async def wrapper(*args, **kwargs):
-            policy = RetryPolicy(
-                retry_exceptions=exceptions or DEFAULT_RETRIABLE_EXCEPTIONS
-            )
+            policy = RetryPolicy(retry_exceptions=exceptions or DEFAULT_RETRIABLE_EXCEPTIONS)
             return await policy.run(lambda: func(*args, **kwargs))
+
         return wrapper
+
     return decorator

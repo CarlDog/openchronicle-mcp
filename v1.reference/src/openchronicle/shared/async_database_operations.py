@@ -41,9 +41,7 @@ class AsyncDatabaseOperations:
         conn.row_factory = aiosqlite.Row
         return conn
 
-    async def execute_query(
-        self, query: str, params: tuple = None
-    ) -> list[dict[str, Any]]:
+    async def execute_query(self, query: str, params: tuple = None) -> list[dict[str, Any]]:
         """Execute SELECT query and return results."""
         async with aiosqlite.connect(self.db_path) as conn:
             conn.row_factory = aiosqlite.Row

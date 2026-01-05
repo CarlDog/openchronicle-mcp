@@ -105,9 +105,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             logger.exception("Failed to load default components")
             # Don't raise - continue with basic functionality
 
-    def register_component(
-        self, component_name: str, component: CharacterEngineBase
-    ) -> None:
+    def register_component(self, component_name: str, component: CharacterEngineBase) -> None:
         """Register a character management component."""
         self.components[component_name] = component
 
@@ -160,7 +158,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         character_name: str | None = None,
         character_data: dict[str, Any] | None = None,
         validate: bool = True,
-        **kwargs
+        **kwargs,
     ) -> CharacterData | None:
         """Create a new character asynchronously (wrapper for tests)."""
         # Adapt test interface to our internal interface
@@ -180,13 +178,12 @@ class CharacterOrchestrator(CharacterEventHandler):
         # Generate character_id if not provided
         if "character_id" not in character_data:
             import uuid
+
             character_data["character_id"] = str(uuid.uuid4())
 
         return self._create_character_sync(character_data, validate)
 
-    async def update_character_state(
-        self, character_id: str, state_updates: dict[str, Any]
-    ) -> bool:
+    async def update_character_state(self, character_id: str, state_updates: dict[str, Any]) -> bool:
         """Update character state asynchronously (wrapper for tests)."""
         return self._update_character_state_sync(character_id, state_updates)
 
@@ -196,7 +193,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         character_name: str | None = None,
         story_id: str | None = None,
         development_data: dict[str, Any] | None = None,
-        **kwargs
+        **kwargs,
     ) -> bool:
         """Update character development (wrapper for tests)."""
         # Find character_id if not provided
@@ -225,7 +222,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         character_name: str | None = None,
         story_id: str | None = None,
         relationship_data: dict[str, Any] | None = None,
-        **kwargs
+        **kwargs,
     ) -> bool:
         """Update character relationship (wrapper for tests)."""
         # Find character_id if not provided
@@ -250,9 +247,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Character Management Interface (delegated to management engine)
     # =============================================================================
 
-    def _create_character_sync(
-        self, character_data: dict[str, Any], validate: bool = True
-    ) -> CharacterData | None:
+    def _create_character_sync(self, character_data: dict[str, Any], validate: bool = True) -> CharacterData | None:
         """Create a new character synchronously."""
         try:
             # Extract core fields that CharacterData expects
@@ -273,6 +268,7 @@ class CharacterOrchestrator(CharacterEventHandler):
                 traits = character_data["traits"]
                 if isinstance(traits, (list, dict)):
                     import json
+
                     character.description = f"{description}\nTraits: {json.dumps(traits)}"
                 else:
                     character.description = f"{description}\nTraits: {traits}"
@@ -331,10 +327,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         }
 
     async def get_character_relationships(
-        self,
-        character_id: str | None = None,
-        character_name: str | None = None,
-        story_id: str | None = None
+        self, character_id: str | None = None, character_name: str | None = None, story_id: str | None = None
     ) -> dict[str, Any]:
         """Get character relationships (wrapper for tests)."""
         # Find character_id if not provided
@@ -354,9 +347,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             "story_id": story_id,
         }
 
-    def _update_character_state_sync(
-        self, character_id: str, state_updates: dict[str, Any]
-    ) -> bool:
+    def _update_character_state_sync(self, character_id: str, state_updates: dict[str, Any]) -> bool:
         """Update character state synchronously."""
         return self.management_engine._update_character_state_sync(character_id, state_updates)
 
@@ -398,15 +389,11 @@ class CharacterOrchestrator(CharacterEventHandler):
                 return False
 
         # Update through stats engine
-        success = self.stats_engine.update_character_stat(
-            character, stat_type, new_value, reason, scene_context
-        )
+        success = self.stats_engine.update_character_stat(character, stat_type, new_value, reason, scene_context)
 
         if success:
             # Save changes through management engine
-            self.management_engine.storage.update_character_component(
-                character_id, "stats", character.stats
-            )
+            self.management_engine.storage.update_character_component(character_id, "stats", character.stats)
 
             self.emit_event(
                 "character_stat_updated",
@@ -420,9 +407,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
         return success
 
-    def get_effective_stat(
-        self, character_id: str, stat_type: CharacterStatType
-    ) -> int | None:
+    def get_effective_stat(self, character_id: str, stat_type: CharacterStatType) -> int | None:
         """Get effective character stat value including modifiers."""
         character = self.get_character(character_id)
         return self.stats_engine.get_effective_stat(character, stat_type) if character else None
@@ -431,21 +416,15 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Character Behavior Interface (delegated to behavior engine)
     # =============================================================================
 
-    def generate_behavior_context(
-        self, character_id: str, situation_type: str = "general"
-    ) -> dict[str, Any]:
+    def generate_behavior_context(self, character_id: str, situation_type: str = "general") -> dict[str, Any]:
         """Generate comprehensive behavior context for character."""
         return self.behavior_engine.generate_behavior_context(character_id, situation_type)
 
-    def generate_response_modifiers(
-        self, character_id: str, content_type: str = "dialogue"
-    ) -> dict[str, Any]:
+    def generate_response_modifiers(self, character_id: str, content_type: str = "dialogue") -> dict[str, Any]:
         """Generate response modifiers for character content generation."""
         return self.behavior_engine.generate_response_modifiers(character_id, content_type)
 
-    def adapt_character_style(
-        self, character_id: str, adaptation_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def adapt_character_style(self, character_id: str, adaptation_data: dict[str, Any]) -> dict[str, Any]:
         """Adapt character style based on story context and interactions."""
         return self.behavior_engine.adapt_character_style(character_id, adaptation_data)
 
@@ -453,9 +432,7 @@ class CharacterOrchestrator(CharacterEventHandler):
     # Character Validation Interface (delegated to validation engine)
     # =============================================================================
 
-    def validate_character_consistency(
-        self, character_id: str, context: dict[str, Any] = None
-    ) -> dict[str, Any]:
+    def validate_character_consistency(self, character_id: str, context: dict[str, Any] = None) -> dict[str, Any]:
         """Validate character consistency across all aspects."""
         character = self.get_character(character_id)
         if not character:
@@ -463,9 +440,7 @@ class CharacterOrchestrator(CharacterEventHandler):
 
         return self.validation_engine.validate_character_consistency(character, context)
 
-    def validate_character_action(
-        self, character_id: str, action_data: dict[str, Any]
-    ) -> Tuple[bool, str]:
+    def validate_character_action(self, character_id: str, action_data: dict[str, Any]) -> Tuple[bool, str]:
         """Validate a proposed character action."""
         character = self.get_character(character_id)
         if not character:
@@ -504,9 +479,7 @@ class CharacterOrchestrator(CharacterEventHandler):
             try:
                 interactions_component = self.components["interactions"]
                 if hasattr(interactions_component, "manage_relationship"):
-                    return interactions_component.manage_relationship(
-                        character_id, relationship_data
-                    )
+                    return interactions_component.manage_relationship(character_id, relationship_data)
             except Exception as e:
                 logger.exception("Error managing relationship via interactions component")
 
@@ -521,9 +494,7 @@ class CharacterOrchestrator(CharacterEventHandler):
         )
         return True
 
-    def track_emotional_stability(
-        self, character_id: str, emotional_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def track_emotional_stability(self, character_id: str, emotional_data: dict[str, Any]) -> dict[str, Any]:
         """Track character emotional stability."""
         return {
             "character_id": character_id,

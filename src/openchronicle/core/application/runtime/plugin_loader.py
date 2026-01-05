@@ -118,12 +118,6 @@ class PluginLoader:
             # Clean up sys.modules on failure
             sys.modules.pop(plugin_module_name, None)
             sys.modules.pop(package_name, None)
-
-        except Exception as exc:
-            print(f"Failed to load plugin.py for {plugin_name} from {plugin_file}: {exc}", file=sys.stderr)
-            # Clean up sys.modules on failure
-            sys.modules.pop(plugin_module_name, None)
-            sys.modules.pop(package_name, None)
             return
 
         # Step 3: Call register function on the plugin module

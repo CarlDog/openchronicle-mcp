@@ -32,9 +32,7 @@ class TimelineUtilities:
         return sorted(timeline, key=lambda x: x["timestamp"])
 
     @staticmethod
-    def find_scene_by_id(
-        timeline: list[dict[str, Any]], scene_id: str
-    ) -> dict[str, Any] | None:
+    def find_scene_by_id(timeline: list[dict[str, Any]], scene_id: str) -> dict[str, Any] | None:
         """Find a specific scene in timeline."""
         for entry in timeline:
             if entry.get("type") == "scene" and entry.get("scene_id") == scene_id:
@@ -42,9 +40,7 @@ class TimelineUtilities:
         return None
 
     @staticmethod
-    def get_scenes_in_range(
-        timeline: list[dict[str, Any]], start_time: str, end_time: str
-    ) -> list[dict[str, Any]]:
+    def get_scenes_in_range(timeline: list[dict[str, Any]], start_time: str, end_time: str) -> list[dict[str, Any]]:
         """Get scenes within a time range."""
         scenes = []
         for entry in timeline:
@@ -55,9 +51,7 @@ class TimelineUtilities:
         return scenes
 
     @staticmethod
-    def create_rollback_point(
-        timeline: list[dict[str, Any]], description: str = None
-    ) -> dict[str, Any]:
+    def create_rollback_point(timeline: list[dict[str, Any]], description: str = None) -> dict[str, Any]:
         """Create a rollback point from current timeline state."""
         return {
             "type": "rollback_point",
@@ -93,9 +87,7 @@ class TemporalStateManager:
             return datetime.now(UTC).isoformat()
 
     @staticmethod
-    def calculate_timeline_gaps(
-        entries: list[dict[str, Any]], max_gap_hours: int = 24
-    ) -> list[dict[str, Any]]:
+    def calculate_timeline_gaps(entries: list[dict[str, Any]], max_gap_hours: int = 24) -> list[dict[str, Any]]:
         """Identify significant gaps in timeline."""
         if len(entries) < 2:
             return []

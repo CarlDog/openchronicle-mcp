@@ -38,9 +38,7 @@ class ImageAdapter(ABC):
         self.enabled = config.get("enabled", True)
 
     @abstractmethod
-    async def generate_image(
-        self, request: ImageGenerationRequest
-    ) -> ImageGenerationResult:
+    async def generate_image(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         """Generate an image from the request"""
 
     @abstractmethod
@@ -82,16 +80,12 @@ class OpenAIImageAdapter(ImageAdapter):
             ]
         return size in [ImageSize.SQUARE_512, ImageSize.SQUARE_1024]
 
-    async def generate_image(
-        self, request: ImageGenerationRequest
-    ) -> ImageGenerationResult:
+    async def generate_image(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         """Generate image using OpenAI DALL-E"""
         start_time = time.time()
 
         if not self.is_available():
-            return ImageGenerationResult(
-                success=False, error_message="OpenAI API key not configured"
-            )
+            return ImageGenerationResult(success=False, error_message="OpenAI API key not configured")
 
         if not self.supports_size(request.size):
             return ImageGenerationResult(
@@ -139,15 +133,11 @@ class OpenAIImageAdapter(ImageAdapter):
             except httpx.HTTPStatusError as e:
                 generation_time = time.time() - start_time
                 logger.exception("OpenAI image fetch HTTP error")
-                return ImageGenerationResult(
-                    success=False, error_message=str(e), generation_time=generation_time
-                )
+                return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
             except (httpx.RequestError, httpx.TimeoutException) as e:
                 generation_time = time.time() - start_time
                 logger.exception("OpenAI image fetch network error")
-                return ImageGenerationResult(
-                    success=False, error_message=str(e), generation_time=generation_time
-                )
+                return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
 
             generation_time = time.time() - start_time
 
@@ -165,9 +155,7 @@ class OpenAIImageAdapter(ImageAdapter):
                     "model": self.model,
                     "quality": self.quality,
                     "revised_prompt": (
-                        response.data[0].revised_prompt
-                        if hasattr(response.data[0], "revised_prompt")
-                        else None
+                        response.data[0].revised_prompt if hasattr(response.data[0], "revised_prompt") else None
                     ),
                 },
             )
@@ -175,15 +163,11 @@ class OpenAIImageAdapter(ImageAdapter):
         except (KeyError, ValueError) as e:
             generation_time = time.time() - start_time
             logger.exception("OpenAI response parse error")
-            return ImageGenerationResult(
-                success=False, error_message=str(e), generation_time=generation_time
-            )
+            return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
         except Exception as e:
             generation_time = time.time() - start_time
             logger.exception("OpenAI image generation failed")
-            return ImageGenerationResult(
-                success=False, error_message=str(e), generation_time=generation_time
-            )
+            return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
 
 
 class StabilityImageAdapter(ImageAdapter):
@@ -208,16 +192,12 @@ class StabilityImageAdapter(ImageAdapter):
             ImageSize.LANDSCAPE_768,
         ]
 
-    async def generate_image(
-        self, request: ImageGenerationRequest
-    ) -> ImageGenerationResult:
+    async def generate_image(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         """Generate image using Stability AI"""
         start_time = time.time()
 
         if not self.is_available():
-            return ImageGenerationResult(
-                success=False, error_message="Stability API key not configured"
-            )
+            return ImageGenerationResult(success=False, error_message="Stability API key not configured")
 
         if not self.supports_size(request.size):
             return ImageGenerationResult(
@@ -244,9 +224,7 @@ class StabilityImageAdapter(ImageAdapter):
             }
 
             if request.negative_prompt:
-                payload["text_prompts"].append(
-                    {"text": request.negative_prompt, "weight": -1}
-                )
+                payload["text_prompts"].append({"text": request.negative_prompt, "weight": -1})
 
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
@@ -276,21 +254,15 @@ class StabilityImageAdapter(ImageAdapter):
         except httpx.HTTPStatusError as e:
             generation_time = time.time() - start_time
             logger.exception("Stability API HTTP error")
-            return ImageGenerationResult(
-                success=False, error_message=str(e), generation_time=generation_time
-            )
+            return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
         except (httpx.RequestError, httpx.TimeoutException) as e:
             generation_time = time.time() - start_time
             logger.exception("Stability API network error")
-            return ImageGenerationResult(
-                success=False, error_message=str(e), generation_time=generation_time
-            )
+            return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
         except (KeyError, ValueError) as e:
             generation_time = time.time() - start_time
             logger.exception("Stability API response parse error")
-            return ImageGenerationResult(
-                success=False, error_message=str(e), generation_time=generation_time
-            )
+            return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
 
 
 class MockImageAdapter(ImageAdapter):
@@ -308,9 +280,7 @@ class MockImageAdapter(ImageAdapter):
         """Mock adapter supports all sizes"""
         return True
 
-    async def generate_image(
-        self, request: ImageGenerationRequest
-    ) -> ImageGenerationResult:
+    async def generate_image(self, request: ImageGenerationRequest) -> ImageGenerationResult:
         """Generate a placeholder image"""
         start_time = time.time()
 
@@ -377,9 +347,7 @@ class MockImageAdapter(ImageAdapter):
         except (ValueError, OSError, UnidentifiedImageError) as e:
             generation_time = time.time() - start_time
             logger.exception("Mock image generation failed")
-            return ImageGenerationResult(
-                success=False, error_message=str(e), generation_time=generation_time
-            )
+            return ImageGenerationResult(success=False, error_message=str(e), generation_time=generation_time)
 
 
 class ImageAdapterRegistry:
@@ -417,9 +385,7 @@ class ImageAdapterRegistry:
         """Get an adapter for the specified provider"""
         if provider:
             # Look for specific provider
-            provider_name = provider.value.replace(
-                "_", ""
-            )  # openai_dalle -> openaidalle
+            provider_name = provider.value.replace("_", "")  # openai_dalle -> openaidalle
             for name, adapter in self.adapters.items():
                 if provider_name in name.lower() and adapter.is_available():
                     return adapter
@@ -433,9 +399,7 @@ class ImageAdapterRegistry:
 
     def list_available_adapters(self) -> list[str]:
         """List names of available adapters"""
-        return [
-            name for name, adapter in self.adapters.items() if adapter.is_available()
-        ]
+        return [name for name, adapter in self.adapters.items() if adapter.is_available()]
 
     def get_adapter_info(self) -> dict[str, dict[str, Any]]:
         """Get information about all adapters"""
@@ -460,9 +424,7 @@ class ImageAdapterRegistry:
         """
         adapter = self.get_adapter(preferred_provider)
         if not adapter:
-            return ImageGenerationResult(
-                success=False, error_message="No available image adapters"
-            )
+            return ImageGenerationResult(success=False, error_message="No available image adapters")
         return await adapter.generate_image(request)
 
 

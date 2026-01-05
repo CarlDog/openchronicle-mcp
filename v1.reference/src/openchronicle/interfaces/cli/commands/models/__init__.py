@@ -15,17 +15,13 @@ from openchronicle.interfaces.cli.support.output_manager import OutputManager
 
 
 # Create the models command group
-models_app = typer.Typer(
-    name="models", help="Model management and testing commands", no_args_is_help=True
-)
+models_app = typer.Typer(name="models", help="Model management and testing commands", no_args_is_help=True)
 
 
 class ModelListCommand(ModelCommand):
     """Command to list available models."""
 
-    def execute(
-        self, provider: str | None = None, status: str | None = None
-    ) -> list[dict[str, Any]]:
+    def execute(self, provider: str | None = None, status: str | None = None) -> list[dict[str, Any]]:
         """List available models."""
         # This would integrate with actual model registry
         # For now, return sample data
@@ -187,9 +183,7 @@ class ModelConfigureCommand(ModelCommand):
 class ModelBenchmarkCommand(ModelCommand):
     """Command to benchmark model performance."""
 
-    def execute(
-        self, models: list[str] | None = None, quick: bool = False, iterations: int = 5
-    ) -> dict[str, Any]:
+    def execute(self, models: list[str] | None = None, quick: bool = False, iterations: int = 5) -> dict[str, Any]:
         """Benchmark model performance."""
 
         if not models:
@@ -232,10 +226,8 @@ class ModelBenchmarkCommand(ModelCommand):
 # CLI command functions
 @models_app.command("list")
 def list_models(
-    provider: str
-    | None = typer.Option(None, "--provider", "-p", help="Filter by provider"),
-    model_type: str
-    | None = typer.Option(None, "--type", "-t", help="Filter by type (text/image)"),
+    provider: str | None = typer.Option(None, "--provider", "-p", help="Filter by provider"),
+    model_type: str | None = typer.Option(None, "--type", "-t", help="Filter by type (text/image)"),
     status: str | None = typer.Option(None, "--status", "-s", help="Filter by status"),
     format_type: str = typer.Option("table", "--format", "-f", help="Output format"),
 ):
@@ -254,9 +246,7 @@ def list_models(
         if models:
             # Apply type filter
             if model_type:
-                models = [
-                    m for m in models if m.get("type", "").lower() == model_type.lower()
-                ]
+                models = [m for m in models if m.get("type", "").lower() == model_type.lower()]
 
             if models:
                 output_manager.table(
@@ -287,15 +277,9 @@ def list_models(
 
 @models_app.command("test")
 def test_models(
-    model: str
-    | None = typer.Option(None, "--model", "-m", help="Specific model to test"),
-    provider: str
-    | None = typer.Option(
-        None, "--provider", "-p", help="Test all models for provider"
-    ),
-    quick: bool = typer.Option(
-        False, "--quick", "-q", help="Quick connectivity test only"
-    ),
+    model: str | None = typer.Option(None, "--model", "-m", help="Specific model to test"),
+    provider: str | None = typer.Option(None, "--provider", "-p", help="Test all models for provider"),
+    quick: bool = typer.Option(False, "--quick", "-q", help="Quick connectivity test only"),
     verbose: bool = typer.Option(False, "--verbose", "-v", help="Verbose output"),
 ):
     """
@@ -328,9 +312,7 @@ def test_models(
 
                 # Summary
                 total_tests = len(test_results)
-                passed_tests = sum(
-                    1 for r in test_results if "✅" in r.get("connectivity", "")
-                )
+                passed_tests = sum(1 for r in test_results if "✅" in r.get("connectivity", ""))
 
                 output_manager.panel(
                     f"Tests completed: {total_tests}\n"
@@ -352,17 +334,11 @@ def test_models(
 
 @models_app.command("configure")
 def configure_provider(
-    provider: str = typer.Argument(
-        ..., help="Provider to configure (openai, anthropic, ollama, etc.)"
-    ),
-    api_key: str
-    | None = typer.Option(None, "--api-key", help="API key for the provider"),
+    provider: str = typer.Argument(..., help="Provider to configure (openai, anthropic, ollama, etc.)"),
+    api_key: str | None = typer.Option(None, "--api-key", help="API key for the provider"),
     endpoint: str | None = typer.Option(None, "--endpoint", help="Custom endpoint URL"),
-    model: str
-    | None = typer.Option(None, "--model", help="Default model for provider"),
-    interactive: bool = typer.Option(
-        False, "--interactive", "-i", help="Interactive configuration"
-    ),
+    model: str | None = typer.Option(None, "--model", help="Default model for provider"),
+    interactive: bool = typer.Option(False, "--interactive", "-i", help="Interactive configuration"),
 ):
     """
     Configure a model provider.
@@ -380,36 +356,20 @@ def configure_provider(
                 api_key = Prompt.ask(f"Enter API key for {provider}", password=True)
 
             if not endpoint and provider == "ollama":
-                endpoint = Prompt.ask(
-                    "Ollama endpoint URL", default="http://localhost:11434"
-                )
+                endpoint = Prompt.ask("Ollama endpoint URL", default="http://localhost:11434")
 
             if not model:
                 model = Prompt.ask(f"Default model for {provider}", default="")
 
         command = ModelConfigureCommand(output_manager=output_manager)
-        result = command.safe_execute(
-            provider=provider, api_key=api_key, endpoint=endpoint, model_name=model
-        )
+        result = command.safe_execute(provider=provider, api_key=api_key, endpoint=endpoint, model_name=model)
 
         if result:
             output_manager.panel(
                 f"Provider: {result['provider']}\n"
-                + (
-                    f"API Key: {result.get('api_key', 'Not set')}\n"
-                    if "api_key" in result
-                    else ""
-                )
-                + (
-                    f"Endpoint: {result.get('endpoint', 'Default')}\n"
-                    if "endpoint" in result
-                    else ""
-                )
-                + (
-                    f"Default Model: {result.get('default_model', 'None')}"
-                    if "default_model" in result
-                    else ""
-                ),
+                + (f"API Key: {result.get('api_key', 'Not set')}\n" if "api_key" in result else "")
+                + (f"Endpoint: {result.get('endpoint', 'Default')}\n" if "endpoint" in result else "")
+                + (f"Default Model: {result.get('default_model', 'None')}" if "default_model" in result else ""),
                 title="Provider Configuration",
                 style="green",
             )
@@ -424,12 +384,9 @@ def configure_provider(
 
 @models_app.command("benchmark")
 def benchmark_models(
-    models: list[str]
-    | None = typer.Option(None, "--models", help="Specific models to benchmark"),
+    models: list[str] | None = typer.Option(None, "--models", help="Specific models to benchmark"),
     quick: bool = typer.Option(False, "--quick", "-q", help="Quick benchmark"),
-    iterations: int = typer.Option(
-        5, "--iterations", "-i", help="Number of test iterations"
-    ),
+    iterations: int = typer.Option(5, "--iterations", "-i", help="Number of test iterations"),
     save_results: bool = typer.Option(False, "--save", help="Save results to file"),
 ):
     """
@@ -498,11 +455,8 @@ def benchmark_models(
 
 @models_app.command("status")
 def model_status(
-    provider: str
-    | None = typer.Option(None, "--provider", "-p", help="Check specific provider"),
-    detailed: bool = typer.Option(
-        False, "--detailed", "-d", help="Show detailed status"
-    ),
+    provider: str | None = typer.Option(None, "--provider", "-p", help="Check specific provider"),
+    detailed: bool = typer.Option(False, "--detailed", "-d", help="Show detailed status"),
 ):
     """
     Show overall model system status.
@@ -544,15 +498,11 @@ def model_status(
             },
         ]
 
-        output_manager.table(
-            status_data, title="Model System Status", headers=["metric", "value"]
-        )
+        output_manager.table(status_data, title="Model System Status", headers=["metric", "value"])
 
         if detailed:
             # Provider breakdown
-            provider_data = [
-                {"provider": k, "models": str(v)} for k, v in provider_counts.items()
-            ]
+            provider_data = [{"provider": k, "models": str(v)} for k, v in provider_counts.items()]
             output_manager.table(
                 provider_data,
                 title="Models by Provider",
@@ -561,9 +511,7 @@ def model_status(
 
             # Type breakdown
             type_data = [{"type": k, "models": str(v)} for k, v in type_counts.items()]
-            output_manager.table(
-                type_data, title="Models by Type", headers=["type", "models"]
-            )
+            output_manager.table(type_data, title="Models by Type", headers=["type", "models"])
 
     except (AttributeError, KeyError) as e:
         OutputManager().error(f"Error accessing model status data: {e}")

@@ -21,9 +21,7 @@ class ModelSelector:
         self.model_manager = model_manager
         self.tokenizer_manager = tokenizer_manager
 
-    def select_optimal_model_for_length(
-        self, prompt_length: int, response_length: int
-    ) -> str | None:
+    def select_optimal_model_for_length(self, prompt_length: int, response_length: int) -> str | None:
         """Select the best model based on token requirements."""
         total_tokens = prompt_length + response_length
 
@@ -62,9 +60,7 @@ class ModelSelector:
         log_info(f"Selected model {selected} for {total_tokens} tokens")
         return selected
 
-    def select_optimal_model(
-        self, token_count: int, requirements: dict[str, Any]
-    ) -> str:
+    def select_optimal_model(self, token_count: int, requirements: dict[str, Any]) -> str:
         """Select optimal model based on token count and requirements."""
         # Estimate response length (default to 25% of token count)
         response_length = requirements.get("response_length", token_count // 4)
@@ -74,9 +70,7 @@ class ModelSelector:
 
         # If no model found, return a default
         if optimal is None:
-            log_warning(
-                f"No optimal model found for {token_count} tokens, using default"
-            )
+            log_warning(f"No optimal model found for {token_count} tokens, using default")
             return "gpt-3.5-turbo"  # Fallback default
 
         return optimal
@@ -96,9 +90,7 @@ class ModelSelector:
             log_error(f"Failed to get capabilities for {model_name}: {e}")
             return {}
 
-    def recommend_model_upgrade(
-        self, current_model: str, required_tokens: int
-    ) -> str | None:
+    def recommend_model_upgrade(self, current_model: str, required_tokens: int) -> str | None:
         """Recommend a better model for higher token requirements."""
         current_caps = self.get_model_capabilities(current_model)
         current_limit = current_caps.get("max_tokens", 4096)
@@ -160,8 +152,7 @@ class ContextTrimmer:
     ) -> dict[str, str]:
         """Trim context parts to fit within token limits."""
         current_tokens = sum(
-            self.tokenizer_manager.estimate_tokens(part, model_name, provider)
-            for part in context_parts.values()
+            self.tokenizer_manager.estimate_tokens(part, model_name, provider) for part in context_parts.values()
         )
 
         if current_tokens <= target_tokens:
@@ -190,30 +181,23 @@ class ContextTrimmer:
         trimmed_parts = context_parts.copy()
 
         current_tokens = sum(
-            self.tokenizer_manager.estimate_tokens(part, model_name, provider)
-            for part in trimmed_parts.values()
+            self.tokenizer_manager.estimate_tokens(part, model_name, provider) for part in trimmed_parts.values()
         )
 
         for part_name in trim_order:
             if part_name in trimmed_parts and current_tokens > target_tokens:
                 original_text = trimmed_parts[part_name]
-                original_tokens = self.tokenizer_manager.estimate_tokens(
-                    original_text, model_name, provider
-                )
+                original_tokens = self.tokenizer_manager.estimate_tokens(original_text, model_name, provider)
 
                 # Trim to 70% of original length
                 trim_ratio = 0.7
                 trimmed_length = int(len(original_text) * trim_ratio)
                 trimmed_parts[part_name] = original_text[:trimmed_length] + "..."
 
-                new_tokens = self.tokenizer_manager.estimate_tokens(
-                    trimmed_parts[part_name], model_name, provider
-                )
+                new_tokens = self.tokenizer_manager.estimate_tokens(trimmed_parts[part_name], model_name, provider)
                 current_tokens = current_tokens - original_tokens + new_tokens
 
-                log_info(
-                    f"Trimmed {part_name}: {original_tokens} -> {new_tokens} tokens"
-                )
+                log_info(f"Trimmed {part_name}: {original_tokens} -> {new_tokens} tokens")
 
                 if current_tokens <= target_tokens:
                     break
@@ -229,8 +213,7 @@ class ContextTrimmer:
     ) -> dict[str, str]:
         """Trim all parts proportionally."""
         current_tokens = sum(
-            self.tokenizer_manager.estimate_tokens(part, model_name, provider)
-            for part in context_parts.values()
+            self.tokenizer_manager.estimate_tokens(part, model_name, provider) for part in context_parts.values()
         )
 
         if current_tokens <= target_tokens:
@@ -242,9 +225,7 @@ class ContextTrimmer:
         trimmed_parts = {}
         for part_name, part_text in context_parts.items():
             new_length = int(len(part_text) * reduction_ratio)
-            trimmed_parts[part_name] = (
-                part_text[:new_length] if new_length < len(part_text) else part_text
-            )
+            trimmed_parts[part_name] = part_text[:new_length] if new_length < len(part_text) else part_text
 
         return trimmed_parts
 
@@ -258,20 +239,15 @@ class ContextTrimmer:
         """Smart trimming that preserves important content."""
         # Combine priority-based and proportional strategies
         # First try priority trimming
-        result = self._trim_by_priority(
-            context_parts, target_tokens, model_name, provider
-        )
+        result = self._trim_by_priority(context_parts, target_tokens, model_name, provider)
 
         # If still over limit, apply proportional trimming
         current_tokens = sum(
-            self.tokenizer_manager.estimate_tokens(part, model_name, provider)
-            for part in result.values()
+            self.tokenizer_manager.estimate_tokens(part, model_name, provider) for part in result.values()
         )
 
         if current_tokens > target_tokens:
-            result = self._trim_proportional(
-                result, target_tokens, model_name, provider
-            )
+            result = self._trim_proportional(result, target_tokens, model_name, provider)
 
         return result
 
@@ -296,8 +272,7 @@ class TruncationDetector:
             response.count("[") != response.count("]"),
             response.count("{") != response.count("}"),
             # Abrupt ending
-            len(response) > 100
-            and not response.strip().endswith((".", "!", "?", '"', "'")),
+            len(response) > 100 and not response.strip().endswith((".", "!", "?", '"', "'")),
         ]
 
         return any(truncation_indicators)
@@ -332,9 +307,7 @@ class TruncationDetector:
         total_needed = prompt_tokens + max_response_tokens
         return total_needed > max_tokens * 0.9  # 90% threshold
 
-    def suggest_truncation_fixes(
-        self, response: str, truncation_type: str = "auto"
-    ) -> list[str]:
+    def suggest_truncation_fixes(self, response: str, truncation_type: str = "auto") -> list[str]:
         """Suggest ways to fix truncated responses."""
         suggestions = []
 

@@ -54,9 +54,7 @@ class TokenizerManager:
 
         return self.encoders[model_name]
 
-    def estimate_tokens(
-        self, text: str, model_name: str, provider: str | None = None
-    ) -> int:
+    def estimate_tokens(self, text: str, model_name: str, provider: str | None = None) -> int:
         """Estimate token count for given text and model."""
         try:
             tokenizer = self.get_tokenizer(model_name, provider)
@@ -74,9 +72,7 @@ class TokenizerManager:
             # Fallback estimation: ~4 chars per token
             return len(text) // 4
 
-    def estimate_tokens_batch(
-        self, texts: list[str], model_name: str, provider: str | None = None
-    ) -> list[int]:
+    def estimate_tokens_batch(self, texts: list[str], model_name: str, provider: str | None = None) -> list[int]:
         """Estimate token counts for multiple texts."""
         try:
             tokenizer = self.get_tokenizer(model_name, provider)
@@ -117,9 +113,7 @@ class TokenEstimator:
         response_ratio: float = 0.3,
     ) -> int:
         """Estimate likely response token count based on prompt."""
-        prompt_tokens = self.tokenizer_manager.estimate_tokens(
-            prompt, model_name, provider
-        )
+        prompt_tokens = self.tokenizer_manager.estimate_tokens(prompt, model_name, provider)
 
         # Estimate response based on prompt length and typical ratios
         base_estimate = int(prompt_tokens * response_ratio)
@@ -140,9 +134,7 @@ class TokenEstimator:
         provider: str | None = None,
     ) -> int:
         """Estimate tokens needed to continue a partial response."""
-        partial_tokens = self.tokenizer_manager.estimate_tokens(
-            partial_response, model_name, provider
-        )
+        partial_tokens = self.tokenizer_manager.estimate_tokens(partial_response, model_name, provider)
 
         # Estimate remaining tokens needed (typically 20-50% more)
         continuation_ratio = 0.35
@@ -154,9 +146,7 @@ class TokenEstimator:
 
         return max(min_continuation, min(estimated_remaining, max_continuation))
 
-    def estimate_context_budget(
-        self, total_limit: int, response_tokens: int, buffer_ratio: float = 0.1
-    ) -> int:
+    def estimate_context_budget(self, total_limit: int, response_tokens: int, buffer_ratio: float = 0.1) -> int:
         """Calculate available tokens for context given response requirements."""
         buffer_tokens = int(total_limit * buffer_ratio)
         available_for_context = total_limit - response_tokens - buffer_tokens
@@ -171,7 +161,5 @@ class TokenEstimator:
         provider: str | None = None,
     ) -> bool:
         """Check if text fits within token limit."""
-        estimated_tokens = self.tokenizer_manager.estimate_tokens(
-            text, model_name, provider
-        )
+        estimated_tokens = self.tokenizer_manager.estimate_tokens(text, model_name, provider)
         return estimated_tokens <= token_limit

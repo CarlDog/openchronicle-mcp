@@ -107,9 +107,7 @@ class TimelineManager:
 
             # Add tone analysis if available
             if include_summaries:
-                entry["tone_analysis"] = await self._analyze_scene_tone(
-                    entry.get("input", ""), entry.get("output", "")
-                )
+                entry["tone_analysis"] = await self._analyze_scene_tone(entry.get("input", ""), entry.get("output", ""))
 
             timeline_entries.append(entry)
 
@@ -127,9 +125,7 @@ class TimelineManager:
                     )
             except (OpenChronicleError, RuntimeError, ValueError, KeyError, AttributeError, TypeError) as e:
                 # Bookmark system optional; continue without it
-                log_warning(
-                    f"Bookmark retrieval failed for story {self.story_id}: {e}. Proceeding without bookmarks."
-                )
+                log_warning(f"Bookmark retrieval failed for story {self.story_id}: {e}. Proceeding without bookmarks.")
 
         # Sort by timestamp
         timeline_entries.sort(key=lambda x: x.get("timestamp", ""))
@@ -141,15 +137,11 @@ class TimelineManager:
         }
 
         if include_summaries:
-            timeline_data["auto_summaries"] = await self._generate_auto_summaries(
-                timeline_entries
-            )
+            timeline_data["auto_summaries"] = await self._generate_auto_summaries(timeline_entries)
 
         return timeline_data
 
-    async def get_scene_context(
-        self, scene_id: str, context_range: int = 3
-    ) -> dict[str, Any]:
+    async def get_scene_context(self, scene_id: str, context_range: int = 3) -> dict[str, Any]:
         """Get contextual scenes around a specific scene."""
 
         # Get target scene timestamp
@@ -193,9 +185,7 @@ class TimelineManager:
             ],
         }
 
-    async def _analyze_scene_tone(
-        self, input_text: str, output_text: str
-    ) -> dict[str, Any]:
+    async def _analyze_scene_tone(self, input_text: str, output_text: str) -> dict[str, Any]:
         """Analyze tone of scene content."""
         # Basic tone analysis - can be enhanced with content analysis integration
         combined_text = f"{input_text} {output_text}".lower()
@@ -213,26 +203,17 @@ class TimelineManager:
             tone_scores[tone] = score
 
         # Determine primary tone
-        primary_tone = (
-            max(tone_scores, key=tone_scores.get)
-            if any(tone_scores.values())
-            else "neutral"
-        )
+        primary_tone = max(tone_scores, key=tone_scores.get) if any(tone_scores.values()) else "neutral"
 
         return {
             "primary_tone": primary_tone,
             "tone_scores": tone_scores,
-            "confidence": max(tone_scores.values())
-            / max(1, len(combined_text.split())),
+            "confidence": max(tone_scores.values()) / max(1, len(combined_text.split())),
         }
 
-    async def _generate_auto_summaries(
-        self, timeline_entries: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    async def _generate_auto_summaries(self, timeline_entries: list[dict[str, Any]]) -> dict[str, Any]:
         """Generate automatic summaries of timeline segments."""
-        scene_entries = [
-            entry for entry in timeline_entries if entry["type"] == "scene"
-        ]
+        scene_entries = [entry for entry in timeline_entries if entry["type"] == "scene"]
 
         if len(scene_entries) < 2:
             return {
@@ -257,11 +238,7 @@ class TimelineManager:
                     "end": segment_scenes[-1]["timestamp"],
                 },
                 "key_events": [
-                    (
-                        scene["input"][:100] + "..."
-                        if len(scene["input"]) > 100
-                        else scene["input"]
-                    )
+                    (scene["input"][:100] + "..." if len(scene["input"]) > 100 else scene["input"])
                     for scene in segment_scenes[:3]  # Top 3 events
                 ],
                 "dominant_tone": await self._get_segment_tone(segment_scenes),
@@ -286,19 +263,13 @@ class TimelineManager:
 
         return max(tone_counts, key=tone_counts.get) if tone_counts else "neutral"
 
-    def _calculate_timeline_stats(
-        self, timeline_entries: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _calculate_timeline_stats(self, timeline_entries: list[dict[str, Any]]) -> dict[str, Any]:
         """Calculate basic statistics for the timeline."""
         scene_count = sum(1 for entry in timeline_entries if entry["type"] == "scene")
-        bookmark_count = sum(
-            1 for entry in timeline_entries if entry["type"] == "bookmark"
-        )
+        bookmark_count = sum(1 for entry in timeline_entries if entry["type"] == "bookmark")
 
         # Calculate timespan
-        timestamps = [
-            entry["timestamp"] for entry in timeline_entries if entry.get("timestamp")
-        ]
+        timestamps = [entry["timestamp"] for entry in timeline_entries if entry.get("timestamp")]
         timespan = {
             "start": min(timestamps) if timestamps else "",
             "end": max(timestamps) if timestamps else "",

@@ -39,10 +39,7 @@ class RegistryAdapter(IRegistryPort):
         if RegistryManager is None:
             raise RuntimeError("RegistryManager not available. Check infrastructure.registry imports.")
 
-        self._manager = RegistryManager(
-            models_dir=models_dir,
-            settings_file=settings_file
-        )
+        self._manager = RegistryManager(models_dir=models_dir, settings_file=settings_file)
 
     def get_provider_config(self, provider_name: str) -> Optional[dict[str, Any]]:
         """Get configuration for a specific provider."""

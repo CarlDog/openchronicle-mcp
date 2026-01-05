@@ -65,39 +65,22 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
             operation_metrics = self._group_by_operation(metrics)
 
             # Detect different types of bottlenecks
-            duration_bottlenecks = await self._analyze_duration_bottlenecks(
-                adapter_metrics
-            )
-            resource_bottlenecks = await self._analyze_resource_bottlenecks(
-                adapter_metrics
-            )
+            duration_bottlenecks = await self._analyze_duration_bottlenecks(adapter_metrics)
+            resource_bottlenecks = await self._analyze_resource_bottlenecks(adapter_metrics)
             error_bottlenecks = await self._analyze_error_bottlenecks(adapter_metrics)
-            frequency_bottlenecks = await self._analyze_frequency_bottlenecks(
-                operation_metrics, time_window
-            )
+            frequency_bottlenecks = await self._analyze_frequency_bottlenecks(operation_metrics, time_window)
 
             # Combine all bottleneck patterns
-            all_patterns = (
-                duration_bottlenecks
-                + resource_bottlenecks
-                + error_bottlenecks
-                + frequency_bottlenecks
-            )
+            all_patterns = duration_bottlenecks + resource_bottlenecks + error_bottlenecks + frequency_bottlenecks
 
             # Calculate overall metrics
             total_operations = len(metrics)
             failed_operations = sum(1 for m in metrics if not m.success)
-            avg_duration = (
-                statistics.mean(m.duration for m in metrics) if metrics else 0.0
-            )
+            avg_duration = statistics.mean(m.duration for m in metrics) if metrics else 0.0
 
             # Identify top bottleneck adapters
-            adapter_impact_scores = self._calculate_adapter_impact_scores(
-                adapter_metrics
-            )
-            top_bottleneck_adapters = sorted(
-                adapter_impact_scores.items(), key=lambda x: x[1], reverse=True
-            )[:5]
+            adapter_impact_scores = self._calculate_adapter_impact_scores(adapter_metrics)
+            top_bottleneck_adapters = sorted(adapter_impact_scores.items(), key=lambda x: x[1], reverse=True)[:5]
 
             report = BottleneckReport(
                 analysis_time=datetime.now(),
@@ -109,9 +92,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
                 failed_operations=failed_operations,
                 avg_duration=avg_duration,
                 bottleneck_patterns=all_patterns,
-                top_bottleneck_adapters=[
-                    adapter for adapter, _ in top_bottleneck_adapters
-                ],
+                top_bottleneck_adapters=[adapter for adapter, _ in top_bottleneck_adapters],
                 recommendations=self._generate_recommendations(all_patterns),
             )
 
@@ -121,14 +102,8 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
                 {
                     "total_operations": total_operations,
                     "patterns_found": len(all_patterns),
-                    "critical_patterns": len(
-                        [p for p in all_patterns if p.severity == "critical"]
-                    ),
-                    "top_bottleneck": (
-                        top_bottleneck_adapters[0][0]
-                        if top_bottleneck_adapters
-                        else None
-                    ),
+                    "critical_patterns": len([p for p in all_patterns if p.severity == "critical"]),
+                    "top_bottleneck": (top_bottleneck_adapters[0][0] if top_bottleneck_adapters else None),
                 },
             )
 
@@ -150,11 +125,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
             durations = [m.duration for m in metrics]
             durations.sort()
             threshold_index = int((threshold_percentile / 100.0) * len(durations))
-            threshold_duration = (
-                durations[threshold_index]
-                if threshold_index < len(durations)
-                else durations[-1]
-            )
+            threshold_duration = durations[threshold_index] if threshold_index < len(durations) else durations[-1]
 
             # Find operations above threshold
             slow_operations = [m for m in metrics if m.duration >= threshold_duration]
@@ -182,9 +153,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         else:
             return slow_operations
 
-    async def analyze_resource_usage_patterns(
-        self, metrics: list[PerformanceMetrics]
-    ) -> dict[str, Any]:
+    async def analyze_resource_usage_patterns(self, metrics: list[PerformanceMetrics]) -> dict[str, Any]:
         """Analyze resource usage patterns and trends."""
         try:
             if not metrics:
@@ -192,40 +161,19 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
 
             # Calculate resource deltas
             cpu_deltas = [m.cpu_usage_after - m.cpu_usage_before for m in metrics]
-            memory_deltas = [
-                m.memory_usage_after - m.memory_usage_before for m in metrics
-            ]
+            memory_deltas = [m.memory_usage_after - m.memory_usage_before for m in metrics]
 
             # Analyze patterns by adapter
             adapter_patterns = {}
-            for adapter_name, adapter_metrics in self._group_by_adapter(
-                metrics
-            ).items():
-                adapter_cpu_deltas = [
-                    m.cpu_usage_after - m.cpu_usage_before for m in adapter_metrics
-                ]
-                adapter_memory_deltas = [
-                    m.memory_usage_after - m.memory_usage_before
-                    for m in adapter_metrics
-                ]
+            for adapter_name, adapter_metrics in self._group_by_adapter(metrics).items():
+                adapter_cpu_deltas = [m.cpu_usage_after - m.cpu_usage_before for m in adapter_metrics]
+                adapter_memory_deltas = [m.memory_usage_after - m.memory_usage_before for m in adapter_metrics]
 
                 adapter_patterns[adapter_name] = {
-                    "avg_cpu_delta": (
-                        statistics.mean(adapter_cpu_deltas)
-                        if adapter_cpu_deltas
-                        else 0.0
-                    ),
-                    "max_cpu_delta": (
-                        max(adapter_cpu_deltas) if adapter_cpu_deltas else 0.0
-                    ),
-                    "avg_memory_delta": (
-                        statistics.mean(adapter_memory_deltas)
-                        if adapter_memory_deltas
-                        else 0.0
-                    ),
-                    "max_memory_delta": (
-                        max(adapter_memory_deltas) if adapter_memory_deltas else 0.0
-                    ),
+                    "avg_cpu_delta": (statistics.mean(adapter_cpu_deltas) if adapter_cpu_deltas else 0.0),
+                    "max_cpu_delta": (max(adapter_cpu_deltas) if adapter_cpu_deltas else 0.0),
+                    "avg_memory_delta": (statistics.mean(adapter_memory_deltas) if adapter_memory_deltas else 0.0),
+                    "max_memory_delta": (max(adapter_memory_deltas) if adapter_memory_deltas else 0.0),
                     "operation_count": len(adapter_metrics),
                 }
 
@@ -234,16 +182,12 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
                 "overall": {
                     "avg_cpu_delta": statistics.mean(cpu_deltas) if cpu_deltas else 0.0,
                     "max_cpu_delta": max(cpu_deltas) if cpu_deltas else 0.0,
-                    "avg_memory_delta": (
-                        statistics.mean(memory_deltas) if memory_deltas else 0.0
-                    ),
+                    "avg_memory_delta": (statistics.mean(memory_deltas) if memory_deltas else 0.0),
                     "max_memory_delta": max(memory_deltas) if memory_deltas else 0.0,
                     "total_operations": len(metrics),
                 },
                 "by_adapter": adapter_patterns,
-                "resource_intensive_adapters": self._identify_resource_intensive_adapters(
-                    adapter_patterns
-                ),
+                "resource_intensive_adapters": self._identify_resource_intensive_adapters(adapter_patterns),
             }
 
         except Exception as e:
@@ -252,18 +196,14 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         else:
             return patterns
 
-    def _group_by_adapter(
-        self, metrics: list[PerformanceMetrics]
-    ) -> dict[str, list[PerformanceMetrics]]:
+    def _group_by_adapter(self, metrics: list[PerformanceMetrics]) -> dict[str, list[PerformanceMetrics]]:
         """Group metrics by adapter name."""
         grouped = defaultdict(list)
         for metric in metrics:
             grouped[metric.adapter_name].append(metric)
         return dict(grouped)
 
-    def _group_by_operation(
-        self, metrics: list[PerformanceMetrics]
-    ) -> dict[str, list[PerformanceMetrics]]:
+    def _group_by_operation(self, metrics: list[PerformanceMetrics]) -> dict[str, list[PerformanceMetrics]]:
         """Group metrics by operation type."""
         grouped = defaultdict(list)
         for metric in metrics:
@@ -316,9 +256,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
 
         for adapter_name, metrics in adapter_metrics.items():
             cpu_deltas = [m.cpu_usage_after - m.cpu_usage_before for m in metrics]
-            memory_deltas = [
-                m.memory_usage_after - m.memory_usage_before for m in metrics
-            ]
+            memory_deltas = [m.memory_usage_after - m.memory_usage_before for m in metrics]
 
             avg_cpu_delta = statistics.mean(cpu_deltas) if cpu_deltas else 0.0
             avg_memory_delta = statistics.mean(memory_deltas) if memory_deltas else 0.0
@@ -423,9 +361,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
             avg_duration = statistics.mean(m.duration for m in metrics)
 
             # High frequency + high duration = bottleneck
-            if (
-                operations_per_hour > 100 and avg_duration > 2.0
-            ):  # Configurable thresholds
+            if operations_per_hour > 100 and avg_duration > 2.0:  # Configurable thresholds
                 affected_adapters = list(set(m.adapter_name for m in metrics))
 
                 pattern = BottleneckPattern(
@@ -467,9 +403,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
 
             # Calculate resource impact
             cpu_deltas = [m.cpu_usage_after - m.cpu_usage_before for m in metrics]
-            memory_deltas = [
-                m.memory_usage_after - m.memory_usage_before for m in metrics
-            ]
+            memory_deltas = [m.memory_usage_after - m.memory_usage_before for m in metrics]
             avg_cpu_delta = statistics.mean(cpu_deltas) if cpu_deltas else 0.0
             avg_memory_delta = statistics.mean(memory_deltas) if memory_deltas else 0.0
 
@@ -486,9 +420,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
 
         return scores
 
-    def _identify_resource_intensive_adapters(
-        self, adapter_patterns: dict[str, dict[str, Any]]
-    ) -> list[str]:
+    def _identify_resource_intensive_adapters(self, adapter_patterns: dict[str, dict[str, Any]]) -> list[str]:
         """Identify adapters that are resource intensive."""
         intensive_adapters = []
 
@@ -508,13 +440,9 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
         # Critical patterns get priority
         critical_patterns = [p for p in patterns if p.severity == "critical"]
         if critical_patterns:
-            recommendations.append(
-                "🔴 Critical bottlenecks detected - immediate attention required"
-            )
+            recommendations.append("🔴 Critical bottlenecks detected - immediate attention required")
             for pattern in critical_patterns[:3]:  # Top 3 critical
-                recommendations.extend(
-                    pattern.recommendations[:2]
-                )  # Top 2 recommendations per pattern
+                recommendations.extend(pattern.recommendations[:2])  # Top 2 recommendations per pattern
 
         # High patterns
         high_patterns = [p for p in patterns if p.severity == "high"]
@@ -531,9 +459,7 @@ class BottleneckAnalyzer(IBottleneckAnalyzer):
                 ]
             )
         else:
-            recommendations.append(
-                "✅ No significant bottlenecks detected - system performing well"
-            )
+            recommendations.append("✅ No significant bottlenecks detected - system performing well")
 
         return recommendations
 

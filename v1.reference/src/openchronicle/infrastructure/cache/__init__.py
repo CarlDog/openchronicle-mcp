@@ -195,9 +195,7 @@ class InMemoryCache(BaseCache):
             "size": len(self._cache),
             "max_size": self.max_size,
             "hit_rate": self._calculate_hit_rate(),
-            "oldest_entry": min(
-                (entry.created_at for entry in self._cache.values()), default=None
-            ),
+            "oldest_entry": min((entry.created_at for entry in self._cache.values()), default=None),
             "most_accessed": max(
                 self._cache.items(),
                 key=lambda x: x[1].access_count,
@@ -398,9 +396,7 @@ class ModelResponseCache(BaseCache):
         key_string = json.dumps(key_data, sort_keys=True)
         return f"model_response:{hashlib.sha256(key_string.encode()).hexdigest()}"
 
-    async def get_response(
-        self, prompt: str, model_name: str, **kwargs
-    ) -> dict[str, Any] | None:
+    async def get_response(self, prompt: str, model_name: str, **kwargs) -> dict[str, Any] | None:
         """Get cached model response."""
         cache_key = self._create_cache_key(prompt, model_name, **kwargs)
         return await self.base_cache.get(cache_key)

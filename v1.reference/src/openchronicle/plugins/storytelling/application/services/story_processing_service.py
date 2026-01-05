@@ -12,22 +12,20 @@ Extracted from legacy main.py to fit hexagonal architecture.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+from typing import Any
 
 from openchronicle.domain.entities import Story
-from openchronicle.domain.services import (
-    CharacterService,
-    MemoryService,
-    SceneService,
-    StoryService,
-)
+from openchronicle.domain.services import CharacterService
+from openchronicle.domain.services import MemoryService
+from openchronicle.domain.services import SceneService
+from openchronicle.domain.services import StoryService
 from openchronicle.shared.error_handling import NarrativeError
-from openchronicle.shared.exceptions import (
-    ApplicationError,
-    ModelError,
-    ValidationError,
-)
+from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import ModelError
+from openchronicle.shared.exceptions import ValidationError
 from openchronicle.shared.retry_policy import RetryPolicy
+
 
 if TYPE_CHECKING:
     from openchronicle.domain.ports.content_analysis_port import IContentAnalysisPort
@@ -221,9 +219,7 @@ class StoryProcessingService:
                 content_flags = await self.content_analysis_port.generate_content_flags(analysis, ai_response)
             else:
                 # Fallback for backward compatibility
-                from openchronicle.domain.ports.content_analysis_port import (
-                    IContentAnalysisPort,
-                )
+                from openchronicle.domain.ports.content_analysis_port import IContentAnalysisPort
 
                 class MockContentAnalysisPort(IContentAnalysisPort):
                     async def generate_content_flags(
@@ -266,9 +262,7 @@ class StoryProcessingService:
         try:
             # Use the legacy scene orchestrator temporarily
             # TODO: Migrate to proper domain service once available
-            from openchronicle.domain.services.scenes.scene_orchestrator import (
-                SceneOrchestrator,
-            )
+            from openchronicle.domain.services.scenes.scene_orchestrator import SceneOrchestrator
 
             scene_orchestrator = SceneOrchestrator(story_id)
             scene_id = scene_orchestrator.save_scene(

@@ -154,9 +154,7 @@ class RegistryAdapter(IRegistryPort):
             )
             return False
 
-    def update_provider_config(
-        self, provider_name: str, config: dict[str, Any]
-    ) -> bool:
+    def update_provider_config(self, provider_name: str, config: dict[str, Any]) -> bool:
         """
         Update provider configuration.
 

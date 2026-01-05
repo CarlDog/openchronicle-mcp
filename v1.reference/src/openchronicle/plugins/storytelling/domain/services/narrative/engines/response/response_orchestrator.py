@@ -56,12 +56,8 @@ class ResponseOrchestrator(NarrativeComponent):
         self.data_dir.mkdir(parents=True, exist_ok=True)
 
         # Component instances
-        self.context_analyzer = ContextAnalyzer(
-            config.get("context_analyzer", {}) if config else {}
-        )
-        self.response_planner = ResponsePlanner(
-            config.get("response_planner", {}) if config else {}
-        )
+        self.context_analyzer = ContextAnalyzer(config.get("context_analyzer", {}) if config else {})
+        self.response_planner = ResponsePlanner(config.get("response_planner", {}) if config else {})
         # Add model orchestrator for proper response generation
         self.model_orchestrator = ModelOrchestrator()
 
@@ -91,7 +87,7 @@ class ResponseOrchestrator(NarrativeComponent):
         try:
             self.logger.info(
                 "ResponseOrchestrator: processing request",
-                context_tags=["response","start"],
+                context_tags=["response", "start"],
             )
             # Extract request data
             request = self._create_request_from_data(data)
@@ -107,7 +103,7 @@ class ResponseOrchestrator(NarrativeComponent):
             analysis_time = time.time() - analysis_start
             self.logger.debug(
                 "ResponseOrchestrator: context analyzed",
-                context_tags=["response","analyze"],
+                context_tags=["response", "analyze"],
                 request_id=getattr(request, "request_id", None),
                 analysis_time=analysis_time,
             )
@@ -118,7 +114,7 @@ class ResponseOrchestrator(NarrativeComponent):
             planning_time = time.time() - planning_start
             self.logger.debug(
                 "ResponseOrchestrator: response planned",
-                context_tags=["response","plan"],
+                context_tags=["response", "plan"],
                 request_id=getattr(request, "request_id", None),
                 planning_time=planning_time,
                 strategy=getattr(response_plan, "strategy", None),
@@ -127,13 +123,11 @@ class ResponseOrchestrator(NarrativeComponent):
 
             # Step 3: Generate response (integrated with model orchestrator)
             generation_start = time.time()
-            generated_response = await self._generate_response(
-                context_analysis, response_plan
-            )
+            generated_response = await self._generate_response(context_analysis, response_plan)
             generation_time = time.time() - generation_start
             self.logger.debug(
                 "ResponseOrchestrator: response generated",
-                context_tags=["response","generate"],
+                context_tags=["response", "generate"],
                 request_id=getattr(request, "request_id", None),
                 generation_time=generation_time,
                 generated_len=len(generated_response) if isinstance(generated_response, str) else None,
@@ -141,22 +135,18 @@ class ResponseOrchestrator(NarrativeComponent):
 
             # Step 4: Evaluate response (placeholder for now)
             evaluation_start = time.time()
-            evaluation = self._evaluate_response(
-                generated_response, context_analysis, response_plan
-            )
+            evaluation = self._evaluate_response(generated_response, context_analysis, response_plan)
             evaluation_time = time.time() - evaluation_start
             self.logger.debug(
                 "ResponseOrchestrator: response evaluated",
-                context_tags=["response","evaluate"],
+                context_tags=["response", "evaluate"],
                 request_id=getattr(request, "request_id", None),
                 evaluation_time=evaluation_time,
                 overall_score=getattr(evaluation, "overall_score", None),
             )
 
             # Update metrics
-            self._update_metrics(
-                analysis_time, planning_time, generation_time, evaluation_time
-            )
+            self._update_metrics(analysis_time, planning_time, generation_time, evaluation_time)
 
             # Create result
             result = ResponseResult(
@@ -175,7 +165,7 @@ class ResponseOrchestrator(NarrativeComponent):
 
             self.logger.info(
                 "ResponseOrchestrator: request complete",
-                context_tags=["response","success"],
+                context_tags=["response", "success"],
                 request_id=getattr(request, "request_id", None),
                 total_time=time.time() - start_time,
             )
@@ -195,17 +185,9 @@ class ResponseOrchestrator(NarrativeComponent):
                 },
             )
             return ResponseResult(
-                request=(
-                    request
-                    if "request" in locals()
-                    else ResponseRequest(context=ResponseContext(user_input=""))
-                ),
-                analysis=ContextAnalysis(
-                    quality="poor", complexity_needs="simple", content_type="error"
-                ),
-                plan=ResponsePlan(
-                    strategy="conservative", complexity="simple", content_focus="error"
-                ),
+                request=(request if "request" in locals() else ResponseRequest(context=ResponseContext(user_input=""))),
+                analysis=ContextAnalysis(quality="poor", complexity_needs="simple", content_type="error"),
+                plan=ResponsePlan(strategy="conservative", complexity="simple", content_focus="error"),
                 generated_response="",
                 evaluation=ResponseEvaluation(
                     overall_score=0.0,
@@ -230,9 +212,7 @@ class ResponseOrchestrator(NarrativeComponent):
                 issues=["Request object required"],
             )
 
-        return ValidationResult(
-            is_valid=True, confidence=1.0, validation_type="request_validation"
-        )
+        return ValidationResult(is_valid=True, confidence=1.0, validation_type="request_validation")
 
     def _create_request_from_data(self, data: dict[str, Any]) -> ResponseRequest:
         """Create ResponseRequest from input data."""
@@ -274,9 +254,7 @@ class ResponseOrchestrator(NarrativeComponent):
 
         return self.context_analyzer.process(context_data)
 
-    def _plan_response(
-        self, context_analysis: ContextAnalysis, request: ResponseRequest
-    ) -> ResponsePlan:
+    def _plan_response(self, context_analysis: ContextAnalysis, request: ResponseRequest) -> ResponsePlan:
         """Plan response based on analysis."""
         planning_data = {
             "context_analysis": context_analysis,
@@ -288,9 +266,7 @@ class ResponseOrchestrator(NarrativeComponent):
 
         return self.response_planner.process(planning_data)
 
-    async def _generate_response(
-        self, context_analysis: ContextAnalysis, response_plan: ResponsePlan
-    ) -> str:
+    async def _generate_response(self, context_analysis: ContextAnalysis, response_plan: ResponsePlan) -> str:
         """Generate response based on plan using model orchestrator."""
         try:
             # Build enhanced prompt based on plan
@@ -326,15 +302,17 @@ class ResponseOrchestrator(NarrativeComponent):
                 adapter_name=None,  # Use default adapter
                 context={"strategy": strategy, "complexity": complexity},
                 max_tokens=min(response_plan.estimated_length // 4, 1000),  # Rough token estimation
-                temperature=0.7 if complexity in ["complex", "elaborate"] else 0.5
+                temperature=0.7 if complexity in ["complex", "elaborate"] else 0.5,
             )
         except (AttributeError, KeyError) as e:
             self.logger.exception("Error accessing response generation data")
             # Fallback to basic response
-            strategy = getattr(response_plan.strategy, 'value', 'balanced')
-            complexity = getattr(response_plan.complexity, 'value', 'moderate')
-            return (f"[FALLBACK RESPONSE - Strategy: {strategy}, Complexity: {complexity}, "
-                    f"Focus: {response_plan.content_focus}]")
+            strategy = getattr(response_plan.strategy, "value", "balanced")
+            complexity = getattr(response_plan.complexity, "value", "moderate")
+            return (
+                f"[FALLBACK RESPONSE - Strategy: {strategy}, Complexity: {complexity}, "
+                f"Focus: {response_plan.content_focus}]"
+            )
         except (ValueError, TypeError) as e:
             self.logger.exception("Error with response generation parameters")
             return "[ERROR RESPONSE - Parameter error in generation]"
@@ -342,8 +320,11 @@ class ResponseOrchestrator(NarrativeComponent):
             self.logger.exception("Error generating response")
             return f"[ERROR RESPONSE - Generation failed: {e}]"
         else:
-            return (model_response.content if model_response else
-                    f"[FALLBACK RESPONSE - Strategy: {strategy}, Complexity: {complexity}, Focus: {content_focus}]")
+            return (
+                model_response.content
+                if model_response
+                else f"[FALLBACK RESPONSE - Strategy: {strategy}, Complexity: {complexity}, Focus: {content_focus}]"
+            )
 
     def _evaluate_response(
         self,
@@ -369,10 +350,7 @@ class ResponseOrchestrator(NarrativeComponent):
 
             # Calculate overall score as weighted average
             overall_score = (
-                length_score * 0.2 +
-                coherence_score * 0.3 +
-                creativity_score * 0.25 +
-                context_integration_score * 0.25
+                length_score * 0.2 + coherence_score * 0.3 + creativity_score * 0.25 + context_integration_score * 0.25
             )
 
             # Analyze strengths and weaknesses
@@ -432,9 +410,10 @@ class ResponseOrchestrator(NarrativeComponent):
         """Calculate coherence score based on response structure."""
         try:
             # Simple coherence metrics
-            sentences = response.split('.')
-            avg_sentence_length = (sum(len(s.split()) for s in sentences if s.strip()) /
-                                  max(len([s for s in sentences if s.strip()]), 1))
+            sentences = response.split(".")
+            avg_sentence_length = sum(len(s.split()) for s in sentences if s.strip()) / max(
+                len([s for s in sentences if s.strip()]), 1
+            )
 
             # Penalize very short or very long sentences
             sentence_score = 1.0 - abs(avg_sentence_length - 15) / 30.0  # Target ~15 words per sentence
@@ -445,7 +424,7 @@ class ResponseOrchestrator(NarrativeComponent):
             unique_words = len(set(words))
             repetition_score = unique_words / max(len(words), 1)
 
-            return (sentence_score * 0.4 + repetition_score * 0.6)
+            return sentence_score * 0.4 + repetition_score * 0.6
 
         except (AttributeError, KeyError) as e:
             self.logger.warning(f"Error accessing coherence calculation data: {e}")
@@ -468,10 +447,10 @@ class ResponseOrchestrator(NarrativeComponent):
             diversity_score = min(1.0, unique_words / max(len(words), 1) * 2)
 
             # Response complexity alignment
-            complexity_value = getattr(response_plan.complexity, 'value', 'moderate')
-            if complexity_value in ['complex', 'elaborate']:
+            complexity_value = getattr(response_plan.complexity, "value", "moderate")
+            if complexity_value in ["complex", "elaborate"]:
                 target_creativity = 0.8
-            elif complexity_value == 'moderate':
+            elif complexity_value == "moderate":
                 target_creativity = 0.7
             else:
                 target_creativity = 0.6
@@ -543,12 +522,8 @@ class ResponseOrchestrator(NarrativeComponent):
 
         # Update averages if we have history
         if self.response_history:
-            total_quality = sum(
-                result.evaluation.overall_score for result in self.response_history
-            )
-            self.performance_metrics.average_quality = total_quality / len(
-                self.response_history
-            )
+            total_quality = sum(result.evaluation.overall_score for result in self.response_history)
+            self.performance_metrics.average_quality = total_quality / len(self.response_history)
 
     def get_response_history(self, limit: int = 10) -> list[ResponseResult]:
         """Get recent response history."""
@@ -591,11 +566,7 @@ class ResponseOrchestrator(NarrativeComponent):
                 )
 
             # Save recent history (keep last 100 entries)
-            recent_history = (
-                self.response_history[-100:]
-                if len(self.response_history) > 100
-                else self.response_history
-            )
+            recent_history = self.response_history[-100:] if len(self.response_history) > 100 else self.response_history
             history_file = self.data_dir / "response_history.json"
             with open(history_file, "w", encoding="utf-8") as f:
                 # Convert to serializable format
@@ -632,24 +603,12 @@ class ResponseOrchestrator(NarrativeComponent):
             if metrics_file.exists():
                 with open(metrics_file, encoding="utf-8") as f:
                     metrics_data = json.load(f)
-                    self.performance_metrics.generation_time = metrics_data.get(
-                        "generation_time", 0.0
-                    )
-                    self.performance_metrics.analysis_time = metrics_data.get(
-                        "analysis_time", 0.0
-                    )
-                    self.performance_metrics.planning_time = metrics_data.get(
-                        "planning_time", 0.0
-                    )
-                    self.performance_metrics.evaluation_time = metrics_data.get(
-                        "evaluation_time", 0.0
-                    )
-                    self.performance_metrics.average_quality = metrics_data.get(
-                        "average_quality", 0.0
-                    )
-                    self.performance_metrics.responses_generated = metrics_data.get(
-                        "responses_generated", 0
-                    )
+                    self.performance_metrics.generation_time = metrics_data.get("generation_time", 0.0)
+                    self.performance_metrics.analysis_time = metrics_data.get("analysis_time", 0.0)
+                    self.performance_metrics.planning_time = metrics_data.get("planning_time", 0.0)
+                    self.performance_metrics.evaluation_time = metrics_data.get("evaluation_time", 0.0)
+                    self.performance_metrics.average_quality = metrics_data.get("average_quality", 0.0)
+                    self.performance_metrics.responses_generated = metrics_data.get("responses_generated", 0)
 
         except Exception as e:
             # Start fresh if loading fails, but log it

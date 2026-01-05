@@ -4,8 +4,11 @@ Domain Memory Models
 Simple domain models for memory validation that avoid infrastructure dependencies.
 """
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Any
+from typing import Dict
+from typing import List
 
 
 @dataclass

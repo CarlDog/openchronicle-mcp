@@ -9,7 +9,12 @@ validation decorators, and data sanitization functions.
 import json
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any
+from typing import Callable
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Union
 
 from .exceptions import ValidationError
 
@@ -24,10 +29,9 @@ class DataValidator:
             raise ValidationError("Story ID cannot be empty")
 
         # Story IDs should be alphanumeric with hyphens/underscores
-        if not re.match(r'^[a-zA-Z0-9_-]+$', story_id):
+        if not re.match(r"^[a-zA-Z0-9_-]+$", story_id):
             raise ValidationError(
-                f"Invalid story ID format: {story_id}. "
-                "Must contain only letters, numbers, hyphens, and underscores."
+                f"Invalid story ID format: {story_id}. " "Must contain only letters, numbers, hyphens, and underscores."
             )
 
         return story_id.strip().lower()
@@ -45,16 +49,13 @@ class DataValidator:
         # Allow letters, spaces, apostrophes, hyphens
         if not re.match(r"^[a-zA-Z\s'\-]+$", name):
             raise ValidationError(
-                f"Invalid character name: {name}. "
-                "Must contain only letters, spaces, apostrophes, and hyphens."
+                f"Invalid character name: {name}. " "Must contain only letters, spaces, apostrophes, and hyphens."
             )
 
         return name
 
     @staticmethod
-    def validate_json_structure(
-        data: str, required_keys: Optional[List[str]] = None
-    ) -> Dict[str, Any]:
+    def validate_json_structure(data: str, required_keys: Optional[List[str]] = None) -> Dict[str, Any]:
         """Validate JSON string and check for required keys."""
         try:
             parsed = json.loads(data)
@@ -72,9 +73,7 @@ class DataValidator:
         return parsed
 
     @staticmethod
-    def validate_file_path(
-        file_path: Union[str, Path], must_exist: bool = True
-    ) -> Path:
+    def validate_file_path(file_path: Union[str, Path], must_exist: bool = True) -> Path:
         """Validate file path format and existence."""
         path = Path(file_path)
 
@@ -96,7 +95,7 @@ class DataValidator:
             return ""
 
         # Remove null bytes and control characters (except newlines/tabs)
-        sanitized = ''.join(char for char in text if ord(char) >= 32 or char in '\n\t')
+        sanitized = "".join(char for char in text if ord(char) >= 32 or char in "\n\t")
 
         # Limit length
         if len(sanitized) > max_length:
@@ -122,13 +121,16 @@ def validate_range(
 
 def validation_decorator(validator_func: Callable) -> Callable:
     """Decorator to add validation to function parameters."""
+
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
             # Apply validation to first argument
             if args:
                 args = (validator_func(args[0]),) + args[1:]
             return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -141,8 +143,8 @@ def process_story_with_validation(story_id: str, *args, **kwargs):
 
 # Export commonly used validators
 __all__ = [
-    'DataValidator',
-    'validate_range',
-    'validation_decorator',
-    'ValidationError',
+    "DataValidator",
+    "validate_range",
+    "validation_decorator",
+    "ValidationError",
 ]

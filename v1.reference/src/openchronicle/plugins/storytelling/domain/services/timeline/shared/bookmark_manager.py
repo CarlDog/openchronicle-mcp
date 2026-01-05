@@ -96,9 +96,7 @@ class SimpleBookmarkManager:
     def clear_bookmarks(self, story_id: str) -> bool:
         """Delete all bookmarks for a story."""
         try:
-            return self.persistence.execute_update(
-                story_id, "DELETE FROM bookmarks WHERE story_id = ?", (story_id,)
-            )
+            return self.persistence.execute_update(story_id, "DELETE FROM bookmarks WHERE story_id = ?", (story_id,))
         except (RuntimeError, ValueError, KeyError, TypeError, OSError):
             return False
 

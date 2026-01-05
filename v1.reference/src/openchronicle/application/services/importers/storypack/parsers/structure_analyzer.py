@@ -85,20 +85,14 @@ class StructureAnalyzer(IStructureAnalyzer):
                 analysis["subdirectories"][subdir.name] = subdir_analysis
 
             # Check for recognized patterns
-            analysis["recognized_patterns"] = self._identify_recognized_patterns(
-                immediate_subdirs
-            )
+            analysis["recognized_patterns"] = self._identify_recognized_patterns(immediate_subdirs)
 
             # Calculate organization score
-            analysis["organization_score"] = self._calculate_organization_score(
-                analysis
-            )
+            analysis["organization_score"] = self._calculate_organization_score(analysis)
             analysis["is_organized"] = analysis["organization_score"] > 0.6
 
             # Generate recommendations
-            analysis[
-                "organization_recommendations"
-            ] = self._generate_organization_recommendations(analysis)
+            analysis["organization_recommendations"] = self._generate_organization_recommendations(analysis)
 
             log_system_event(
                 "structure_analyzer",
@@ -123,9 +117,7 @@ class StructureAnalyzer(IStructureAnalyzer):
 
         return analysis
 
-    def suggest_organization(
-        self, discovered_files: dict[str, list[ContentFile]]
-    ) -> dict[str, str]:
+    def suggest_organization(self, discovered_files: dict[str, list[ContentFile]]) -> dict[str, str]:
         """
         Suggest how to organize content files in the storypack.
 
@@ -185,10 +177,7 @@ class StructureAnalyzer(IStructureAnalyzer):
 
         try:
             for file_path in source_path.rglob("*"):
-                if (
-                    file_path.is_file()
-                    and file_path.suffix.lower() in supported_extensions
-                ):
+                if file_path.is_file() and file_path.suffix.lower() in supported_extensions:
                     found_files.append(file_path)
         except (OSError, IOError, PermissionError) as e:
             issues.append(f"File system error scanning directory: {e}")
@@ -201,15 +190,11 @@ class StructureAnalyzer(IStructureAnalyzer):
             return False, issues
 
         if not found_files:
-            issues.append(
-                "No supported content files (.txt, .md, .json) found in source directory"
-            )
+            issues.append("No supported content files (.txt, .md, .json) found in source directory")
 
         # Check for overly complex structure
         if len(found_files) > 500:
-            issues.append(
-                f"Very large number of files ({len(found_files)}) may slow import process"
-            )
+            issues.append(f"Very large number of files ({len(found_files)}) may slow import process")
 
         # Check for extremely deep nesting
         max_depth = 0
@@ -218,9 +203,7 @@ class StructureAnalyzer(IStructureAnalyzer):
             max_depth = max(max_depth, depth)
 
         if max_depth > 8:
-            issues.append(
-                f"Directory structure is very deep ({max_depth} levels) which may indicate poor organization"
-            )
+            issues.append(f"Directory structure is very deep ({max_depth} levels) which may indicate poor organization")
 
         # Check for very large files
         large_files = []
@@ -236,12 +219,8 @@ class StructureAnalyzer(IStructureAnalyzer):
                 pass
 
         if large_files:
-            files_info = ", ".join(
-                f"{name} ({size}MB)" for name, size in large_files[:3]
-            )
-            issues.append(
-                f"Found very large files that may slow processing: {files_info}"
-            )
+            files_info = ", ".join(f"{name} ({size}MB)" for name, size in large_files[:3])
+            issues.append(f"Found very large files that may slow processing: {files_info}")
 
         is_valid = len(issues) == 0
 
@@ -295,9 +274,7 @@ class StructureAnalyzer(IStructureAnalyzer):
 
         return analysis
 
-    def _identify_recognized_patterns(
-        self, subdirectories: list[Path]
-    ) -> list[dict[str, Any]]:
+    def _identify_recognized_patterns(self, subdirectories: list[Path]) -> list[dict[str, Any]]:
         """Identify recognized organizational patterns in subdirectories."""
         patterns = []
 
@@ -325,18 +302,14 @@ class StructureAnalyzer(IStructureAnalyzer):
 
         # Bonus for recognized patterns
         if analysis["recognized_patterns"]:
-            pattern_score = min(
-                1.0, len(analysis["recognized_patterns"]) / 4
-            )  # Up to 4 main categories
+            pattern_score = min(1.0, len(analysis["recognized_patterns"]) / 4)  # Up to 4 main categories
             score += pattern_score * 0.4
 
         # Penalty for too many files in root
         if analysis["subdirectories"]:
             # Check if most files are organized into subdirectories
             total_files = analysis["file_count"]
-            root_files = total_files - sum(
-                subdir["file_count"] for subdir in analysis["subdirectories"].values()
-            )
+            root_files = total_files - sum(subdir["file_count"] for subdir in analysis["subdirectories"].values())
 
             if total_files > 0:
                 organization_ratio = 1 - (root_files / total_files)
@@ -344,9 +317,9 @@ class StructureAnalyzer(IStructureAnalyzer):
 
         # Bonus for reasonable structure depth and file distribution
         if analysis["subdirectories"]:
-            avg_files_per_dir = sum(
-                subdir["file_count"] for subdir in analysis["subdirectories"].values()
-            ) / len(analysis["subdirectories"])
+            avg_files_per_dir = sum(subdir["file_count"] for subdir in analysis["subdirectories"].values()) / len(
+                analysis["subdirectories"]
+            )
 
             # Optimal range: 3-20 files per directory
             if 3 <= avg_files_per_dir <= 20:
@@ -356,9 +329,7 @@ class StructureAnalyzer(IStructureAnalyzer):
 
         return min(1.0, score)
 
-    def _generate_organization_recommendations(
-        self, analysis: dict[str, Any]
-    ) -> list[str]:
+    def _generate_organization_recommendations(self, analysis: dict[str, Any]) -> list[str]:
         """Generate recommendations for improving organization."""
         recommendations = []
 
@@ -368,32 +339,20 @@ class StructureAnalyzer(IStructureAnalyzer):
             )
 
         if not analysis["recognized_patterns"]:
-            recommendations.append(
-                "Use standard directory names: 'characters', 'locations', 'lore', 'narrative'"
-            )
+            recommendations.append("Use standard directory names: 'characters', 'locations', 'lore', 'narrative'")
 
         if analysis["file_count"] > 50 and analysis["directory_count"] == 0:
-            recommendations.append(
-                "Large number of files would benefit from directory organization"
-            )
+            recommendations.append("Large number of files would benefit from directory organization")
 
         # Check for poor file distribution
         if analysis["subdirectories"]:
-            large_dirs = [
-                name
-                for name, info in analysis["subdirectories"].items()
-                if info["file_count"] > 30
-            ]
+            large_dirs = [name for name, info in analysis["subdirectories"].items() if info["file_count"] > 30]
             if large_dirs:
-                recommendations.append(
-                    f"Consider subdividing large directories: {', '.join(large_dirs)}"
-                )
+                recommendations.append(f"Consider subdividing large directories: {', '.join(large_dirs)}")
 
         return recommendations
 
-    def _suggest_file_organization(
-        self, content_file: ContentFile, category: str
-    ) -> str:
+    def _suggest_file_organization(self, content_file: ContentFile, category: str) -> str:
         """Suggest organization path for a specific file."""
         # Use the detected category as the primary organization
         base_path = category

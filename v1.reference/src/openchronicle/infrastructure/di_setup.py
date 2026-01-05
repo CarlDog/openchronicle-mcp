@@ -2,6 +2,7 @@
 Dependency injection setup for hexagonal architecture.
 Wire domain ports to infrastructure adapters.
 """
+
 from openchronicle.domain.ports.persistence_port import IPersistencePort
 from openchronicle.domain.ports.registry_port import IRegistryPort
 from openchronicle.infrastructure.adapters.persistence_adapter import PersistenceAdapter

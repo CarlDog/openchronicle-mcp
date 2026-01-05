@@ -92,9 +92,7 @@ class NarrativeStateManager:
         key = f"{story_id}:{character_id}" if character_id else story_id
 
         if key not in self.states:
-            self.states[key] = NarrativeState(
-                story_id=story_id, character_id=character_id
-            )
+            self.states[key] = NarrativeState(story_id=story_id, character_id=character_id)
 
         return self.states[key]
 

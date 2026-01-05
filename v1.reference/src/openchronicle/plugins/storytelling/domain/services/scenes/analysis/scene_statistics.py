@@ -58,12 +58,8 @@ class SceneStatistics:
                     "input_length": row["input_length"],
                     "output_length": row["output_length"],
                     "total_length": row["input_length"] + row["output_length"],
-                    "input_preview": (
-                        row["input"][:200] + "..." if len(row["input"]) > 200 else row["input"]
-                    ),
-                    "output_preview": (
-                        row["output"][:200] + "..." if len(row["output"]) > 200 else row["output"]
-                    ),
+                    "input_preview": (row["input"][:200] + "..." if len(row["input"]) > 200 else row["input"]),
+                    "output_preview": (row["output"][:200] + "..." if len(row["output"]) > 200 else row["output"]),
                 }
 
                 if row.get("structured_tags"):

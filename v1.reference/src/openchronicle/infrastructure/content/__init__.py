@@ -13,7 +13,9 @@ Usage:
 """
 
 # Export submodules (components only)
-from . import analysis, context
+from . import analysis
+from . import context
+
 
 __version__ = "5.0.0"
 __all__ = [

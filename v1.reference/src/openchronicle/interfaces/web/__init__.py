@@ -48,9 +48,7 @@ class WebAppContainer:
 
     def __init__(self):
         # Create default infrastructure configuration
-        config = InfrastructureConfig(
-            storage_backend="filesystem", storage_path="storage", cache_type="memory"
-        )
+        config = InfrastructureConfig(storage_backend="filesystem", storage_path="storage", cache_type="memory")
         self.infrastructure = InfrastructureContainer(config)
         self.app_facade = None
 
@@ -777,9 +775,7 @@ def create_web_app() -> FastAPI:
         result = await app_facade.list_stories(limit=50)
         stories = result.data if result.success else []
 
-        return templates.TemplateResponse(
-            "stories_list.html", {"request": request, "stories": stories}
-        )
+        return templates.TemplateResponse("stories_list.html", {"request": request, "stories": stories})
 
     @app.get("/stories/create", response_class=HTMLResponse)
     async def story_create_form(request: Request):
@@ -818,9 +814,7 @@ def create_web_app() -> FastAPI:
 
         if result.success:
             story = result.data
-            return RedirectResponse(
-                url=f"/stories/{story.id}", status_code=HTTP_303_SEE_OTHER
-            )
+            return RedirectResponse(url=f"/stories/{story.id}", status_code=HTTP_303_SEE_OTHER)
         # TODO: Handle validation errors
         return templates.TemplateResponse(
             "story_create.html",
@@ -884,9 +878,7 @@ def create_web_app() -> FastAPI:
                 "components": {"error": str(e)},
             }
 
-        return templates.TemplateResponse(
-            "status.html", {"request": request, "health": health}
-        )
+        return templates.TemplateResponse("status.html", {"request": request, "health": health})
 
     return app
 

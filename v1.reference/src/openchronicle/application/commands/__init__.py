@@ -42,9 +42,7 @@ class CommandResult:
         self.timestamp = datetime.now()
 
     @classmethod
-    def success(
-        cls, message: str = "Operation completed successfully", data: Any = None
-    ) -> "CommandResult":
+    def success(cls, message: str = "Operation completed successfully", data: Any = None) -> "CommandResult":
         """Create a successful result."""
         return cls(True, message, data)
 

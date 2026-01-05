@@ -2,6 +2,7 @@
 Configuration port for domain layer.
 Abstract interface for configuration management without infrastructure dependencies.
 """
+
 from abc import ABC
 from abc import abstractmethod
 from typing import Any

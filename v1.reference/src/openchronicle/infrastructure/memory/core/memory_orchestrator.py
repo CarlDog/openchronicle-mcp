@@ -32,10 +32,10 @@ class MemoryOrchestrator:
     Provides a single interface for all memory operations while delegating
     to specialized components. This orchestrator manages entity memories,
     segment contexts, world state, and memory persistence.
-    
+
     The orchestrator supports both synchronous and asynchronous operations
     for compatibility with different parts of the system.
-    
+
     Attributes:
         repository: Memory persistence repository
     character_manager: Entity-specific memory management
@@ -44,7 +44,7 @@ class MemoryOrchestrator:
     context_builder: Segment and world context building
     scene_context_manager: Segment-specific context management
         world_state_manager: Global world state management
-        
+
     Example:
         orchestrator = MemoryOrchestrator()
     memory_state = orchestrator.load_current_memory("unit_123")
@@ -96,6 +96,7 @@ class MemoryOrchestrator:
 
     def _setup_async_compatibility(self) -> None:
         """Setup async compatibility wrappers for dual sync/async support."""
+
         # Internal: simple awaitable wrapper for sync results (workflow compatibility)
         class _AsyncCompatResult:
             """A lightweight wrapper that can be awaited or used directly.
@@ -112,6 +113,7 @@ class MemoryOrchestrator:
             def __await__(self):
                 async def _coro():
                     return self._value
+
                 return _coro().__await__()
 
             # Delegate useful operations for dict-like values
@@ -143,9 +145,11 @@ class MemoryOrchestrator:
 
         class _AwaitableDict(dict):
             """Dict that can be awaited to yield itself (dual sync/async contract)."""
+
             def __await__(self):
                 async def _coro():
                     return self
+
                 return _coro().__await__()
 
         self._AwaitableDict = _AwaitableDict
@@ -157,10 +161,10 @@ class MemoryOrchestrator:
     def _unwrap(self, value: Any) -> Any:
         """
         Return underlying value if wrapped in our internal awaitable wrapper.
-        
+
         Args:
             value: The value to unwrap, potentially wrapped in _AsyncCompatResult
-            
+
         Returns:
             The unwrapped value, or the original value if not wrapped
         """
@@ -182,19 +186,19 @@ class MemoryOrchestrator:
     def load_current_memory(self, story_id: str) -> Any:
         """
         Load current memory state for a unit (public API).
-        
+
         Args:
             story_id: Unique identifier for the unit
-            
+
         Returns:
             Memory state wrapped in awaitable compatible object
-            
+
         Raises:
             ValueError: If story_id is invalid
         """
         if not story_id or not story_id.strip():
-            raise ValueError("St"+"ory ID cannot be empty")
-            
+            raise ValueError("St" + "ory ID cannot be empty")
+
         try:
             memory_state = self.repository.load_memory(story_id)
         except (TypeError, ValueError, KeyError, AttributeError) as e:
@@ -216,9 +220,7 @@ class MemoryOrchestrator:
             elif isinstance(memory_data, MemoryState):
                 result = self.repository.save_memory(story_id, memory_data)
             else:
-                self.logger.error(
-                    f"Unsupported memory_data type for save: {type(memory_data)!r}"
-                )
+                self.logger.error(f"Unsupported memory_data type for save: {type(memory_data)!r}")
                 result = False
         except (TypeError, ValueError, KeyError, AttributeError) as e:
             log_error_with_context(e, {"operation": "save_current_memory", "story_id": story_id})
@@ -307,9 +309,7 @@ class MemoryOrchestrator:
         except Exception as e:
             log_error_with_context(e, {"operation": "clear_saved_scenes"})
 
-    def archive_memory_snapshot(
-        self, story_id: str, scene_id: str, memory_data: dict[str, Any]
-    ) -> bool:
+    def archive_memory_snapshot(self, story_id: str, scene_id: str, memory_data: dict[str, Any]) -> bool:
         """Archive a memory snapshot for a specific segment."""
         try:
             snapshot_id = self.snapshot_manager.create_snapshot(story_id, scene_id)
@@ -320,9 +320,7 @@ class MemoryOrchestrator:
             )
             return False
 
-    def restore_memory_from_snapshot(
-        self, story_id: str, scene_id: str
-    ) -> dict[str, Any]:
+    def restore_memory_from_snapshot(self, story_id: str, scene_id: str) -> dict[str, Any]:
         """Restore memory from a historical snapshot."""
 
         try:
@@ -345,14 +343,10 @@ class MemoryOrchestrator:
 
     # ===== ENTITY MEMORY OPERATIONS =====
 
-    def update_character_memory(
-        self, story_id: str, character_name: str, updates: dict[str, Any]
-    ) -> dict[str, Any]:
+    def update_character_memory(self, story_id: str, character_name: str, updates: dict[str, Any]) -> dict[str, Any]:
         """Update entity memory with new information (sync for tests)."""
         try:
-            result = self.character_manager.update_character(
-                story_id, character_name, updates
-            )
+            result = self.character_manager.update_character(story_id, character_name, updates)
             if result.success:
                 return self._AwaitableDict(self.repository.load_memory(story_id).to_dict())
             self.logger.error(f"Entity update failed: {result.warnings}")
@@ -374,9 +368,7 @@ class MemoryOrchestrator:
     ) -> dict[str, Any]:
         """Get a snapshot of entity memory."""
         try:
-            snapshot = self.character_manager.get_character_snapshot(
-                story_id, character_name, format_for_prompt=False
-            )
+            snapshot = self.character_manager.get_character_snapshot(story_id, character_name, format_for_prompt=False)
 
             if format_for_prompt and snapshot:
                 formatted = self.format_character_snapshot_for_prompt(snapshot)
@@ -386,11 +378,8 @@ class MemoryOrchestrator:
                 }
         except (TypeError, ValueError, KeyError, AttributeError) as e:
             log_error_with_context(
-                e, {
-                    "operation": "get_character_memory_snapshot",
-                    "story_id": story_id,
-                    "character_name": character_name
-                }
+                e,
+                {"operation": "get_character_memory_snapshot", "story_id": story_id, "character_name": character_name},
             )
             return {}
         else:
@@ -421,7 +410,7 @@ class MemoryOrchestrator:
             return "\n".join(parts)
         except (TypeError, ValueError, KeyError, AttributeError) as e:
             log_error_with_context(e, {"operation": "format_character_snapshot_for_prompt"})
-            return "[Error formatting entit"+"y snapshot]"
+            return "[Error formatting entit" + "y snapshot]"
 
     def get_character_voice_prompt(self, story_id: str, character_name: str) -> str:
         """Generate voice prompt for an entity."""
@@ -450,9 +439,7 @@ class MemoryOrchestrator:
     ) -> dict[str, Any]:
         """Update entity mood with tracking (enhanced with mood analysis)."""
         try:
-            _ = self.character_manager.update_character_mood(
-                story_id, character_name, new_mood, reasoning, intensity
-            )
+            _ = self.character_manager.update_character_mood(story_id, character_name, new_mood, reasoning, intensity)
             memory = self.repository.load_memory(story_id)
             return memory.to_dict()
         except (TypeError, ValueError, KeyError, AttributeError) as e:
@@ -464,9 +451,7 @@ class MemoryOrchestrator:
             except (TypeError, ValueError, KeyError, AttributeError):
                 return self._AwaitableDict({})
 
-    def get_character_memory(
-        self, story_id: str, character_name: str
-    ) -> dict[str, Any]:
+    def get_character_memory(self, story_id: str, character_name: str) -> dict[str, Any]:
         """Get entity memory data - sync version for integration tests."""
         try:
             memory = self.repository.load_memory(story_id)
@@ -479,17 +464,13 @@ class MemoryOrchestrator:
             )
             return self._AwaitableDict({})
 
-    async def get_character_memory_async(
-        self, story_id: str, character_name: str
-    ) -> dict[str, Any]:
+    async def get_character_memory_async(self, story_id: str, character_name: str) -> dict[str, Any]:
         """Get entity memory data - async version for workflows."""
         return self.get_character_memory(story_id, character_name)
 
     # ===== WORLD STATE OPERATIONS =====
 
-    def update_world_state(
-        self, story_id: str, updates: dict[str, Any]
-    ) -> dict[str, Any]:
+    def update_world_state(self, story_id: str, updates: dict[str, Any]) -> dict[str, Any]:
         """Update world state memory."""
         try:
             memory = self.repository.load_memory(story_id)
@@ -508,9 +489,7 @@ class MemoryOrchestrator:
             except (TypeError, ValueError, KeyError, AttributeError):
                 return self._AwaitableDict({})
 
-    def add_memory_flag(
-        self, story_id: str, flag_name: str, flag_data: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    def add_memory_flag(self, story_id: str, flag_name: str, flag_data: dict[str, Any] | None = None) -> dict[str, Any]:
         """Add a memory flag."""
         try:
             memory = self.repository.load_memory(story_id)
@@ -559,7 +538,7 @@ class MemoryOrchestrator:
             memory = self.repository.load_memory(story_id)
             if isinstance(event_description, dict):
                 event_dict = event_description
-                description = event_dict.get("event_type", "st"+"ory_event")
+                description = event_dict.get("event_type", "st" + "ory_event")
                 data = event_dict
             else:
                 description = event_description
@@ -585,16 +564,14 @@ class MemoryOrchestrator:
     def get_memory_context_for_prompt(
         self,
         story_id: str,
-    primary_characters: list[str] | None = None,
+        primary_characters: list[str] | None = None,
         include_full_context: bool = True,
     ) -> str:
         """Get formatted memory context for LLM prompt injection."""
         try:
             memory = self.repository.load_memory(story_id)
             if include_full_context:
-                return self.context_builder.build_comprehensive_context(
-                    memory, primary_characters
-                )
+                return self.context_builder.build_comprehensive_context(memory, primary_characters)
             return self.context_builder.build_minimal_context(memory)
         except (TypeError, ValueError, KeyError, AttributeError) as e:
             log_error_with_context(e, {"operation": "get_memory_context_for_prompt", "story_id": story_id})
@@ -602,11 +579,11 @@ class MemoryOrchestrator:
 
     def get_memory_summary(self, story_id: str) -> dict[str, Any]:
         """
-        Get a summary of current memory state.
+            Get a summary of current memory state.
 
-    Updated to return a structured dict for workflow expectations,
-    while remaining awaitable-friendly.
-    """
+        Updated to return a structured dict for workflow expectations,
+        while remaining awaitable-friendly.
+        """
         try:
             memory = self.repository.load_memory(story_id)
 
@@ -614,14 +591,8 @@ class MemoryOrchestrator:
             try:
                 characters = list(memory.characters.keys())
                 world_state = memory.world_state
-                flags = (
-                    [f.name for f in memory.flags]
-                    if hasattr(memory, "flags") and memory.flags is not None
-                    else []
-                )
-                recent_events = (
-                    memory.recent_events if hasattr(memory, "recent_events") else []
-                )
+                flags = [f.name for f in memory.flags] if hasattr(memory, "flags") and memory.flags is not None else []
+                recent_events = memory.recent_events if hasattr(memory, "recent_events") else []
                 last_updated = (
                     memory.metadata.last_updated.isoformat()
                     if getattr(memory, "metadata", None) and getattr(memory.metadata, "last_updated", None)
@@ -635,8 +606,8 @@ class MemoryOrchestrator:
                 last_updated = datetime.now(UTC).isoformat()
 
             summary = {
-                "st"+"ory_id": story_id,
-                "ch"+"aracter_count": len(characters),
+                "st" + "ory_id": story_id,
+                "ch" + "aracter_count": len(characters),
                 "world_state_items": len(world_state),
                 "world_state_keys": list(world_state.keys()),
                 "recent_events_count": len(recent_events),
@@ -647,9 +618,9 @@ class MemoryOrchestrator:
         except (TypeError, ValueError, KeyError, AttributeError) as e:
             log_error_with_context(e, {"operation": "get_memory_summary", "story_id": story_id})
             return {
-                "st"+"ory_id": story_id,
+                "st" + "ory_id": story_id,
                 "error": str(e),
-                "ch"+"aracter_count": 0,
+                "ch" + "aracter_count": 0,
                 "world_state_items": 0,
                 "recent_events_count": 0,
                 "active_flags": [],
@@ -658,14 +629,10 @@ class MemoryOrchestrator:
         else:
             return summary
 
-    def refresh_memory_after_rollback(
-        self, story_id: str, target_scene_id: str
-    ) -> dict[str, Any]:
+    def refresh_memory_after_rollback(self, story_id: str, target_scene_id: str) -> dict[str, Any]:
         """Refresh memory state after a rollback operation."""
         try:
-            restored_memory = self.restore_memory_from_snapshot(
-                story_id, target_scene_id
-            )
+            restored_memory = self.restore_memory_from_snapshot(story_id, target_scene_id)
             self.add_recent_event(
                 story_id,
                 "St" + "ory rolled back to " + "sc" + f"ene {target_scene_id}",
@@ -680,8 +647,8 @@ class MemoryOrchestrator:
                 {
                     "operation": "refresh_memory_after_rollback",
                     "story_id": story_id,
-                    "target_scene_id": target_scene_id
-                }
+                    "target_scene_id": target_scene_id,
+                },
             )
             try:
                 return self._AwaitableDict(self.repository.load_memory(story_id).to_dict())
@@ -713,9 +680,7 @@ class MemoryOrchestrator:
                 analysis["recommendations"].append("Consider adding entity data")
 
             if analysis["event_count"] < 3:
-                analysis["recommendations"].append(
-                    "Consider adding more recent events for context"
-                )
+                analysis["recommendations"].append("Consider adding more recent events for context")
 
             world_analysis = analysis["world_state_analysis"]
             if world_analysis.completeness_score < 0.5:
@@ -742,12 +707,17 @@ class MemoryOrchestrator:
         try:
             memory = self.repository.load_memory(story_id)
             scene_context = self.scene_manager.create_scene_context(
-                memory, scene_id, location, active_characters, scene_type  # pyright: ignore[reportArgumentType]
+                memory,
+                scene_id,
+                location,
+                active_characters,
+                scene_type,  # pyright: ignore[reportArgumentType]
             )
             return {
                 "scene_context": scene_context.__dict__,
                 "scene_prompt": self.scene_manager.generate_scene_prompt(
-                    scene_context, memory  # pyright: ignore[reportArgumentType]
+                    scene_context,
+                    memory,  # pyright: ignore[reportArgumentType]
                 ),
             }
         except (TypeError, ValueError, KeyError, AttributeError) as e:
@@ -774,9 +744,7 @@ class MemoryOrchestrator:
 
     # ===== MODEL INTEGRATION METHODS (For Model-Memory Integration) =====
 
-    def track_model_operation(
-        self, story_id: str, operation_type: str, model_data: dict[str, Any]
-    ) -> bool:
+    def track_model_operation(self, story_id: str, operation_type: str, model_data: dict[str, Any]) -> bool:
         """Track model operations in memory context."""
         try:
             self.add_recent_event(
@@ -790,12 +758,7 @@ class MemoryOrchestrator:
             )
         except (TypeError, ValueError, KeyError, AttributeError) as e:
             log_error_with_context(
-                e,
-                {
-                    "operation": "track_model_operation",
-                    "story_id": story_id,
-                    "operation_type": operation_type
-                }
+                e, {"operation": "track_model_operation", "story_id": story_id, "operation_type": operation_type}
             )
             return False
         else:
@@ -807,9 +770,7 @@ class MemoryOrchestrator:
             memory = self.repository.load_memory(story_id)
             summary = self._unwrap(self.get_memory_summary(story_id))
             return {
-                "characters": {
-                    name: char.to_dict() for name, char in memory.characters.items()
-                },
+                "characters": {name: char.to_dict() for name, char in memory.characters.items()},
                 "world_state": memory.world_state,
                 "recent_events": memory.recent_events[-5:],  # Last 5 events
                 "flags": memory.flags,
@@ -819,9 +780,7 @@ class MemoryOrchestrator:
             log_error_with_context(e, {"operation": "get_model_context", "story_id": story_id})
             return {}
 
-    def update_from_model_response(
-        self, story_id: str, model_response: dict[str, Any]
-    ) -> bool:
+    def update_from_model_response(self, story_id: str, model_response: dict[str, Any]) -> bool:
         """Update memory state based on model response."""
         try:
             if "character_updates" in model_response:
@@ -834,9 +793,7 @@ class MemoryOrchestrator:
 
             if "new_events" in model_response:
                 for event in model_response["new_events"]:
-                    self.add_recent_event(
-                        story_id, event["description"], event.get("data", {})
-                    )
+                    self.add_recent_event(story_id, event["description"], event.get("data", {}))
         except (TypeError, ValueError, KeyError, AttributeError) as e:
             log_error_with_context(e, {"operation": "update_from_model_response", "story_id": story_id})
             return False
@@ -860,6 +817,7 @@ class MemoryOrchestrator:
         """Initialize memory for a specific unit."""
         try:
             from openchronicle.infrastructure.persistence.database_orchestrator import database_orchestrator as _db
+
             _db.init_database(story_id)
             default_memory = self.repository.create_default_memory_structure()
             success = self.save_current_memory(story_id, default_memory)
@@ -873,9 +831,7 @@ class MemoryOrchestrator:
             log_error_with_context(e, {"operation": "initialize_story_memory", "story_id": story_id})
             return False
 
-    async def process_request_dict(
-        self, request_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def process_request_dict(self, request_data: dict[str, Any]) -> dict[str, Any]:
         """Process request with dict format - common interface method."""
         try:
             story_id = request_data.get("story_id")

@@ -73,9 +73,7 @@ class ImageStorageManager:
                 try:
                     metadata[image_id] = ImageMetadata.from_dict(meta_dict)
                 except (ValueError, TypeError, KeyError) as e:
-                    logger.warning(
-                        f"Failed to load metadata for image {image_id}: {e}"
-                    )
+                    logger.warning(f"Failed to load metadata for image {image_id}: {e}")
                     continue
 
             logger.info(f"Loaded metadata for {len(metadata)} images")
@@ -105,9 +103,7 @@ class ImageStorageManager:
             logger.exception("Failed to save image metadata")
             raise ImageValidationError(f"Could not save metadata: {e}") from e
 
-    def generate_image_id(
-        self, image_type: ImageType, context: dict[str, Any] | None = None
-    ) -> str:
+    def generate_image_id(self, image_type: ImageType, context: dict[str, Any] | None = None) -> str:
         """Generate a unique image ID based on type and context"""
         # Get prefix based on type
         prefix_map = {
@@ -147,9 +143,7 @@ class ImageStorageManager:
 
         return image_id
 
-    def get_file_path(
-        self, image_id: str, image_type: ImageType, extension: str = ".png"
-    ) -> str:
+    def get_file_path(self, image_id: str, image_type: ImageType, extension: str = ".png") -> str:
         """Get the file path for an image"""
         # Determine subdirectory based on type
         subdir_map = {
@@ -180,9 +174,7 @@ class ImageStorageManager:
         # Validate result
         validation_issues = ImageValidator.validate_result(result)
         if validation_issues:
-            raise ImageValidationError(
-                f"Invalid result: {'; '.join(validation_issues)}"
-            )
+            raise ImageValidationError(f"Invalid result: {'; '.join(validation_issues)}")
 
         if not result.success:
             raise ImageValidationError("Cannot store failed image generation result")
@@ -193,10 +185,7 @@ class ImageStorageManager:
             # Try to detect format from image data
             if result.image_data.startswith(b"\xff\xd8"):
                 extension = ".jpg"
-            elif (
-                result.image_data.startswith(b"RIFF")
-                and b"WEBP" in result.image_data[:20]
-            ):
+            elif result.image_data.startswith(b"RIFF") and b"WEBP" in result.image_data[:20]:
                 extension = ".webp"
 
         # Get file path
@@ -242,9 +231,7 @@ class ImageStorageManager:
             # Validate metadata
             validation_issues = ImageValidator.validate_metadata(metadata)
             if validation_issues:
-                logger.warning(
-                    f"Metadata validation issues: {'; '.join(validation_issues)}"
-                )
+                logger.warning(f"Metadata validation issues: {'; '.join(validation_issues)}")
 
             # Store metadata
             self.metadata[image_id] = metadata
@@ -268,9 +255,7 @@ class ImageStorageManager:
         """Get metadata for an image"""
         return self.metadata.get(image_id)
 
-    def list_images(
-        self, image_type: ImageType | None = None, limit: int | None = None
-    ) -> list[ImageMetadata]:
+    def list_images(self, image_type: ImageType | None = None, limit: int | None = None) -> list[ImageMetadata]:
         """List stored images, optionally filtered by type"""
         images = list(self.metadata.values())
 
@@ -330,9 +315,7 @@ class ImageStorageManager:
         # Provider usage
         provider_counts = {}
         for metadata in self.metadata.values():
-            provider_counts[metadata.provider] = (
-                provider_counts.get(metadata.provider, 0) + 1
-            )
+            provider_counts[metadata.provider] = provider_counts.get(metadata.provider, 0) + 1
 
         return {
             "total_images": total_images,
@@ -362,8 +345,7 @@ class ImageStorageManager:
                 ]:
                     # Check if any metadata references this file
                     referenced = any(
-                        Path(metadata.file_path).name == file_path.name
-                        for metadata in self.metadata.values()
+                        Path(metadata.file_path).name == file_path.name for metadata in self.metadata.values()
                     )
 
                     if not referenced:
@@ -372,8 +354,6 @@ class ImageStorageManager:
                             orphaned_count += 1
                             logger.info(f"Removed orphaned file: {file_path}")
                         except OSError as e:
-                            logger.exception(
-                                "Failed to remove orphaned file"
-                            )
+                            logger.exception("Failed to remove orphaned file")
 
         return orphaned_count

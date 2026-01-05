@@ -99,9 +99,7 @@ class ContextAnalyzer(NarrativeComponent):
             missing_elements = self._identify_missing_elements(context_data)
 
             # Generate recommendations
-            recommendations = self._generate_recommendations(
-                quality, complexity, key_elements, missing_elements
-            )
+            recommendations = self._generate_recommendations(quality, complexity, key_elements, missing_elements)
 
             # Calculate confidence
             confidence = self._calculate_analysis_confidence(context_data, quality)
@@ -228,9 +226,7 @@ class ContextAnalyzer(NarrativeComponent):
             return ContextQuality.POOR
         return ContextQuality.MINIMAL
 
-    def _determine_complexity_needs(
-        self, context_data: dict[str, Any]
-    ) -> ResponseComplexity:
+    def _determine_complexity_needs(self, context_data: dict[str, Any]) -> ResponseComplexity:
         """Determine appropriate response complexity based on context."""
         complexity_score = 0
 
@@ -287,9 +283,7 @@ class ContextAnalyzer(NarrativeComponent):
             return max(type_scores.items(), key=lambda x: x[1])[0]
         return "general"
 
-    def _extract_character_context(
-        self, context_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _extract_character_context(self, context_data: dict[str, Any]) -> dict[str, Any]:
         """Extract character-related context."""
         character_context = {}
 
@@ -310,9 +304,7 @@ class ContextAnalyzer(NarrativeComponent):
 
         return character_context
 
-    def _extract_narrative_context(
-        self, context_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _extract_narrative_context(self, context_data: dict[str, Any]) -> dict[str, Any]:
         """Extract narrative-related context."""
         narrative_context = {}
 
@@ -326,9 +318,7 @@ class ContextAnalyzer(NarrativeComponent):
         if narrative_history:
             narrative_context["history_length"] = len(narrative_history)
             narrative_context["recent_events"] = (
-                narrative_history[-3:]
-                if len(narrative_history) >= 3
-                else narrative_history
+                narrative_history[-3:] if len(narrative_history) >= 3 else narrative_history
             )
 
         # Scene context
@@ -338,9 +328,7 @@ class ContextAnalyzer(NarrativeComponent):
 
         return narrative_context
 
-    def _extract_emotional_context(
-        self, context_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _extract_emotional_context(self, context_data: dict[str, Any]) -> dict[str, Any]:
         """Extract emotional context from data."""
         emotional_context = {}
 
@@ -355,17 +343,13 @@ class ContextAnalyzer(NarrativeComponent):
 
         emotion_scores = {}
         for emotion_type, indicators in emotional_indicators.items():
-            score = sum(
-                1 for indicator in indicators if indicator in user_input.lower()
-            )
+            score = sum(1 for indicator in indicators if indicator in user_input.lower())
             if score > 0:
                 emotion_scores[emotion_type] = score
 
         if emotion_scores:
             emotional_context["detected_emotions"] = emotion_scores
-            emotional_context["primary_emotion"] = max(
-                emotion_scores.items(), key=lambda x: x[1]
-            )[0]
+            emotional_context["primary_emotion"] = max(emotion_scores.items(), key=lambda x: x[1])[0]
 
         return emotional_context
 
@@ -419,23 +403,17 @@ class ContextAnalyzer(NarrativeComponent):
 
         # Quality-based recommendations
         if quality == ContextQuality.POOR or quality == ContextQuality.MINIMAL:
-            recommendations.append(
-                "Consider gathering more context before response generation"
-            )
+            recommendations.append("Consider gathering more context before response generation")
 
         if quality == ContextQuality.EXCELLENT:
-            recommendations.append(
-                "Rich context available - can generate detailed response"
-            )
+            recommendations.append("Rich context available - can generate detailed response")
 
         # Missing element recommendations
         if "character_information_missing" in missing_elements:
             recommendations.append("Character context would improve response relevance")
 
         if "story_state_missing" in missing_elements:
-            recommendations.append(
-                "Story state information would enhance narrative coherence"
-            )
+            recommendations.append("Story state information would enhance narrative coherence")
 
         # Complexity recommendations
         if complexity == ResponseComplexity.ELABORATE:
@@ -445,9 +423,7 @@ class ContextAnalyzer(NarrativeComponent):
 
         return recommendations
 
-    def _calculate_analysis_confidence(
-        self, context_data: dict[str, Any], quality: ContextQuality
-    ) -> float:
+    def _calculate_analysis_confidence(self, context_data: dict[str, Any], quality: ContextQuality) -> float:
         """Calculate confidence in the analysis."""
         base_confidence = {
             ContextQuality.EXCELLENT: 0.95,
@@ -468,9 +444,7 @@ class ContextAnalyzer(NarrativeComponent):
 
         return max(0.0, min(1.0, confidence))
 
-    def _validate_required_fields(
-        self, data: dict[str, Any], required_fields: list[str]
-    ) -> ValidationResult:
+    def _validate_required_fields(self, data: dict[str, Any], required_fields: list[str]) -> ValidationResult:
         """Validate required fields are present."""
         missing_fields = [field for field in required_fields if field not in data]
 
@@ -482,6 +456,4 @@ class ContextAnalyzer(NarrativeComponent):
                 issues=[f"Missing required field: {field}" for field in missing_fields],
             )
 
-        return ValidationResult(
-            is_valid=True, confidence=1.0, validation_type="required_fields"
-        )
+        return ValidationResult(is_valid=True, confidence=1.0, validation_type="required_fields")

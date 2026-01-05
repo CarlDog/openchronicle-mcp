@@ -117,9 +117,7 @@ class ContentClassifier(IContentClassifier):
 
         # Calculate scores for each classification type
         for classification_type, patterns in self.classification_patterns.items():
-            score = self._calculate_classification_score(
-                content, content_lower, patterns
-            )
+            score = self._calculate_classification_score(content, content_lower, patterns)
             classification_scores[classification_type] = score
 
         # Find the best classification
@@ -195,14 +193,10 @@ class ContentClassifier(IContentClassifier):
         structure_analysis["has_metadata_fields"] = metadata_lines >= 2
 
         # Determine structure type
-        structure_analysis["structure_type"] = self._determine_structure_type(
-            structure_analysis
-        )
+        structure_analysis["structure_type"] = self._determine_structure_type(structure_analysis)
 
         # Determine formatting style
-        structure_analysis["formatting_style"] = self._determine_formatting_style(
-            content
-        )
+        structure_analysis["formatting_style"] = self._determine_formatting_style(content)
 
         return structure_analysis
 
@@ -226,9 +220,7 @@ class ContentClassifier(IContentClassifier):
         score = self._calculate_classification_score(content, content_lower, patterns)
         return min(1.0, score)
 
-    def _calculate_classification_score(
-        self, content: str, content_lower: str, patterns: dict[str, Any]
-    ) -> float:
+    def _calculate_classification_score(self, content: str, content_lower: str, patterns: dict[str, Any]) -> float:
         """Calculate classification score for given patterns."""
         score = 0.0
         total_weight = patterns["weight"]
@@ -267,9 +259,7 @@ class ContentClassifier(IContentClassifier):
 
         # Check for metadata structure
         if re.search(r"^\s*\w+\s*:\s*.+$", content, re.MULTILINE):
-            metadata_lines = len(
-                re.findall(r"^\s*\w+\s*:\s*.+$", content, re.MULTILINE)
-            )
+            metadata_lines = len(re.findall(r"^\s*\w+\s*:\s*.+$", content, re.MULTILINE))
             if metadata_lines >= 3:
                 return "structured_data"
 
@@ -306,11 +296,7 @@ class ContentClassifier(IContentClassifier):
             r"```",  # Code blocks
         ]
 
-        markdown_matches = sum(
-            1
-            for pattern in markdown_indicators
-            if re.search(pattern, content, re.MULTILINE)
-        )
+        markdown_matches = sum(1 for pattern in markdown_indicators if re.search(pattern, content, re.MULTILINE))
 
         if markdown_matches >= 2:
             return "markdown"

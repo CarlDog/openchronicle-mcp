@@ -10,12 +10,16 @@ Following the OpenChronicle "No Backwards Compatibility" policy:
 - All orchestrators updated to use DI container
 """
 
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, TypeVar, Union
+from typing import Any
+from typing import TypeVar
+from typing import Union
 
-from .logging_system import log_info, log_system_event
+from .logging_system import log_info
+from .logging_system import log_system_event
 
 
 # Type hints
@@ -77,9 +81,7 @@ class DIContainer(IContainer):
         self._singletons: dict[type, Any] = {}
         self._resolution_stack: set = set()
 
-        log_system_event(
-            "di_container_init", "Dependency injection container initialized"
-        )
+        log_system_event("di_container_init", "Dependency injection container initialized")
 
     def register(
         self,
@@ -112,12 +114,8 @@ class DIContainer(IContainer):
         self._services[interface] = registration
 
         # Log registration with proper interface name handling
-        interface_name = (
-            interface.__name__ if hasattr(interface, "__name__") else str(interface)
-        )
-        log_info(
-            f"Registered service: {interface_name} -> {implementation} ({lifetime})"
-        )
+        interface_name = interface.__name__ if hasattr(interface, "__name__") else str(interface)
+        log_info(f"Registered service: {interface_name} -> {implementation} ({lifetime})")
 
         return self
 
@@ -125,17 +123,13 @@ class DIContainer(IContainer):
         self, interface: type[T], implementation: ServiceInstance, description: str = ""
     ) -> "DIContainer":
         """Register a singleton service."""
-        return self.register(
-            interface, implementation, ServiceLifetime.SINGLETON, description
-        )
+        return self.register(interface, implementation, ServiceLifetime.SINGLETON, description)
 
     def register_transient(
         self, interface: type[T], implementation: ServiceInstance, description: str = ""
     ) -> "DIContainer":
         """Register a transient service."""
-        return self.register(
-            interface, implementation, ServiceLifetime.TRANSIENT, description
-        )
+        return self.register(interface, implementation, ServiceLifetime.TRANSIENT, description)
 
     def resolve(self, interface: type[T]) -> T:
         """
@@ -152,18 +146,13 @@ class DIContainer(IContainer):
         """
         # Check for circular dependencies
         if interface in self._resolution_stack:
-            cycle = (
-                " -> ".join([cls.__name__ for cls in self._resolution_stack])
-                + f" -> {interface.__name__}"
-            )
+            cycle = " -> ".join([cls.__name__ for cls in self._resolution_stack]) + f" -> {interface.__name__}"
             raise ValueError(f"Circular dependency detected: {cycle}")
 
         # Check if service is registered
         if interface not in self._services:
             available = [cls.__name__ for cls in self._services.keys()]
-            raise ValueError(
-                f"Service {interface.__name__} not registered. Available: {available}"
-            )
+            raise ValueError(f"Service {interface.__name__} not registered. Available: {available}")
 
         registration = self._services[interface]
 
@@ -280,6 +269,7 @@ if __name__ == "__main__":
     class ConsoleLogger(ILogger):
         def log(self, message: str):
             from rich.console import Console
+
             Console().print(f"LOG: {message}")
 
     class Service:
@@ -296,6 +286,7 @@ if __name__ == "__main__":
 
     service = container.resolve(Service)
     from rich.console import Console
+
     console = Console()
     console.print(f"Service created: {service}")
     console.print(f"Registrations: {container.get_registrations()}")

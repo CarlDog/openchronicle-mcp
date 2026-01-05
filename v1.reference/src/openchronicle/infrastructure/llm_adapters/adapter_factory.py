@@ -48,12 +48,8 @@ class AdapterFactory:
         self._register_default_adapters()
         self._discover_available_providers()
 
-        logger.info(
-            f"AdapterFactory initialized with {len(self.get_available_providers())} providers"
-        )
-        logger.info(
-            f"Available configurations: {len(self.get_available_configurations())}"
-        )
+        logger.info(f"AdapterFactory initialized with {len(self.get_available_providers())} providers")
+        logger.info(f"Available configurations: {len(self.get_available_configurations())}")
 
     def _register_default_adapters(self) -> None:
         """Register default adapter class mappings."""
@@ -117,9 +113,7 @@ class AdapterFactory:
         except (OSError, ValueError, TypeError) as e:
             logger.warning(f"Error discovering providers: {e}")
 
-    def register_adapter(
-        self, provider: str, adapter_class: type[BaseAPIAdapter]
-    ) -> None:
+    def register_adapter(self, provider: str, adapter_class: type[BaseAPIAdapter]) -> None:
         """
         Register a new adapter class for a provider.
 
@@ -189,15 +183,11 @@ class AdapterFactory:
         """
         # Try as configuration name first (more specific)
         if config_name_or_provider in self.get_available_configurations():
-            return self._create_adapter_from_config(
-                config_name_or_provider, custom_config
-            )
+            return self._create_adapter_from_config(config_name_or_provider, custom_config)
 
         # Try as provider name
         if config_name_or_provider in self.get_available_providers():
-            return self._create_adapter_from_provider(
-                config_name_or_provider, custom_config
-            )
+            return self._create_adapter_from_provider(config_name_or_provider, custom_config)
 
         # If neither found, provide helpful error
         available_configs = self.get_available_configurations()
@@ -221,15 +211,11 @@ class AdapterFactory:
             # Extract provider from config
             provider = config.get("provider")
             if not provider:
-                raise AdapterInitializationError(
-                    f"No provider specified in configuration '{config_name}'"
-                )
+                raise AdapterInitializationError(f"No provider specified in configuration '{config_name}'")
 
             # Check if we have an adapter class for this provider
             if provider not in self.providers:
-                raise AdapterNotFoundError(
-                    f"No adapter class registered for provider '{provider}'"
-                )
+                raise AdapterNotFoundError(f"No adapter class registered for provider '{provider}'")
 
             # Merge custom config if provided
             final_config = config.copy()
@@ -282,14 +268,9 @@ class AdapterFactory:
 
     def has_provider(self, provider_name: str) -> bool:
         """Check if a provider is available."""
-        return (
-            provider_name in self.get_available_providers()
-            or provider_name in self.get_available_configurations()
-        )
+        return provider_name in self.get_available_providers() or provider_name in self.get_available_configurations()
 
-    def validate_configuration(
-        self, provider_name: str, config: dict[str, Any]
-    ) -> bool:
+    def validate_configuration(self, provider_name: str, config: dict[str, Any]) -> bool:
         """Validate configuration for a provider."""
         return self.has_provider(provider_name)
 

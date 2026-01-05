@@ -95,9 +95,7 @@ class AsyncMemoryOrchestrator:
             },
         }
 
-    async def save_current_memory(
-        self, story_id: str, memory_data: dict[str, Any]
-    ) -> bool:
+    async def save_current_memory(self, story_id: str, memory_data: dict[str, Any]) -> bool:
         """Save memory state asynchronously."""
         start_time = asyncio.get_event_loop().time()
 
@@ -115,8 +113,7 @@ class AsyncMemoryOrchestrator:
                 self.performance_stats["average_response_time"] = operation_time
             else:
                 self.performance_stats["average_response_time"] = (
-                    self.performance_stats["average_response_time"] * 0.9
-                    + operation_time * 0.1
+                    self.performance_stats["average_response_time"] * 0.9 + operation_time * 0.1
                 )
         except (CacheError, CacheConnectionError, InfrastructureError) as e:
             self.logger.exception("Error saving memory for story")
@@ -128,16 +125,12 @@ class AsyncMemoryOrchestrator:
         else:
             return result
 
-    async def update_character_memory(
-        self, story_id: str, character_name: str, updates: dict[str, Any]
-    ) -> bool:
+    async def update_character_memory(self, story_id: str, character_name: str, updates: dict[str, Any]) -> bool:
         """Update character memory with optimized caching."""
         start_time = asyncio.get_event_loop().time()
 
         try:
-            success = await self.repository.update_character_memory(
-                story_id, character_name, updates
-            )
+            success = await self.repository.update_character_memory(story_id, character_name, updates)
 
             # Update performance stats
             end_time = asyncio.get_event_loop().time()
@@ -159,9 +152,7 @@ class AsyncMemoryOrchestrator:
         start_time = asyncio.get_event_loop().time()
 
         try:
-            character_memory = await self.repository.load_character_memory(
-                story_id, character_name
-            )
+            character_memory = await self.repository.load_character_memory(story_id, character_name)
 
             if not character_memory:
                 return None
@@ -203,9 +194,7 @@ class AsyncMemoryOrchestrator:
             current_world_state.update(updates)
 
             # Save updated world state
-            success = await self.repository.save_world_state(
-                story_id, current_world_state
-            )
+            success = await self.repository.save_world_state(story_id, current_world_state)
 
             # Update performance stats
             end_time = asyncio.get_event_loop().time()
@@ -242,16 +231,12 @@ class AsyncMemoryOrchestrator:
         else:
             return success
 
-    async def refresh_memory_after_rollback(
-        self, story_id: str, target_scene_id: str
-    ) -> bool:
+    async def refresh_memory_after_rollback(self, story_id: str, target_scene_id: str) -> bool:
         """Restore memory from snapshot asynchronously."""
         start_time = asyncio.get_event_loop().time()
 
         try:
-            success = await self.repository.restore_memory_snapshot(
-                story_id, target_scene_id
-            )
+            success = await self.repository.restore_memory_snapshot(story_id, target_scene_id)
 
             # Update performance stats
             end_time = asyncio.get_event_loop().time()
@@ -285,9 +270,7 @@ class AsyncMemoryOrchestrator:
 
     # ===== ASYNC FLAG AND EVENT OPERATIONS =====
 
-    async def add_memory_flag(
-        self, story_id: str, flag_name: str, flag_data: Any = None
-    ) -> bool:
+    async def add_memory_flag(self, story_id: str, flag_name: str, flag_data: Any = None) -> bool:
         """Add or update a memory flag asynchronously."""
         try:
             memory = await self.repository.load_memory(story_id)
@@ -336,9 +319,7 @@ class AsyncMemoryOrchestrator:
             # Unexpected error - silently return False for flag check
             return False
 
-    async def add_recent_event(
-        self, story_id: str, event_description: str, event_data: Any = None
-    ) -> bool:
+    async def add_recent_event(self, story_id: str, event_description: str, event_data: Any = None) -> bool:
         """Append a recent event entry asynchronously."""
         try:
             memory = await self.repository.load_memory(story_id)
@@ -373,9 +354,7 @@ class AsyncMemoryOrchestrator:
         current_avg = self.performance_stats["average_response_time"]
 
         # Calculate rolling average
-        self.performance_stats["average_response_time"] = (
-            current_avg * (count - 1) + operation_time
-        ) / count
+        self.performance_stats["average_response_time"] = (current_avg * (count - 1) + operation_time) / count
 
     def _get_default_memory(self) -> dict[str, Any]:
         """Get default memory structure."""
@@ -387,9 +366,7 @@ class AsyncMemoryOrchestrator:
             "metadata": {"created_at": datetime.now(UTC).isoformat(), "version": "1.0"},
         }
 
-    def _format_character_snapshot_for_prompt(
-        self, snapshot: dict[str, Any]
-    ) -> dict[str, Any]:
+    def _format_character_snapshot_for_prompt(self, snapshot: dict[str, Any]) -> dict[str, Any]:
         """Format character snapshot for LLM prompt."""
         # This could be optimized with caching for frequently accessed characters
         formatted = {

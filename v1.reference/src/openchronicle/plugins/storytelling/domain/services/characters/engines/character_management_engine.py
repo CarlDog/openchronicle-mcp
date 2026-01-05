@@ -96,6 +96,7 @@ class CharacterManagementEngine(CharacterEventHandler):
             # Initialize stats if provided
             if "stats" in character_data:
                 from ..core.character_data import CharacterStats
+
                 character.stats = CharacterStats.from_dict(character_data["stats"])
 
             # Store character
@@ -246,9 +247,7 @@ class CharacterManagementEngine(CharacterEventHandler):
         else:
             return state
 
-    def _update_character_state_sync(
-        self, character_id: str, state_updates: dict[str, Any]
-    ) -> bool:
+    def _update_character_state_sync(self, character_id: str, state_updates: dict[str, Any]) -> bool:
         """
         Update character state synchronously.
 

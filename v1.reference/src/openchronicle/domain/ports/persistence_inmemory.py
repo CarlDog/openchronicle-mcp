@@ -114,9 +114,7 @@ class InMemorySqlitePersistence(IPersistencePort):
         # Convert sqlite3.Row to dict
         return [dict(r) for r in rows]
 
-    def execute_update(
-        self, story_id: str, query: str, params: Optional[list[Any] | tuple[Any, ...]] = None
-    ) -> bool:
+    def execute_update(self, story_id: str, query: str, params: Optional[list[Any] | tuple[Any, ...]] = None) -> bool:
         conn = self._get_conn(story_id)
         self._ensure_schema(conn)
         cur = conn.execute(query, params or [])

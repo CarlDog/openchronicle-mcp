@@ -8,8 +8,8 @@ Provides a single entry point for all management operations.
 from datetime import datetime
 from typing import Any
 
-from openchronicle.shared.exceptions import ConfigurationError
 from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import ConfigurationError
 from openchronicle.shared.exceptions import ValidationError
 from openchronicle.shared.logging_system import log_error
 from openchronicle.shared.logging_system import log_info
@@ -41,9 +41,7 @@ class ManagementOrchestrator:
             # Initialize bookmark managers (per story)
             self.bookmark_managers: dict[str, BookmarkManager] = {}
 
-            log_system_event(
-                "management_orchestrator", "Management orchestrator initialized"
-            )
+            log_system_event("management_orchestrator", "Management orchestrator initialized")
 
         except (ValidationError, ConfigurationError) as e:
             log_error(f"Configuration error initializing ManagementOrchestrator: {e}")
@@ -64,9 +62,7 @@ class ManagementOrchestrator:
         """Estimate tokens with padding factor."""
         return self.token_manager.estimate_tokens(text, model)
 
-    def select_optimal_model(
-        self, text: str, requirements: dict[str, Any] | None = None
-    ) -> str:
+    def select_optimal_model(self, text: str, requirements: dict[str, Any] | None = None) -> str:
         """Select the optimal model for given text and requirements."""
         return self.token_manager.select_optimal_model(text, requirements)
 
@@ -102,15 +98,11 @@ class ManagementOrchestrator:
         """Get detailed token cost analysis."""
         return self.token_manager.get_cost_analysis()
 
-    def recommend_model_switch(
-        self, current_model: str, usage_pattern: dict[str, Any] | None = None
-    ) -> str | None:
+    def recommend_model_switch(self, current_model: str, usage_pattern: dict[str, Any] | None = None) -> str | None:
         """Get model switch recommendations."""
         return self.token_manager.recommend_model_switch(current_model, usage_pattern)
 
-    def optimize_token_usage(
-        self, text: str, model: str | None = None
-    ) -> dict[str, Any]:
+    def optimize_token_usage(self, text: str, model: str | None = None) -> dict[str, Any]:
         """Optimize token usage for given text."""
         if model is None:
             model = self.select_optimal_model(text)
@@ -148,9 +140,7 @@ class ManagementOrchestrator:
     def get_bookmark_manager(self, story_id: str) -> BookmarkManager:
         """Get or create bookmark manager for a story."""
         if story_id not in self.bookmark_managers:
-            self.bookmark_managers[story_id] = BookmarkManager(
-                story_id, self.config.bookmark_config
-            )
+            self.bookmark_managers[story_id] = BookmarkManager(story_id, self.config.bookmark_config)
         return self.bookmark_managers[story_id]
 
     def create_bookmark(
@@ -164,18 +154,12 @@ class ManagementOrchestrator:
     ) -> int:
         """Create a new bookmark."""
         manager = self.get_bookmark_manager(story_id)
-        return manager.create_bookmark(
-            scene_id, label, description, bookmark_type, metadata
-        )
+        return manager.create_bookmark(scene_id, label, description, bookmark_type, metadata)
 
-    def organize_bookmarks_by_category(
-        self, story_id: str
-    ) -> dict[str, list[dict[str, Any]]]:
+    def organize_bookmarks_by_category(self, story_id: str) -> dict[str, list[dict[str, Any]]]:
         """Organize bookmarks by category for better management."""
         manager = self.get_bookmark_manager(story_id)
-        all_bookmarks = manager.list_bookmarks(
-            limit=1000
-        )  # Get all bookmarks with large limit
+        all_bookmarks = manager.list_bookmarks(limit=1000)  # Get all bookmarks with large limit
 
         # Organize by bookmark type (category)
         organized = {}
@@ -187,13 +171,9 @@ class ManagementOrchestrator:
 
         # Sort each category by creation date (newest first)
         for category in organized:
-            organized[category].sort(
-                key=lambda x: x.get("created_at", ""), reverse=True
-            )
+            organized[category].sort(key=lambda x: x.get("created_at", ""), reverse=True)
 
-        log_info(
-            f"Organized {len(all_bookmarks)} bookmarks into {len(organized)} categories for story {story_id}"
-        )
+        log_info(f"Organized {len(all_bookmarks)} bookmarks into {len(organized)} categories for story {story_id}")
         return organized
 
     def get_bookmark(self, story_id: str, bookmark_id: int) -> dict[str, Any] | None:
@@ -234,18 +214,13 @@ class ManagementOrchestrator:
     ) -> int:
         """Automatically create a chapter bookmark."""
         manager = self.get_bookmark_manager(story_id)
-        return manager.auto_create_chapter_bookmark(
-            scene_id, chapter_title, chapter_level
-        )
-
+        return manager.auto_create_chapter_bookmark(scene_id, chapter_title, chapter_level)
 
     # =====================================================================
     # UNIFIED OPERATIONS
     # =====================================================================
 
-    def analyze_story_content(
-        self, story_id: str, content: str, model: str | None = None
-    ) -> dict[str, Any]:
+    def analyze_story_content(self, story_id: str, content: str, model: str | None = None) -> dict[str, Any]:
         """Analyze story content using both token and bookmark insights."""
         try:
             # Token analysis
@@ -261,25 +236,17 @@ class ManagementOrchestrator:
                 "content_analysis": {
                     "token_count": token_count,
                     "optimal_model": optimal_model,
-                    "estimated_cost": self.token_manager.cost_calculator.estimate_cost(
-                        optimal_model, token_count
-                    ),
+                    "estimated_cost": self.token_manager.cost_calculator.estimate_cost(optimal_model, token_count),
                     "content_length": len(content),
-                    "complexity_score": self._calculate_complexity_score(
-                        content, token_count
-                    ),
+                    "complexity_score": self._calculate_complexity_score(content, token_count),
                 },
                 "bookmark_analysis": {
                     "total_bookmarks": len(bookmarks),
-                    "chapter_count": sum(
-                        len(chapters) for chapters in chapter_structure.values()
-                    ),
+                    "chapter_count": sum(len(chapters) for chapters in chapter_structure.values()),
                     "chapter_levels": len(chapter_structure),
                     "recent_bookmarks": bookmarks[:5] if bookmarks else [],
                 },
-                "recommendations": self._generate_content_recommendations(
-                    content, token_count, bookmarks
-                ),
+                "recommendations": self._generate_content_recommendations(content, token_count, bookmarks),
             }
 
         except (ValidationError, ApplicationError) as e:
@@ -304,9 +271,7 @@ class ManagementOrchestrator:
             optimization = {
                 "current_structure": {
                     "timeline_length": len(timeline),
-                    "chapter_count": sum(
-                        len(level_chapters) for level_chapters in chapters.values()
-                    ),
+                    "chapter_count": sum(len(level_chapters) for level_chapters in chapters.values()),
                     "chapter_levels": len(chapters),
                 },
                 "recommendations": [],
@@ -315,17 +280,13 @@ class ManagementOrchestrator:
 
             # Check for missing chapter markers
             if len(timeline) > 20 and len(chapters.get(1, [])) < 3:
-                optimization["recommendations"].append(
-                    "Consider adding more chapter bookmarks for better navigation"
-                )
+                optimization["recommendations"].append("Consider adding more chapter bookmarks for better navigation")
 
             # Check for uneven chapter distribution
             if timeline:
                 scenes_per_chapter = len(timeline) / max(len(chapters.get(1, [])), 1)
                 if scenes_per_chapter > 15:
-                    optimization["recommendations"].append(
-                        "Chapters may be too long - consider subdividing"
-                    )
+                    optimization["recommendations"].append("Chapters may be too long - consider subdividing")
 
         except (ValidationError, ApplicationError) as e:
             log_error(f"Service error during story navigation optimization: {e}")
@@ -399,26 +360,18 @@ class ManagementOrchestrator:
 
         # Token-based recommendations
         if token_count > 4000:
-            recommendations.append(
-                "Consider splitting content into smaller sections for better processing"
-            )
+            recommendations.append("Consider splitting content into smaller sections for better processing")
 
         if token_count < 100:
-            recommendations.append(
-                "Content may be too brief for comprehensive analysis"
-            )
+            recommendations.append("Content may be too brief for comprehensive analysis")
 
         # Bookmark-based recommendations
         if len(bookmarks) == 0:
             recommendations.append("Consider adding bookmarks to improve navigation")
 
-        chapter_bookmarks = [
-            b for b in bookmarks if b.get("bookmark_type") == "chapter"
-        ]
+        chapter_bookmarks = [b for b in bookmarks if b.get("bookmark_type") == "chapter"]
         if len(bookmarks) > 10 and len(chapter_bookmarks) == 0:
-            recommendations.append(
-                "Add chapter bookmarks to organize your story structure"
-            )
+            recommendations.append("Add chapter bookmarks to organize your story structure")
 
         return recommendations
 
@@ -460,9 +413,7 @@ class ManagementOrchestrator:
         """Update system configuration."""
         try:
             validated_config = ConfigValidator.validate_management_config(new_config)
-            self.config = ManagementConfig.from_dict(
-                {**self.config.to_dict(), **validated_config}
-            )
+            self.config = ManagementConfig.from_dict({**self.config.to_dict(), **validated_config})
 
             # Update token manager config if provided
             if "token_config" in new_config:
@@ -507,9 +458,7 @@ class ManagementOrchestrator:
                     "total_tokens_processed": token_stats.get("total_tokens", 0),
                     "total_cost": token_cost.get("total_cost", 0.0),
                     "models_used": len(token_stats.get("model_usage", {})),
-                    "average_tokens_per_request": token_stats.get(
-                        "average_tokens_per_request", 0
-                    ),
+                    "average_tokens_per_request": token_stats.get("average_tokens_per_request", 0),
                 },
                 "bookmark_management": {
                     "active_stories": len(self.bookmark_managers),

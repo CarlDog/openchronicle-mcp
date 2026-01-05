@@ -118,9 +118,7 @@ class ResponsePlanner(NarrativeComponent):
             )
 
             # Determine response complexity
-            complexity = self._determine_response_complexity(
-                context_analysis, preferences
-            )
+            complexity = self._determine_response_complexity(context_analysis, preferences)
             self.logger.log_debug(
                 "complexity determined",
                 extra={
@@ -304,9 +302,7 @@ class ResponsePlanner(NarrativeComponent):
         """Determine appropriate response complexity."""
         # Check for user preference
         preferred_complexity = preferences.get("complexity")
-        if preferred_complexity and isinstance(
-            preferred_complexity, ResponseComplexity
-        ):
+        if preferred_complexity and isinstance(preferred_complexity, ResponseComplexity):
             return preferred_complexity
 
         # Use context analysis recommendation, but adjust based on quality
@@ -330,9 +326,7 @@ class ResponsePlanner(NarrativeComponent):
 
         return suggested_complexity
 
-    def _plan_content_focus(
-        self, context_analysis: ContextAnalysis, strategy: ResponseStrategy
-    ) -> str:
+    def _plan_content_focus(self, context_analysis: ContextAnalysis, strategy: ResponseStrategy) -> str:
         """Plan the primary content focus."""
         content_type = context_analysis.content_type
 
@@ -359,9 +353,7 @@ class ResponsePlanner(NarrativeComponent):
             return "world_building"
         return "narrative_continuation"
 
-    def _select_tone(
-        self, context_analysis: ContextAnalysis, strategy: ResponseStrategy
-    ) -> str:
+    def _select_tone(self, context_analysis: ContextAnalysis, strategy: ResponseStrategy) -> str:
         """Select appropriate tone for response."""
         # Extract emotional context
         emotional_context = context_analysis.emotional_context
@@ -389,17 +381,13 @@ class ResponsePlanner(NarrativeComponent):
 
         return emotion_tones.get(primary_emotion, "balanced")
 
-    def _select_style_guides(
-        self, context_analysis: ContextAnalysis, complexity: ResponseComplexity
-    ) -> list[str]:
+    def _select_style_guides(self, context_analysis: ContextAnalysis, complexity: ResponseComplexity) -> list[str]:
         """Select style guides for response generation."""
         style_guides = []
 
         # Complexity-based style guides
         if complexity == ResponseComplexity.ELABORATE:
-            style_guides.extend(
-                ["detailed_descriptions", "rich_dialogue", "multiple_perspectives"]
-            )
+            style_guides.extend(["detailed_descriptions", "rich_dialogue", "multiple_perspectives"])
         elif complexity == ResponseComplexity.COMPLEX:
             style_guides.extend(["nuanced_approach", "character_depth"])
         elif complexity == ResponseComplexity.MODERATE:
@@ -418,9 +406,7 @@ class ResponsePlanner(NarrativeComponent):
 
         return style_guides
 
-    def _estimate_response_length(
-        self, complexity: ResponseComplexity, content_focus: str
-    ) -> int:
+    def _estimate_response_length(self, complexity: ResponseComplexity, content_focus: str) -> int:
         """Estimate appropriate response length."""
         base_lengths = {
             ResponseComplexity.SIMPLE: 150,
@@ -444,9 +430,7 @@ class ResponsePlanner(NarrativeComponent):
         multiplier = focus_multipliers.get(content_focus, 1.0)
         return int(base_length * multiplier)
 
-    def _identify_key_points(
-        self, context_analysis: ContextAnalysis, strategy: ResponseStrategy
-    ) -> list[str]:
+    def _identify_key_points(self, context_analysis: ContextAnalysis, strategy: ResponseStrategy) -> list[str]:
         """Identify key points to address in response."""
         key_points = []
 
@@ -479,9 +463,7 @@ class ResponsePlanner(NarrativeComponent):
 
         return key_points
 
-    def _plan_context_integration(
-        self, context_analysis: ContextAnalysis
-    ) -> dict[str, Any]:
+    def _plan_context_integration(self, context_analysis: ContextAnalysis) -> dict[str, Any]:
         """Plan how to integrate available context."""
         integration_plan = {}
 
@@ -490,9 +472,7 @@ class ResponsePlanner(NarrativeComponent):
             integration_plan["characters"] = {
                 "use_character_states": True,
                 "maintain_character_consistency": True,
-                "referenced_characters": context_analysis.character_context.get(
-                    "mentioned_characters", []
-                ),
+                "referenced_characters": context_analysis.character_context.get("mentioned_characters", []),
             }
 
         # Narrative integration
@@ -508,21 +488,15 @@ class ResponsePlanner(NarrativeComponent):
             integration_plan["emotional"] = {
                 "respond_to_emotions": True,
                 "maintain_emotional_tone": True,
-                "primary_emotion": context_analysis.emotional_context.get(
-                    "primary_emotion"
-                ),
+                "primary_emotion": context_analysis.emotional_context.get("primary_emotion"),
             }
 
         return integration_plan
 
-    def _set_quality_targets(
-        self, complexity: ResponseComplexity, strategy: ResponseStrategy
-    ) -> dict[str, float]:
+    def _set_quality_targets(self, complexity: ResponseComplexity, strategy: ResponseStrategy) -> dict[str, float]:
         """Set quality targets for response generation."""
         # Base targets from complexity
-        targets = self.quality_targets.get(
-            complexity, {"coherence": 0.8, "creativity": 0.7}
-        ).copy()
+        targets = self.quality_targets.get(complexity, {"coherence": 0.8, "creativity": 0.7}).copy()
 
         # Strategy-based adjustments
         if strategy == ResponseStrategy.CREATIVE:
@@ -538,9 +512,7 @@ class ResponsePlanner(NarrativeComponent):
 
         return targets
 
-    def _validate_required_fields(
-        self, data: dict[str, Any], required_fields: list[str]
-    ) -> ValidationResult:
+    def _validate_required_fields(self, data: dict[str, Any], required_fields: list[str]) -> ValidationResult:
         """Validate required fields are present."""
         missing_fields = [field for field in required_fields if field not in data]
 
@@ -552,6 +524,4 @@ class ResponsePlanner(NarrativeComponent):
                 issues=[f"Missing required field: {field}" for field in missing_fields],
             )
 
-        return ValidationResult(
-            is_valid=True, confidence=1.0, validation_type="required_fields"
-        )
+        return ValidationResult(is_valid=True, confidence=1.0, validation_type="required_fields")

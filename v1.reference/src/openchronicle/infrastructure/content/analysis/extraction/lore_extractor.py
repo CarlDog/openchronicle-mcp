@@ -85,9 +85,7 @@ Return empty object {{}} if no clear lore information found."""
             # Try to parse JSON response
             try:
                 result = json.loads(response)
-                log_info(
-                    f"Successfully extracted lore data: {result.get('title', 'multiple/unknown')}"
-                )
+                log_info(f"Successfully extracted lore data: {result.get('title', 'multiple/unknown')}")
             except json.JSONDecodeError:
                 log_warning("Failed to parse lore extraction JSON, attempting cleanup")
                 # Try to extract JSON from response

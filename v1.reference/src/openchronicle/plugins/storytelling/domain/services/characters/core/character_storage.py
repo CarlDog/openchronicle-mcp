@@ -71,9 +71,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
         except Exception as e:
             raise ValueError(f"Storage path validation failed: {e}") from e
 
-    def initialize_character(
-        self, character_id: str, character_data: dict | None = None
-    ) -> CharacterData:
+    def initialize_character(self, character_id: str, character_data: dict | None = None) -> CharacterData:
         """Initialize or load character data."""
         # Check cache first
         if character_id in self.character_cache:
@@ -170,14 +168,10 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
             try:
                 storage_file.unlink()
             except (OSError, IOError, PermissionError) as e:
-                self.logger.exception(
-                    "Failed to delete character file"
-                )
+                self.logger.exception("Failed to delete character file")
                 success = False
             except Exception as e:
-                self.logger.exception(
-                    "Unexpected error deleting character file"
-                )
+                self.logger.exception("Unexpected error deleting character file")
                 success = False
 
         # Remove from pending saves
@@ -204,9 +198,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
 
         return sorted(list(character_ids))
 
-    def update_character_component(
-        self, character_id: str, component_name: str, component_data: Any
-    ) -> bool:
+    def update_character_component(self, character_id: str, component_name: str, component_data: Any) -> bool:
         """Update a specific component of character data."""
         character = self.get_character_data(character_id)
         if not character:
@@ -224,26 +216,18 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
                 {"character_id": character_id, "component": component_name},
             )
         except (KeyError, AttributeError) as e:
-            self.logger.exception(
-                f"Character data structure error updating {character_id} component"
-            )
+            self.logger.exception(f"Character data structure error updating {character_id} component")
             return False
         except (ValueError, TypeError) as e:
-            self.logger.exception(
-                f"Character component validation error for {character_id}.{component_name}"
-            )
+            self.logger.exception(f"Character component validation error for {character_id}.{component_name}")
             return False
         except Exception as e:
-            self.logger.exception(
-                f"Failed to update character {character_id} component"
-            )
+            self.logger.exception(f"Failed to update character {character_id} component")
             return False
         else:
             return True
 
-    def get_character_component(
-        self, character_id: str, component_name: str
-    ) -> Any | None:
+    def get_character_component(self, character_id: str, component_name: str) -> Any | None:
         """Get specific component data for a character."""
         character = self.get_character_data(character_id)
         if not character:
@@ -350,9 +334,7 @@ class CharacterStorage(CharacterEngineBase, CharacterEventHandler):
             self.logger.exception("Failed to load character")
             return None
 
-    def _apply_character_data(
-        self, character: CharacterData, data: dict[str, Any]
-    ) -> None:
+    def _apply_character_data(self, character: CharacterData, data: dict[str, Any]) -> None:
         """Apply initial character data from dictionary."""
         for key, value in data.items():
             if hasattr(character, key):

@@ -4,7 +4,8 @@ Storytelling-specific database operations.
 Extends core database operations with storytelling domain logic.
 """
 
-from typing import List, Optional
+from typing import List
+from typing import Optional
 
 from .base import BaseDatabaseOperations
 

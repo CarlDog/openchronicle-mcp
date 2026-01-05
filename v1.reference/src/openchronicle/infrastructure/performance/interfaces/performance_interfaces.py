@@ -227,9 +227,7 @@ class IBottleneckAnalyzer(ABC):
         """Identify operations that are significantly slower than average."""
 
     @abstractmethod
-    async def analyze_resource_usage_patterns(
-        self, metrics: list[PerformanceMetrics]
-    ) -> dict[str, Any]:
+    async def analyze_resource_usage_patterns(self, metrics: list[PerformanceMetrics]) -> dict[str, Any]:
         """Analyze resource usage patterns and trends."""
 
 
@@ -237,9 +235,7 @@ class ITrendAnalyzer(ABC):
     """Interface for analyzing performance trends."""
 
     @abstractmethod
-    async def analyze_performance_trends(
-        self, metrics: list[PerformanceMetrics]
-    ) -> dict[str, Any]:
+    async def analyze_performance_trends(self, metrics: list[PerformanceMetrics]) -> dict[str, Any]:
         """Analyze performance trends over time."""
 
     async def analyze_trends(
@@ -262,9 +258,7 @@ class ITrendAnalyzer(ABC):
         """Predict future performance based on trends."""
 
     @abstractmethod
-    async def detect_performance_degradation(
-        self, metrics: list[PerformanceMetrics]
-    ) -> list[dict[str, Any]]:
+    async def detect_performance_degradation(self, metrics: list[PerformanceMetrics]) -> list[dict[str, Any]]:
         """Detect performance degradation patterns."""
 
 
@@ -279,9 +273,7 @@ class IReportGenerator(ABC):
     ) -> PerformanceReport:
         """Generate comprehensive performance report."""
 
-    async def generate_report(
-        self, analysis: dict[str, Any], report_format: str = "json"
-    ) -> dict[str, Any]:
+    async def generate_report(self, analysis: dict[str, Any], report_format: str = "json") -> dict[str, Any]:
         """Generate formatted report from analysis data."""
         return {
             "report_type": "performance_analysis",
@@ -291,21 +283,15 @@ class IReportGenerator(ABC):
         }
 
     @abstractmethod
-    async def generate_summary_report(
-        self, metrics: list[PerformanceMetrics]
-    ) -> dict[str, Any]:
+    async def generate_summary_report(self, metrics: list[PerformanceMetrics]) -> dict[str, Any]:
         """Generate summary performance report."""
 
     @abstractmethod
-    async def export_report(
-        self, report: PerformanceReport, output_path: Path, format_type: str = "json"
-    ) -> bool:
+    async def export_report(self, report: PerformanceReport, output_path: Path, format_type: str = "json") -> bool:
         """Export report to file in specified format."""
 
     @abstractmethod
-    async def generate_dashboard_data(
-        self, time_period: tuple[datetime, datetime]
-    ) -> dict[str, Any]:
+    async def generate_dashboard_data(self, time_period: tuple[datetime, datetime]) -> dict[str, Any]:
         """Generate data for performance dashboard display."""
 
 
@@ -313,9 +299,7 @@ class IAlertManager(ABC):
     """Interface for performance alert management."""
 
     @abstractmethod
-    async def check_alert_conditions(
-        self, metrics: PerformanceMetrics
-    ) -> list[dict[str, Any]]:
+    async def check_alert_conditions(self, metrics: PerformanceMetrics) -> list[dict[str, Any]]:
         """Check if metrics trigger any alert conditions."""
 
     async def check_metrics_for_alerts(self, metrics: PerformanceMetrics):

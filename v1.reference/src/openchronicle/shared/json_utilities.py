@@ -17,9 +17,7 @@ class JSONUtilities:
     """Standardized JSON operations with error handling and validation."""
 
     @staticmethod
-    def safe_loads(
-        json_str: str, fallback: Any = None, fallback_type: type = dict
-    ) -> Any:
+    def safe_loads(json_str: str, fallback: Any = None, fallback_type: type = dict) -> Any:
         """
         Safe JSON string loading with fallback support.
 
@@ -59,13 +57,7 @@ class JSONUtilities:
             return json.dumps(data, ensure_ascii=ensure_ascii)
         except (TypeError, ValueError):
             logger.exception("JSON serialization failed")
-            return (
-                "{}"
-                if isinstance(data, dict)
-                else "[]"
-                if isinstance(data, list)
-                else '""'
-            )
+            return "{}" if isinstance(data, dict) else "[]" if isinstance(data, list) else '""'
 
     @staticmethod
     def load_file(file_path: str | Path, fallback: Any = None) -> Any:
@@ -131,9 +123,7 @@ class JSONUtilities:
             return True
 
     @staticmethod
-    def merge_objects(
-        base: dict[str, Any], update: dict[str, Any], deep: bool = True
-    ) -> dict[str, Any]:
+    def merge_objects(base: dict[str, Any], update: dict[str, Any], deep: bool = True) -> dict[str, Any]:
         """
         Merge two JSON objects.
 
@@ -152,11 +142,7 @@ class JSONUtilities:
 
         result = base.copy()
         for key, value in update.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 result[key] = JSONUtilities.merge_objects(result[key], value, deep=True)
             else:
                 result[key] = value
@@ -221,9 +207,7 @@ class ConfigJSONMixin:
     """Mixin for configuration file JSON operations."""
 
     @staticmethod
-    def load_config(
-        config_path: str | Path, required_keys: list[str] | None = None
-    ) -> dict[str, Any]:
+    def load_config(config_path: str | Path, required_keys: list[str] | None = None) -> dict[str, Any]:
         """
         Load and validate configuration JSON file.
         """
@@ -242,6 +226,4 @@ class ConfigJSONMixin:
         """
         Save configuration with pretty formatting.
         """
-        return JSONUtilities.save_file(
-            config, config_path, pretty=True, ensure_ascii=False
-        )
+        return JSONUtilities.save_file(config, config_path, pretty=True, ensure_ascii=False)

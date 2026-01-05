@@ -26,9 +26,7 @@ class StructuredLogger:
         self.logger = logging.getLogger("openchronicle.cache.structured")
 
         # Setup structured logging format
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-        )
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
         # Create file handler for cache events
         log_dir = Path("logs")

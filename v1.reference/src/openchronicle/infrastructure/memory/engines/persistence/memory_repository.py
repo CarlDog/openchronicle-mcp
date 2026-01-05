@@ -98,9 +98,7 @@ class MemoryRepository:
                             story_id,
                             memory_type,
                             "current",
-                            self.json_util.safe_dumps(
-                                serialized_data[memory_type]
-                            ),
+                            self.json_util.safe_dumps(serialized_data[memory_type]),
                             datetime.now(UTC).isoformat(),
                         ),
                     )
@@ -138,9 +136,7 @@ class MemoryRepository:
         else:
             return {}
 
-    def update_memory_section(
-        self, story_id: str, section: str, data: dict[str, Any]
-    ) -> bool:
+    def update_memory_section(self, story_id: str, section: str, data: dict[str, Any]) -> bool:
         """Update specific memory section efficiently."""
         try:
             # Ensure database is initialized (auto-detect test context)
@@ -252,10 +248,7 @@ class MemoryRepository:
                 (story_id,),
             )
 
-            return [
-                {"scene_id": row["scene_id"], "timestamp": row["timestamp"]}
-                for row in rows
-            ]
+            return [{"scene_id": row["scene_id"], "timestamp": row["timestamp"]} for row in rows]
 
         except (sqlite3.Error, TypeError, ValueError) as e:
             log_error(
@@ -270,6 +263,7 @@ class MemoryRepository:
         Robust to lists containing either dataclass instances or dicts for
         flags/recent_events.
         """
+
         def _serialize_flag(flag_obj: Any) -> dict[str, Any]:
             if isinstance(flag_obj, dict):
                 name = flag_obj.get("name", "")
@@ -312,10 +306,7 @@ class MemoryRepository:
             return {"description": description, "timestamp": ts.isoformat(), "data": data}
 
         return {
-            "characters": {
-                name: self._serialize_character(char)
-                for name, char in memory.characters.items()
-            },
+            "characters": {name: self._serialize_character(char) for name, char in memory.characters.items()},
             "world_state": memory.world_state,
             "flags": [_serialize_flag(flag) for flag in memory.flags],
             "recent_events": [_serialize_event(evt) for evt in memory.recent_events],

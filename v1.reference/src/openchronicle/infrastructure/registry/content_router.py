@@ -93,9 +93,7 @@ class ContentRouter:
         try:
             profiles = {}
             for provider in self.registry_manager.get_available_providers():
-                performance_limits = self.registry_manager.get_performance_limits(
-                    provider
-                )
+                performance_limits = self.registry_manager.get_performance_limits(provider)
                 if performance_limits:
                     profiles[provider] = performance_limits
         except Exception as e:
@@ -117,9 +115,7 @@ class ContentRouter:
             ContentType.CREATIVE.value: ["anthropic", "openai", "ollama"],
         }
 
-    def analyze_content_type(
-        self, prompt: str, context: dict[str, Any] | None = None
-    ) -> ContentType:
+    def analyze_content_type(self, prompt: str, context: dict[str, Any] | None = None) -> ContentType:
         """
         Analyze prompt to determine content type.
 
@@ -153,13 +149,10 @@ class ContentRouter:
             "speaks",
             '"',
         ]
-        if (
-            any(keyword in prompt_lower for keyword in dialogue_keywords)
-            or '"' in prompt
-        ):
+        if any(keyword in prompt_lower for keyword in dialogue_keywords) or '"' in prompt:
             return ContentType.DIALOGUE
 
-    # Action indicators
+        # Action indicators
         action_keywords = [
             "action",
             "fight",
@@ -200,7 +193,7 @@ class ContentRouter:
         if any(keyword in prompt_lower for keyword in creative_keywords):
             return ContentType.CREATIVE
 
-    # Description indicators (detailed context setting)
+        # Description indicators (detailed context setting)
         description_keywords = [
             "describe",
             "setting",
@@ -214,9 +207,7 @@ class ContentRouter:
     # Default to general text
     return ContentType.TEXT
 
-    def analyze_complexity(
-        self, prompt: str, context: dict[str, Any] | None = None
-    ) -> ComplexityLevel:
+    def analyze_complexity(self, prompt: str, context: dict[str, Any] | None = None) -> ComplexityLevel:
         """
         Analyze content complexity to inform model selection.
 
@@ -262,7 +253,7 @@ class ContentRouter:
         if any(keyword in prompt_lower for keyword in creative_keywords):
             return ComplexityLevel.CREATIVE
 
-    # Moderate complexity for standard text content
+        # Moderate complexity for standard text content
         if len(prompt) > 200 or "detailed" in prompt_lower:
             return ComplexityLevel.MODERATE
 
@@ -286,26 +277,18 @@ class ContentRouter:
             List of provider names in preference order
         """
         # Get base providers for content type
-        base_providers = self.routing_rules.get(
-            content_type.value, ["openai", "anthropic"]
-        )
+        base_providers = self.routing_rules.get(content_type.value, ["openai", "anthropic"])
 
         # Filter based on complexity requirements
         filtered_providers = self._filter_by_complexity(base_providers, complexity)
 
         # Sort based on performance priority
-        sorted_providers = self._sort_by_performance_priority(
-            filtered_providers, performance_priority
-        )
+        sorted_providers = self._sort_by_performance_priority(filtered_providers, performance_priority)
 
-        log_info(
-            f"Selected providers for {content_type.value}/{complexity.value}: {sorted_providers}"
-        )
+        log_info(f"Selected providers for {content_type.value}/{complexity.value}: {sorted_providers}")
         return sorted_providers
 
-    def _filter_by_complexity(
-        self, providers: list[str], complexity: ComplexityLevel
-    ) -> list[str]:
+    def _filter_by_complexity(self, providers: list[str], complexity: ComplexityLevel) -> list[str]:
         """Filter providers based on complexity handling capabilities."""
         if complexity == ComplexityLevel.SIMPLE:
             # Any provider can handle simple content
@@ -314,22 +297,16 @@ class ContentRouter:
         if complexity == ComplexityLevel.COMPLEX:
             # Prefer providers known for reasoning capabilities
             complex_capable = ["anthropic", "openai", "gpt-4"]
-            return [
-                p for p in providers if any(cap in p for cap in complex_capable)
-            ] or providers
+            return [p for p in providers if any(cap in p for cap in complex_capable)] or providers
 
         if complexity == ComplexityLevel.CREATIVE:
             # Prefer providers known for creativity
             creative_capable = ["anthropic", "openai", "claude"]
-            return [
-                p for p in providers if any(cap in p for cap in creative_capable)
-            ] or providers
+            return [p for p in providers if any(cap in p for cap in creative_capable)] or providers
 
         return providers
 
-    def _sort_by_performance_priority(
-        self, providers: list[str], priority: str
-    ) -> list[str]:
+    def _sort_by_performance_priority(self, providers: list[str], priority: str) -> list[str]:
         """Sort providers based on performance priority."""
         if priority == "speed":
             # Sort by latency (lower is better)
@@ -396,9 +373,7 @@ class ContentRouter:
         complexity = self.analyze_complexity(prompt, context)
 
         # Get optimal providers
-        providers = self.get_optimal_providers(
-            content_type, complexity, performance_priority
-        )
+        providers = self.get_optimal_providers(content_type, complexity, performance_priority)
 
         # Build routing metadata
         metadata = {

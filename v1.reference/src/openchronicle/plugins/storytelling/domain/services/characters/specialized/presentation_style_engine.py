@@ -47,9 +47,7 @@ class PresentationStyleEngine(CharacterEngineBase):
         """Set reference to model manager for model operations."""
         self.model_manager = model_manager
 
-    def initialize_character(
-        self, character_id: str, **kwargs
-    ) -> CharacterStyleProfile:
+    def initialize_character(self, character_id: str, **kwargs) -> CharacterStyleProfile:
         """Initialize character style profile."""
         if character_id in self.character_data:
             return self.character_data[character_id]
@@ -95,9 +93,7 @@ class PresentationStyleEngine(CharacterEngineBase):
                     # Initialize or update style profile
                     profile = self.get_character_data(char_name)
                     if not profile:
-                        profile = self.initialize_character(
-                            char_name, style_data=char_data
-                        )
+                        profile = self.initialize_character(char_name, style_data=char_data)
                     else:
                         self._process_style_data(profile, char_data)
 
@@ -105,17 +101,11 @@ class PresentationStyleEngine(CharacterEngineBase):
                     self.logger.info(f"Loaded style data for {char_name}")
 
                 except (KeyError, AttributeError) as e:
-                    self.logger.exception(
-                        "Character style data structure error for"
-                    )
+                    self.logger.exception("Character style data structure error for")
                 except (ValueError, TypeError) as e:
-                    self.logger.exception(
-                        "Character style data validation error for"
-                    )
+                    self.logger.exception("Character style data validation error for")
                 except Exception as e:
-                    self.logger.exception(
-                        "Failed to load character style data for"
-                    )
+                    self.logger.exception("Failed to load character style data for")
 
         return styles
 
@@ -136,9 +126,7 @@ class PresentationStyleEngine(CharacterEngineBase):
             "preferred_models": profile.preferred_models,
         }
 
-    def update_character_style(
-        self, character_name: str, style_updates: dict[str, Any]
-    ) -> bool:
+    def update_character_style(self, character_name: str, style_updates: dict[str, Any]) -> bool:
         """Update character style data."""
         profile = self.get_character_data(character_name)
         if not profile:
@@ -160,9 +148,7 @@ class PresentationStyleEngine(CharacterEngineBase):
     # Model Selection
     # =============================================================================
 
-    def select_character_model(
-        self, character_name: str, content_type: str = "dialogue"
-    ) -> str:
+    def select_character_model(self, character_name: str, content_type: str = "dialogue") -> str:
         """Select appropriate model for character and content type."""
         profile = self.get_character_data(character_name)
 
@@ -184,9 +170,7 @@ class PresentationStyleEngine(CharacterEngineBase):
 
         return default_model
 
-    def get_current_character_model(
-        self, character_name: str, content_type: str = "dialogue"
-    ) -> str:
+    def get_current_character_model(self, character_name: str, content_type: str = "dialogue") -> str:
         """Get currently configured model for character."""
         profile = self.get_character_data(character_name)
         if profile and content_type in profile.preferred_models:
@@ -194,9 +178,7 @@ class PresentationStyleEngine(CharacterEngineBase):
 
         return self.default_models.get(content_type, "gpt-3.5-turbo")
 
-    def set_character_model(
-        self, character_name: str, content_type: str, model_name: str
-    ) -> bool:
+    def set_character_model(self, character_name: str, content_type: str, model_name: str) -> bool:
         """Set preferred model for character and content type."""
         profile = self.get_character_data(character_name)
         if not profile:
@@ -277,9 +259,7 @@ class PresentationStyleEngine(CharacterEngineBase):
         profile.consistency_score = max(0.0, min(1.0, score))
         return True
 
-    def track_model_performance(
-        self, character_name: str, model_name: str, metrics: dict[str, float]
-    ) -> None:
+    def track_model_performance(self, character_name: str, model_name: str, metrics: dict[str, float]) -> None:
         """Track model performance for character."""
         profile = self.get_character_data(character_name)
         if not profile:
@@ -290,9 +270,7 @@ class PresentationStyleEngine(CharacterEngineBase):
 
         profile.model_performance[model_name].update(metrics)
 
-    def get_model_performance(
-        self, character_name: str, model_name: str
-    ) -> dict[str, float]:
+    def get_model_performance(self, character_name: str, model_name: str) -> dict[str, float]:
         """Get model performance metrics for character."""
         profile = self.get_character_data(character_name)
         if not profile:
@@ -333,25 +311,17 @@ class PresentationStyleEngine(CharacterEngineBase):
             self.logger.info(f"Imported presentation data for character {character_id}")
 
         except (KeyError, AttributeError) as e:
-            self.logger.exception(
-                "Character presentation data structure error for"
-            )
+            self.logger.exception("Character presentation data structure error for")
         except (ValueError, TypeError) as e:
-            self.logger.exception(
-                "Character presentation data validation error for"
-            )
+            self.logger.exception("Character presentation data validation error for")
         except Exception as e:
-            self.logger.exception(
-                "Failed to import presentation data for"
-            )
+            self.logger.exception("Failed to import presentation data for")
 
     # =============================================================================
     # Private Helper Methods
     # =============================================================================
 
-    def _process_style_data(
-        self, profile: CharacterStyleProfile, style_data: dict[str, Any]
-    ) -> None:
+    def _process_style_data(self, profile: CharacterStyleProfile, style_data: dict[str, Any]) -> None:
         """Process style data into profile."""
         # Extract speech patterns
         if "speech_style" in style_data:
@@ -378,23 +348,17 @@ class PresentationStyleEngine(CharacterEngineBase):
         # Speech patterns
         if style.get("speech_patterns"):
             patterns = style["speech_patterns"]
-            prompt_parts.append(
-                f"Speech style: {', '.join(f'{k}: {v}' for k, v in patterns.items())}"
-            )
+            prompt_parts.append(f"Speech style: {', '.join(f'{k}: {v}' for k, v in patterns.items())}")
 
         # Personality traits
         if style.get("personality_traits"):
             traits = style["personality_traits"]
-            prompt_parts.append(
-                f"Personality: {', '.join(f'{k}: {v}' for k, v in traits.items())}"
-            )
+            prompt_parts.append(f"Personality: {', '.join(f'{k}: {v}' for k, v in traits.items())}")
 
         # Emotional range
         if style.get("emotional_range"):
             emotions = style["emotional_range"]
-            prompt_parts.append(
-                f"Emotional tendencies: {', '.join(f'{k}: {v}' for k, v in emotions.items())}"
-            )
+            prompt_parts.append(f"Emotional tendencies: {', '.join(f'{k}: {v}' for k, v in emotions.items())}")
 
         return " | ".join(prompt_parts)
 
@@ -427,9 +391,7 @@ class PresentationStyleEngine(CharacterEngineBase):
                 else:
                     style_elements.append(str(data))
 
-        return "Character style: " + ", ".join(
-            str(elem) for elem in style_elements[:5]
-        )  # Limit length
+        return "Character style: " + ", ".join(str(elem) for elem in style_elements[:5])  # Limit length
 
     def _format_generic_style(self, style: dict[str, Any]) -> str:
         """Format style data for generic models."""

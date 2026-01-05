@@ -67,6 +67,7 @@ def performance_status(
     """Monitor system performance and resource usage."""
     # TODO: Implement when PerformanceOrchestrator is available
     from rich.console import Console
+
     console = Console()
     console.print("🚧 [yellow]Performance monitoring feature coming soon![/yellow]")
     console.print("   This will provide real-time system performance monitoring.")

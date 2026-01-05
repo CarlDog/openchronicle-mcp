@@ -7,12 +7,13 @@ Handles data migration from JSON files to SQLite database for storytelling domai
 import json
 import os
 import sqlite3
-from typing import Any, Dict, List
+from typing import Any
+from typing import Dict
+from typing import List
 
-from ..base import BaseMigrationManager, ConnectionManager
-from ..storytelling_operations import (
-    StorytellingDatabaseOperations as DatabaseOperations,
-)
+from ..base import BaseMigrationManager
+from ..base import ConnectionManager
+from ..storytelling_operations import StorytellingDatabaseOperations as DatabaseOperations
 
 
 class StorytellingMigrationManager(BaseMigrationManager):

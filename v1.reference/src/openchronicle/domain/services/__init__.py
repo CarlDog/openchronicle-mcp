@@ -83,9 +83,7 @@ class StoryGenerator:
                     participant_appearances[participant] += 1
 
             # Penalize characters that appear very rarely
-            min_appearances = (
-                len(sorted_scenes) * 0.1
-            )  # Should appear in at least 10% of scenes
+            min_appearances = len(sorted_scenes) * 0.1  # Should appear in at least 10% of scenes
             consistency_score = sum(
                 1.0 if count >= min_appearances else count / min_appearances
                 for count in participant_appearances.values()
@@ -106,11 +104,7 @@ class StoryGenerator:
             coherence_factors.append(time_consistency)
 
         # Return average of all coherence factors
-        return (
-            sum(coherence_factors) / len(coherence_factors)
-            if coherence_factors
-            else 1.0
-        )
+        return sum(coherence_factors) / len(coherence_factors) if coherence_factors else 1.0
 
     def suggest_next_scene_type(self, recent_scenes: list[Scene]) -> str:
         """Suggest the type of scene that should come next."""
@@ -143,9 +137,7 @@ class StoryGenerator:
         word_counts = [scene.get_word_count() for scene in scenes]
         avg_length = sum(word_counts) / len(word_counts)
 
-        very_short = [
-            i for i, count in enumerate(word_counts) if count < avg_length * 0.3
-        ]
+        very_short = [i for i, count in enumerate(word_counts) if count < avg_length * 0.3]
         very_long = [i for i, count in enumerate(word_counts) if count > avg_length * 3]
 
         if very_short:
@@ -160,9 +152,7 @@ class StoryGenerator:
 
         return issues
 
-    def validate_story_concept(
-        self, title: str, description: str, world_state: dict[str, Any]
-    ) -> "ValidationResult":
+    def validate_story_concept(self, title: str, description: str, world_state: dict[str, Any]) -> "ValidationResult":
         """Validate a story concept for coherence and completeness."""
         errors = []
         warnings = []
@@ -187,22 +177,16 @@ class StoryGenerator:
             magic_level = world_state.get("magic_level", "").lower()
 
             if tech_level == "futuristic" and magic_level == "high":
-                warnings.append(
-                    "Futuristic + high magic settings may need careful balance"
-                )
+                warnings.append("Futuristic + high magic settings may need careful balance")
 
         return ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
-            suggestions=self._generate_story_suggestions(
-                title, description, world_state
-            ),
+            suggestions=self._generate_story_suggestions(title, description, world_state),
         )
 
-    def _generate_story_suggestions(
-        self, title: str, description: str, world_state: dict[str, Any]
-    ) -> list[str]:
+    def _generate_story_suggestions(self, title: str, description: str, world_state: dict[str, Any]) -> list[str]:
         """Generate helpful suggestions for story development."""
         suggestions = []
 
@@ -215,15 +199,9 @@ class StoryGenerator:
         # Genre-specific suggestions based on title keywords
         title_lower = title.lower()
         if any(word in title_lower for word in ["space", "star", "galaxy", "future"]):
-            suggestions.append(
-                "For sci-fi stories, consider defining technology levels"
-            )
-        elif any(
-            word in title_lower for word in ["magic", "wizard", "dragon", "fantasy"]
-        ):
-            suggestions.append(
-                "For fantasy stories, consider establishing magic system rules"
-            )
+            suggestions.append("For sci-fi stories, consider defining technology levels")
+        elif any(word in title_lower for word in ["magic", "wizard", "dragon", "fantasy"]):
+            suggestions.append("For fantasy stories, consider establishing magic system rules")
         elif any(word in title_lower for word in ["mystery", "detective", "crime"]):
             suggestions.append("For mysteries, plan key clues and red herrings")
 
@@ -246,14 +224,10 @@ class StoryGenerator:
         # Check character consistency for participants
         for character in participant_characters:
             if not character.personality_traits:
-                warnings.append(
-                    f"Character {character.name} lacks defined personality traits"
-                )
+                warnings.append(f"Character {character.name} lacks defined personality traits")
 
             if not character.emotional_state:
-                warnings.append(
-                    f"Character {character.name} has no defined emotional state"
-                )
+                warnings.append(f"Character {character.name} has no defined emotional state")
 
         # Validate scene type compatibility
         if context.scene_type == "dialogue" and len(participant_characters) < 2:
@@ -269,9 +243,7 @@ class StoryGenerator:
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
-            suggestions=self._generate_narrative_suggestions(
-                context, participant_characters
-            ),
+            suggestions=self._generate_narrative_suggestions(context, participant_characters),
         )
 
     def _generate_narrative_suggestions(
@@ -287,9 +259,7 @@ class StoryGenerator:
             suggestions.append("With many characters, focus on 1-2 primary speakers")
 
         if context.location:
-            suggestions.append(
-                "Use the location to influence character actions and mood"
-            )
+            suggestions.append("Use the location to influence character actions and mood")
 
         return suggestions
 
@@ -326,9 +296,7 @@ class CharacterAnalyzer:
 
         # Personality validation
         if not personality_traits:
-            warnings.append(
-                "Consider adding personality traits for richer characterization"
-            )
+            warnings.append("Consider adding personality traits for richer characterization")
         else:
             # Check for conflicting traits
             trait_conflicts = [
@@ -344,17 +312,13 @@ class CharacterAnalyzer:
                     and personality_traits[trait1] > 7
                     and personality_traits[trait2] > 7
                 ):
-                    warnings.append(
-                        f"High {trait1} and {trait2} traits may create internal conflict"
-                    )
+                    warnings.append(f"High {trait1} and {trait2} traits may create internal conflict")
 
         # Background validation
         if not background:
             warnings.append("Adding character background helps with consistency")
         elif len(background) > 1000:
-            warnings.append(
-                "Very long backgrounds may be hard to track during gameplay"
-            )
+            warnings.append("Very long backgrounds may be hard to track during gameplay")
 
         # Story context fit
         if story_context:
@@ -363,27 +327,18 @@ class CharacterAnalyzer:
 
             # Check for anachronisms
             if "medieval" in setting and any(
-                word in background.lower()
-                for word in ["computer", "internet", "smartphone"]
+                word in background.lower() for word in ["computer", "internet", "smartphone"]
             ):
-                errors.append(
-                    "Character background contains elements inconsistent with medieval setting"
-                )
+                errors.append("Character background contains elements inconsistent with medieval setting")
 
-            if tech_level == "stone age" and any(
-                word in background.lower() for word in ["sword", "metal", "writing"]
-            ):
-                warnings.append(
-                    "Character background may be too advanced for stone age setting"
-                )
+            if tech_level == "stone age" and any(word in background.lower() for word in ["sword", "metal", "writing"]):
+                warnings.append("Character background may be too advanced for stone age setting")
 
         return ValidationResult(
             is_valid=len(errors) == 0,
             errors=errors,
             warnings=warnings,
-            suggestions=self._generate_character_suggestions(
-                name, personality_traits, background
-            ),
+            suggestions=self._generate_character_suggestions(name, personality_traits, background),
         )
 
     def _generate_character_suggestions(
@@ -393,42 +348,30 @@ class CharacterAnalyzer:
         suggestions = []
 
         if not personality_traits:
-            suggestions.append(
-                "Add 3-5 key personality traits (e.g., courage: 8, wisdom: 6)"
-            )
+            suggestions.append("Add 3-5 key personality traits (e.g., courage: 8, wisdom: 6)")
         elif len(personality_traits) < 3:
             suggestions.append("Consider adding more personality traits for depth")
 
         if not background:
-            suggestions.append(
-                "Add background to explain character motivation and history"
-            )
+            suggestions.append("Add background to explain character motivation and history")
 
         # Trait-specific suggestions
         if personality_traits:
             high_traits = [
-                trait
-                for trait, value in personality_traits.items()
-                if isinstance(value, (int, float)) and value > 8
+                trait for trait, value in personality_traits.items() if isinstance(value, (int, float)) and value > 8
             ]
             if high_traits:
-                suggestions.append(
-                    f"Consider how extreme {', '.join(high_traits)} traits affect relationships"
-                )
+                suggestions.append(f"Consider how extreme {', '.join(high_traits)} traits affect relationships")
 
         return suggestions
 
-    def calculate_consistency_score(
-        self, character: Character, recent_scenes: list[Scene]
-    ) -> float:
+    def calculate_consistency_score(self, character: Character, recent_scenes: list[Scene]) -> float:
         """Calculate how consistent a character's behavior has been."""
         if not recent_scenes:
             return 1.0
 
         # Find scenes where this character participated
-        character_scenes = [
-            scene for scene in recent_scenes if character.id in scene.participants
-        ]
+        character_scenes = [scene for scene in recent_scenes if character.id in scene.participants]
 
         if not character_scenes:
             return 1.0
@@ -446,9 +389,7 @@ class CharacterAnalyzer:
                     scene_emotions.extend(scene_updates["emotional_state"].keys())
 
             if scene_emotions:
-                emotion_consistency = len(
-                    base_emotions.intersection(scene_emotions)
-                ) / len(base_emotions)
+                emotion_consistency = len(base_emotions.intersection(scene_emotions)) / len(base_emotions)
                 consistency_factors.append(emotion_consistency)
 
         # Check personality trait consistency
@@ -469,15 +410,9 @@ class CharacterAnalyzer:
 
         # Account for character development (some inconsistency is expected growth)
         development_factor = len(character.character_arc) * self.development_weight
-        development_bonus = min(
-            0.2, development_factor
-        )  # up to 20% bonus for development
+        development_bonus = min(0.2, development_factor)  # up to 20% bonus for development
 
-        base_consistency = (
-            sum(consistency_factors) / len(consistency_factors)
-            if consistency_factors
-            else 1.0
-        )
+        base_consistency = sum(consistency_factors) / len(consistency_factors) if consistency_factors else 1.0
         return min(1.0, base_consistency + development_bonus)
 
     def detect_character_conflicts(self, characters: list[Character]) -> list[str]:
@@ -499,27 +434,18 @@ class CharacterAnalyzer:
                     other_rel = other_char.relationships[char.id]
 
                     # Check if relationship types are compatible
-                    if (
-                        relationship["type"] == "enemy"
-                        and other_rel["type"] == "friend"
-                    ):
-                        conflicts.append(
-                            f"Conflicting relationship between {char.name} and {other_char.name}"
-                        )
+                    if relationship["type"] == "enemy" and other_rel["type"] == "friend":
+                        conflicts.append(f"Conflicting relationship between {char.name} and {other_char.name}")
 
         return conflicts
 
-    def suggest_character_development(
-        self, character: Character, story_context: NarrativeContext
-    ) -> list[str]:
+    def suggest_character_development(self, character: Character, story_context: NarrativeContext) -> list[str]:
         """Suggest potential character development opportunities."""
         suggestions = []
 
         # Check if character has been static for too long
         recent_development = [
-            event
-            for event in character.character_arc
-            if (datetime.now() - event["timestamp"]).days < 7
+            event for event in character.character_arc if (datetime.now() - event["timestamp"]).days < 7
         ]
 
         if not recent_development:
@@ -530,10 +456,7 @@ class CharacterAnalyzer:
             suggestions.append("Explore progress toward character goals")
 
         # Check for underdeveloped relationships
-        if (
-            len(character.relationships)
-            < len(story_context.get_primary_characters()) - 1
-        ):
+        if len(character.relationships) < len(story_context.get_primary_characters()) - 1:
             suggestions.append("Develop relationships with other characters")
 
         # Check emotional range
@@ -551,25 +474,15 @@ class CharacterAnalyzer:
         # Check emotional state bounds
         if "emotional_state" in proposed_updates:
             for emotion, intensity in proposed_updates["emotional_state"].items():
-                if (
-                    not isinstance(intensity, (int, float))
-                    or intensity < 0
-                    or intensity > 1
-                ):
-                    issues.append(
-                        f"Invalid emotional intensity for {emotion}: {intensity}"
-                    )
+                if not isinstance(intensity, (int, float)) or intensity < 0 or intensity > 1:
+                    issues.append(f"Invalid emotional intensity for {emotion}: {intensity}")
 
         # Check relationship updates
         if "relationships" in proposed_updates:
             for _other_id, rel_data in proposed_updates["relationships"].items():
                 if "strength" in rel_data:
                     strength = rel_data["strength"]
-                    if (
-                        not isinstance(strength, (int, float))
-                        or strength < 0
-                        or strength > 1
-                    ):
+                    if not isinstance(strength, (int, float)) or strength < 0 or strength > 1:
                         issues.append(f"Invalid relationship strength: {strength}")
 
         # Check for personality conflicts
@@ -588,9 +501,7 @@ class CharacterAnalyzer:
             all_traits = existing_traits.union(new_traits)
             for trait1, trait2 in conflicts:
                 if trait1 in all_traits and trait2 in all_traits:
-                    issues.append(
-                        f"Conflicting personality traits: {trait1} and {trait2}"
-                    )
+                    issues.append(f"Conflicting personality traits: {trait1} and {trait2}")
 
         return len(issues) == 0, issues
 
@@ -649,9 +560,7 @@ class CharacterAnalyzer:
                     if emotion in current_emotions:
                         current_intensity = current_emotions[emotion]
                         if abs(intensity - current_intensity) > 0.5:
-                            warnings.append(
-                                f"Major emotional shift detected for {character.name}: {emotion}"
-                            )
+                            warnings.append(f"Major emotional shift detected for {character.name}: {emotion}")
 
         return ConsistencyAnalysisResult(
             consistency_score=consistency_score,
@@ -708,9 +617,7 @@ class MemoryService(ABC):
         """Get memory summary."""
 
     @abstractmethod
-    async def add_recent_event(
-        self, story_id: str, description: str, importance: float = 1.0
-    ):
+    async def add_recent_event(self, story_id: str, description: str, importance: float = 1.0):
         """Add recent event."""
 
     @abstractmethod

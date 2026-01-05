@@ -8,7 +8,8 @@ Bridges between core domain ports and storytelling content infrastructure.
 from typing import Any
 
 from openchronicle.domain.ports.content_analysis_port import IContentAnalysisPort
-from openchronicle.shared.logging_system import log_error, log_info
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
 
 
 class StorytellingContentAdapter(IContentAnalysisPort):

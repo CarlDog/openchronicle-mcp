@@ -63,14 +63,10 @@ class ValidationManager:
 
     def validate_bookmark_type(self, bookmark_type: str) -> BookmarkType:
         """Validate and convert bookmark type."""
-        valid_types = self.config.get_config_value(
-            "bookmark_management", "valid_types", []
-        )
+        valid_types = self.config.get_config_value("bookmark_management", "valid_types", [])
 
         if bookmark_type not in valid_types:
-            raise ManagementException(
-                f"Invalid bookmark type: {bookmark_type}. Valid types: {valid_types}"
-            )
+            raise ManagementException(f"Invalid bookmark type: {bookmark_type}. Valid types: {valid_types}")
 
         return BookmarkType(bookmark_type)
 
@@ -118,9 +114,7 @@ class ValidationManager:
             raise ManagementException("Text content must be a string")
 
         if len(text) > max_length:
-            raise ManagementException(
-                f"Text content too long (max {max_length} characters)"
-            )
+            raise ManagementException(f"Text content too long (max {max_length} characters)")
 
         return text
 
@@ -189,9 +183,7 @@ class DatabaseHelper:
         return f"WHERE {where_clause}" if where_clause else "", params
 
     @staticmethod
-    def format_search_conditions(
-        query: str | None, search_fields: list[str]
-    ) -> tuple[str, list[Any]]:
+    def format_search_conditions(query: str | None, search_fields: list[str]) -> tuple[str, list[Any]]:
         """Format search conditions for FTS queries."""
         if not query or not search_fields:
             return "", []

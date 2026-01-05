@@ -37,11 +37,7 @@ class DatabaseConfig:
     @staticmethod
     def _is_test_context() -> bool:
         """Detect if we're running in a test context."""
-        return (
-            "pytest" in sys.modules
-            or "unittest" in sys.modules
-            or os.getenv("TESTING") == "1"
-        )
+        return "pytest" in sys.modules or "unittest" in sys.modules or os.getenv("TESTING") == "1"
 
 
 @dataclass

@@ -3,7 +3,10 @@ Plugin loader for OpenChronicle.
 
 Provides plugin discovery functionality for the core CLI system.
 """
-from typing import Any, List, Optional
+
+from typing import Any
+from typing import List
+from typing import Optional
 
 from openchronicle.plugins import discover_plugins as _discover_plugins
 

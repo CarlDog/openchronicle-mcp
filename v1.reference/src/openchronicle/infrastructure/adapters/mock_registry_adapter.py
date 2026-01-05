@@ -21,14 +21,8 @@ class MockRegistryAdapter(IRegistryPort):
     def __init__(self):
         """Initialize the mock registry adapter."""
         self._providers = {
-            "mock_provider": {
-                "enabled": True,
-                "models": ["mock_model_1", "mock_model_2"]
-            },
-            "test_provider": {
-                "enabled": True,
-                "models": ["test_model"]
-            }
+            "mock_provider": {"enabled": True, "models": ["mock_model_1", "mock_model_2"]},
+            "test_provider": {"enabled": True, "models": ["test_model"]},
         }
 
     def get_provider_config(self, provider_name: str) -> Optional[dict[str, Any]]:

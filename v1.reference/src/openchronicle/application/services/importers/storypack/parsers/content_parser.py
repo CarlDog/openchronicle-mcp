@@ -13,14 +13,15 @@ from pathlib import Path
 
 try:
     import chardet
+
     CHARDET_AVAILABLE = True
 except ImportError:
     CHARDET_AVAILABLE = False
 
 from openchronicle.application.services.importers.storypack.interfaces import ContentFile
 from openchronicle.application.services.importers.storypack.interfaces import IContentParser
-from openchronicle.shared.exceptions import InfrastructureError
 from openchronicle.shared.exceptions import ApplicationError
+from openchronicle.shared.exceptions import InfrastructureError
 from openchronicle.shared.exceptions import ValidationError
 from openchronicle.shared.logging_system import get_logger
 from openchronicle.shared.logging_system import log_system_event
@@ -104,9 +105,7 @@ class ContentParser(IContentParser):
             self.logger.exception(f"Unexpected error scanning directory {source_path}")
 
         # Log discovery results
-        category_counts = {
-            cat: len(files) for cat, files in discovered_files.items() if files
-        }
+        category_counts = {cat: len(files) for cat, files in discovered_files.items() if files}
         log_system_event(
             "content_parser",
             "File discovery completed",
@@ -230,9 +229,7 @@ class ContentParser(IContentParser):
         try:
             with open(file_path, "rb") as f:
                 # Read a sample to detect encoding
-                raw_data = f.read(
-                    min(32768, file_path.stat().st_size)
-                )  # Read up to 32KB
+                raw_data = f.read(min(32768, file_path.stat().st_size))  # Read up to 32KB
 
             if raw_data:
                 if CHARDET_AVAILABLE:

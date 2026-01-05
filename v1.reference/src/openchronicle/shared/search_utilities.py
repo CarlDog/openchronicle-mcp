@@ -75,9 +75,7 @@ class QueryProcessor:
     """Processes and builds SQL queries with safety checks"""
 
     # SQL injection protection patterns
-    SAFE_ORDER_PATTERN = re.compile(
-        r"^[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?$", re.IGNORECASE
-    )
+    SAFE_ORDER_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?$", re.IGNORECASE)
     SAFE_COLUMN_PATTERN = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
     @staticmethod
@@ -95,9 +93,7 @@ class QueryProcessor:
         return bool(QueryProcessor.SAFE_COLUMN_PATTERN.match(column.strip()))
 
     @staticmethod
-    def build_where_clause(
-        filters: dict[str, Any], table_prefix: str = ""
-    ) -> tuple[str, list[Any]]:
+    def build_where_clause(filters: dict[str, Any], table_prefix: str = "") -> tuple[str, list[Any]]:
         """Build WHERE clause from filters dictionary"""
         if not filters:
             return "", []
@@ -176,9 +172,7 @@ class FTSQueryBuilder:
         return query
 
     @staticmethod
-    def build_fts_query(
-        search_terms: str, columns: list[str] = None, boost_exact: bool = True
-    ) -> str:
+    def build_fts_query(search_terms: str, columns: list[str] = None, boost_exact: bool = True) -> str:
         """Build FTS MATCH query with column targeting and boosting"""
         if not search_terms:
             return ""
@@ -281,12 +275,15 @@ class ResultRanker:
 
         # Define sort key function
         if sort_by == "score":
+
             def key_func(r):
                 return r.score
         elif sort_by == "timestamp":
+
             def key_func(r):
                 return r.timestamp or datetime.min
         elif sort_by == "id":
+
             def key_func(r):
                 return r.id
         else:
@@ -340,12 +337,8 @@ class SearchUtilities:
 
         try:
             if options.use_fts and query:
-                return self._execute_fts_search(
-                    story_id, query, table, columns, filters, options, db_ops
-                )
-            return self._execute_simple_search(
-                story_id, table, columns, filters, options, db_ops
-            )
+                return self._execute_fts_search(story_id, query, table, columns, filters, options, db_ops)
+            return self._execute_simple_search(story_id, table, columns, filters, options, db_ops)
         except (RuntimeError, ValueError, KeyError, TypeError):
             logger.exception("Search execution failed")
             return []
@@ -369,9 +362,7 @@ class SearchUtilities:
             return []
 
         # Build additional filters
-        where_clause, where_params = self.query_processor.build_where_clause(
-            filters or {}, table[0]
-        )
+        where_clause, where_params = self.query_processor.build_where_clause(filters or {}, table[0])
 
         # Build snippet selections
         snippet_columns = []
@@ -386,14 +377,10 @@ class SearchUtilities:
             )
 
         # Build ORDER BY
-        order_clause = self.query_processor.build_order_by(
-            options.order_by, "score DESC"
-        )
+        order_clause = self.query_processor.build_order_by(options.order_by, "score DESC")
 
         # Build pagination
-        limit_clause, limit_params = self.query_processor.build_pagination(
-            options.limit, options.offset
-        )
+        limit_clause, limit_params = self.query_processor.build_pagination(options.limit, options.offset)
 
         # Construct full query
         snippet_select = ", " + ", ".join(snippet_columns) if snippet_columns else ""
@@ -413,12 +400,7 @@ class SearchUtilities:
         """
 
         # Combine all parameters
-        params = (
-            [fts_query]
-            + where_params
-            + [story_id, options.score_threshold]
-            + limit_params
-        )
+        params = [fts_query] + where_params + [story_id, options.score_threshold] + limit_params
 
         # Execute query
         rows = db_ops.execute_query(story_id, sql, params)
@@ -440,17 +422,13 @@ class SearchUtilities:
         all_filters = (filters or {}).copy()
         all_filters["story_id"] = story_id
 
-        where_clause, where_params = self.query_processor.build_where_clause(
-            all_filters
-        )
+        where_clause, where_params = self.query_processor.build_where_clause(all_filters)
 
         # Build ORDER BY
         order_clause = self.query_processor.build_order_by(options.order_by)
 
         # Build pagination
-        limit_clause, limit_params = self.query_processor.build_pagination(
-            options.limit, options.offset
-        )
+        limit_clause, limit_params = self.query_processor.build_pagination(options.limit, options.offset)
 
         # Construct query
         column_select = ", ".join(columns) if columns else "*"
@@ -502,9 +480,7 @@ class SearchUtilities:
                     metadata[key] = value
                     try:
                         if isinstance(value, str):
-                            timestamp = datetime.fromisoformat(
-                                value.replace("Z", "+00:00")
-                            )
+                            timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
                         else:
                             timestamp = value
                     except (ValueError, TypeError):
@@ -572,9 +548,7 @@ class SearchUtilities:
             "personality",
             "background",
         ]
-        return self.execute_search(
-            story_id, query, "characters", columns, filters, options
-        )
+        return self.execute_search(story_id, query, "characters", columns, filters, options)
 
     def search_bookmarks(
         self,
@@ -592,9 +566,7 @@ class SearchUtilities:
             "tags",
             "created_at",
         ]
-        return self.execute_search(
-            story_id, query, "bookmarks", columns, filters, options
-        )
+        return self.execute_search(story_id, query, "bookmarks", columns, filters, options)
 
     def search_memories(
         self,
@@ -605,9 +577,7 @@ class SearchUtilities:
     ) -> list[SearchResult]:
         """Search character memories"""
         columns = ["memory_id", "character_id", "content", "importance", "timestamp"]
-        return self.execute_search(
-            story_id, query, "character_memories", columns, filters, options
-        )
+        return self.execute_search(story_id, query, "character_memories", columns, filters, options)
 
 
 # Export main classes and functions

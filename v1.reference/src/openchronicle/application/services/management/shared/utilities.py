@@ -78,9 +78,7 @@ class StatisticsCalculator:
             "usage_by_model": usage_by_model,
             "usage_by_type": usage_by_type,
             "cost_estimation": StatisticsCalculator._estimate_cost(usage_by_model),
-            "peak_usage_period": StatisticsCalculator._find_peak_usage_period(
-                usage_records
-            ),
+            "peak_usage_period": StatisticsCalculator._find_peak_usage_period(usage_records),
         }
 
     @staticmethod
@@ -102,9 +100,7 @@ class StatisticsCalculator:
         bookmarks_by_type = {}
         for record in bookmark_records:
             bookmark_type = record.bookmark_type.value
-            bookmarks_by_type[bookmark_type] = (
-                bookmarks_by_type.get(bookmark_type, 0) + 1
-            )
+            bookmarks_by_type[bookmark_type] = bookmarks_by_type.get(bookmark_type, 0) + 1
 
         # Bookmarks by scene
         bookmarks_by_scene = {}
@@ -113,9 +109,7 @@ class StatisticsCalculator:
             bookmarks_by_scene[scene_id] = bookmarks_by_scene.get(scene_id, 0) + 1
 
         # Most bookmarked scenes
-        most_bookmarked_scenes = sorted(
-            bookmarks_by_scene.items(), key=lambda x: x[1], reverse=True
-        )[:10]
+        most_bookmarked_scenes = sorted(bookmarks_by_scene.items(), key=lambda x: x[1], reverse=True)[:10]
 
         # Creation timeline (by day)
         creation_timeline = {}
@@ -130,8 +124,7 @@ class StatisticsCalculator:
             "unique_scenes": unique_scenes,
             "bookmarks_by_type": bookmarks_by_type,
             "bookmarks_by_scene": bookmarks_by_scene,
-            "average_bookmarks_per_scene": len(bookmark_records)
-            / max(unique_scenes, 1),
+            "average_bookmarks_per_scene": len(bookmark_records) / max(unique_scenes, 1),
             "most_bookmarked_scenes": most_bookmarked_scenes,
             "creation_timeline": creation_timeline,
         }
@@ -163,9 +156,7 @@ class StatisticsCalculator:
         hourly_usage = {}
         for record in usage_records:
             hour_key = record.timestamp.strftime("%Y-%m-%d %H:00")
-            hourly_usage[hour_key] = (
-                hourly_usage.get(hour_key, 0) + record.total_tokens()
-            )
+            hourly_usage[hour_key] = hourly_usage.get(hour_key, 0) + record.total_tokens()
 
         if not hourly_usage:
             return None
@@ -264,9 +255,7 @@ class ErrorHandler:
     """Centralized error handling for management systems."""
 
     @staticmethod
-    def log_and_raise(
-        error_type: type, message: str, context: dict[str, Any] | None = None
-    ):
+    def log_and_raise(error_type: type, message: str, context: dict[str, Any] | None = None):
         """Log error and raise exception."""
         log_error(f"Management System Error: {message}")
         if context:

@@ -68,7 +68,7 @@ def main(argv: list[str] | None = None) -> int:
     demo_cmd.add_argument("project_id")
     demo_cmd.add_argument("text")
 
-    list_handlers_cmd = sub.add_parser("list-handlers", help="List registered task handlers")
+    sub.add_parser("list-handlers", help="List registered task handlers")
 
     args = parser.parse_args(argv)
     container = CoreContainer()

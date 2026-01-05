@@ -20,9 +20,7 @@ class AsyncDatabaseOperations:
     async def init_database(self, story_id: str, is_test: bool | None = None) -> bool:
         """Initialize the database with required tables."""
         try:
-            async with self.connection_manager.get_connection(
-                story_id, is_test
-            ) as conn:
+            async with self.connection_manager.get_connection(story_id, is_test) as conn:
                 # Create scenes table
                 await conn.execute(
                     """
@@ -133,23 +131,17 @@ class AsyncDatabaseOperations:
     async def _has_fts5_support(self, conn: aiosqlite.Connection) -> bool:
         """Check if FTS5 is available."""
         try:
-            await conn.execute(
-                "CREATE VIRTUAL TABLE IF NOT EXISTS fts_test USING fts5(content)"
-            )
+            await conn.execute("CREATE VIRTUAL TABLE IF NOT EXISTS fts_test USING fts5(content)")
             await conn.execute("DROP TABLE IF EXISTS fts_test")
         except aiosqlite.Error:
             return False
         else:
             return True
 
-    async def get_database_info(
-        self, story_id: str, is_test: bool | None = None
-    ) -> dict[str, Any]:
+    async def get_database_info(self, story_id: str, is_test: bool | None = None) -> dict[str, Any]:
         """Get database information and statistics."""
         try:
-            async with self.connection_manager.get_connection(
-                story_id, is_test
-            ) as conn:
+            async with self.connection_manager.get_connection(story_id, is_test) as conn:
                 # Get table information
                 cursor = await conn.execute(
                     """
@@ -208,9 +200,7 @@ class AsyncDatabaseOperations:
     ) -> bool:
         """Execute UPDATE/DELETE query."""
         try:
-            async with self.connection_manager.get_connection(
-                story_id, is_test
-            ) as conn:
+            async with self.connection_manager.get_connection(story_id, is_test) as conn:
                 await conn.execute(query, params or ())
                 await conn.commit()
                 return True
@@ -226,9 +216,7 @@ class AsyncDatabaseOperations:
     ) -> int | None:
         """Execute INSERT query and return row ID."""
         try:
-            async with self.connection_manager.get_connection(
-                story_id, is_test
-            ) as conn:
+            async with self.connection_manager.get_connection(story_id, is_test) as conn:
                 cursor = await conn.execute(query, params or ())
                 await conn.commit()
                 return cursor.lastrowid
@@ -244,9 +232,7 @@ class AsyncDatabaseOperations:
     ) -> bool:
         """Execute multiple queries in a transaction."""
         try:
-            async with self.connection_manager.get_connection(
-                story_id, is_test
-            ) as conn:
+            async with self.connection_manager.get_connection(story_id, is_test) as conn:
                 await conn.executemany(query, params_list)
                 await conn.commit()
                 return True
@@ -256,23 +242,17 @@ class AsyncDatabaseOperations:
     async def check_integrity(self, story_id: str, is_test: bool | None = None) -> bool:
         """Run PRAGMA integrity_check on database."""
         try:
-            async with self.connection_manager.get_connection(
-                story_id, is_test
-            ) as conn:
+            async with self.connection_manager.get_connection(story_id, is_test) as conn:
                 cursor = await conn.execute("PRAGMA integrity_check")
                 result = await cursor.fetchone()
                 return result[0] == "ok" if result else False
         except aiosqlite.Error:
             return False
 
-    async def optimize_database(
-        self, story_id: str, is_test: bool | None = None
-    ) -> bool:
+    async def optimize_database(self, story_id: str, is_test: bool | None = None) -> bool:
         """Run VACUUM and ANALYZE on database."""
         try:
-            async with self.connection_manager.get_connection(
-                story_id, is_test
-            ) as conn:
+            async with self.connection_manager.get_connection(story_id, is_test) as conn:
                 await conn.execute("VACUUM")
                 await conn.execute("ANALYZE")
                 return True

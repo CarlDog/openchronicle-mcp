@@ -33,19 +33,11 @@ class ImageConfigManager:
         if self._model_registry is not None:
             return self._model_registry
 
-        config_path = (
-            Path(__file__).parent.parent.parent.parent
-            / "config"
-            / "model_registry.json"
-        )
+        config_path = Path(__file__).parent.parent.parent.parent / "config" / "model_registry.json"
 
         if not config_path.exists():
-            logger.warning(
-                "CRITICAL: No model registry found - defaulting to mock image adapter!"
-            )
-            logger.warning(
-                "Mock image adapter provides placeholder images only - NOT for production use!"
-            )
+            logger.warning("CRITICAL: No model registry found - defaulting to mock image adapter!")
+            logger.warning("Mock image adapter provides placeholder images only - NOT for production use!")
             self._model_registry = {
                 "default_image_model": "mock_image",
                 "image_fallback_chain": ["mock_image"],
@@ -103,16 +95,14 @@ class ImageConfigManager:
             "default_model": "mock_image",
         }
 
-    def get_image_config_from_registry(
-        self, story_path: str | None = None
-    ) -> dict[str, Any]:
+    def get_image_config_from_registry(self, story_path: str | None = None) -> dict[str, Any]:
         """Extract image configuration from registry and unit config"""
         # Use provided story_path or fall back to instance path
         working_story_path = Path(story_path) if story_path else self.story_path
 
         registry = self.load_model_registry()
 
-    # Check for unit-specific configuration
+        # Check for unit-specific configuration
         story_config: dict[str, Any] = {}
         if working_story_path:
             config_path = working_story_path / "config.json"
@@ -140,7 +130,7 @@ class ImageConfigManager:
 
         adapters["mock"] = {"enabled": True, "class": "MockImageAdapter"}
 
-    # Override with unit config if available
+        # Override with unit config if available
         if "image_generation" in story_config:
             story_image_config = story_config["image_generation"]
             if "adapters" in story_image_config:
@@ -161,15 +151,11 @@ class ImageConfigManager:
                 "frame_images": True,
                 "frame_triggers": ["major_event", "new_location"],
             },
-            "fallback_chain": (
-                ["openai", "stability", "mock"] if openai_key else ["mock"]
-            ),
+            "fallback_chain": (["openai", "stability", "mock"] if openai_key else ["mock"]),
             "default_model": registry.get("default_image_model", "mock_image"),
         }
 
-    def get_naming_config(
-        self, custom_config: dict[str, str] | None = None
-    ) -> NamingConfig:
+    def get_naming_config(self, custom_config: dict[str, str] | None = None) -> NamingConfig:
         """Get naming configuration with defaults"""
         default_naming = {
             "entity_prefix": "ent",
@@ -184,9 +170,7 @@ class ImageConfigManager:
 
         return default_naming
 
-    def get_auto_generate_config(
-        self, custom_config: dict[str, Any] | None = None
-    ) -> AutoGenerateConfig:
+    def get_auto_generate_config(self, custom_config: dict[str, Any] | None = None) -> AutoGenerateConfig:
         """Get auto-generation configuration with defaults"""
         default_auto = {
             "enabled": False,
@@ -269,9 +253,7 @@ class ImageConfigManager:
                 if adapter_name == "openai" and not os.getenv("OPENAI_API_KEY"):
                     issues.append("OpenAI adapter enabled but OPENAI_API_KEY not set")
                 elif adapter_name == "stability" and not os.getenv("STABILITY_API_KEY"):
-                    issues.append(
-                        "Stability adapter enabled but STABILITY_API_KEY not set"
-                    )
+                    issues.append("Stability adapter enabled but STABILITY_API_KEY not set")
                 else:
                     working_adapters += 1
 

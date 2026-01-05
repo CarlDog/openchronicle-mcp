@@ -25,9 +25,7 @@ class DistributedCacheMetrics(CacheMetrics):
             "avg_time_ms": 0.0,
         }
 
-    def record_cluster_operation(
-        self, node_id: str, operation: str, success: bool, response_time: float
-    ):
+    def record_cluster_operation(self, node_id: str, operation: str, success: bool, response_time: float):
         """Record cluster-specific operation."""
         if node_id not in self.cluster_metrics:
             self.cluster_metrics[node_id] = {
@@ -52,9 +50,7 @@ class DistributedCacheMetrics(CacheMetrics):
         if len(metrics["response_times"]) > 100:
             metrics["response_times"] = metrics["response_times"][-100:]
 
-    def record_partition_operation(
-        self, partition_id: str, operation: str, key_hash: str
-    ):
+    def record_partition_operation(self, partition_id: str, operation: str, key_hash: str):
         """Record partition-specific operation."""
         if partition_id not in self.partition_metrics:
             self.partition_metrics[partition_id] = {
@@ -84,9 +80,7 @@ class DistributedCacheMetrics(CacheMetrics):
             total_ops = metrics["operations"]
             success_rate = metrics["successes"] / total_ops if total_ops > 0 else 0
             avg_response = (
-                sum(metrics["response_times"]) / len(metrics["response_times"])
-                if metrics["response_times"]
-                else 0
+                sum(metrics["response_times"]) / len(metrics["response_times"]) if metrics["response_times"] else 0
             )
 
             cluster_summary[node_id] = {

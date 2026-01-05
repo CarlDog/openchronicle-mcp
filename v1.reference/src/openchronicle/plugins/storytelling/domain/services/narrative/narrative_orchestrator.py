@@ -59,9 +59,7 @@ class NarrativeOrchestrator:
         self.operation_router = NarrativeOperationRouter(self.component_orchestrators)
 
         # Initialize character integration
-        self.character_integration = NarrativeCharacterIntegration(
-            self.state_manager, self.component_orchestrators
-        )
+        self.character_integration = NarrativeCharacterIntegration(self.state_manager, self.component_orchestrators)
 
         log_system_event(
             "narrative_orchestrator_init",
@@ -74,6 +72,7 @@ class NarrativeOrchestrator:
             # Initialize response orchestrator
             try:
                 from .engines.response import ResponseOrchestrator
+
                 response_dir = self.data_dir / "response"
                 self.component_orchestrators["response"] = ResponseOrchestrator(
                     str(response_dir), self.config.get("response_settings", {})
@@ -85,6 +84,7 @@ class NarrativeOrchestrator:
             # Initialize mechanics orchestrator
             try:
                 from .engines.mechanics import MechanicsOrchestrator
+
                 self.component_orchestrators["mechanics"] = MechanicsOrchestrator()
                 log_system_event("mechanics_orchestrator_init", "MechanicsOrchestrator initialized successfully")
             except ImportError:
@@ -93,6 +93,7 @@ class NarrativeOrchestrator:
             # Initialize consistency orchestrator
             try:
                 from .engines.consistency import ConsistencyOrchestrator
+
                 consistency_config = self.config.get("consistency_settings", {})
                 self.component_orchestrators["consistency"] = ConsistencyOrchestrator(consistency_config)
                 log_system_event("consistency_orchestrator_init", "ConsistencyOrchestrator initialized successfully")
@@ -102,6 +103,7 @@ class NarrativeOrchestrator:
             # Initialize emotional orchestrator
             try:
                 from .engines.emotional import EmotionalOrchestrator
+
                 emotional_config = self.config.get("emotional_settings", {})
                 self.component_orchestrators["emotional"] = EmotionalOrchestrator(emotional_config)
                 log_system_event("emotional_orchestrator_init", "EmotionalOrchestrator initialized successfully")
@@ -194,8 +196,7 @@ class NarrativeOrchestrator:
                 # Update narrative tension if the evaluation includes tension changes
                 if result.get("success") and "tension_modifier" in result:
                     current_state = self.get_narrative_state(story_id)
-                    new_tension = max(0.0, min(1.0,
-                        current_state["narrative_tension"] + result["tension_modifier"]))
+                    new_tension = max(0.0, min(1.0, current_state["narrative_tension"] + result["tension_modifier"]))
                     self.update_narrative_state(story_id, narrative_tension=new_tension)
                     result["updated_tension"] = new_tension
 
@@ -203,17 +204,13 @@ class NarrativeOrchestrator:
                 result = {"status": "unknown_mechanics_operation", "operation": operation_type}
 
             return NarrativeOperation(
-                operation_type=f"mechanics_{operation_type}",
-                success=result.get("success", True),
-                result=result
+                operation_type=f"mechanics_{operation_type}", success=result.get("success", True), result=result
             )
 
         except Exception as e:
             log_error(f"Error in local mechanics operation: {e}")
             return NarrativeOperation(
-                operation_type=f"mechanics_{data.get('operation', 'unknown')}",
-                success=False,
-                result={"error": str(e)}
+                operation_type=f"mechanics_{data.get('operation', 'unknown')}", success=False, result={"error": str(e)}
             )
 
     # Mechanics Interface
@@ -236,9 +233,7 @@ class NarrativeOrchestrator:
         """Get narrative context for a specific character."""
         return self.character_integration.state_manager.get_character_narrative_context(story_id, character_id)
 
-    def update_character_narrative_state(
-        self, story_id: str, character_id: str, updates: dict[str, Any]
-    ) -> bool:
+    def update_character_narrative_state(self, story_id: str, character_id: str, updates: dict[str, Any]) -> bool:
         """Update narrative state for a specific character."""
         return self.character_integration.state_manager.update_character_narrative_state(
             story_id, character_id, updates
@@ -248,41 +243,31 @@ class NarrativeOrchestrator:
         self, story_id: str, character_id: str, proposed_action: dict[str, Any]
     ) -> dict[str, Any]:
         """Validate character action consistency."""
-        return self.character_integration.validate_character_consistency(
-            story_id, character_id, proposed_action
-        )
+        return self.character_integration.validate_character_consistency(story_id, character_id, proposed_action)
 
     def track_character_emotional_changes(
         self, story_id: str, character_id: str, emotional_event: dict[str, Any]
     ) -> dict[str, Any]:
         """Track character emotional changes."""
-        return self.character_integration.track_character_emotional_changes(
-            story_id, character_id, emotional_event
-        )
+        return self.character_integration.track_character_emotional_changes(story_id, character_id, emotional_event)
 
     def track_emotional_stability(
         self, story_id: str, character_id: str, stability_data: dict[str, Any]
     ) -> dict[str, Any]:
         """Track character emotional stability."""
-        return self.character_integration.track_emotional_stability(
-            story_id, character_id, stability_data
-        )
+        return self.character_integration.track_emotional_stability(story_id, character_id, stability_data)
 
     def validate_emotional_consistency(
         self, story_id: str, character_id: str, emotional_transition: dict[str, Any]
     ) -> dict[str, Any]:
         """Validate emotional consistency for character transitions."""
-        return self.character_integration.validate_emotional_consistency(
-            story_id, character_id, emotional_transition
-        )
+        return self.character_integration.validate_emotional_consistency(story_id, character_id, emotional_transition)
 
     def calculate_quality_metrics(self, metrics_data: dict[str, float]) -> float:
         """Calculate overall quality metrics."""
         return self.character_integration.calculate_quality_metrics(metrics_data)
 
-    def validate_narrative_consistency(
-        self, story_id: str, narrative_element: dict[str, Any]
-    ) -> dict[str, Any]:
+    def validate_narrative_consistency(self, story_id: str, narrative_element: dict[str, Any]) -> dict[str, Any]:
         """Validate narrative consistency."""
         return self.character_integration.validate_narrative_consistency(story_id, narrative_element)
 
@@ -298,7 +283,7 @@ class NarrativeOrchestrator:
                 "operation_router": True,
                 "mechanics_handler": True,
                 "character_integration": True,
-                **{name: True for name in self.component_orchestrators.keys()}
+                **{name: True for name in self.component_orchestrators.keys()},
             },
             "configuration": self.config,
         }

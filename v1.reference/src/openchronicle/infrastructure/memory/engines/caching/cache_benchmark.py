@@ -36,9 +36,7 @@ class CachePerformanceBenchmark:
             ),
         )
 
-    async def benchmark_character_operations(
-        self, num_operations: int = 100
-    ) -> dict[str, Any]:
+    async def benchmark_character_operations(self, num_operations: int = 100) -> dict[str, Any]:
         """Benchmark character read operations."""
         self.logger.info(f"Benchmarking {num_operations} character operations...")
 
@@ -52,19 +50,13 @@ class CachePerformanceBenchmark:
         }
 
         # Store initial character
-        self.original_orchestrator.update_character_memory(
-            self.story_id, character_name, test_character
-        )
+        self.original_orchestrator.update_character_memory(self.story_id, character_name, test_character)
 
         # Benchmark original (non-cached) operations
         original_times = []
         for _i in range(num_operations):
             start_time = time.time()
-            character = (
-                self.original_orchestrator.character_manager.get_character_memory(
-                    self.story_id, character_name
-                )
-            )
+            character = self.original_orchestrator.character_manager.get_character_memory(self.story_id, character_name)
             end_time = time.time()
             original_times.append((end_time - start_time) * 1000)  # Convert to ms
 
@@ -72,9 +64,7 @@ class CachePerformanceBenchmark:
         cached_times = []
 
         # Warm-up cache
-        await self.cached_orchestrator.cached_character_manager.get_character_memory(
-            self.story_id, character_name
-        )
+        await self.cached_orchestrator.cached_character_manager.get_character_memory(self.story_id, character_name)
 
         for _i in range(num_operations):
             start_time = time.time()
@@ -93,27 +83,21 @@ class CachePerformanceBenchmark:
                 "median_ms": statistics.median(original_times),
                 "min_ms": min(original_times),
                 "max_ms": max(original_times),
-                "std_dev_ms": (
-                    statistics.stdev(original_times) if len(original_times) > 1 else 0
-                ),
+                "std_dev_ms": (statistics.stdev(original_times) if len(original_times) > 1 else 0),
             },
             "cached_performance": {
                 "avg_ms": statistics.mean(cached_times),
                 "median_ms": statistics.median(cached_times),
                 "min_ms": min(cached_times),
                 "max_ms": max(cached_times),
-                "std_dev_ms": (
-                    statistics.stdev(cached_times) if len(cached_times) > 1 else 0
-                ),
+                "std_dev_ms": (statistics.stdev(cached_times) if len(cached_times) > 1 else 0),
             },
         }
 
         # Calculate improvement
         original_avg = results["original_performance"]["avg_ms"]
         cached_avg = results["cached_performance"]["avg_ms"]
-        improvement = (
-            (original_avg - cached_avg) / original_avg * 100 if original_avg > 0 else 0
-        )
+        improvement = (original_avg - cached_avg) / original_avg * 100 if original_avg > 0 else 0
         speedup = original_avg / cached_avg if cached_avg > 0 else 0
 
         results["performance_improvement"] = {
@@ -124,9 +108,7 @@ class CachePerformanceBenchmark:
 
         return results
 
-    async def benchmark_memory_snapshots(
-        self, num_operations: int = 50
-    ) -> dict[str, Any]:
+    async def benchmark_memory_snapshots(self, num_operations: int = 50) -> dict[str, Any]:
         """Benchmark memory snapshot operations."""
         self.logger.info(f"Benchmarking {num_operations} memory snapshot operations...")
 
@@ -164,27 +146,21 @@ class CachePerformanceBenchmark:
                 "median_ms": statistics.median(original_times),
                 "min_ms": min(original_times),
                 "max_ms": max(original_times),
-                "std_dev_ms": (
-                    statistics.stdev(original_times) if len(original_times) > 1 else 0
-                ),
+                "std_dev_ms": (statistics.stdev(original_times) if len(original_times) > 1 else 0),
             },
             "cached_performance": {
                 "avg_ms": statistics.mean(cached_times),
                 "median_ms": statistics.median(cached_times),
                 "min_ms": min(cached_times),
                 "max_ms": max(cached_times),
-                "std_dev_ms": (
-                    statistics.stdev(cached_times) if len(cached_times) > 1 else 0
-                ),
+                "std_dev_ms": (statistics.stdev(cached_times) if len(cached_times) > 1 else 0),
             },
         }
 
         # Calculate improvement
         original_avg = results["original_performance"]["avg_ms"]
         cached_avg = results["cached_performance"]["avg_ms"]
-        improvement = (
-            (original_avg - cached_avg) / original_avg * 100 if original_avg > 0 else 0
-        )
+        improvement = (original_avg - cached_avg) / original_avg * 100 if original_avg > 0 else 0
         speedup = original_avg / cached_avg if cached_avg > 0 else 0
 
         results["performance_improvement"] = {
@@ -195,18 +171,14 @@ class CachePerformanceBenchmark:
 
         return results
 
-    async def benchmark_concurrent_operations(
-        self, concurrent_tasks: int = 20
-    ) -> dict[str, Any]:
+    async def benchmark_concurrent_operations(self, concurrent_tasks: int = 20) -> dict[str, Any]:
         """Benchmark concurrent cache operations."""
         self.logger.info(f"Benchmarking {concurrent_tasks} concurrent operations...")
 
         character_name = "ConcurrentBenchmark"
 
         # Store test character
-        self.original_orchestrator.update_character_memory(
-            self.story_id, character_name, {"concurrent_test": True}
-        )
+        self.original_orchestrator.update_character_memory(self.story_id, character_name, {"concurrent_test": True})
 
         async def cached_read_task(task_id: int):
             start_time = time.time()
@@ -218,18 +190,12 @@ class CachePerformanceBenchmark:
 
         def original_read_task(task_id: int):
             start_time = time.time()
-            character = (
-                self.original_orchestrator.character_manager.get_character_memory(
-                    self.story_id, character_name
-                )
-            )
+            character = self.original_orchestrator.character_manager.get_character_memory(self.story_id, character_name)
             end_time = time.time()
             return (end_time - start_time) * 1000, task_id
 
         # Warm up cache
-        await self.cached_orchestrator.cached_character_manager.get_character_memory(
-            self.story_id, character_name
-        )
+        await self.cached_orchestrator.cached_character_manager.get_character_memory(self.story_id, character_name)
 
         # Run concurrent cached operations
         cached_start = time.time()
@@ -241,16 +207,9 @@ class CachePerformanceBenchmark:
         import concurrent.futures
 
         original_start = time.time()
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=concurrent_tasks
-        ) as executor:
-            original_futures = [
-                executor.submit(original_read_task, i) for i in range(concurrent_tasks)
-            ]
-            original_results = [
-                future.result()
-                for future in concurrent.futures.as_completed(original_futures)
-            ]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=concurrent_tasks) as executor:
+            original_futures = [executor.submit(original_read_task, i) for i in range(concurrent_tasks)]
+            original_results = [future.result() for future in concurrent.futures.as_completed(original_futures)]
         original_total = time.time() - original_start
 
         # Analyze results
@@ -264,9 +223,7 @@ class CachePerformanceBenchmark:
             "original_total_time_ms": original_total * 1000,
             "cached_avg_task_time_ms": statistics.mean(cached_times),
             "original_avg_task_time_ms": statistics.mean(original_times),
-            "throughput_improvement": (
-                original_total / cached_total if cached_total > 0 else 0
-            ),
+            "throughput_improvement": (original_total / cached_total if cached_total > 0 else 0),
             "cache_metrics": await self.cached_orchestrator.get_cache_metrics(),
         }
 
@@ -284,35 +241,21 @@ class CachePerformanceBenchmark:
 
         try:
             # Character operations benchmark
-            results["benchmarks"][
-                "character_operations"
-            ] = await self.benchmark_character_operations(100)
+            results["benchmarks"]["character_operations"] = await self.benchmark_character_operations(100)
 
             # Memory snapshots benchmark
-            results["benchmarks"][
-                "memory_snapshots"
-            ] = await self.benchmark_memory_snapshots(50)
+            results["benchmarks"]["memory_snapshots"] = await self.benchmark_memory_snapshots(50)
 
             # Concurrent operations benchmark
-            results["benchmarks"][
-                "concurrent_operations"
-            ] = await self.benchmark_concurrent_operations(20)
+            results["benchmarks"]["concurrent_operations"] = await self.benchmark_concurrent_operations(20)
 
             # Cache metrics
-            results[
-                "cache_metrics"
-            ] = await self.cached_orchestrator.get_cache_metrics()
+            results["cache_metrics"] = await self.cached_orchestrator.get_cache_metrics()
 
             # Calculate overall performance summary
-            char_speedup = results["benchmarks"]["character_operations"][
-                "performance_improvement"
-            ]["speedup_factor"]
-            memory_speedup = results["benchmarks"]["memory_snapshots"][
-                "performance_improvement"
-            ]["speedup_factor"]
-            concurrent_speedup = results["benchmarks"]["concurrent_operations"][
-                "throughput_improvement"
-            ]
+            char_speedup = results["benchmarks"]["character_operations"]["performance_improvement"]["speedup_factor"]
+            memory_speedup = results["benchmarks"]["memory_snapshots"]["performance_improvement"]["speedup_factor"]
+            concurrent_speedup = results["benchmarks"]["concurrent_operations"]["throughput_improvement"]
 
             results["summary"] = {
                 "character_speedup": f"{char_speedup:.2f}x",
@@ -369,14 +312,10 @@ class CacheMonitor:
 
                 # Alert on poor performance
                 if metrics["overall_hit_rate"] < 0.7:
-                    self.logger.warning(
-                        f"Low cache hit rate: {metrics['overall_hit_rate']:.1%}"
-                    )
+                    self.logger.warning(f"Low cache hit rate: {metrics['overall_hit_rate']:.1%}")
 
                 if metrics["avg_redis_response_ms"] > 100:
-                    self.logger.warning(
-                        f"High Redis latency: {metrics['avg_redis_response_ms']:.1f}ms"
-                    )
+                    self.logger.warning(f"High Redis latency: {metrics['avg_redis_response_ms']:.1f}ms")
 
                 await asyncio.sleep(interval_seconds)
 

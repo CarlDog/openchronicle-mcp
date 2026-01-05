@@ -87,9 +87,7 @@ class BaseModelAdapter(ABC):
                     if char_id in context.participant_ids:
                         participant = context.characters.get(char_id)
                         if participant:
-                            prompt_parts.append(
-                                f"- {participant.name}: {participant.description}"
-                            )
+                            prompt_parts.append(f"- {participant.name}: {participant.description}")
 
         # Context type
         if context.scene_type:
@@ -150,13 +148,9 @@ class OpenAIAdapter(BaseModelAdapter):
             try:
                 import openai
 
-                self._client = openai.AsyncOpenAI(
-                    api_key=self.config.api_key, base_url=self.config.base_url
-                )
+                self._client = openai.AsyncOpenAI(api_key=self.config.api_key, base_url=self.config.base_url)
             except ImportError as e:
-                raise ImportError(
-                    "OpenAI package not installed. Run: pip install openai"
-                ) from e
+                raise ImportError("OpenAI package not installed. Run: pip install openai") from e
         return self._client
 
     async def generate_text(
@@ -208,9 +202,7 @@ class AnthropicAdapter(BaseModelAdapter):
 
                 self._client = anthropic.AsyncAnthropic(api_key=self.config.api_key)
             except ImportError as e:
-                raise ImportError(
-                    "Anthropic package not installed. Run: pip install anthropic"
-                ) from e
+                raise ImportError("Anthropic package not installed. Run: pip install anthropic") from e
         return self._client
 
     async def generate_text(
@@ -329,9 +321,7 @@ class ModelManagementAdapter(IModelManagementPort):
         """Set fallback chain for a model."""
         self.fallback_chains[primary] = fallbacks
 
-    async def generate_response(
-        self, context: NarrativeContext, model_preference: str | None = None
-    ) -> ModelResponse:
+    async def generate_response(self, context: NarrativeContext, model_preference: str | None = None) -> ModelResponse:
         """Generate AI response using preferred model with fallbacks."""
         start_time = time.time()
 
@@ -470,7 +460,7 @@ class ModelManagementAdapter(IModelManagementPort):
 
     def _estimate_tokens(self, text: str) -> int:
         """Rough token estimation (actual tokenization varies by model)."""
-    # Rough approximation: 1 token ≈ 4 chars for English text
+        # Rough approximation: 1 token ≈ 4 chars for English text
         return len(text) // 4
 
 

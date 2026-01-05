@@ -146,9 +146,7 @@ class IModelConfigurationManager(ABC):
         """Add new model configuration."""
 
     @abstractmethod
-    def update_model_configuration(
-        self, provider_name: str, updates: dict[str, Any]
-    ) -> bool:
+    def update_model_configuration(self, provider_name: str, updates: dict[str, Any]) -> bool:
         """Update existing model configuration."""
 
     @abstractmethod
@@ -196,15 +194,11 @@ class IModelPerformanceMonitor(ABC):
         """Record response time for performance tracking."""
 
     @abstractmethod
-    def record_success(
-        self, adapter_name: str, prompt_length: int, response_length: int
-    ) -> None:
+    def record_success(self, adapter_name: str, prompt_length: int, response_length: int) -> None:
         """Record successful operation metrics."""
 
     @abstractmethod
-    def record_failure(
-        self, adapter_name: str, error_type: str, error_message: str
-    ) -> None:
+    def record_failure(self, adapter_name: str, error_type: str, error_message: str) -> None:
         """Record failure metrics for analysis."""
 
     @abstractmethod
@@ -220,15 +214,11 @@ class IModelPerformanceMonitor(ABC):
         """Get success rate for adapter in time window."""
 
     @abstractmethod
-    def get_average_response_time(
-        self, adapter_name: str, window_hours: int = 24
-    ) -> float:
+    def get_average_response_time(self, adapter_name: str, window_hours: int = 24) -> float:
         """Get average response time for adapter in time window."""
 
     @abstractmethod
-    def get_error_analysis(
-        self, adapter_name: str, window_hours: int = 24
-    ) -> dict[str, Any]:
+    def get_error_analysis(self, adapter_name: str, window_hours: int = 24) -> dict[str, Any]:
         """Get error analysis for adapter in time window."""
 
     @abstractmethod
@@ -289,9 +279,7 @@ class IModelOrchestrator(ABC):
 
     # Convenience methods that delegate to appropriate interfaces
     @abstractmethod
-    async def generate_response(
-        self, prompt: str, adapter_name: str, **kwargs
-    ) -> ModelResponse:
+    async def generate_response(self, prompt: str, adapter_name: str, **kwargs) -> ModelResponse:
         """Convenience method for response generation."""
 
     @abstractmethod
@@ -390,6 +378,7 @@ class ModelInterfaceFactory:
 
 # === Minimal in-domain Performance Monitor ===
 
+
 class SimplePerformanceMonitor(IModelPerformanceMonitor):
     """Lightweight, in-memory performance monitor for domain usage and tests."""
 
@@ -422,9 +411,7 @@ class SimplePerformanceMonitor(IModelPerformanceMonitor):
         if len(self._global["response_times"]) > 5000:
             self._global["response_times"] = self._global["response_times"][-5000:]
 
-    def record_success(
-        self, adapter_name: str, prompt_length: int, response_length: int
-    ) -> None:
+    def record_success(self, adapter_name: str, prompt_length: int, response_length: int) -> None:
         stats = self._ensure(adapter_name)
         stats["success"] += 1
         self._global["total_success"] += 1

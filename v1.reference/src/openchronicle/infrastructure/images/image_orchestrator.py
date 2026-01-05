@@ -74,35 +74,23 @@ class ImageOrchestrator:
         """Generate an entity portrait with intelligent prompt processing"""
 
         # Build optimized prompt
-        prompt = self.prompt_processor.build_character_prompt(
-            character_name, character_data
-        )
+        prompt = self.prompt_processor.build_character_prompt(character_name, character_data)
 
         # Get default style modifiers
-        style_modifiers = self.style_manager.get_default_style_modifiers(
-            ImageType.ENTITY
-        )
+        style_modifiers = self.style_manager.get_default_style_modifiers(ImageType.ENTITY)
 
         # Apply style preset if specified
         if style_preset:
-            style_modifiers = self.style_manager.apply_style_preset(
-                style_preset, style_modifiers
-            )
+            style_modifiers = self.style_manager.apply_style_preset(style_preset, style_modifiers)
 
         # Get recommended size
         if not size:
-            size = self.style_manager.get_recommended_size(
-                ImageType.ENTITY, preferred_provider
-            )
+            size = self.style_manager.get_recommended_size(ImageType.ENTITY, preferred_provider)
 
         # Check auto-generation rules
         existing_images = self.generation_engine.get_images_by_character(character_name)
-        if not self.style_manager.should_auto_generate_entity(
-            character_name, character_data, existing_images
-        ):
-            logger.info(
-                f"Auto-generation rules prevent creating portrait for {character_name}"
-            )
+        if not self.style_manager.should_auto_generate_entity(character_name, character_data, existing_images):
+            logger.info(f"Auto-generation rules prevent creating portrait for {character_name}")
             return None
 
         # Generate image
@@ -129,32 +117,22 @@ class ImageOrchestrator:
         """Generate a segment image with context-aware prompt processing"""
 
         # Check auto-generation rules first
-        if not self.style_manager.should_auto_generate_frame(
-            scene_id, scene_data, context
-        ):
-            logger.info(
-                f"Auto-generation rules prevent creating image for segment {scene_id}"
-            )
+        if not self.style_manager.should_auto_generate_frame(scene_id, scene_data, context):
+            logger.info(f"Auto-generation rules prevent creating image for segment {scene_id}")
             return None
 
         # Build optimized prompt
         prompt = self.prompt_processor.build_scene_prompt(scene_id, scene_data, context)
 
         # Get default style modifiers
-        style_modifiers = self.style_manager.get_default_style_modifiers(
-            ImageType.FRAME
-        )
+        style_modifiers = self.style_manager.get_default_style_modifiers(ImageType.FRAME)
 
         # Apply style preset if specified
         if style_preset:
-            style_modifiers = self.style_manager.apply_style_preset(
-                style_preset, style_modifiers
-            )
+            style_modifiers = self.style_manager.apply_style_preset(style_preset, style_modifiers)
 
         # Get recommended size
-        size = self.style_manager.get_recommended_size(
-            ImageType.FRAME, preferred_provider
-        )
+        size = self.style_manager.get_recommended_size(ImageType.FRAME, preferred_provider)
 
         # Generate image
         tags = ["segment", f"segment_{scene_id}"]
@@ -179,25 +157,17 @@ class ImageOrchestrator:
         """Generate a location image"""
 
         # Build optimized prompt
-        prompt = self.prompt_processor.build_location_prompt(
-            location_name, location_data
-        )
+        prompt = self.prompt_processor.build_location_prompt(location_name, location_data)
 
         # Get default style modifiers
-        style_modifiers = self.style_manager.get_default_style_modifiers(
-            ImageType.LOCATION
-        )
+        style_modifiers = self.style_manager.get_default_style_modifiers(ImageType.LOCATION)
 
         # Apply style preset if specified
         if style_preset:
-            style_modifiers = self.style_manager.apply_style_preset(
-                style_preset, style_modifiers
-            )
+            style_modifiers = self.style_manager.apply_style_preset(style_preset, style_modifiers)
 
         # Get recommended size
-        size = self.style_manager.get_recommended_size(
-            ImageType.LOCATION, preferred_provider
-        )
+        size = self.style_manager.get_recommended_size(ImageType.LOCATION, preferred_provider)
 
         # Generate image
         tags = ["location", location_name.lower().replace(" ", "_")]
@@ -228,14 +198,10 @@ class ImageOrchestrator:
 
         # Apply style preset if specified
         if style_preset:
-            style_modifiers = self.style_manager.apply_style_preset(
-                style_preset, style_modifiers
-            )
+            style_modifiers = self.style_manager.apply_style_preset(style_preset, style_modifiers)
 
         # Get recommended size
-        size = self.style_manager.get_recommended_size(
-            ImageType.ITEM, preferred_provider
-        )
+        size = self.style_manager.get_recommended_size(ImageType.ITEM, preferred_provider)
 
         # Generate image
         tags = ["item", item_name.lower().replace(" ", "_")]
@@ -264,7 +230,7 @@ class ImageOrchestrator:
         return self.generation_engine.get_images_by_character(character_name)
 
     def get_images_by_scene(self, scene_id: str) -> list[ImageMetadata]:
-    # Get all images for a segment
+        # Get all images for a segment
         return self.generation_engine.get_images_by_scene(scene_id)
 
     def get_images_by_tag(self, tag: str) -> list[ImageMetadata]:
@@ -277,9 +243,7 @@ class ImageOrchestrator:
 
     # === Format and Storage Operations ===
 
-    async def convert_image_format(
-        self, image_id: str, target_format: str, optimize: bool = True
-    ) -> str | None:
+    async def convert_image_format(self, image_id: str, target_format: str, optimize: bool = True) -> str | None:
         """Convert image to different format"""
 
         source_path = self.get_image_path(image_id)
@@ -291,9 +255,7 @@ class ImageOrchestrator:
         target_path = source_path.with_suffix(f".{target_format.lower()}")
 
         # Convert image
-        success = await self.format_converter.convert_image(
-            source_path, target_path, target_format, optimize
-        )
+        success = await self.format_converter.convert_image(source_path, target_path, target_format, optimize)
 
         if success:
             # Update metadata with new file path
@@ -348,9 +310,7 @@ class ImageOrchestrator:
             validation_result["valid"] = False
 
         # Check storage directory
-        storage_valid, storage_error = self.validator.validate_file_path(
-            str(self.generation_engine.images_path), True
-        )
+        storage_valid, storage_error = self.validator.validate_file_path(str(self.generation_engine.images_path), True)
         if not storage_valid and storage_error:
             validation_result["warnings"].append(f"Storage path issue: {storage_error}")
 
@@ -360,9 +320,7 @@ class ImageOrchestrator:
         """Get list of available image providers"""
         return self.generation_engine.registry.list_available_adapters()
 
-    def get_available_style_presets(
-        self, image_type: ImageType | None = None
-    ) -> list[str]:
+    def get_available_style_presets(self, image_type: ImageType | None = None) -> list[str]:
         """Get available style presets"""
         if image_type:
             return self.style_manager.get_presets_for_type(image_type)
@@ -376,9 +334,7 @@ class ImageOrchestrator:
         description: str = "",
     ) -> bool:
         """Create a custom style preset"""
-        return self.style_manager.create_custom_preset(
-            name, style_modifiers, image_types, description
-        )
+        return self.style_manager.create_custom_preset(name, style_modifiers, image_types, description)
 
     # === Statistics and Reporting ===
 
@@ -414,9 +370,7 @@ class ImageOrchestrator:
                 # Keep legacy key for compatibility, add neutral alias
                 "story_path": self.story_path,
                 "unit_path": self.unit_path,
-                "export_timestamp": self.generation_engine.export_metadata()[
-                    "export_timestamp"
-                ],
+                "export_timestamp": self.generation_engine.export_metadata()["export_timestamp"],
             },
         }
 

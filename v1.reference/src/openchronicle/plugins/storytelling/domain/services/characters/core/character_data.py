@@ -157,9 +157,7 @@ class CharacterStats(CharacterDataMixin):
     character_id: str
     stats: dict[CharacterStatType, int] = field(default_factory=dict)
     progression_history: list[CharacterStatProgression] = field(default_factory=list)
-    temporary_modifiers: dict[CharacterStatType, tuple[int, datetime]] = field(
-        default_factory=dict
-    )
+    temporary_modifiers: dict[CharacterStatType, tuple[int, datetime]] = field(default_factory=dict)
     last_updated: datetime = field(default_factory=datetime.now)
 
     def __post_init__(self):
@@ -247,12 +245,8 @@ class CharacterInteraction(CharacterDataMixin):
     content: str
     timestamp: datetime
     scene_context: str = ""
-    emotional_impact: dict[str, float] = field(
-        default_factory=dict
-    )  # character_id -> impact
-    relationship_changes: dict[str, float] = field(
-        default_factory=dict
-    )  # relationship_key -> change
+    emotional_impact: dict[str, float] = field(default_factory=dict)  # character_id -> impact
+    relationship_changes: dict[str, float] = field(default_factory=dict)  # relationship_key -> change
 
 
 @dataclass
@@ -338,16 +332,12 @@ class CharacterStyleProfile(CharacterDataMixin):
     """Character presentation and style information."""
 
     character_id: str
-    preferred_models: dict[str, str] = field(
-        default_factory=dict
-    )  # content_type -> model_name
+    preferred_models: dict[str, str] = field(default_factory=dict)  # content_type -> model_name
     speech_patterns: dict[str, Any] = field(default_factory=dict)
     personality_traits: dict[str, Any] = field(default_factory=dict)
     emotional_range: dict[str, float] = field(default_factory=dict)
     consistency_score: float = 1.0
-    model_performance: dict[str, dict[str, float]] = field(
-        default_factory=dict
-    )  # model -> metrics
+    model_performance: dict[str, dict[str, float]] = field(default_factory=dict)  # model -> metrics
 
 
 # =============================================================================
@@ -376,9 +366,7 @@ class CharacterData(CharacterDataMixin):
 
     # State information
     current_state: CharacterState | None = None
-    scene_states: dict[str, CharacterState] = field(
-        default_factory=dict
-    )  # scene_id -> state
+    scene_states: dict[str, CharacterState] = field(default_factory=dict)  # scene_id -> state
 
     # Metadata
     created_timestamp: datetime = field(default_factory=datetime.now)
@@ -390,9 +378,7 @@ class CharacterData(CharacterDataMixin):
         if self.stats is None:
             self.stats = CharacterStats(character_id=self.character_id)
         if self.consistency_profile is None:
-            self.consistency_profile = CharacterConsistencyProfile(
-                character_id=self.character_id
-            )
+            self.consistency_profile = CharacterConsistencyProfile(character_id=self.character_id)
         if self.style_profile is None:
             self.style_profile = CharacterStyleProfile(character_id=self.character_id)
 

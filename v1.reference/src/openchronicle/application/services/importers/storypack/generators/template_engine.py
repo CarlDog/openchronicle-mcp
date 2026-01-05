@@ -132,9 +132,7 @@ class TemplateEngine(ITemplateEngine):
         self.logger.info("No suitable template found for content analysis")
         return None
 
-    def process_template(
-        self, template_name: str, context: ImportContext
-    ) -> dict[str, Any]:
+    def process_template(self, template_name: str, context: ImportContext) -> dict[str, Any]:
         """
         Process template with given context.
 
@@ -156,9 +154,7 @@ class TemplateEngine(ITemplateEngine):
             processed_data = self._process_template_variables(template_data, context)
 
             # Apply template customizations
-            customized_data = self._apply_template_customizations(
-                processed_data, context
-            )
+            customized_data = self._apply_template_customizations(processed_data, context)
 
             log_system_event(
                 "template_engine",
@@ -219,9 +215,7 @@ class TemplateEngine(ITemplateEngine):
 
         return True
 
-    def _calculate_template_score(
-        self, template_data: dict[str, Any], content_analysis: dict[str, Any]
-    ) -> float:
+    def _calculate_template_score(self, template_data: dict[str, Any], content_analysis: dict[str, Any]) -> float:
         """Calculate how well a template matches the content analysis."""
         score = 0.0
 
@@ -269,25 +263,19 @@ class TemplateEngine(ITemplateEngine):
         if template_size == "small":
             return 1.0 if file_count <= thresholds["small"] else 0.5
         if template_size == "medium":
-            return (
-                1.0 if thresholds["small"] < file_count <= thresholds["medium"] else 0.7
-            )
+            return 1.0 if thresholds["small"] < file_count <= thresholds["medium"] else 0.7
         if template_size == "large":
             return 1.0 if file_count > thresholds["medium"] else 0.6
         return 0.5  # Unknown size
 
-    def _process_template_variables(
-        self, template_data: dict[str, Any], context: ImportContext
-    ) -> dict[str, Any]:
+    def _process_template_variables(self, template_data: dict[str, Any], context: ImportContext) -> dict[str, Any]:
         """Process template variables with context values."""
         # Define template variables
         variables = {
             "${STORYPACK_NAME}": context.storypack_name,
             "${SOURCE_NAME}": context.source_path.name,
             "${IMPORT_MODE}": context.import_mode,
-            "${CREATION_DATE}": context.target_path.stat().st_ctime
-            if context.target_path.exists()
-            else "",
+            "${CREATION_DATE}": context.target_path.stat().st_ctime if context.target_path.exists() else "",
             "${AI_ENABLED}": "Yes" if context.ai_available else "No",
         }
 
@@ -306,19 +294,14 @@ class TemplateEngine(ITemplateEngine):
             return result
 
         if isinstance(data, dict):
-            return {
-                key: self._replace_variables_recursive(value, variables)
-                for key, value in data.items()
-            }
+            return {key: self._replace_variables_recursive(value, variables) for key, value in data.items()}
 
         if isinstance(data, list):
             return [self._replace_variables_recursive(item, variables) for item in data]
 
         return data
 
-    def _apply_template_customizations(
-        self, template_data: dict[str, Any], context: ImportContext
-    ) -> dict[str, Any]:
+    def _apply_template_customizations(self, template_data: dict[str, Any], context: ImportContext) -> dict[str, Any]:
         """Apply context-specific customizations to the template."""
         customized_data = template_data.copy()
 
@@ -329,9 +312,7 @@ class TemplateEngine(ITemplateEngine):
             # Update metadata fields
             if "metadata" in storypack_template:
                 metadata = storypack_template["metadata"]
-                metadata["storypack_id"] = context.storypack_name.lower().replace(
-                    " ", "_"
-                )
+                metadata["storypack_id"] = context.storypack_name.lower().replace(" ", "_")
                 metadata["title"] = context.storypack_name
 
                 # Add import-specific metadata
@@ -343,9 +324,7 @@ class TemplateEngine(ITemplateEngine):
                         "source_path": str(context.source_path),
                         "import_mode": context.import_mode,
                         "ai_processing": context.ai_available,
-                        "template_used": template_data.get("template_info", {}).get(
-                            "name", "Unknown"
-                        ),
+                        "template_used": template_data.get("template_info", {}).get("name", "Unknown"),
                     }
                 )
 

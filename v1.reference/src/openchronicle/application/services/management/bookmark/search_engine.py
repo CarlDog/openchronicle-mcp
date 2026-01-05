@@ -24,7 +24,7 @@ class BookmarkSearchEngine:
     def __init__(self, story_id: str, persistence_port: "IPersistencePort | None" = None):
         self.story_id = story_id
         self.persistence_port = persistence_port
-        
+
         # Set up execution method for compatibility
         if self.persistence_port:
             self.execute_query = self._execute_query_wrapper

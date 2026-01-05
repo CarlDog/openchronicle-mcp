@@ -227,9 +227,7 @@ class NarrativeBranch:
             "scene_transitions": self.scene_transitions,
             "character_consequences": self.character_consequences,
             "world_state_changes": self.world_state_changes,
-            "required_outcome": (
-                self.required_outcome.value if self.required_outcome else None
-            ),
+            "required_outcome": (self.required_outcome.value if self.required_outcome else None),
             "required_skills": self.required_skills,
             "required_items": self.required_items,
         }

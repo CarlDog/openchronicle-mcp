@@ -157,9 +157,7 @@ class MoodTracker:
 
         return patterns
 
-    def get_mood_summary(
-        self, character: CharacterMemory, days: int = 7
-    ) -> dict[str, Any]:
+    def get_mood_summary(self, character: CharacterMemory, days: int = 7) -> dict[str, Any]:
         """Get mood summary for the last N days."""
         try:
             if not character.mood_history:
@@ -174,9 +172,7 @@ class MoodTracker:
 
             # Filter mood history to last N days
             cutoff_date = datetime.now(UTC) - timedelta(days=days)
-            recent_moods = [
-                mood for mood in character.mood_history if mood.timestamp > cutoff_date
-            ]
+            recent_moods = [mood for mood in character.mood_history if mood.timestamp > cutoff_date]
 
             if not recent_moods:
                 recent_moods = character.mood_history[-10:]  # At least last 10 entries
@@ -192,18 +188,14 @@ class MoodTracker:
 
             # Get most common mood
             most_common_mood = (
-                max(mood_counts.items(), key=lambda x: x[1])[0]
-                if mood_counts
-                else character.current_mood
+                max(mood_counts.items(), key=lambda x: x[1])[0] if mood_counts else character.current_mood
             )
 
             # Get average mood category
             avg_mood_category = self._categorize_mood(most_common_mood)
 
             # Get most common triggers
-            most_common_triggers = sorted(
-                trigger_counts.items(), key=lambda x: x[1], reverse=True
-            )[:5]
+            most_common_triggers = sorted(trigger_counts.items(), key=lambda x: x[1], reverse=True)[:5]
 
             return {
                 "character_name": character.name,
@@ -211,9 +203,7 @@ class MoodTracker:
                 "total_entries": len(recent_moods),
                 "mood_distribution": dict(mood_counts),
                 "average_mood_category": avg_mood_category,
-                "most_common_triggers": [
-                    trigger for trigger, count in most_common_triggers
-                ],
+                "most_common_triggers": [trigger for trigger, count in most_common_triggers],
             }
 
         except (AttributeError, KeyError):
@@ -273,11 +263,7 @@ class MoodTracker:
         for mood in recent_moods:
             mood_counts[mood.mood] += 1
 
-        return (
-            max(mood_counts.items(), key=lambda x: x[1])[0]
-            if mood_counts
-            else "neutral"
-        )
+        return max(mood_counts.items(), key=lambda x: x[1])[0] if mood_counts else "neutral"
 
     def _count_mood_changes_today(self, mood_history: list[MoodEntry]) -> int:
         """Count mood changes that happened today."""
@@ -375,9 +361,7 @@ class MoodTracker:
 
         return None
 
-    def _detect_trigger_patterns(
-        self, mood_history: list[MoodEntry]
-    ) -> list[MoodPattern]:
+    def _detect_trigger_patterns(self, mood_history: list[MoodEntry]) -> list[MoodPattern]:
         """Detect trigger-based patterns."""
         patterns = []
 
@@ -403,9 +387,7 @@ class MoodTracker:
 
         return patterns
 
-    def _detect_stability_pattern(
-        self, mood_history: list[MoodEntry]
-    ) -> MoodPattern | None:
+    def _detect_stability_pattern(self, mood_history: list[MoodEntry]) -> MoodPattern | None:
         """Detect overall stability pattern."""
         stability = self._calculate_mood_stability(mood_history)
 

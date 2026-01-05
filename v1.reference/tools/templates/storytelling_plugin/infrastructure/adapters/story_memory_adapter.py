@@ -1,5 +1,6 @@
 class StoryMemoryAdapter:
     """In-memory adapter satisfying MemoryPortContract for tests."""
+
     def __init__(self, backing_store=None):
         self._mem = {}
 

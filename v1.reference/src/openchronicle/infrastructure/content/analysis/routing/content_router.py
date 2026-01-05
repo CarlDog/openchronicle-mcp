@@ -25,9 +25,7 @@ class ContentRouter(RoutingComponent):
         """Get routing recommendation based on analysis."""
         return self.get_routing_recommendation(analysis)
 
-    def route_request(
-        self, analysis: dict[str, Any], context: dict[str, Any]
-    ) -> dict[str, Any]:
+    def route_request(self, analysis: dict[str, Any], context: dict[str, Any]) -> dict[str, Any]:
         """Route request and return comprehensive routing recommendations."""
         return self.get_routing_recommendation(analysis)
 
@@ -48,10 +46,7 @@ class ContentRouter(RoutingComponent):
         if hasattr(self, "model_manager") and self.model_manager:
             try:
                 # Try to get the configured default, or the first available adapter
-                if (
-                    hasattr(self.model_manager, "default_adapter")
-                    and self.model_manager.default_adapter
-                ):
+                if hasattr(self.model_manager, "default_adapter") and self.model_manager.default_adapter:
                     default_adapter = self.model_manager.default_adapter
                 elif hasattr(self.model_manager, "get_available_adapters"):
                     available = self.model_manager.get_available_adapters()
@@ -63,9 +58,7 @@ class ContentRouter(RoutingComponent):
                 log_warning(f"Model manager configuration error: {e}, using mock fallback")
                 default_adapter = "mock"
             except Exception as e:
-                log_warning(
-                    f"Could not determine default adapter: {e}, using mock fallback"
-                )
+                log_warning(f"Could not determine default adapter: {e}, using mock fallback")
                 default_adapter = "mock"
 
         # Default routing
@@ -118,9 +111,7 @@ class ContentRouter(RoutingComponent):
 
         return recommendation
 
-    def get_model_parameters(
-        self, content_type: str, content_flags: list[str]
-    ) -> dict[str, Any]:
+    def get_model_parameters(self, content_type: str, content_flags: list[str]) -> dict[str, Any]:
         """Get recommended model parameters for content type and flags."""
         params = {
             "temperature": 0.7,
@@ -164,10 +155,7 @@ class ContentRouter(RoutingComponent):
         }
 
         # Enable safety measures for sensitive content
-        if any(
-            flag in content_flags
-            for flag in ["nsfw", "explicit", "suggestive", "mature", "toxic_detected"]
-        ):
+        if any(flag in content_flags for flag in ["nsfw", "explicit", "suggestive", "mature", "toxic_detected"]):
             safety_config["content_filter"] = True
             safety_config["nsfw_detection"] = True
             safety_config["output_filtering"] = True

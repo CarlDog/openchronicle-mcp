@@ -16,9 +16,7 @@ class IStoragePort(ABC):
     """Interface for storage operations."""
 
     @abstractmethod
-    def save_file(
-        self, story_id: str, file_path: str, content: Union[str, bytes]
-    ) -> bool:
+    def save_file(self, story_id: str, file_path: str, content: Union[str, bytes]) -> bool:
         """
         Save content to a file.
 
@@ -84,9 +82,7 @@ class IStoragePort(ABC):
         """
 
     @abstractmethod
-    def get_file_metadata(
-        self, story_id: str, file_path: str
-    ) -> Optional[dict[str, Any]]:
+    def get_file_metadata(self, story_id: str, file_path: str) -> Optional[dict[str, Any]]:
         """
         Get file metadata.
 

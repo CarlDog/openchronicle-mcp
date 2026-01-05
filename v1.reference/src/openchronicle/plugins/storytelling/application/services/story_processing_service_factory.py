@@ -7,14 +7,13 @@ instances with correct dependency injection for different environments.
 
 from typing import Any
 
-from openchronicle.domain.services import (
-    CharacterService,
-    MemoryService,
-    SceneService,
-    StoryService,
-)
+from openchronicle.domain.services import CharacterService
+from openchronicle.domain.services import MemoryService
+from openchronicle.domain.services import SceneService
+from openchronicle.domain.services import StoryService
 
-from .story_processing_service import StoryProcessingConfig, StoryProcessingService
+from .story_processing_service import StoryProcessingConfig
+from .story_processing_service import StoryProcessingService
 
 
 class StoryProcessingServiceFactory:
@@ -50,12 +49,8 @@ class StoryProcessingServiceFactory:
         Returns:
             Configured StoryProcessingService with production adapters
         """
-        from ...infrastructure.adapters.content_adapter import (
-            StorytellingContentAdapter,
-        )
-        from ...infrastructure.adapters.context_adapter import (
-            StorytellingContextAdapter,
-        )
+        from ...infrastructure.adapters.content_adapter import StorytellingContentAdapter
+        from ...infrastructure.adapters.context_adapter import StorytellingContextAdapter
 
         # Create production adapters using plugin-local implementations
         context_port = StorytellingContextAdapter()

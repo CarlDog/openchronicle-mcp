@@ -242,30 +242,21 @@ class ErrorRecoveryStrategy(ABC):
         """Check if this strategy can recover from the given error."""
 
     @abstractmethod
-    async def recover(
-        self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict
-    ) -> Any:
+    async def recover(self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict) -> Any:
         """Attempt to recover from the error."""
 
 
 class FallbackValueStrategy(ErrorRecoveryStrategy):
     """Recovery strategy that returns a fallback value."""
 
-    def __init__(
-        self, fallback_value: Any, applicable_categories: list[ErrorCategory] = None
-    ):
+    def __init__(self, fallback_value: Any, applicable_categories: list[ErrorCategory] = None):
         self.fallback_value = fallback_value
         self.applicable_categories = applicable_categories or []
 
     async def can_recover(self, error: OpenChronicleError) -> bool:
-        return (
-            not self.applicable_categories
-            or error.category in self.applicable_categories
-        ) and error.recoverable
+        return (not self.applicable_categories or error.category in self.applicable_categories) and error.recoverable
 
-    async def recover(
-        self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict
-    ) -> Any:
+    async def recover(self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict) -> Any:
         log_warning(
             f"Using fallback value for error: {error}",
             context_tags=error.context.to_log_tags(),
@@ -276,9 +267,7 @@ class FallbackValueStrategy(ErrorRecoveryStrategy):
 class RetryStrategy(ErrorRecoveryStrategy):
     """Recovery strategy that retries the operation with exponential backoff."""
 
-    def __init__(
-        self, max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0
-    ):
+    def __init__(self, max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0):
         self.max_retries = max_retries
         self.base_delay = base_delay
         self.max_delay = max_delay
@@ -290,9 +279,7 @@ class RetryStrategy(ErrorRecoveryStrategy):
             ErrorCategory.PERFORMANCE,
         ]
 
-    async def recover(
-        self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict
-    ) -> Any:
+    async def recover(self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict) -> Any:
         original_func = original_kwargs.get("_original_func")
         if not original_func:
             raise error
@@ -301,8 +288,7 @@ class RetryStrategy(ErrorRecoveryStrategy):
             await asyncio.sleep(delay)
 
             log_info(
-                f"Retry attempt {attempt + 1}/{self.max_retries} "
-                f"for {error.context.operation}",
+                f"Retry attempt {attempt + 1}/{self.max_retries} " f"for {error.context.operation}",
                 context_tags=error.context.to_log_tags(),
             )
 
@@ -361,19 +347,14 @@ class ErrorRecoveryManager:
         """Add a new recovery strategy."""
         self.strategies.insert(0, strategy)  # Insert at beginning for priority
 
-    async def attempt_recovery(
-        self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict
-    ) -> Any:
+    async def attempt_recovery(self, error: OpenChronicleError, original_args: tuple, original_kwargs: dict) -> Any:
         """Attempt to recover from an error using available strategies."""
         for strategy in self.strategies:
             if await strategy.can_recover(error):
                 try:
                     return await strategy.recover(error, original_args, original_kwargs)
                 except RECOVERABLE_EXCEPTIONS as recovery_error:
-                    log_error(
-                        f"Recovery strategy {type(strategy).__name__} "
-                        f"failed: {recovery_error}"
-                    )
+                    log_error(f"Recovery strategy {type(strategy).__name__} " f"failed: {recovery_error}")
                     continue
 
         # No recovery possible
@@ -406,11 +387,7 @@ def with_error_handling(
         @functools.wraps(func)
         async def async_wrapper(*args, **kwargs) -> T:
             operation_context = context or ErrorContext(
-                component=(
-                    func.__module__.split(".")[-1]
-                    if hasattr(func, "__module__")
-                    else "unknown"
-                ),
+                component=(func.__module__.split(".")[-1] if hasattr(func, "__module__") else "unknown"),
                 operation=func.__name__,
             )
 
@@ -439,12 +416,8 @@ def with_error_handling(
                     try:
                         # Create a temporary recovery manager with the specific fallback
                         temp_manager = ErrorRecoveryManager()
-                        temp_manager.add_strategy(
-                            FallbackValueStrategy(fallback_result)
-                        )
-                        return await temp_manager.attempt_recovery(
-                            oc_error, args, kwargs
-                        )
+                        temp_manager.add_strategy(FallbackValueStrategy(fallback_result))
+                        return await temp_manager.attempt_recovery(oc_error, args, kwargs)
                     except RECOVERABLE_EXCEPTIONS:
                         pass  # Fall through to fallback
                     except OpenChronicleError:
@@ -458,8 +431,7 @@ def with_error_handling(
             except RECOVERABLE_EXCEPTIONS as error:
                 # Convert to structured OpenChronicle error
                 oc_error = OpenChronicleError(
-                    message=f"Unexpected error in {operation_context.operation}: "
-                    f"{error!s}",
+                    message=f"Unexpected error in {operation_context.operation}: " f"{error!s}",
                     category=error_category or ErrorCategory.INTEGRATION,
                     severity=ErrorSeverity.HIGH,
                     context=operation_context,
@@ -490,12 +462,8 @@ def with_error_handling(
                     try:
                         # Create a temporary recovery manager with the specific fallback
                         temp_manager = ErrorRecoveryManager()
-                        temp_manager.add_strategy(
-                            FallbackValueStrategy(fallback_result)
-                        )
-                        return await temp_manager.attempt_recovery(
-                            oc_error, args, kwargs
-                        )
+                        temp_manager.add_strategy(FallbackValueStrategy(fallback_result))
+                        return await temp_manager.attempt_recovery(oc_error, args, kwargs)
                     except RECOVERABLE_EXCEPTIONS:
                         pass  # Fall through to fallback
 
@@ -506,11 +474,7 @@ def with_error_handling(
         @functools.wraps(func)
         def sync_wrapper(*args, **kwargs) -> T:
             operation_context = context or ErrorContext(
-                component=(
-                    func.__module__.split(".")[-1]
-                    if hasattr(func, "__module__")
-                    else "unknown"
-                ),
+                component=(func.__module__.split(".")[-1] if hasattr(func, "__module__") else "unknown"),
                 operation=func.__name__,
             )
 
@@ -529,8 +493,7 @@ def with_error_handling(
 
             except RECOVERABLE_EXCEPTIONS as error:
                 oc_error = OpenChronicleError(
-                    message=f"Unexpected error in {operation_context.operation}: "
-                    f"{error!s}",
+                    message=f"Unexpected error in {operation_context.operation}: " f"{error!s}",
                     category=error_category or ErrorCategory.INTEGRATION,
                     severity=ErrorSeverity.HIGH,
                     context=operation_context,
@@ -645,9 +608,7 @@ class ErrorMonitor:
     def get_error_summary(self) -> dict[str, Any]:
         """Get summary of error patterns and system health."""
         total_errors = sum(self.error_counts.values())
-        recent_errors = [
-            e for e in self.error_trends if e["timestamp"] > time.time() - 3600
-        ]  # Last hour
+        recent_errors = [e for e in self.error_trends if e["timestamp"] > time.time() - 3600]  # Last hour
 
         return {
             "total_errors": total_errors,
@@ -655,11 +616,7 @@ class ErrorMonitor:
             "error_breakdown": self.error_counts.copy(),
             "recent_error_categories": {},
             "health_status": (
-                "healthy"
-                if len(recent_errors) < 10
-                else "degraded"
-                if len(recent_errors) < 50
-                else "critical"
+                "healthy" if len(recent_errors) < 10 else "degraded" if len(recent_errors) < 50 else "critical"
             ),
         }
 

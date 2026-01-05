@@ -29,7 +29,7 @@ def register(
 ) -> None:
     # Register task handlers
     handler_registry.register("my.task.type", my_handler_function)
-    
+
     # Optionally register agent templates
     registry.register_agent_template({
         "role": "my_role",
@@ -94,17 +94,17 @@ Task handlers are async functions that process tasks:
 async def my_handler(task: Task, context: dict[str, Any] | None = None) -> dict[str, Any]:
     """
     Handle a task of type "my.task.type".
-    
+
     Args:
         task: The task to process (includes payload, project_id, etc.)
         context: Optional runtime context (emit_event, agent_id, etc.)
-    
+
     Returns:
         Dictionary with task results
     """
     # Access task data
     prompt = task.payload.get("prompt")
-    
+
     # Emit events if needed
     emit_event = context.get("emit_event") if context else None
     if emit_event:
@@ -116,7 +116,7 @@ async def my_handler(task: Task, context: dict[str, Any] | None = None) -> dict[
             type="my.event.type",
             payload={"status": "processing"}
         ))
-    
+
     # Return results
     return {"output": "processed"}
 ```
@@ -181,7 +181,7 @@ Test your plugin by:
        registry = TaskHandlerRegistry()
        loader = PluginLoader(plugins_dir="plugins", handler_registry=registry)
        loader.load_plugins()
-       
+
        handler = registry.get("my.task.type")
        assert handler is not None
    ```
@@ -191,16 +191,16 @@ Test your plugin by:
    ```python
    import pytest
    from openchronicle.core.domain.services.orchestrator import OrchestratorService
-   
+
    @pytest.mark.asyncio
    async def test_plugin_integration():
        # Set up orchestrator with plugin loader
        orchestrator = OrchestratorService(...)
-       
+
        # Submit task that routes to your plugin
        task = orchestrator.submit_task(project_id, "my.task.type", {...})
        result = await orchestrator.execute_task(task.id)
-       
+
        assert result["output"] == "expected"
    ```
 

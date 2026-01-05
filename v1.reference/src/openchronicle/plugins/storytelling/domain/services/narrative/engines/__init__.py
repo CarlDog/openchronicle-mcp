@@ -20,7 +20,7 @@ from .response.response_orchestrator import ResponseOrchestrator
 
 __all__ = [
     "ConsistencyOrchestrator",
-    "EmotionalOrchestrator", 
+    "EmotionalOrchestrator",
     "MechanicsOrchestrator",
     "ResponseOrchestrator",
 ]

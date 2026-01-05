@@ -40,9 +40,7 @@ class ConfigManager:
             "color_output": True,
             "max_table_rows": 50,
             "progress_bars": True,
-            "editor": os.environ.get(
-                "EDITOR", "notepad" if os.name == "nt" else "nano"
-            ),
+            "editor": os.environ.get("EDITOR", "notepad" if os.name == "nt" else "nano"),
             "pager": os.environ.get("PAGER", "more" if os.name == "nt" else "less"),
         }
 
@@ -199,9 +197,7 @@ class ConfigManager:
             favorites.remove(model_name)
             self.set_preference("favorite_models", favorites)
 
-    def get_openchronicle_config(
-        self, config_file: str = "system_config.json"
-    ) -> dict[str, Any]:
+    def get_openchronicle_config(self, config_file: str = "system_config.json") -> dict[str, Any]:
         """
         Load OpenChronicle system configuration.
 
@@ -218,9 +214,7 @@ class ConfigManager:
         config_path = self.config_dir / config_file
 
         if not config_path.exists():
-            raise FileNotFoundError(
-                f"OpenChronicle config file not found: {config_path}"
-            )
+            raise FileNotFoundError(f"OpenChronicle config file not found: {config_path}")
 
         try:
             with open(config_path, encoding="utf-8") as f:

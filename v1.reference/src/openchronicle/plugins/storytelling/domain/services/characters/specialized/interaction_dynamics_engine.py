@@ -41,14 +41,10 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         self.relationship_decay_rate = self.config.get("relationship_decay_rate", 0.01)
         self.interaction_window_hours = self.config.get("interaction_window_hours", 24)
         self.auto_turn_management = self.config.get("auto_turn_management", True)
-        self.emotional_contagion_enabled = self.config.get(
-            "emotional_contagion_enabled", True
-        )
+        self.emotional_contagion_enabled = self.config.get("emotional_contagion_enabled", True)
 
         # Data storage
-        self.relationships: dict[
-            str, CharacterRelationship
-        ] = {}  # Key: "char_a:char_b"
+        self.relationships: dict[str, CharacterRelationship] = {}  # Key: "char_a:char_b"
         self.interaction_history: list[CharacterInteraction] = []
         self.scene_states: dict[str, SceneState] = {}
         self.character_contexts: dict[str, dict[str, Any]] = {}
@@ -115,14 +111,10 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
             )
             self.relationships[relationship_key] = relationship
 
-        self.logger.info(
-            f"Created/updated relationship: {character_a} - {character_b} ({relationship_type.value})"
-        )
+        self.logger.info(f"Created/updated relationship: {character_a} - {character_b} ({relationship_type.value})")
         return relationship
 
-    def get_relationship(
-        self, character_a: str, character_b: str
-    ) -> CharacterRelationship | None:
+    def get_relationship(self, character_a: str, character_b: str) -> CharacterRelationship | None:
         """Get relationship between two characters."""
         relationship_key = self._get_relationship_key(character_a, character_b)
         return self.relationships.get(relationship_key)
@@ -138,14 +130,10 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         relationship = self.get_relationship(character_a, character_b)
         if not relationship:
             # Create neutral relationship if none exists
-            relationship = self.create_relationship(
-                character_a, character_b, CharacterRelationType.NEUTRAL
-            )
+            relationship = self.create_relationship(character_a, character_b, CharacterRelationType.NEUTRAL)
 
         # Update strength (clamped to -1.0 to 1.0)
-        relationship.strength = max(
-            -1.0, min(1.0, relationship.strength + strength_change)
-        )
+        relationship.strength = max(-1.0, min(1.0, relationship.strength + strength_change))
         relationship.last_interaction = datetime.now()
 
         # Add to history
@@ -160,17 +148,12 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
         return True
 
-    def get_character_relationships(
-        self, character_id: str
-    ) -> list[CharacterRelationship]:
+    def get_character_relationships(self, character_id: str) -> list[CharacterRelationship]:
         """Get all relationships for a character."""
         relationships = []
 
         for relationship in self.relationships.values():
-            if (
-                relationship.character_a == character_id
-                or relationship.character_b == character_id
-            ):
+            if relationship.character_a == character_id or relationship.character_b == character_id:
                 relationships.append(relationship)
 
         return relationships
@@ -218,9 +201,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
         self.scene_states[scene_id] = scene_state
 
-        self.logger.info(
-            f"Created scene '{scene_id}' with {len(characters)} characters"
-        )
+        self.logger.info(f"Created scene '{scene_id}' with {len(characters)} characters")
         return scene_state
 
     def get_scene(self, scene_id: str) -> SceneState | None:
@@ -308,9 +289,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
         # Limit scene history
         if len(scene.interaction_history) > self.max_scene_history:
-            scene.interaction_history = scene.interaction_history[
-                -self.max_scene_history :
-            ]
+            scene.interaction_history = scene.interaction_history[-self.max_scene_history :]
 
         # Update turn order if auto-management enabled
         if self.auto_turn_management:
@@ -319,9 +298,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         self.logger.debug(f"Processed interaction in scene {scene_id}: {speaker_id}")
         return interaction
 
-    def get_scene_interactions(
-        self, scene_id: str, limit: int = 50
-    ) -> list[CharacterInteraction]:
+    def get_scene_interactions(self, scene_id: str, limit: int = 50) -> list[CharacterInteraction]:
         """Get recent interactions from a scene."""
         scene = self.get_scene(scene_id)
         if not scene:
@@ -329,17 +306,14 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
         return scene.interaction_history[-limit:]
 
-    def get_character_interaction_history(
-        self, character_id: str, hours_back: int = 24
-    ) -> list[CharacterInteraction]:
+    def get_character_interaction_history(self, character_id: str, hours_back: int = 24) -> list[CharacterInteraction]:
         """Get character's recent interaction history."""
         cutoff_time = datetime.now() - timedelta(hours=hours_back)
 
         return [
             interaction
             for interaction in self.interaction_history
-            if character_id in interaction.participants
-            and interaction.timestamp > cutoff_time
+            if character_id in interaction.participants and interaction.timestamp > cutoff_time
         ]
 
     # =============================================================================
@@ -353,25 +327,17 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
 
         state = {
             "character_id": character_id,
-            "current_emotion": (
-                character_state.current_emotion if character_state else "neutral"
-            ),
-            "emotional_intensity": (
-                character_state.emotional_intensity if character_state else 0.5
-            ),
+            "current_emotion": (character_state.current_emotion if character_state else "neutral"),
+            "emotional_intensity": (character_state.emotional_intensity if character_state else 0.5),
             "motivation": character_state.motivation if character_state else "",
             "active_relationships": len(relationships),
             "relationship_summary": self._summarize_relationships(relationships),
-            "recent_interactions": len(
-                self.get_character_interaction_history(character_id, 24)
-            ),
+            "recent_interactions": len(self.get_character_interaction_history(character_id, 24)),
         }
 
         return state
 
-    def update_character_state(
-        self, character_id: str, state_updates: dict[str, Any]
-    ) -> bool:
+    def update_character_state(self, character_id: str, state_updates: dict[str, Any]) -> bool:
         """Update character interaction state."""
         character_state = self.get_character_data(character_id)
         if not character_state:
@@ -397,9 +363,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         """Export character interaction data."""
         character_state = self.get_character_data(character_id)
         relationships = self.get_character_relationships(character_id)
-        interactions = self.get_character_interaction_history(
-            character_id, 24 * 7
-        )  # Week of history
+        interactions = self.get_character_interaction_history(character_id, 24 * 7)  # Week of history
 
         return {
             "character_id": character_id,
@@ -437,17 +401,11 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
             self.logger.info(f"Imported interaction data for character {character_id}")
 
         except (KeyError, AttributeError) as e:
-            self.logger.exception(
-                "Character interaction data structure error for"
-            )
+            self.logger.exception("Character interaction data structure error for")
         except (ValueError, TypeError) as e:
-            self.logger.exception(
-                "Character interaction data validation error for"
-            )
+            self.logger.exception("Character interaction data validation error for")
         except Exception as e:
-            self.logger.exception(
-                "Failed to import interaction data for"
-            )
+            self.logger.exception("Failed to import interaction data for")
 
     # =============================================================================
     # Private Helper Methods
@@ -458,9 +416,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         chars = sorted([character_a, character_b])
         return f"{chars[0]}:{chars[1]}"
 
-    def _process_interaction_effects(
-        self, scene: SceneState, interaction: CharacterInteraction
-    ) -> None:
+    def _process_interaction_effects(self, scene: SceneState, interaction: CharacterInteraction) -> None:
         """Process effects of interaction on relationships and emotions."""
         speaker_id = interaction.participants[0]
 
@@ -471,13 +427,9 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         # Update relationship strengths based on interaction
         for other_character in scene.active_characters:
             if other_character != speaker_id:
-                self._update_relationship_from_interaction(
-                    speaker_id, other_character, interaction
-                )
+                self._update_relationship_from_interaction(speaker_id, other_character, interaction)
 
-    def _apply_emotional_contagion(
-        self, scene: SceneState, speaker_id: str, interaction: CharacterInteraction
-    ) -> None:
+    def _apply_emotional_contagion(self, scene: SceneState, speaker_id: str, interaction: CharacterInteraction) -> None:
         """Apply emotional contagion effects to other characters."""
         speaker_state = scene.character_states.get(speaker_id)
         if not speaker_state:
@@ -489,12 +441,8 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         for char_id, char_state in scene.character_states.items():
             if char_id != speaker_id:
                 # Slightly adjust emotional intensity based on speaker
-                contagion_effect = (
-                    speaker_intensity - char_state.emotional_intensity
-                ) * 0.1
-                char_state.emotional_intensity = max(
-                    0.0, min(1.0, char_state.emotional_intensity + contagion_effect)
-                )
+                contagion_effect = (speaker_intensity - char_state.emotional_intensity) * 0.1
+                char_state.emotional_intensity = max(0.0, min(1.0, char_state.emotional_intensity + contagion_effect))
 
     def _update_relationship_from_interaction(
         self, speaker_id: str, listener_id: str, interaction: CharacterInteraction
@@ -510,13 +458,9 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         negative_count = sum(1 for word in negative_words if word in content_lower)
 
         if positive_count > negative_count:
-            self.update_relationship_strength(
-                speaker_id, listener_id, 0.05, "Positive interaction"
-            )
+            self.update_relationship_strength(speaker_id, listener_id, 0.05, "Positive interaction")
         elif negative_count > positive_count:
-            self.update_relationship_strength(
-                speaker_id, listener_id, -0.05, "Negative interaction"
-            )
+            self.update_relationship_strength(speaker_id, listener_id, -0.05, "Negative interaction")
 
     def _advance_turn_order(self, scene: SceneState) -> None:
         """Advance turn order to next speaker."""
@@ -527,9 +471,7 @@ class InteractionDynamicsEngine(CharacterEngineBase, CharacterStateProvider):
         next_index = (current_index + 1) % len(scene.turn_order)
         scene.current_speaker = scene.turn_order[next_index]
 
-    def _summarize_relationships(
-        self, relationships: list[CharacterRelationship]
-    ) -> dict[str, int]:
+    def _summarize_relationships(self, relationships: list[CharacterRelationship]) -> dict[str, int]:
         """Summarize relationship types for a character."""
         summary = {}
 

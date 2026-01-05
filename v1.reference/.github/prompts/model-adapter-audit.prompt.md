@@ -23,7 +23,7 @@ CRITICAL PATTERNS TO VALIDATE:
 
 ANTI-PATTERNS TO DETECT:
 ❌ Direct adapter imports and instantiation
-❌ Hardcoded provider configurations  
+❌ Hardcoded provider configurations
 ❌ Missing fallback chain implementations
 ❌ Provider failures breaking narrative flow
 ❌ Mixed mock/production adapter usage
@@ -36,7 +36,7 @@ AUDIT FOCUS AREAS:
    - Is dynamic adapter initialization used properly?
    - Are adapters registered with the DI container correctly?
 
-2. **Fallback Chain Analysis**  
+2. **Fallback Chain Analysis**
    - Do fallback chains cover all realistic failure scenarios?
    - Is fallback logic implemented consistently across providers?
    - Are fallback chains configured in model_registry.json?
@@ -108,7 +108,7 @@ SUCCESS CRITERIA:
 - All model operations route through ModelOrchestrator
 - Fallback chains handle all provider failure scenarios
 - Configuration loading centralized and validated
-- Mock adapters properly segregated and controlled  
+- Mock adapters properly segregated and controlled
 - Provider health monitoring active and effective
 - Error handling preserves narrative context throughout fallback chains
 ```

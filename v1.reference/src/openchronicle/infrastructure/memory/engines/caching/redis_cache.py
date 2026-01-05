@@ -121,11 +121,7 @@ class CacheMetrics:
     @property
     def avg_redis_time(self) -> float:
         """Calculate average Redis response time."""
-        return (
-            sum(self.redis_response_times) / len(self.redis_response_times)
-            if self.redis_response_times
-            else 0.0
-        )
+        return sum(self.redis_response_times) / len(self.redis_response_times) if self.redis_response_times else 0.0
 
     def get_summary(self) -> dict[str, Any]:
         """Get comprehensive metrics summary."""
@@ -137,9 +133,7 @@ class CacheMetrics:
             "local_hit_rate": self.local_hit_rate,
             "total_operations": self.hits + self.misses,
             "avg_redis_response_ms": self.avg_redis_time * 1000,
-            "operations_per_second": (
-                (self.hits + self.misses) / uptime if uptime > 0 else 0
-            ),
+            "operations_per_second": ((self.hits + self.misses) / uptime if uptime > 0 else 0),
         }
 
 
@@ -161,7 +155,8 @@ class MultiTierCache:
             from cachetools import TTLCache
 
             self.local_cache = TTLCache(
-                maxsize=self.config.local_cache_size, ttl=300  # 5 minutes local TTL
+                maxsize=self.config.local_cache_size,
+                ttl=300,  # 5 minutes local TTL
             )
         else:
             self.local_cache = None
@@ -253,9 +248,7 @@ class MultiTierCache:
                         if self.local_cache is not None:
                             self.local_cache[key] = value
                     except json.JSONDecodeError:
-                        self.logger.exception(
-                            "Failed to deserialize Redis value for key"
-                        )
+                        self.logger.exception("Failed to deserialize Redis value for key")
                     else:
                         return value
                 else:
@@ -270,11 +263,7 @@ class MultiTierCache:
         # Tier 3: Fallback function (usually database)
         if fallback_func:
             self.logger.debug(f"Cache miss, calling fallback for: {key}")
-            value = (
-                await fallback_func()
-                if asyncio.iscoroutinefunction(fallback_func)
-                else fallback_func()
-            )
+            value = await fallback_func() if asyncio.iscoroutinefunction(fallback_func) else fallback_func()
 
             if value is not None:
                 # Store in both caches
@@ -361,9 +350,7 @@ class MultiTierCache:
                 keys = await redis_client.keys(pattern)
                 if keys:
                     deleted = await redis_client.delete(*keys)
-                    self.logger.info(
-                        f"Invalidated {deleted} keys matching pattern: {pattern}"
-                    )
+                    self.logger.info(f"Invalidated {deleted} keys matching pattern: {pattern}")
             except Exception as e:
                 self.logger.exception("Redis pattern invalidation error")
 
@@ -387,29 +374,21 @@ class CachedCharacterManager:
         self.original_manager = original_manager
         self.logger = logging.getLogger("openchronicle.cache.character")
 
-    async def get_character_memory(
-        self, story_id: str, character_name: str
-    ) -> CharacterMemory | None:
+    async def get_character_memory(self, story_id: str, character_name: str) -> CharacterMemory | None:
         """Get character memory with caching."""
         cache_key = self.cache._make_key("char", story_id, character_name)
 
         async def fallback():
             return self.original_manager.get_character_memory(story_id, character_name)
 
-        result = await self.cache.get(
-            cache_key, fallback, ttl=self.cache.config.character_ttl
-        )
+        result = await self.cache.get(cache_key, fallback, ttl=self.cache.config.character_ttl)
 
         return result
 
-    async def update_character(
-        self, story_id: str, character_name: str, updates: dict[str, Any]
-    ) -> bool:
+    async def update_character(self, story_id: str, character_name: str, updates: dict[str, Any]) -> bool:
         """Update character and invalidate cache."""
         # Update in original manager
-        success = self.original_manager.update_character(
-            story_id, character_name, updates
-        )
+        success = self.original_manager.update_character(story_id, character_name, updates)
 
         if success:
             # Invalidate cache
@@ -423,9 +402,7 @@ class CachedCharacterManager:
         """Invalidate all character caches for a story."""
         pattern = self.cache._make_key("char", story_id, "*")
         deleted = await self.cache.invalidate_pattern(pattern)
-        self.logger.info(
-            f"Invalidated {deleted} character caches for story: {story_id}"
-        )
+        self.logger.info(f"Invalidated {deleted} character caches for story: {story_id}")
 
 
 class CachedMemoryOrchestrator:
@@ -434,9 +411,7 @@ class CachedMemoryOrchestrator:
     def __init__(self, original_orchestrator, cache_config: CacheConfig | None = None):
         self.original = original_orchestrator
         self.cache = MultiTierCache(cache_config)
-        self.cached_character_manager = CachedCharacterManager(
-            self.cache, original_orchestrator.character_manager
-        )
+        self.cached_character_manager = CachedCharacterManager(self.cache, original_orchestrator.character_manager)
         self.logger = logging.getLogger("openchronicle.cache.memory")
 
     async def get_memory_snapshot(self, story_id: str) -> MemorySnapshot | None:
@@ -446,9 +421,7 @@ class CachedMemoryOrchestrator:
         async def fallback():
             return self.original.load_current_memory(story_id)
 
-        return await self.cache.get(
-            cache_key, fallback, ttl=self.cache.config.memory_ttl
-        )
+        return await self.cache.get(cache_key, fallback, ttl=self.cache.config.memory_ttl)
 
     async def save_memory(self, story_id: str, memory_data: dict[str, Any]) -> bool:
         """Save memory and invalidate related caches."""
@@ -458,9 +431,7 @@ class CachedMemoryOrchestrator:
             # Invalidate memory snapshot cache
             cache_key = self.cache._make_key("snapshot", story_id, "current")
             await self.cache.delete(cache_key)
-            self.logger.debug(
-                f"Invalidated memory snapshot cache for story: {story_id}"
-            )
+            self.logger.debug(f"Invalidated memory snapshot cache for story: {story_id}")
 
         return success
 

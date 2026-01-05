@@ -28,9 +28,7 @@ class MetadataExtractor(IMetadataExtractor):
         self.patterns = {
             "markdown_headers": re.compile(r"^#+\s+(.+)$", re.MULTILINE),
             "character_mentions": re.compile(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b"),
-            "location_indicators": re.compile(
-                r"\b(?:in|at|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b"
-            ),
+            "location_indicators": re.compile(r"\b(?:in|at|from|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b"),
             "dialogue": re.compile(r'"([^"]+)"'),
             "scene_breaks": re.compile(r"^[-*=]{3,}$", re.MULTILINE),
             "time_indicators": re.compile(
@@ -158,10 +156,8 @@ class MetadataExtractor(IMetadataExtractor):
             "word_count": len(words),
             "line_count": len(lines),
             "non_empty_lines": len([line for line in lines if line.strip()]),
-            "average_words_per_line": len(words)
-            / max(1, len([line for line in lines if line.strip()])),
-            "average_chars_per_word": len(content.replace(" ", ""))
-            / max(1, len(words)),
+            "average_words_per_line": len(words) / max(1, len([line for line in lines if line.strip()])),
+            "average_chars_per_word": len(content.replace(" ", "")) / max(1, len(words)),
         }
 
         return stats
@@ -182,12 +178,9 @@ class MetadataExtractor(IMetadataExtractor):
             name
             for name in set(character_matches)
             if 2 <= len(name.split()) <= 3
-            and name.lower()
-            not in {"the", "this", "that", "and", "but", "when", "where", "what"}
+            and name.lower() not in {"the", "this", "that", "and", "but", "when", "where", "what"}
         ]
-        entities["potential_characters"] = list(set(potential_characters))[
-            :20
-        ]  # Limit results
+        entities["potential_characters"] = list(set(potential_characters))[:20]  # Limit results
 
         # Extract location indicators
         location_matches = self.patterns["location_indicators"].findall(content)
@@ -219,15 +212,9 @@ class MetadataExtractor(IMetadataExtractor):
             features["has_third_person"] = True
 
         # Basic tense analysis (simplified)
-        past_indicators = len(
-            re.findall(r"\b\w+ed\b|\bwas\b|\bwere\b|\bhad\b", content_lower)
-        )
-        present_indicators = len(
-            re.findall(r"\bis\b|\bare\b|\bam\b|\bhas\b", content_lower)
-        )
-        future_indicators = len(
-            re.findall(r"\bwill\b|\bshall\b|\bgoing to\b", content_lower)
-        )
+        past_indicators = len(re.findall(r"\b\w+ed\b|\bwas\b|\bwere\b|\bhad\b", content_lower))
+        present_indicators = len(re.findall(r"\bis\b|\bare\b|\bam\b|\bhas\b", content_lower))
+        future_indicators = len(re.findall(r"\bwill\b|\bshall\b|\bgoing to\b", content_lower))
 
         features["tense_indicators"]["past"] = past_indicators
         features["tense_indicators"]["present"] = present_indicators
@@ -235,33 +222,23 @@ class MetadataExtractor(IMetadataExtractor):
 
         # Simple complexity score based on sentence length and vocabulary
         sentences = re.split(r"[.!?]+", content)
-        avg_sentence_length = sum(len(s.split()) for s in sentences) / max(
-            1, len(sentences)
-        )
+        avg_sentence_length = sum(len(s.split()) for s in sentences) / max(1, len(sentences))
         unique_words = len(set(content.lower().split()))
         total_words = len(content.split())
         vocabulary_ratio = unique_words / max(1, total_words)
 
-        features["complexity_score"] = min(
-            10, (avg_sentence_length / 15) + (vocabulary_ratio * 5)
-        )
+        features["complexity_score"] = min(10, (avg_sentence_length / 15) + (vocabulary_ratio * 5))
 
         return features
 
     def _classify_content_type(self, structure: dict[str, Any], content: str) -> str:
         """Classify content type based on structural analysis."""
         # Character file indicators
-        if any(
-            keyword in content.lower()
-            for keyword in ["character", "age:", "occupation:", "personality:"]
-        ):
+        if any(keyword in content.lower() for keyword in ["character", "age:", "occupation:", "personality:"]):
             return "character_profile"
 
         # Location file indicators
-        if any(
-            keyword in content.lower()
-            for keyword in ["location", "description:", "geography:", "climate:"]
-        ):
+        if any(keyword in content.lower() for keyword in ["location", "description:", "geography:", "climate:"]):
             return "location_description"
 
         # Narrative indicators

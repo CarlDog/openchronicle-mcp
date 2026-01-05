@@ -82,15 +82,11 @@ class DatabaseHealthChecker:
                         health_report["overall_status"] = "warning"
 
             # Generate recommendations
-            health_report["recommendations"] = self._generate_recommendations(
-                health_report
-            )
+            health_report["recommendations"] = self._generate_recommendations(health_report)
 
             # Log overall result
             if health_report["overall_status"] == "healthy":
-                log_info(
-                    f"Database health check completed: {health_report['databases_checked']} databases healthy"
-                )
+                log_info(f"Database health check completed: {health_report['databases_checked']} databases healthy")
             elif health_report["overall_status"] == "warning":
                 log_warning(
                     f"Database health check completed with warnings: {health_report['issues_found']} issues found"
@@ -212,11 +208,7 @@ class DatabaseHealthChecker:
                     schema_result = await self._validate_schema(conn, db_path)
                     result["checks"]["schema_valid"] = schema_result["valid"]
                     if not schema_result["valid"]:
-                        result["status"] = (
-                            "warning"
-                            if result["status"] == "healthy"
-                            else result["status"]
-                        )
+                        result["status"] = "warning" if result["status"] == "healthy" else result["status"]
                         result["issues"].extend(schema_result["issues"])
 
                     # Additional statistics
@@ -244,9 +236,7 @@ class DatabaseHealthChecker:
 
         return result
 
-    async def _validate_schema(
-        self, conn: aiosqlite.Connection, db_path: Path
-    ) -> dict[str, Any]:
+    async def _validate_schema(self, conn: aiosqlite.Connection, db_path: Path) -> dict[str, Any]:
         """Validate database schema structure."""
         schema_result = {
             "valid": True,
@@ -281,23 +271,15 @@ class DatabaseHealthChecker:
             missing_tables = set(expected_tables) - set(schema_result["tables_found"])
             if missing_tables:
                 schema_result["valid"] = False
-                schema_result["issues"].append(
-                    f"Missing tables: {', '.join(missing_tables)}"
-                )
+                schema_result["issues"].append(f"Missing tables: {', '.join(missing_tables)}")
 
             # Check for orphaned FTS tables
-            fts_tables = [
-                table
-                for table in schema_result["tables_found"]
-                if table.endswith("_fts")
-            ]
+            fts_tables = [table for table in schema_result["tables_found"] if table.endswith("_fts")]
             for fts_table in fts_tables:
                 base_table = fts_table.replace("_fts", "")
                 if base_table not in schema_result["tables_found"]:
                     schema_result["valid"] = False
-                    schema_result["issues"].append(
-                        f"Orphaned FTS table: {fts_table} (missing base table {base_table})"
-                    )
+                    schema_result["issues"].append(f"Orphaned FTS table: {fts_table} (missing base table {base_table})")
 
         except sqlite3.Error as e:
             # Handle SQLite-specific errors during schema validation
@@ -337,9 +319,7 @@ class DatabaseHealthChecker:
 
             # Calculate fragmentation ratio
             if details["page_count"] > 0:
-                details["fragmentation_ratio"] = (
-                    details["free_pages"] / details["page_count"]
-                )
+                details["fragmentation_ratio"] = details["free_pages"] / details["page_count"]
             else:
                 details["fragmentation_ratio"] = 0.0
 
@@ -398,31 +378,23 @@ class DatabaseHealthChecker:
         recommendations = []
 
         if health_report["overall_status"] == "critical":
-            recommendations.append(
-                "⚠️  CRITICAL: Backup and restore corrupt databases immediately"
-            )
+            recommendations.append("⚠️  CRITICAL: Backup and restore corrupt databases immediately")
             recommendations.append("🔧 Run database repair utilities")
 
         if health_report["issues_found"] > 0:
-            recommendations.append(
-                "📊 Review individual database issues in the detailed report"
-            )
+            recommendations.append("📊 Review individual database issues in the detailed report")
 
         # Check for high fragmentation
         for db_id, db_info in health_report["databases"].items():
             if "details" in db_info and "fragmentation_ratio" in db_info["details"]:
-                if (
-                    db_info["details"]["fragmentation_ratio"] > 0.2
-                ):  # More than 20% fragmentation
+                if db_info["details"]["fragmentation_ratio"] > 0.2:  # More than 20% fragmentation
                     recommendations.append(
                         f"🗜️  Database '{db_id}' has high fragmentation "
                         f"({db_info['details']['fragmentation_ratio']:.1%}) - consider running VACUUM"
                     )
 
         if health_report["databases_checked"] == 0:
-            recommendations.append(
-                "🚀 Initialize the system by creating your first unit"
-            )
+            recommendations.append("🚀 Initialize the system by creating your first unit")
 
         if not recommendations:
             recommendations.append("✅ All databases are healthy - no action required")

@@ -34,9 +34,7 @@ class SceneTransition:
 
     from_scene: str
     to_scene: str
-    transition_type: (
-        str  # "immediate", "time_jump", "location_change", "perspective_shift"
-    )
+    transition_type: str  # "immediate", "time_jump", "location_change", "perspective_shift"
     time_elapsed: str | None = None
     continuity_notes: list[str] = None
 
@@ -111,12 +109,8 @@ class SceneContextManager:
             world_snapshot = dict(memory.world_state)
 
             # Generate context prompt
-            context_config = self._create_scene_context_config(
-                scene_type, active_characters
-            )
-            context_prompt = self.context_builder.build_memory_context(
-                memory, active_characters, context_config
-            )
+            context_config = self._create_scene_context_config(scene_type, active_characters)
+            context_prompt = self.context_builder.build_memory_context(memory, active_characters, context_config)
 
             return SceneContext(
                 scene_id=scene_id,
@@ -142,9 +136,7 @@ class SceneContextManager:
                 context_prompt="[Error generating context]",
             )
 
-    def analyze_scene_transition(
-        self, from_context: SceneContext, to_context: SceneContext
-    ) -> SceneTransition:
+    def analyze_scene_transition(self, from_context: SceneContext, to_context: SceneContext) -> SceneTransition:
         """Analyze the transition between two scenes."""
         try:
             # Determine transition type
@@ -180,19 +172,13 @@ class SceneContextManager:
         """Check continuity between scene contexts."""
         try:
             # Character consistency
-            char_consistency = self._check_character_consistency(
-                previous_context, current_context, memory
-            )
+            char_consistency = self._check_character_consistency(previous_context, current_context, memory)
 
             # World state consistency
-            world_consistency = self._check_world_state_consistency(
-                previous_context, current_context
-            )
+            world_consistency = self._check_world_state_consistency(previous_context, current_context)
 
             # Narrative flow
-            narrative_flow = self._check_narrative_flow(
-                previous_context, current_context
-            )
+            narrative_flow = self._check_narrative_flow(previous_context, current_context)
 
             # Identify issues and recommendations
             issues, recommendations = self._analyze_continuity_issues(
@@ -342,9 +328,7 @@ class SceneContextManager:
 
         return " ".join(time_parts) if time_parts else "Present"
 
-    def _determine_scene_mood(
-        self, memory: MemorySnapshot, active_characters: list[str]
-    ) -> str:
+    def _determine_scene_mood(self, memory: MemorySnapshot, active_characters: list[str]) -> str:
         """Determine overall mood for the scene."""
         try:
             character_moods = []
@@ -358,17 +342,11 @@ class SceneContextManager:
             if not character_moods:
                 mood_result = "neutral"
             # Simple mood aggregation (could be more sophisticated)
-            elif any(
-                mood in ["angry", "hostile", "frustrated"] for mood in character_moods
-            ):
+            elif any(mood in ["angry", "hostile", "frustrated"] for mood in character_moods):
                 mood_result = "tense"
-            elif any(
-                mood in ["happy", "excited", "cheerful"] for mood in character_moods
-            ):
+            elif any(mood in ["happy", "excited", "cheerful"] for mood in character_moods):
                 mood_result = "upbeat"
-            elif any(
-                mood in ["sad", "melancholy", "depressed"] for mood in character_moods
-            ):
+            elif any(mood in ["sad", "melancholy", "depressed"] for mood in character_moods):
                 mood_result = "somber"
             else:
                 mood_result = "neutral"
@@ -378,9 +356,7 @@ class SceneContextManager:
         else:
             return mood_result
 
-    def _create_scene_context_config(
-        self, scene_type: str, active_characters: list[str]
-    ) -> ContextConfiguration:
+    def _create_scene_context_config(self, scene_type: str, active_characters: list[str]) -> ContextConfiguration:
         """Create context configuration optimized for scene type."""
         if scene_type == "dialogue":
             return ContextConfiguration(
@@ -413,9 +389,7 @@ class SceneContextManager:
             prioritize_primary_characters=False,
         )
 
-    def _determine_transition_type(
-        self, from_context: SceneContext, to_context: SceneContext
-    ) -> str:
+    def _determine_transition_type(self, from_context: SceneContext, to_context: SceneContext) -> str:
         """Determine the type of transition between scenes."""
         # Location change
         if from_context.location != to_context.location:
@@ -433,9 +407,7 @@ class SceneContextManager:
 
         return "immediate"
 
-    def _calculate_time_elapsed(
-        self, from_context: SceneContext, to_context: SceneContext
-    ) -> str | None:
+    def _calculate_time_elapsed(self, from_context: SceneContext, to_context: SceneContext) -> str | None:
         """Calculate time elapsed between scenes."""
         # Simple time detection (could be enhanced)
         from_time = from_context.time_context.lower()
@@ -446,17 +418,13 @@ class SceneContextManager:
 
         return None
 
-    def _generate_continuity_notes(
-        self, from_context: SceneContext, to_context: SceneContext
-    ) -> list[str]:
+    def _generate_continuity_notes(self, from_context: SceneContext, to_context: SceneContext) -> list[str]:
         """Generate continuity notes for the transition."""
         notes = []
 
         # Location change note
         if from_context.location != to_context.location:
-            notes.append(
-                f"Location changed from {from_context.location} to {to_context.location}"
-            )
+            notes.append(f"Location changed from {from_context.location} to {to_context.location}")
 
         # Character changes
         from_chars = set(from_context.active_characters)
@@ -472,9 +440,7 @@ class SceneContextManager:
 
         # Mood change
         if from_context.scene_mood != to_context.scene_mood:
-            notes.append(
-                f"Mood shifted from {from_context.scene_mood} to {to_context.scene_mood}"
-            )
+            notes.append(f"Mood shifted from {from_context.scene_mood} to {to_context.scene_mood}")
 
         return notes
 
@@ -487,9 +453,7 @@ class SceneContextManager:
         """Check character consistency between scenes."""
         try:
             # Characters that appear in both scenes
-            common_chars = set(prev_context.active_characters) & set(
-                curr_context.active_characters
-            )
+            common_chars = set(prev_context.active_characters) & set(curr_context.active_characters)
 
             if not common_chars:
                 consistency_score = 1.0  # No overlap, no inconsistency
@@ -508,9 +472,7 @@ class SceneContextManager:
         else:
             return consistency_score
 
-    def _check_world_state_consistency(
-        self, prev_context: SceneContext, curr_context: SceneContext
-    ) -> float:
+    def _check_world_state_consistency(self, prev_context: SceneContext, curr_context: SceneContext) -> float:
         """Check world state consistency between scenes."""
         try:
             prev_state = prev_context.world_state_snapshot
@@ -530,9 +492,7 @@ class SceneContextManager:
                     # This is a simplified check
                     if prev_state[key] != curr_state[key]:
                         # Check if change makes sense (simplified)
-                        if not self._is_reasonable_state_change(
-                            key, prev_state[key], curr_state[key]
-                        ):
+                        if not self._is_reasonable_state_change(key, prev_state[key], curr_state[key]):
                             inconsistencies += 1
 
             if total_checks == 0:
@@ -543,9 +503,7 @@ class SceneContextManager:
         except (TypeError, ValueError, KeyError, AttributeError):
             return 0.5
 
-    def _check_narrative_flow(
-        self, prev_context: SceneContext, curr_context: SceneContext
-    ) -> float:
+    def _check_narrative_flow(self, prev_context: SceneContext, curr_context: SceneContext) -> float:
         """Check narrative flow between scenes."""
         try:
             # Simple flow checking (could be enhanced with NLP)
@@ -593,16 +551,12 @@ class SceneContextManager:
 
         # Location changes without context
         if prev_context.location != curr_context.location:
-            if not any(
-                "location" in note.lower() for note in []
-            ):  # Would check transition notes
+            if not any("location" in note.lower() for note in []):  # Would check transition notes
                 recommendations.append("Consider explaining the location change")
 
         return issues, recommendations
 
-    def _is_reasonable_state_change(
-        self, key: str, old_value: Any, new_value: Any
-    ) -> bool:
+    def _is_reasonable_state_change(self, key: str, old_value: Any, new_value: Any) -> bool:
         """Check if a world state change is reasonable."""
         # Simple reasonableness checks (could be expanded)
         try:

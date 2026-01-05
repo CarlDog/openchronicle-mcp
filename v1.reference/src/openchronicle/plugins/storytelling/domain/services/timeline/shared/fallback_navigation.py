@@ -58,9 +58,7 @@ class FallbackNavigationManager:
         """Basic scene search."""
         return [{"message": "Fallback mode: Limited search functionality"}]
 
-    async def get_scene_context(
-        self, scene_id: str, context_window: int = 3
-    ) -> dict[str, Any]:
+    async def get_scene_context(self, scene_id: str, context_window: int = 3) -> dict[str, Any]:
         """Basic scene context."""
         return {
             "scene_id": scene_id,
@@ -68,9 +66,7 @@ class FallbackNavigationManager:
             "fallback_mode": True,
         }
 
-    async def track_navigation_path(
-        self, from_scene: str, to_scene: str, navigation_type: str = "manual"
-    ) -> bool:
+    async def track_navigation_path(self, from_scene: str, to_scene: str, navigation_type: str = "manual") -> bool:
         """Basic navigation tracking."""
         return True
 

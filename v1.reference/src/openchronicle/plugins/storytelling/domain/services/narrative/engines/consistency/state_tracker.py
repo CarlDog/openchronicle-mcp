@@ -62,9 +62,7 @@ class StateTracker:
                 self._update_experience_state(character_id, memory["memory_type"])
 
             # Track relationship changes if applicable
-            if "tags" in memory and any(
-                tag in ["social", "relationship"] for tag in memory["tags"]
-            ):
+            if "tags" in memory and any(tag in ["social", "relationship"] for tag in memory["tags"]):
                 self._update_relationship_state(character_id, memory)
 
             # Record state change timestamp
@@ -102,9 +100,7 @@ class StateTracker:
             # Recent activity (last 7 days)
             recent_cutoff = datetime.now() - timedelta(days=7)
             recent_activity = [
-                event
-                for event in development
-                if datetime.fromisoformat(event["timestamp"]) > recent_cutoff
+                event for event in development if datetime.fromisoformat(event["timestamp"]) > recent_cutoff
             ]
 
             # Development metrics
@@ -123,17 +119,11 @@ class StateTracker:
                 "development_metrics": {
                     "development_score": development_score,
                     "consistency_score": consistency_score,
-                    "recent_developments": (
-                        recent_activity[-5:] if recent_activity else []
-                    ),
+                    "recent_developments": (recent_activity[-5:] if recent_activity else []),
                 },
                 "state_information": {
-                    "current_emotional_state": state.get(
-                        "current_emotional_state", "neutral"
-                    ),
-                    "dominant_memory_type": self._get_dominant_memory_type(
-                        memory_types
-                    ),
+                    "current_emotional_state": state.get("current_emotional_state", "neutral"),
+                    "dominant_memory_type": self._get_dominant_memory_type(memory_types),
                     "last_updated": state.get("last_updated", "never"),
                 },
             }
@@ -142,9 +132,7 @@ class StateTracker:
             logger.exception("Error getting memory summary")
             return {}
 
-    def get_consistency_metrics(
-        self, character_id: str | None = None
-    ) -> dict[str, Any]:
+    def get_consistency_metrics(self, character_id: str | None = None) -> dict[str, Any]:
         """
         Get consistency metrics for character(s).
 
@@ -171,9 +159,7 @@ class StateTracker:
         else:
             return all_metrics
 
-    def track_narrative_event(
-        self, event_type: str, event_data: dict[str, Any]
-    ) -> None:
+    def track_narrative_event(self, event_type: str, event_data: dict[str, Any]) -> None:
         """
         Track system-wide narrative events.
 
@@ -197,9 +183,7 @@ class StateTracker:
         except Exception as e:
             logger.exception("Error tracking narrative event")
 
-    def _update_emotional_state(
-        self, character_id: str, emotional_score: float
-    ) -> None:
+    def _update_emotional_state(self, character_id: str, emotional_score: float) -> None:
         """Update character's emotional state tracking."""
         state = self.character_states[character_id]
 
@@ -207,18 +191,14 @@ class StateTracker:
         if "emotional_history" not in state:
             state["emotional_history"] = []
 
-        state["emotional_history"].append(
-            {"score": emotional_score, "timestamp": datetime.now().isoformat()}
-        )
+        state["emotional_history"].append({"score": emotional_score, "timestamp": datetime.now().isoformat()})
 
         # Keep only recent history (last 50 entries)
         if len(state["emotional_history"]) > 50:
             state["emotional_history"] = state["emotional_history"][-50:]
 
         # Update current emotional state
-        state["current_emotional_state"] = self._interpret_emotional_score(
-            emotional_score
-        )
+        state["current_emotional_state"] = self._interpret_emotional_score(emotional_score)
 
         # Update emotional range statistics
         if "emotional_range" not in state:
@@ -251,9 +231,7 @@ class StateTracker:
         # Track experience diversity
         state["experience_diversity"] = len(state["memory_types"])
 
-    def _update_relationship_state(
-        self, character_id: str, memory: dict[str, Any]
-    ) -> None:
+    def _update_relationship_state(self, character_id: str, memory: dict[str, Any]) -> None:
         """Update character's relationship state tracking."""
         state = self.character_states[character_id]
 
@@ -273,9 +251,7 @@ class StateTracker:
         if len(state["relationship_memories"]) > 20:
             state["relationship_memories"] = state["relationship_memories"][-20:]
 
-    def _track_character_development(
-        self, character_id: str, memory: dict[str, Any]
-    ) -> None:
+    def _track_character_development(self, character_id: str, memory: dict[str, Any]) -> None:
         """Track character development over time."""
         development = self.character_development[character_id]
 
@@ -292,11 +268,7 @@ class StateTracker:
 
         # Keep development history within tracking window
         cutoff_date = datetime.now() - timedelta(days=self.tracking_window_days)
-        development[:] = [
-            event
-            for event in development
-            if datetime.fromisoformat(event["timestamp"]) > cutoff_date
-        ]
+        development[:] = [event for event in development if datetime.fromisoformat(event["timestamp"]) > cutoff_date]
 
     def _analyze_development_indicators(self, memory: dict[str, Any]) -> list[str]:
         """Analyze memory for character development indicators."""
@@ -307,17 +279,11 @@ class StateTracker:
         emotional_score = memory.get("emotional_score", 0.0)
 
         # Learning indicators
-        if any(
-            word in content
-            for word in ["learned", "discovered", "realized", "understood"]
-        ):
+        if any(word in content for word in ["learned", "discovered", "realized", "understood"]):
             indicators.append("learning")
 
         # Growth indicators
-        if any(
-            word in content
-            for word in ["overcome", "achieved", "succeeded", "improved"]
-        ):
+        if any(word in content for word in ["overcome", "achieved", "succeeded", "improved"]):
             indicators.append("growth")
 
         # Relationship indicators
@@ -356,9 +322,7 @@ class StateTracker:
         # Factor in emotional range and memory diversity
         state = self.character_states.get(character_id, {})
         emotional_range = state.get("emotional_range", {})
-        emotional_diversity = abs(
-            emotional_range.get("max", 0) - emotional_range.get("min", 0)
-        )
+        emotional_diversity = abs(emotional_range.get("max", 0) - emotional_range.get("min", 0))
         experience_diversity = state.get("experience_diversity", 1)
 
         # Combine factors
@@ -389,9 +353,7 @@ class StateTracker:
         validation_failures = metrics.get("validation_failures", 0)
         validation_penalty = min(validation_failures * 0.05, 0.3)
 
-        consistency_score = (
-            base_score - conflict_penalty - emotional_penalty - validation_penalty
-        )
+        consistency_score = base_score - conflict_penalty - emotional_penalty - validation_penalty
 
         return max(consistency_score, 0.0)
 
@@ -402,11 +364,7 @@ class StateTracker:
 
         # Recent activity analysis
         recent_cutoff = datetime.now() - timedelta(days=7)
-        recent_events = [
-            event
-            for event in development
-            if datetime.fromisoformat(event["timestamp"]) > recent_cutoff
-        ]
+        recent_events = [event for event in development if datetime.fromisoformat(event["timestamp"]) > recent_cutoff]
 
         return {
             "character_id": character_id,
@@ -415,9 +373,7 @@ class StateTracker:
             "recent_activity": {
                 "event_count": len(recent_events),
                 "development_indicators": [
-                    indicator
-                    for event in recent_events
-                    for indicator in event.get("development_indicators", [])
+                    indicator for event in recent_events for indicator in event.get("development_indicators", [])
                 ],
             },
             "conflict_history": {
@@ -440,23 +396,14 @@ class StateTracker:
             return {"total_characters": 0, "system_consistency_score": 1.0}
 
         # Aggregate scores
-        total_consistency = sum(
-            self._calculate_consistency_score(char_id)
-            for char_id in self.character_states.keys()
-        )
-        total_development = sum(
-            self._calculate_development_score(char_id)
-            for char_id in self.character_states.keys()
-        )
+        total_consistency = sum(self._calculate_consistency_score(char_id) for char_id in self.character_states.keys())
+        total_development = sum(self._calculate_development_score(char_id) for char_id in self.character_states.keys())
 
         avg_consistency = total_consistency / total_characters
         avg_development = total_development / total_characters
 
         # System-wide conflict analysis
-        total_conflicts = sum(
-            metrics.get("total_conflicts", 0)
-            for metrics in self.consistency_metrics.values()
-        )
+        total_conflicts = sum(metrics.get("total_conflicts", 0) for metrics in self.consistency_metrics.values())
 
         return {
             "total_characters": total_characters,
@@ -464,14 +411,10 @@ class StateTracker:
             "average_development_score": avg_development,
             "total_system_conflicts": total_conflicts,
             "characters_with_high_consistency": sum(
-                1
-                for char_id in self.character_states.keys()
-                if self._calculate_consistency_score(char_id) > 0.8
+                1 for char_id in self.character_states.keys() if self._calculate_consistency_score(char_id) > 0.8
             ),
             "characters_with_active_development": sum(
-                1
-                for char_id in self.character_states.keys()
-                if self._calculate_development_score(char_id) > 0.5
+                1 for char_id in self.character_states.keys() if self._calculate_development_score(char_id) > 0.5
             ),
         }
 
@@ -550,8 +493,6 @@ class StateTracker:
                 "tracking_window_days": self.tracking_window_days,
                 "development_threshold": self.development_threshold,
                 "tracked_characters": len(self.character_states),
-                "total_character_events": sum(
-                    len(events) for events in self.character_development.values()
-                ),
+                "total_character_events": sum(len(events) for events in self.character_development.values()),
             }
         }

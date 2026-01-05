@@ -1,20 +1,39 @@
 #!/usr/bin/env python3
-import re, json, sys, argparse, base64
+import argparse
+import base64
+import json
+import re
+import sys
 from pathlib import Path
-from typing import List, Dict
+from typing import Dict
+from typing import List
+
 
 def load_rules(p: Path) -> List[Dict]:
     return json.loads(p.read_text(encoding="utf-8"))
+
 
 def load_protected_words(p: Path) -> List[str]:
     if p.exists():
         return [w.strip().upper() for w in p.read_text(encoding="utf-8").splitlines() if w.strip()]
     # fallback
-    return ["CHARACTER","STORY","SCENE","PLUGIN","PLUGINS","INFRASTRUCTURE","BOOTSTRAP","OPENCHRONICLE","FACADE"]
+    return [
+        "CHARACTER",
+        "STORY",
+        "SCENE",
+        "PLUGIN",
+        "PLUGINS",
+        "INFRASTRUCTURE",
+        "BOOTSTRAP",
+        "OPENCHRONICLE",
+        "FACADE",
+    ]
+
 
 def is_literal_concat(snippet: str) -> bool:
     # Detect simple 'a' + 'b' + "c" forms
     return bool(re.search(r"(?:'[^']*'|\"[^\"]*\")\s*\+\s*(?:'[^']*'|\"[^\"]*\")", snippet))
+
 
 def evaluate_literal_concat(snippet: str) -> str:
     # Very conservative: only join adjacent pure string literals separated by +; ignore escapes
@@ -22,8 +41,9 @@ def evaluate_literal_concat(snippet: str) -> str:
     if not parts:
         return ""
     # parts is list of tuples; take the non-empty group
-    vals = [a or b for a,b in parts]
+    vals = [a or b for a, b in parts]
     return "".join(vals)
+
 
 def detect_protected_assembly(line: str, protected: List[str]) -> str:
     # Check several patterns that result in assembled strings that might match protected words.
@@ -37,7 +57,7 @@ def detect_protected_assembly(line: str, protected: List[str]) -> str:
     m = re.search(r"join\s*\(\s*\[\s*((?:'[^']*'|\"[^\"]*\")(?:\s*,\s*(?:'[^']*'|\"[^\"]*\"))*)\s*\]\s*\)", line)
     if m:
         parts = re.findall(r"(?:'([^']*)'|\"([^\"]*)\")", m.group(1))
-        vals = [a or b for a,b in parts]
+        vals = [a or b for a, b in parts]
         assembled = "".join(vals).upper()
         for w in protected:
             if assembled == w or (len(assembled) > 2 and w in assembled):
@@ -53,6 +73,7 @@ def detect_protected_assembly(line: str, protected: List[str]) -> str:
     if re.search(r"''.join\(\s*map\(\s*chr", line) or "base64.b64decode" in line or "bytes.fromhex" in line:
         return "obfuscated-construction"
     return ""
+
 
 def scan_file(path: Path, rules: List[Dict], protected: List[str]):
     text = path.read_text(encoding="utf-8", errors="ignore")
@@ -74,16 +95,19 @@ def scan_file(path: Path, rules: List[Dict], protected: List[str]):
                     if not extra:
                         # if it's just any concat but not protected, skip to reduce noise
                         continue
-                findings.append({
-                    "rule": rule["id"],
-                    "severity": rule.get("severity","warning"),
-                    "name": rule["name"],
-                    "path": str(path),
-                    "line": i,
-                    "snippet": line.strip(),
-                    "extra": extra
-                })
+                findings.append(
+                    {
+                        "rule": rule["id"],
+                        "severity": rule.get("severity", "warning"),
+                        "name": rule["name"],
+                        "path": str(path),
+                        "line": i,
+                        "snippet": line.strip(),
+                        "extra": extra,
+                    }
+                )
     return findings
+
 
 def apply_autofix(path: Path, protected: List[str]) -> bool:
     text = path.read_text(encoding="utf-8", errors="ignore")
@@ -92,30 +116,49 @@ def apply_autofix(path: Path, protected: List[str]) -> bool:
     # Autofix only very safe cases: "CHARACTER" -> "CHARACTER"
     def concat_repl(m):
         parts = re.findall(r"(?:'([^']*)'|\"([^\"]*)\")", m.group(0))
-        vals = [a or b for a,b in parts]
+        vals = [a or b for a, b in parts]
         glued = "".join(vals)
         if glued.upper() in protected:
             return f'"{glued}"'
         return m.group(0)
 
-    text = re.sub(r"(?:'[^']*'|\"[^\"]*\")\s*\+\s*(?:'[^']*'|\"[^\"]*\")(?:\s*\+\s*(?:'[^']*'|\"[^\"]*\"))*", concat_repl, text)
+    text = re.sub(
+        r"(?:'[^']*'|\"[^\"]*\")\s*\+\s*(?:'[^']*'|\"[^\"]*\")(?:\s*\+\s*(?:'[^']*'|\"[^\"]*\"))*", concat_repl, text
+    )
 
     if text != original:
         path.write_text(text, encoding="utf-8")
         return True
     return False
 
+
 def main():
     ap = argparse.ArgumentParser(description="Copilot Naughty List PRO — global guardrail dodge detector")
     ap.add_argument("--repo-root", default=".", help="Repository root")
     ap.add_argument("--paths", nargs="*", default=["."], help="Paths to scan recursively")
-    ap.add_argument("--exclude", nargs="*", default=[".git",".venv","venv",".tox",".mypy_cache","__pycache__","dist","build",".pytest_cache",".idea",".vscode"],
-                    help="Directories to skip")
+    ap.add_argument(
+        "--exclude",
+        nargs="*",
+        default=[
+            ".git",
+            ".venv",
+            "venv",
+            ".tox",
+            ".mypy_cache",
+            "__pycache__",
+            "dist",
+            "build",
+            ".pytest_cache",
+            ".idea",
+            ".vscode",
+        ],
+        help="Directories to skip",
+    )
     ap.add_argument("--rules", default="tools/naughty_rules.json", help="Rules JSON")
     ap.add_argument("--protected-words", default="tools/protected_words.txt", help="Protected words list")
     ap.add_argument("--autofix", action="store_true", help="Apply safe autofixes (literal concat)")
     ap.add_argument("--fail-on-findings", action="store_true", help="Exit nonzero if any findings")
-    ap.add_argument("--output", choices=["text","json"], default="text", help="Report format")
+    ap.add_argument("--output", choices=["text", "json"], default="text", help="Report format")
     args = ap.parse_args()
 
     root = Path(args.repo_root).resolve()
@@ -160,7 +203,7 @@ def main():
                 rel = Path(fname).resolve().relative_to(root)
                 print(f"{rel}")
                 for it in items:
-                    sev = it.get("severity","warning").upper()
+                    sev = it.get("severity", "warning").upper()
                     extra = f" [{it['extra']}]" if it.get("extra") else ""
                     print(f"  {sev} {it['rule']}:{it['line']}  {it['name']}{extra}")
                     print(f"    ⇒ {it['snippet']}")
@@ -168,6 +211,7 @@ def main():
 
     if all_findings and args.fail_on_findings:
         sys.exit(2)
+
 
 if __name__ == "__main__":
     main()

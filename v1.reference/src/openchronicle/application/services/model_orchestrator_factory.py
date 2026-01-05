@@ -33,10 +33,7 @@ class ModelOrchestratorFactory:
         from openchronicle.infrastructure.adapters.registry_adapter import RegistryAdapter
 
         # Create production registry adapter
-        registry_port = RegistryAdapter(
-            models_dir="config/models/",
-            settings_file="config/registry_settings.json"
-        )
+        registry_port = RegistryAdapter(models_dir="config/models/", settings_file="config/registry_settings.json")
 
         return ModelOrchestrator(config=config, registry_port=registry_port)
 
@@ -60,8 +57,7 @@ class ModelOrchestratorFactory:
 
     @staticmethod
     def create_orchestrator_with_registry(
-        registry_port: IRegistryPort,
-        config: dict[str, Any] | None = None
+        registry_port: IRegistryPort, config: dict[str, Any] | None = None
     ) -> ModelOrchestrator:
         """
         Create a ModelOrchestrator with a specific registry port implementation.

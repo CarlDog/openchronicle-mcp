@@ -25,6 +25,7 @@ from typing import Any
 
 from openchronicle.shared.exceptions import ModelResponseError
 
+
 # TODO: Import logging system when available
 # from utilities.logging_system import log_system_event
 

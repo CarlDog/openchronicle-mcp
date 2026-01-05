@@ -109,9 +109,7 @@ class MoodAnalyzer:
 
             # Check similarity against recent dialogue
             for entry in dialogue_history:
-                similarity = SequenceMatcher(
-                    None, normalized_new, entry["normalized"]
-                ).ratio()
+                similarity = SequenceMatcher(None, normalized_new, entry["normalized"]).ratio()
                 max_similarity = max(max_similarity, similarity)
 
             # Add new dialogue to history
@@ -128,9 +126,7 @@ class MoodAnalyzer:
         else:
             return max_similarity
 
-    def detect_emotional_loops(
-        self, character_id: str, text: str
-    ) -> list[dict[str, Any]]:
+    def detect_emotional_loops(self, character_id: str, text: str) -> list[dict[str, Any]]:
         """
         Detect emotional and behavioral loops in character responses.
 
@@ -166,9 +162,7 @@ class MoodAnalyzer:
             detected_patterns.extend(phrase_loops)
 
             # 2. Emotional state loops
-            state_loops = self._detect_emotional_state_loops(
-                character_id, emotional_indicators
-            )
+            state_loops = self._detect_emotional_state_loops(character_id, emotional_indicators)
             detected_patterns.extend(state_loops)
 
             # 3. Behavioral pattern loops
@@ -239,19 +233,13 @@ class MoodAnalyzer:
                     mood_scores[emotion] /= total_indicators
 
             # Determine dominant mood
-            dominant_mood = (
-                max(mood_scores.items(), key=lambda x: x[1])
-                if mood_scores
-                else ("neutral", 0.0)
-            )
+            dominant_mood = max(mood_scores.items(), key=lambda x: x[1]) if mood_scores else ("neutral", 0.0)
 
             # Calculate mood stability
             mood_stability = self._calculate_mood_stability(recent_patterns)
 
             # Calculate mood intensity
-            avg_intensity = (
-                sum(mood_scores.values()) / len(mood_scores) if mood_scores else 0.0
-            )
+            avg_intensity = sum(mood_scores.values()) / len(mood_scores) if mood_scores else 0.0
 
             return {
                 "dominant_mood": {
@@ -269,9 +257,7 @@ class MoodAnalyzer:
             logger.exception("Error analyzing current mood")
             return {"error": str(e)}
 
-    def generate_anti_loop_prompt(
-        self, character_id: str, detected_loops: list[dict[str, Any]]
-    ) -> str:
+    def generate_anti_loop_prompt(self, character_id: str, detected_loops: list[dict[str, Any]]) -> str:
         """
         Generate prompt to break detected emotional/behavioral loops.
 
@@ -300,9 +286,7 @@ class MoodAnalyzer:
 
                 # Add specific pattern warnings
                 for loop in loops[:2]:  # Limit to top 2 loops per type
-                    prompt_parts.append(
-                        f"  Avoid repeating: \"{loop['pattern'][:50]}...\""
-                    )
+                    prompt_parts.append(f"  Avoid repeating: \"{loop['pattern'][:50]}...\"")
 
             # Add general variety guidance
             prompt_parts.extend(
@@ -359,13 +343,9 @@ class MoodAnalyzer:
                     phrase_frequency[phrase] += 1
 
             # Most common patterns
-            most_common_emotions = sorted(
-                emotion_frequency.items(), key=lambda x: x[1], reverse=True
-            )[:5]
+            most_common_emotions = sorted(emotion_frequency.items(), key=lambda x: x[1], reverse=True)[:5]
 
-            most_common_phrases = sorted(
-                phrase_frequency.items(), key=lambda x: x[1], reverse=True
-            )[:5]
+            most_common_phrases = sorted(phrase_frequency.items(), key=lambda x: x[1], reverse=True)[:5]
 
             # Loop analysis
             loop_summary = self._summarize_loops(loops)
@@ -535,12 +515,8 @@ class MoodAnalyzer:
                     pattern=loop_data["pattern"],
                     confidence=loop_data["confidence"],
                     occurrences=loop_data["occurrences"],
-                    first_occurrence=datetime.fromisoformat(
-                        loop_data["first_occurrence"]
-                    ),
-                    last_occurrence=datetime.fromisoformat(
-                        loop_data["last_occurrence"]
-                    ),
+                    first_occurrence=datetime.fromisoformat(loop_data["first_occurrence"]),
+                    last_occurrence=datetime.fromisoformat(loop_data["last_occurrence"]),
                 )
                 loops.append(loop)
             self.detected_loops[character_id] = loops
@@ -647,13 +623,9 @@ class MoodAnalyzer:
 
         # Also clean old loops
         loops = self.detected_loops[character_id]
-        self.detected_loops[character_id] = [
-            loop for loop in loops if loop.last_occurrence > cutoff_time
-        ]
+        self.detected_loops[character_id] = [loop for loop in loops if loop.last_occurrence > cutoff_time]
 
-    def _detect_phrase_loops(
-        self, character_id: str, text: str
-    ) -> list[dict[str, Any]]:
+    def _detect_phrase_loops(self, character_id: str, text: str) -> list[dict[str, Any]]:
         """Detect repeated phrase patterns."""
         patterns = self.character_emotional_patterns[character_id]
         loops = []
@@ -699,17 +671,13 @@ class MoodAnalyzer:
             return loops
 
         # Get dominant emotion from current indicators
-        emotion_counts = Counter(
-            [indicator["type"] for indicator in current_indicators]
-        )
+        emotion_counts = Counter([indicator["type"] for indicator in current_indicators])
         dominant_emotion = emotion_counts.most_common(1)[0][0]
 
         # Count recent occurrences of this dominant emotion
         recent_occurrences = []
         for pattern in patterns[-10:]:  # Check last 10 patterns
-            pattern_emotions = [
-                indicator["type"] for indicator in pattern["emotional_indicators"]
-            ]
+            pattern_emotions = [indicator["type"] for indicator in pattern["emotional_indicators"]]
             if dominant_emotion in pattern_emotions:
                 recent_occurrences.append(pattern["timestamp"])
 
@@ -727,9 +695,7 @@ class MoodAnalyzer:
 
         return loops
 
-    def _detect_behavioral_loops(
-        self, character_id: str, text: str
-    ) -> list[dict[str, Any]]:
+    def _detect_behavioral_loops(self, character_id: str, text: str) -> list[dict[str, Any]]:
         """Detect repeated behavioral patterns."""
         patterns = self.character_emotional_patterns[character_id]
         loops = []
@@ -753,9 +719,7 @@ class MoodAnalyzer:
         for behavior in current_behaviors:
             recent_occurrences = []
             for pattern in patterns[-10:]:
-                if re.search(
-                    behavioral_patterns[behavior], pattern["text"], re.IGNORECASE
-                ):
+                if re.search(behavioral_patterns[behavior], pattern["text"], re.IGNORECASE):
                     recent_occurrences.append(pattern["timestamp"])
 
             if len(recent_occurrences) >= self.loop_detection_threshold:
@@ -772,9 +736,7 @@ class MoodAnalyzer:
 
         return loops
 
-    def _detect_dialogue_structure_loops(
-        self, character_id: str, text: str
-    ) -> list[dict[str, Any]]:
+    def _detect_dialogue_structure_loops(self, character_id: str, text: str) -> list[dict[str, Any]]:
         """Detect repeated dialogue structure patterns."""
         patterns = self.character_emotional_patterns[character_id]
         loops = []
@@ -786,9 +748,7 @@ class MoodAnalyzer:
         structure_matches = []
         for pattern in patterns[-10:]:
             pattern_structure = self._analyze_sentence_structure(pattern["text"])
-            similarity = self._calculate_structure_similarity(
-                current_structure, pattern_structure
-            )
+            similarity = self._calculate_structure_similarity(current_structure, pattern_structure)
 
             if similarity > 0.8:
                 structure_matches.append(pattern["timestamp"])
@@ -834,9 +794,7 @@ class MoodAnalyzer:
         )
         return structure
 
-    def _calculate_structure_similarity(
-        self, structure1: str, structure2: str
-    ) -> float:
+    def _calculate_structure_similarity(self, structure1: str, structure2: str) -> float:
         """Calculate similarity between sentence structures."""
         return SequenceMatcher(None, structure1, structure2).ratio()
 
@@ -849,10 +807,9 @@ class MoodAnalyzer:
         emotion_scores = []
         for pattern in patterns:
             if pattern["emotional_indicators"]:
-                avg_intensity = sum(
-                    indicator["intensity"]
-                    for indicator in pattern["emotional_indicators"]
-                ) / len(pattern["emotional_indicators"])
+                avg_intensity = sum(indicator["intensity"] for indicator in pattern["emotional_indicators"]) / len(
+                    pattern["emotional_indicators"]
+                )
                 emotion_scores.append(avg_intensity)
 
         if not emotion_scores:
@@ -860,9 +817,7 @@ class MoodAnalyzer:
 
         # Calculate variance
         mean_score = sum(emotion_scores) / len(emotion_scores)
-        variance = sum((score - mean_score) ** 2 for score in emotion_scores) / len(
-            emotion_scores
-        )
+        variance = sum((score - mean_score) ** 2 for score in emotion_scores) / len(emotion_scores)
 
         # Convert variance to stability (lower variance = higher stability)
         stability = max(0, 1 - variance)
@@ -885,9 +840,7 @@ class MoodAnalyzer:
             "most_recent_loop": loops[-1].to_dict() if loops else None,
         }
 
-    def _analyze_temporal_patterns(
-        self, patterns: list[dict[str, Any]]
-    ) -> dict[str, Any]:
+    def _analyze_temporal_patterns(self, patterns: list[dict[str, Any]]) -> dict[str, Any]:
         """Analyze temporal patterns in emotional expressions."""
         if len(patterns) < 5:
             return {"insufficient_data": True}
@@ -902,24 +855,16 @@ class MoodAnalyzer:
         hourly_intensity = {}
         for hour, indicators in hourly_patterns.items():
             if indicators:
-                avg_intensity = sum(
-                    indicator["intensity"] for indicator in indicators
-                ) / len(indicators)
+                avg_intensity = sum(indicator["intensity"] for indicator in indicators) / len(indicators)
                 hourly_intensity[hour] = avg_intensity
 
-        peak_hour = (
-            max(hourly_intensity.items(), key=lambda x: x[1])
-            if hourly_intensity
-            else None
-        )
+        peak_hour = max(hourly_intensity.items(), key=lambda x: x[1]) if hourly_intensity else None
 
         return {
             "hourly_patterns": dict(hourly_intensity),
             "peak_emotional_hour": peak_hour,
             "pattern_time_span": {
-                "earliest": min(
-                    pattern["timestamp"] for pattern in patterns
-                ).isoformat(),
+                "earliest": min(pattern["timestamp"] for pattern in patterns).isoformat(),
                 "latest": max(pattern["timestamp"] for pattern in patterns).isoformat(),
             },
         }
@@ -945,16 +890,8 @@ class MoodAnalyzer:
                 "loop_detection_threshold": self.loop_detection_threshold,
                 "pattern_window_hours": self.pattern_window_hours,
                 "tracked_characters": len(self.character_dialogue_history),
-                "total_dialogue_entries": sum(
-                    len(dialogue)
-                    for dialogue in self.character_dialogue_history.values()
-                ),
-                "total_patterns": sum(
-                    len(patterns)
-                    for patterns in self.character_emotional_patterns.values()
-                ),
-                "total_detected_loops": sum(
-                    len(loops) for loops in self.detected_loops.values()
-                ),
+                "total_dialogue_entries": sum(len(dialogue) for dialogue in self.character_dialogue_history.values()),
+                "total_patterns": sum(len(patterns) for patterns in self.character_emotional_patterns.values()),
+                "total_detected_loops": sum(len(loops) for loops in self.detected_loops.values()),
             }
         }

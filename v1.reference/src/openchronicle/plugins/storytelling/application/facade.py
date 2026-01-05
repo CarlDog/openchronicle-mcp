@@ -9,20 +9,22 @@ The facade depends only on domain/shared/ports, not infrastructure.
 """
 
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+from typing import Dict
+from typing import Optional
 
 from openchronicle.domain.entities import Story
 from openchronicle.domain.ports.content_analysis_port import IContentAnalysisPort
 from openchronicle.domain.ports.context_port import IContextPort
-from openchronicle.domain.services import (
-    CharacterService,
-    MemoryService,
-    SceneService,
-    StoryService,
-)
+from openchronicle.domain.services import CharacterService
+from openchronicle.domain.services import MemoryService
+from openchronicle.domain.services import SceneService
+from openchronicle.domain.services import StoryService
 from openchronicle.shared.exceptions import ApplicationError
 
-from .services import StoryProcessingConfig, StoryProcessingService
+from .services import StoryProcessingConfig
+from .services import StoryProcessingService
+
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from ...shared.memory_models import MemorySnapshot
-from .context_builder import ContextBuilder, ContextConfiguration
+from .context_builder import ContextBuilder
+from .context_builder import ContextConfiguration
 from .world_state_manager import WorldStateManager
 
 
@@ -33,7 +34,7 @@ class SceneTransition:
 
     from_scene: str
     to_scene: str
-    transition_type: (str)  # "immediate", "time_jump", "location_change", "perspective_shift"
+    transition_type: str  # "immediate", "time_jump", "location_change", "perspective_shift"
     time_elapsed: str | None = None
     continuity_notes: list[str] = None
 

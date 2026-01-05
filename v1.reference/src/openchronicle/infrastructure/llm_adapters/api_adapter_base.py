@@ -39,9 +39,7 @@ from .adapter_exceptions import AdapterInitializationError
 logger = logging.getLogger(__name__)
 
 
-def get_api_key_with_fallback(
-    config: dict[str, Any], provider: str, env_var: str
-) -> str | None:
+def get_api_key_with_fallback(config: dict[str, Any], provider: str, env_var: str) -> str | None:
     """
     Get API key with fallback priority: config > keystore > environment variable
 
@@ -111,9 +109,7 @@ class BaseAPIAdapter(ABC):
         self.temperature = self.config.get("temperature", 0.7)
         self.timeout = self.config.get("timeout", 30)
 
-        log_info(
-            f"Initializing {self.get_provider_name()} adapter for model: {model_name}"
-        )
+        log_info(f"Initializing {self.get_provider_name()} adapter for model: {model_name}")
 
         # Initialize adapter
         self._initialize()
@@ -122,14 +118,10 @@ class BaseAPIAdapter(ABC):
         """Common initialization logic for all adapters."""
         try:
             # Resolve API key using fallback priority
-            self.api_key = get_api_key_with_fallback(
-                self.config, self.get_provider_name(), self.get_api_key_env_var()
-            )
+            self.api_key = get_api_key_with_fallback(self.config, self.get_provider_name(), self.get_api_key_env_var())
 
             if not self.api_key:
-                raise AdapterConfigurationError(
-                    f"No API key found for {self.get_provider_name()}"
-                )
+                raise AdapterConfigurationError(f"No API key found for {self.get_provider_name()}")
 
             # Set base URL
             self.base_url = self.config.get("base_url", self.get_default_base_url())
@@ -288,11 +280,5 @@ class LocalModelAdapter(BaseAPIAdapter):
             )
 
         except (ValueError, TypeError, OSError) as e:
-            log_error(
-                f"Failed to initialize {self.get_provider_name()} local adapter: {e}"
-            )
-            raise AdapterInitializationError(
-                f"Local adapter initialization failed: {e}"
-            ) from e
-
-
+            log_error(f"Failed to initialize {self.get_provider_name()} local adapter: {e}")
+            raise AdapterInitializationError(f"Local adapter initialization failed: {e}") from e

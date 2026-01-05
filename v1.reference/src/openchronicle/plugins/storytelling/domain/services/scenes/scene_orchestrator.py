@@ -77,9 +77,7 @@ class SceneOrchestrator:
         self.last_operation_time = None
 
         # Dependency injection: allow caller to pass a persistence port; otherwise use in-memory default
-        self._persistence_port = (
-            persistence_port if persistence_port is not None else InMemorySqlitePersistence()
-        )
+        self._persistence_port = persistence_port if persistence_port is not None else InMemorySqlitePersistence()
 
         log_info(
             "SceneOrchestrator initialized",
@@ -109,9 +107,7 @@ class SceneOrchestrator:
         if self._statistics_engine is None:
             from .analysis.scene_statistics import SceneStatistics
 
-            self._statistics_engine = SceneStatistics(
-                self.story_id, self._persistence_port
-            )
+            self._statistics_engine = SceneStatistics(self.story_id, self._persistence_port)
         return self._statistics_engine
 
     @property
@@ -120,18 +116,14 @@ class SceneOrchestrator:
         if self._mood_analyzer is None:
             from .analysis.mood_analyzer import MoodAnalyzer
 
-            self._mood_analyzer = MoodAnalyzer(
-                self.story_id, self._persistence_port
-            )
+            self._mood_analyzer = MoodAnalyzer(self.story_id, self._persistence_port)
         return self._mood_analyzer
 
     @property
     def scene_manager(self) -> SceneManager:
         """Get scene manager (lazy loaded)."""
         if self._scene_manager is None:
-            self._scene_manager = SceneManager(
-                self.story_id, self.repository, self._persistence_port
-            )
+            self._scene_manager = SceneManager(self.story_id, self.repository, self._persistence_port)
         return self._scene_manager
 
     @property
@@ -263,11 +255,7 @@ class SceneOrchestrator:
 
             # Store the fragment metadata inside memory_snapshot for traceability
             memory_snapshot = {
-                "fragment": {
-                    k: v
-                    for k, v in fragment.items()
-                    if k not in {"user_input", "ai_response"}
-                }
+                "fragment": {k: v for k, v in fragment.items() if k not in {"user_input", "ai_response"}}
             }
 
             scene_label = fragment.get("action_type", "interaction_fragment")
@@ -370,9 +358,7 @@ class SceneOrchestrator:
         """List scenes with optional pagination."""
         try:
             scenes = self.repository.list_scenes(limit, offset)
-            return [
-                self.serializer.serialize_scene_for_output(scene) for scene in scenes
-            ]
+            return [self.serializer.serialize_scene_for_output(scene) for scene in scenes]
         except ListScenesError as e:
             log_error(
                 f"ListScenesError: {e}",
@@ -461,19 +447,9 @@ class SceneOrchestrator:
                 "labeling_system": self._labeling_system is not None,
             },
             "component_status": {
-                "repository": (
-                    self.repository.get_status() if self._repository else "not_loaded"
-                ),
-                "statistics": (
-                    self.statistics_engine.get_status()
-                    if self._statistics_engine
-                    else "not_loaded"
-                ),
-                "mood_analysis": (
-                    self.mood_analyzer.get_status()
-                    if self._mood_analyzer
-                    else "not_loaded"
-                ),
+                "repository": (self.repository.get_status() if self._repository else "not_loaded"),
+                "statistics": (self.statistics_engine.get_status() if self._statistics_engine else "not_loaded"),
+                "mood_analysis": (self.mood_analyzer.get_status() if self._mood_analyzer else "not_loaded"),
             },
         }
 

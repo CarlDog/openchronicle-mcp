@@ -46,9 +46,7 @@ class AsyncConnectionManager:
         finally:
             await conn.close()
 
-    async def check_connection(
-        self, story_id: str, is_test: bool | None = None
-    ) -> bool:
+    async def check_connection(self, story_id: str, is_test: bool | None = None) -> bool:
         """Test database connection."""
         try:
             async with self.get_connection(story_id, is_test) as conn:
@@ -58,7 +56,7 @@ class AsyncConnectionManager:
             # Database file system error
             log_error(
                 f"File system error in async connection check: {e}",
-                context_tags=["db","async","check_connection"],
+                context_tags=["db", "async", "check_connection"],
                 story_id=story_id,
             )
             return False
@@ -66,7 +64,7 @@ class AsyncConnectionManager:
             # Log the exception for diagnostics but keep the boolean contract
             log_error(
                 f"Async DB connection check failed: {e}",
-                context_tags=["db","async","check_connection"],
+                context_tags=["db", "async", "check_connection"],
                 story_id=story_id,
             )
             return False

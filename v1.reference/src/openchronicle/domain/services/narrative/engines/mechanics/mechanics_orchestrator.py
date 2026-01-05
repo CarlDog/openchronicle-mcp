@@ -52,9 +52,7 @@ class MechanicsOrchestrator:
         self.success_count = 0
         self.error_count = 0
 
-        log_system_event(
-            "mechanics_orchestrator_initialized", "Mechanics orchestrator ready"
-        )
+        log_system_event("mechanics_orchestrator_initialized", "Mechanics orchestrator ready")
 
     async def resolve_action(
         self,
@@ -80,9 +78,7 @@ class MechanicsOrchestrator:
             self.operation_count += 1
 
             # Get character skill and modifiers
-            character_skill = self._get_character_skill(
-                request.character_id, request.resolution_type, character_state
-            )
+            character_skill = self._get_character_skill(request.character_id, request.resolution_type, character_state)
 
             # Determine difficulty
             difficulty_dc = self._determine_difficulty(request)
@@ -117,17 +113,13 @@ class MechanicsOrchestrator:
             )
 
             # Generate narrative impact
-            resolution_result.narrative_impact = self._generate_narrative_impact(
-                resolution_result, character_state
-            )
+            resolution_result.narrative_impact = self._generate_narrative_impact(resolution_result, character_state)
 
             # Generate consequences and benefits
             (
                 resolution_result.consequences,
                 resolution_result.benefits,
-            ) = self._generate_consequences_and_benefits(
-                resolution_result, character_state
-            )
+            ) = self._generate_consequences_and_benefits(resolution_result, character_state)
 
             # Create branches if requested
             branches = []
@@ -142,9 +134,7 @@ class MechanicsOrchestrator:
             self._update_character_performance(request.character_id, resolution_result)
 
             # Generate narrative prompt
-            narrative_prompt = await self._generate_narrative_prompt(
-                resolution_result, branches, character_state
-            )
+            narrative_prompt = await self._generate_narrative_prompt(resolution_result, branches, character_state)
 
             # Create result
             result = MechanicsResult(
@@ -204,9 +194,7 @@ class MechanicsOrchestrator:
             )
             return []
 
-    async def simulate_action(
-        self, request: MechanicsRequest, iterations: int = 100
-    ) -> dict[str, Any]:
+    async def simulate_action(self, request: MechanicsRequest, iterations: int = 100) -> dict[str, Any]:
         """
         Simulate an action multiple times for statistical analysis.
 
@@ -321,15 +309,11 @@ class MechanicsOrchestrator:
             ResolutionType.LUCK_CHECK: DifficultyLevel.MODERATE,
         }
 
-        default_difficulty = default_difficulties.get(
-            request.resolution_type, DifficultyLevel.MODERATE
-        )
+        default_difficulty = default_difficulties.get(request.resolution_type, DifficultyLevel.MODERATE)
 
         return self.dice_engine.get_difficulty_dc(default_difficulty)
 
-    def _generate_narrative_impact(
-        self, resolution_result: ResolutionResult, character_state: dict[str, Any]
-    ) -> str:
+    def _generate_narrative_impact(self, resolution_result: ResolutionResult, character_state: dict[str, Any]) -> str:
         """Generate narrative impact description."""
         impact_templates = {
             OutcomeType.CRITICAL_SUCCESS: [
@@ -359,9 +343,7 @@ class MechanicsOrchestrator:
             ],
         }
 
-        templates = impact_templates.get(
-            resolution_result.outcome, ["Something happens"]
-        )
+        templates = impact_templates.get(resolution_result.outcome, ["Something happens"])
         import random
 
         return random.choice(templates)
@@ -382,9 +364,7 @@ class MechanicsOrchestrator:
                 ]
             )
         elif resolution_result.outcome == OutcomeType.SUCCESS:
-            benefits.extend(
-                ["Progress toward goals", "Positive recognition", "Standard rewards"]
-            )
+            benefits.extend(["Progress toward goals", "Positive recognition", "Standard rewards"])
         elif resolution_result.outcome == OutcomeType.PARTIAL_SUCCESS:
             benefits.append("Partial progress made")
             consequences.append("Additional challenges arise")
@@ -408,14 +388,10 @@ class MechanicsOrchestrator:
 
         return consequences, benefits
 
-    def _update_character_performance(
-        self, character_id: str, resolution_result: ResolutionResult
-    ):
+    def _update_character_performance(self, character_id: str, resolution_result: ResolutionResult):
         """Update character performance tracking."""
         if character_id not in self.character_performance:
-            self.character_performance[character_id] = CharacterPerformance(
-                character_id=character_id
-            )
+            self.character_performance[character_id] = CharacterPerformance(character_id=character_id)
 
         perf = self.character_performance[character_id]
         perf.total_actions += 1
@@ -444,9 +420,7 @@ class MechanicsOrchestrator:
             OutcomeType.SUCCESS,
             OutcomeType.CRITICAL_SUCCESS,
         ]:
-            perf.skill_successes[skill_type] = (
-                perf.skill_successes.get(skill_type, 0) + 1
-            )
+            perf.skill_successes[skill_type] = perf.skill_successes.get(skill_type, 0) + 1
 
         # Update recent rolls (keep last 10)
         perf.recent_rolls.append(resolution_result)
@@ -455,9 +429,7 @@ class MechanicsOrchestrator:
 
         # Update average roll
         if perf.recent_rolls:
-            perf.average_roll = sum(r.dice_roll.total for r in perf.recent_rolls) / len(
-                perf.recent_rolls
-            )
+            perf.average_roll = sum(r.dice_roll.total for r in perf.recent_rolls) / len(perf.recent_rolls)
 
     async def _generate_narrative_prompt(
         self,
@@ -479,9 +451,7 @@ class MechanicsOrchestrator:
             prompt_parts.append(f"Benefits: {', '.join(resolution_result.benefits)}")
 
         if resolution_result.consequences:
-            prompt_parts.append(
-                f"Consequences: {', '.join(resolution_result.consequences)}"
-            )
+            prompt_parts.append(f"Consequences: {', '.join(resolution_result.consequences)}")
 
         if branches:
             prompt_parts.append("Possible narrative directions:")
@@ -504,11 +474,7 @@ class MechanicsOrchestrator:
             "critical_successes": perf.critical_successes,
             "critical_failures": perf.critical_failures,
             "recent_performance": len(
-                [
-                    r
-                    for r in perf.recent_rolls[-5:]
-                    if r.outcome in [OutcomeType.SUCCESS, OutcomeType.CRITICAL_SUCCESS]
-                ]
+                [r for r in perf.recent_rolls[-5:] if r.outcome in [OutcomeType.SUCCESS, OutcomeType.CRITICAL_SUCCESS]]
             ),
         }
 
@@ -525,7 +491,5 @@ class MechanicsOrchestrator:
 
     async def cleanup(self):
         """Cleanup orchestrator resources."""
-        log_system_event(
-            "mechanics_orchestrator_cleanup", "Cleaning up mechanics orchestrator"
-        )
+        log_system_event("mechanics_orchestrator_cleanup", "Cleaning up mechanics orchestrator")
         # Any cleanup tasks would go here

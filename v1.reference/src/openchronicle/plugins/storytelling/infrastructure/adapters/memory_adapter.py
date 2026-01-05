@@ -5,10 +5,12 @@ Implements the IMemoryPort interface for storytelling-specific memory operations
 Bridges between core domain ports and storytelling memory infrastructure.
 """
 
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 from openchronicle.domain.ports.memory_port import IMemoryPort
-from openchronicle.shared.logging_system import log_error, log_info
+from openchronicle.shared.logging_system import log_error
+from openchronicle.shared.logging_system import log_info
 
 
 class StorytellingMemoryAdapter(IMemoryPort):

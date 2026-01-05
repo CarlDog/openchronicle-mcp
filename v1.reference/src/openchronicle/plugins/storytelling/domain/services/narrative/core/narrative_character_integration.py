@@ -10,11 +10,11 @@ Author: OpenChronicle Development Team
 from datetime import datetime
 from typing import Any
 
+from openchronicle.shared.error_handling import NarrativeError
 from openchronicle.shared.exceptions import CacheConnectionError
 from openchronicle.shared.exceptions import CacheError
 from openchronicle.shared.exceptions import InfrastructureError
 from openchronicle.shared.exceptions import ModelError
-from openchronicle.shared.error_handling import NarrativeError
 from openchronicle.shared.exceptions import OpenChronicleError
 from openchronicle.shared.exceptions import ValidationError
 from openchronicle.shared.logging_system import log_error
@@ -46,7 +46,7 @@ class NarrativeCharacterIntegration:
                 "action": proposed_action,
                 "consistency_score": 0.8,  # Default score
                 "issues": [],
-                "recommendations": []
+                "recommendations": [],
             }
 
             # Use consistency orchestrator if available
@@ -83,20 +83,11 @@ class NarrativeCharacterIntegration:
 
         except (NarrativeError, ValidationError, CacheError, InfrastructureError) as e:
             log_error(f"Error validating character consistency: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "consistency_score": 0.0
-            }
+            return {"success": False, "error": str(e), "consistency_score": 0.0}
         except Exception as e:
             # Unexpected error during character consistency validation
             log_error(f"Unexpected character consistency validation error: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "character_id": character_id,
-                "story_id": story_id
-            }
+            return {"success": False, "error": str(e), "character_id": character_id, "story_id": story_id}
         else:
             return validation
 
@@ -109,18 +100,16 @@ class NarrativeCharacterIntegration:
             emotional_data = {
                 "event": emotional_event,
                 "timestamp": datetime.now().isoformat(),
-                "emotional_impact": emotional_event.get("impact", 0.0)
+                "emotional_impact": emotional_event.get("impact", 0.0),
             }
 
             # Update state through state manager
             updates = {
                 "last_emotional_event": emotional_data,
-                "emotional_history": emotional_data  # Would append to list in real implementation
+                "emotional_history": emotional_data,  # Would append to list in real implementation
             }
 
-            success = self.state_manager.update_character_narrative_state(
-                story_id, character_id, updates
-            )
+            success = self.state_manager.update_character_narrative_state(story_id, character_id, updates)
 
             # Use emotional orchestrator if available
             emotional_orchestrator = self.orchestrators.get("emotional")
@@ -134,7 +123,7 @@ class NarrativeCharacterIntegration:
                             "success": success,
                             "character_id": character_id,
                             "emotional_tracking": orchestrator_result,
-                            "timestamp": datetime.now().isoformat()
+                            "timestamp": datetime.now().isoformat(),
                         }
                 except (NarrativeError, ModelError, CacheError) as e:
                     log_error(f"Emotional orchestrator tracking failed: {e}")
@@ -148,7 +137,7 @@ class NarrativeCharacterIntegration:
                 "character_id": character_id,
                 "emotional_event": emotional_event,
                 "state_updated": success,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except (NarrativeError, ValidationError, CacheError, InfrastructureError) as e:
@@ -157,17 +146,12 @@ class NarrativeCharacterIntegration:
                 "success": False,
                 "error": str(e),
                 "character_id": character_id,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             # Unexpected error during emotional tracking
             log_error(f"Unexpected error tracking character emotional changes: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "character_id": character_id,
-                "story_id": story_id
-            }
+            return {"success": False, "error": str(e), "character_id": character_id, "story_id": story_id}
 
     def track_emotional_stability(
         self, story_id: str, character_id: str, stability_data: dict[str, Any]
@@ -187,8 +171,8 @@ class NarrativeCharacterIntegration:
                 story_id,
                 emotional_stability={
                     **self.state_manager.get_narrative_state(story_id)["emotional_stability"],
-                    character_id: new_stability
-                }
+                    character_id: new_stability,
+                },
             )
 
             return {
@@ -198,7 +182,7 @@ class NarrativeCharacterIntegration:
                 "current_stability": new_stability,
                 "stability_change": stability_change,
                 "stability_data": stability_data,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
 
         except (NarrativeError, ValidationError, CacheError, InfrastructureError) as e:
@@ -207,17 +191,12 @@ class NarrativeCharacterIntegration:
                 "success": False,
                 "error": str(e),
                 "character_id": character_id,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
             }
         except Exception as e:
             # Unexpected error during emotional stability tracking
             log_error(f"Unexpected error tracking emotional stability: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "character_id": character_id,
-                "story_id": story_id
-            }
+            return {"success": False, "error": str(e), "character_id": character_id, "story_id": story_id}
 
     def validate_emotional_consistency(
         self, story_id: str, character_id: str, emotional_transition: dict[str, Any]
@@ -242,7 +221,7 @@ class NarrativeCharacterIntegration:
                 "transition": emotional_transition,
                 "consistency_score": 0.8,
                 "issues": [],
-                "recommendations": []
+                "recommendations": [],
             }
 
             # Check for rapid emotional swings
@@ -281,21 +260,11 @@ class NarrativeCharacterIntegration:
 
         except (NarrativeError, ValidationError, CacheError, InfrastructureError) as e:
             log_error(f"Error validating emotional consistency: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "character_id": character_id,
-                "story_id": story_id
-            }
+            return {"success": False, "error": str(e), "character_id": character_id, "story_id": story_id}
         except Exception as e:
             # Unexpected error during emotional consistency validation
             log_error(f"Unexpected error validating emotional consistency: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "character_id": character_id,
-                "story_id": story_id
-            }
+            return {"success": False, "error": str(e), "character_id": character_id, "story_id": story_id}
         else:
             return validation
 
@@ -307,7 +276,7 @@ class NarrativeCharacterIntegration:
                 "consistency_score": 0.3,
                 "emotional_stability": 0.25,
                 "narrative_coherence": 0.25,
-                "character_development": 0.2
+                "character_development": 0.2,
             }
 
             total_score = 0.0
@@ -335,9 +304,7 @@ class NarrativeCharacterIntegration:
             log_error(f"Unexpected error calculating quality metrics: {e}")
             return 0.5  # Return neutral score on error
 
-    def validate_narrative_consistency(
-        self, story_id: str, narrative_element: dict[str, Any]
-    ) -> dict[str, Any]:
+    def validate_narrative_consistency(self, story_id: str, narrative_element: dict[str, Any]) -> dict[str, Any]:
         """Validate narrative consistency for story elements."""
         try:
             element_type = narrative_element.get("type", "unknown")
@@ -349,7 +316,7 @@ class NarrativeCharacterIntegration:
                 "element": narrative_element,
                 "consistency_score": 0.8,
                 "issues": [],
-                "recommendations": []
+                "recommendations": [],
             }
 
             # Use consistency orchestrator if available
@@ -384,18 +351,10 @@ class NarrativeCharacterIntegration:
 
         except (NarrativeError, ValidationError, CacheError, InfrastructureError) as e:
             log_error(f"Error validating narrative consistency: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "story_id": story_id
-            }
+            return {"success": False, "error": str(e), "story_id": story_id}
         except Exception as e:
             # Unexpected error during narrative consistency validation
             log_error(f"Unexpected error validating narrative consistency: {e}")
-            return {
-                "success": False,
-                "error": str(e),
-                "story_id": story_id
-            }
+            return {"success": False, "error": str(e), "story_id": story_id}
         else:
             return validation

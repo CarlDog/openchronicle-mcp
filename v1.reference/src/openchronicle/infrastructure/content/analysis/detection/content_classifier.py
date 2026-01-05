@@ -7,7 +7,8 @@ Part of: Phase 5A - Content Analysis Enhancement
 Extracted from: core/content_analyzer.py (lines 579-759)
 """
 
-from typing import Any, Optional
+from typing import Any
+from typing import Optional
 
 from openchronicle.shared.logging_system import log_error
 
@@ -22,14 +23,14 @@ from .transformer_analyzer import TransformerAnalyzer
 class ContentClassifier(DetectionComponent):
     """
     Main content classification combining keyword and transformer approaches.
-    
+
     This class provides content type detection and classification using both
     rule-based keyword detection and optional transformer-based analysis.
-    
+
     Attributes:
         keyword_detector: Rule-based keyword detection component
         transformer_analyzer: Optional transformer-based analysis component
-        
+
     Example:
         classifier = ContentClassifier(model_manager, use_transformers=True)
         result = classifier.analyze("Some narrative text...")
@@ -38,7 +39,7 @@ class ContentClassifier(DetectionComponent):
     def __init__(self, model_manager: Any, use_transformers: bool = True) -> None:
         """
         Initialize the content classifier.
-        
+
         Args:
             model_manager: Model management instance for accessing language models
             use_transformers: Whether to enable transformer-based analysis
@@ -52,28 +53,26 @@ class ContentClassifier(DetectionComponent):
     def detect_content_type(self, content: str) -> dict[str, Any]:
         """
         Detect content type using hybrid keyword + transformer approach.
-        
+
         Args:
             content: Text content to analyze and classify
-            
+
         Returns:
             Dictionary containing classification results with confidence scores
             and detected content types
-            
+
         Raises:
             ValueError: If content is empty or invalid
         """
         if not content or not content.strip():
             raise ValueError("Content cannot be empty")
-            
+
         # Start with keyword-based analysis
         keyword_analysis = self.keyword_detector.detect_content_type(content)
 
         # Add transformer-based analysis if available
         try:
-            transformer_analysis = self.transformer_analyzer.detect_content_type(
-                content
-            )
+            transformer_analysis = self.transformer_analyzer.detect_content_type(content)
         except ImportError as e:
             log_error(f"Transformer library not available for content classification: {e}")
             transformer_analysis = {}
@@ -88,9 +87,7 @@ class ContentClassifier(DetectionComponent):
             transformer_analysis = {}
 
         # Combine both approaches for enhanced accuracy
-        combined_analysis = self._combine_analysis_results(
-            keyword_analysis, transformer_analysis, content
-        )
+        combined_analysis = self._combine_analysis_results(keyword_analysis, transformer_analysis, content)
 
         return combined_analysis
 
@@ -156,9 +153,7 @@ class ContentClassifier(DetectionComponent):
         transformer_confidence = transformer_analysis.get("transformer_confidence", 0.0)
         if transformer_confidence > 0.5:
             # Weight transformer confidence higher if it's reliable
-            combined["confidence"] = (transformer_confidence * 0.6) + (
-                combined["confidence"] * 0.4
-            )
+            combined["confidence"] = (transformer_confidence * 0.6) + (combined["confidence"] * 0.4)
 
         # Store full transformer analysis for debugging/advanced features
         combined["transformer_analysis"] = transformer_analysis
@@ -207,6 +202,5 @@ class ContentClassifier(DetectionComponent):
             "keyword_analysis": keyword_caps,
             "transformer_analysis": transformer_caps,
             "hybrid_mode": transformer_caps["available"],
-            "total_features": len(keyword_caps["features"])
-            + len(transformer_caps["features"]),
+            "total_features": len(keyword_caps["features"]) + len(transformer_caps["features"]),
         }

@@ -121,7 +121,7 @@ class NarrativeOperationRouter:
                 result = response_orchestrator.process(data)
 
                 # Extract and return structured result
-                if hasattr(result, 'success') and result.success:
+                if hasattr(result, "success") and result.success:
                     return {
                         "status": "response_operation_complete",
                         "success": result.success,
@@ -145,7 +145,7 @@ class NarrativeOperationRouter:
                     return {
                         "status": "response_operation_failed",
                         "success": False,
-                        "error": getattr(result, 'error', 'Unknown error')
+                        "error": getattr(result, "error", "Unknown error"),
                     }
 
             except Exception as e:
@@ -188,9 +188,7 @@ class NarrativeOperationRouter:
                         story_id, data.get("memory_event", {})
                     )
                 elif operation_type == "add_memory":
-                    result = consistency_orchestrator.add_memory(
-                        story_id, data.get("memory_event", {})
-                    )
+                    result = consistency_orchestrator.add_memory(story_id, data.get("memory_event", {}))
                 elif operation_type == "get_memory_summary":
                     result = consistency_orchestrator.get_character_memory_summary(
                         story_id, data.get("character_id", "")
@@ -234,9 +232,7 @@ class NarrativeOperationRouter:
                         data.get("dialogue_history", []),
                     )
                 elif operation_type == "analyze_emotional_stability":
-                    result = emotional_orchestrator.analyze_emotional_stability(
-                        story_id, data.get("character_id", "")
-                    )
+                    result = emotional_orchestrator.analyze_emotional_stability(story_id, data.get("character_id", ""))
                 elif operation_type == "generate_anti_loop_prompt":
                     result = emotional_orchestrator.generate_anti_loop_prompt(
                         data.get("character_id", ""), data.get("detected_patterns", [])

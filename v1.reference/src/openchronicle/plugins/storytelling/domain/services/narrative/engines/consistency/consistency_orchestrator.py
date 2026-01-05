@@ -40,16 +40,12 @@ class ConsistencyOrchestrator:
 
         # Configuration settings
         self.retention_days = self.config.get("retention_days", 30)
-        self.max_memories_per_character = self.config.get(
-            "max_memories_per_character", 1000
-        )
+        self.max_memories_per_character = self.config.get("max_memories_per_character", 1000)
         self.consistency_threshold = self.config.get("consistency_threshold", 0.8)
 
         logger.info("ConsistencyOrchestrator initialized")
 
-    def add_memory(
-        self, character_id: str, memory_event: dict[str, Any]
-    ) -> list[dict[str, Any]]:
+    def add_memory(self, character_id: str, memory_event: dict[str, Any]) -> list[dict[str, Any]]:
         """
         Add a new memory event with consistency validation.
 
@@ -70,16 +66,12 @@ class ConsistencyOrchestrator:
                 _raise_invalid_memory_event_error()
 
             # Generate memories from event
-            new_memories = self.memory_validator.generate_memories_from_event(
-                character_id, memory_event
-            )
+            new_memories = self.memory_validator.generate_memories_from_event(character_id, memory_event)
 
             # Validate consistency for each new memory
             validated_memories = []
             for memory_data in new_memories:
-                consistency_result = self.validate_memory_consistency(
-                    character_id, memory_data
-                )
+                consistency_result = self.validate_memory_consistency(character_id, memory_data)
 
                 if consistency_result["is_consistent"]:
                     validated_memories.append(memory_data)
@@ -110,13 +102,9 @@ class ConsistencyOrchestrator:
         Returns:
             List of relevant memories sorted by relevance
         """
-        return self.memory_validator.retrieve_relevant_memories(
-            character_id, context, max_memories
-        )
+        return self.memory_validator.retrieve_relevant_memories(character_id, context, max_memories)
 
-    def validate_memory_consistency(
-        self, character_id: str, new_memory: dict[str, Any]
-    ) -> dict[str, Any]:
+    def validate_memory_consistency(self, character_id: str, new_memory: dict[str, Any]) -> dict[str, Any]:
         """
         Validate consistency of new memory against existing memories.
 
@@ -127,9 +115,7 @@ class ConsistencyOrchestrator:
         Returns:
             Dictionary with consistency results
         """
-        return self.memory_validator.validate_memory_consistency(
-            character_id, new_memory
-        )
+        return self.memory_validator.validate_memory_consistency(character_id, new_memory)
 
     def get_character_memory_summary(self, character_id: str) -> dict[str, Any]:
         """
@@ -143,9 +129,7 @@ class ConsistencyOrchestrator:
         """
         return self.state_tracker.get_character_memory_summary(character_id)
 
-    def compress_old_memories(
-        self, character_id: str, retention_days: int | None = None
-    ) -> int:
+    def compress_old_memories(self, character_id: str, retention_days: int | None = None) -> int:
         """
         Compress old memories to optimize storage.
 
@@ -159,9 +143,7 @@ class ConsistencyOrchestrator:
         days = retention_days or self.retention_days
         return self.memory_validator.compress_old_memories(character_id, days)
 
-    def get_memory_context_for_prompt(
-        self, character_id: str, current_context: str, max_tokens: int = 500
-    ) -> str:
+    def get_memory_context_for_prompt(self, character_id: str, current_context: str, max_tokens: int = 500) -> str:
         """
         Generate memory context for prompt generation.
 
@@ -173,9 +155,7 @@ class ConsistencyOrchestrator:
         Returns:
             Formatted memory context string
         """
-        return self.memory_validator.get_memory_context_for_prompt(
-            character_id, current_context, max_tokens
-        )
+        return self.memory_validator.get_memory_context_for_prompt(character_id, current_context, max_tokens)
 
     def export_character_memories(self, character_id: str) -> dict[str, Any]:
         """
@@ -198,9 +178,7 @@ class ConsistencyOrchestrator:
         """
         self.memory_validator.import_character_memories(data)
 
-    def get_consistency_metrics(
-        self, character_id: str | None = None
-    ) -> dict[str, Any]:
+    def get_consistency_metrics(self, character_id: str | None = None) -> dict[str, Any]:
         """
         Get consistency metrics for character(s).
 

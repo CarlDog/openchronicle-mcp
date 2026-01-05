@@ -60,9 +60,7 @@ class PerformanceAdapter(IPerformancePort):
 
         return session_id
 
-    def end_monitoring(
-        self, session_id: str, success: bool = True, error: Optional[str] = None
-    ) -> dict[str, Any]:
+    def end_monitoring(self, session_id: str, success: bool = True, error: Optional[str] = None) -> dict[str, Any]:
         """
         End monitoring session and get metrics.
 
@@ -138,9 +136,7 @@ class PerformanceAdapter(IPerformancePort):
 
         return {"system_metrics": "unavailable"}
 
-    def record_usage(
-        self, model_name: str, tokens_used: int, cost: float = 0.0
-    ) -> bool:
+    def record_usage(self, model_name: str, tokens_used: int, cost: float = 0.0) -> bool:
         """
         Record model usage statistics.
 
@@ -170,9 +166,7 @@ class PerformanceAdapter(IPerformancePort):
 
         return True  # Assume success if monitoring not available
 
-    def get_usage_stats(
-        self, model_name: str, timeframe: str = "day"
-    ) -> dict[str, Any]:
+    def get_usage_stats(self, model_name: str, timeframe: str = "day") -> dict[str, Any]:
         """
         Get usage statistics for a model.
 

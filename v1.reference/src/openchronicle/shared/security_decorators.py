@@ -42,24 +42,17 @@ def secure_input(*param_names: str, validation_type: str = "user_input"):
             bound_args.apply_defaults()
 
             # Create security context
-            context = SecurityContext(
-                operation=func.__name__, component=func.__module__
-            )
+            context = SecurityContext(operation=func.__name__, component=func.__module__)
 
             # Validate specified parameters
             for param_name in param_names:
                 if param_name in bound_args.arguments:
                     value = bound_args.arguments[param_name]
                     if value is not None:
-                        result = security_manager.validate_and_sanitize(
-                            value, validation_type, context
-                        )
+                        result = security_manager.validate_and_sanitize(value, validation_type, context)
 
                         if not result.is_valid:
-                            raise ValueError(
-                                f"Security validation failed for {param_name}: "
-                                f"{result.error_message}"
-                            )
+                            raise ValueError(f"Security validation failed for {param_name}: " f"{result.error_message}")
 
                         # Replace with sanitized value if available
                         if result.sanitized_value is not None:
@@ -96,22 +89,16 @@ def secure_file_access(path_param: str = "file_path"):
             bound_args.apply_defaults()
 
             # Create security context
-            context = SecurityContext(
-                operation=func.__name__, component=func.__module__
-            )
+            context = SecurityContext(operation=func.__name__, component=func.__module__)
 
             # Validate file path parameter
             if path_param in bound_args.arguments:
                 path_value = bound_args.arguments[path_param]
                 if path_value is not None:
-                    result = security_manager.validate_and_sanitize(
-                        path_value, "file_path", context
-                    )
+                    result = security_manager.validate_and_sanitize(path_value, "file_path", context)
 
                     if not result.is_valid:
-                        raise ValueError(
-                            f"File path validation failed: {result.error_message}"
-                        )
+                        raise ValueError(f"File path validation failed: {result.error_message}")
 
                     # Replace with normalized path
                     if result.sanitized_value is not None:
@@ -148,22 +135,16 @@ def secure_sql_execution(query_param: str = "query", params_param: str = "parame
             bound_args.apply_defaults()
 
             # Create security context
-            context = SecurityContext(
-                operation=func.__name__, component=func.__module__
-            )
+            context = SecurityContext(operation=func.__name__, component=func.__module__)
 
             # Validate SQL query
             if query_param in bound_args.arguments:
                 query_value = bound_args.arguments[query_param]
                 if query_value is not None:
-                    result = security_manager.validate_and_sanitize(
-                        query_value, "sql_query", context
-                    )
+                    result = security_manager.validate_and_sanitize(query_value, "sql_query", context)
 
                     if not result.is_valid:
-                        raise ValueError(
-                            f"SQL query validation failed: {result.error_message}"
-                        )
+                        raise ValueError(f"SQL query validation failed: {result.error_message}")
 
             return func(*bound_args.args, **bound_args.kwargs)
 
@@ -209,10 +190,7 @@ def rate_limited(max_calls: int = 100, window_seconds: int = 60, per_user: bool 
                 rate_key = func.__name__
 
             # Clean old calls outside the window
-            while (
-                call_history[rate_key]
-                and current_time - call_history[rate_key][0] > window_seconds
-            ):
+            while call_history[rate_key] and current_time - call_history[rate_key][0] > window_seconds:
                 call_history[rate_key].popleft()
 
             # Check rate limit
@@ -230,10 +208,7 @@ def rate_limited(max_calls: int = 100, window_seconds: int = 60, per_user: bool 
                     f"Rate limit exceeded: {max_calls} calls in {window_seconds}s",
                 )
 
-                raise ValueError(
-                    f"Rate limit exceeded: {max_calls} calls per "
-                    f"{window_seconds} seconds"
-                )
+                raise ValueError(f"Rate limit exceeded: {max_calls} calls per " f"{window_seconds} seconds")
 
             # Record this call
             call_history[rate_key].append(current_time)
@@ -267,9 +242,7 @@ def security_monitored(threat_level: SecurityThreatLevel = SecurityThreatLevel.L
             bound_args = sig.bind(*args, **kwargs)
             user_id = bound_args.arguments.get("user_id", "anonymous")
 
-            context = SecurityContext(
-                operation=func.__name__, component=func.__module__, user_id=user_id
-            )
+            context = SecurityContext(operation=func.__name__, component=func.__module__, user_id=user_id)
 
             try:
                 result = func(*args, **kwargs)
@@ -336,9 +309,7 @@ def require_authentication(user_param: str = "user_id"):
             # Check for user authentication
             user_id = bound_args.arguments.get(user_param)
             if not user_id or user_id.strip() == "":
-                context = SecurityContext(
-                    operation=func.__name__, component=func.__module__
-                )
+                context = SecurityContext(operation=func.__name__, component=func.__module__)
 
                 security_manager.monitor.record_security_violation(
                     SecurityViolationType.AUTHENTICATION,
@@ -412,9 +383,7 @@ def secure_operation(
 
         # Input validation
         if input_params:
-            secured_func = secure_input(*input_params, validation_type="user_input")(
-                secured_func
-            )
+            secured_func = secure_input(*input_params, validation_type="user_input")(secured_func)
 
         # File path validation
         if file_path_params:
@@ -468,8 +437,6 @@ def validate_and_raise(
     result = security_manager.validate_and_sanitize(data, validation_type, context)
 
     if not result.is_valid:
-        raise ValueError(
-            f"Security validation failed for {param_name}: {result.error_message}"
-        )
+        raise ValueError(f"Security validation failed for {param_name}: {result.error_message}")
 
     return result.sanitized_value if result.sanitized_value is not None else data

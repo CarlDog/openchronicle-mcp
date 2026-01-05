@@ -39,9 +39,7 @@ class ValidationEngine(IValidationEngine):
             "optional_directories": ["characters", "locations", "lore", "narrative"],
         }
 
-    def validate_content_format(
-        self, content: str, expected_type: str
-    ) -> tuple[bool, list[str]]:
+    def validate_content_format(self, content: str, expected_type: str) -> tuple[bool, list[str]]:
         """
         Validate content format against expected type.
 
@@ -65,22 +63,14 @@ class ValidationEngine(IValidationEngine):
 
         # Length validation
         if len(content) < self.content_rules["min_content_length"]:
-            issues.append(
-                f"Content too short (minimum {self.content_rules['min_content_length']} characters)"
-            )
+            issues.append(f"Content too short (minimum {self.content_rules['min_content_length']} characters)")
 
         if len(content) > self.content_rules["max_content_length"]:
-            issues.append(
-                f"Content too long (maximum {self.content_rules['max_content_length']} characters)"
-            )
+            issues.append(f"Content too long (maximum {self.content_rules['max_content_length']} characters)")
 
         # Line length validation
         lines = content.split("\n")
-        long_lines = [
-            i
-            for i, line in enumerate(lines, 1)
-            if len(line) > self.content_rules["max_line_length"]
-        ]
+        long_lines = [i for i, line in enumerate(lines, 1) if len(line) > self.content_rules["max_line_length"]]
         if long_lines:
             issues.append(
                 f"Lines too long (lines {long_lines[:5]}): maximum {self.content_rules['max_line_length']} characters"
@@ -122,9 +112,7 @@ class ValidationEngine(IValidationEngine):
 
         return is_valid, issues
 
-    def validate_import_readiness(
-        self, context: ImportContext
-    ) -> tuple[bool, list[str]]:
+    def validate_import_readiness(self, context: ImportContext) -> tuple[bool, list[str]]:
         """
         Validate that system is ready for import operation.
 
@@ -191,9 +179,7 @@ class ValidationEngine(IValidationEngine):
 
         return is_ready, issues
 
-    def validate_storypack_structure(
-        self, storypack_path: Path
-    ) -> tuple[bool, list[str]]:
+    def validate_storypack_structure(self, storypack_path: Path) -> tuple[bool, list[str]]:
         """
         Validate generated storypack structure.
 
@@ -236,9 +222,7 @@ class ValidationEngine(IValidationEngine):
                 issues.extend(dir_issues)
 
         if not found_content_dirs:
-            issues.append(
-                "No content directories found (characters, locations, lore, narrative)"
-            )
+            issues.append("No content directories found (characters, locations, lore, narrative)")
 
         # Check for empty storypack
         total_content_files = 0
@@ -287,9 +271,7 @@ class ValidationEngine(IValidationEngine):
                     missing_fields.append(field)
 
             if missing_fields:
-                issues.append(
-                    f"Character profile missing required fields: {missing_fields}"
-                )
+                issues.append(f"Character profile missing required fields: {missing_fields}")
 
         elif expected_type == "location_description":
             # Location descriptions should have basic structure
@@ -298,9 +280,7 @@ class ValidationEngine(IValidationEngine):
 
         elif expected_type == "narrative":
             # Narrative content validation
-            if not any(
-                indicator in content for indicator in ['"', "'", "said", "walked"]
-            ):
+            if not any(indicator in content for indicator in ['"', "'", "said", "walked"]):
                 issues.append("Narrative content lacks typical story elements")
 
         return issues
@@ -323,9 +303,7 @@ class ValidationEngine(IValidationEngine):
         invalid_chars = ["<", ">", ":", '"', "|", "?", "*", "\\", "/"]
         found_invalid = [char for char in invalid_chars if char in name]
         if found_invalid:
-            issues.append(
-                f"Storypack name contains invalid characters: {found_invalid}"
-            )
+            issues.append(f"Storypack name contains invalid characters: {found_invalid}")
 
         # Check for reserved names
         reserved_names = ["con", "prn", "aux", "nul", "com1", "com2", "lpt1", "lpt2"]
@@ -341,10 +319,7 @@ class ValidationEngine(IValidationEngine):
 
         try:
             for file_path in source_path.rglob("*"):
-                if (
-                    file_path.is_file()
-                    and file_path.suffix.lower() in supported_extensions
-                ):
+                if file_path.is_file() and file_path.suffix.lower() in supported_extensions:
                     supported_files.append(file_path)
         except (OSError, IOError, PermissionError) as e:
             self.logger.warning(f"File system error scanning source directory {source_path}: {e}")
@@ -368,9 +343,7 @@ class ValidationEngine(IValidationEngine):
                     issues.append(f"meta.json missing required field: {field}")
 
             # Validate field types
-            if "storypack_id" in meta_data and not isinstance(
-                meta_data["storypack_id"], str
-            ):
+            if "storypack_id" in meta_data and not isinstance(meta_data["storypack_id"], str):
                 issues.append("meta.json field 'storypack_id' must be a string")
 
             if "title" in meta_data and not isinstance(meta_data["title"], str):

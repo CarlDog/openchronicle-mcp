@@ -8,6 +8,7 @@ Provides minimal story commands demonstrating plugin CLI integration.
 import typer
 from rich.console import Console
 
+
 # Create storytelling command group
 story_app = typer.Typer(help="Storytelling commands from plugin")
 console = Console()

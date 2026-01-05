@@ -125,16 +125,12 @@ class StabilityTracker:
 
         # Configuration
         self.emotion_memory_limit = self.config.get("emotion_memory_limit", 50)
-        self.default_cooldown_duration = self.config.get(
-            "default_cooldown_duration", 300
-        )
+        self.default_cooldown_duration = self.config.get("default_cooldown_duration", 300)
         self.stability_window_hours = self.config.get("stability_window_hours", 24)
 
         logger.info("StabilityTracker initialized")
 
-    def track_emotional_state(
-        self, character_id: str, emotional_state: dict[str, Any]
-    ) -> dict[str, Any]:
+    def track_emotional_state(self, character_id: str, emotional_state: dict[str, Any]) -> dict[str, Any]:
         """
         Track character's emotional state.
 
@@ -263,9 +259,7 @@ class StabilityTracker:
         latest_emotion = emotions[-1]
         return latest_emotion.to_dict()
 
-    def get_emotional_history(
-        self, character_id: str, limit: int | None = None
-    ) -> list[dict[str, Any]]:
+    def get_emotional_history(self, character_id: str, limit: int | None = None) -> list[dict[str, Any]]:
         """
         Get character's emotional history.
 
@@ -303,9 +297,7 @@ class StabilityTracker:
         # Calculate intensity variance (lower variance = more stable)
         intensities = [emotion.intensity for emotion in emotions]
         mean_intensity = sum(intensities) / len(intensities)
-        variance = sum((i - mean_intensity) ** 2 for i in intensities) / len(
-            intensities
-        )
+        variance = sum((i - mean_intensity) ** 2 for i in intensities) / len(intensities)
         intensity_stability = max(0, 1 - variance)
 
         # Calculate emotional type consistency
@@ -323,9 +315,7 @@ class StabilityTracker:
             temporal_stability = 1.0
 
         # Combine factors
-        overall_stability = (
-            intensity_stability * 0.4 + type_stability * 0.3 + temporal_stability * 0.3
-        )
+        overall_stability = intensity_stability * 0.4 + type_stability * 0.3 + temporal_stability * 0.3
 
         return min(max(overall_stability, 0.0), 1.0)
 
@@ -436,9 +426,7 @@ class StabilityTracker:
             total_triggers += cooldown.triggered_count
 
         # Most frequent behaviors
-        most_frequent = sorted(
-            behavior_stats.items(), key=lambda x: x[1]["total_triggers"], reverse=True
-        )[:5]
+        most_frequent = sorted(behavior_stats.items(), key=lambda x: x[1]["total_triggers"], reverse=True)[:5]
 
         return {
             "total_behaviors_tracked": len(behavior_stats),
@@ -486,12 +474,9 @@ class StabilityTracker:
     def export_character_data(self, character_id: str) -> dict[str, Any]:
         """Export character's stability tracking data."""
         try:
-            emotions = [
-                emotion.to_dict() for emotion in self.character_emotions[character_id]
-            ]
+            emotions = [emotion.to_dict() for emotion in self.character_emotions[character_id]]
             behaviors = {
-                behavior: cooldown.to_dict()
-                for behavior, cooldown in self.character_behaviors[character_id].items()
+                behavior: cooldown.to_dict() for behavior, cooldown in self.character_behaviors[character_id].items()
             }
 
             return {
@@ -548,9 +533,7 @@ class StabilityTracker:
         metrics["total_emotions_tracked"] = len(self.character_emotions[character_id])
 
         # Update stability score
-        metrics["current_stability_score"] = self.calculate_stability_score(
-            character_id
-        )
+        metrics["current_stability_score"] = self.calculate_stability_score(character_id)
 
     def _analyze_emotional_patterns(self, character_id: str) -> dict[str, Any]:
         """Analyze emotional patterns for character."""
@@ -566,9 +549,7 @@ class StabilityTracker:
             emotion_counts[emotion.emotion] = emotion_counts.get(emotion.emotion, 0) + 1
 
         # Dominant emotion
-        dominant_emotion = (
-            max(emotion_counts.items(), key=lambda x: x[1]) if emotion_counts else None
-        )
+        dominant_emotion = max(emotion_counts.items(), key=lambda x: x[1]) if emotion_counts else None
 
         return {
             "recent_emotion_frequency": emotion_counts,
@@ -633,13 +614,9 @@ class StabilityTracker:
             patterns.append("oscillating_emotions")
 
         # Monotonic trends
-        if all(
-            intensities[i] <= intensities[i + 1] for i in range(len(intensities) - 1)
-        ):
+        if all(intensities[i] <= intensities[i + 1] for i in range(len(intensities) - 1)):
             patterns.append("consistently_improving")
-        elif all(
-            intensities[i] >= intensities[i + 1] for i in range(len(intensities) - 1)
-        ):
+        elif all(intensities[i] >= intensities[i + 1] for i in range(len(intensities) - 1)):
             patterns.append("consistently_declining")
 
         # High variance
@@ -659,9 +636,7 @@ class StabilityTracker:
             prev_direction = values[i - 1] - values[i - 2]
             curr_direction = values[i] - values[i - 1]
 
-            if (prev_direction > 0 and curr_direction < 0) or (
-                prev_direction < 0 and curr_direction > 0
-            ):
+            if (prev_direction > 0 and curr_direction < 0) or (prev_direction < 0 and curr_direction > 0):
                 direction_changes += 1
 
         # Consider oscillating if more than half the intervals show direction changes
@@ -686,11 +661,7 @@ class StabilityTracker:
                 "default_cooldown_duration": self.default_cooldown_duration,
                 "stability_window_hours": self.stability_window_hours,
                 "tracked_characters": len(self.character_emotions),
-                "total_emotional_states": sum(
-                    len(emotions) for emotions in self.character_emotions.values()
-                ),
-                "active_cooldowns": sum(
-                    len(behaviors) for behaviors in self.character_behaviors.values()
-                ),
+                "total_emotional_states": sum(len(emotions) for emotions in self.character_emotions.values()),
+                "active_cooldowns": sum(len(behaviors) for behaviors in self.character_behaviors.values()),
             }
         }

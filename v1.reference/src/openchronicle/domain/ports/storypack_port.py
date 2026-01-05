@@ -2,6 +2,7 @@
 Storypack interfaces port for domain layer operations.
 Abstract interfaces for storypack import operations without dependency violations.
 """
+
 from abc import ABC
 from abc import abstractmethod
 from typing import Any

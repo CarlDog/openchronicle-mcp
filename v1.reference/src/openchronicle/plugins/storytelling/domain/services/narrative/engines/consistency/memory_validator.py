@@ -9,7 +9,8 @@ import hashlib
 import logging
 import re
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
+from datetime import timedelta
 from typing import Any
 
 from openchronicle.shared.json_utilities import JSONUtilities

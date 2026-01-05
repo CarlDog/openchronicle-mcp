@@ -5,8 +5,12 @@ Provides base database operation interfaces and neutral database utilities
 that can be extended by domain-specific plugins.
 """
 
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from abc import ABC
+from abc import abstractmethod
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 
 class BaseDatabaseOperations(ABC):
@@ -144,6 +148,4 @@ class DatabaseOperations:
     """
 
     def __init__(self, connection_manager):  # pragma: no cover - maintained for import compatibility
-        raise ImportError(
-            "DatabaseOperations is no longer available in core. Use plugin-provided operations via DI."
-        )
+        raise ImportError("DatabaseOperations is no longer available in core. Use plugin-provided operations via DI.")

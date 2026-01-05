@@ -3,6 +3,7 @@ OpenChronicle CLI - Bookmarks Commands
 
 Manage story bookmarks via the domain services using dependency-injected ports.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -48,9 +49,7 @@ def list_bookmarks(story_id: str = typer.Argument(..., help="Story ID")):
         for b in bookmarks
     ]
     output.table(
-        rows,
-        title=f"Bookmarks for {story_id}",
-        headers=["bookmark_id", "scene_id", "timestamp", "description"]
+        rows, title=f"Bookmarks for {story_id}", headers=["bookmark_id", "scene_id", "timestamp", "description"]
     )
 
 
@@ -83,8 +82,7 @@ def add_bookmark(
 
     if ok:
         output.success(
-            "Bookmark created",
-            data={"story_id": story_id, "bookmark_id": bid, "scene_id": scene_id, "timestamp": ts}
+            "Bookmark created", data={"story_id": story_id, "bookmark_id": bid, "scene_id": scene_id, "timestamp": ts}
         )
     else:
         output.error("Failed to create bookmark")

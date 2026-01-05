@@ -18,7 +18,10 @@ import ast
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Set, Tuple
+from typing import Dict
+from typing import List
+from typing import Set
+from typing import Tuple
 
 
 class ArchitectureBoundaryValidator:

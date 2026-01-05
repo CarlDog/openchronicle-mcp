@@ -73,9 +73,7 @@ class NarrativeStateManager:
         """Get current narrative state for a story."""
         if story_id not in self.narrative_states:
             # Create a default state if it doesn't exist
-            self.narrative_states[story_id] = NarrativeState(
-                story_id=story_id, current_scene="initial"
-            )
+            self.narrative_states[story_id] = NarrativeState(story_id=story_id, current_scene="initial")
 
         state = self.narrative_states[story_id]
         # Return dict representation for test compatibility
@@ -94,9 +92,7 @@ class NarrativeStateManager:
         """Update narrative state for a story."""
         try:
             if story_id not in self.narrative_states:
-                self.narrative_states[story_id] = NarrativeState(
-                    story_id=story_id, current_scene="initial"
-                )
+                self.narrative_states[story_id] = NarrativeState(story_id=story_id, current_scene="initial")
 
             state = self.narrative_states[story_id]
 
@@ -121,9 +117,7 @@ class NarrativeStateManager:
         else:
             return True
 
-    def get_character_narrative_context(
-        self, story_id: str, character_id: str
-    ) -> dict[str, Any]:
+    def get_character_narrative_context(self, story_id: str, character_id: str) -> dict[str, Any]:
         """Get narrative context for a specific character."""
         state = self.get_narrative_state(story_id)
         if not state:
@@ -137,15 +131,11 @@ class NarrativeStateManager:
             "last_update": state["last_update"],
         }
 
-    def update_character_narrative_state(
-        self, story_id: str, character_id: str, updates: dict[str, Any]
-    ) -> bool:
+    def update_character_narrative_state(self, story_id: str, character_id: str, updates: dict[str, Any]) -> bool:
         """Update narrative state for a specific character."""
         try:
             if story_id not in self.narrative_states:
-                self.narrative_states[story_id] = NarrativeState(
-                    story_id=story_id, current_scene="initial"
-                )
+                self.narrative_states[story_id] = NarrativeState(story_id=story_id, current_scene="initial")
 
             state = self.narrative_states[story_id]
 
@@ -162,14 +152,10 @@ class NarrativeStateManager:
             )
 
         except (AttributeError, TypeError, KeyError) as e:
-            log_error(
-                f"Invalid character narrative data for {character_id} in {story_id}: {e}"
-            )
+            log_error(f"Invalid character narrative data for {character_id} in {story_id}: {e}")
             return False
         except Exception as e:
-            log_error(
-                f"Unexpected error updating character narrative state for {character_id} in {story_id}: {e}"
-            )
+            log_error(f"Unexpected error updating character narrative state for {character_id} in {story_id}: {e}")
             return False
         else:
             return True
@@ -213,8 +199,7 @@ class NarrativeStateManager:
                 states_data = json.load(f)
 
             self.narrative_states = {
-                story_id: NarrativeState(**state_data)
-                for story_id, state_data in states_data.items()
+                story_id: NarrativeState(**state_data) for story_id, state_data in states_data.items()
             }
 
             log_system_event(

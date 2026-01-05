@@ -114,9 +114,7 @@ class InputValidator:
         self.max_path_length = 260  # Windows path limit
         self.allowed_file_extensions = {".json", ".md", ".txt", ".yaml", ".yml"}
 
-    def validate_user_input(
-        self, content: str, context: SecurityContext
-    ) -> SecurityValidationResult:
+    def validate_user_input(self, content: str, context: SecurityContext) -> SecurityValidationResult:
         """Validate and sanitize user input content."""
         if not isinstance(content, str):
             return SecurityValidationResult(
@@ -136,10 +134,7 @@ class InputValidator:
                 is_valid=False,
                 threat_level=SecurityThreatLevel.MEDIUM,
                 violation_type=SecurityViolationType.INPUT_VALIDATION,
-                    error_message=(
-                        f"Input too long: {len(content)} characters "
-                        f"(max: {self.max_input_length})"
-                    ),
+                error_message=(f"Input too long: {len(content)} characters " f"(max: {self.max_input_length})"),
             )
 
         # SQL injection detection - only flag clear injection attempts in user content
@@ -186,9 +181,7 @@ class InputValidator:
             },
         )
 
-    def validate_file_path(
-        self, path: str | Path, context: SecurityContext
-    ) -> SecurityValidationResult:
+    def validate_file_path(self, path: str | Path, context: SecurityContext) -> SecurityValidationResult:
         """Validate file paths to prevent directory traversal and access."""
         path_str = str(path)
 
@@ -244,17 +237,12 @@ class InputValidator:
                 )
 
             # Validate file extension if it's a file
-            if (
-                normalized_path.suffix
-                and normalized_path.suffix.lower() not in self.allowed_file_extensions
-            ):
+            if normalized_path.suffix and normalized_path.suffix.lower() not in self.allowed_file_extensions:
                 return SecurityValidationResult(
                     is_valid=False,
                     threat_level=SecurityThreatLevel.MEDIUM,
                     violation_type=SecurityViolationType.FILE_ACCESS,
-                    error_message=(
-                        f"File extension not allowed: {normalized_path.suffix}"
-                    ),
+                    error_message=(f"File extension not allowed: {normalized_path.suffix}"),
                 )
 
             return SecurityValidationResult(
@@ -272,9 +260,7 @@ class InputValidator:
                 error_message=f"Invalid path: {e}",
             )
 
-    def validate_json_data(
-        self, data: str | dict, context: SecurityContext
-    ) -> SecurityValidationResult:
+    def validate_json_data(self, data: str | dict, context: SecurityContext) -> SecurityValidationResult:
         """Validate JSON data for security issues."""
         try:
             if isinstance(data, str):
@@ -343,9 +329,7 @@ class InputValidator:
         sanitized = sanitized.replace("\x00", "")
 
         # Remove or escape HTML/script tags
-        sanitized = re.sub(
-            r"<script[^>]*>.*?</script>", "", sanitized, flags=re.IGNORECASE | re.DOTALL
-        )
+        sanitized = re.sub(r"<script[^>]*>.*?</script>", "", sanitized, flags=re.IGNORECASE | re.DOTALL)
         sanitized = re.sub(r"<[^>]*>", "", sanitized)  # Remove all HTML tags
 
         # Escape special characters that could be used for injection
@@ -389,9 +373,7 @@ class SQLSecurityValidator:
             r"(?i)(xp_cmdshell|sp_executesql)",
         ]
 
-    def validate_sql_query(
-        self, query: str, context: SecurityContext
-    ) -> SecurityValidationResult:
+    def validate_sql_query(self, query: str, context: SecurityContext) -> SecurityValidationResult:
         """Validate SQL queries for injection attempts."""
         if not query.strip():
             return SecurityValidationResult(
@@ -427,9 +409,7 @@ class SQLSecurityValidator:
                     error_message="Suspicious SQL patterns detected",
                 )
 
-        return SecurityValidationResult(
-            is_valid=True, threat_level=SecurityThreatLevel.LOW
-        )
+        return SecurityValidationResult(is_valid=True, threat_level=SecurityThreatLevel.LOW)
 
     def execute_safe_query(
         self,
@@ -445,9 +425,7 @@ class SQLSecurityValidator:
         # Validate the query
         validation_result = self.validate_sql_query(query, context)
         if not validation_result.is_valid:
-            raise ValueError(
-                f"SQL security validation failed: {validation_result.error_message}"
-            )
+            raise ValueError(f"SQL security validation failed: {validation_result.error_message}")
 
         try:
             cursor = connection.cursor()
@@ -605,9 +583,7 @@ class SecurityMonitor:
         """Record a security violation for monitoring and analysis."""
 
         violation_key = f"{violation_type.value}:{threat_level.value}"
-        self.violation_counts[violation_key] = (
-            self.violation_counts.get(violation_key, 0) + 1
-        )
+        self.violation_counts[violation_key] = self.violation_counts.get(violation_key, 0) + 1
 
         violation_record = {
             "timestamp": context.timestamp,
@@ -625,9 +601,7 @@ class SecurityMonitor:
 
         # Keep only recent violations
         if len(self.recent_violations) > self.max_recent_violations:
-            self.recent_violations = self.recent_violations[
-                -self.max_recent_violations :
-            ]
+            self.recent_violations = self.recent_violations[-self.max_recent_violations :]
 
         # Log the violation
         log_system_event(
@@ -664,29 +638,19 @@ class SecurityMonitor:
             "violation_breakdown": self.violation_counts.copy(),
             "recent_critical_violations": len(recent_critical),
             "security_status": self._calculate_security_status(),
-            "last_violation": (
-                self.recent_violations[-1] if self.recent_violations else None
-            ),
+            "last_violation": (self.recent_violations[-1] if self.recent_violations else None),
         }
 
     def _calculate_security_status(self) -> str:
         """Calculate overall security status based on recent violations."""
         recent_hour_violations = [
-            v
-            for v in self.recent_violations
-            if v["timestamp"] > datetime.now(UTC).timestamp() - 3600
+            v for v in self.recent_violations if v["timestamp"] > datetime.now(UTC).timestamp() - 3600
         ]
 
         critical_count = sum(
-            1
-            for v in recent_hour_violations
-            if v["threat_level"] == SecurityThreatLevel.CRITICAL.value
+            1 for v in recent_hour_violations if v["threat_level"] == SecurityThreatLevel.CRITICAL.value
         )
-        high_count = sum(
-            1
-            for v in recent_hour_violations
-            if v["threat_level"] == SecurityThreatLevel.HIGH.value
-        )
+        high_count = sum(1 for v in recent_hour_violations if v["threat_level"] == SecurityThreatLevel.HIGH.value)
 
         if critical_count > 0:
             return "critical"
@@ -759,9 +723,7 @@ security_manager = SecurityManager()
 # === Convenience Functions ===
 
 
-def validate_user_input(
-    content: str, user_id: str = None, operation: str = "input"
-) -> SecurityValidationResult:
+def validate_user_input(content: str, user_id: str = None, operation: str = "input") -> SecurityValidationResult:
     """Convenience function for user input validation."""
     context = SecurityContext(user_id=user_id, operation=operation)
     return security_manager.validate_and_sanitize(content, "user_input", context)
@@ -775,17 +737,13 @@ def validate_file_path(
     return security_manager.validate_and_sanitize(path, "file_path", context)
 
 
-def validate_sql_query(
-    query: str, user_id: str = None, operation: str = "sql_query"
-) -> SecurityValidationResult:
+def validate_sql_query(query: str, user_id: str = None, operation: str = "sql_query") -> SecurityValidationResult:
     """Convenience function for SQL query validation."""
     context = SecurityContext(user_id=user_id, operation=operation)
     return security_manager.validate_and_sanitize(query, "sql_query", context)
 
 
-def safe_read_file(
-    file_path: str | Path, user_id: str = None, encoding: str = "utf-8"
-) -> tuple[bool, str]:
+def safe_read_file(file_path: str | Path, user_id: str = None, encoding: str = "utf-8") -> tuple[bool, str]:
     """Convenience function for safe file reading."""
     context = SecurityContext(user_id=user_id, operation="file_read")
     return security_manager.file_manager.safe_read_file(file_path, context, encoding)
@@ -799,9 +757,7 @@ def safe_write_file(
 ) -> tuple[bool, str]:
     """Convenience function for safe file writing."""
     context = SecurityContext(user_id=user_id, operation="file_write")
-    return security_manager.file_manager.safe_write_file(
-        file_path, content, context, encoding
-    )
+    return security_manager.file_manager.safe_write_file(file_path, content, context, encoding)
 
 
 def get_security_manager() -> SecurityManager:

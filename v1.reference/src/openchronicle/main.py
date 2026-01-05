@@ -27,7 +27,11 @@ from pathlib import Path
 from .shared.centralized_config import CentralizedConfigManager
 from .shared.dependency_injection import get_container
 from .shared.error_handling import OpenChronicleError
-from .shared.logging_system import log_error, log_info, log_system_event, log_warning
+from .shared.logging_system import log_error
+from .shared.logging_system import log_info
+from .shared.logging_system import log_system_event
+from .shared.logging_system import log_warning
+
 
 # === PRIMARY ORCHESTRATORS ===
 # Main workflow components - most commonly used
@@ -110,10 +114,8 @@ Core no longer exposes ContextOrchestrator or ContentAnalysisOrchestrator.
 """
 
 try:
-    from .infrastructure.performance import (
-        ModelPerformanceMonitor,
-        PerformanceOrchestrator,
-    )
+    from .infrastructure.performance import ModelPerformanceMonitor
+    from .infrastructure.performance import PerformanceOrchestrator
 
     PERFORMANCE_AVAILABLE = True
 except ImportError as e:

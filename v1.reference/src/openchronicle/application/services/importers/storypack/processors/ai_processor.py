@@ -89,9 +89,7 @@ class AIProcessor(IAIProcessor):
         else:
             return success
 
-    async def analyze_content(
-        self, content: str, file_path: Path, context: ImportContext
-    ) -> dict[str, Any]:
+    async def analyze_content(self, content: str, file_path: Path, context: ImportContext) -> dict[str, Any]:
         """
         Analyze content using AI capabilities.
 
@@ -125,7 +123,7 @@ class AIProcessor(IAIProcessor):
                 "sentiment": sentiment,
                 "themes": themes,
                 "file_path": str(file_path),
-                "content_length": len(content)
+                "content_length": len(content),
             }
 
             if not analysis_result:
@@ -135,9 +133,7 @@ class AIProcessor(IAIProcessor):
                 }
 
             # Enhance with category-specific analysis
-            enhanced_result = await self._enhance_category_analysis(
-                analysis_result, category, content
-            )
+            enhanced_result = await self._enhance_category_analysis(analysis_result, category, content)
 
             log_system_event(
                 "ai_processor",
@@ -160,9 +156,7 @@ class AIProcessor(IAIProcessor):
         else:
             return enhanced_result
 
-    async def extract_entities(
-        self, content: str, entity_type: str
-    ) -> list[dict[str, Any]]:
+    async def extract_entities(self, content: str, entity_type: str) -> list[dict[str, Any]]:
         """
         Extract specific entities from content.
 
@@ -365,24 +359,15 @@ class AIProcessor(IAIProcessor):
         content_lower = content.lower()
 
         # Character indicators
-        if any(
-            indicator in content_lower
-            for indicator in ["age:", "personality:", "appearance:", "background:"]
-        ):
+        if any(indicator in content_lower for indicator in ["age:", "personality:", "appearance:", "background:"]):
             return "characters"
 
         # Location indicators
-        if any(
-            indicator in content_lower
-            for indicator in ["geography:", "climate:", "population:", "description:"]
-        ):
+        if any(indicator in content_lower for indicator in ["geography:", "climate:", "population:", "description:"]):
             return "locations"
 
         # Narrative indicators
-        if any(
-            indicator in content_lower
-            for indicator in ['"', "said", "walked", "looked"]
-        ):
+        if any(indicator in content_lower for indicator in ['"', "said", "walked", "looked"]):
             return "narrative"
 
         return "general"
@@ -402,9 +387,7 @@ class AIProcessor(IAIProcessor):
                     if isinstance(character, dict):
                         # Add character-specific attributes if missing
                         if "attributes" not in character:
-                            character[
-                                "attributes"
-                            ] = self._extract_character_attributes(content)
+                            character["attributes"] = self._extract_character_attributes(content)
 
             elif category == "locations" and enhanced.get("locations"):
                 # Enhanced location analysis
@@ -412,14 +395,10 @@ class AIProcessor(IAIProcessor):
                     if isinstance(location, dict):
                         # Add location-specific attributes if missing
                         if "attributes" not in location:
-                            location["attributes"] = self._extract_location_attributes(
-                                content
-                            )
+                            location["attributes"] = self._extract_location_attributes(content)
 
             # Add category-specific confidence scoring
-            enhanced["category_confidence"] = self._calculate_category_confidence(
-                category, enhanced
-            )
+            enhanced["category_confidence"] = self._calculate_category_confidence(category, enhanced)
 
         except (AttributeError, KeyError) as e:
             log_warning(f"Data structure error in enhancement for category {category}: {e}")
@@ -457,16 +436,12 @@ class AIProcessor(IAIProcessor):
             attributes["has_geography_info"] = True
         if any(word in content_lower for word in ["climate", "weather", "season"]):
             attributes["has_climate_info"] = True
-        if any(
-            word in content_lower for word in ["population", "inhabitants", "people"]
-        ):
+        if any(word in content_lower for word in ["population", "inhabitants", "people"]):
             attributes["has_population_info"] = True
 
         return attributes
 
-    def _calculate_category_confidence(
-        self, category: str, analysis: dict[str, Any]
-    ) -> float:
+    def _calculate_category_confidence(self, category: str, analysis: dict[str, Any]) -> float:
         """Calculate confidence score for category classification."""
         base_confidence = 0.5
 

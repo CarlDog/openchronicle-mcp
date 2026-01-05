@@ -122,9 +122,7 @@ class NavigationManager:
                         "title": (row.get("scene_title") or "Untitled Scene"),
                         "timestamp": row.get("timestamp"),
                         "summary": row.get("scene_summary"),
-                        "relevance_score": self._calculate_relevance_score(
-                            row, title_pattern, content_pattern
-                        ),
+                        "relevance_score": self._calculate_relevance_score(row, title_pattern, content_pattern),
                     }
                 )
 
@@ -137,9 +135,7 @@ class NavigationManager:
             log_system_event("error", f"Scene search failed: {e}")
             return []
 
-    async def get_scene_context(
-        self, scene_id: str, context_window: int = 3
-    ) -> dict[str, Any]:
+    async def get_scene_context(self, scene_id: str, context_window: int = 3) -> dict[str, Any]:
         """Get contextual scenes around target scene."""
         try:
             self.persistence.init_database(self.story_id)
@@ -221,9 +217,7 @@ class NavigationManager:
             log_system_event("error", f"Scene context retrieval failed: {e}")
             return {"error": str(e)}
 
-    async def track_navigation_path(
-        self, from_scene: str, to_scene: str, navigation_type: str = "manual"
-    ) -> bool:
+    async def track_navigation_path(self, from_scene: str, to_scene: str, navigation_type: str = "manual") -> bool:
         """Track navigation between scenes."""
         try:
             self.persistence.init_database(self.story_id)
@@ -294,16 +288,12 @@ class NavigationManager:
                 """,
                 (self.story_id,),
             )
-            recent_activity = (
-                recent_activity_rows[0]["count"] if recent_activity_rows else 0
-            )
+            recent_activity = recent_activity_rows[0]["count"] if recent_activity_rows else 0
 
             return {
                 "total_scenes": scene_count,
                 "recent_activity": recent_activity,
-                "navigation_patterns": [
-                    {"type": row[0], "count": row[1]} for row in nav_patterns
-                ],
+                "navigation_patterns": [{"type": row[0], "count": row[1]} for row in nav_patterns],
                 "statistics_timestamp": datetime.now(UTC).isoformat(),
             }
 
@@ -331,9 +321,7 @@ class NavigationManager:
         else:
             return result
 
-    async def build_navigation_structure(
-        self, timeline_data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def build_navigation_structure(self, timeline_data: dict[str, Any]) -> dict[str, Any]:
         """Build navigation structure from timeline data."""
         try:
             entries = timeline_data.get("entries", [])
@@ -342,9 +330,7 @@ class NavigationManager:
             navigation_structure = {
                 "total_entries": len(entries),
                 "scene_entries": len([e for e in entries if e.get("type") == "scene"]),
-                "bookmark_entries": len(
-                    [e for e in entries if e.get("type") == "bookmark"]
-                ),
+                "bookmark_entries": len([e for e in entries if e.get("type") == "bookmark"]),
                 "navigation_points": [],
                 "current_position": 0,
             }

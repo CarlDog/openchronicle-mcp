@@ -201,9 +201,7 @@ class HealthChecker:
             ops_per_second = metrics.get("operations_per_second", 0)
 
             if hit_rate < thresholds["min_hit_rate"]:
-                issues.append(
-                    f"Hit rate {hit_rate:.1%} below threshold {thresholds['min_hit_rate']:.1%}"
-                )
+                issues.append(f"Hit rate {hit_rate:.1%} below threshold {thresholds['min_hit_rate']:.1%}")
 
             if response_time > thresholds["max_response_time_ms"]:
                 issues.append(
