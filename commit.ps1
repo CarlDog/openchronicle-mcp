@@ -60,11 +60,13 @@ if ($output -match "files were modified by this hook" -or $output -match "Fixed"
     if ($LASTEXITCODE -eq 0) {
         Write-Host "✅ Commit successful after pre-commit fixes!" -ForegroundColor Green
         exit 0
-    } else {
+    }
+    else {
         Write-Host "❌ Commit failed even after pre-commit fixes" -ForegroundColor Red
         exit 1
     }
-} else {
+}
+else {
     # Some other error occurred
     Write-Host "❌ Commit failed:" -ForegroundColor Red
     Write-Host $output

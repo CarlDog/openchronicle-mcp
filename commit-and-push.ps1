@@ -52,7 +52,8 @@ Write-Host "📤 Pushing to remote..." -ForegroundColor Cyan
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✅ Pushed successfully!" -ForegroundColor Green
     exit 0
-} else {
+}
+else {
     Write-Host "❌ Push failed" -ForegroundColor Red
     exit 1
 }
