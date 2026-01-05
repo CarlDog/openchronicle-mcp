@@ -24,6 +24,7 @@ class SqliteStore(StoragePort):
         self._conn.commit()
         self._ensure_parent_task_column()
         self._ensure_task_result_columns()
+        self._ensure_indexes()
 
     # Projects
     def add_project(self, project: Project) -> None:
@@ -322,4 +323,11 @@ class SqliteStore(StoragePort):
             cur.execute("ALTER TABLE tasks ADD COLUMN result_json TEXT")
         if "error_json" not in columns:
             cur.execute("ALTER TABLE tasks ADD COLUMN error_json TEXT")
+        self._conn.commit()
+
+    def _ensure_indexes(self) -> None:
+        """Create indexes for query performance optimization."""
+        cur = self._conn.cursor()
+        for index_stmt in schema.INDEXES:
+            cur.execute(index_stmt)
         self._conn.commit()

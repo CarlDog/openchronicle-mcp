@@ -81,4 +81,20 @@ CREATE TABLE IF NOT EXISTS spans (
 );
 """
 
+# Performance indexes for common queries
+INDEXES = [
+    # Tasks: optimize project queries with ordering
+    "CREATE INDEX IF NOT EXISTS idx_tasks_project_created ON tasks(project_id, created_at, id)",
+    # Tasks: optimize parent task lookups (task trees)
+    "CREATE INDEX IF NOT EXISTS idx_tasks_parent ON tasks(parent_task_id)",
+    # Tasks: optimize status filtering
+    "CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)",
+    # Tasks: optimize updated_at ordering
+    "CREATE INDEX IF NOT EXISTS idx_tasks_updated ON tasks(updated_at)",
+    # Events: optimize task event queries with ordering
+    "CREATE INDEX IF NOT EXISTS idx_events_task_created ON events(task_id, created_at, id)",
+    # Spans: optimize task span queries with ordering
+    "CREATE INDEX IF NOT EXISTS idx_spans_task_created ON spans(task_id, created_at, id)",
+]
+
 ALL_TABLES = [PROJECTS_TABLE, AGENTS_TABLE, TASKS_TABLE, EVENTS_TABLE, RESOURCES_TABLE, SPANS_TABLE]
