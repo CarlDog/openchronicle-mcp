@@ -6,7 +6,7 @@ OpenChronicle v2 uses a file-based plugin system that allows contributors to ext
 
 Plugins live in the root-level `plugins/` directory. Each plugin must follow this structure:
 
-```
+```text
 plugins/
   <plugin_name>/
     plugin.py       # Required: contains register() function
@@ -125,7 +125,7 @@ async def my_handler(task: Task, context: dict[str, Any] | None = None) -> dict[
 
 The built-in `storytelling` plugin demonstrates the plugin structure:
 
-```
+```text
 plugins/
   storytelling/
     plugin.py           # Main plugin file
