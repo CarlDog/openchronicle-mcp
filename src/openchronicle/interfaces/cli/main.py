@@ -75,6 +75,12 @@ def main(argv: list[str] | None = None) -> int:
     verify_cmd = sub.add_parser("verify-task", help="Verify task event hash chain")
     verify_cmd.add_argument("task_id")
 
+    replay_cmd = sub.add_parser("replay-task", help="Replay task execution")
+    replay_cmd.add_argument("task_id")
+    replay_cmd.add_argument(
+        "--mode", choices=["verify", "replay-events", "dry-run"], default="verify", help="Replay mode"
+    )
+
     explain_cmd = sub.add_parser("explain-task", help="Show detailed task execution trace")
     explain_cmd.add_argument("task_id")
 
@@ -164,6 +170,55 @@ def main(argv: list[str] | None = None) -> int:
                 if key not in ["event_index", "event_id", "event_type"]:
                     print(f"    {key}: {value}")
         return 1
+
+    if args.command == "replay-task":
+        replay_service = ReplayService(container.storage)
+        mode_map = {
+            "verify": ReplayMode.VERIFY,
+            "replay-events": ReplayMode.REPLAY_EVENTS,
+            "dry-run": ReplayMode.DRY_RUN,
+        }
+        mode = mode_map[args.mode]
+        replay_result = replay_service.replay_task(args.task_id, mode)
+
+        if args.mode == "verify":
+            # Verify mode - show verification results
+            if replay_result.success:
+                print("✓ Hash chain verified successfully")
+                if replay_result.verification_details:
+                    print(f"  Total events: {replay_result.verification_details.get('total_events')}")
+                    print(f"  Verified events: {replay_result.verification_details.get('verified_events')}")
+                return 0
+            print("✗ Hash chain verification failed")
+            if replay_result.verification_details and replay_result.verification_details.get("error_message"):
+                print(f"  Error: {replay_result.verification_details['error_message']}")
+            if replay_result.verification_details and replay_result.verification_details.get("first_mismatch"):
+                mismatch = replay_result.verification_details["first_mismatch"]
+                print(f"  First mismatch at event {mismatch.get('event_index')}:")
+                print(f"    Event ID: {mismatch.get('event_id')}")
+                print(f"    Event type: {mismatch.get('event_type')}")
+                for key, value in mismatch.items():
+                    if key not in ["event_index", "event_id", "event_type"]:
+                        print(f"    {key}: {value}")
+            return 1
+        if args.mode == "replay-events":
+            # Replay events mode - show reconstructed output
+            if replay_result.success:
+                print("✓ Task replay successful")
+                print("\nReconstructed output:")
+                print(json.dumps(replay_result.reconstructed_output, indent=2))
+                return 0
+            print(f"✗ Task replay failed: {replay_result.error_message}")
+            return 1
+        if args.mode == "dry-run":
+            # Dry run mode - show execution trace
+            if replay_result.success:
+                print("✓ Dry run successful")
+                print("\nExecution trace:")
+                print(json.dumps(replay_result.reconstructed_output, indent=2))
+                return 0
+            print(f"✗ Dry run failed: {replay_result.error_message}")
+            return 1
 
     if args.command == "explain-task":
         maybe_task = container.storage.get_task(args.task_id)

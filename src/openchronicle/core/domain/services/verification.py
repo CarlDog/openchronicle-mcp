@@ -60,9 +60,10 @@ class VerificationService:
                     error_message=f"prev_hash mismatch at event {idx} (type={event.type})",
                 )
 
-            # Recompute hash and verify
-            computed_hash = event.compute_hash()
-            if computed_hash != event.hash:
+            # Recompute hash and verify (without mutating stored hash)
+            stored_hash = event.hash
+            computed_hash = event.calculate_hash()
+            if computed_hash != stored_hash:
                 return VerificationResult(
                     success=False,
                     total_events=total,
@@ -71,7 +72,7 @@ class VerificationService:
                         "event_index": idx,
                         "event_id": event.id,
                         "event_type": event.type,
-                        "expected_hash": event.hash,
+                        "expected_hash": stored_hash,
                         "computed_hash": computed_hash,
                     },
                     error_message=f"Hash mismatch at event {idx} (type={event.type})",

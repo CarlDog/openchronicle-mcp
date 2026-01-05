@@ -135,12 +135,27 @@ class OrchestratorService:
             self.storage.update_span(span)
 
             return result
-        except Exception:
-            # Mark span as failed
-            span.status = SpanStatus.FAILED
-            from datetime import UTC, datetime
+        except Exception as e:
+            # Emit task_failed event
+            failed_event = Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="task_failed",
+                payload={
+                    "exception_type": type(e).__name__,
+                    "message": str(e)[:500],  # Truncate long error messages
+                },
+            )
+            self.emit_event(failed_event)
 
-            span.ended_at = datetime.now(UTC)
+            # Update task status
+            self.storage.update_task_status(task.id, TaskStatus.FAILED.value)
+
+            # Mark span as failed with proper linkage
+            span.status = SpanStatus.FAILED
+            span.end_event_id = failed_event.id
+            span.ended_at = failed_event.created_at
             self.storage.update_span(span)
             raise
 

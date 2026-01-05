@@ -71,7 +71,8 @@ class Event:
     prev_hash: str | None = None
     hash: str | None = None
 
-    def compute_hash(self) -> str:
+    def calculate_hash(self) -> str:
+        """Calculate hash without mutating self.hash. For verification."""
         body = {
             "id": self.id,
             "project_id": self.project_id,
@@ -82,7 +83,11 @@ class Event:
             "created_at": self.created_at.isoformat(),
             "prev_hash": self.prev_hash,
         }
-        digest = hashlib.sha256(json.dumps(body, sort_keys=True).encode("utf-8")).hexdigest()
+        return hashlib.sha256(json.dumps(body, sort_keys=True).encode("utf-8")).hexdigest()
+
+    def compute_hash(self) -> str:
+        """Calculate and set hash. For event creation."""
+        digest = self.calculate_hash()
         self.hash = digest
         return digest
 
