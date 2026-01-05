@@ -23,6 +23,7 @@ class SqliteStore(StoragePort):
             cur.execute(stmt)
         self._conn.commit()
         self._ensure_parent_task_column()
+        self._ensure_task_result_columns()
 
     # Projects
     def add_project(self, project: Project) -> None:
@@ -73,8 +74,8 @@ class SqliteStore(StoragePort):
         cur = self._conn.cursor()
         cur.execute(
             """
-            INSERT INTO tasks (id, project_id, agent_id, parent_task_id, type, payload, status, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tasks (id, project_id, agent_id, parent_task_id, type, payload, status, result_json, error_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 task.id,
@@ -84,6 +85,8 @@ class SqliteStore(StoragePort):
                 task.type,
                 json.dumps(task.payload),
                 task.status.value,
+                task.result_json,
+                task.error_json,
                 task.created_at.isoformat(),
                 task.updated_at.isoformat(),
             ),
@@ -96,6 +99,24 @@ class SqliteStore(StoragePort):
         cur.execute(
             "UPDATE tasks SET status=?, updated_at=? WHERE id=?",
             (status, updated_at, task_id),
+        )
+        self._conn.commit()
+
+    def update_task_result(self, task_id: str, result_json: str, status: str) -> None:
+        cur = self._conn.cursor()
+        updated_at = datetime.now(UTC).isoformat()
+        cur.execute(
+            "UPDATE tasks SET result_json=?, status=?, updated_at=? WHERE id=?",
+            (result_json, status, updated_at, task_id),
+        )
+        self._conn.commit()
+
+    def update_task_error(self, task_id: str, error_json: str, status: str) -> None:
+        cur = self._conn.cursor()
+        updated_at = datetime.now(UTC).isoformat()
+        cur.execute(
+            "UPDATE tasks SET error_json=?, status=?, updated_at=? WHERE id=?",
+            (error_json, status, updated_at, task_id),
         )
         self._conn.commit()
 
@@ -240,6 +261,8 @@ class SqliteStore(StoragePort):
             type=row["type"],
             payload=json.loads(row["payload"] or "{}"),
             status=TaskStatus(row["status"]),
+            result_json=row["result_json"],
+            error_json=row["error_json"],
             created_at=self._parse_dt(row["created_at"]),
             updated_at=self._parse_dt(row["updated_at"]),
         )
@@ -290,3 +313,13 @@ class SqliteStore(StoragePort):
         if "parent_task_id" not in columns:
             cur.execute("ALTER TABLE tasks ADD COLUMN parent_task_id TEXT")
             self._conn.commit()
+
+    def _ensure_task_result_columns(self) -> None:
+        """Migrate existing databases to add result_json and error_json columns."""
+        cur = self._conn.cursor()
+        columns = [row[1] for row in cur.execute("PRAGMA table_info(tasks)").fetchall()]
+        if "result_json" not in columns:
+            cur.execute("ALTER TABLE tasks ADD COLUMN result_json TEXT")
+        if "error_json" not in columns:
+            cur.execute("ALTER TABLE tasks ADD COLUMN error_json TEXT")
+        self._conn.commit()

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -83,7 +84,31 @@ class ReplayService:
         )
 
     def _replay_events_mode(self, task_id: str) -> ReplayResult:
-        """Reconstruct final output from stored events (no re-execution)."""
+        """Reconstruct final output from stored task result or events (no re-execution)."""
+        task = self.storage.get_task(task_id)
+        if task is None:
+            return ReplayResult(
+                mode=ReplayMode.REPLAY_EVENTS.value,
+                success=False,
+                task_id=task_id,
+                error_message=f"Task not found: {task_id}",
+            )
+
+        # Fast path: use stored result_json if available
+        if task.result_json is not None:
+            try:
+                result = json.loads(task.result_json)
+                return ReplayResult(
+                    mode=ReplayMode.REPLAY_EVENTS.value,
+                    success=True,
+                    task_id=task_id,
+                    reconstructed_output=result,
+                )
+            except json.JSONDecodeError:
+                # Fall through to event reconstruction if JSON is invalid
+                pass
+
+        # Fallback: reconstruct from events
         events = self.storage.list_events(task_id)
 
         # Find the task_completed event

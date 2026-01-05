@@ -55,6 +55,8 @@ class Task:
     type: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
     status: TaskStatus = TaskStatus.PENDING
+    result_json: str | None = None  # JSON serialized final result
+    error_json: str | None = None  # JSON serialized error details
     created_at: datetime = field(default_factory=_utc_now)
     updated_at: datetime = field(default_factory=_utc_now)
 

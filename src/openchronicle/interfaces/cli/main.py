@@ -86,6 +86,10 @@ def main(argv: list[str] | None = None) -> int:
 
     show_cmd = sub.add_parser("show-task", help="Show task timeline")
     show_cmd.add_argument("task_id")
+    show_cmd.add_argument("--result", action="store_true", help="Show task result or error")
+
+    list_tasks_cmd = sub.add_parser("list-tasks", help="List tasks in a project")
+    list_tasks_cmd.add_argument("project_id")
 
     demo_cmd = sub.add_parser("demo-summary", help="Run supervisor+worker summary demo")
     demo_cmd.add_argument("project_id")
@@ -147,9 +151,65 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "show-task":
+        if args.result:
+            # Show result or error
+            maybe_task = container.storage.get_task(args.task_id)
+            if maybe_task is None:
+                print(f"Task not found: {args.task_id}")
+                return 1
+            task = maybe_task
+
+            if task.result_json:
+                print("Result:")
+                try:
+                    result = json.loads(task.result_json)
+                    print(json.dumps(result, indent=2))
+                except json.JSONDecodeError:
+                    print(task.result_json)
+                return 0
+            if task.error_json:
+                print("Error:")
+                try:
+                    error = json.loads(task.error_json)
+                    print(json.dumps(error, indent=2))
+                except json.JSONDecodeError:
+                    print(task.error_json)
+                return 1
+            print("No result or error available")
+            return 0
+
+        # Show timeline
         events = show_task.timeline(orchestrator, args.task_id)
         for e in events:
             print(f"{e.created_at.isoformat()} {e.type} {e.payload}")
+        return 0
+
+    if args.command == "list-tasks":
+        tasks = container.storage.list_tasks_by_project(args.project_id)
+        if not tasks:
+            print("No tasks found")
+            return 0
+
+        for task in tasks:
+            # Format: task_id | type | status | updated_at | result_preview
+            result_preview = ""
+            if task.result_json:
+                try:
+                    result = json.loads(task.result_json)
+                    preview_text = json.dumps(result)
+                    result_preview = preview_text[:60] + ("..." if len(preview_text) > 60 else "")
+                except json.JSONDecodeError:
+                    result_preview = task.result_json[:60] + ("..." if len(task.result_json) > 60 else "")
+            elif task.error_json:
+                try:
+                    error = json.loads(task.error_json)
+                    result_preview = f"ERROR: {error.get('exception_type', 'Unknown')}"
+                except json.JSONDecodeError:
+                    result_preview = "ERROR: (invalid json)"
+
+            print(
+                f"{task.id} | {task.type:30} | {task.status.value:10} | {task.updated_at.isoformat()} | {result_preview}"
+            )
         return 0
 
     if args.command == "demo-summary":

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Callable
 from typing import Any
 
@@ -126,7 +127,10 @@ class OrchestratorService:
                 payload={"result": result},
             )
             self.emit_event(complete_event)
-            self.storage.update_task_status(task.id, TaskStatus.COMPLETED.value)
+
+            # Persist result and update status
+            result_json = json.dumps(result) if isinstance(result, dict) else json.dumps({"value": result})
+            self.storage.update_task_result(task.id, result_json, TaskStatus.COMPLETED.value)
 
             # Complete span
             span.end_event_id = complete_event.id
@@ -149,8 +153,15 @@ class OrchestratorService:
             )
             self.emit_event(failed_event)
 
-            # Update task status
-            self.storage.update_task_status(task.id, TaskStatus.FAILED.value)
+            # Persist error and update task status
+            error_json = json.dumps(
+                {
+                    "exception_type": type(e).__name__,
+                    "message": str(e)[:500],
+                    "failed_event_id": failed_event.id,
+                }
+            )
+            self.storage.update_task_error(task.id, error_json, TaskStatus.FAILED.value)
 
             # Mark span as failed with proper linkage
             span.status = SpanStatus.FAILED

@@ -30,6 +30,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     type TEXT NOT NULL,
     payload TEXT NOT NULL,
     status TEXT NOT NULL,
+    result_json TEXT,
+    error_json TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY(project_id) REFERENCES projects(id)
