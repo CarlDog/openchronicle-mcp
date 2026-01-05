@@ -15,6 +15,8 @@ from openchronicle.core.application.use_cases import (
 )
 from openchronicle.core.domain.models.project import Agent
 from openchronicle.core.domain.services.orchestrator import OrchestratorService
+from openchronicle.core.domain.services.replay import ReplayMode, ReplayService
+from openchronicle.core.domain.services.verification import VerificationService
 
 
 def _parse_json(value: str) -> dict[str, Any]:
@@ -69,6 +71,12 @@ def main(argv: list[str] | None = None) -> int:
     demo_cmd.add_argument("text")
 
     sub.add_parser("list-handlers", help="List registered task handlers")
+
+    verify_cmd = sub.add_parser("verify-task", help="Verify task event hash chain")
+    verify_cmd.add_argument("task_id")
+
+    explain_cmd = sub.add_parser("explain-task", help="Show detailed task execution trace")
+    explain_cmd.add_argument("task_id")
 
     args = parser.parse_args(argv)
     container = CoreContainer()
@@ -135,6 +143,83 @@ def main(argv: list[str] | None = None) -> int:
         print("Plugin handlers:")
         for h in plugins:
             print(f"  {h}")
+        return 0
+
+    if args.command == "verify-task":
+        verification_service = VerificationService(container.storage)
+        result = verification_service.verify_task_chain(args.task_id)
+
+        if result.success:
+            print("✓ Hash chain verified successfully")
+            print(f"  Total events: {result.total_events}")
+            print(f"  Verified events: {result.verified_events}")
+            return 0
+        print("✗ Hash chain verification failed")
+        print(f"  Error: {result.error_message}")
+        if result.first_mismatch:
+            print(f"  First mismatch at event {result.first_mismatch.get('event_index')}:")
+            print(f"    Event ID: {result.first_mismatch.get('event_id')}")
+            print(f"    Event type: {result.first_mismatch.get('event_type')}")
+            for key, value in result.first_mismatch.items():
+                if key not in ["event_index", "event_id", "event_type"]:
+                    print(f"    {key}: {value}")
+        return 1
+
+    if args.command == "explain-task":
+        maybe_task = container.storage.get_task(args.task_id)
+        if maybe_task is None:
+            print(f"Task not found: {args.task_id}")
+            return 1
+        task = maybe_task
+
+        print(f"Task: {args.task_id}")
+        print(f"  Type: {task.type}")
+        print(f"  Status: {task.status.value}")
+        print(f"  Created: {task.created_at.isoformat()}")
+        print(f"  Updated: {task.updated_at.isoformat()}")
+
+        # Show agents involved
+        events = container.storage.list_events(args.task_id)
+        agent_ids = {e.agent_id for e in events if e.agent_id}
+        if agent_ids:
+            print("\nAgents involved:")
+            for agent_id in agent_ids:
+                maybe_agent = next(
+                    (a for a in container.storage.list_agents(task.project_id) if a.id == agent_id), None
+                )
+                if maybe_agent:
+                    print(f"  - {maybe_agent.name} ({maybe_agent.role}) [{agent_id}]")
+
+        # Show spans
+        spans = container.storage.list_spans(args.task_id)
+        if spans:
+            print(f"\nExecution spans ({len(spans)}):")
+            for span in spans:
+                duration = ""
+                if span.ended_at:
+                    delta = (span.ended_at - span.created_at).total_seconds()
+                    duration = f" [{delta:.2f}s]"
+                print(f"  - {span.name} ({span.status.value}){duration}")
+
+        # Show events
+        print(f"\nEvents ({len(events)}):")
+        for idx, event in enumerate(events):
+            payload_preview = str(event.payload)[:80]
+            if len(str(event.payload)) > 80:
+                payload_preview += "..."
+            print(f"  {idx + 1}. [{event.created_at.isoformat()}] {event.type}")
+            print(f"      {payload_preview}")
+
+        # Show final result
+        replay_service = ReplayService(container.storage)
+        replay_result = replay_service.replay_task(args.task_id, ReplayMode.REPLAY_EVENTS)
+        if replay_result.success and replay_result.reconstructed_output is not None:
+            print("\nFinal result:")
+            result_str = json.dumps(replay_result.reconstructed_output, indent=2)
+            if len(result_str) > 500:
+                result_str = result_str[:500] + "\n  ..."
+            print(f"  {result_str}")
+
         return 0
 
     parser.print_help()

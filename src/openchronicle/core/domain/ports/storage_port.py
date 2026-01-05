@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Protocol
 
-from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Task
+from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Span, Task
 
 
 class Page(Protocol):
@@ -57,3 +57,16 @@ class StoragePort(ABC):
 
     @abstractmethod
     def list_resources(self, project_id: str) -> list[Resource]: ...
+
+    # Spans
+    @abstractmethod
+    def add_span(self, span: Span) -> None: ...
+
+    @abstractmethod
+    def update_span(self, span: Span) -> None: ...
+
+    @abstractmethod
+    def list_spans(self, task_id: str) -> list[Span]: ...
+
+    @abstractmethod
+    def get_span(self, span_id: str) -> Span | None: ...

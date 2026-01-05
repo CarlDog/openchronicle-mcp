@@ -20,6 +20,12 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
 
 
+class SpanStatus(str, Enum):
+    STARTED = "started"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 @dataclass
 class Project:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -90,3 +96,18 @@ class Resource:
     content_hash: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=_utc_now)
+
+
+@dataclass
+class Span:
+    """Represents a logical execution block (e.g., supervisor.received_task, worker.execute)."""
+
+    id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    task_id: str = ""
+    agent_id: str | None = None
+    name: str = ""
+    start_event_id: str | None = None
+    end_event_id: str | None = None
+    status: SpanStatus = SpanStatus.STARTED
+    created_at: datetime = field(default_factory=_utc_now)
+    ended_at: datetime | None = None

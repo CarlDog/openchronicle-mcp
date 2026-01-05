@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
-from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Task, TaskStatus
+from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Span, SpanStatus, Task, TaskStatus
 from openchronicle.core.domain.ports.llm_port import LLMPort
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 from openchronicle.core.domain.ports.storage_port import StoragePort
@@ -94,29 +94,55 @@ class OrchestratorService:
         )
         self.emit_event(start_event)
 
-        # Route task execution through handlers (built-in → TaskHandlerRegistry → LLM fallback)
-        builtin_handler = self._builtin_handlers.get(task.type)
-        if builtin_handler is not None:
-            result = await builtin_handler(task, agent_id=agent_id)
-        else:
-            registry_handler = self.handler_registry.get(task.type)
-            if registry_handler is not None:
-                result = await registry_handler(task, {"agent_id": agent_id, "emit_event": self.emit_event})
-            else:
-                # Default LLM fallback for unhandled task types
-                prompt = task.payload.get("prompt") or task.payload.get("text") or ""
-                result = await self.llm.generate_async(prompt, model=None, parameters=None)
-
-        complete_event = Event(
-            project_id=task.project_id,
+        # Create execution span
+        span = Span(
             task_id=task.id,
             agent_id=agent_id,
-            type="task_completed",
-            payload={"result": result},
+            name=f"execute.{task.type}",
+            start_event_id=start_event.id,
+            status=SpanStatus.STARTED,
         )
-        self.emit_event(complete_event)
-        self.storage.update_task_status(task.id, TaskStatus.COMPLETED.value)
-        return result
+        self.storage.add_span(span)
+
+        try:
+            # Route task execution through handlers (built-in → TaskHandlerRegistry → LLM fallback)
+            builtin_handler = self._builtin_handlers.get(task.type)
+            if builtin_handler is not None:
+                result = await builtin_handler(task, agent_id=agent_id)
+            else:
+                registry_handler = self.handler_registry.get(task.type)
+                if registry_handler is not None:
+                    result = await registry_handler(task, {"agent_id": agent_id, "emit_event": self.emit_event})
+                else:
+                    # Default LLM fallback for unhandled task types
+                    prompt = task.payload.get("prompt") or task.payload.get("text") or ""
+                    result = await self.llm.generate_async(prompt, model=None, parameters=None)
+
+            complete_event = Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="task_completed",
+                payload={"result": result},
+            )
+            self.emit_event(complete_event)
+            self.storage.update_task_status(task.id, TaskStatus.COMPLETED.value)
+
+            # Complete span
+            span.end_event_id = complete_event.id
+            span.status = SpanStatus.COMPLETED
+            span.ended_at = complete_event.created_at
+            self.storage.update_span(span)
+
+            return result
+        except Exception:
+            # Mark span as failed
+            span.status = SpanStatus.FAILED
+            from datetime import UTC, datetime
+
+            span.ended_at = datetime.now(UTC)
+            self.storage.update_span(span)
+            raise
 
     def record_resource(self, resource: Resource) -> None:
         self.storage.add_resource(resource)

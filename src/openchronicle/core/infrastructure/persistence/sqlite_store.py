@@ -5,7 +5,7 @@ import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
-from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Task, TaskStatus
+from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Span, SpanStatus, Task, TaskStatus
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.infrastructure.persistence import schema
 
@@ -156,6 +156,52 @@ class SqliteStore(StoragePort):
         rows = cur.execute("SELECT * FROM resources WHERE project_id=?", (project_id,)).fetchall()
         return [self._row_to_resource(r) for r in rows]
 
+    # Spans
+    def add_span(self, span: Span) -> None:
+        cur = self._conn.cursor()
+        cur.execute(
+            """INSERT INTO spans
+            (id, task_id, agent_id, name, start_event_id, end_event_id, status, created_at, ended_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                span.id,
+                span.task_id,
+                span.agent_id,
+                span.name,
+                span.start_event_id,
+                span.end_event_id,
+                span.status.value,
+                span.created_at.isoformat(),
+                span.ended_at.isoformat() if span.ended_at else None,
+            ),
+        )
+        self._conn.commit()
+
+    def update_span(self, span: Span) -> None:
+        cur = self._conn.cursor()
+        cur.execute(
+            """UPDATE spans
+            SET end_event_id=?, status=?, ended_at=?
+            WHERE id=?""",
+            (
+                span.end_event_id,
+                span.status.value,
+                span.ended_at.isoformat() if span.ended_at else None,
+                span.id,
+            ),
+        )
+        self._conn.commit()
+
+    def list_spans(self, task_id: str) -> list[Span]:
+        cur = self._conn.cursor()
+        rows = cur.execute("SELECT * FROM spans WHERE task_id=? ORDER BY created_at ASC", (task_id,)).fetchall()
+        return [self._row_to_span(r) for r in rows]
+
+    def get_span(self, span_id: str) -> Span | None:
+        cur = self._conn.cursor()
+        row = cur.execute("SELECT * FROM spans WHERE id=?", (span_id,)).fetchone()
+        return self._row_to_span(row) if row else None
+
     # ---- helpers ----
     def _row_to_project(self, row: sqlite3.Row) -> Project:
         return Project(
@@ -212,6 +258,19 @@ class SqliteStore(StoragePort):
             content_hash=row["content_hash"],
             metadata=json.loads(row["metadata"] or "{}"),
             created_at=self._parse_dt(row["created_at"]),
+        )
+
+    def _row_to_span(self, row: sqlite3.Row) -> Span:
+        return Span(
+            id=row["id"],
+            task_id=row["task_id"],
+            agent_id=row["agent_id"],
+            name=row["name"],
+            start_event_id=row["start_event_id"],
+            end_event_id=row["end_event_id"],
+            status=SpanStatus(row["status"]),
+            created_at=self._parse_dt(row["created_at"]),
+            ended_at=self._parse_dt(row["ended_at"]) if row["ended_at"] else None,
         )
 
     def _parse_dt(self, value: str) -> datetime:
