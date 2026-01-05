@@ -174,7 +174,7 @@ async def test_list_tasks_deterministic_ordering(container: CoreContainer) -> No
     for i in range(len(all_tasks) - 1):
         assert (
             all_tasks[i].created_at <= all_tasks[i + 1].created_at
-        ), f"Tasks should be ordered by created_at (task {i} vs {i+1})"
+        ), f"Tasks should be ordered by created_at (task {i} vs {i + 1})"
 
     # Verify all tasks have results or errors
     for task in all_tasks:
