@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import time
 from collections.abc import Callable
 from typing import Any
 
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Span, SpanStatus, Task, TaskStatus
-from openchronicle.core.domain.ports.llm_port import LLMPort
+from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 from openchronicle.core.domain.ports.storage_port import StoragePort
 
@@ -245,23 +247,127 @@ class OrchestratorService:
 
     async def _run_worker_summarize(self, task: Task, agent_id: str | None) -> str:
         text = task.payload.get("text") or ""
-        summary = self._simple_summarize(text)
+        if not self._llm_enabled():
+            summary = self._simple_summarize(text)
+            self.emit_event(
+                Event(
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    agent_id=agent_id,
+                    type="worker.generated_summary",
+                    payload={"text_hash": self._hash_text(text), "summary": summary},
+                )
+            )
+            return summary
+
+        messages = [
+            {"role": "system", "content": "Summarize the provided text succinctly."},
+            {"role": "user", "content": text},
+        ]
+        input_concat = "".join(m.get("content", "") for m in messages)
+        input_hash = self._hash_text(input_concat)
+        llm_model = self._llm_model()
+        max_tokens = 256
+        temperature = 0.2
+
+        requested_event = Event(
+            project_id=task.project_id,
+            task_id=task.id,
+            agent_id=agent_id,
+            type="llm.requested",
+            payload={
+                "provider": "openai",
+                "model": llm_model,
+                "max_output_tokens": max_tokens,
+                "temperature": temperature,
+                "input_chars": len(input_concat),
+                "input_hash": input_hash,
+            },
+        )
+        self.emit_event(requested_event)
+
+        start = time.perf_counter()
+        try:
+            response = await self.llm.complete_async(
+                messages,
+                model=llm_model,
+                max_output_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except Exception as exc:  # noqa: BLE001
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            error_payload = {
+                "provider": "openai",
+                "model": llm_model,
+                "latency_ms": latency_ms,
+                "error_type": type(exc).__name__,
+                "message": str(exc)[:500],
+            }
+            if isinstance(exc, LLMProviderError):
+                if exc.status_code is not None:
+                    error_payload["status_code"] = exc.status_code
+                if exc.error_code is not None:
+                    error_payload["error_code"] = exc.error_code
+            self.emit_event(
+                Event(
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    agent_id=agent_id,
+                    type="llm.failed",
+                    payload=error_payload,
+                )
+            )
+            raise
+
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        completed_payload = {
+            "provider": response.provider,
+            "model": response.model,
+            "latency_ms": response.latency_ms or latency_ms,
+            "finish_reason": response.finish_reason,
+            "request_id": response.request_id,
+        }
+        if response.usage:
+            completed_payload["usage"] = {
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+                "total_tokens": response.usage.total_tokens,
+            }
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="llm.completed",
+                payload=completed_payload,
+            )
+        )
+
+        llm_summary: str = str(response.content)
         self.emit_event(
             Event(
                 project_id=task.project_id,
                 task_id=task.id,
                 agent_id=agent_id,
                 type="worker.generated_summary",
-                payload={"text_hash": self._hash_text(text), "summary": summary},
+                payload={"text_hash": input_hash, "summary": llm_summary},
             )
         )
-        return summary
+        return llm_summary
 
     def _simple_summarize(self, text: str) -> str:
         cleaned = " ".join(text.split())
         if len(cleaned) <= 160:
             return cleaned
         return cleaned[:150].rsplit(" ", 1)[0] + "..."
+
+    def _llm_enabled(self) -> bool:
+        return bool(os.getenv("OPENAI_API_KEY"))
+
+    def _llm_model(self) -> str:
+        from typing import cast
+
+        return os.getenv("OPENAI_MODEL") or cast(str, getattr(self.llm, "model", "gpt-4o-mini"))
 
     async def _dispatch_task(self, task: Task, agent_id: str | None) -> Any:
         builtin_handler = self._builtin_handlers.get(task.type)

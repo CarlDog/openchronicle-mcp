@@ -7,7 +7,7 @@ import pytest
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 from openchronicle.core.domain.models.project import TaskStatus
-from openchronicle.core.domain.ports.llm_port import LLMPort
+from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
 from openchronicle.core.domain.services.orchestrator import OrchestratorService
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
@@ -17,13 +17,16 @@ if TYPE_CHECKING:
 
 
 class FakeLLM(LLMPort):
-    async def generate_async(
-        self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None
-    ) -> str:
-        return f"llm:{prompt}"
-
-    def generate(self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None) -> str:
-        return f"llm:{prompt}"
+    async def complete_async(
+        self,
+        messages: list[dict[str, Any]],
+        *,
+        model: str,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> LLMResponse:
+        content = " ".join(m.get("content", "") for m in messages)
+        return LLMResponse(content=f"llm:{content}", provider="fake", model=model)
 
 
 @pytest.mark.asyncio

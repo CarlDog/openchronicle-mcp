@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 from typing import Any
 
 from openchronicle.core.application.runtime.container import CoreContainer
@@ -94,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     demo_cmd = sub.add_parser("demo-summary", help="Run supervisor+worker summary demo")
     demo_cmd.add_argument("project_id")
     demo_cmd.add_argument("text")
+    demo_cmd.add_argument("--use-openai", action="store_true", help="Force using OpenAI if configured")
 
     sub.add_parser("list-handlers", help="List registered task handlers")
 
@@ -213,6 +215,10 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "demo-summary":
+        if args.use_openai and not os.getenv("OPENAI_API_KEY"):
+            print("OPENAI_API_KEY is not set; cannot use OpenAI")
+            return 1
+
         supervisor, worker1, worker2 = _ensure_demo_agents(orchestrator, args.project_id)
         task = run_task.submit(orchestrator, args.project_id, "analysis.summary", {"text": args.text})
 

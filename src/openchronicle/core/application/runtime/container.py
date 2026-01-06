@@ -4,6 +4,7 @@ from typing import Any
 
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle.core.domain.ports.llm_port import LLMPort
 from openchronicle.core.domain.services.orchestrator import OrchestratorService
 from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
@@ -11,11 +12,11 @@ from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteSto
 
 
 class CoreContainer:
-    def __init__(self, db_path: str = "data/openchronicle.db") -> None:
+    def __init__(self, db_path: str = "data/openchronicle.db", llm: LLMPort | None = None) -> None:
         self.storage = SqliteStore(db_path=db_path)
         self.storage.init_schema()
         self.event_logger = EventLogger(self.storage)
-        self.llm = OpenAIAdapter()
+        self.llm = llm or OpenAIAdapter()
         self.handler_registry = TaskHandlerRegistry()
         self.plugin_loader = PluginLoader(handler_registry=self.handler_registry)
         self.plugin_loader.load_plugins()
