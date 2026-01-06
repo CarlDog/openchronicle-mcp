@@ -121,21 +121,21 @@ class RouterPolicy:
         reasons: list[str],
     ) -> str:
         """Determine mode from agent tags and explicit hint."""
-        # Explicit quality preference takes precedence
+        # Explicit quality preference takes precedence (from task payload)
         if desired_quality in ("fast", "quality"):
-            reasons.append(f"explicit_mode:{desired_quality}")
+            reasons.append(f"mode_from_task_payload:{desired_quality}")
             return desired_quality
 
         # Agent tags
         if "quality" in agent_tags:
-            reasons.append("agent_tag:quality")
+            reasons.append("mode_from_agent_tags:quality")
             return "quality"
         if "fast" in agent_tags:
-            reasons.append("agent_tag:fast")
+            reasons.append("mode_from_agent_tags:fast")
             return "fast"
 
         # Default mode
-        reasons.append(f"default_mode:{self.default_mode}")
+        reasons.append(f"mode_from_default:{self.default_mode}")
         return self.default_mode
 
     def _select_model(self, mode: str, provider: str, reasons: list[str]) -> str:

@@ -95,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     demo_cmd.add_argument("project_id")
     demo_cmd.add_argument("text")
     demo_cmd.add_argument("--use-openai", action="store_true", help="Force using OpenAI if configured")
+    demo_cmd.add_argument("--mode", choices=["fast", "quality"], help="Routing mode (fast or quality)")
 
     sub.add_parser("list-handlers", help="List registered task handlers")
 
@@ -227,7 +228,13 @@ def main(argv: list[str] | None = None) -> int:
         demo_container = CoreContainer(db_path=str(container.storage.db_path), provider_override=provider_override)
 
         supervisor, worker1, worker2 = _ensure_demo_agents(demo_container.orchestrator, args.project_id)
-        task = run_task.submit(demo_container.orchestrator, args.project_id, "analysis.summary", {"text": args.text})
+
+        # Build task payload with optional desired_quality from --mode flag
+        task_payload = {"text": args.text}
+        if args.mode:
+            task_payload["desired_quality"] = args.mode
+
+        task = run_task.submit(demo_container.orchestrator, args.project_id, "analysis.summary", task_payload)
 
         async def _run_demo() -> None:
             result = await run_task.execute(demo_container.orchestrator, task.id, agent_id=supervisor.id)

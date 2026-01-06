@@ -247,10 +247,28 @@ class OrchestratorService:
             )
         )
 
+        # Get desired_quality from task payload if provided
+        desired_quality = task.payload.get("desired_quality")
+
+        # Emit routing mode selection event
+        routing_source = "task_payload" if desired_quality else "default"
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="supervisor.routing_mode_selected",
+                payload={"desired_quality": desired_quality, "source": routing_source},
+            )
+        )
+
         workers = self._select_workers(task.project_id, 2)
         worker_tasks: list[Task] = []
         for idx, worker in enumerate(workers):
             child_payload = {"text": text, "worker_index": idx}
+            # Propagate desired_quality to worker child tasks if provided
+            if desired_quality:
+                child_payload["desired_quality"] = desired_quality
             child_task = self.submit_task(
                 task.project_id, "analysis.worker.summarize", child_payload, parent_task_id=task.id, agent_id=worker.id
             )
