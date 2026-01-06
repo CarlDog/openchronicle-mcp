@@ -6,6 +6,7 @@ import json
 from typing import Any
 
 from openchronicle.core.application.runtime.container import CoreContainer
+from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.use_cases import (
     create_project,
     list_projects,
@@ -14,7 +15,6 @@ from openchronicle.core.application.use_cases import (
     show_task,
 )
 from openchronicle.core.domain.models.project import Agent
-from openchronicle.core.domain.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.services.replay import ReplayMode, ReplayService
 from openchronicle.core.domain.services.verification import (
     VerificationResult,

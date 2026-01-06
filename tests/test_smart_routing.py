@@ -20,9 +20,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from openchronicle.core.application.routing.router_policy import RouterPolicy
+from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.models.project import Agent
 from openchronicle.core.domain.ports.llm_port import LLMResponse, LLMUsage
-from openchronicle.core.domain.services.orchestrator import OrchestratorService
 
 
 @dataclass
@@ -359,7 +359,7 @@ class TestModePropagation:
         plugin_loader = PluginLoader(plugins_dir="plugins", handler_registry=handler_registry)
         plugin_loader.load_plugins()
 
-        from openchronicle.core.domain.services.orchestrator import OrchestratorService
+        from openchronicle.core.application.services.orchestrator import OrchestratorService
 
         orchestrator = OrchestratorService(
             storage=storage,
@@ -450,7 +450,7 @@ class TestModePropagation:
         plugin_loader = PluginLoader(plugins_dir="plugins", handler_registry=handler_registry)
         plugin_loader.load_plugins()
 
-        from openchronicle.core.domain.services.orchestrator import OrchestratorService
+        from openchronicle.core.application.services.orchestrator import OrchestratorService
 
         orchestrator = OrchestratorService(
             storage=storage,
@@ -524,7 +524,7 @@ class TestModePropagation:
         plugin_loader = PluginLoader(plugins_dir="plugins", handler_registry=handler_registry)
         plugin_loader.load_plugins()
 
-        from openchronicle.core.domain.services.orchestrator import OrchestratorService
+        from openchronicle.core.application.services.orchestrator import OrchestratorService
 
         orchestrator = OrchestratorService(
             storage=storage,

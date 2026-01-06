@@ -8,9 +8,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.models.project import TaskStatus
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse, LLMUsage
-from openchronicle.core.domain.services.orchestrator import OrchestratorService
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
 

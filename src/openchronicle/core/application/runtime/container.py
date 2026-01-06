@@ -4,8 +4,8 @@ from typing import Any
 
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.ports.llm_port import LLMPort
-from openchronicle.core.domain.services.orchestrator import OrchestratorService
 from openchronicle.core.infrastructure.llm.provider_selector import LLMProviderSelector, ProviderType
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore

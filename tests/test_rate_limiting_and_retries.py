@@ -315,7 +315,7 @@ async def test_budget_check_before_retries(
     task = container.storage.get_task(task_id)
     assert task is not None
 
-    from openchronicle.core.domain.services.orchestrator import BudgetExceededError
+    from openchronicle.core.domain.exceptions import BudgetExceededError
 
     with pytest.raises(BudgetExceededError):
         await container.orchestrator._run_worker_summarize(task, agent_id)

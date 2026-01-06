@@ -190,7 +190,7 @@ Test your plugin by:
 
    ```python
    import pytest
-   from openchronicle.core.domain.services.orchestrator import OrchestratorService
+   from openchronicle.core.application.services.orchestrator import OrchestratorService
 
    @pytest.mark.asyncio
    async def test_plugin_integration():

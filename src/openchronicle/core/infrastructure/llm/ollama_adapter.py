@@ -4,7 +4,7 @@ import os
 import time
 from typing import Any
 
-import httpx  # type: ignore[import-not-found]
+import httpx
 
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMResponse, LLMUsage
 

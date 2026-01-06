@@ -6,9 +6,9 @@ import pytest
 
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.models.project import TaskStatus
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
-from openchronicle.core.domain.services.orchestrator import OrchestratorService
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 

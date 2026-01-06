@@ -8,9 +8,9 @@ from typing import Any
 import pytest
 
 from openchronicle.core.application.runtime.container import CoreContainer
+from openchronicle.core.domain.exceptions import BudgetExceededError
 from openchronicle.core.domain.models.project import LLMUsage as LLMUsageModel
 from openchronicle.core.domain.ports.llm_port import LLMResponse, LLMUsage
-from openchronicle.core.domain.services.orchestrator import BudgetExceededError
 from openchronicle.core.domain.services.usage_tracker import UsageTracker
 
 
