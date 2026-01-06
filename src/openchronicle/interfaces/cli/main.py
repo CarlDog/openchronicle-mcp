@@ -96,6 +96,11 @@ def main(argv: list[str] | None = None) -> int:
     demo_cmd.add_argument("text")
     demo_cmd.add_argument("--use-openai", action="store_true", help="Force using OpenAI if configured")
     demo_cmd.add_argument("--mode", choices=["fast", "quality"], help="Routing mode (fast or quality)")
+    demo_cmd.add_argument(
+        "--mix",
+        choices=["fast_then_quality", "quality_then_fast"],
+        help="Mixed worker strategy (overrides --mode)",
+    )
 
     sub.add_parser("list-handlers", help="List registered task handlers")
 
@@ -229,9 +234,12 @@ def main(argv: list[str] | None = None) -> int:
 
         supervisor, worker1, worker2 = _ensure_demo_agents(demo_container.orchestrator, args.project_id)
 
-        # Build task payload with optional desired_quality from --mode flag
+        # Build task payload with optional desired_quality or mix_strategy
+        # Precedence: --mix > --mode > default
         task_payload = {"text": args.text}
-        if args.mode:
+        if args.mix:
+            task_payload["mix_strategy"] = args.mix
+        elif args.mode:
             task_payload["desired_quality"] = args.mode
 
         task = run_task.submit(demo_container.orchestrator, args.project_id, "analysis.summary", task_payload)

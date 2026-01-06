@@ -558,9 +558,12 @@ class TestModePropagation:
         all_tasks = storage.list_tasks_by_project(project.id)
         worker_tasks = [t for t in all_tasks if t.type == "analysis.worker.summarize"]
 
-        # Verify worker tasks do NOT have desired_quality in payload
+        # With dynamic mix support, desired_quality is always propagated (even if it's the default)
+        # Verify workers have default mode (fast)
         for worker_task in worker_tasks:
-            assert "desired_quality" not in worker_task.payload
+            assert "desired_quality" in worker_task.payload
+            # Default mode should be "fast" (from OC_LLM_DEFAULT_MODE env var or hardcoded default)
+            assert worker_task.payload["desired_quality"] == "fast"
 
         # Get llm.routed events
         all_events = []
@@ -569,10 +572,11 @@ class TestModePropagation:
 
         routed_events = [e for e in all_events if e.type == "llm.routed"]
 
-        # Verify mode uses agent tags (quality) since no payload override
+        # With dynamic mix support, mode uses the default (fast) since no payload override
+        # Agent tags don't affect routing when explicit mode is propagated from supervisor
         for routed_event in routed_events:
-            assert routed_event.payload["mode"] == "quality"
-            assert any("mode_from_agent_tags:quality" in r for r in routed_event.payload.get("reasons", []))
+            assert routed_event.payload["mode"] == "fast"
+            assert any("mode_from_task_payload:fast" in r for r in routed_event.payload.get("reasons", []))
 
 
 class TestProviderPools:
@@ -909,3 +913,355 @@ class TestProviderPools:
         finally:
             for key in pool_env:
                 os.environ.pop(key, None)
+
+
+class TestDynamicMix:
+    """Test dynamic mix support for analysis.summary supervisor."""
+
+    @pytest.mark.asyncio
+    async def test_mixed_worker_modes_propagate(self, tmp_path: Any) -> None:
+        """Test that worker_modes propagate correctly to child tasks."""
+        from pathlib import Path
+
+        from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        class FakeLLM(LLMPort):
+            async def complete_async(
+                self,
+                messages: list[dict[str, Any]],
+                *,
+                model: str,
+                max_output_tokens: int | None = None,
+                temperature: float | None = None,
+            ) -> LLMResponse:
+                content = " ".join(m.get("content", "") for m in messages)
+                return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
+
+        db_path = Path(tmp_path) / "test.db"
+        storage = SqliteStore(db_path=str(db_path))
+        storage.init_schema()
+        emitted_events: list[Any] = []
+
+        plugins = MagicMock()
+        handler_registry = MagicMock()
+        handler_registry.get = MagicMock(return_value=None)
+
+        orch = OrchestratorService(
+            storage=storage,
+            llm=FakeLLM(),
+            plugins=plugins,
+            handler_registry=handler_registry,
+            emit_event=emitted_events.append,
+        )
+
+        # Register project and agents
+        project = orch.create_project("MixTest")
+        supervisor = orch.register_agent(project.id, "Supervisor", role="supervisor")
+        orch.register_agent(project.id, "Worker1", role="worker")
+        orch.register_agent(project.id, "Worker2", role="worker")
+
+        # Submit task with explicit worker_modes
+        task = orch.submit_task(
+            project.id,
+            "analysis.summary",
+            {"text": "test text", "worker_modes": ["fast", "quality"], "worker_count": 2},
+        )
+
+        # Execute
+        await orch.execute_task(task.id, agent_id=supervisor.id)
+
+        # Verify worker_plan event
+        plan_events = [e for e in emitted_events if e.type == "supervisor.worker_plan"]
+        assert len(plan_events) == 1
+        assert plan_events[0].payload["worker_count"] == 2
+        assert plan_events[0].payload["worker_modes"] == ["fast", "quality"]
+        assert plan_events[0].payload["rationale"] == "explicit_worker_modes"
+
+        # Verify child tasks have correct desired_quality
+        all_tasks = storage.list_tasks_by_project(project.id)
+        worker_tasks = [t for t in all_tasks if t.type == "analysis.worker.summarize"]
+        assert len(worker_tasks) == 2
+        modes_in_tasks = sorted([wt.payload["desired_quality"] for wt in worker_tasks])
+        assert modes_in_tasks == ["fast", "quality"]
+
+    @pytest.mark.asyncio
+    async def test_mixed_routing_observable(self, tmp_path: Any) -> None:
+        """Test that mixed routing produces correct llm.routed events."""
+        from pathlib import Path
+
+        from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        class FakeLLM(LLMPort):
+            async def complete_async(
+                self,
+                messages: list[dict[str, Any]],
+                *,
+                model: str,
+                max_output_tokens: int | None = None,
+                temperature: float | None = None,
+            ) -> LLMResponse:
+                content = " ".join(m.get("content", "") for m in messages)
+                return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
+
+        db_path = Path(tmp_path) / "test.db"
+        storage = SqliteStore(db_path=str(db_path))
+        storage.init_schema()
+        emitted_events: list[Any] = []
+
+        plugins = MagicMock()
+        handler_registry = MagicMock()
+        handler_registry.get = MagicMock(return_value=None)
+
+        orch = OrchestratorService(
+            storage=storage,
+            llm=FakeLLM(),
+            plugins=plugins,
+            handler_registry=handler_registry,
+            emit_event=emitted_events.append,
+        )
+
+        project = orch.create_project("RoutingTest")
+        supervisor = orch.register_agent(project.id, "Supervisor", role="supervisor")
+        orch.register_agent(project.id, "Worker1", role="worker")
+        orch.register_agent(project.id, "Worker2", role="worker")
+
+        task = orch.submit_task(
+            project.id,
+            "analysis.summary",
+            {"text": "test", "worker_modes": ["fast", "quality"]},
+        )
+
+        await orch.execute_task(task.id, agent_id=supervisor.id)
+
+        # Get all routed events
+        routed_events = [e for e in emitted_events if e.type == "llm.routed"]
+        assert len(routed_events) == 2
+
+        # Verify routing modes
+        modes = sorted([e.payload["mode"] for e in routed_events])
+        assert modes == ["fast", "quality"]
+
+    @pytest.mark.asyncio
+    async def test_validation_error_worker_count_mismatch(self, tmp_path: Any) -> None:
+        """Test that mismatched worker_count and worker_modes length fails cleanly."""
+        from pathlib import Path
+
+        from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        class FakeLLM(LLMPort):
+            async def complete_async(
+                self,
+                messages: list[dict[str, Any]],
+                *,
+                model: str,
+                max_output_tokens: int | None = None,
+                temperature: float | None = None,
+            ) -> LLMResponse:
+                content = " ".join(m.get("content", "") for m in messages)
+                return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
+
+        db_path = Path(tmp_path) / "test.db"
+        storage = SqliteStore(db_path=str(db_path))
+        storage.init_schema()
+        emitted_events: list[Any] = []
+
+        plugins = MagicMock()
+        handler_registry = MagicMock()
+        handler_registry.get = MagicMock(return_value=None)
+
+        orch = OrchestratorService(
+            storage=storage,
+            llm=FakeLLM(),
+            plugins=plugins,
+            handler_registry=handler_registry,
+            emit_event=emitted_events.append,
+        )
+
+        project = orch.create_project("ValidationTest")
+        supervisor = orch.register_agent(project.id, "Supervisor", role="supervisor")
+        orch.register_agent(project.id, "Worker1", role="worker")
+        orch.register_agent(project.id, "Worker2", role="worker")
+
+        # Submit with mismatched counts
+        task = orch.submit_task(
+            project.id,
+            "analysis.summary",
+            {"text": "test", "worker_modes": ["fast"], "worker_count": 2},  # Mismatch!
+        )
+
+        # Should fail with ValueError
+        with pytest.raises(ValueError) as exc_info:
+            await orch.execute_task(task.id, agent_id=supervisor.id)
+
+        assert "worker_modes length" in str(exc_info.value)
+        assert "must match worker_count" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_mix_strategy_convenience(self, tmp_path: Any) -> None:
+        """Test mix_strategy convenience option."""
+        from pathlib import Path
+
+        from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        class FakeLLM(LLMPort):
+            async def complete_async(
+                self,
+                messages: list[dict[str, Any]],
+                *,
+                model: str,
+                max_output_tokens: int | None = None,
+                temperature: float | None = None,
+            ) -> LLMResponse:
+                content = " ".join(m.get("content", "") for m in messages)
+                return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
+
+        db_path = Path(tmp_path) / "test.db"
+        storage = SqliteStore(db_path=str(db_path))
+        storage.init_schema()
+        emitted_events: list[Any] = []
+
+        plugins = MagicMock()
+        handler_registry = MagicMock()
+        handler_registry.get = MagicMock(return_value=None)
+
+        orch = OrchestratorService(
+            storage=storage,
+            llm=FakeLLM(),
+            plugins=plugins,
+            handler_registry=handler_registry,
+            emit_event=emitted_events.append,
+        )
+
+        project = orch.create_project("MixStrategyTest")
+        supervisor = orch.register_agent(project.id, "Supervisor", role="supervisor")
+        orch.register_agent(project.id, "Worker1", role="worker")
+        orch.register_agent(project.id, "Worker2", role="worker")
+
+        # Test fast_then_quality
+        task = orch.submit_task(
+            project.id,
+            "analysis.summary",
+            {"text": "test", "mix_strategy": "fast_then_quality"},
+        )
+
+        await orch.execute_task(task.id, agent_id=supervisor.id)
+
+        # Verify worker_plan
+        plan_events = [e for e in emitted_events if e.type == "supervisor.worker_plan"]
+        assert len(plan_events) == 1
+        assert plan_events[0].payload["worker_modes"] == ["fast", "quality"]
+        assert plan_events[0].payload["rationale"] == "mix_strategy"
+
+    @pytest.mark.asyncio
+    async def test_mix_strategy_quality_then_fast(self, tmp_path: Any) -> None:
+        """Test quality_then_fast mix strategy."""
+        from pathlib import Path
+
+        from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        class FakeLLM(LLMPort):
+            async def complete_async(
+                self,
+                messages: list[dict[str, Any]],
+                *,
+                model: str,
+                max_output_tokens: int | None = None,
+                temperature: float | None = None,
+            ) -> LLMResponse:
+                content = " ".join(m.get("content", "") for m in messages)
+                return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
+
+        db_path = Path(tmp_path) / "test.db"
+        storage = SqliteStore(db_path=str(db_path))
+        storage.init_schema()
+        emitted_events: list[Any] = []
+
+        plugins = MagicMock()
+        handler_registry = MagicMock()
+        handler_registry.get = MagicMock(return_value=None)
+
+        orch = OrchestratorService(
+            storage=storage,
+            llm=FakeLLM(),
+            plugins=plugins,
+            handler_registry=handler_registry,
+            emit_event=emitted_events.append,
+        )
+
+        project = orch.create_project("QualityFirstTest")
+        supervisor = orch.register_agent(project.id, "Supervisor", role="supervisor")
+        orch.register_agent(project.id, "Worker1", role="worker")
+        orch.register_agent(project.id, "Worker2", role="worker")
+
+        task = orch.submit_task(
+            project.id,
+            "analysis.summary",
+            {"text": "test", "mix_strategy": "quality_then_fast"},
+        )
+
+        await orch.execute_task(task.id, agent_id=supervisor.id)
+
+        plan_events = [e for e in emitted_events if e.type == "supervisor.worker_plan"]
+        assert len(plan_events) == 1
+        assert plan_events[0].payload["worker_modes"] == ["quality", "fast"]
+        assert plan_events[0].payload["rationale"] == "mix_strategy"
+
+    @pytest.mark.asyncio
+    async def test_desired_quality_replicated(self, tmp_path: Any) -> None:
+        """Test that desired_quality is replicated to all workers when worker_modes not set."""
+        from pathlib import Path
+
+        from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        class FakeLLM(LLMPort):
+            async def complete_async(
+                self,
+                messages: list[dict[str, Any]],
+                *,
+                model: str,
+                max_output_tokens: int | None = None,
+                temperature: float | None = None,
+            ) -> LLMResponse:
+                content = " ".join(m.get("content", "") for m in messages)
+                return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
+
+        db_path = Path(tmp_path) / "test.db"
+        storage = SqliteStore(db_path=str(db_path))
+        storage.init_schema()
+        emitted_events: list[Any] = []
+
+        plugins = MagicMock()
+        handler_registry = MagicMock()
+        handler_registry.get = MagicMock(return_value=None)
+
+        orch = OrchestratorService(
+            storage=storage,
+            llm=FakeLLM(),
+            plugins=plugins,
+            handler_registry=handler_registry,
+            emit_event=emitted_events.append,
+        )
+
+        project = orch.create_project("ReplicateTest")
+        supervisor = orch.register_agent(project.id, "Supervisor", role="supervisor")
+        orch.register_agent(project.id, "Worker1", role="worker")
+        orch.register_agent(project.id, "Worker2", role="worker")
+
+        task = orch.submit_task(
+            project.id,
+            "analysis.summary",
+            {"text": "test", "desired_quality": "quality", "worker_count": 2},
+        )
+
+        await orch.execute_task(task.id, agent_id=supervisor.id)
+
+        plan_events = [e for e in emitted_events if e.type == "supervisor.worker_plan"]
+        assert len(plan_events) == 1
+        assert plan_events[0].payload["worker_modes"] == ["quality", "quality"]
+        assert plan_events[0].payload["rationale"] == "desired_quality_replicated"

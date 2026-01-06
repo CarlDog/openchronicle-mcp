@@ -244,10 +244,57 @@ class OrchestratorService:
             )
         )
 
-        # Get desired_quality from task payload if provided
+        # Extract worker configuration from task payload
         desired_quality = task.payload.get("desired_quality")
+        worker_modes_raw = task.payload.get("worker_modes")
+        worker_count = task.payload.get("worker_count", 2)
+        mix_strategy = task.payload.get("mix_strategy")
 
-        # Emit routing mode selection event
+        # Determine worker_modes list
+        worker_modes: list[str]
+        rationale: str
+
+        # Apply mix_strategy convenience if provided
+        if mix_strategy and not worker_modes_raw:
+            if worker_count != 2:
+                raise ValueError("mix_strategy requires worker_count=2")
+            if mix_strategy == "fast_then_quality":
+                worker_modes = ["fast", "quality"]
+                rationale = "mix_strategy"
+            elif mix_strategy == "quality_then_fast":
+                worker_modes = ["quality", "fast"]
+                rationale = "mix_strategy"
+            else:
+                raise ValueError(f"Invalid mix_strategy: {mix_strategy}")
+        elif worker_modes_raw:
+            # Explicit worker_modes provided
+            worker_modes = worker_modes_raw
+            rationale = "explicit_worker_modes"
+            # Validate length matches worker_count
+            if len(worker_modes) != worker_count:
+                raise ValueError(f"worker_modes length ({len(worker_modes)}) must match worker_count ({worker_count})")
+        elif desired_quality:
+            # Replicate desired_quality for all workers
+            worker_modes = [desired_quality] * worker_count
+            rationale = "desired_quality_replicated"
+        else:
+            # Use default mode for all workers
+            default_mode = os.getenv("OC_LLM_DEFAULT_MODE", "fast")
+            worker_modes = [default_mode] * worker_count
+            rationale = "default_mode"
+
+        # Emit worker plan event
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="supervisor.worker_plan",
+                payload={"worker_count": worker_count, "worker_modes": worker_modes, "rationale": rationale},
+            )
+        )
+
+        # Emit routing mode selection event (for backward compatibility)
         routing_source = "task_payload" if desired_quality else "default"
         self.emit_event(
             Event(
@@ -259,13 +306,10 @@ class OrchestratorService:
             )
         )
 
-        workers = self._select_workers(task.project_id, 2)
+        workers = self._select_workers(task.project_id, worker_count)
         worker_tasks: list[Task] = []
-        for idx, worker in enumerate(workers):
-            child_payload = {"text": text, "worker_index": idx}
-            # Propagate desired_quality to worker child tasks if provided
-            if desired_quality:
-                child_payload["desired_quality"] = desired_quality
+        for idx, (worker, mode) in enumerate(zip(workers, worker_modes, strict=True)):
+            child_payload = {"text": text, "worker_index": idx, "desired_quality": mode}
             child_task = self.submit_task(
                 task.project_id, "analysis.worker.summarize", child_payload, parent_task_id=task.id, agent_id=worker.id
             )
