@@ -39,8 +39,24 @@ class LLMPort(ABC):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
-        """Generate a chat completion asynchronously."""
+        """Generate a chat completion asynchronously.
+
+        Args:
+            messages: List of message dicts with 'role' and 'content'
+            model: Model name to use
+            max_output_tokens: Maximum tokens in response
+            temperature: Sampling temperature
+            provider: Provider name (e.g., 'openai', 'ollama', 'stub').
+                      If None, adapter uses its default provider.
+
+        Returns:
+            LLMResponse with content, provider, model, usage, etc.
+
+        Raises:
+            LLMProviderError: If the call fails or provider is not available
+        """
 
     def complete(
         self,
@@ -49,6 +65,7 @@ class LLMPort(ABC):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         """Synchronous convenience wrapper."""
 

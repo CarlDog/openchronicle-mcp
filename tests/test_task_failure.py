@@ -23,7 +23,7 @@ async def test_task_failure_emits_event_and_updates_span(container: CoreContaine
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Task Failure Test")
     agent = orchestrator.register_agent(
-        project_id=project.id, name="TestAgent", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="TestAgent", role="worker", provider="stub", model="stub-model"
     )
 
     # Register a handler that always fails
@@ -72,13 +72,13 @@ async def test_successful_task_has_no_failed_event(container: CoreContainer) -> 
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Success Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     task = orchestrator.submit_task(project.id, "analysis.summary", {"text": "Success test"})

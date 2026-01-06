@@ -24,13 +24,13 @@ async def test_hash_chain_detects_tampering(container: CoreContainer) -> None:
     project = orchestrator.create_project("Tamper Test Project")
 
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Run a demo-summary to generate multiple events
@@ -73,13 +73,13 @@ async def test_hash_chain_detects_prev_hash_tampering(container: CoreContainer) 
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Prev Hash Tamper Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Run a task to generate events

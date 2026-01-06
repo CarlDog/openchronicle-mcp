@@ -52,6 +52,7 @@ class OpenAIAdapter(LLMPort):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         return asyncio.run(
             self.complete_async(
@@ -59,6 +60,7 @@ class OpenAIAdapter(LLMPort):
                 model=model,
                 max_output_tokens=max_output_tokens,
                 temperature=temperature,
+                provider=provider,
             )
         )
 
@@ -69,6 +71,7 @@ class OpenAIAdapter(LLMPort):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         self._ensure_ready()
 

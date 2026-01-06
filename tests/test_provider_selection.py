@@ -27,6 +27,7 @@ class _FakeLLMSuccess(LLMPort):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         usage = LLMUsage(input_tokens=5, output_tokens=3, total_tokens=8)
         return LLMResponse(
@@ -107,12 +108,22 @@ async def test_explicit_openai_provider_with_key(tmp_path: Path, monkeypatch: An
 
 @pytest.mark.asyncio
 async def test_openai_provider_without_key_fails(tmp_path: Path, monkeypatch: Any) -> None:
-    """With OC_LLM_PROVIDER=openai but no OPENAI_API_KEY, fails cleanly."""
+    """With OC_LLM_PROVIDER=openai but no OPENAI_API_KEY, provider not configured."""
     monkeypatch.setenv("OC_LLM_PROVIDER", "openai")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
-    with pytest.raises(LLMProviderError, match="OPENAI_API_KEY environment variable is required"):
-        CoreContainer(db_path=str(tmp_path / "no-key.db"))
+    # Container init succeeds, but openai won't be in available providers
+    container = CoreContainer(db_path=str(tmp_path / "no-key.db"))
+    project = container.orchestrator.create_project("NoKey")
+    worker = container.orchestrator.register_agent(
+        project_id=project.id, name="Worker", role="worker", provider="openai"
+    )
+
+    task = container.orchestrator.submit_task(project.id, "analysis.worker.summarize", {"text": "test"})
+
+    # Should fail when trying to execute with openai provider not configured
+    with pytest.raises(LLMProviderError, match="Provider 'openai' not configured"):
+        await container.orchestrator.execute_task(task.id, agent_id=worker.id)
 
 
 @pytest.mark.asyncio

@@ -26,13 +26,13 @@ async def test_verify_project_all_tasks_valid(container: CoreContainer) -> None:
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Project Verification Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Create two tasks
@@ -61,13 +61,13 @@ async def test_verify_project_with_tampered_task(container: CoreContainer) -> No
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Project Tamper Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Create two tasks

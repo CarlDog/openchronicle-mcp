@@ -20,6 +20,7 @@ class StubLLMAdapter(LLMPort):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         """Return a stub response based on input messages."""
         # Only use user messages for stub summary (ignore system prompts)

@@ -27,13 +27,13 @@ async def test_task_result_persisted_on_success(container: CoreContainer) -> Non
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Result Persistence Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Run a task
@@ -61,7 +61,7 @@ async def test_task_error_persisted_on_failure(container: CoreContainer) -> None
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Error Persistence Test")
     agent = orchestrator.register_agent(
-        project_id=project.id, name="TestAgent", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="TestAgent", role="worker", provider="stub", model="stub-model"
     )
 
     # Register a handler that always fails
@@ -108,13 +108,13 @@ async def test_replay_uses_stored_result_fast_path(container: CoreContainer) -> 
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Replay Fast Path Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Run a task
@@ -145,13 +145,13 @@ async def test_list_tasks_deterministic_ordering(container: CoreContainer) -> No
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Ordering Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Create two tasks (each creates 3 total: 1 main + 2 worker sub-tasks)
@@ -190,13 +190,13 @@ async def test_replay_fallback_when_no_stored_result(container: CoreContainer) -
     orchestrator = container.orchestrator
     project = orchestrator.create_project("Replay Fallback Test")
     supervisor = orchestrator.register_agent(
-        project_id=project.id, name="Supervisor", role="supervisor", provider="mock", model="mock-model"
+        project_id=project.id, name="Supervisor", role="supervisor", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker1", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker1", role="worker", provider="stub", model="stub-model"
     )
     orchestrator.register_agent(
-        project_id=project.id, name="Worker2", role="worker", provider="mock", model="mock-model"
+        project_id=project.id, name="Worker2", role="worker", provider="stub", model="stub-model"
     )
 
     # Run a task

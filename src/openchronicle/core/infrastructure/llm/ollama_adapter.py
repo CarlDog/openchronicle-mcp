@@ -29,6 +29,7 @@ class OllamaAdapter(LLMPort):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         """Generate a chat completion using Ollama API."""
         start = time.perf_counter()

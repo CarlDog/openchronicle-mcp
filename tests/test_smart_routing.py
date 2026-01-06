@@ -38,6 +38,7 @@ class FakeLLMAdapter:
         model: str | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         """Return fake response without making network calls."""
         used_model = model or self.model
@@ -346,6 +347,7 @@ class TestModePropagation:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -437,6 +439,7 @@ class TestModePropagation:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -511,6 +514,7 @@ class TestModePropagation:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -934,6 +938,7 @@ class TestDynamicMix:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -1001,6 +1006,7 @@ class TestDynamicMix:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -1059,6 +1065,7 @@ class TestDynamicMix:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -1115,6 +1122,7 @@ class TestDynamicMix:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -1172,6 +1180,7 @@ class TestDynamicMix:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)
@@ -1227,6 +1236,7 @@ class TestDynamicMix:
                 model: str,
                 max_output_tokens: int | None = None,
                 temperature: float | None = None,
+                provider: str | None = None,
             ) -> LLMResponse:
                 content = " ".join(m.get("content", "") for m in messages)
                 return LLMResponse(content=f"summary:{content[:20]}", provider="stub", model=model)

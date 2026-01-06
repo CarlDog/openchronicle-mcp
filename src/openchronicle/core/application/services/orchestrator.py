@@ -358,6 +358,7 @@ class OrchestratorService:
         agent = self.storage.get_agent(agent_id) if agent_id else None
         agent_tags = agent.tags if agent else []
         agent_role = agent.role if agent else "worker"
+        agent_provider = agent.provider if agent else None
 
         # Extract desired_quality hint from task payload if provided
         desired_quality = task.payload.get("desired_quality")
@@ -380,7 +381,7 @@ class OrchestratorService:
             agent_role=agent_role,
             agent_tags=agent_tags,
             desired_quality=desired_quality,
-            provider_preference=None,  # Could be passed from CLI
+            provider_preference=agent_provider,  # Use agent's preferred provider
             current_task_tokens=current_total_tokens,
             max_tokens_per_task=max_tokens_per_task,
             rate_limit_triggered=rate_limit_triggered,
@@ -515,6 +516,7 @@ class OrchestratorService:
             agent_id=agent_id,
             type="llm.requested",
             payload={
+                "provider_selected": provider,
                 "provider": provider,
                 "model": llm_model,
                 "max_output_tokens": max_tokens,
@@ -567,20 +569,14 @@ class OrchestratorService:
         # Create async callable for fallback executor
         async def llm_call_with_provider(provider_name: str, model_name: str) -> Any:
             """Execute LLM call with specific provider and model, including retry logic."""
-            # Use injected adapter if provider matches or if pools are not configured
-            if provider_name == route_decision.provider and not route_decision.candidates:
-                # Legacy path: use injected adapter
-                adapter = self.llm
-            else:
-                # Pool path: create adapter dynamically
-                adapter = self._create_provider_adapter(provider_name, model_name)
 
             async def single_call() -> Any:
-                return await adapter.complete_async(
+                return await self.llm.complete_async(
                     messages,
                     model=model_name,
                     max_output_tokens=max_tokens,
                     temperature=temperature,
+                    provider=provider_name,
                 )
 
             return await self.retry_policy.execute(single_call, on_retry=on_retry, on_exhausted=on_exhausted)
@@ -599,6 +595,24 @@ class OrchestratorService:
 
         # Step 6: On success
         latency_ms = int((time.perf_counter() - start) * 1000)
+
+        # Check for provider mismatch (routing decision vs actual execution)
+        if response.provider != route_decision.provider:
+            self.emit_event(
+                Event(
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    agent_id=agent_id,
+                    type="llm.provider_mismatch",
+                    payload={
+                        "provider_selected": route_decision.provider,
+                        "provider_used": response.provider,
+                        "model_selected": route_decision.model,
+                        "model_used": response.model,
+                    },
+                )
+            )
+
         completed_payload = {
             "provider": response.provider,
             "model": response.model,
@@ -646,48 +660,6 @@ class OrchestratorService:
         from typing import cast
 
         return os.getenv("OPENAI_MODEL") or cast(str, getattr(self.llm, "model", "gpt-4o-mini"))
-
-    def _create_provider_adapter(self, provider: str, model: str) -> LLMPort:
-        """
-        Create a provider adapter dynamically for fallback execution.
-
-        Args:
-            provider: Provider name (stub/openai/ollama)
-            model: Model name
-
-        Returns:
-            LLMPort adapter instance
-
-        Raises:
-            LLMProviderError: If provider cannot be created
-        """
-        if provider == "stub":
-            from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
-
-            return StubLLMAdapter()
-
-        if provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                raise LLMProviderError(
-                    "OPENAI_API_KEY required for OpenAI provider",
-                    status_code=401,
-                    error_code="missing_api_key",
-                )
-            from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
-
-            return OpenAIAdapter(api_key=api_key)
-
-        if provider == "ollama":
-            from openchronicle.core.infrastructure.llm.ollama_adapter import OllamaAdapter
-
-            return OllamaAdapter(model=model)
-
-        raise LLMProviderError(
-            f"Unknown provider: {provider}",
-            status_code=None,
-            error_code="unknown_provider",
-        )
 
     async def _dispatch_task(self, task: Task, agent_id: str | None) -> Any:
         builtin_handler = self._builtin_handlers.get(task.type)

@@ -24,6 +24,7 @@ class FakeLLM(LLMPort):
         model: str,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
+        provider: str | None = None,
     ) -> LLMResponse:
         content = " ".join(m.get("content", "") for m in messages)
         return LLMResponse(
