@@ -13,6 +13,13 @@ from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.services.usage_tracker import UsageTracker
+from openchronicle.core.infrastructure.rate_limiter import (
+    RateLimitConfig,
+    RateLimiter,
+    RateLimitTimeoutError,
+    estimate_tokens,
+)
+from openchronicle.core.infrastructure.retry_policy import RetryAttempt, RetryConfig, RetryPolicy
 
 
 class BudgetExceededError(Exception):
@@ -41,6 +48,29 @@ class OrchestratorService:
         self.handler_registry = handler_registry
         self.emit_event = emit_event
         self.usage_tracker = UsageTracker(storage)
+
+        # Initialize rate limiter from env vars
+        rpm_limit_str = os.getenv("OC_LLM_RPM_LIMIT")
+        tpm_limit_str = os.getenv("OC_LLM_TPM_LIMIT")
+        max_wait_ms_str = os.getenv("OC_LLM_MAX_WAIT_MS")
+
+        rate_config = RateLimitConfig(
+            rpm_limit=int(rpm_limit_str) if rpm_limit_str else None,
+            tpm_limit=int(tpm_limit_str) if tpm_limit_str else None,
+            max_wait_ms=int(max_wait_ms_str) if max_wait_ms_str else 5000,
+        )
+        self.rate_limiter = RateLimiter(rate_config)
+
+        # Initialize retry policy from env vars
+        max_retries_str = os.getenv("OC_LLM_MAX_RETRIES")
+        max_retry_sleep_ms_str = os.getenv("OC_LLM_MAX_RETRY_SLEEP_MS")
+
+        retry_config = RetryConfig(
+            max_retries=int(max_retries_str) if max_retries_str else 2,
+            max_retry_sleep_ms=int(max_retry_sleep_ms_str) if max_retry_sleep_ms_str else 2000,
+        )
+        self.retry_policy = RetryPolicy(retry_config)
+
         self._builtin_handlers = {
             "analysis.summary": self._run_analysis_summary,
             "analysis.worker.summarize": self._run_worker_summarize,
@@ -272,7 +302,7 @@ class OrchestratorService:
         max_tokens = 256
         temperature = 0.2
 
-        # Budget enforcement: check if task has exceeded token limit
+        # Step 1: Budget enforcement - check if task has exceeded token limit
         max_tokens_per_task_str = os.getenv("OC_MAX_TOKENS_PER_TASK")
         if max_tokens_per_task_str:
             max_tokens_per_task = int(max_tokens_per_task_str)
@@ -316,34 +346,122 @@ class OrchestratorService:
                 )
                 max_tokens = max_output_tokens_per_call
 
+        # Step 2: Token estimation for TPM rate limiting
+        estimated_input_tokens = estimate_tokens(input_concat)
+
+        # Step 3: Rate limiter acquire
+        provider = getattr(self.llm, "provider", "unknown")
+        try:
+            rate_limit_info = self.rate_limiter.acquire(
+                provider=provider,
+                model=llm_model,
+                estimated_tokens=estimated_input_tokens,
+            )
+            wait_ms = rate_limit_info.get("wait_ms", 0) or 0
+            if wait_ms > 0:
+                self.emit_event(
+                    Event(
+                        project_id=task.project_id,
+                        task_id=task.id,
+                        agent_id=agent_id,
+                        type="llm.rate_limited",
+                        payload={
+                            "wait_ms": wait_ms,
+                            "provider": provider,
+                            "model": llm_model,
+                            "rpm_limit": rate_limit_info.get("rpm_limit"),
+                            "tpm_limit": rate_limit_info.get("tpm_limit"),
+                        },
+                    )
+                )
+        except RateLimitTimeoutError as exc:
+            self.emit_event(
+                Event(
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    agent_id=agent_id,
+                    type="llm.rate_limit_timeout",
+                    payload={
+                        "max_wait_ms": exc.max_wait_ms,
+                        "required_wait_ms": exc.required_wait_ms,
+                        "provider": provider,
+                        "model": llm_model,
+                    },
+                )
+            )
+            raise
+
+        # Step 4: Emit llm.requested (include estimated_input_tokens)
         requested_event = Event(
             project_id=task.project_id,
             task_id=task.id,
             agent_id=agent_id,
             type="llm.requested",
             payload={
-                "provider": getattr(self.llm, "model", "unknown"),
+                "provider": provider,
                 "model": llm_model,
                 "max_output_tokens": max_tokens,
                 "temperature": temperature,
                 "input_chars": len(input_concat),
                 "input_hash": input_hash,
+                "estimated_input_tokens": estimated_input_tokens,
             },
         )
         self.emit_event(requested_event)
 
+        # Step 5: Call adapter with retry policy
         start = time.perf_counter()
-        try:
-            response = await self.llm.complete_async(
+
+        # Define retry callbacks
+        def on_retry(attempt: RetryAttempt) -> None:
+            self.emit_event(
+                Event(
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    agent_id=agent_id,
+                    type="llm.retry_scheduled",
+                    payload={
+                        "attempt": attempt.attempt,
+                        "max_retries": attempt.max_retries,
+                        "sleep_ms": attempt.sleep_ms,
+                        "reason": attempt.reason,
+                        "status_code": attempt.status_code,
+                        "error_type": attempt.error_type,
+                    },
+                )
+            )
+
+        def on_exhausted(attempts: int, last_error: Exception) -> None:
+            status_code = getattr(last_error, "status_code", None) if isinstance(last_error, LLMProviderError) else None
+            self.emit_event(
+                Event(
+                    project_id=task.project_id,
+                    task_id=task.id,
+                    agent_id=agent_id,
+                    type="llm.retry_exhausted",
+                    payload={
+                        "attempts": attempts,
+                        "last_error_type": type(last_error).__name__,
+                        "last_status_code": status_code,
+                    },
+                )
+            )
+
+        async def llm_call() -> Any:
+            return await self.llm.complete_async(
                 messages,
                 model=llm_model,
                 max_output_tokens=max_tokens,
                 temperature=temperature,
             )
+
+        try:
+            response = await self.retry_policy.execute(llm_call, on_retry=on_retry, on_exhausted=on_exhausted)
         except Exception as exc:  # noqa: BLE001
+            # Step 6a: On failure after retries
             latency_ms = int((time.perf_counter() - start) * 1000)
             error_payload = {
-                "provider": "openai",
+                "provider": provider,
                 "model": llm_model,
                 "latency_ms": latency_ms,
                 "error_type": type(exc).__name__,
@@ -365,6 +483,7 @@ class OrchestratorService:
             )
             raise
 
+        # Step 6b: On success
         latency_ms = int((time.perf_counter() - start) * 1000)
         completed_payload = {
             "provider": response.provider,
@@ -389,7 +508,7 @@ class OrchestratorService:
             )
         )
 
-        # Record usage to database
+        # Record usage to database (only successful calls)
         self.usage_tracker.record_call(
             project_id=task.project_id,
             task_id=task.id,
