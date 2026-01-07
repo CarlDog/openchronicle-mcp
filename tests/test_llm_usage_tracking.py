@@ -18,7 +18,7 @@ from openchronicle.core.domain.services.usage_tracker import UsageTracker
 def container(tmp_path: Any) -> CoreContainer:
     """Create test container with in-memory database."""
     db_path = tmp_path / "test.db"
-    return CoreContainer(db_path=str(db_path), provider_override="stub")
+    return CoreContainer(db_path=str(db_path))
 
 
 @pytest.fixture

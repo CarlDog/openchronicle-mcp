@@ -128,13 +128,13 @@ async def test_openai_provider_without_key_fails(tmp_path: Path, monkeypatch: An
 
 @pytest.mark.asyncio
 async def test_provider_override_forces_provider(tmp_path: Path, monkeypatch: Any) -> None:
-    """Runtime provider_override parameter forces provider selection."""
+    """Injected LLM adapter is used regardless of environment."""
     monkeypatch.delenv("OC_LLM_PROVIDER", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
 
     # Inject fake to simulate openai
     fake_llm = _FakeLLMSuccess(content="override summary", provider_name="openai")
-    container = CoreContainer(db_path=str(tmp_path / "override.db"), llm=fake_llm, provider_override="openai")
+    container = CoreContainer(db_path=str(tmp_path / "override.db"), llm=fake_llm)
     orchestrator = container.orchestrator
 
     project = orchestrator.create_project("Override")

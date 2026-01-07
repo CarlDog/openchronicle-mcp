@@ -106,8 +106,9 @@ async def test_routing_enforces_provider_selection() -> None:
 
     await container.orchestrator.execute_task(task.id, agent_id=agent.id)
 
-    # Assert: Only openai adapter was called
+    # Assert: Only openai adapter was called, stub was NOT called
     assert len(fake_openai.calls) >= 1, f"OpenAI adapter should be called, but got {len(fake_openai.calls)} calls"
+    assert len(fake_stub.calls) == 0, f"Stub adapter should NOT be called, but got {len(fake_stub.calls)} calls"
     assert fake_openai.calls[0]["provider"] == "openai", "Provider parameter should be 'openai'"
 
     # Verify task completed
@@ -227,3 +228,46 @@ async def test_provider_mismatch_emits_event() -> None:
     mismatch_payload = mismatch_events[0].payload
     assert mismatch_payload["provider_selected"] == "openai"
     assert mismatch_payload["provider_used"] == "stub"
+
+
+@pytest.mark.asyncio
+async def test_facade_requires_provider_when_no_default() -> None:
+    """Test that facade fails explicitly when provider=None and no default_provider set."""
+    # Arrange: Create facade without default_provider
+    fake_stub = FakeStubAdapter()
+    fake_openai = FakeOpenAIAdapter()
+    facade = ProviderAwareLLMFacade({"stub": fake_stub, "openai": fake_openai})
+
+    # Act & Assert: Calling with provider=None should raise explicit error
+    with pytest.raises(LLMProviderError) as exc_info:
+        await facade.complete_async(
+            messages=[{"role": "user", "content": "test"}],
+            model="gpt-4",
+            provider=None,
+        )
+
+    # Verify error code and message
+    assert exc_info.value.error_code == "provider_required"
+    assert "provider parameter is required" in str(exc_info.value).lower()
+    assert "available" in str(exc_info.value).lower()
+
+
+@pytest.mark.asyncio
+async def test_facade_uses_default_provider_when_configured() -> None:
+    """Test that facade uses default_provider when provider=None and default is set."""
+    # Arrange: Create facade WITH default_provider
+    fake_stub = FakeStubAdapter()
+    fake_openai = FakeOpenAIAdapter()
+    facade = ProviderAwareLLMFacade({"stub": fake_stub, "openai": fake_openai}, default_provider="stub")
+
+    # Act: Call with provider=None - should use default (stub)
+    response = await facade.complete_async(
+        messages=[{"role": "user", "content": "test"}],
+        model="test-model",
+        provider=None,
+    )
+
+    # Assert: Stub adapter was called, openai was not
+    assert len(fake_stub.calls) == 1
+    assert len(fake_openai.calls) == 0
+    assert response.provider == "stub"

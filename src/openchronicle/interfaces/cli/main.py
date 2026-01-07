@@ -229,13 +229,17 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "demo-summary":
-        # Handle provider override from --use-openai flag
-        from openchronicle.core.infrastructure.llm.provider_selector import ProviderType
+        # Handle provider selection from --use-openai flag
+        # If --use-openai is set, we create facade with openai as default_provider
+        if args.use_openai:
+            from openchronicle.core.infrastructure.llm.provider_aware_facade import create_provider_aware_llm
 
-        provider_override: ProviderType | None = "openai" if args.use_openai else None
-
-        # Create a new container with the provider override
-        demo_container = CoreContainer(db_path=str(container.storage.db_path), provider_override=provider_override)
+            # Create facade with openai as default provider
+            llm = create_provider_aware_llm(providers=["openai", "stub"])
+            demo_container = CoreContainer(db_path=str(container.storage.db_path), llm=llm)
+        else:
+            # Use existing container (stub provider)
+            demo_container = container
 
         supervisor, worker1, worker2 = _ensure_demo_agents(demo_container.orchestrator, args.project_id)
 

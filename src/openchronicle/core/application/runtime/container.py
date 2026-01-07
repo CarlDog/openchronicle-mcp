@@ -7,7 +7,6 @@ from openchronicle.core.application.runtime.task_handler_registry import TaskHan
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.ports.llm_port import LLMPort
 from openchronicle.core.infrastructure.llm.provider_aware_facade import create_provider_aware_llm
-from openchronicle.core.infrastructure.llm.provider_selector import ProviderType
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
@@ -17,7 +16,6 @@ class CoreContainer:
         self,
         db_path: str = "data/openchronicle.db",
         llm: LLMPort | None = None,
-        provider_override: ProviderType | None = None,
     ) -> None:
         self.storage = SqliteStore(db_path=db_path)
         self.storage.init_schema()

@@ -16,15 +16,18 @@ class ProviderAwareLLMFacade(LLMPort):
     selects provider X, the call must execute against provider X.
     """
 
-    def __init__(self, adapters: dict[str, LLMPort]) -> None:
+    def __init__(self, adapters: dict[str, LLMPort], default_provider: str | None = None) -> None:
         """
         Initialize facade with provider adapters.
 
         Args:
             adapters: Mapping of provider name -> adapter instance
                       e.g., {'openai': OpenAIAdapter(...), 'stub': StubLLMAdapter()}
+            default_provider: Optional default provider to use when provider=None.
+                            If not set, provider parameter is required at runtime.
         """
         self._adapters = adapters
+        self.default_provider = default_provider
 
     async def complete_async(
         self,
@@ -52,14 +55,17 @@ class ProviderAwareLLMFacade(LLMPort):
             LLMProviderError: If provider is not configured or unavailable
         """
         if provider is None:
-            # Fallback to first available adapter if no provider specified
-            if not self._adapters:
+            if self.default_provider is not None:
+                # Use explicit default if configured
+                provider = self.default_provider
+            else:
+                # Fail explicitly - no silent defaults
+                available = ", ".join(self._adapters.keys()) if self._adapters else "none"
                 raise LLMProviderError(
-                    "No LLM providers configured",
+                    f"Provider parameter is required. Available providers: {available}",
                     status_code=None,
-                    error_code="no_providers",
+                    error_code="provider_required",
                 )
-            provider = next(iter(self._adapters))
 
         adapter = self._adapters.get(provider)
         if adapter is None:
