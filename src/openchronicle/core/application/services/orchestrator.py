@@ -17,7 +17,9 @@ from openchronicle.core.application.policies.retry_policy import RetryAttempt, R
 from openchronicle.core.application.routing.fallback_executor import FallbackExecutor
 from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle.core.application.services.llm_execution import execute_with_explicit_provider
 from openchronicle.core.domain.exceptions import BudgetExceededError
+from openchronicle.core.domain.models.llm_execution_record import LLMExecutionRecord
 from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Span, SpanStatus, Task, TaskStatus
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
@@ -571,12 +573,14 @@ class OrchestratorService:
             """Execute LLM call with specific provider and model, including retry logic."""
 
             async def single_call() -> Any:
-                return await self.llm.complete_async(
-                    messages,
+                # Use routing-anchored execution helper to enforce discipline
+                return await execute_with_explicit_provider(
+                    llm=self.llm,
+                    provider=provider_name,
                     model=model_name,
+                    messages=messages,
                     max_output_tokens=max_tokens,
                     temperature=temperature,
-                    provider=provider_name,
                 )
 
             return await self.retry_policy.execute(single_call, on_retry=on_retry, on_exhausted=on_exhausted)
@@ -633,6 +637,42 @@ class OrchestratorService:
                 agent_id=agent_id,
                 type="llm.completed",
                 payload=completed_payload,
+            )
+        )
+
+        # Emit a single normalized execution record for success
+        usage = response.usage
+        record = LLMExecutionRecord(
+            task_id=task.id,
+            route_reference_id=requested_event.id,
+            provider_requested=route_decision.provider,
+            provider_used=response.provider,
+            model=response.model,
+            prompt_tokens=usage.input_tokens if usage else None,
+            completion_tokens=usage.output_tokens if usage else None,
+            total_tokens=usage.total_tokens if usage else None,
+            outcome="completed",
+            error_code=None,
+        )
+        self.emit_event(
+            Event(
+                project_id=task.project_id,
+                task_id=task.id,
+                agent_id=agent_id,
+                type="llm.execution_recorded",
+                payload={
+                    "task_id": record.task_id,
+                    "route_reference_id": record.route_reference_id,
+                    "provider_requested": record.provider_requested,
+                    "provider_used": record.provider_used,
+                    "model": record.model,
+                    "prompt_tokens": record.prompt_tokens,
+                    "completion_tokens": record.completion_tokens,
+                    "total_tokens": record.total_tokens,
+                    "outcome": record.outcome,
+                    "error_code": record.error_code,
+                    "created_at": record.created_at.isoformat(),
+                },
             )
         )
 

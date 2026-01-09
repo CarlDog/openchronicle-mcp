@@ -7,6 +7,7 @@ from typing import Any
 
 from openchronicle.core.application.routing.error_classifier import ErrorClass, classify_error
 from openchronicle.core.application.routing.pool_config import PoolConfig
+from openchronicle.core.domain.models.llm_execution_record import LLMExecutionRecord
 from openchronicle.core.domain.ports.llm_port import LLMResponse
 
 
@@ -98,6 +99,17 @@ class FallbackExecutor:
                         task_id,
                         agent_id,
                     )
+                    # Emit normalized execution record for final failure/refusal
+                    self._emit_execution_record(
+                        task_id=task_id,
+                        route_provider=primary_decision.provider,
+                        provider_used=current_provider,
+                        model_used=current_model,
+                        outcome="refused" if error_class == "refusal" else "failed",
+                        error_code=getattr(exc, "error_code", None),
+                        project_id=project_id,
+                        agent_id=agent_id,
+                    )
                     raise
 
                 # Try to find next candidate
@@ -113,6 +125,17 @@ class FallbackExecutor:
                         project_id,
                         task_id,
                         agent_id,
+                    )
+                    # Emit normalized execution record for final failure/refusal
+                    self._emit_execution_record(
+                        task_id=task_id,
+                        route_provider=primary_decision.provider,
+                        provider_used=current_provider,
+                        model_used=current_model,
+                        outcome="refused" if error_class == "refusal" else "failed",
+                        error_code=getattr(exc, "error_code", None),
+                        project_id=project_id,
+                        agent_id=agent_id,
                     )
                     raise
 
@@ -291,5 +314,55 @@ class FallbackExecutor:
                 agent_id=agent_id,
                 type=event_type,
                 payload=payload,
+            )
+        )
+
+    def _emit_execution_record(
+        self,
+        *,
+        task_id: str,
+        route_provider: str,
+        provider_used: str,
+        model_used: str,
+        outcome: str,
+        error_code: str | None,
+        project_id: str,
+        agent_id: str | None,
+    ) -> None:
+        """Emit llm.execution_recorded with normalized failure/refusal details."""
+        from openchronicle.core.domain.models.project import Event
+
+        record = LLMExecutionRecord(
+            task_id=task_id,
+            route_reference_id=None,
+            provider_requested=route_provider,
+            provider_used=provider_used,
+            model=model_used,
+            prompt_tokens=None,
+            completion_tokens=None,
+            total_tokens=None,
+            outcome=outcome,
+            error_code=error_code,
+        )
+
+        self.emit_event(
+            Event(
+                project_id=project_id,
+                task_id=task_id,
+                agent_id=agent_id,
+                type="llm.execution_recorded",
+                payload={
+                    "task_id": record.task_id,
+                    "route_reference_id": record.route_reference_id,
+                    "provider_requested": record.provider_requested,
+                    "provider_used": record.provider_used,
+                    "model": record.model,
+                    "prompt_tokens": record.prompt_tokens,
+                    "completion_tokens": record.completion_tokens,
+                    "total_tokens": record.total_tokens,
+                    "outcome": record.outcome,
+                    "error_code": record.error_code,
+                    "created_at": record.created_at.isoformat(),
+                },
             )
         )
