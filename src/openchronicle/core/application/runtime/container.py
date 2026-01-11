@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.ports.llm_port import LLMPort
-from openchronicle.core.infrastructure.llm.provider_aware_facade import create_provider_aware_llm
+from openchronicle.core.infrastructure.llm.llm_facade import create_provider_aware_llm
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 

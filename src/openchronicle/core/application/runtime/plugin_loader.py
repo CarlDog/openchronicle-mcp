@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry, TaskHandler
 
 

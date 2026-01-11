@@ -332,8 +332,8 @@ class TestModePropagation:
         """Test that desired_quality propagates from root task to worker child tasks."""
         from pathlib import Path
 
+        from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
         from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-        from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
         from openchronicle.core.domain.models.project import TaskStatus
         from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
         from openchronicle.core.infrastructure.logging.event_logger import EventLogger
@@ -425,8 +425,8 @@ class TestModePropagation:
         """Test that payload desired_quality overrides agent tags."""
         from pathlib import Path
 
+        from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
         from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-        from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
         from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
         from openchronicle.core.infrastructure.logging.event_logger import EventLogger
         from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
@@ -500,8 +500,8 @@ class TestModePropagation:
         """Test that without desired_quality, routing falls back to tags/env default."""
         from pathlib import Path
 
+        from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
         from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-        from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
         from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
         from openchronicle.core.infrastructure.logging.event_logger import EventLogger
         from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore

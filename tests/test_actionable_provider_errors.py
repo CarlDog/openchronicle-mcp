@@ -10,7 +10,7 @@ Verifies that provider configuration failures include:
 import pytest
 
 from openchronicle.core.domain.ports.llm_port import LLMProviderError
-from openchronicle.core.infrastructure.llm.provider_aware_facade import (
+from openchronicle.core.infrastructure.llm.llm_facade import (
     ProviderAwareLLMFacade,
     create_provider_aware_llm,
 )

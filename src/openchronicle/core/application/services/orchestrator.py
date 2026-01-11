@@ -17,10 +17,10 @@ from openchronicle.core.application.policies.rate_limiter import (
 from openchronicle.core.application.policies.retry_policy import RetryAttempt, RetryConfig, RetryPolicy
 from openchronicle.core.application.routing.fallback_executor import FallbackExecutor
 from openchronicle.core.application.routing.router_policy import RouterPolicy
-from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
 from openchronicle.core.application.services.llm_execution import execute_with_explicit_provider
 from openchronicle.core.domain.exceptions import BudgetExceededError
-from openchronicle.core.domain.models.llm_execution_record import LLMExecutionRecord
+from openchronicle.core.domain.models.execution_record import LLMExecutionRecord
 from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Span, SpanStatus, Task, TaskStatus
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry

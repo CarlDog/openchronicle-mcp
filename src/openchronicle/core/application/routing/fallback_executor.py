@@ -7,7 +7,7 @@ from typing import Any
 
 from openchronicle.core.application.routing.error_classifier import ErrorClass, classify_error
 from openchronicle.core.application.routing.pool_config import PoolConfig
-from openchronicle.core.domain.models.llm_execution_record import LLMExecutionRecord
+from openchronicle.core.domain.models.execution_record import LLMExecutionRecord
 from openchronicle.core.domain.ports.llm_port import LLMResponse
 
 

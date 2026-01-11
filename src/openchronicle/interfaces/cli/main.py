@@ -240,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
         # Handle provider selection from --use-openai flag
         # If --use-openai is set, we create facade with openai as default_provider
         if args.use_openai:
-            from openchronicle.core.infrastructure.llm.provider_aware_facade import create_provider_aware_llm
+            from openchronicle.core.infrastructure.llm.llm_facade import create_provider_aware_llm
 
             # Create facade with openai as default provider
             llm = create_provider_aware_llm(providers=["openai", "stub"])

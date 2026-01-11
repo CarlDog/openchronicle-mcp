@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 
 if TYPE_CHECKING:
     from pathlib import Path

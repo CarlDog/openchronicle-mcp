@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from openchronicle.core.application.runtime.handler_registry import TaskHandlerRegistry
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
 
 
 def test_storytelling_plugin_registers_handler(tmp_path: Path) -> None:
