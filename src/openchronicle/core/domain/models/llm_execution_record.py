@@ -16,6 +16,7 @@ class LLMExecutionRecord:
     """
 
     task_id: str
+    execution_id: str
     route_reference_id: str | None = None
     provider_requested: str = ""
     provider_used: str = ""
@@ -32,6 +33,7 @@ class LLMExecutionRecord:
         """Serialize to event payload dict for consistent emission."""
         return {
             "task_id": self.task_id,
+            "execution_id": self.execution_id,
             "route_reference_id": self.route_reference_id,
             "provider_requested": self.provider_requested,
             "provider_used": self.provider_used,

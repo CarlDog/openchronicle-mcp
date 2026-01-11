@@ -6,6 +6,7 @@ import os
 import time
 from collections.abc import Callable
 from typing import Any
+from uuid import uuid4
 
 from openchronicle.core.application.policies.rate_limiter import (
     RateLimitConfig,
@@ -511,13 +512,17 @@ class OrchestratorService:
             )
             raise
 
-        # Step 4: Emit llm.requested (include estimated_input_tokens)
+        # Step 4: Generate unique execution_id for this LLM attempt (correlates all events)
+        execution_id = uuid4().hex
+
+        # Emit llm.requested (include estimated_input_tokens and execution_id)
         requested_event = Event(
             project_id=task.project_id,
             task_id=task.id,
             agent_id=agent_id,
             type="llm.requested",
             payload={
+                "execution_id": execution_id,
                 "provider_selected": provider,
                 "provider": provider,
                 "model": llm_model,
@@ -593,6 +598,7 @@ class OrchestratorService:
                 task_id=task.id,
                 agent_id=agent_id,
                 route_reference_id=requested_event.id,
+                execution_id=execution_id,
             )
         except Exception:
             # Fallback executor already emitted llm.failed/llm.refused
@@ -645,6 +651,7 @@ class OrchestratorService:
         usage = response.usage
         record = LLMExecutionRecord(
             task_id=task.id,
+            execution_id=execution_id,
             route_reference_id=requested_event.id,
             provider_requested=route_decision.provider,
             provider_used=response.provider,

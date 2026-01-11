@@ -44,6 +44,7 @@ class FallbackExecutor:
         task_id: str,
         agent_id: str | None,
         route_reference_id: str | None = None,
+        execution_id: str | None = None,
     ) -> LLMResponse:
         """
         Execute LLM call with fallback support.
@@ -55,6 +56,7 @@ class FallbackExecutor:
             task_id: Task ID for event emission
             agent_id: Agent ID for event emission
             route_reference_id: Optional reference to llm.requested event for traceability
+            execution_id: Unique ID for this execution attempt (correlates all events)
 
         Returns:
             LLMResponse from successful call
@@ -100,10 +102,12 @@ class FallbackExecutor:
                         project_id,
                         task_id,
                         agent_id,
+                        execution_id=execution_id,
                     )
                     # Emit normalized execution record for final failure/refusal
                     self._emit_execution_record(
                         task_id=task_id,
+                        execution_id=execution_id,
                         route_reference_id=route_reference_id,
                         route_provider=primary_decision.provider,
                         route_model=primary_decision.model,
@@ -129,10 +133,12 @@ class FallbackExecutor:
                         project_id,
                         task_id,
                         agent_id,
+                        execution_id=execution_id,
                     )
                     # Emit normalized execution record for final failure/refusal
                     self._emit_execution_record(
                         task_id=task_id,
+                        execution_id=execution_id,
                         route_reference_id=route_reference_id,
                         route_provider=primary_decision.provider,
                         route_model=primary_decision.model,
@@ -291,6 +297,7 @@ class FallbackExecutor:
         project_id: str,
         task_id: str,
         agent_id: str | None,
+        execution_id: str | None = None,
     ) -> None:
         """Emit final failure event (terminal)."""
         from openchronicle.core.domain.models.project import Event
@@ -303,6 +310,9 @@ class FallbackExecutor:
             "error_type": type(exc).__name__,
             "message": str(exc)[:500],
         }
+
+        if execution_id:
+            payload["execution_id"] = execution_id
 
         if isinstance(exc, LLMProviderError):
             if exc.status_code is not None:
@@ -327,6 +337,7 @@ class FallbackExecutor:
         self,
         *,
         task_id: str,
+        execution_id: str | None,
         route_reference_id: str | None,
         route_provider: str,
         route_model: str,
@@ -342,6 +353,7 @@ class FallbackExecutor:
 
         record = LLMExecutionRecord(
             task_id=task_id,
+            execution_id=execution_id or "",
             route_reference_id=route_reference_id,
             provider_requested=route_provider,
             provider_used=provider_used,

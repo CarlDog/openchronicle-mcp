@@ -133,3 +133,94 @@ async def test_execution_record_emitted_on_refusal(
         None,
         "",
     ), "route_reference_id must be present and non-empty on failure/refusal"
+
+
+@pytest.mark.asyncio
+async def test_execution_id_correlates_events_on_success(
+    container: CoreContainer, project_and_task: tuple[str, str], agent_id: str
+) -> None:
+    """Execution_id should be consistent across all events for a single LLM attempt."""
+    project_id, task_id = project_and_task
+
+    # Run worker summarize
+    task = container.storage.get_task(task_id)
+    assert task is not None
+
+    result = await container.orchestrator._run_worker_summarize(task, agent_id)
+    assert isinstance(result, str)
+
+    # Get all LLM events
+    events = container.storage.list_events(task_id)
+
+    # Find llm.requested event
+    requested_events = [e for e in events if e.type == "llm.requested"]
+    assert len(requested_events) > 0, "llm.requested should be emitted"
+
+    # Find llm.execution_recorded event
+    recorded_events = [e for e in events if e.type == "llm.execution_recorded"]
+    assert len(recorded_events) == 1, "llm.execution_recorded should be emitted once"
+
+    # Extract execution_id from both
+    req_exec_id = requested_events[0].payload.get("execution_id")
+    rec_exec_id = recorded_events[0].payload.get("execution_id")
+
+    # Both must exist and match
+    assert req_exec_id not in (None, ""), "execution_id must be present in llm.requested"
+    assert rec_exec_id not in (None, ""), "execution_id must be present in llm.execution_recorded"
+    assert req_exec_id == rec_exec_id, "execution_id must be identical across all events for same attempt"
+
+
+@pytest.mark.asyncio
+async def test_execution_id_correlates_events_on_refusal(
+    container: CoreContainer, project_and_task: tuple[str, str], agent_id: str
+) -> None:
+    """Execution_id should be consistent on terminal refusal."""
+    project_id, task_id = project_and_task
+
+    # Use a refusing LLM adapter
+    class RefusingLLM(LLMPort):
+        async def complete_async(
+            self,
+            messages: list[dict[str, Any]],
+            *,
+            model: str,
+            max_output_tokens: int | None = None,
+            temperature: float | None = None,
+            provider: str | None = None,
+        ) -> LLMResponse:
+            raise LLMProviderError(
+                "content blocked",
+                status_code=400,
+                error_code="content_policy_violation",
+            )
+
+    container.orchestrator.llm = RefusingLLM()
+
+    task = container.storage.get_task(task_id)
+    assert task is not None
+
+    with pytest.raises(Exception):
+        await container.orchestrator._run_worker_summarize(task, agent_id)
+
+    # Get all LLM events
+    events = container.storage.list_events(task_id)
+
+    # Find llm.requested and llm.refused events
+    requested_events = [e for e in events if e.type == "llm.requested"]
+    refused_events = [e for e in events if e.type == "llm.refused"]
+    recorded_events = [e for e in events if e.type == "llm.execution_recorded"]
+
+    assert len(requested_events) > 0, "llm.requested should be emitted"
+    assert len(refused_events) > 0, "llm.refused should be emitted on terminal refusal"
+    assert len(recorded_events) > 0, "llm.execution_recorded should be emitted on terminal refusal"
+
+    # Extract execution_id from all events
+    req_exec_id = requested_events[0].payload.get("execution_id")
+    ref_exec_id = refused_events[0].payload.get("execution_id")
+    rec_exec_id = recorded_events[0].payload.get("execution_id")
+
+    # All must exist and match
+    assert req_exec_id not in (None, ""), "execution_id must be present in llm.requested"
+    assert ref_exec_id not in (None, ""), "execution_id must be present in llm.refused"
+    assert rec_exec_id not in (None, ""), "execution_id must be present in llm.execution_recorded"
+    assert req_exec_id == ref_exec_id == rec_exec_id, "execution_id must be identical across all events"
