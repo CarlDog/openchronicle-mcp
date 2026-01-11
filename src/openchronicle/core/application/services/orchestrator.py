@@ -592,6 +592,7 @@ class OrchestratorService:
                 project_id=task.project_id,
                 task_id=task.id,
                 agent_id=agent_id,
+                route_reference_id=requested_event.id,
             )
         except Exception:
             # Fallback executor already emitted llm.failed/llm.refused
@@ -647,6 +648,7 @@ class OrchestratorService:
             route_reference_id=requested_event.id,
             provider_requested=route_decision.provider,
             provider_used=response.provider,
+            model_requested=route_decision.model,
             model=response.model,
             prompt_tokens=usage.input_tokens if usage else None,
             completion_tokens=usage.output_tokens if usage else None,
@@ -660,19 +662,7 @@ class OrchestratorService:
                 task_id=task.id,
                 agent_id=agent_id,
                 type="llm.execution_recorded",
-                payload={
-                    "task_id": record.task_id,
-                    "route_reference_id": record.route_reference_id,
-                    "provider_requested": record.provider_requested,
-                    "provider_used": record.provider_used,
-                    "model": record.model,
-                    "prompt_tokens": record.prompt_tokens,
-                    "completion_tokens": record.completion_tokens,
-                    "total_tokens": record.total_tokens,
-                    "outcome": record.outcome,
-                    "error_code": record.error_code,
-                    "created_at": record.created_at.isoformat(),
-                },
+                payload=record.to_payload(),
             )
         )
 

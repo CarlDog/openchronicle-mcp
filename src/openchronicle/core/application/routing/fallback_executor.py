@@ -43,6 +43,7 @@ class FallbackExecutor:
         project_id: str,
         task_id: str,
         agent_id: str | None,
+        route_reference_id: str | None = None,
     ) -> LLMResponse:
         """
         Execute LLM call with fallback support.
@@ -53,6 +54,7 @@ class FallbackExecutor:
             project_id: Project ID for event emission
             task_id: Task ID for event emission
             agent_id: Agent ID for event emission
+            route_reference_id: Optional reference to llm.requested event for traceability
 
         Returns:
             LLMResponse from successful call
@@ -102,7 +104,9 @@ class FallbackExecutor:
                     # Emit normalized execution record for final failure/refusal
                     self._emit_execution_record(
                         task_id=task_id,
+                        route_reference_id=route_reference_id,
                         route_provider=primary_decision.provider,
+                        route_model=primary_decision.model,
                         provider_used=current_provider,
                         model_used=current_model,
                         outcome="refused" if error_class == "refusal" else "failed",
@@ -129,7 +133,9 @@ class FallbackExecutor:
                     # Emit normalized execution record for final failure/refusal
                     self._emit_execution_record(
                         task_id=task_id,
+                        route_reference_id=route_reference_id,
                         route_provider=primary_decision.provider,
+                        route_model=primary_decision.model,
                         provider_used=current_provider,
                         model_used=current_model,
                         outcome="refused" if error_class == "refusal" else "failed",
@@ -321,7 +327,9 @@ class FallbackExecutor:
         self,
         *,
         task_id: str,
+        route_reference_id: str | None,
         route_provider: str,
+        route_model: str,
         provider_used: str,
         model_used: str,
         outcome: str,
@@ -334,9 +342,10 @@ class FallbackExecutor:
 
         record = LLMExecutionRecord(
             task_id=task_id,
-            route_reference_id=None,
+            route_reference_id=route_reference_id,
             provider_requested=route_provider,
             provider_used=provider_used,
+            model_requested=route_model,
             model=model_used,
             prompt_tokens=None,
             completion_tokens=None,
@@ -351,18 +360,6 @@ class FallbackExecutor:
                 task_id=task_id,
                 agent_id=agent_id,
                 type="llm.execution_recorded",
-                payload={
-                    "task_id": record.task_id,
-                    "route_reference_id": record.route_reference_id,
-                    "provider_requested": record.provider_requested,
-                    "provider_used": record.provider_used,
-                    "model": record.model,
-                    "prompt_tokens": record.prompt_tokens,
-                    "completion_tokens": record.completion_tokens,
-                    "total_tokens": record.total_tokens,
-                    "outcome": record.outcome,
-                    "error_code": record.error_code,
-                    "created_at": record.created_at.isoformat(),
-                },
+                payload=record.to_payload(),
             )
         )

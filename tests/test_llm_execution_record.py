@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 
 from openchronicle.core.application.runtime.container import CoreContainer
-from openchronicle.core.domain.ports.llm_port import LLMProviderError, LLMResponse
+from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMResponse
 
 
 @pytest.fixture
@@ -63,6 +63,10 @@ async def test_execution_record_emitted_on_success(
     assert payload.get("outcome") == "completed"
     assert payload.get("provider_requested") == payload.get("provider_used")
     assert payload.get("model") is not None
+    # Verify model_requested is populated
+    assert payload.get("model_requested") is not None
+    # Verify route_reference_id is populated on success
+    assert payload.get("route_reference_id") is not None
 
 
 @pytest.mark.asyncio
@@ -71,11 +75,24 @@ async def test_execution_record_emitted_on_refusal(
 ) -> None:
     project_id, task_id = project_and_task
 
-    # Force refusal from provider
-    async def mock_complete_async(*args: Any, **kwargs: Any) -> LLMResponse:
-        raise LLMProviderError("content blocked", status_code=400, error_code="content_policy_violation")
+    # Use a fake LLM adapter that consistently refuses
+    class RefusingLLM(LLMPort):
+        async def complete_async(
+            self,
+            messages: list[dict[str, Any]],
+            *,
+            model: str,
+            max_output_tokens: int | None = None,
+            temperature: float | None = None,
+            provider: str | None = None,
+        ) -> LLMResponse:
+            raise LLMProviderError(
+                "content blocked",
+                status_code=400,
+                error_code="content_policy_violation",
+            )
 
-    container.orchestrator.llm.complete_async = mock_complete_async
+    container.orchestrator.llm = RefusingLLM()
 
     task = container.storage.get_task(task_id)
     assert task is not None
@@ -93,3 +110,7 @@ async def test_execution_record_emitted_on_refusal(
     assert payload.get("error_code") is not None
     assert payload.get("provider_requested") is not None
     assert payload.get("provider_used") is not None
+    # Verify model_requested is populated
+    assert payload.get("model_requested") is not None
+    # Verify route_reference_id is populated on failure/refusal
+    assert payload.get("route_reference_id") is not None
