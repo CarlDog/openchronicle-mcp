@@ -8,6 +8,7 @@ from typing import Any
 from openchronicle.core.application.runtime.container import CoreContainer
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.use_cases import (
+    continue_project_pending,
     create_project,
     list_projects,
     register_agent,
@@ -546,20 +547,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.continue_exec and summary.pending > 0:
             print(f"\nContinuing execution of {summary.pending} pending task(s)...")
 
-            # Get all pending tasks
-            tasks = [t for t in container.storage.list_tasks_by_project(args.project_id) if t.status.value == "pending"]
-
-            # Sort deterministically
-            tasks_sorted = sorted(tasks, key=lambda t: (t.created_at, t.id))
-
+            # Execute all pending tasks via Application use case
             async def _continue_execution() -> None:
-                for task in tasks_sorted:
-                    print(f"\nExecuting task: {task.id} (type: {task.type})")
-                    try:
-                        result = await run_task.execute(orchestrator, task.id, agent_id=task.agent_id)
-                        print(f"  ✓ Completed: {str(result)[:100]}")
-                    except Exception as e:
-                        print(f"  ✗ Failed: {str(e)[:100]}")
+                continue_summary = await continue_project_pending.execute(orchestrator, args.project_id)
+                print("\nExecution complete:")
+                print(f"  Tasks executed: {continue_summary.pending_tasks}")
+                print(f"  Succeeded: {continue_summary.succeeded}")
+                print(f"  Failed: {continue_summary.failed}")
 
             asyncio.run(_continue_execution())
 
