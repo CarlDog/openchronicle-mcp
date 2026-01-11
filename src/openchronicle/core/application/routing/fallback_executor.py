@@ -239,6 +239,12 @@ class FallbackExecutor:
                 payload["status_code"] = exc.status_code
             if exc.error_code is not None:
                 payload["error_code"] = exc.error_code
+            if exc.hint is not None:
+                payload["hint"] = exc.hint
+            if exc.provider is not None:
+                payload["provider_requested"] = exc.provider
+            if exc.configured_providers:
+                payload["configured_providers"] = exc.configured_providers
 
         self.emit_event(
             Event(
@@ -277,6 +283,12 @@ class FallbackExecutor:
                 payload["status_code"] = exc.status_code
             if exc.error_code is not None:
                 payload["error_code"] = exc.error_code
+            if exc.hint is not None:
+                payload["hint"] = exc.hint
+            if exc.provider is not None:
+                payload["provider_requested"] = exc.provider
+            if exc.configured_providers:
+                payload["configured_providers"] = exc.configured_providers
 
         self.emit_event(
             Event(
@@ -319,6 +331,12 @@ class FallbackExecutor:
                 payload["status_code"] = exc.status_code
             if exc.error_code is not None:
                 payload["error_code"] = exc.error_code
+            if exc.hint is not None:
+                payload["hint"] = exc.hint
+            if exc.provider is not None:
+                payload["provider_requested"] = exc.provider
+            if exc.configured_providers:
+                payload["configured_providers"] = exc.configured_providers
 
         # Emit as llm.failed (or llm.refused for refusals)
         event_type = "llm.refused" if error_class == "refusal" else "llm.failed"

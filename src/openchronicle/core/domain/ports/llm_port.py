@@ -24,10 +24,38 @@ class LLMResponse:
 
 
 class LLMProviderError(Exception):
-    def __init__(self, message: str, *, status_code: int | None = None, error_code: str | None = None) -> None:
+    """Exception raised when LLM provider encounters an error."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        error_code: str | None = None,
+        provider: str | None = None,
+        configured_providers: list[str] | None = None,
+        hint: str | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        """
+        Initialize LLM provider error with structured context.
+
+        Args:
+            message: Human-readable error message
+            status_code: HTTP status code (if applicable)
+            error_code: Machine-readable error code (e.g., "provider_not_configured")
+            provider: Provider that was requested
+            configured_providers: List of available providers
+            hint: Actionable hint for resolving the error
+            details: Additional structured error details
+        """
         super().__init__(message)
         self.status_code = status_code
         self.error_code = error_code
+        self.provider = provider
+        self.configured_providers = configured_providers or []
+        self.hint = hint
+        self.details = details or {}
 
 
 class LLMPort(ABC):

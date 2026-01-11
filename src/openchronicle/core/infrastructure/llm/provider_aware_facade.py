@@ -101,15 +101,21 @@ class ProviderAwareLLMFacade(LLMPort):
                     f"Provider parameter is required. Available providers: {available}",
                     status_code=None,
                     error_code="provider_required",
+                    configured_providers=list(self._adapters.keys()),
+                    hint="Set OC_LLM_PROVIDER to configure a default provider, or ensure routing provides a provider parameter.",
                 )
 
         adapter = self._adapters.get(provider)
         if adapter is None:
-            available = ", ".join(self._adapters.keys())
+            # Generate provider-specific hints
+            hint = self._generate_configuration_hint(provider)
             raise LLMProviderError(
-                f"Provider '{provider}' not configured. Available: {available}",
+                f"Provider '{provider}' not configured. Available: {', '.join(self._adapters.keys())}",
                 status_code=None,
                 error_code="provider_not_configured",
+                provider=provider,
+                configured_providers=list(self._adapters.keys()),
+                hint=hint,
             )
 
         # Delegate to the specific adapter
@@ -119,6 +125,34 @@ class ProviderAwareLLMFacade(LLMPort):
             max_output_tokens=max_output_tokens,
             temperature=temperature,
             provider=provider,
+        )
+
+    def _generate_configuration_hint(self, provider: str) -> str:
+        """
+        Generate actionable hint for configuring a provider.
+
+        Args:
+            provider: Provider name that is not configured
+
+        Returns:
+            Actionable hint for resolving configuration
+        """
+        if provider == "openai":
+            # Check if API key is missing
+            if not os.getenv("OPENAI_API_KEY"):
+                return "Set OPENAI_API_KEY environment variable to use OpenAI provider."
+            return "OpenAI provider requires OPENAI_API_KEY and proper adapter wiring."
+
+        if provider == "ollama":
+            return (
+                "Ollama provider must be included in OC_LLM_FAST_POOL or OC_LLM_QUALITY_POOL, "
+                "or explicitly wired during facade initialization."
+            )
+
+        # Generic hint
+        return (
+            f"Provider '{provider}' must be wired during facade initialization. "
+            f"Check routing configuration and adapter setup."
         )
 
     def complete(
