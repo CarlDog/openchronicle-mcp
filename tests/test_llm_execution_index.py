@@ -1,6 +1,6 @@
 """Tests for LLM execution correlation and indexing."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -52,7 +52,7 @@ class TestLLMCallSummary:
 
     def test_summary_with_all_fields(self) -> None:
         """Summary should accept all field values."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         summary = LLMCallSummary(
             execution_id="test-id",
             task_id="task-1",
@@ -162,7 +162,7 @@ class TestLLMExecutionIndexCorrelation:
         execution_id: str,
     ) -> None:
         """Index should correlate llm.requested → llm.completed → llm.execution_recorded."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         # Ingest events in sequence (simulating LLM call lifecycle)
         event1 = Event(
@@ -227,7 +227,7 @@ class TestLLMExecutionIndexCorrelation:
         execution_id: str,
     ) -> None:
         """Index should handle terminal failure with error_code."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         event1 = Event(
             project_id=project_id,
@@ -277,7 +277,7 @@ class TestLLMExecutionIndexCorrelation:
         execution_id: str,
     ) -> None:
         """Index should handle refusal with error_code from llm.refused."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         event1 = Event(
             project_id=project_id,
@@ -312,7 +312,7 @@ class TestLLMExecutionIndexCorrelation:
         agent_id: str,
     ) -> None:
         """Index should independently correlate multiple executions."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         exec1 = uuid4().hex
         exec2 = uuid4().hex
 
@@ -366,7 +366,7 @@ class TestLLMExecutionIndexDeterminism:
         agent_id: str,
     ) -> None:
         """summaries() should return in deterministic order by started_at then execution_id."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
 
         # Add events in reverse chronological order (to test sorting)
         for i in range(2, 0, -1):
@@ -460,7 +460,7 @@ class TestLLMExecutionIndexEventOrdering:
         execution_id: str,
     ) -> None:
         """Index should correctly handle events arriving out of sequence."""
-        later = datetime.utcnow()
+        later = datetime.now(UTC)
         earlier = later - timedelta(seconds=1)
 
         # Ingest execution_recorded first, then requested (reverse order)
