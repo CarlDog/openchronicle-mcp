@@ -16,8 +16,12 @@ from openchronicle.core.application.use_cases import (
     run_task,
     show_task,
 )
+from openchronicle.core.application.use_cases.replay_project import (
+    ReplayService as ProjectReplayService,
+)
 from openchronicle.core.domain.models.project import Agent
-from openchronicle.core.domain.services.replay import ReplayMode, ReplayService
+from openchronicle.core.domain.services.replay import ReplayMode
+from openchronicle.core.domain.services.replay import ReplayService as DomainReplayService
 from openchronicle.core.domain.services.verification import (
     VerificationResult,
     VerificationService,
@@ -135,6 +139,10 @@ def main(argv: list[str] | None = None) -> int:
     resume_cmd.add_argument(
         "--continue", dest="continue_exec", action="store_true", help="Continue execution after resume"
     )
+
+    replay_project_cmd = sub.add_parser("replay-project", help="Show derived project state from events")
+    replay_project_cmd.add_argument("--project-id", required=True, help="Project identifier")
+    replay_project_cmd.add_argument("--show-llm", action="store_true", help="Show LLM execution summaries")
 
     args = parser.parse_args(argv)
     container = CoreContainer()
@@ -313,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     if args.command == "replay-task":
-        replay_service = ReplayService(container.storage)
+        replay_service = DomainReplayService(container.storage)
         mode_map = {
             "verify": ReplayMode.VERIFY,
             "replay-events": ReplayMode.REPLAY_EVENTS,
@@ -394,8 +402,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"      {payload_preview}")
 
         # Show final result
-        replay_service = ReplayService(container.storage)
-        replay_result = replay_service.replay_task(args.task_id, ReplayMode.REPLAY_EVENTS)
+        domain_replay_service = DomainReplayService(container.storage)
+        replay_result = domain_replay_service.replay_task(args.task_id, ReplayMode.REPLAY_EVENTS)
         if replay_result.success and replay_result.reconstructed_output is not None:
             print("\nFinal result:")
             result_str = json.dumps(replay_result.reconstructed_output, indent=2)
@@ -556,6 +564,35 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"  Failed: {continue_summary.failed}")
 
             asyncio.run(_continue_execution())
+
+        return 0
+
+    if args.command == "replay-project":
+        # Derive project state from events (READ-ONLY)
+        replay_service = ProjectReplayService(container.storage)  # type: ignore
+        state_view = replay_service.execute(args.project_id)  # type: ignore
+
+        print(f"Project State: {state_view.project_id}")
+        print(f"  Last event at: {state_view.last_event_at.isoformat() if state_view.last_event_at else 'N/A'}")
+        print("\n  Task Counts:")
+        print(f"    Pending:   {state_view.task_counts.pending}")
+        print(f"    Running:   {state_view.task_counts.running}")
+        print(f"    Completed: {state_view.task_counts.completed}")
+        print(f"    Failed:    {state_view.task_counts.failed}")
+
+        if state_view.interrupted_task_ids:
+            print(f"\n  Interrupted Tasks ({len(state_view.interrupted_task_ids)}):")
+            for task_id in state_view.interrupted_task_ids:
+                print(f"    - {task_id}")
+
+        if args.show_llm and state_view.llm_executions:
+            print(f"\n  LLM Executions ({len(state_view.llm_executions)}):")
+            for llm_summary in state_view.llm_executions[:10]:  # Show top 10
+                provider = llm_summary.provider_used or llm_summary.provider_requested or "unknown"
+                outcome = llm_summary.outcome or "unknown"
+                print(f"    - {llm_summary.execution_id}: {provider} → {outcome}")
+            if len(state_view.llm_executions) > 10:
+                print(f"    ... and {len(state_view.llm_executions) - 10} more")
 
         return 0
 
