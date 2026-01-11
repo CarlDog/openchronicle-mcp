@@ -8,6 +8,42 @@ from typing import Any
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMResponse
 
 
+def extract_providers_from_routing_config() -> set[str]:
+    """
+    Extract provider names referenced by routing configuration.
+
+    Checks:
+    - OC_LLM_PROVIDER (explicit default)
+    - OC_LLM_FAST_POOL (fast mode pool entries)
+    - OC_LLM_QUALITY_POOL (quality mode pool entries)
+
+    Returns:
+        Sorted set of provider names referenced in config
+    """
+    providers: set[str] = set()
+
+    # Check explicit default provider
+    default_provider = os.getenv("OC_LLM_PROVIDER", "").strip()
+    if default_provider:
+        providers.add(default_provider)
+
+    # Parse pools for provider:model pairs
+    fast_pool = os.getenv("OC_LLM_FAST_POOL", "").strip()
+    quality_pool = os.getenv("OC_LLM_QUALITY_POOL", "").strip()
+
+    for pool_str in [fast_pool, quality_pool]:
+        if not pool_str:
+            continue
+        for entry in pool_str.split(","):
+            entry = entry.strip()
+            if ":" in entry:
+                provider = entry.split(":", 1)[0].strip()
+                if provider:
+                    providers.add(provider)
+
+    return providers
+
+
 class ProviderAwareLLMFacade(LLMPort):
     """
     LLM facade that routes calls to specific provider adapters.
@@ -104,7 +140,7 @@ def create_provider_aware_llm(providers: list[str] | None = None) -> ProviderAwa
 
     Args:
         providers: List of provider names to configure.
-                   If None, auto-detects based on environment.
+                   If None, auto-detects based on routing config and environment.
 
     Returns:
         ProviderAwareLLMFacade with configured adapters
@@ -113,11 +149,14 @@ def create_provider_aware_llm(providers: list[str] | None = None) -> ProviderAwa
 
     # Determine which providers to configure
     if providers is None:
-        # Auto-detect based on environment
+        # Auto-detect: always include stub, plus providers from routing config
+        providers_needed = extract_providers_from_routing_config()
         providers_to_setup = ["stub"]  # Always include stub
-        if os.getenv("OPENAI_API_KEY"):
-            providers_to_setup.append("openai")
-        # Could add ollama detection here
+
+        # Add providers referenced by routing config
+        for provider in sorted(providers_needed):
+            if provider not in providers_to_setup:
+                providers_to_setup.append(provider)
     else:
         providers_to_setup = providers
 
@@ -131,7 +170,7 @@ def create_provider_aware_llm(providers: list[str] | None = None) -> ProviderAwa
         elif provider == "openai":
             api_key = os.getenv("OPENAI_API_KEY")
             if not api_key:
-                # Skip if API key not available
+                # Skip if API key not available - will fail explicitly if routing tries to use it
                 continue
             from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
 
@@ -140,7 +179,13 @@ def create_provider_aware_llm(providers: list[str] | None = None) -> ProviderAwa
         elif provider == "ollama":
             from openchronicle.core.infrastructure.llm.ollama_adapter import OllamaAdapter
 
-            # Use default model for now
+            # Include ollama unconditionally when referenced (no network probing)
             adapters["ollama"] = OllamaAdapter()
 
-    return ProviderAwareLLMFacade(adapters)
+    # Set default_provider only if explicitly configured AND adapter is present
+    default_provider_name = os.getenv("OC_LLM_PROVIDER", "").strip()
+    default_provider = None
+    if default_provider_name and default_provider_name in adapters:
+        default_provider = default_provider_name
+
+    return ProviderAwareLLMFacade(adapters, default_provider=default_provider)
