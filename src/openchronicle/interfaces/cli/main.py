@@ -8,7 +8,7 @@ from typing import Any
 from openchronicle.core.application.runtime.container import CoreContainer
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.use_cases import (
-    continue_project_pending,
+    continue_project,
     create_project,
     list_projects,
     register_agent,
@@ -549,7 +549,7 @@ def main(argv: list[str] | None = None) -> int:
 
             # Execute all pending tasks via Application use case
             async def _continue_execution() -> None:
-                continue_summary = await continue_project_pending.execute(orchestrator, args.project_id)
+                continue_summary = await continue_project.execute(orchestrator, args.project_id)
                 print("\nExecution complete:")
                 print(f"  Tasks executed: {continue_summary.pending_tasks}")
                 print(f"  Succeeded: {continue_summary.succeeded}")

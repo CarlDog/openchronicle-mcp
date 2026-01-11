@@ -1,4 +1,4 @@
-"""Tests for continue_project_pending use case."""
+"""Tests for continue_project use case."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import patch
 import pytest
 
 from openchronicle.core.application.runtime.container import CoreContainer
-from openchronicle.core.application.use_cases import continue_project_pending
+from openchronicle.core.application.use_cases import continue_project
 from openchronicle.core.domain.models.project import TaskStatus
 
 
@@ -24,8 +24,8 @@ def project_id(container: CoreContainer) -> str:
     return project.id
 
 
-class TestContinueProjectPending:
-    """Tests for continue_project_pending use case."""
+class TestContinueProject:
+    """Tests for continue_project use case."""
 
     @pytest.mark.asyncio
     async def test_continue_executes_pending_tasks_in_order(self, container: CoreContainer, project_id: str) -> None:
@@ -51,7 +51,7 @@ class TestContinueProjectPending:
 
         # Act: Continue with mocked run_task.execute
         with patch("openchronicle.core.application.use_cases.run_task.execute", new=mock_execute):
-            summary = await continue_project_pending.execute(container.orchestrator, project_id)
+            summary = await continue_project.execute(container.orchestrator, project_id)
 
         # Assert: Both tasks executed in order
         assert summary.pending_tasks == 2, "Should report 2 pending tasks"
@@ -73,7 +73,7 @@ class TestContinueProjectPending:
         container.storage.update_task_result(task.id, '{"result": "done"}', TaskStatus.COMPLETED.value)
 
         # Act: Continue
-        summary = await continue_project_pending.execute(container.orchestrator, project_id)
+        summary = await continue_project.execute(container.orchestrator, project_id)
 
         # Assert: No execution
         assert summary.pending_tasks == 0, "Should report 0 pending tasks"
@@ -109,7 +109,7 @@ class TestContinueProjectPending:
 
         # Act: Continue with failure
         with patch("openchronicle.core.application.use_cases.run_task.execute", new=mock_execute_with_failure):
-            summary = await continue_project_pending.execute(container.orchestrator, project_id)
+            summary = await continue_project.execute(container.orchestrator, project_id)
 
         # Assert: Task2 failed, but task1 and task3 succeeded
         assert summary.pending_tasks == 3, "Should report 3 pending tasks"
@@ -152,7 +152,7 @@ class TestContinueProjectPending:
 
         # Act: Continue
         with patch("openchronicle.core.application.use_cases.run_task.execute", new=mock_execute):
-            summary = await continue_project_pending.execute(container.orchestrator, project_id)
+            summary = await continue_project.execute(container.orchestrator, project_id)
 
         # Assert: Only pending task executed
         assert summary.pending_tasks == 1, "Should report 1 pending task"
@@ -188,7 +188,7 @@ class TestContinueProjectPending:
 
         # Act: Continue
         with patch("openchronicle.core.application.use_cases.run_task.execute", new=mock_execute):
-            summary = await continue_project_pending.execute(container.orchestrator, project_id)
+            summary = await continue_project.execute(container.orchestrator, project_id)
 
         # Assert: Execution order matches created_at + id sort
         assert executed_order == [task1.id, task2.id, task3.id], "Tasks should execute in creation order"
@@ -216,10 +216,10 @@ class TestCLIBoundaryGuard:
         # Verify the new implementation doesn't have storage access in --continue path
         assert "container.storage.list_tasks_by_project" not in resume_section, (
             "CLI resume-project --continue should not directly access container.storage; "
-            "use continue_project_pending use case instead"
+            "use continue_project use case instead"
         )
 
         # Verify it uses the use case
         assert (
-            "continue_project_pending.execute" in resume_section
-        ), "CLI resume-project --continue should use continue_project_pending.execute"
+            "continue_project.execute" in resume_section
+        ), "CLI resume-project --continue should use continue_project.execute"

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from openchronicle.core.application.observability.llm_execution_index import (
+from openchronicle.core.application.observability.execution_index import (
     LLMCallSummary,
     LLMExecutionIndex,
 )
