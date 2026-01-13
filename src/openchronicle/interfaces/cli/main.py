@@ -10,6 +10,7 @@ from openchronicle.core.application.services.orchestrator import OrchestratorSer
 from openchronicle.core.application.use_cases import (
     continue_project,
     create_project,
+    diagnose_runtime,
     list_projects,
     register_agent,
     resume_project,
@@ -151,6 +152,9 @@ def main(argv: list[str] | None = None) -> int:
     smoke_cmd.add_argument("--model", default=None, help="Force model (optional override)")
     smoke_cmd.add_argument("--prompt", default=None, help="Custom prompt (optional)")
     smoke_cmd.add_argument("--json", action="store_true", help="Output result as JSON")
+
+    diag_cmd = sub.add_parser("diagnose", help="Troubleshoot runtime, paths, persistence, and provider config")
+    diag_cmd.add_argument("--json", action="store_true", help="Output diagnostics as JSON")
 
     args = parser.parse_args(argv)
     container = CoreContainer()
@@ -656,6 +660,60 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if result.outcome == "completed" else 1
 
         return asyncio.run(_smoke())
+
+    if args.command == "diagnose":
+        report = diagnose_runtime.execute()
+        if args.json:
+            # JSON output
+            output_dict = {
+                "timestamp_utc": report.timestamp_utc.isoformat(),
+                "db_path": report.db_path,
+                "db_exists": report.db_exists,
+                "db_size_bytes": report.db_size_bytes,
+                "db_modified_utc": report.db_modified_utc.isoformat() if report.db_modified_utc else None,
+                "config_dir": report.config_dir,
+                "config_dir_exists": report.config_dir_exists,
+                "plugin_dir": report.plugin_dir,
+                "plugin_dir_exists": report.plugin_dir_exists,
+                "running_in_container_hint": report.running_in_container_hint,
+                "persistence_hint": report.persistence_hint,
+                "provider_env_summary": report.provider_env_summary,
+            }
+            print(json.dumps(output_dict, indent=2))
+        else:
+            # Human-readable output
+            print("\n" + "=" * 60)
+            print("RUNTIME DIAGNOSTICS")
+            print("=" * 60)
+            print(f"Timestamp:           {report.timestamp_utc.isoformat()}")
+            print()
+            print("PATHS")
+            print("  Database:")
+            print(f"    Path:             {report.db_path}")
+            print(f"    Exists:           {report.db_exists}")
+            if report.db_exists:
+                size_mb = (report.db_size_bytes or 0) / (1024 * 1024)
+                print(f"    Size:             {report.db_size_bytes} bytes ({size_mb:.2f} MB)")
+                if report.db_modified_utc:
+                    print(f"    Last modified:    {report.db_modified_utc.isoformat()}")
+            print()
+            print("  Config:")
+            print(f"    Path:             {report.config_dir}")
+            print(f"    Exists:           {report.config_dir_exists}")
+            print()
+            print("  Plugins:")
+            print(f"    Path:             {report.plugin_dir}")
+            print(f"    Exists:           {report.plugin_dir_exists}")
+            print()
+            print("RUNTIME")
+            print(f"  In Container:       {report.running_in_container_hint}")
+            print(f"  Persistence Hint:   {report.persistence_hint}")
+            print()
+            print("PROVIDER CONFIG")
+            for key, value in sorted(report.provider_env_summary.items()):  # type: ignore
+                print(f"  {key:25} {value}")
+            print("=" * 60)
+        return 0
 
     parser.print_help()
     return 0
