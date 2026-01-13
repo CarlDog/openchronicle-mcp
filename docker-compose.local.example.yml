@@ -10,11 +10,11 @@ services:
     #
     # Option A (recommended for WSL + portability):
     # - Bind relative Linux-style paths that work from WSL or Git Bash.
-    # - Create these folders in your repo (e.g., mkdir -p docker/data docker/config).
+    # - Create these folders in your repo (e.g., mkdir -p .docker/data .docker/config).
     #
     # volumes:
-    #   - ./docker/data:/data
-    #   - ./docker/config:/config
+    #   - ./.docker/data:/data
+    #   - ./.docker/config:/config
     #   - ./plugins:/plugins
     #
     # Option B (Windows-only PowerShell usage):
