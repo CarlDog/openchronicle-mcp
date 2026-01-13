@@ -86,6 +86,13 @@ def main(argv: list[str] | None = None) -> int:
         help="Configuration directory (default: OC_CONFIG_DIR env var or 'config')",
     )
 
+    list_models_cmd = sub.add_parser("list-models", help="List available model configs (v1)")
+    list_models_cmd.add_argument(
+        "--config-dir",
+        default=None,
+        help="Configuration directory (default: OC_CONFIG_DIR env var or 'config')",
+    )
+
     sub.add_parser("list-projects", help="List projects")
 
     reg_cmd = sub.add_parser("register-agent", help="Register an agent")
@@ -199,6 +206,38 @@ def main(argv: list[str] | None = None) -> int:
 
         return 0
 
+    if args.command == "list-models":
+        import os
+
+        from openchronicle.core.application.config.model_config import ModelConfigLoader, sort_model_configs
+
+        config_dir = args.config_dir or os.getenv("OC_CONFIG_DIR", "config")
+        loader = ModelConfigLoader(config_dir)
+        configs = loader.list_all()
+
+        if not configs:
+            print("No model configs found")
+            return 0
+
+        print("provider\tmodel\tstatus\tdisplay_name\tapi_key\tfile")
+        for cfg in sort_model_configs(configs):
+            api_cfg = cfg.api_config
+            inline_key = api_cfg.get("api_key")
+            env_name = api_cfg.get("api_key_env")
+            standard_env = loader._standard_api_env(cfg.provider)  # noqa: SLF001 - intentionally reuse helper
+            env_set = bool(env_name and os.getenv(str(env_name)))
+            standard_env_set = bool(standard_env and os.getenv(standard_env))
+            key_set = bool(inline_key) or env_set or standard_env_set
+
+            status = "enabled" if cfg.enabled else "disabled"
+            display = cfg.display_name or "-"
+            print(
+                f"{cfg.provider}\t{cfg.model}\t{status}\t{display}\t"
+                f"{'[set]' if key_set else '[missing]'}\t{cfg.filename}"
+            )
+
+        return 0
+
     if args.command == "list-projects":
         projects = list_projects.execute(orchestrator)
         for p in projects:
@@ -297,7 +336,7 @@ def main(argv: list[str] | None = None) -> int:
             from openchronicle.core.infrastructure.llm.provider_facade import create_provider_aware_llm
 
             # Create facade with openai as default provider
-            llm = create_provider_aware_llm(providers=["openai", "stub"])
+            llm = create_provider_aware_llm()
             demo_container = CoreContainer(db_path=str(container.storage.db_path), llm=llm)
         else:
             # Use existing container (stub provider)
@@ -336,9 +375,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "verify-task":
         verification_service = VerificationService(container.storage)
-        result = verification_service.verify_task_chain(args.task_id)
-        _print_verification_result(result)
-        return 0 if result.success else 1
+        verify_result: VerificationResult = verification_service.verify_task_chain(args.task_id)
+        _print_verification_result(verify_result)
+        return 0 if verify_result.success else 1
 
     if args.command == "verify-project":
         verification_service = VerificationService(container.storage)

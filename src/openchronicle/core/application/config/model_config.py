@@ -1,9 +1,10 @@
-"""Model configuration loading with sensitive value resolution."""
+"""Model configuration loading for v1-style configs (no secret files)."""
 
 from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -14,220 +15,160 @@ class ConfigError(Exception):
 
 
 @dataclass
+class ModelConfigEntry:
+    """Raw model config entry loaded from disk (may not be fully resolved)."""
+
+    provider: str
+    model: str
+    enabled: bool
+    filename: str
+    display_name: str | None
+    api_config: dict[str, Any]
+
+
+@dataclass
 class ResolvedModelConfig:
-    """Model config with sensitive values resolved from files/env."""
+    """Model config with resolved runtime values (api key resolved)."""
 
     provider: str
     model: str
     endpoint: str | None = None
     base_url: str | None = None
+    timeout: int | float | None = None
+    auth_header: str | None = None
+    auth_format: str | None = None
     api_key: str | None = None
-    auth_token: str | None = None
-    extra_config: dict[str, Any] | None = None
+    filename: str | None = None
+    display_name: str | None = None
 
-    def __repr__(self) -> str:
-        """Secret-safe representation (no sensitive values printed)."""
+    def __repr__(self) -> str:  # pragma: no cover - defensive, but keep secret-safe
         return (
             f"ResolvedModelConfig(provider={self.provider!r}, model={self.model!r}, "
-            f"endpoint={self.endpoint!r}, base_url={self.base_url!r}, "
-            f"api_key={'<set>' if self.api_key else 'None'}, "
-            f"auth_token={'<set>' if self.auth_token else 'None'})"
+            f"endpoint={self.endpoint!r}, base_url={self.base_url!r}, timeout={self.timeout!r}, "
+            f"auth_header={self.auth_header!r}, auth_format={self.auth_format!r}, "
+            f"api_key={'<set>' if self.api_key else 'None'})"
         )
 
 
 class ModelConfigLoader:
-    """Load and resolve model configurations from JSON files with secret support."""
+    """Load v1-style model configs from <OC_CONFIG_DIR>/models/*.json."""
 
     def __init__(self, config_dir: str) -> None:
-        """
-        Initialize loader with config directory.
-
-        Args:
-            config_dir: Base configuration directory path
-        """
         self.config_dir = Path(config_dir)
         self.models_dir = self.config_dir / "models"
+        self._configs: list[ModelConfigEntry] = self._load_all()
 
-    def load_model_config(self, model_name: str) -> ResolvedModelConfig:
+    def list_all(self) -> list[ModelConfigEntry]:
+        """Return all parsed model configs (including disabled)."""
+        return list(self._configs)
+
+    def list_enabled(self) -> list[ModelConfigEntry]:
+        """Return enabled model configs only."""
+        return [cfg for cfg in self._configs if cfg.enabled]
+
+    def providers(self) -> set[str]:
+        """Providers present in enabled configs (deterministic order not required)."""
+        return {cfg.provider for cfg in self.list_enabled()}
+
+    def resolve(self, provider: str, model: str) -> ResolvedModelConfig:
         """
-        Load and resolve a model configuration by name.
+        Resolve a specific provider/model combination.
 
-        Looks for <OC_CONFIG_DIR>/models/<model_name>.json
-
-        Args:
-            model_name: Model name (without .json extension)
-
-        Returns:
-            ResolvedModelConfig with all sensitive values resolved
-
-        Raises:
-            ConfigError: If file not found or required values missing
+        Raises ConfigError if not found, disabled, or missing api key when required.
         """
-        config_file = self.models_dir / f"{model_name}.json"
+        for cfg in self.list_enabled():
+            if cfg.provider == provider and cfg.model == model:
+                return self._to_resolved(cfg)
+        raise ConfigError(f"Model config not found or disabled for provider={provider!r}, model={model!r}")
 
-        if not config_file.exists():
-            raise ConfigError(f"Model config not found: {config_file}")
+    # Internal helpers -------------------------------------------------
 
-        try:
-            with open(config_file) as f:
-                raw_config = json.load(f)
-        except (json.JSONDecodeError, OSError) as e:
-            raise ConfigError(f"Failed to load model config {model_name}: {e}") from e
+    def _load_all(self) -> list[ModelConfigEntry]:
+        if not self.models_dir.exists():
+            return []
 
-        return self._resolve_config(raw_config, model_name)
+        entries: list[ModelConfigEntry] = []
+        for path in sorted(self.models_dir.glob("*.json"), key=lambda p: p.name.lower()):
+            try:
+                raw = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                raise ConfigError(f"Failed to load model config {path.name}: {exc}") from exc
 
-    def _resolve_config(self, raw_config: dict[str, Any], model_name: str) -> ResolvedModelConfig:
-        """
-        Resolve all sensitive values in a loaded config.
+            provider = raw.get("provider")
+            model = raw.get("model") or raw.get("api_config", {}).get("model")
+            if not provider or not model:
+                # Skip invalid entries with explicit error for clarity
+                raise ConfigError(f"Model config {path.name} missing required provider/model")
 
-        Args:
-            raw_config: Raw loaded JSON config
-            model_name: Model name (for error messages)
+            enabled_raw = raw.get("enabled", True)
+            enabled = bool(enabled_raw) if not isinstance(enabled_raw, bool) else enabled_raw
 
-        Returns:
-            ResolvedModelConfig
+            api_config = raw.get("api_config", {}) if isinstance(raw.get("api_config", {}), dict) else {}
 
-        Raises:
-            ConfigError: If required sensitive values cannot be resolved
-        """
-        provider = raw_config.get("provider")
-        if not provider:
-            raise ConfigError(f"Model config {model_name}: 'provider' is required")
-
-        # For v1-style configs, extract from api_config.model if present
-        model = raw_config.get("model")
-        if not model:
-            api_config = raw_config.get("api_config", {})
-            model = api_config.get("model")
-        if not model:
-            raise ConfigError(f"Model config {model_name}: 'model' is required")
-
-        # Resolve sensitive values
-        api_key = self._resolve_sensitive_value(raw_config, "api_key")
-        auth_token = self._resolve_sensitive_value(raw_config, "auth_token")
-
-        # Handle base_url with env var override support
-        base_url = None
-        if "base_url_env" in raw_config:
-            # Check env var specified in config
-            env_var = raw_config["base_url_env"]
-            base_url = os.getenv(env_var)
-        if not base_url:
-            # Fall back to explicit base_url or api_config.default_base_url
-            base_url = raw_config.get("base_url") or (
-                raw_config.get("api_config", {}).get("default_base_url") if raw_config.get("api_config") else None
+            entries.append(
+                ModelConfigEntry(
+                    provider=str(provider),
+                    model=str(model),
+                    enabled=enabled,
+                    filename=path.name,
+                    display_name=raw.get("display_name"),
+                    api_config=api_config,
+                )
             )
 
-        endpoint = raw_config.get("endpoint") or (
-            raw_config.get("api_config", {}).get("endpoint") if raw_config.get("api_config") else None
-        )
+        return entries
+
+    def _to_resolved(self, cfg: ModelConfigEntry) -> ResolvedModelConfig:
+        api_cfg = cfg.api_config
+
+        # Apply API key resolution rules (inline -> api_key_env -> standard env)
+        api_key_inline = api_cfg.get("api_key")
+        if isinstance(api_key_inline, str) and api_key_inline.strip():
+            resolved_api_key: str | None = api_key_inline.strip()
+        else:
+            resolved_api_key = None
+            api_key_env_name = api_cfg.get("api_key_env")
+            if isinstance(api_key_env_name, str) and api_key_env_name.strip():
+                env_val = os.getenv(api_key_env_name.strip())
+                if env_val:
+                    resolved_api_key = env_val
+            if resolved_api_key is None:
+                standard_env = self._standard_api_env(cfg.provider)
+                if standard_env:
+                    env_val = os.getenv(standard_env)
+                    if env_val:
+                        resolved_api_key = env_val
+
+        # Only fail when the model is actually resolved/used
+        if resolved_api_key is None:
+            raise ConfigError(
+                f"API key not configured for provider={cfg.provider!r}, model={cfg.model!r}. "
+                "Set api_config.api_key or provide the expected environment variable."
+            )
 
         return ResolvedModelConfig(
-            provider=provider,
-            model=model,
-            endpoint=endpoint,
-            base_url=base_url,
-            api_key=api_key,
-            auth_token=auth_token,
-            extra_config={
-                k: v
-                for k, v in raw_config.items()
-                if k
-                not in [
-                    "provider",
-                    "model",
-                    "api_key_file",
-                    "auth_token_file",
-                    "base_url_file",
-                    "base_url_env",
-                    "api_config",
-                ]
-            },
+            provider=cfg.provider,
+            model=cfg.model,
+            endpoint=api_cfg.get("endpoint"),
+            base_url=api_cfg.get("default_base_url"),
+            timeout=api_cfg.get("timeout"),
+            auth_header=api_cfg.get("auth_header"),
+            auth_format=api_cfg.get("auth_format"),
+            api_key=resolved_api_key,
+            filename=cfg.filename,
+            display_name=cfg.display_name,
         )
 
-    def _resolve_sensitive_value(self, config: dict[str, Any], field_name: str) -> str | None:
-        """
-        Resolve a sensitive value from config with env override.
+    @staticmethod
+    def _standard_api_env(provider: str) -> str | None:
+        mapping = {
+            "openai": "OPENAI_API_KEY",
+            "anthropic": "ANTHROPIC_API_KEY",
+            "groq": "GROQ_API_KEY",
+        }
+        return mapping.get(provider.lower())
 
-        Precedence:
-        1) Explicit env var (e.g., OPENAI_API_KEY)
-        2) File path from <field_name>_file in config
-        3) Bare value in config (fallback)
 
-        Args:
-            config: Loaded config dict
-            field_name: Base field name (e.g., "api_key")
-
-        Returns:
-            Resolved value or None if not found
-        """
-        env_var_name = self._infer_env_var_name(config.get("provider"), field_name)
-
-        # 1) Check env var first (highest priority)
-        if env_var_name:
-            env_value = os.getenv(env_var_name)
-            if env_value:
-                return env_value.strip()
-
-        # 2) Check for _file field in config
-        file_field = f"{field_name}_file"
-        if file_field in config:
-            file_path_str = config[file_field]
-            if file_path_str:
-                return self._read_secret_file(file_path_str)
-
-        # 3) Check for bare value in config (for non-sensitive fields)
-        if field_name in config:
-            value = config[field_name]
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-
-        return None
-
-    def _read_secret_file(self, file_path: str) -> str:
-        """
-        Read a secret from a file (relative to config dir).
-
-        Args:
-            file_path: Relative path (from config dir) or absolute path
-
-        Returns:
-            Stripped file contents
-
-        Raises:
-            ConfigError: If file cannot be read
-        """
-        path = Path(file_path)
-        if not path.is_absolute():
-            path = self.config_dir / path
-
-        try:
-            return path.read_text(encoding="utf-8").strip()
-        except OSError as e:
-            # Don't expose the full path or the actual error details which might contain secrets
-            raise ConfigError("Failed to read secret file: permission denied or file not found") from e
-
-    def _infer_env_var_name(self, provider: str | None, field_name: str) -> str | None:
-        """
-        Infer standard env var name for a provider + field.
-
-        Args:
-            provider: Provider name
-            field_name: Field name (e.g., "api_key")
-
-        Returns:
-            Env var name or None
-        """
-        if not provider:
-            return None
-
-        # Standard mappings
-        if provider == "openai" and field_name == "api_key":
-            return "OPENAI_API_KEY"
-        if provider == "anthropic" and field_name == "api_key":
-            return "ANTHROPIC_API_KEY"
-        if provider == "ollama" and field_name == "base_url":
-            return "OLLAMA_HOST"
-
-        # Generic fallback: PROVIDER_FIELD
-        return f"{provider.upper()}_{field_name.upper()}"
+def sort_model_configs(configs: Iterable[ModelConfigEntry]) -> list[ModelConfigEntry]:
+    """Utility for deterministic sorting by filename then provider/model."""
+    return sorted(configs, key=lambda c: (c.filename.lower(), c.provider.lower(), c.model.lower()))

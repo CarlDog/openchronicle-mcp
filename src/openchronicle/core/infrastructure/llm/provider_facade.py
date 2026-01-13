@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from typing import Any
 
+from openchronicle.core.application.config.model_config import ConfigError, ModelConfigLoader, ResolvedModelConfig
 from openchronicle.core.domain.error_codes import (
     PROVIDER_NOT_CONFIGURED,
     PROVIDER_REQUIRED,
@@ -13,25 +15,14 @@ from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, 
 
 
 def extract_providers_from_routing_config() -> set[str]:
-    """
-    Extract provider names referenced by routing configuration.
+    """Legacy helper to read providers from routing env vars (for backward compatibility)."""
 
-    Checks:
-    - OC_LLM_PROVIDER (explicit default)
-    - OC_LLM_FAST_POOL (fast mode pool entries)
-    - OC_LLM_QUALITY_POOL (quality mode pool entries)
-
-    Returns:
-        Sorted set of provider names referenced in config
-    """
     providers: set[str] = set()
 
-    # Check explicit default provider
     default_provider = os.getenv("OC_LLM_PROVIDER", "").strip()
     if default_provider:
         providers.add(default_provider)
 
-    # Parse pools for provider:model pairs
     fast_pool = os.getenv("OC_LLM_FAST_POOL", "").strip()
     quality_pool = os.getenv("OC_LLM_QUALITY_POOL", "").strip()
 
@@ -49,24 +40,23 @@ def extract_providers_from_routing_config() -> set[str]:
 
 
 class ProviderAwareLLMFacade(LLMPort):
-    """
-    LLM facade that routes calls to specific provider adapters.
+    """LLM facade that routes calls to provider adapters backed by model configs."""
 
-    This enforces that routing decisions are authoritative - if routing
-    selects provider X, the call must execute against provider X.
-    """
+    def __init__(
+        self,
+        adapters: dict[str, LLMPort] | None = None,
+        *,
+        config_loader: ModelConfigLoader | None = None,
+        adapter_factories: dict[str, Callable[[ResolvedModelConfig], LLMPort]] | None = None,
+        default_provider: str | None = None,
+    ) -> None:
+        # Legacy static adapters (e.g., stub or injected fakes for tests)
+        self._adapters: dict[str, LLMPort] = adapters or {}
 
-    def __init__(self, adapters: dict[str, LLMPort], default_provider: str | None = None) -> None:
-        """
-        Initialize facade with provider adapters.
-
-        Args:
-            adapters: Mapping of provider name -> adapter instance
-                      e.g., {'openai': OpenAIAdapter(...), 'stub': StubLLMAdapter()}
-            default_provider: Optional default provider to use when provider=None.
-                            If not set, provider parameter is required at runtime.
-        """
-        self._adapters = adapters
+        # Config-driven factories + loader (new path)
+        self._config_loader = config_loader
+        self._adapter_factories = adapter_factories or {}
+        self._adapter_cache: dict[tuple[str, str], LLMPort] = {}
         self.default_provider = default_provider
 
     async def complete_async(
@@ -94,35 +84,42 @@ class ProviderAwareLLMFacade(LLMPort):
         Raises:
             LLMProviderError: If provider is not configured or unavailable
         """
+        available = list(self._adapters) + [p for p in self._adapter_factories if p not in self._adapters]
+
         if provider is None:
             if self.default_provider is not None:
-                # Use explicit default if configured
                 provider = self.default_provider
             else:
-                # Fail explicitly - no silent defaults
-                available = ", ".join(self._adapters.keys()) if self._adapters else "none"
                 raise LLMProviderError(
-                    f"Provider parameter is required. Available providers: {available}",
+                    f"Provider parameter is required. Available providers: {', '.join(available) if available else 'none'}",
                     status_code=None,
                     error_code=PROVIDER_REQUIRED,
-                    configured_providers=list(self._adapters.keys()),
+                    configured_providers=available,
                     hint="Set OC_LLM_PROVIDER to configure a default provider, or ensure routing provides a provider parameter.",
                 )
 
-        adapter = self._adapters.get(provider)
-        if adapter is None:
-            # Generate provider-specific hints
-            hint = self._generate_configuration_hint(provider)
-            raise LLMProviderError(
-                f"Provider '{provider}' not configured. Available: {', '.join(self._adapters.keys())}",
-                status_code=None,
-                error_code=PROVIDER_NOT_CONFIGURED,
-                provider=provider,
-                configured_providers=list(self._adapters.keys()),
-                hint=hint,
-            )
+        # Static adapter path (legacy/testing)
+        if provider in self._adapters:
+            adapter = self._adapters[provider]
+        else:
+            if provider not in self._adapter_factories or self._config_loader is None:
+                hint = self._generate_configuration_hint(provider)
+                raise LLMProviderError(
+                    f"Provider '{provider}' not configured. Available: {', '.join(available)}",
+                    status_code=None,
+                    error_code=PROVIDER_NOT_CONFIGURED,
+                    provider=provider,
+                    configured_providers=available,
+                    hint=hint,
+                )
 
-        # Delegate to the specific adapter
+            try:
+                resolved_config = self._config_loader.resolve(provider, model)
+            except ConfigError as exc:  # pragma: no cover - exercised in tests via control paths
+                raise LLMProviderError(str(exc), status_code=None, error_code="config_error") from exc
+
+            adapter = self._get_adapter(provider, resolved_config)
+
         return await adapter.complete_async(
             messages,
             model=model,
@@ -131,33 +128,24 @@ class ProviderAwareLLMFacade(LLMPort):
             provider=provider,
         )
 
+    def _get_adapter(self, provider: str, cfg: ResolvedModelConfig) -> LLMPort:
+        cache_key = (provider, cfg.model)
+        if cache_key in self._adapter_cache:
+            return self._adapter_cache[cache_key]
+
+        factory = self._adapter_factories[provider]
+        adapter = factory(cfg)
+        self._adapter_cache[cache_key] = adapter
+        # Expose in legacy adapter map for backward compatibility
+        self._adapters.setdefault(provider, adapter)
+        return adapter
+
     def _generate_configuration_hint(self, provider: str) -> str:
-        """
-        Generate actionable hint for configuring a provider.
-
-        Args:
-            provider: Provider name that is not configured
-
-        Returns:
-            Actionable hint for resolving configuration
-        """
         if provider == "openai":
-            # Check if API key is missing
-            if not os.getenv("OPENAI_API_KEY"):
-                return "Set OPENAI_API_KEY environment variable to use OpenAI provider."
-            return "OpenAI provider requires OPENAI_API_KEY and proper adapter wiring."
-
+            return "Ensure a model config exists in <OC_CONFIG_DIR>/models with api_config.api_key or OPENAI_API_KEY."
         if provider == "ollama":
-            return (
-                "Ollama provider must be included in OC_LLM_FAST_POOL or OC_LLM_QUALITY_POOL, "
-                "or explicitly wired during facade initialization."
-            )
-
-        # Generic hint
-        return (
-            f"Provider '{provider}' must be wired during facade initialization. "
-            f"Check routing configuration and adapter setup."
-        )
+            return "Ensure an Ollama model config is enabled in <OC_CONFIG_DIR>/models."
+        return "Add an enabled model config file under <OC_CONFIG_DIR>/models for this provider."
 
     def complete(
         self,
@@ -172,58 +160,90 @@ class ProviderAwareLLMFacade(LLMPort):
         raise NotImplementedError("Use complete_async")
 
 
-def create_provider_aware_llm(providers: list[str] | None = None) -> ProviderAwareLLMFacade:
-    """
-    Factory function to create provider-aware LLM facade.
+def create_provider_aware_llm(
+    providers: list[str] | None = None, config_dir: str | None = None
+) -> ProviderAwareLLMFacade:
+    """Factory function to create provider-aware LLM facade (config-driven with legacy compatibility)."""
 
-    Args:
-        providers: List of provider names to configure.
-                   If None, auto-detects based on routing config and environment.
+    resolved_config_dir: str = config_dir if config_dir is not None else (os.getenv("OC_CONFIG_DIR") or "config")
+    loader = ModelConfigLoader(resolved_config_dir)
 
-    Returns:
-        ProviderAwareLLMFacade with configured adapters
-    """
-    adapters: dict[str, LLMPort] = {}
+    # Always include stub adapter for compatibility/tests
+    from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
 
-    # Determine which providers to configure
+    static_adapters: dict[str, LLMPort] = {"stub": StubLLMAdapter()}
+    adapter_factories: dict[str, Callable[[ResolvedModelConfig], LLMPort]] = {}
+
+    # Determine which providers to wire
     if providers is None:
-        # Auto-detect: always include stub, plus providers from routing config
-        providers_needed = extract_providers_from_routing_config()
-        providers_to_setup = ["stub"]  # Always include stub
+        providers = sorted(extract_providers_from_routing_config())
+        if "stub" not in providers:
+            providers.append("stub")
+        # Also include providers discovered from model configs
+        providers_from_configs = sorted(loader.providers())
+        for p in providers_from_configs:
+            if p not in providers:
+                providers.append(p)
 
-        # Add providers referenced by routing config
-        for provider in sorted(providers_needed):
-            if provider not in providers_to_setup:
-                providers_to_setup.append(provider)
-    else:
-        providers_to_setup = providers
+    provider_set = set(providers)
 
-    # Create adapters for each provider
-    for provider in providers_to_setup:
-        if provider == "stub":
-            from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
+    def _make_openai_adapter(cfg: ResolvedModelConfig) -> LLMPort:
+        from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
 
-            adapters["stub"] = StubLLMAdapter()
+        return OpenAIAdapter(api_key=cfg.api_key, model=cfg.model, base_url=cfg.base_url)
 
-        elif provider == "openai":
-            api_key = os.getenv("OPENAI_API_KEY")
-            if not api_key:
-                # Skip if API key not available - will fail explicitly if routing tries to use it
-                continue
-            from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
+    def _make_ollama_adapter(cfg: ResolvedModelConfig) -> LLMPort:
+        from openchronicle.core.infrastructure.llm.ollama_adapter import OllamaAdapter
 
-            adapters["openai"] = OpenAIAdapter(api_key=api_key)
+        return OllamaAdapter(model=cfg.model, base_url=cfg.base_url or cfg.endpoint)
 
+    # Configure factories for providers found in configs
+    for provider in sorted(loader.providers()):
+        if provider not in provider_set:
+            continue
+        if provider == "openai":
+            adapter_factories[provider] = _make_openai_adapter
         elif provider == "ollama":
-            from openchronicle.core.infrastructure.llm.ollama_adapter import OllamaAdapter
+            adapter_factories[provider] = _make_ollama_adapter
 
-            # Include ollama unconditionally when referenced (no network probing)
-            adapters["ollama"] = OllamaAdapter()
+    # Instantiate adapters eagerly when configs resolve (maintains _adapters behavior)
+    for provider in sorted(loader.providers()):
+        if provider not in adapter_factories:
+            continue
+        # Choose the first enabled config for this provider
+        candidates = [cfg for cfg in loader.list_enabled() if cfg.provider == provider]
+        if not candidates:
+            continue
+        try:
+            resolved_cfg = loader.resolve(provider, candidates[0].model)
+        except ConfigError:
+            # Skip wiring if credentials missing; errors will surface on use
+            continue
+        static_adapters.setdefault(provider, adapter_factories[provider](resolved_cfg))
 
-    # Set default_provider only if explicitly configured AND adapter is present
+    # Legacy explicit providers list wiring (env-based)
+    if providers:
+        for provider in providers:
+            if provider in static_adapters:
+                continue
+            if provider == "openai":
+                api_key = os.getenv("OPENAI_API_KEY")
+                if api_key:
+                    static_adapters[provider] = _make_openai_adapter(
+                        ResolvedModelConfig(provider="openai", model="gpt-4o", api_key=api_key)
+                    )
+            elif provider == "ollama":
+                static_adapters[provider] = _make_ollama_adapter(
+                    ResolvedModelConfig(provider="ollama", model="default", endpoint=os.getenv("OLLAMA_HOST"))
+                )
+
     default_provider_name = os.getenv("OC_LLM_PROVIDER", "").strip()
-    default_provider = None
-    if default_provider_name and default_provider_name in adapters:
-        default_provider = default_provider_name
+    available_for_default = set(static_adapters.keys()) | set(adapter_factories.keys())
+    default_provider = default_provider_name if default_provider_name in available_for_default else None
 
-    return ProviderAwareLLMFacade(adapters, default_provider=default_provider)
+    return ProviderAwareLLMFacade(
+        adapters=static_adapters,
+        config_loader=loader,
+        adapter_factories=adapter_factories,
+        default_provider=default_provider,
+    )

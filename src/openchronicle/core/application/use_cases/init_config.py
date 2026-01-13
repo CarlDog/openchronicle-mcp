@@ -38,8 +38,8 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
                 "timeout": 30,
                 "auth_header": "Authorization",
                 "auth_format": "Bearer {api_key}",
+                "api_key": "changeme-openai-key",
             },
-            "api_key_file": "secrets/openai_api_key",
         },
         "anthropic_claude35_sonnet.json": {
             "provider": "anthropic",
@@ -52,8 +52,8 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
                 "timeout": 60,
                 "auth_header": "x-api-key",
                 "auth_format": "{api_key}",
+                "api_key": "changeme-anthropic-key",
             },
-            "api_key_file": "secrets/anthropic_api_key",
         },
         "ollama_mistral_7b.json": {
             "provider": "ollama",
@@ -61,11 +61,10 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
             "display_name": "Ollama - Mistral 7B",
             "description": "Local Mistral 7B model via Ollama",
             "api_config": {
-                "endpoint": "http://localhost:11434/api/generate",
+                "endpoint": "http://localhost:11434/api/chat",
                 "default_base_url": "http://localhost:11434",
                 "timeout": 120,
             },
-            "base_url_env": "OLLAMA_HOST",
         },
     }
 

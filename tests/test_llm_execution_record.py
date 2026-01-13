@@ -72,9 +72,9 @@ async def test_execution_record_emitted_on_success(
     assert payload.get("route_reference_id") not in (None, ""), "route_reference_id must be present and non-empty"
 
     # Equality constraints: on success, requested should match used (stub provider)
-    assert payload.get("provider_requested") == payload.get("provider_used"), (
-        "provider_requested must match provider_used on success"
-    )
+    assert payload.get("provider_requested") == payload.get(
+        "provider_used"
+    ), "provider_requested must match provider_used on success"
     # Note: model_requested and model may differ if routing selected one model but adapter used another
     # For stub provider, they should match
     assert payload.get("model_requested") != "", "model_requested must be populated from routing decision"

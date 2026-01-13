@@ -220,6 +220,6 @@ class TestCLIBoundaryGuard:
         )
 
         # Verify it uses the use case
-        assert "continue_project.execute" in resume_section, (
-            "CLI resume-project --continue should use continue_project.execute"
-        )
+        assert (
+            "continue_project.execute" in resume_section
+        ), "CLI resume-project --continue should use continue_project.execute"
