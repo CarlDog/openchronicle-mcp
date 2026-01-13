@@ -15,6 +15,7 @@ from openchronicle.core.application.replay.project_state import (
     ProjectStateView,
     TaskCounts,
 )
+from openchronicle.core.domain.models.verification_status import VerificationStatus
 from openchronicle.core.domain.ports.storage_port import StoragePort
 
 
@@ -118,6 +119,24 @@ class ReplayService:
                     if not attempt_id or latest_attempt.attempt_id == attempt_id:
                         latest_attempt.terminal = True
                         latest_attempt.status = "cancelled"
+
+            elif event.type == "task.verified":
+                # Extract attempt_id from payload
+                attempt_id = event.payload.get("attempt_id") if event.payload else None
+                if task_id in task_attempts and task_attempts[task_id]:
+                    # Mark latest attempt as verified
+                    latest_attempt = task_attempts[task_id][-1]
+                    if not attempt_id or latest_attempt.attempt_id == attempt_id:
+                        latest_attempt.verification_status = VerificationStatus.VERIFIED
+
+            elif event.type == "task.verification_failed":
+                # Extract attempt_id from payload
+                attempt_id = event.payload.get("attempt_id") if event.payload else None
+                if task_id in task_attempts and task_attempts[task_id]:
+                    # Mark latest attempt's verification as failed
+                    latest_attempt = task_attempts[task_id][-1]
+                    if not attempt_id or latest_attempt.attempt_id == attempt_id:
+                        latest_attempt.verification_status = VerificationStatus.FAILED
 
             # Ingest LLM events for correlation
             if event.type in {

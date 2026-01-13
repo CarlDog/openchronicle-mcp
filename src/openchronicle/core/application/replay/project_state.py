@@ -14,6 +14,7 @@ from datetime import datetime
 from openchronicle.core.application.observability.execution_index import (
     LLMCallSummary,
 )
+from openchronicle.core.domain.models.verification_status import VerificationStatus
 
 
 @dataclass
@@ -24,6 +25,17 @@ class TaskAttempt:
     started: bool = False
     terminal: bool = False
     status: str = "pending"  # pending, running, completed, failed, cancelled
+    verification_status: VerificationStatus = VerificationStatus.NOT_VERIFIED
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for output, including verification status."""
+        return {
+            "attempt_id": self.attempt_id,
+            "started": self.started,
+            "terminal": self.terminal,
+            "status": self.status,
+            "verification_status": self.verification_status.value,
+        }
 
 
 @dataclass
