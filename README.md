@@ -230,3 +230,21 @@ docker compose run --rm openchronicle smoke-live "Hello" --provider stub
 ```
 
 Compose mounts persistent named volumes for `/data` and `/config`, and bind-mounts the repo's `./plugins` into `/plugins` so bundled/demo plugins are available immediately. If you prefer an empty, persisted plugins volume, swap `./plugins:/plugins` for a named volume in `docker-compose.yml`. Add environment overrides in `.env` (see `.env.example`); config files in `/config` are optional, env vars remain primary.
+
+### Docker Persistence
+
+- Default compose uses named volumes for `/data` and `/config` (recommended for portability). These persist across container updates.
+- If you need host bind mounts:
+  - Windows (PowerShell): use absolute `C:/...` paths, and ensure the drive/folder is shared in Docker Desktop → Settings → Resources → File sharing.
+  - WSL: use relative repo paths like `./docker/data:/data` and `./docker/config:/config` when running compose inside WSL; avoid Windows-style paths from within WSL.
+  - Use an explicit local file instead of auto-overrides: copy `docker-compose.local.example.yml` to `docker-compose.local.yml`, edit paths, and invoke:
+
+    ```bash
+    docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm openchronicle --help
+    ```
+
+  - Verify the mount is active (should show a bind, not an internal ext4 volume):
+
+    ```bash
+    docker compose run --rm openchronicle sh -lc "mount | grep ' /data '"
+    ```

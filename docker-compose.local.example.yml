@@ -1,0 +1,26 @@
+# Local development overrides (example)
+# This file is NOT auto-loaded. Use it explicitly:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm openchronicle --help
+# Copy this file to docker-compose.local.yml and adjust the paths for your machine.
+
+services:
+  openchronicle:
+    # Provide an explicit volumes list; keep empty by default so this file is valid YAML.
+    volumes: []
+    #
+    # Option A (recommended for WSL + portability):
+    # - Bind relative Linux-style paths that work from WSL or Git Bash.
+    # - Create these folders in your repo (e.g., mkdir -p docker/data docker/config).
+    #
+    # volumes:
+    #   - ./docker/data:/data
+    #   - ./docker/config:/config
+    #   - ./plugins:/plugins
+    #
+    # Option B (Windows-only PowerShell usage):
+    # - Bind absolute Windows paths (ensure the drive/folder is shared in Docker Desktop > Settings > Resources > File sharing).
+    #
+    # volumes:
+    #   - C:/path/to/openchronicle/data:/data
+    #   - C:/path/to/openchronicle/config:/config
+    #   - ./plugins:/plugins

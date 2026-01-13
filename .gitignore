@@ -566,3 +566,4 @@ desktop.ini
 
 # Docker overrides
 docker-compose.override.yml
+docker-compose.local.yml
