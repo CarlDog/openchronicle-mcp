@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   openchronicle:
     build: .
@@ -11,10 +9,6 @@ services:
     env_file:
       - .env
     volumes:
-      - oc-data:/data
-      - oc-config:/config
-      - ./plugins:/plugins
-
-volumes:
-  oc-data:
-  oc-config:
+      - "D:/Docker/openchronicle/data:/data"
+      - "D:/Docker/openchronicle/config:/config"
+      - "D:/Docker/openchronicle/plugins:/plugins"
