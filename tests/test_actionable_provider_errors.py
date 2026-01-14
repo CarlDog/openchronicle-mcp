@@ -22,7 +22,7 @@ class TestActionableProviderErrors:
 
     @pytest.mark.asyncio
     async def test_provider_required_includes_hint_and_configured_providers(self) -> None:
-        """When provider=None and no default, error includes hint and available providers."""
+        """When provider is None and no default set, error includes hint and available providers."""
         facade = ProviderAwareLLMFacade(
             adapters={"stub": StubLLMAdapter(), "openai": StubLLMAdapter()},
             default_provider=None,

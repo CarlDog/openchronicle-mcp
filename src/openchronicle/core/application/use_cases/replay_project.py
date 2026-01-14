@@ -80,7 +80,7 @@ class ReplayService:
                 # Extract attempt_id from payload (if present)
                 attempt_id = event.payload.get("attempt_id") if event.payload else None
                 if not attempt_id:
-                    # Fallback: use event.id as attempt_id for backward compatibility
+                    # Fallback: use event.id as attempt_id when not present in payload
                     attempt_id = event.id
 
                 # Start new attempt

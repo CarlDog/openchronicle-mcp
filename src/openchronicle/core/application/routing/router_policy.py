@@ -113,7 +113,7 @@ class RouterPolicy:
             # Pool-based routing
             return self._route_from_pool(pool, mode, reasons, provider_preference)
 
-        # Fallback: single-provider routing when pools not configured
+        # Single-provider mode when pools not configured
         provider = provider_preference or self.default_provider
         if provider_preference:
             reasons.append(f"provider_override:{provider_preference}")

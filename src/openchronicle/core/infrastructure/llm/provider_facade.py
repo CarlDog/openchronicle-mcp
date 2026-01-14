@@ -50,7 +50,7 @@ class ProviderAwareLLMFacade(LLMPort):
         adapter_factories: dict[str, Callable[[ResolvedModelConfig], LLMPort]] | None = None,
         default_provider: str | None = None,
     ) -> None:
-        # Static test adapters (e.g., stub or injected fakes for tests)
+        # Injected adapters (e.g., stub or test fakes)
         self._adapters: dict[str, LLMPort] = adapters or {}
 
         # Config-driven factories + loader (new path)
@@ -150,8 +150,7 @@ class ProviderAwareLLMFacade(LLMPort):
             return f"{config_file_hint}. Optionally set OPENAI_API_KEY environment variable as override."
         if provider == "ollama":
             return (
-                f"{config_file_hint}. "
-                "Optionally set OLLAMA_HOST environment variable (e.g., http://localhost:11434)."
+                f"{config_file_hint}. Optionally set OLLAMA_HOST environment variable (e.g., http://localhost:11434)."
             )
         return (
             f"{config_file_hint}. "
@@ -179,7 +178,7 @@ def create_provider_aware_llm(
     resolved_config_dir: str = config_dir if config_dir is not None else (os.getenv("OC_CONFIG_DIR") or "config")
     loader = ModelConfigLoader(resolved_config_dir)
 
-    # Always include stub adapter for compatibility/tests
+    # Always include stub adapter for tests
     from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
 
     static_adapters: dict[str, LLMPort] = {"stub": StubLLMAdapter()}

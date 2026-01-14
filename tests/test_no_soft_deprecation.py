@@ -29,20 +29,25 @@ SOFT_DEPRECATION_PATTERNS = [
     # Explicit deprecation language
     r"\bdeprecated\b",
     r"\bdeprecate\b",
+    # Legacy language
     r"\blegacy\b",
     # Backward compatibility language
-    r"backward[s]?\s+compatibl",  # backward compatible, backwards compatible
+    r"backward\s+compatibility",
+    r"backwards\s+compatibility",
+    r"backward\s+compatible",
+    r"backwards\s+compatible",
     r"backward[s]?\s+compat\b",  # shorter form
     # Shim/workaround language
     r"\bshim\b",
     r"compatibility\s+shim",
     # "Keep for now" language
-    r"for\s+now",
+    r"\bfor\s+now\b",
     r"keep\s+for\s+now",
     r"remove\s+later",
     r"will\s+be\s+removed",
     r"to\s+be\s+removed",
     r"left\s+here",
+    r"\btemporary\b",
 ]
 
 # Tech debt breadcrumbs - zero-tolerance anywhere in the code
@@ -249,9 +254,9 @@ def test_v1_reference_excluded() -> None:
 
     # None should contain "v1.reference" as a path segment
     for path in scanned_paths:
-        assert "v1.reference" not in path.split("/"), (
-            f"ERROR: scan_repository returned path containing v1.reference: {path}\n" "The hard exclusion is broken!"
-        )
+        assert "v1.reference" not in path.split(
+            "/"
+        ), f"ERROR: scan_repository returned path containing v1.reference: {path}\nThe hard exclusion is broken!"
 
 
 def _format_violations_message(violations: list[tuple[Path, str, list[tuple[int, str]]]]) -> str:
@@ -270,7 +275,7 @@ def _format_violations_message(violations: list[tuple[Path, str, list[tuple[int,
     msg += (
         "IMPORTANT: This codebase enforces zero-tolerance for tech debt patterns.\n"
         "- Do NOT add TODO/FIXME/HACK comments as placeholders.\n"
-        "- Do NOT use soft deprecation markers (deprecated, legacy, backward compatible, shim, etc.).\n"
+        "- Do NOT use soft deprecation markers (deprecated, legacy, backward compatibility, shim, etc.).\n"
         "- DO DELETE dead code completely instead of marking it.\n"
     )
 

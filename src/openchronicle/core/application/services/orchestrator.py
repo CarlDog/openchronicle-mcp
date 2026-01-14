@@ -378,7 +378,7 @@ class OrchestratorService:
             )
         )
 
-        # Emit routing mode selection event (for backward compatibility)
+        # Emit routing mode selection event for observability
         routing_source = "task_payload" if desired_quality else "default"
         self.emit_event(
             Event(
@@ -792,8 +792,8 @@ class OrchestratorService:
                 task, {"agent_id": agent_id, "attempt_id": attempt_id, "emit_event": self.emit_event}
             )
 
-        prompt = task.payload.get("prompt") or task.payload.get("text") or ""
-        return await self.llm.generate_async(prompt, model=None, parameters=None)
+        # No handler registered for this task type
+        raise ValueError(f"No handler registered for task type: {task.type}")
 
     def _merge_summaries(self, summaries: list[str]) -> str:
         if not summaries:

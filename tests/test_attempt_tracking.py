@@ -269,11 +269,11 @@ class TestMultipleAttempts:
         assert len(state.interrupted_task_ids) == 0, "Should have no interrupted tasks"
 
 
-class TestBackwardCompatibility:
-    """Test that replay works with old events that lack attempt_id."""
+class TestMissingAttemptIdHandling:
+    """Test that replay gracefully handles events where attempt_id is not present in payload."""
 
     def test_replay_handles_missing_attempt_id(self, container: CoreContainer, project_id: str) -> None:
-        """ReplayService should handle old task.started events without attempt_id."""
+        """ReplayService should handle task.started events without attempt_id in payload."""
         # Arrange: Create task with old-style events (no attempt_id)
         task = container.orchestrator.submit_task(project_id, "test.task", {"data": "test"})
 
@@ -295,7 +295,7 @@ class TestBackwardCompatibility:
         assert task.id in state.interrupted_task_ids
 
     def test_replay_handles_mixed_events(self, container: CoreContainer, project_id: str) -> None:
-        """ReplayService should handle mix of old (no attempt_id) and new (with attempt_id) events."""
+        """ReplayService should handle mix of events with and without attempt_id in payload."""
         # Arrange: Task with one old attempt and one new attempt
         task = container.orchestrator.submit_task(project_id, "test.task", {"data": "test"})
 

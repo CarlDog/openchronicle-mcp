@@ -98,24 +98,3 @@ class LLMPort(ABC):
         """Synchronous convenience wrapper."""
 
         raise NotImplementedError
-
-    # Prompt-to-content wrapper methods
-    def generate(self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None) -> str:
-        response = self.complete(
-            messages=[{"role": "user", "content": prompt}],
-            model=model or "",
-            max_output_tokens=parameters.get("max_tokens") if parameters else None,
-            temperature=parameters.get("temperature") if parameters else None,
-        )
-        return response.content
-
-    async def generate_async(
-        self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None
-    ) -> str:
-        response = await self.complete_async(
-            messages=[{"role": "user", "content": prompt}],
-            model=model or "",
-            max_output_tokens=parameters.get("max_tokens") if parameters else None,
-            temperature=parameters.get("temperature") if parameters else None,
-        )
-        return response.content
