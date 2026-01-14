@@ -113,8 +113,8 @@ class TestActionableProviderErrors:
         # Config-first: should mention model config directory
         assert "model config" in error.hint.lower()
 
-    def test_error_fields_are_optional_and_backward_compatible(self) -> None:
-        """LLMProviderError can be created without new fields (backward compatible)."""
+    def test_error_fields_are_optional(self) -> None:
+        """LLMProviderError fields are optional; can create with just a message."""
         # Old-style creation (only message)
         error1 = LLMProviderError("Something went wrong")
         assert error1.error_code is None

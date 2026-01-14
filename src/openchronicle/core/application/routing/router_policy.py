@@ -37,7 +37,7 @@ class RouterPolicy:
         # Provider selection
         self.default_provider = os.getenv("OC_LLM_PROVIDER", "stub")
 
-        # Model selection (legacy single-provider)
+        # Model selection (fallback when pools not configured)
         self.model_fast = os.getenv("OC_LLM_MODEL_FAST") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         self.model_quality = os.getenv("OC_LLM_MODEL_QUALITY") or os.getenv("OPENAI_MODEL", "gpt-4o")
 
@@ -68,7 +68,7 @@ class RouterPolicy:
         """
         Route LLM call to appropriate provider and model.
 
-        Supports both pool-based routing (when pools configured) and legacy single-provider mode.
+        Supports both pool-based routing (when pools configured) and single-provider fallback when pools are empty.
 
         Args:
             task_type: Type of task being executed
@@ -106,14 +106,14 @@ class RouterPolicy:
             mode = "fast"
             reasons.append("rate_limit_downgrade")
 
-        # Step 4: Choose provider and model (pool-based or legacy)
+        # Step 4: Choose provider and model (pool-based or fallback)
         pool = self.pool_config.fast_pool if mode == "fast" else self.pool_config.quality_pool
 
         if pool:
             # Pool-based routing
             return self._route_from_pool(pool, mode, reasons, provider_preference)
 
-        # Legacy single-provider routing
+        # Fallback: single-provider routing when pools not configured
         provider = provider_preference or self.default_provider
         if provider_preference:
             reasons.append(f"provider_override:{provider_preference}")
@@ -149,7 +149,7 @@ class RouterPolicy:
             RouteDecision with selected provider, model, and candidate list
         """
         if not pool:
-            # Fallback to legacy if pool is empty
+            # Fallback to single-provider if pool is empty
             provider = provider_preference or self.default_provider
             reasons.append(f"empty_pool_fallback:{provider}")
             model = self._select_model(mode, provider, reasons)

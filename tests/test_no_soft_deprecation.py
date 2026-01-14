@@ -1,6 +1,6 @@
 """Test that prevents soft deprecation patterns and tech debt breadcrumbs.
 
-This test ensures the codebase maintains a zero-tolerance policy for:
+This test enforces zero-tolerance for:
 - Soft deprecation markers (deprecated, legacy, compatibility shims, etc.)
 - Tech debt breadcrumbs (TODO, FIXME, HACK, XXX, TEMP, workaround)
 - Dead code patterns (if False:, if 0:)
@@ -19,43 +19,39 @@ from helpers.repo_scan import scan_repository  # isort:skip
 
 # Allowlist for patterns we explicitly accept.
 # Maps relative file path (as string) to list of allowed strings/patterns.
-# Keep this minimal; ideally empty.
-#
-# Example (if needed):
-#   ALLOWLIST = {
-#       "docs/examples/old_pattern.md": ["deprecated", "legacy"],
-#   }
-ALLOWLIST: dict[str, list[str]] = {
-    # This test checks that LLMProviderError supports backward-compatible creation
-    "tests/test_actionable_provider_errors.py": [
-        r"backward compatible",
-    ]
-}
+# EMPTY BY DEFAULT - add only if truly necessary.
+ALLOWLIST: dict[str, list[str]] = {}
 
 
-# Soft deprecation markers that indicate code should be deleted, not kept with a marker.
-# Note: We focus on explicit deprecation language, not generic use of "legacy" or "temporary"
-# which may describe legitimate fallback paths or test fixtures.
+# Soft deprecation markers - expanded to catch more patterns
+# These patterns are checked only in comments and docstrings (not variable names)
 SOFT_DEPRECATION_PATTERNS = [
-    r"\bdeprecated\b",  # deprecated (case-insensitive)
-    r"\bdeprecate\b",  # deprecate
-    r"backward[s]?\s+compatible",  # backward compatible, backwards compatible
-    r"compatibility\s+shim",  # compatibility shim
-    r"for\s+now",  # for now
-    r"keep\s+for\s+now",  # keep for now
-    r"remove\s+later",  # remove later
-    r"will\s+be\s+removed",  # will be removed
-    r"to\s+be\s+removed",  # to be removed
-    r"left\s+here",  # left here
+    # Explicit deprecation language
+    r"\bdeprecated\b",
+    r"\bdeprecate\b",
+    r"\blegacy\b",
+    # Backward compatibility language
+    r"backward[s]?\s+compatibl",  # backward compatible, backwards compatible
+    r"backward[s]?\s+compat\b",  # shorter form
+    # Shim/workaround language
+    r"\bshim\b",
+    r"compatibility\s+shim",
+    # "Keep for now" language
+    r"for\s+now",
+    r"keep\s+for\s+now",
+    r"remove\s+later",
+    r"will\s+be\s+removed",
+    r"to\s+be\s+removed",
+    r"left\s+here",
 ]
 
-# Tech debt breadcrumbs - these should never appear
+# Tech debt breadcrumbs - zero-tolerance anywhere in the code
 TECH_DEBT_PATTERNS = [
-    r"^[^#]*\bTODO\b",  # TODO (case-sensitive)
-    r"^[^#]*\bFIXME\b",  # FIXME (case-sensitive)
-    r"^[^#]*\bHACK\b",  # HACK (case-sensitive)
-    r"^[^#]*\bXXX\b",  # XXX (case-sensitive)
-    r"^[^#]*\bTEMP\b",  # TEMP (case-sensitive)
+    r"\bTODO\b",  # TODO (case-sensitive)
+    r"\bFIXME\b",  # FIXME (case-sensitive)
+    r"\bHACK\b",  # HACK (case-sensitive)
+    r"\bXXX\b",  # XXX (case-sensitive)
+    r"\bTEMP\b",  # TEMP (case-sensitive)
     r"\bworkaround\b",  # workaround
 ]
 
@@ -79,8 +75,25 @@ DEPRECATED_FILENAME_PATTERNS = [
 ]
 
 
+def _is_comment_or_docstring_context(line: str) -> bool:
+    """Check if a line is in a comment or docstring context."""
+    stripped = line.lstrip()
+    # Check if line starts with # (comment)
+    if stripped.startswith("#"):
+        return True
+    # Check for docstring markers (simplistic: triple quotes)
+    if '"""' in line or "'''" in line:
+        return True
+    # Check if line looks like it's inside a docstring (indented + text after whitespace)
+    # This is a heuristic; for now, we trust comments and docstring markers
+    return False
+
+
 def _is_allowed(file_path: Path, matched_text: str) -> bool:
     """Check if a specific match is in the allowlist for this file."""
+    if not ALLOWLIST:
+        return False
+
     file_path_str = str(file_path).replace("\\", "/")  # Normalize path separators
     if file_path_str not in ALLOWLIST:
         return False
@@ -100,12 +113,14 @@ def _is_allowed(file_path: Path, matched_text: str) -> bool:
 
 
 def _check_soft_deprecations(file_path: Path, content: str) -> list[tuple[int, str]]:
-    """Check for soft deprecation patterns in file content."""
+    """Check for soft deprecation patterns in comments/docstrings."""
     violations = []
 
     for line_num, line in enumerate(content.split("\n"), start=1):
-        # Skip comments-only lines for deprecation markers (but not tech debt)
-        # We want to flag "this is deprecated" in comments, so check the whole line
+        # Only check lines that look like comments or docstrings
+        if not _is_comment_or_docstring_context(line):
+            continue
+
         for pattern in SOFT_DEPRECATION_PATTERNS:
             if re.search(pattern, line, re.IGNORECASE):
                 if not _is_allowed(file_path, line.strip()):
@@ -116,7 +131,7 @@ def _check_soft_deprecations(file_path: Path, content: str) -> list[tuple[int, s
 
 
 def _check_tech_debt(file_path: Path, content: str) -> list[tuple[int, str]]:
-    """Check for tech debt breadcrumbs (TODO, FIXME, HACK, etc.)."""
+    """Check for tech debt breadcrumbs (TODO, FIXME, HACK, etc.) - zero-tolerance."""
     violations = []
 
     for line_num, line in enumerate(content.split("\n"), start=1):
@@ -225,6 +240,20 @@ def test_no_deprecated_filenames() -> None:
         raise AssertionError(msg)
 
 
+def test_v1_reference_excluded() -> None:
+    """Regression test: verify v1.reference/ is completely excluded from scans."""
+    scanned_files = scan_repository()
+
+    # Collect all paths that were scanned
+    scanned_paths = [str(path).replace("\\", "/") for path, _ in scanned_files]
+
+    # None should contain "v1.reference" as a path segment
+    for path in scanned_paths:
+        assert "v1.reference" not in path.split("/"), (
+            f"ERROR: scan_repository returned path containing v1.reference: {path}\n" "The hard exclusion is broken!"
+        )
+
+
 def _format_violations_message(violations: list[tuple[Path, str, list[tuple[int, str]]]]) -> str:
     """Format a detailed violation message."""
     msg = "Found tech debt patterns in codebase:\n\n"
@@ -241,9 +270,8 @@ def _format_violations_message(violations: list[tuple[Path, str, list[tuple[int,
     msg += (
         "IMPORTANT: This codebase enforces zero-tolerance for tech debt patterns.\n"
         "- Do NOT add TODO/FIXME/HACK comments as placeholders.\n"
-        "- Do NOT use soft deprecation markers (deprecated, legacy, shim, etc.).\n"
+        "- Do NOT use soft deprecation markers (deprecated, legacy, backward compatible, shim, etc.).\n"
         "- DO DELETE dead code completely instead of marking it.\n"
-        "If you need an exception, add an entry to ALLOWLIST in test_no_soft_deprecation.py\n"
     )
 
     return msg

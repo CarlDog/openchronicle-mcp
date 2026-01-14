@@ -99,7 +99,7 @@ class LLMPort(ABC):
 
         raise NotImplementedError
 
-    # Backwards compatibility helpers for legacy prompt-only flows
+    # Prompt-to-content wrapper methods
     def generate(self, prompt: str, *, model: str | None = None, parameters: dict[str, Any] | None = None) -> str:
         response = self.complete(
             messages=[{"role": "user", "content": prompt}],

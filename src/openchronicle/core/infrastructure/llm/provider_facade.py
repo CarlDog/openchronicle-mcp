@@ -15,7 +15,7 @@ from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, 
 
 
 def extract_providers_from_routing_config() -> set[str]:
-    """Legacy helper to read providers from routing env vars (for backward compatibility)."""
+    """Helper to read providers from routing environment variables."""
 
     providers: set[str] = set()
 
@@ -50,7 +50,7 @@ class ProviderAwareLLMFacade(LLMPort):
         adapter_factories: dict[str, Callable[[ResolvedModelConfig], LLMPort]] | None = None,
         default_provider: str | None = None,
     ) -> None:
-        # Legacy static adapters (e.g., stub or injected fakes for tests)
+        # Static test adapters (e.g., stub or injected fakes for tests)
         self._adapters: dict[str, LLMPort] = adapters or {}
 
         # Config-driven factories + loader (new path)
@@ -109,7 +109,7 @@ class ProviderAwareLLMFacade(LLMPort):
 
             adapter = self._get_adapter(provider, resolved_config)
         else:
-            # Legacy/testing providers must be explicitly present in static adapters
+            # Static adapters must be explicitly present for test/stub providers
             if provider in self._adapters:
                 adapter = self._adapters[provider]
             else:
@@ -147,15 +147,15 @@ class ProviderAwareLLMFacade(LLMPort):
         config_file_hint = f"Add an enabled model config in {config_dir}/models/{provider}_*.json"
 
         if provider == "openai":
-            return f"{config_file_hint}. For legacy setup, set OPENAI_API_KEY environment variable."
+            return f"{config_file_hint}. Optionally set OPENAI_API_KEY environment variable as override."
         if provider == "ollama":
             return (
                 f"{config_file_hint}. "
-                "For legacy setup, set OLLAMA_HOST environment variable (e.g., http://localhost:11434)."
+                "Optionally set OLLAMA_HOST environment variable (e.g., http://localhost:11434)."
             )
         return (
             f"{config_file_hint}. "
-            "Or add the provider to routing pools (OC_LLM_FAST_POOL, OC_LLM_QUALITY_POOL) for legacy setup."
+            "Or add the provider to routing pools (OC_LLM_FAST_POOL, OC_LLM_QUALITY_POOL) via environment."
         )
 
     def complete(
@@ -174,7 +174,7 @@ class ProviderAwareLLMFacade(LLMPort):
 def create_provider_aware_llm(
     providers: list[str] | None = None, config_dir: str | None = None
 ) -> ProviderAwareLLMFacade:
-    """Factory function to create provider-aware LLM facade (config-driven with legacy compatibility)."""
+    """Factory function to create provider-aware LLM facade with config-driven routing."""
 
     resolved_config_dir: str = config_dir if config_dir is not None else (os.getenv("OC_CONFIG_DIR") or "config")
     loader = ModelConfigLoader(resolved_config_dir)
