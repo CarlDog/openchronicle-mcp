@@ -68,6 +68,40 @@ oc demo-summary <project_id> "Your text here" --use-openai
 | `OC_CONFIG_DIR` | path | `config` (dev) or `/config` (Docker) | Optional configuration directory |
 | `OC_PLUGIN_DIR` | path | `plugins` (dev) or `/plugins` (Docker) | Plugin directory (explicit loading only) |
 
+### Secret Management
+
+**OpenChronicle follows a zero-secrets-in-repo policy:**
+
+- **Do not commit** `.env.local`, `.env`, or other environment files to the repository
+- **Do not commit** real API keys, tokens, or credentials to source files
+
+**Where to store secrets:**
+
+1. **Config files**: Model configs in `/config` directory (user-owned persistent volume in Docker, `config/` in dev)
+   - These files are persistent and user-owned (not in the repo tree)
+   - Plaintext config is acceptable since they live outside version control
+   - Example: `config/models/openai-gpt4o.json` can contain your actual API key
+
+2. **Environment variables**: Runtime configuration via shell exports or `.env.local`
+   - Use `.env.local` for local development (git-ignored, never committed)
+   - Set `OPENAI_API_KEY` and other secrets via env vars
+   - `.env.example` is provided as a placeholder-only template
+
+3. **Container secrets**: For Docker deployments
+   - Use Docker secrets or environment variables passed at runtime
+   - Never bake secrets into images
+
+**Placeholders for examples:**
+
+When documenting or creating examples, use obvious placeholders:
+
+- `changeme`
+- `replace_me`
+- `your_key_here`
+- `test-key` (for tests only)
+
+The test suite (`tests/test_no_secrets_committed.py`) enforces this policy and will fail the build if real-looking secrets are detected.
+
 ## Usage Tracking and Token Budgets
 
 OpenChronicle automatically tracks LLM usage metrics (input/output/total tokens, latency) for all API calls and stores them in the database.

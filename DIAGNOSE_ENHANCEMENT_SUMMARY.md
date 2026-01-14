@@ -53,17 +53,20 @@ Updated `_generate_configuration_hint()` to be config-first:
 - Provider-specific examples (e.g., OLLAMA_HOST=http://localhost:11434)
 - Mentions OC_LLM_FAST_POOL/OC_LLM_QUALITY_POOL only as tertiary fallback
 
-### 4. **Deprecated provider_selector Module**
+### 4. **Removed Dead Code: provider_selector Module**
 
-**File:** `src/openchronicle/core/infrastructure/llm/provider_selector.py`
+**Deleted:**
 
-Added deprecation docstring explaining:
+- `src/openchronicle/core/infrastructure/llm/provider_selector.py` (dead module)
+- `tests/test_provider_selection.py` (dead test)
 
-- Module maintained for backward compatibility with legacy tests
+**Rationale:**
+
 - Core runtime uses ProviderAwareLLMFacade (provider_facade.py) as authoritative
-- New code should use config-driven approach or ModelConfigLoader
-
-**Note:** Module not deleted because it's referenced in test_provider_selection.py tests
+- Config-driven provider selection is the standard pattern
+- No production code references provider_selector
+- Keeping it was "compatibility bait" for Copilot to re-introduce tech debt
+- Deleted completely to enforce zero-tolerance for dead code
 
 ### 5. **Updated Tests**
 
@@ -99,13 +102,13 @@ Tests cover:
 ## Acceptance Criteria - Met ✅
 
 | Criterion | Status | Notes |
-|-----------|--------|-------|
+| --------- | ------ | ----- |
 | `oc diagnose` makes it obvious whether v1 configs are discovered and usable | ✅ | Detailed per-provider stats in report |
 | No secret leakage in diagnose output | ✅ | 12+ tests verify; api_keys reported as set/missing only |
 | Provider hints point to `<OC_CONFIG_DIR>/models` as primary | ✅ | Config-first hints with env as secondary |
-| Optional: provider_selector removed or clearly deprecated | ✅ | Deprecated with docstring; tests still pass |
+| Dead code removed (provider_selector, test_provider_selection) | ✅ | Deleted completely; no references remain |
 | v1.reference untouched | ✅ | No changes to v1.reference/ |
-| All tests pass | ✅ | 32/32 tests passing in diagnose/error/config suite |
+| All tests pass | ✅ | 269/269 tests passing (includes new hygiene tests) |
 
 ---
 
@@ -139,10 +142,21 @@ Tests cover:
 
 - New DiagnosticsReport fields are optional-like (won't break serialization)
 - Provider hints remain helpful even for legacy env-based setup
-- provider_selector still functions (only deprecated)
 - No breaking changes to public APIs
 
 ---
+
+## Files Deleted
+
+- `src/openchronicle/core/infrastructure/llm/provider_selector.py` (dead code)
+- `tests/test_provider_selection.py` (dead test)
+- `data/openchronicle.db` (runtime artifact)
+- `docker-compose.local.yml` (local override)
+
+## Files Created
+
+- `tests/test_repo_hygiene.py` (prevents re-introduction of runtime artifacts)
+- `tests/test_no_secrets_committed.py` (prevents secret leakage)
 
 ## Files Modified
 
