@@ -675,7 +675,10 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
 
     def _row_to_turn(self, row: sqlite3.Row) -> Turn:
         reasons_raw = row["routing_reasons"] or "[]"
-        memory_raw = row["memory_written_ids"] if "memory_written_ids" in row else "[]"  # noqa: SIM401
+        try:
+            memory_raw = row["memory_written_ids"]
+        except KeyError:
+            memory_raw = "[]"
         try:
             memory_ids = json.loads(memory_raw) if memory_raw else []
         except json.JSONDecodeError:

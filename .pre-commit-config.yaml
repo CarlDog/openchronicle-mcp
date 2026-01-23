@@ -65,6 +65,15 @@ repos:
         name: Check for large files
         args: [--maxkb=1000]
 
+  # Tests - Pytest (no integration)
+  - repo: local
+    hooks:
+      - id: pytest-no-integration
+        name: Pytest (no integration)
+        entry: .venv/Scripts/python.exe -m pytest -m "not integration"
+        language: system
+        pass_filenames: false
+
 # CI Configuration
 ci:
   autofix_commit_msg: |
