@@ -17,6 +17,17 @@ from openchronicle.core.application.use_cases import (
 from openchronicle.core.domain.services.verification import VerificationResult, VerificationService
 
 STDIO_RPC_PROTOCOL_VERSION = "1"
+SUPPORTED_COMMANDS: tuple[str, ...] = (
+    "convo.ask",
+    "convo.export",
+    "convo.mode",
+    "convo.show",
+    "convo.verify",
+    "system.commands",
+    "system.info",
+    "system.ping",
+    "system.shutdown",
+)
 
 
 def json_error_payload(
@@ -128,6 +139,41 @@ def dispatch_json_command(
     command: str,
     args: dict[str, object],
 ) -> dict[str, object]:
+    if command not in SUPPORTED_COMMANDS:
+        return json_envelope(
+            command=command,
+            ok=False,
+            result=None,
+            error=json_error_payload(
+                error_code="UNKNOWN_COMMAND",
+                message=f"Unsupported command: {command}",
+                hint=None,
+            ),
+        )
+
+    if command == "system.info":
+        return json_envelope(
+            command=command,
+            ok=True,
+            result={
+                "name": "openchronicle",
+                "protocol_version": STDIO_RPC_PROTOCOL_VERSION,
+                "capabilities": {
+                    "rpc": True,
+                    "serve": True,
+                },
+            },
+            error=None,
+        )
+
+    if command == "system.commands":
+        return json_envelope(
+            command=command,
+            ok=True,
+            result={"commands": list(SUPPORTED_COMMANDS)},
+            error=None,
+        )
+
     if command == "system.ping":
         return json_envelope(
             command=command,
@@ -331,16 +377,6 @@ def dispatch_json_command(
                 error=None,
             )
 
-        return json_envelope(
-            command=command,
-            ok=False,
-            result=None,
-            error=json_error_payload(
-                error_code="UNKNOWN_COMMAND",
-                message=f"Unsupported command: {command}",
-                hint=None,
-            ),
-        )
     except Exception as exc:
         return json_envelope(
             command=command,
@@ -348,6 +384,17 @@ def dispatch_json_command(
             result=None,
             error=_normalize_error(exc),
         )
+
+    return json_envelope(
+        command=command,
+        ok=False,
+        result=None,
+        error=json_error_payload(
+            error_code="UNKNOWN_COMMAND",
+            message=f"Unsupported command: {command}",
+            hint=None,
+        ),
+    )
 
 
 def dispatch_request(container: CoreContainer, request: dict[str, object]) -> dict[str, object]:

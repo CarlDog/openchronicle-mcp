@@ -64,6 +64,26 @@ Responses are single JSON objects on one line.
 
 ## Supported commands
 
+### system.info
+
+Args: `{}`
+
+Result:
+
+```json
+{"name":"openchronicle","protocol_version":"1","capabilities":{"serve":true,"rpc":true}}
+```
+
+### system.commands
+
+Args: `{}`
+
+Result:
+
+```json
+{"commands":["convo.ask","convo.export","convo.mode","convo.show","convo.verify","system.commands","system.info","system.ping","system.shutdown"]}
+```
+
 ### system.ping
 
 Args: `{}`
