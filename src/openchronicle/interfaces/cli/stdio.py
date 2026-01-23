@@ -22,7 +22,7 @@ from openchronicle.core.application.use_cases import (
     run_task,
     show_conversation,
 )
-from openchronicle.core.domain.models.project import Event
+from openchronicle.core.domain.models.project import Event, Task, TaskStatus
 from openchronicle.core.domain.ports.llm_port import LLMProviderError
 from openchronicle.core.domain.services.verification import VerificationResult, VerificationService
 from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
@@ -36,6 +36,8 @@ SUPPORTED_COMMANDS: tuple[str, ...] = (
     "convo.mode",
     "convo.show",
     "convo.verify",
+    "task.get",
+    "task.list",
     "system.commands",
     "system.health",
     "system.info",
@@ -175,6 +177,19 @@ def _pool_candidates(pool: Sequence[object]) -> list[dict[str, object]]:
     return results
 
 
+def _task_summary(task: Task) -> dict[str, object]:
+    summary: dict[str, object] = {
+        "task_id": task.id,
+        "type": task.type,
+        "status": task.status.value,
+        "created_at": task.created_at.isoformat(),
+        "updated_at": task.updated_at.isoformat(),
+    }
+    if task.parent_task_id:
+        summary["parent_task_id"] = task.parent_task_id
+    return summary
+
+
 def dispatch_json_command(
     container: CoreContainer,
     command: str,
@@ -211,7 +226,7 @@ def dispatch_json_command(
         return json_envelope(
             command=command,
             ok=True,
-            result={"commands": list(SUPPORTED_COMMANDS)},
+            result={"commands": sorted(SUPPORTED_COMMANDS)},
             error=None,
         )
 
@@ -541,6 +556,98 @@ def dispatch_json_command(
                     "conversation_id": conversation_id,
                     "task_id": task.id,
                     "status": "queued",
+                },
+                error=None,
+            )
+
+        if command == "task.get":
+            task_id = str(args.get("task_id", ""))
+            task_maybe = container.storage.get_task(task_id)
+            if task_maybe is None:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="TASK_NOT_FOUND",
+                        message=f"Task not found: {task_id}",
+                        hint=None,
+                    ),
+                )
+
+            return json_envelope(
+                command=command,
+                ok=True,
+                result={"task": _task_summary(task_maybe)},
+                error=None,
+            )
+
+        if command == "task.list":
+            status_value = args.get("status")
+            status_filter = str(status_value).lower() if isinstance(status_value, str) else None
+            if status_filter is not None and status_filter not in {status.value for status in TaskStatus}:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message=f"Unsupported status filter: {status_value}",
+                        hint=None,
+                    ),
+                )
+
+            limit = coerce_int(args.get("limit"), 50)
+            if limit <= 0:
+                limit = 50
+            limit = min(limit, 200)
+            offset = coerce_int(args.get("offset"), 0)
+            if offset < 0:
+                offset = 0
+
+            sort_key = args.get("sort", "created_at")
+            if sort_key != "created_at":
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message=f"Unsupported sort key: {sort_key}",
+                        hint=None,
+                    ),
+                )
+
+            order = args.get("order", "desc")
+            if order not in {"asc", "desc"}:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message=f"Unsupported sort order: {order}",
+                        hint=None,
+                    ),
+                )
+
+            tasks: list[Task] = []
+            for project in container.storage.list_projects():
+                tasks.extend(container.storage.list_tasks_by_project(project.id))
+
+            if status_filter is not None:
+                tasks = [task for task in tasks if task.status.value == status_filter]
+
+            tasks.sort(key=lambda task: (task.created_at, task.id), reverse=order == "desc")
+            total = len(tasks)
+            sliced = tasks[offset : offset + limit]
+
+            return json_envelope(
+                command=command,
+                ok=True,
+                result={
+                    "tasks": [_task_summary(task) for task in sliced],
+                    "total": total,
                 },
                 error=None,
             )

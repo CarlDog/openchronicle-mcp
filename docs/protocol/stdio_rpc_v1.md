@@ -61,6 +61,7 @@ Responses are single JSON objects on one line.
 - `INVALID_ARGUMENT`
 - `INTERNAL_ERROR`
 - `UNKNOWN_COMMAND`
+- `TASK_NOT_FOUND`
 - `NSFW_POOL_NOT_CONFIGURED`
 - `UNSUPPORTED_PROTOCOL_VERSION`
 
@@ -92,7 +93,7 @@ Args: `{}`
 Result:
 
 ```json
-{"commands":["convo.ask","convo.ask_async","convo.export","convo.mode","convo.show","convo.verify","system.commands","system.health","system.info","system.ping","system.shutdown"]}
+{"commands":["convo.ask","convo.ask_async","convo.export","convo.mode","convo.show","convo.verify","task.get","task.list","system.commands","system.health","system.info","system.ping","system.shutdown"]}
 ```
 
 ### system.health
@@ -178,6 +179,34 @@ Result:
 ```
 
 This enqueues work for a future worker; no LLM execution happens immediately.
+
+### task.get
+
+Args:
+
+```json
+{"task_id":"..."}
+```
+
+Result:
+
+```json
+{"task":{"task_id":"...","type":"...","status":"pending","created_at":"...","updated_at":"...","parent_task_id":null}}
+```
+
+### task.list
+
+Args (all optional):
+
+```json
+{"status":"pending","limit":50,"offset":0,"sort":"created_at","order":"desc"}
+```
+
+Result:
+
+```json
+{"tasks":[{"task_id":"...","type":"...","status":"pending","created_at":"...","updated_at":"..."}],"total":1}
+```
 
 ### convo.show
 
