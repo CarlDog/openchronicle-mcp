@@ -1,31 +1,16 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
-import sys
 from pathlib import Path
 
-
-def _rpc_env(tmp_path: Path) -> dict[str, str]:
-    env = os.environ.copy()
-    env["OC_DB_PATH"] = str(tmp_path / "negotiation.db")
-    env["OC_CONFIG_DIR"] = str(tmp_path / "config")
-    env["OC_PLUGIN_DIR"] = str(tmp_path / "plugins")
-    env["OC_OUTPUT_DIR"] = str(tmp_path / "output")
-    return env
+from tests.helpers.subprocess_env import build_env, oc_command, repo_root, run_oc_module
 
 
 def test_rpc_supported_protocol_version(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(tmp_path, db_name="negotiation.db")
     request = json.dumps({"protocol_version": "1", "command": "system.ping", "args": {}})
-    result = subprocess.run(
-        [sys.executable, "-m", "openchronicle.interfaces.cli.main", "rpc", "--request", request],
-        text=True,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    result = run_oc_module(["rpc", "--request", request], env=env)
     assert result.returncode == 0
 
     payload = json.loads(result.stdout.strip())
@@ -34,15 +19,9 @@ def test_rpc_supported_protocol_version(tmp_path: Path) -> None:
 
 
 def test_rpc_unsupported_protocol_version(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(tmp_path, db_name="negotiation.db")
     request = json.dumps({"protocol_version": "999", "command": "system.ping", "args": {}})
-    result = subprocess.run(
-        [sys.executable, "-m", "openchronicle.interfaces.cli.main", "rpc", "--request", request],
-        text=True,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    result = run_oc_module(["rpc", "--request", request], env=env)
     assert result.returncode == 0
 
     payload = json.loads(result.stdout.strip())
@@ -53,14 +32,15 @@ def test_rpc_unsupported_protocol_version(tmp_path: Path) -> None:
 
 
 def test_serve_unsupported_protocol_version(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(tmp_path, db_name="negotiation.db")
     proc = subprocess.Popen(
-        [sys.executable, "-m", "openchronicle.interfaces.cli.main", "serve"],
+        oc_command(["serve"]),
         text=True,
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=env,
+        cwd=repo_root(),
     )
     assert proc.stdin is not None
     assert proc.stdout is not None

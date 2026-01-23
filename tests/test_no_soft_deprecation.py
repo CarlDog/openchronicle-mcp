@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from helpers.repo_scan import scan_repository  # isort:skip
+from tests.helpers.repo_scan import scan_repository  # isort:skip
 
 
 # Allowlist for patterns we explicitly accept.

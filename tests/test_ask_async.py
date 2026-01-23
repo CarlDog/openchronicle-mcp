@@ -1,24 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any, cast
 
 from openchronicle.core.application.use_cases import create_conversation
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
-
-
-def _rpc_env(tmp_path: Path) -> dict[str, str]:
-    env = os.environ.copy()
-    env["OC_DB_PATH"] = str(tmp_path / "async.db")
-    env["OC_CONFIG_DIR"] = str(tmp_path / "config")
-    env["OC_PLUGIN_DIR"] = str(tmp_path / "plugins")
-    env["OC_OUTPUT_DIR"] = str(tmp_path / "output")
-    return env
+from tests.helpers.subprocess_env import build_env, run_oc_module
 
 
 def _prepare_conversation(db_path: Path) -> str:
@@ -35,7 +24,7 @@ def _prepare_conversation(db_path: Path) -> str:
 
 
 def test_convo_ask_async_enqueues_task(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(tmp_path, db_name="async.db")
     conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))
 
     request = json.dumps(
@@ -48,13 +37,7 @@ def test_convo_ask_async_enqueues_task(tmp_path: Path) -> None:
             },
         }
     )
-    result = subprocess.run(
-        [sys.executable, "-m", "openchronicle.interfaces.cli.main", "rpc", "--request", request],
-        text=True,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    result = run_oc_module(["rpc", "--request", request], env=env)
     assert result.returncode == 0
 
     payload = cast(dict[str, Any], json.loads(result.stdout.strip()))

@@ -1,27 +1,13 @@
 from __future__ import annotations
 
 import json
-import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any, cast
 
 from openchronicle.core.application.use_cases import create_conversation
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
-
-
-def _rpc_env(tmp_path: Path) -> dict[str, str]:
-    env = os.environ.copy()
-    env["OC_DB_PATH"] = str(tmp_path / "allow_pii.db")
-    env["OC_CONFIG_DIR"] = str(tmp_path / "config")
-    env["OC_PLUGIN_DIR"] = str(tmp_path / "plugins")
-    env["OC_OUTPUT_DIR"] = str(tmp_path / "output")
-    env["OC_LLM_PROVIDER"] = "stub"
-    env["OC_PRIVACY_OUTBOUND_MODE"] = "block"
-    env["OC_PRIVACY_OUTBOUND_EXTERNAL_ONLY"] = "0"
-    return env
+from tests.helpers.subprocess_env import build_env, run_oc_module
 
 
 def _prepare_conversation(db_path: Path) -> str:
@@ -38,25 +24,20 @@ def _prepare_conversation(db_path: Path) -> str:
 
 
 def _run_rpc(request: dict[str, object], *, env: dict[str, str]) -> dict[str, Any]:
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "openchronicle.interfaces.cli.main",
-            "rpc",
-            "--request",
-            json.dumps(request),
-        ],
-        text=True,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    result = run_oc_module(["rpc", "--request", json.dumps(request)], env=env)
     return cast(dict[str, Any], json.loads(result.stdout.strip()))
 
 
 def test_allow_pii_override_blocks_without_flag(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(
+        tmp_path,
+        db_name="allow_pii.db",
+        extra_env={
+            "OC_LLM_PROVIDER": "stub",
+            "OC_PRIVACY_OUTBOUND_MODE": "block",
+            "OC_PRIVACY_OUTBOUND_EXTERNAL_ONLY": "0",
+        },
+    )
     conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))
 
     payload = _run_rpc(
@@ -75,7 +56,15 @@ def test_allow_pii_override_blocks_without_flag(tmp_path: Path) -> None:
 
 
 def test_allow_pii_override_succeeds(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(
+        tmp_path,
+        db_name="allow_pii.db",
+        extra_env={
+            "OC_LLM_PROVIDER": "stub",
+            "OC_PRIVACY_OUTBOUND_MODE": "block",
+            "OC_PRIVACY_OUTBOUND_EXTERNAL_ONLY": "0",
+        },
+    )
     conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))
 
     payload = _run_rpc(
@@ -97,7 +86,15 @@ def test_allow_pii_override_succeeds(tmp_path: Path) -> None:
 
 
 def test_ask_async_persists_allow_pii(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(
+        tmp_path,
+        db_name="allow_pii.db",
+        extra_env={
+            "OC_LLM_PROVIDER": "stub",
+            "OC_PRIVACY_OUTBOUND_MODE": "block",
+            "OC_PRIVACY_OUTBOUND_EXTERNAL_ONLY": "0",
+        },
+    )
     conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))
 
     payload = _run_rpc(

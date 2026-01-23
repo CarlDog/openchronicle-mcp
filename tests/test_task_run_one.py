@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import json
-import os
-import subprocess
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -12,17 +9,7 @@ from openchronicle.core.application.use_cases import create_conversation
 from openchronicle.core.domain.models.project import Task, TaskStatus
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
-
-
-def _rpc_env(tmp_path: Path) -> dict[str, str]:
-    env = os.environ.copy()
-    env["OC_DB_PATH"] = str(tmp_path / "run_one.db")
-    env["OC_CONFIG_DIR"] = str(tmp_path / "config")
-    env["OC_PLUGIN_DIR"] = str(tmp_path / "plugins")
-    env["OC_OUTPUT_DIR"] = str(tmp_path / "output")
-    env["OC_LLM_PROVIDER"] = "stub"
-    env["OC_PRIVACY_OUTBOUND_MODE"] = "off"
-    return env
+from tests.helpers.subprocess_env import build_env, run_oc_module
 
 
 def _prepare_conversation(db_path: Path) -> str:
@@ -39,20 +26,7 @@ def _prepare_conversation(db_path: Path) -> str:
 
 
 def _run_rpc(request: dict[str, object], *, env: dict[str, str]) -> dict[str, Any]:
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "openchronicle.interfaces.cli.main",
-            "rpc",
-            "--request",
-            json.dumps(request),
-        ],
-        text=True,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    result = run_oc_module(["rpc", "--request", json.dumps(request)], env=env)
     return cast(dict[str, Any], json.loads(result.stdout.strip()))
 
 
@@ -73,7 +47,11 @@ def _ask_async(conversation_id: str, *, env: dict[str, str], prompt: str) -> str
 
 
 def test_task_run_one_none(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(
+        tmp_path,
+        db_name="run_one.db",
+        extra_env={"OC_LLM_PROVIDER": "stub", "OC_PRIVACY_OUTBOUND_MODE": "off"},
+    )
     payload = _run_rpc({"command": "task.run_one", "args": {}}, env=env)
     assert payload["ok"] is True
     result = cast(dict[str, Any], payload["result"])
@@ -83,7 +61,11 @@ def test_task_run_one_none(tmp_path: Path) -> None:
 
 
 def test_task_run_one_deterministic(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(
+        tmp_path,
+        db_name="run_one.db",
+        extra_env={"OC_LLM_PROVIDER": "stub", "OC_PRIVACY_OUTBOUND_MODE": "off"},
+    )
     conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))
 
     _ask_async(conversation_id, env=env, prompt="first")
@@ -117,7 +99,11 @@ def test_task_run_one_deterministic(tmp_path: Path) -> None:
 
 
 def test_task_run_one_tie_breaker(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(
+        tmp_path,
+        db_name="run_one.db",
+        extra_env={"OC_LLM_PROVIDER": "stub", "OC_PRIVACY_OUTBOUND_MODE": "off"},
+    )
     conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))
 
     storage = SqliteStore(str(env["OC_DB_PATH"]))
@@ -158,7 +144,11 @@ def test_task_run_one_tie_breaker(tmp_path: Path) -> None:
 
 
 def test_task_run_one_failure(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(
+        tmp_path,
+        db_name="run_one.db",
+        extra_env={"OC_LLM_PROVIDER": "stub", "OC_PRIVACY_OUTBOUND_MODE": "off"},
+    )
     env["OC_PRIVACY_OUTBOUND_MODE"] = "block"
     env["OC_PRIVACY_OUTBOUND_EXTERNAL_ONLY"] = "0"
     conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))

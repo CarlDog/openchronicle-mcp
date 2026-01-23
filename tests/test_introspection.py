@@ -1,42 +1,19 @@
 from __future__ import annotations
 
 import json
-import os
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any, cast
 
-
-def _rpc_env(tmp_path: Path) -> dict[str, str]:
-    env = os.environ.copy()
-    env["OC_DB_PATH"] = str(tmp_path / "rpc.db")
-    env["OC_CONFIG_DIR"] = str(tmp_path / "config")
-    env["OC_PLUGIN_DIR"] = str(tmp_path / "plugins")
-    env["OC_OUTPUT_DIR"] = str(tmp_path / "output")
-    return env
+from tests.helpers.subprocess_env import build_env, run_oc_module
 
 
 def _run_rpc(request: dict[str, object], *, env: dict[str, str]) -> dict[str, Any]:
-    result = subprocess.run(
-        [
-            sys.executable,
-            "-m",
-            "openchronicle.interfaces.cli.main",
-            "rpc",
-            "--request",
-            json.dumps(request),
-        ],
-        text=True,
-        capture_output=True,
-        env=env,
-        check=False,
-    )
+    result = run_oc_module(["rpc", "--request", json.dumps(request)], env=env)
     return cast(dict[str, Any], json.loads(result.stdout.strip()))
 
 
 def test_rpc_system_info(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(tmp_path, db_name="rpc.db")
     payload = _run_rpc({"protocol_version": "1", "command": "system.info", "args": {}}, env=env)
     assert payload["ok"] is True
     result = cast(dict[str, Any], payload["result"])
@@ -44,7 +21,7 @@ def test_rpc_system_info(tmp_path: Path) -> None:
 
 
 def test_rpc_system_commands(tmp_path: Path) -> None:
-    env = _rpc_env(tmp_path)
+    env = build_env(tmp_path, db_name="rpc.db")
     payload = _run_rpc({"protocol_version": "1", "command": "system.commands", "args": {}}, env=env)
     assert payload["ok"] is True
     result = cast(dict[str, Any], payload["result"])
