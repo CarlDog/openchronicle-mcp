@@ -92,7 +92,7 @@ Args: `{}`
 Result:
 
 ```json
-{"commands":["convo.ask","convo.export","convo.mode","convo.show","convo.verify","system.commands","system.health","system.info","system.ping","system.shutdown"]}
+{"commands":["convo.ask","convo.ask_async","convo.export","convo.mode","convo.show","convo.verify","system.commands","system.health","system.info","system.ping","system.shutdown"]}
 ```
 
 ### system.health
@@ -162,6 +162,22 @@ Result:
 ```json
 {"conversation_id":"...","turn_id":"...","turn_index":1,"assistant_text":"...","explain":null}
 ```
+
+### convo.ask_async
+
+Args:
+
+```json
+{"conversation_id":"...","prompt":"...","explain":false,"metadata":{}}
+```
+
+Result:
+
+```json
+{"conversation_id":"...","task_id":"...","status":"queued"}
+```
+
+This enqueues work for a future worker; no LLM execution happens immediately.
 
 ### convo.show
 

@@ -6,25 +6,32 @@ import os
 import sys
 import threading
 from collections import OrderedDict
+from collections.abc import Sequence
 from io import TextIOBase
 from queue import Empty, Queue
 from typing import TextIO
 
 from openchronicle.core.application.routing.pool_config import load_pool_config
+from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.runtime.container import CoreContainer
 from openchronicle.core.application.use_cases import (
     ask_conversation,
     convo_mode,
     explain_turn,
     export_convo,
+    run_task,
     show_conversation,
 )
+from openchronicle.core.domain.models.project import Event
+from openchronicle.core.domain.ports.llm_port import LLMProviderError
 from openchronicle.core.domain.services.verification import VerificationResult, VerificationService
+from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 STDIO_RPC_PROTOCOL_VERSION = "1"
 MAX_REQUEST_CACHE_ENTRIES = 256
 SUPPORTED_COMMANDS: tuple[str, ...] = (
     "convo.ask",
+    "convo.ask_async",
     "convo.export",
     "convo.mode",
     "convo.show",
@@ -144,6 +151,28 @@ def _normalize_error(exc: Exception) -> dict[str, object]:
         hint="See stderr logs for details.",
         details=None,
     )
+
+
+def _configured_providers(pool_config: object) -> list[str]:
+    providers: set[str] = set()
+    for pool_name in ("fast_pool", "quality_pool", "nsfw_pool"):
+        pool = getattr(pool_config, pool_name, [])
+        for candidate in pool:
+            provider = getattr(candidate, "provider", None)
+            if isinstance(provider, str) and provider:
+                providers.add(provider)
+    return sorted(providers)
+
+
+def _pool_candidates(pool: Sequence[object]) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for candidate in pool:
+        provider = getattr(candidate, "provider", None)
+        model = getattr(candidate, "model", None)
+        weight = getattr(candidate, "weight", None)
+        if isinstance(provider, str) and isinstance(model, str):
+            results.append({"provider": provider, "model": model, "weight": weight})
+    return results
 
 
 def dispatch_json_command(
@@ -432,6 +461,87 @@ def dispatch_json_command(
                 command=command,
                 ok=True,
                 result=result,
+                error=None,
+            )
+
+        if command == "convo.ask_async":
+            conversation_id = str(args.get("conversation_id", ""))
+            prompt_text = str(args.get("prompt", ""))
+            include_explain = bool(args.get("explain", False))
+            metadata_value = args.get("metadata")
+            metadata = metadata_value if isinstance(metadata_value, dict) else None
+
+            conversation, recent_turns = show_conversation.execute(
+                convo_store=container.storage,
+                conversation_id=conversation_id,
+                limit=10,
+            )
+
+            effective_mode = (conversation.mode or "general").strip().lower()
+            if effective_mode not in {"general", "persona", "story"}:
+                effective_mode = "general"
+
+            router_hint = RuleInteractionRouter().analyze(user_text=prompt_text, recent_turns=recent_turns)
+            if router_hint.requires_nsfw_capable_model and effective_mode in {"persona", "story"}:
+                router = RouterPolicy()
+                nsfw_pool = router.pool_config.nsfw_pool
+                if not nsfw_pool:
+                    config_dir = os.getenv("OC_CONFIG_DIR", "config")
+                    configured_providers = _configured_providers(router.pool_config)
+                    providers_str = ", ".join(configured_providers) if configured_providers else "none"
+                    raise LLMProviderError(
+                        "NSFW pool not configured",
+                        error_code="NSFW_POOL_NOT_CONFIGURED",
+                        hint=(
+                            "Set OC_LLM_POOL_NSFW in your environment or config under OC_CONFIG_DIR="
+                            f"{config_dir} to a pool that supports NSFW-capable persona/story mode. "
+                            f"Configured providers: {providers_str}."
+                        ),
+                        configured_providers=configured_providers,
+                        details={
+                            "config_dir": config_dir,
+                            "configured_providers": configured_providers,
+                            "fast_pool": _pool_candidates(router.pool_config.fast_pool),
+                            "quality_pool": _pool_candidates(router.pool_config.quality_pool),
+                            "nsfw_pool": _pool_candidates(router.pool_config.nsfw_pool),
+                        },
+                    )
+
+            task_payload: dict[str, object] = {
+                "conversation_id": conversation_id,
+                "prompt": prompt_text,
+                "explain": include_explain,
+            }
+            if metadata is not None:
+                task_payload["metadata"] = metadata
+
+            task = run_task.submit(
+                container.orchestrator,
+                project_id=conversation.project_id,
+                task_type="convo.ask",
+                payload=task_payload,
+            )
+
+            container.event_logger.append(
+                Event(
+                    project_id=conversation.project_id,
+                    task_id=task.id,
+                    type="convo.ask_queued",
+                    payload={
+                        "conversation_id": conversation_id,
+                        "explain": include_explain,
+                    },
+                )
+            )
+
+            return json_envelope(
+                command=command,
+                ok=True,
+                result={
+                    "conversation_id": conversation_id,
+                    "task_id": task.id,
+                    "status": "queued",
+                },
                 error=None,
             )
 
