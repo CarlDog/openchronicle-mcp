@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-from typing import Any
+import sys
+from io import TextIOBase
+from typing import Any, TextIO
 
 from openchronicle.core.application.runtime.container import CoreContainer
 from openchronicle.core.application.services.orchestrator import OrchestratorService
@@ -38,6 +40,7 @@ from openchronicle.core.application.use_cases.replay_project import (
 from openchronicle.core.domain.models.failure_category import failure_category_description
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Agent
+from openchronicle.core.domain.ports.llm_port import LLMProviderError
 from openchronicle.core.domain.services.replay import ReplayMode
 from openchronicle.core.domain.services.replay import ReplayService as DomainReplayService
 from openchronicle.core.domain.services.verification import (
@@ -52,6 +55,388 @@ def _parse_json(value: str) -> dict[str, Any]:
         return result
     except json.JSONDecodeError:
         return {"raw": value}
+
+
+def _json_error_payload(*, error_code: str | None, message: str, hint: str | None) -> dict[str, object]:
+    return {
+        "error_code": error_code,
+        "message": message,
+        "hint": hint,
+    }
+
+
+def _json_envelope(
+    *,
+    command: str,
+    ok: bool,
+    result: dict[str, object] | None,
+    error: dict[str, object] | None,
+) -> dict[str, object]:
+    return {
+        "command": command,
+        "ok": ok,
+        "result": result,
+        "error": error,
+    }
+
+
+def _print_json(payload: dict[str, object]) -> None:
+    print(json.dumps(payload, sort_keys=True, indent=2))
+
+
+def _json_dumps(payload: dict[str, object]) -> str:
+    return json.dumps(payload, sort_keys=True, indent=2)
+
+
+def _json_dumps_line(payload: dict[str, object]) -> str:
+    return json.dumps(payload, sort_keys=True)
+
+
+def _coerce_int(value: object, default: int) -> int:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    return default
+
+
+def _dispatch_json_command(
+    container: CoreContainer,
+    command: str,
+    args: dict[str, object],
+) -> tuple[dict[str, object], bool]:
+    if command == "system.ping":
+        return (
+            _json_envelope(
+                command=command,
+                ok=True,
+                result={"pong": True},
+                error=None,
+            ),
+            False,
+        )
+    if command == "system.shutdown":
+        return (
+            _json_envelope(
+                command=command,
+                ok=True,
+                result=None,
+                error=None,
+            ),
+            True,
+        )
+
+    try:
+        if command == "convo.export":
+            conversation_id = str(args.get("conversation_id", ""))
+            include_explain = bool(args.get("explain", False))
+            include_verify = bool(args.get("verify", False))
+
+            export = export_convo.execute(
+                storage=container.storage,
+                convo_store=container.storage,
+                conversation_id=conversation_id,
+                include_explain=include_explain,
+                include_verify=include_verify,
+            )
+
+            ok = True
+            if include_verify:
+                verification = export.get("verification") if isinstance(export, dict) else None
+                verification_dict = verification if isinstance(verification, dict) else {}
+                ok = verification_dict.get("ok") is True
+
+            return (
+                _json_envelope(
+                    command=command,
+                    ok=ok,
+                    result=export,
+                    error=None
+                    if ok
+                    else _json_error_payload(
+                        error_code=None,
+                        message="verification failed",
+                        hint=None,
+                    ),
+                ),
+                False,
+            )
+
+        if command == "convo.verify":
+            conversation_id = str(args.get("conversation_id", ""))
+            verification_service = VerificationService(container.storage)
+            convo_verify_result: VerificationResult = verification_service.verify_task_chain(conversation_id)
+
+            first_mismatch = convo_verify_result.first_mismatch or {}
+            expected_hash = first_mismatch.get("expected_hash")
+            actual_hash = first_mismatch.get("computed_hash")
+            if expected_hash is None and actual_hash is None:
+                expected_hash = first_mismatch.get("expected_prev_hash")
+                actual_hash = first_mismatch.get("actual_prev_hash")
+            verification_payload = {
+                "ok": convo_verify_result.success,
+                "failure_event_id": first_mismatch.get("event_id"),
+                "expected_hash": expected_hash,
+                "actual_hash": actual_hash,
+            }
+
+            return (
+                _json_envelope(
+                    command=command,
+                    ok=convo_verify_result.success,
+                    result={
+                        "conversation_id": conversation_id,
+                        "verification": verification_payload,
+                    },
+                    error=None
+                    if convo_verify_result.success
+                    else _json_error_payload(
+                        error_code=None,
+                        message=convo_verify_result.error_message or "verification failed",
+                        hint=None,
+                    ),
+                ),
+                False,
+            )
+
+        if command == "convo.mode":
+            conversation_id = str(args.get("conversation_id", ""))
+            mode_value = args.get("mode")
+            if isinstance(mode_value, str) and mode_value:
+                conversation_mode = convo_mode.set_mode(
+                    convo_store=container.storage,
+                    conversation_id=conversation_id,
+                    mode=mode_value,
+                )
+            else:
+                conversation_mode = convo_mode.get_mode(
+                    convo_store=container.storage,
+                    conversation_id=conversation_id,
+                )
+
+            return (
+                _json_envelope(
+                    command=command,
+                    ok=True,
+                    result={
+                        "conversation_id": conversation_id,
+                        "mode": conversation_mode,
+                    },
+                    error=None,
+                ),
+                False,
+            )
+
+        if command == "convo.show":
+            conversation_id = str(args.get("conversation_id", ""))
+            limit_raw = args.get("limit")
+            limit = int(limit_raw) if isinstance(limit_raw, int | str) and str(limit_raw).isdigit() else None
+            include_explain = bool(args.get("explain", False))
+
+            conversation, turns = show_conversation.execute(
+                convo_store=container.storage,
+                conversation_id=conversation_id,
+                limit=limit,
+            )
+
+            turns_payload: list[dict[str, object]] = []
+            for turn in turns:
+                explain_payload: dict[str, object] | None = None
+                if include_explain:
+                    try:
+                        explain_payload = explain_turn.execute(
+                            storage=container.storage,
+                            conversation_id=conversation_id,
+                            turn_id=turn.id,
+                        )
+                    except ValueError:
+                        explain_payload = None
+                turns_payload.append(
+                    {
+                        "turn_id": turn.id,
+                        "turn_index": turn.turn_index,
+                        "user_text": turn.user_text,
+                        "assistant_text": turn.assistant_text,
+                        "explain": explain_payload if include_explain else None,
+                    }
+                )
+
+            return (
+                _json_envelope(
+                    command=command,
+                    ok=True,
+                    result={
+                        "conversation_id": conversation.id,
+                        "mode": conversation.mode,
+                        "turns": turns_payload,
+                    },
+                    error=None,
+                ),
+                False,
+            )
+
+        if command == "convo.ask":
+            conversation_id = str(args.get("conversation_id", ""))
+            prompt_text = str(args.get("prompt", ""))
+            last_n = _coerce_int(args.get("last_n"), 10)
+            top_k_memory = _coerce_int(args.get("top_k_memory"), 8)
+            include_pinned_memory = bool(args.get("include_pinned_memory", True))
+            include_explain = bool(args.get("explain", False))
+
+            async def _run() -> dict[str, object]:
+                turn = await ask_conversation.execute(
+                    convo_store=container.storage,
+                    storage=container.storage,
+                    memory_store=container.storage,
+                    llm=container.llm,
+                    interaction_router=container.interaction_router,
+                    emit_event=container.event_logger.append,
+                    conversation_id=conversation_id,
+                    prompt_text=prompt_text,
+                    last_n=last_n,
+                    top_k_memory=top_k_memory,
+                    include_pinned_memory=include_pinned_memory,
+                )
+
+                explain_payload: dict[str, object] | None = None
+                if include_explain:
+                    try:
+                        explain_payload = explain_turn.execute(
+                            storage=container.storage,
+                            conversation_id=conversation_id,
+                            turn_id=turn.id,
+                        )
+                    except ValueError:
+                        explain_payload = None
+                return {
+                    "conversation_id": turn.conversation_id,
+                    "turn_id": turn.id,
+                    "turn_index": turn.turn_index,
+                    "assistant_text": turn.assistant_text,
+                    "explain": explain_payload if include_explain else None,
+                }
+
+            result = asyncio.run(_run())
+            return (
+                _json_envelope(
+                    command=command,
+                    ok=True,
+                    result=result,
+                    error=None,
+                ),
+                False,
+            )
+
+        return (
+            _json_envelope(
+                command=command,
+                ok=False,
+                result=None,
+                error=_json_error_payload(
+                    error_code="UNKNOWN_COMMAND",
+                    message=f"Unsupported command: {command}",
+                    hint=None,
+                ),
+            ),
+            False,
+        )
+    except LLMProviderError as exc:
+        return (
+            _json_envelope(
+                command=command,
+                ok=False,
+                result=None,
+                error=_json_error_payload(
+                    error_code=exc.error_code,
+                    message=str(exc),
+                    hint=exc.hint,
+                ),
+            ),
+            False,
+        )
+    except ValueError as exc:
+        return (
+            _json_envelope(
+                command=command,
+                ok=False,
+                result=None,
+                error=_json_error_payload(
+                    error_code=None,
+                    message=str(exc),
+                    hint=None,
+                ),
+            ),
+            False,
+        )
+    except Exception as exc:
+        return (
+            _json_envelope(
+                command=command,
+                ok=False,
+                result=None,
+                error=_json_error_payload(
+                    error_code=None,
+                    message=str(exc),
+                    hint=None,
+                ),
+            ),
+            False,
+        )
+
+
+def _serve_stdio(
+    *,
+    container: CoreContainer,
+    input_stream: TextIO | TextIOBase,
+    output_stream: TextIO | TextIOBase,
+) -> int:
+    while True:
+        line = input_stream.readline()
+        if not line:
+            break
+        raw = line.strip()
+        if not raw:
+            continue
+        try:
+            request = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            payload = _json_envelope(
+                command="unknown",
+                ok=False,
+                result=None,
+                error=_json_error_payload(
+                    error_code="INVALID_JSON",
+                    message=str(exc),
+                    hint=None,
+                ),
+            )
+            output_stream.write(_json_dumps_line(payload) + "\n")
+            output_stream.flush()
+            continue
+
+        command = request.get("command") if isinstance(request, dict) else None
+        args = request.get("args") if isinstance(request, dict) else None
+        if not isinstance(command, str) or not isinstance(args, dict):
+            payload = _json_envelope(
+                command=str(command) if command is not None else "unknown",
+                ok=False,
+                result=None,
+                error=_json_error_payload(
+                    error_code="INVALID_REQUEST",
+                    message="Request must include 'command' string and 'args' object",
+                    hint=None,
+                ),
+            )
+            output_stream.write(_json_dumps_line(payload) + "\n")
+            output_stream.flush()
+            continue
+
+        response, should_shutdown = _dispatch_json_command(container, command, args)
+        output_stream.write(_json_dumps_line(response) + "\n")
+        output_stream.flush()
+        if should_shutdown:
+            break
+    return 0
 
 
 def _ensure_agent(orchestrator: OrchestratorService, project_id: str, name: str, role: str) -> Agent:
@@ -141,6 +526,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     sub.add_parser("list-handlers", help="List registered task handlers")
+    sub.add_parser("serve", help="Run stdio JSON command server")
 
     verify_cmd = sub.add_parser("verify-task", help="Verify task event hash chain")
     verify_cmd.add_argument("task_id")
@@ -171,15 +557,18 @@ def main(argv: list[str] | None = None) -> int:
     convo_show_cmd.add_argument("conversation_id")
     convo_show_cmd.add_argument("--limit", type=int, default=None, help="Limit number of turns shown")
     convo_show_cmd.add_argument("--explain", action="store_true", help="Explain each turn from events")
+    convo_show_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     convo_export_cmd = convo_sub.add_parser("export", help="Export conversation as JSON")
     convo_export_cmd.add_argument("conversation_id")
     convo_export_cmd.add_argument("--explain", action="store_true", help="Include explain bundles per turn")
     convo_export_cmd.add_argument("--verify", action="store_true", help="Include verification results")
     convo_export_cmd.add_argument("--fail-on-verify", action="store_true", help="Exit non-zero on verification failure")
+    convo_export_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     convo_verify_cmd = convo_sub.add_parser("verify", help="Verify conversation event hash chain")
     convo_verify_cmd.add_argument("conversation_id")
+    convo_verify_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     convo_mode_cmd = convo_sub.add_parser("mode", help="Get or set conversation mode")
     convo_mode_cmd.add_argument("conversation_id")
@@ -189,6 +578,7 @@ def main(argv: list[str] | None = None) -> int:
         choices=convo_mode.ALLOWED_CONVERSATION_MODES,
         help="Set the conversation mode",
     )
+    convo_mode_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     convo_ask_cmd = convo_sub.add_parser("ask", help="Ask a prompt in a conversation")
     convo_ask_cmd.add_argument("conversation_id")
@@ -196,6 +586,7 @@ def main(argv: list[str] | None = None) -> int:
     convo_ask_cmd.add_argument("--last-n", type=int, default=10, help="Number of prior turns to include")
     convo_ask_cmd.add_argument("--top-k-memory", type=int, default=8, help="Number of memory items to include")
     convo_ask_cmd.add_argument("--explain", action="store_true", help="Explain the turn from events")
+    convo_ask_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
     convo_ask_group = convo_ask_cmd.add_mutually_exclusive_group()
     convo_ask_group.add_argument("--include-pinned-memory", dest="include_pinned_memory", action="store_true")
     convo_ask_group.add_argument("--no-include-pinned-memory", dest="include_pinned_memory", action="store_false")
@@ -472,6 +863,9 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {h}")
         return 0
 
+    if args.command == "serve":
+        return _serve_stdio(container=container, input_stream=sys.stdin, output_stream=sys.stdout)
+
     if args.command == "verify-task":
         verification_service = VerificationService(container.storage)
         verify_result: VerificationResult = verification_service.verify_task_chain(args.task_id)
@@ -610,14 +1004,64 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.convo_command == "show":
             try:
-                _conversation, turns = show_conversation.execute(
+                conversation, turns = show_conversation.execute(
                     convo_store=container.storage,
                     conversation_id=args.conversation_id,
                     limit=args.limit,
                 )
             except ValueError as exc:
+                if args.json:
+                    payload = _json_envelope(
+                        command="convo.show",
+                        ok=False,
+                        result=None,
+                        error=_json_error_payload(
+                            error_code=None,
+                            message=str(exc),
+                            hint=None,
+                        ),
+                    )
+                    _print_json(payload)
+                    return 1
+
                 print(str(exc))
                 return 1
+
+            if args.json:
+                turns_payload: list[dict[str, object]] = []
+                for turn in turns:
+                    explain_payload: dict[str, object] | None = None
+                    if args.explain:
+                        try:
+                            explain_payload = explain_turn.execute(
+                                storage=container.storage,
+                                conversation_id=args.conversation_id,
+                                turn_id=turn.id,
+                            )
+                        except ValueError:
+                            explain_payload = None
+                    turns_payload.append(
+                        {
+                            "turn_id": turn.id,
+                            "turn_index": turn.turn_index,
+                            "user_text": turn.user_text,
+                            "assistant_text": turn.assistant_text,
+                            "explain": explain_payload if args.explain else None,
+                        }
+                    )
+
+                payload = _json_envelope(
+                    command="convo.show",
+                    ok=True,
+                    result={
+                        "conversation_id": conversation.id,
+                        "mode": conversation.mode,
+                        "turns": turns_payload,
+                    },
+                    error=None,
+                )
+                _print_json(payload)
+                return 0
 
             for turn in turns:
                 if not args.explain:
@@ -686,8 +1130,46 @@ def main(argv: list[str] | None = None) -> int:
                     include_verify=args.verify,
                 )
             except ValueError as exc:
+                if args.json:
+                    payload = _json_envelope(
+                        command="convo.export",
+                        ok=False,
+                        result=None,
+                        error=_json_error_payload(
+                            error_code=None,
+                            message=str(exc),
+                            hint=None,
+                        ),
+                    )
+                    _print_json(payload)
+                    return 1
+
                 print(str(exc))
                 return 1
+
+            if args.json:
+                ok = True
+                if args.verify:
+                    verification = export.get("verification") if isinstance(export, dict) else None
+                    verification_dict = verification if isinstance(verification, dict) else {}
+                    ok = verification_dict.get("ok") is True
+
+                payload = _json_envelope(
+                    command="convo.export",
+                    ok=ok,
+                    result=export,
+                    error=None
+                    if ok
+                    else _json_error_payload(
+                        error_code=None,
+                        message="verification failed",
+                        hint=None,
+                    ),
+                )
+                _print_json(payload)
+                if args.verify and args.fail_on_verify and not ok:
+                    return 1
+                return 0
 
             print(json.dumps(export, sort_keys=True, indent=2))
             if args.verify and args.fail_on_verify:
@@ -700,6 +1182,37 @@ def main(argv: list[str] | None = None) -> int:
         if args.convo_command == "verify":
             verification_service = VerificationService(container.storage)
             convo_verify_result: VerificationResult = verification_service.verify_task_chain(args.conversation_id)
+            if args.json:
+                first_mismatch = convo_verify_result.first_mismatch or {}
+                expected_hash = first_mismatch.get("expected_hash")
+                actual_hash = first_mismatch.get("computed_hash")
+                if expected_hash is None and actual_hash is None:
+                    expected_hash = first_mismatch.get("expected_prev_hash")
+                    actual_hash = first_mismatch.get("actual_prev_hash")
+                verification_payload = {
+                    "ok": convo_verify_result.success,
+                    "failure_event_id": first_mismatch.get("event_id"),
+                    "expected_hash": expected_hash,
+                    "actual_hash": actual_hash,
+                }
+                payload = _json_envelope(
+                    command="convo.verify",
+                    ok=convo_verify_result.success,
+                    result={
+                        "conversation_id": args.conversation_id,
+                        "verification": verification_payload,
+                    },
+                    error=None
+                    if convo_verify_result.success
+                    else _json_error_payload(
+                        error_code=None,
+                        message=convo_verify_result.error_message or "verification failed",
+                        hint=None,
+                    ),
+                )
+                _print_json(payload)
+                return 0 if convo_verify_result.success else 1
+
             if convo_verify_result.success:
                 print("OK")
                 return 0
@@ -738,8 +1251,35 @@ def main(argv: list[str] | None = None) -> int:
                         mode=args.mode,
                     )
             except ValueError as exc:
+                if args.json:
+                    payload = _json_envelope(
+                        command="convo.mode",
+                        ok=False,
+                        result=None,
+                        error=_json_error_payload(
+                            error_code=None,
+                            message=str(exc),
+                            hint=None,
+                        ),
+                    )
+                    _print_json(payload)
+                    return 1
+
                 print(str(exc))
                 return 1
+
+            if args.json:
+                payload = _json_envelope(
+                    command="convo.mode",
+                    ok=True,
+                    result={
+                        "conversation_id": args.conversation_id,
+                        "mode": conversation_mode,
+                    },
+                    error=None,
+                )
+                _print_json(payload)
+                return 0
 
             print(conversation_mode)
             return 0
@@ -769,20 +1309,67 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.convo_command == "ask":
 
-            async def _run_ask() -> None:
-                turn = await ask_conversation.execute(
-                    convo_store=container.storage,
-                    storage=container.storage,
-                    memory_store=container.storage,
-                    llm=container.llm,
-                    interaction_router=container.interaction_router,
-                    emit_event=container.event_logger.append,
-                    conversation_id=args.conversation_id,
-                    prompt_text=args.prompt,
-                    last_n=args.last_n,
-                    top_k_memory=args.top_k_memory,
-                    include_pinned_memory=args.include_pinned_memory,
-                )
+            async def _run_ask() -> int:
+                try:
+                    turn = await ask_conversation.execute(
+                        convo_store=container.storage,
+                        storage=container.storage,
+                        memory_store=container.storage,
+                        llm=container.llm,
+                        interaction_router=container.interaction_router,
+                        emit_event=container.event_logger.append,
+                        conversation_id=args.conversation_id,
+                        prompt_text=args.prompt,
+                        last_n=args.last_n,
+                        top_k_memory=args.top_k_memory,
+                        include_pinned_memory=args.include_pinned_memory,
+                    )
+                except (ValueError, LLMProviderError) as exc:
+                    if not args.json:
+                        print(str(exc))
+                        return 1
+
+                    error_code = exc.error_code if isinstance(exc, LLMProviderError) else None
+                    hint = exc.hint if isinstance(exc, LLMProviderError) else None
+                    payload = _json_envelope(
+                        command="convo.ask",
+                        ok=False,
+                        result=None,
+                        error=_json_error_payload(
+                            error_code=error_code,
+                            message=str(exc),
+                            hint=hint,
+                        ),
+                    )
+                    _print_json(payload)
+                    return 1
+
+                if args.json:
+                    explain_payload: dict[str, object] | None = None
+                    if args.explain:
+                        try:
+                            explain_payload = explain_turn.execute(
+                                storage=container.storage,
+                                conversation_id=args.conversation_id,
+                                turn_id=turn.id,
+                            )
+                        except ValueError:
+                            explain_payload = None
+                    payload = _json_envelope(
+                        command="convo.ask",
+                        ok=True,
+                        result={
+                            "conversation_id": turn.conversation_id,
+                            "turn_id": turn.id,
+                            "turn_index": turn.turn_index,
+                            "assistant_text": turn.assistant_text,
+                            "explain": explain_payload if args.explain else None,
+                        },
+                        error=None,
+                    )
+                    _print_json(payload)
+                    return 0
+
                 print(turn.assistant_text)
 
                 if args.explain:
@@ -827,9 +1414,9 @@ def main(argv: list[str] | None = None) -> int:
                         f"latency_ms={'' if latency_ms is None else latency_ms} "
                         f"finish_reason={'' if finish_reason is None else finish_reason}"
                     )
+                return 0
 
-            asyncio.run(_run_ask())
-            return 0
+            return asyncio.run(_run_ask())
 
     if args.command == "memory":
         if args.memory_command == "add":

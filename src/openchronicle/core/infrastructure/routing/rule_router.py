@@ -161,7 +161,3 @@ def _read_float(name: str, default: float) -> float:
         return float(raw)
     except ValueError:
         return default
-
-
-class RuleRouterAssist(RuleInteractionRouter):
-    """Backward-compatible alias for RuleInteractionRouter."""
