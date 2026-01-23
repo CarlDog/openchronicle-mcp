@@ -32,6 +32,7 @@ def execute(
     memory_event = _latest_event_before(events, "memory.retrieved", cutoff)
     completed_llm_event = _latest_event_before(events, "llm.completed", cutoff)
     privacy_override_event = _latest_event_before(events, "privacy.override_used", cutoff)
+    privacy_checked_event = _latest_event_before(events, "privacy.outbound_checked", cutoff)
 
     memory_link_events = [
         event
@@ -56,6 +57,35 @@ def execute(
     memory_payload = memory_event.payload if memory_event else {}
     llm_payload = completed_llm_event.payload if completed_llm_event else {}
     privacy_override_used = bool(privacy_override_event)
+    privacy_payload = privacy_checked_event.payload if privacy_checked_event else {}
+    privacy_categories = privacy_payload.get("categories", []) if isinstance(privacy_payload, dict) else []
+    privacy_counts = privacy_payload.get("counts", {}) if isinstance(privacy_payload, dict) else {}
+    if not isinstance(privacy_categories, list):
+        privacy_categories = []
+    if not isinstance(privacy_counts, dict):
+        privacy_counts = {}
+    privacy_categories_sorted = sorted([c for c in privacy_categories if isinstance(c, str)])
+    privacy_counts_sorted = {k: privacy_counts.get(k) for k in privacy_categories_sorted}
+    privacy_effective_mode = privacy_payload.get("mode") if isinstance(privacy_payload, dict) else None
+    privacy_external_only = privacy_payload.get("external_only") if isinstance(privacy_payload, dict) else None
+    privacy_applies = privacy_payload.get("applies") if isinstance(privacy_payload, dict) else None
+    privacy_redactions_applied = (
+        privacy_payload.get("redactions_applied") if isinstance(privacy_payload, dict) else None
+    )
+
+    privacy_block = {
+        "checked": bool(privacy_checked_event) and not privacy_override_used,
+        "effective_mode": privacy_effective_mode if isinstance(privacy_effective_mode, str) else "off",
+        "external_only": privacy_external_only if isinstance(privacy_external_only, bool) else False,
+        "applies": privacy_applies if isinstance(privacy_applies, bool) else False,
+        "override_allow_pii": privacy_override_used,
+        "categories": privacy_categories_sorted if not privacy_override_used else [],
+        "counts": privacy_counts_sorted if not privacy_override_used else {},
+        "redactions_applied": privacy_redactions_applied if isinstance(privacy_redactions_applied, bool) else False,
+    }
+    if privacy_override_used:
+        privacy_block["checked"] = False
+        privacy_block["applies"] = False
 
     usage_payload = llm_payload.get("usage") or {
         "input_tokens": None,
@@ -86,6 +116,7 @@ def execute(
             "usage": usage_payload,
         },
         "privacy_override_used": privacy_override_used,
+        "privacy": privacy_block,
     }
 
 

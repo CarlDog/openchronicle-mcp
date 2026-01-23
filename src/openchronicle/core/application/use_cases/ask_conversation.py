@@ -252,6 +252,9 @@ async def execute(
                     redact_style=privacy_settings.redact_style,
                     categories=privacy_settings.categories,
                 )
+                categories = sorted(report.categories)
+                counts = {category: report.counts[category] for category in categories}
+                applies = True
 
                 if privacy_settings.log_events:
                     emit_event(
@@ -261,8 +264,10 @@ async def execute(
                             type="privacy.outbound_checked",
                             payload={
                                 "mode": report.action,
-                                "categories": report.categories,
-                                "counts": report.counts,
+                                "external_only": privacy_settings.external_only,
+                                "applies": applies,
+                                "categories": categories,
+                                "counts": counts,
                                 "redactions_applied": report.redactions_applied,
                             },
                         )
