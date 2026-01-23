@@ -1,10 +1,18 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
-from openchronicle.core.application.use_cases import ask_conversation, create_conversation, show_conversation
+from openchronicle.core.application.use_cases import (
+    ask_conversation,
+    create_conversation,
+    list_conversations,
+    show_conversation,
+)
+from openchronicle.core.domain.models.conversation import Conversation
+from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
@@ -67,3 +75,50 @@ async def test_conversation_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert [t.turn_index for t in turns] == [1, 2]
     assert turns[0].user_text == "Hello"
     assert turns[1].user_text == "How are you?"
+
+
+def test_list_conversations_ordering(tmp_path: Path) -> None:
+    db_path = tmp_path / "test.db"
+    storage = SqliteStore(str(db_path))
+    storage.init_schema()
+
+    project = Project(name="conversation", metadata={"type": "conversation"})
+    storage.add_project(project)
+
+    convo_old = Conversation(
+        id="convo-old",
+        project_id=project.id,
+        title="Old",
+        created_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    convo_new = Conversation(
+        id="convo-new",
+        project_id=project.id,
+        title="New",
+        created_at=datetime(2021, 1, 1, tzinfo=UTC),
+    )
+    convo_tie_a = Conversation(
+        id="convo-aaa",
+        project_id=project.id,
+        title="Tie A",
+        created_at=datetime(2022, 1, 1, tzinfo=UTC),
+    )
+    convo_tie_b = Conversation(
+        id="convo-zzz",
+        project_id=project.id,
+        title="Tie B",
+        created_at=datetime(2022, 1, 1, tzinfo=UTC),
+    )
+
+    storage.add_conversation(convo_old)
+    storage.add_conversation(convo_new)
+    storage.add_conversation(convo_tie_a)
+    storage.add_conversation(convo_tie_b)
+
+    ordered = storage.list_conversations()
+    assert [c.id for c in ordered[:2]] == ["convo-zzz", "convo-aaa"]
+    assert ordered[2].id == "convo-new"
+    assert ordered[3].id == "convo-old"
+
+    via_use_case = list_conversations.execute(convo_store=storage)
+    assert [c.id for c in via_use_case] == [c.id for c in ordered]

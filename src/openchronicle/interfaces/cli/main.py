@@ -14,6 +14,7 @@ from openchronicle.core.application.use_cases import (
     create_project,
     diagnose_runtime,
     init_config,
+    list_conversations,
     list_projects,
     register_agent,
     resume_project,
@@ -164,6 +165,9 @@ def main(argv: list[str] | None = None) -> int:
     convo_ask_cmd.add_argument("conversation_id")
     convo_ask_cmd.add_argument("prompt")
     convo_ask_cmd.add_argument("--last-n", type=int, default=10, help="Number of prior turns to include")
+
+    convo_list_cmd = convo_sub.add_parser("list", help="List conversations")
+    convo_list_cmd.add_argument("--limit", type=int, default=None, help="Limit number of conversations shown")
 
     tree_cmd = sub.add_parser("task-tree", help="Show task tree with routing and usage")
     tree_cmd.add_argument("task_id")
@@ -540,6 +544,12 @@ def main(argv: list[str] | None = None) -> int:
 
             for turn in turns:
                 print(f"{turn.turn_index}\t{turn.user_text}\t{turn.assistant_text}")
+            return 0
+
+        if args.convo_command == "list":
+            conversations = list_conversations.execute(convo_store=container.storage, limit=args.limit)
+            for conversation in conversations:
+                print(f"{conversation.id}\t{conversation.title}\t{conversation.created_at.isoformat()}")
             return 0
 
         if args.convo_command == "ask":
