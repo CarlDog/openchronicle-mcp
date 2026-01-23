@@ -26,6 +26,7 @@ def execute(
             "id": conversation.id,
             "project_id": conversation.project_id,
             "title": conversation.title,
+            "mode": conversation.mode,
             "created_at": conversation.created_at.isoformat(),
         },
         "turns": [],

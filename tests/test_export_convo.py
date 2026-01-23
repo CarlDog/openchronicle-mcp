@@ -10,6 +10,7 @@ from openchronicle.core.domain.models.project import Event
 from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 
 @pytest.mark.asyncio
@@ -40,6 +41,7 @@ async def test_export_convo_includes_memory_written_ids_and_explain(
         llm=llm,
         emit_event=event_logger.append,
         conversation_id=conversation.id,
+        interaction_router=RuleInteractionRouter(),
         prompt_text="Hello",
         last_n=5,
     )
@@ -89,6 +91,8 @@ async def test_export_convo_includes_memory_written_ids_and_explain(
     assert export_basic == export_basic_again
     assert export_basic["format_version"] == "1"
     assert set(export_basic.keys()) == {"format_version", "conversation", "turns"}
+    conversation_dict = cast(dict[str, object], export_basic["conversation"])
+    assert conversation_dict["mode"] == "general"
     turns_basic = cast(list[dict[str, object]], export_basic["turns"])
     assert len(turns_basic) == 1
     assert "explain" not in turns_basic[0]

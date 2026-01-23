@@ -13,6 +13,7 @@ from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 
 class CaptureLLM(LLMPort):
@@ -219,6 +220,7 @@ async def test_convo_ask_includes_memory(tmp_path: Path) -> None:
         llm=llm,
         emit_event=event_logger.append,
         conversation_id=conversation.id,
+        interaction_router=RuleInteractionRouter(),
         prompt_text="Tell me about the lighthouse",
         last_n=5,
         top_k_memory=5,

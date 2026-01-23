@@ -105,6 +105,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
     title TEXT NOT NULL,
+    mode TEXT NOT NULL DEFAULT 'general',
     created_at TEXT NOT NULL,
     FOREIGN KEY(project_id) REFERENCES projects(id)
 );

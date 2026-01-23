@@ -11,6 +11,7 @@ from openchronicle.core.application.use_cases import (
     add_memory,
     ask_conversation,
     continue_project,
+    convo_mode,
     create_conversation,
     create_project,
     diagnose_runtime,
@@ -179,6 +180,15 @@ def main(argv: list[str] | None = None) -> int:
 
     convo_verify_cmd = convo_sub.add_parser("verify", help="Verify conversation event hash chain")
     convo_verify_cmd.add_argument("conversation_id")
+
+    convo_mode_cmd = convo_sub.add_parser("mode", help="Get or set conversation mode")
+    convo_mode_cmd.add_argument("conversation_id")
+    convo_mode_cmd.add_argument(
+        "--set",
+        dest="mode",
+        choices=convo_mode.ALLOWED_CONVERSATION_MODES,
+        help="Set the conversation mode",
+    )
 
     convo_ask_cmd = convo_sub.add_parser("ask", help="Ask a prompt in a conversation")
     convo_ask_cmd.add_argument("conversation_id")
@@ -714,6 +724,26 @@ def main(argv: list[str] | None = None) -> int:
             print(f"hint: run oc replay-task {args.conversation_id} --mode verify or oc diagnose")
             return 1
 
+        if args.convo_command == "mode":
+            try:
+                if args.mode is None:
+                    conversation_mode = convo_mode.get_mode(
+                        convo_store=container.storage,
+                        conversation_id=args.conversation_id,
+                    )
+                else:
+                    conversation_mode = convo_mode.set_mode(
+                        convo_store=container.storage,
+                        conversation_id=args.conversation_id,
+                        mode=args.mode,
+                    )
+            except ValueError as exc:
+                print(str(exc))
+                return 1
+
+            print(conversation_mode)
+            return 0
+
         if args.convo_command == "list":
             conversations = list_conversations.execute(convo_store=container.storage, limit=args.limit)
             for conversation in conversations:
@@ -745,6 +775,7 @@ def main(argv: list[str] | None = None) -> int:
                     storage=container.storage,
                     memory_store=container.storage,
                     llm=container.llm,
+                    interaction_router=container.interaction_router,
                     emit_event=container.event_logger.append,
                     conversation_id=args.conversation_id,
                     prompt_text=args.prompt,

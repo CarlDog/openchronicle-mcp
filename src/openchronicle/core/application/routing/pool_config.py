@@ -21,6 +21,7 @@ class PoolConfig:
 
     fast_pool: list[ProviderCandidate]
     quality_pool: list[ProviderCandidate]
+    nsfw_pool: list[ProviderCandidate]
     provider_weights: dict[str, int]
     max_fallbacks: int
     fallback_on_transient: bool
@@ -74,6 +75,7 @@ def load_pool_config() -> PoolConfig:
     Environment Variables:
     - OC_LLM_FAST_POOL: Fast mode pool (e.g., "ollama:llama3.1,openai:gpt-4o-mini")
     - OC_LLM_QUALITY_POOL: Quality mode pool (e.g., "openai:gpt-4o,ollama:mixtral")
+    - OC_LLM_POOL_NSFW: NSFW mode pool (e.g., "openai:gpt-4o,ollama:mixtral")
     - OC_LLM_PROVIDER_WEIGHTS: Provider preference weights (e.g., "ollama:100,openai:20")
     - OC_LLM_MAX_FALLBACKS: Maximum fallback attempts (default: 1)
     - OC_LLM_FALLBACK_ON_TRANSIENT: Allow fallback on transient errors (default: 1)
@@ -103,9 +105,11 @@ def load_pool_config() -> PoolConfig:
     # Parse pools
     fast_pool_str = os.getenv("OC_LLM_FAST_POOL", "")
     quality_pool_str = os.getenv("OC_LLM_QUALITY_POOL", "")
+    nsfw_pool_str = os.getenv("OC_LLM_POOL_NSFW", "")
 
     fast_pool = parse_pool_string(fast_pool_str, provider_weights)
     quality_pool = parse_pool_string(quality_pool_str, provider_weights)
+    nsfw_pool = parse_pool_string(nsfw_pool_str, provider_weights)
 
     # Parse fallback controls
     max_fallbacks = int(os.getenv("OC_LLM_MAX_FALLBACKS", "1"))
@@ -116,6 +120,7 @@ def load_pool_config() -> PoolConfig:
     return PoolConfig(
         fast_pool=fast_pool,
         quality_pool=quality_pool,
+        nsfw_pool=nsfw_pool,
         provider_weights=provider_weights,
         max_fallbacks=max_fallbacks,
         fallback_on_transient=fallback_on_transient,

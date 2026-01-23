@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+import os
+from collections.abc import Callable, Iterable
 
 from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.services.llm_execution import execute_with_route
 from openchronicle.core.domain.models.conversation import Turn
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
+from openchronicle.core.domain.ports.interaction_router_port import InteractionRouterPort
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
+from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 
 async def execute(
@@ -21,6 +24,7 @@ async def execute(
     conversation_id: str,
     prompt_text: str,
     *,
+    interaction_router: InteractionRouterPort | None = None,
     last_n: int = 10,
     top_k_memory: int = 8,
     include_pinned_memory: bool = True,
@@ -30,6 +34,10 @@ async def execute(
     conversation = convo_store.get_conversation(conversation_id)
     if conversation is None:
         raise ValueError(f"Conversation not found: {conversation_id}")
+
+    effective_mode = (conversation.mode or "general").strip().lower()
+    if effective_mode not in {"general", "persona", "story"}:
+        effective_mode = "general"
 
     prior_turns = convo_store.list_turns(conversation_id, limit=last_n)
 
@@ -82,18 +90,111 @@ async def execute(
         messages.append({"role": "assistant", "content": turn.assistant_text})
     messages.append({"role": "user", "content": prompt_text})
 
-    router = RouterPolicy()
-    route_decision = router.route(
-        task_type="convo.ask",
-        agent_role="user",
-        agent_tags=None,
-        desired_quality=None,
-        provider_preference=None,
-        current_task_tokens=None,
-        max_tokens_per_task=None,
-        rate_limit_triggered=False,
-        rpm_limit=None,
+    interaction_router = interaction_router or RuleInteractionRouter()
+    router_hint = interaction_router.analyze(user_text=prompt_text, recent_turns=prior_turns)
+    thresholds = _router_thresholds(interaction_router)
+
+    reason_codes = router_hint.reason_codes if thresholds["router_log_reasons"] else []
+
+    emit_event(
+        Event(
+            project_id=conversation.project_id,
+            task_id=conversation.id,
+            type="router.invoked",
+            payload={
+                "effective_mode": effective_mode,
+                "mode_hint": router_hint.mode_hint,
+                "nsfw_score": router_hint.nsfw_score,
+                "requires_nsfw_capable_model": router_hint.requires_nsfw_capable_model,
+                "reason_codes": reason_codes,
+                "nsfw_route_if_score_gte": thresholds["nsfw_route_if_score_gte"],
+                "nsfw_uncertain_if_score_gte": thresholds["nsfw_uncertain_if_score_gte"],
+                "persona_uncertain_routes_to_nsfw": thresholds["persona_uncertain_routes_to_nsfw"],
+                "router_log_reasons": thresholds["router_log_reasons"],
+            },
+        )
     )
+
+    router = RouterPolicy()
+    if router_hint.requires_nsfw_capable_model and effective_mode in {"persona", "story"}:
+        nsfw_pool = router.pool_config.nsfw_pool
+        if not nsfw_pool:
+            config_dir = os.getenv("OC_CONFIG_DIR", "config")
+            configured_providers = _configured_providers(router.pool_config)
+            emit_event(
+                Event(
+                    project_id=conversation.project_id,
+                    task_id=conversation.id,
+                    type="router.applied",
+                    payload={
+                        "applied": False,
+                        "reason": "nsfw_pool_missing",
+                        "pool": "NSFW",
+                        "effective_mode": effective_mode,
+                    },
+                )
+            )
+            providers_str = ", ".join(configured_providers) if configured_providers else "none"
+            raise LLMProviderError(
+                "NSFW pool not configured",
+                error_code="NSFW_POOL_NOT_CONFIGURED",
+                hint=(
+                    "Set OC_LLM_POOL_NSFW in your environment or config under OC_CONFIG_DIR="
+                    f"{config_dir} to a pool that supports NSFW-capable persona/story mode. "
+                    f"Configured providers: {providers_str}."
+                ),
+                configured_providers=configured_providers,
+                details={
+                    "config_dir": config_dir,
+                    "configured_providers": configured_providers,
+                    "fast_pool": _pool_candidates(router.pool_config.fast_pool),
+                    "quality_pool": _pool_candidates(router.pool_config.quality_pool),
+                    "nsfw_pool": _pool_candidates(router.pool_config.nsfw_pool),
+                },
+            )
+
+        route_decision = router.route_with_pool(
+            nsfw_pool,
+            mode="nsfw",
+            reasons=["router_nsfw_pool"],
+        )
+        emit_event(
+            Event(
+                project_id=conversation.project_id,
+                task_id=conversation.id,
+                type="router.applied",
+                payload={
+                    "applied": True,
+                    "reason": "requires_nsfw_capable_model",
+                    "pool": "NSFW",
+                    "effective_mode": effective_mode,
+                },
+            )
+        )
+    else:
+        route_decision = router.route(
+            task_type="convo.ask",
+            agent_role="user",
+            agent_tags=None,
+            desired_quality=None,
+            provider_preference=None,
+            current_task_tokens=None,
+            max_tokens_per_task=None,
+            rate_limit_triggered=False,
+            rpm_limit=None,
+        )
+        emit_event(
+            Event(
+                project_id=conversation.project_id,
+                task_id=conversation.id,
+                type="router.applied",
+                payload={
+                    "applied": False,
+                    "reason": "not_required",
+                    "effective_mode": effective_mode,
+                },
+            )
+        )
 
     emit_event(
         Event(
@@ -186,3 +287,56 @@ async def execute(
     )
 
     return turn
+
+
+def _router_thresholds(router: InteractionRouterPort) -> dict[str, object]:
+    return {
+        "nsfw_route_if_score_gte": getattr(
+            router, "nsfw_route_if_score_gte", _read_float("OC_ROUTER_NSFW_ROUTE_GTE", 0.70)
+        ),
+        "nsfw_uncertain_if_score_gte": getattr(
+            router, "nsfw_uncertain_if_score_gte", _read_float("OC_ROUTER_NSFW_UNCERTAIN_GTE", 0.45)
+        ),
+        "persona_uncertain_routes_to_nsfw": getattr(
+            router, "persona_uncertain_routes_to_nsfw", _read_bool("OC_ROUTER_PERSONA_UNCERTAIN_TO_NSFW", True)
+        ),
+        "router_log_reasons": getattr(router, "router_log_reasons", _read_bool("OC_ROUTER_LOG_REASONS", False)),
+    }
+
+
+def _read_float(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+def _read_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip() not in {"0", "false", "False", "no"}
+
+
+def _pool_candidates(pool: Iterable[object]) -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for candidate in pool:
+        provider = getattr(candidate, "provider", None)
+        model = getattr(candidate, "model", None)
+        weight = getattr(candidate, "weight", None)
+        results.append({"provider": provider, "model": model, "weight": weight})
+    return results
+
+
+def _configured_providers(pool_config: object) -> list[str]:
+    providers: set[str] = set()
+    for pool_name in ("fast_pool", "quality_pool", "nsfw_pool"):
+        pool = getattr(pool_config, pool_name, [])
+        for candidate in pool:
+            provider = getattr(candidate, "provider", None)
+            if isinstance(provider, str) and provider:
+                providers.add(provider)
+    return sorted(providers)

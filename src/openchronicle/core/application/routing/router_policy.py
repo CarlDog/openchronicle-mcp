@@ -129,6 +129,17 @@ class RouterPolicy:
             reasons=reasons,
         )
 
+    def route_with_pool(
+        self,
+        pool: list[ProviderCandidate],
+        *,
+        mode: str,
+        provider_preference: str | None = None,
+        reasons: list[str] | None = None,
+    ) -> RouteDecision:
+        route_reasons = reasons or []
+        return self._route_from_pool(pool, mode, route_reasons, provider_preference)
+
     def _route_from_pool(
         self,
         pool: list[ProviderCandidate],

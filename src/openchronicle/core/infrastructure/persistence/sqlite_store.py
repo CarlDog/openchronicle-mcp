@@ -46,6 +46,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
         self._commit_if_needed()
         self._ensure_parent_task_column()
         self._ensure_task_result_columns()
+        self._ensure_conversation_mode_column()
         self._ensure_turn_memory_written_column()
         self._ensure_indexes()
         # Ensure crash recovery runs even for reused databases
@@ -313,11 +314,12 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
     def add_conversation(self, conversation: Conversation) -> None:
         cur = self._conn.cursor()
         cur.execute(
-            "INSERT INTO conversations (id, project_id, title, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO conversations (id, project_id, title, mode, created_at) VALUES (?, ?, ?, ?, ?)",
             (
                 conversation.id,
                 conversation.project_id,
                 conversation.title,
+                conversation.mode,
                 conversation.created_at.isoformat(),
             ),
         )
@@ -339,6 +341,24 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
 
         rows = cur.execute(sql, params).fetchall()
         return [self._row_to_conversation(r) for r in rows]
+
+    def get_conversation_mode(self, conversation_id: str) -> str:
+        cur = self._conn.cursor()
+        row = cur.execute("SELECT mode FROM conversations WHERE id=?", (conversation_id,)).fetchone()
+        if row is None:
+            raise ValueError(f"Conversation not found: {conversation_id}")
+        try:
+            mode = row["mode"]
+        except KeyError:
+            mode = None
+        return mode or "general"
+
+    def set_conversation_mode(self, conversation_id: str, mode: str) -> None:
+        cur = self._conn.cursor()
+        cur.execute("UPDATE conversations SET mode=? WHERE id=?", (mode, conversation_id))
+        if cur.rowcount == 0:
+            raise ValueError(f"Conversation not found: {conversation_id}")
+        self._commit_if_needed()
 
     def add_turn(self, turn: Turn) -> None:
         cur = self._conn.cursor()
@@ -666,10 +686,15 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
         )
 
     def _row_to_conversation(self, row: sqlite3.Row) -> Conversation:
+        try:
+            mode = row["mode"]
+        except KeyError:
+            mode = None
         return Conversation(
             id=row["id"],
             project_id=row["project_id"],
             title=row["title"],
+            mode=mode or "general",
             created_at=self._parse_dt(row["created_at"]),
         )
 
@@ -769,6 +794,13 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
         columns = [row[1] for row in cur.execute("PRAGMA table_info(turns)").fetchall()]
         if "memory_written_ids" not in columns:
             cur.execute("ALTER TABLE turns ADD COLUMN memory_written_ids TEXT NOT NULL DEFAULT '[]'")
+            self._commit_if_needed()
+
+    def _ensure_conversation_mode_column(self) -> None:
+        cur = self._conn.cursor()
+        columns = [row[1] for row in cur.execute("PRAGMA table_info(conversations)").fetchall()]
+        if "mode" not in columns:
+            cur.execute("ALTER TABLE conversations ADD COLUMN mode TEXT NOT NULL DEFAULT 'general'")
             self._commit_if_needed()
 
     def _ensure_indexes(self) -> None:

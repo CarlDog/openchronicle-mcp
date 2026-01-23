@@ -14,6 +14,7 @@ class Conversation:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     project_id: str = ""
     title: str = ""
+    mode: str = "general"
     created_at: datetime = field(default_factory=_utc_now)
 
 

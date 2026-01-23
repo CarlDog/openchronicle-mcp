@@ -16,6 +16,7 @@ from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 
 @pytest.mark.asyncio
@@ -42,6 +43,7 @@ async def test_conversation_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     assert stored_conversation.title == "Test Conversation"
 
     llm = StubLLMAdapter()
+    interaction_router = RuleInteractionRouter()
 
     turn1 = await ask_conversation.execute(
         convo_store=storage,
@@ -51,6 +53,7 @@ async def test_conversation_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         emit_event=event_logger.append,
         conversation_id=conversation.id,
         prompt_text="Hello",
+        interaction_router=interaction_router,
         last_n=10,
     )
 
@@ -62,6 +65,7 @@ async def test_conversation_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
         emit_event=event_logger.append,
         conversation_id=conversation.id,
         prompt_text="How are you?",
+        interaction_router=interaction_router,
         last_n=10,
     )
 

@@ -8,6 +8,7 @@ from openchronicle.core.application.use_cases import ask_conversation, create_co
 from openchronicle.core.infrastructure.llm.stub_adapter import StubLLMAdapter
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 
 @pytest.mark.asyncio
@@ -36,6 +37,7 @@ async def test_remember_turn_links_memory_and_emits_event(tmp_path: Path, monkey
         llm=llm,
         emit_event=event_logger.append,
         conversation_id=conversation.id,
+        interaction_router=RuleInteractionRouter(),
         prompt_text="Hello",
         last_n=5,
     )

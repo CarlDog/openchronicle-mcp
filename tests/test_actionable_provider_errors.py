@@ -203,6 +203,7 @@ class TestErrorHintPropagationInEvents:
         pool_config = PoolConfig(
             fast_pool=[],
             quality_pool=[],
+            nsfw_pool=[],
             provider_weights={},
             max_fallbacks=3,
             fallback_on_transient=True,
@@ -257,6 +258,7 @@ class TestErrorHintPropagationInEvents:
         pool_config = PoolConfig(
             fast_pool=[],
             quality_pool=[],
+            nsfw_pool=[],
             provider_weights={},
             max_fallbacks=3,
             fallback_on_transient=True,

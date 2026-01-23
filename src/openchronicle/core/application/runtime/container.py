@@ -11,6 +11,7 @@ from openchronicle.core.domain.ports.llm_port import LLMPort
 from openchronicle.core.infrastructure.llm.provider_facade import create_provider_aware_llm
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 
 class CoreContainer:
@@ -47,6 +48,7 @@ class CoreContainer:
             llm = create_provider_aware_llm(config_dir=config_dir_str)
 
         self.llm = llm
+        self.interaction_router = RuleInteractionRouter()
         self.handler_registry = TaskHandlerRegistry()
         self.plugin_loader = PluginLoader(plugins_dir=str(plugin_dir_resolved), handler_registry=self.handler_registry)
         self.plugin_loader.load_plugins()
@@ -63,6 +65,7 @@ class CoreContainer:
             "storage": self.storage,
             "event_logger": self.event_logger,
             "llm": self.llm,
+            "interaction_router": self.interaction_router,
             "plugins": self.plugin_loader.registry_instance(),
             "handler_registry": self.plugin_loader.handler_registry_instance(),
             "orchestrator": self.orchestrator,
