@@ -8,7 +8,7 @@ from openchronicle.core.application.runtime.container import CoreContainer
 from openchronicle.core.application.use_cases import create_conversation
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
-from openchronicle.interfaces.cli import main as cli_main
+from openchronicle.interfaces.cli import stdio as cli_stdio
 
 
 def _prepare_conversation(db_path: Path) -> str:
@@ -43,7 +43,7 @@ def test_serve_stdio_ping_export_shutdown(tmp_path: Path) -> None:
     input_stream = io.StringIO("\n".join(json.dumps(req) for req in requests) + "\n")
     output_stream = io.StringIO()
 
-    exit_code = cli_main._serve_stdio(
+    exit_code = cli_stdio.serve_stdio(
         container=container,
         input_stream=input_stream,
         output_stream=output_stream,
