@@ -14,6 +14,7 @@ from openchronicle.core.application.use_cases import (
     create_conversation,
     create_project,
     diagnose_runtime,
+    explain_turn,
     init_config,
     list_conversations,
     list_memory,
@@ -172,6 +173,7 @@ def main(argv: list[str] | None = None) -> int:
     convo_ask_cmd.add_argument("prompt")
     convo_ask_cmd.add_argument("--last-n", type=int, default=10, help="Number of prior turns to include")
     convo_ask_cmd.add_argument("--top-k-memory", type=int, default=8, help="Number of memory items to include")
+    convo_ask_cmd.add_argument("--explain", action="store_true", help="Explain the turn from events")
     convo_ask_group = convo_ask_cmd.add_mutually_exclusive_group()
     convo_ask_group.add_argument("--include-pinned-memory", dest="include_pinned_memory", action="store_true")
     convo_ask_group.add_argument("--no-include-pinned-memory", dest="include_pinned_memory", action="store_false")
@@ -613,6 +615,46 @@ def main(argv: list[str] | None = None) -> int:
                     include_pinned_memory=args.include_pinned_memory,
                 )
                 print(turn.assistant_text)
+
+                if args.explain:
+                    explain = explain_turn.execute(
+                        storage=container.storage,
+                        conversation_id=args.conversation_id,
+                        turn_id=turn.id,
+                    )
+                    reasons = explain.get("routing_reasons", [])
+                    reasons_str = ",".join(reasons) if isinstance(reasons, list) else ""
+                    memory_info = explain.get("memory")
+                    memory_dict = memory_info if isinstance(memory_info, dict) else {}
+                    pinned_ids = memory_dict.get("pinned_ids", []) if isinstance(memory_dict, dict) else []
+                    relevant_ids = memory_dict.get("relevant_ids", []) if isinstance(memory_dict, dict) else []
+                    pinned_str = ",".join(pinned_ids) if isinstance(pinned_ids, list) else ""
+                    relevant_str = ",".join(relevant_ids) if isinstance(relevant_ids, list) else ""
+                    llm_info = explain.get("llm")
+                    llm_dict = llm_info if isinstance(llm_info, dict) else {}
+                    usage_info = llm_dict.get("usage") if isinstance(llm_dict, dict) else {}
+                    usage_dict = usage_info if isinstance(usage_info, dict) else {}
+                    usage_in = usage_dict.get("input_tokens")
+                    usage_out = usage_dict.get("output_tokens")
+                    usage_total = usage_dict.get("total_tokens")
+                    latency_ms = llm_dict.get("latency_ms")
+                    finish_reason = llm_dict.get("finish_reason")
+
+                    print()
+                    print("EXPLAIN")
+                    print(f"provider: {explain.get('provider') or ''}")
+                    print(f"model: {explain.get('model') or ''}")
+                    print(f"reasons: {reasons_str}")
+                    print(f"pinned_memory_ids: {pinned_str}")
+                    print(f"relevant_memory_ids: {relevant_str}")
+                    print(
+                        "usage: "
+                        f"in={'' if usage_in is None else usage_in} "
+                        f"out={'' if usage_out is None else usage_out} "
+                        f"total={'' if usage_total is None else usage_total} "
+                        f"latency_ms={'' if latency_ms is None else latency_ms} "
+                        f"finish_reason={'' if finish_reason is None else finish_reason}"
+                    )
 
             asyncio.run(_run_ask())
             return 0

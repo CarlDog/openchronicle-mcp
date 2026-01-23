@@ -138,6 +138,26 @@ async def execute(
 
     assistant_text = response.content
 
+    emit_event(
+        Event(
+            project_id=conversation.project_id,
+            task_id=conversation.id,
+            type="llm.completed",
+            payload={
+                "provider": response.provider,
+                "model": response.model,
+                "request_id": response.request_id,
+                "finish_reason": response.finish_reason,
+                "latency_ms": response.latency_ms,
+                "usage": {
+                    "input_tokens": response.usage.input_tokens if response.usage else None,
+                    "output_tokens": response.usage.output_tokens if response.usage else None,
+                    "total_tokens": response.usage.total_tokens if response.usage else None,
+                },
+            },
+        )
+    )
+
     with storage.transaction():
         turn_index = convo_store.next_turn_index(conversation_id)
         turn = Turn(
