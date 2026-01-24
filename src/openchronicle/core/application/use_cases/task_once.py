@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 
 from openchronicle.core.application.use_cases import ask_conversation
@@ -20,8 +21,16 @@ def _eligible_tasks(tasks: list[Task], task_type: str) -> list[Task]:
     return eligible
 
 
-async def execute(
+def _collect_tasks(storage: StoragePort) -> list[Task]:
+    tasks: list[Task] = []
+    for project in storage.list_projects():
+        tasks.extend(storage.list_tasks_by_project(project.id))
+    return tasks
+
+
+async def _execute_task(
     *,
+    task: Task,
     storage: StoragePort,
     convo_store: ConversationStorePort,
     memory_store: MemoryStorePort,
@@ -30,24 +39,7 @@ async def execute(
     emit_event: Callable[[Event], None],
     privacy_gate: PrivacyGatePort | None = None,
     privacy_settings: PrivacyOutboundSettings | None = None,
-    task_type: str = "convo.ask",
 ) -> dict[str, object]:
-    tasks: list[Task] = []
-    for project in storage.list_projects():
-        tasks.extend(storage.list_tasks_by_project(project.id))
-
-    eligible = _eligible_tasks(tasks, task_type)
-    if not eligible:
-        return {
-            "ran": False,
-            "task_id": None,
-            "status": "none",
-            "conversation_id": None,
-            "turn_id": None,
-            "error": None,
-        }
-
-    task = eligible[0]
     storage.update_task_status(task.id, TaskStatus.RUNNING.value)
     emit_event(
         Event(
@@ -94,7 +86,6 @@ async def execute(
             )
         )
         return {
-            "ran": True,
             "task_id": task.id,
             "status": "completed",
             "conversation_id": conversation_id,
@@ -128,7 +119,6 @@ async def execute(
             )
         )
         return {
-            "ran": True,
             "task_id": task.id,
             "status": "failed",
             "conversation_id": conversation_id if isinstance(conversation_id, str) else None,
@@ -140,3 +130,112 @@ async def execute(
                 "details": details,
             },
         }
+
+
+async def execute(
+    *,
+    storage: StoragePort,
+    convo_store: ConversationStorePort,
+    memory_store: MemoryStorePort,
+    llm: LLMPort,
+    interaction_router: InteractionRouterPort,
+    emit_event: Callable[[Event], None],
+    privacy_gate: PrivacyGatePort | None = None,
+    privacy_settings: PrivacyOutboundSettings | None = None,
+    task_type: str = "convo.ask",
+) -> dict[str, object]:
+    tasks = _collect_tasks(storage)
+    eligible = _eligible_tasks(tasks, task_type)
+    if not eligible:
+        return {
+            "ran": False,
+            "task_id": None,
+            "status": "none",
+            "conversation_id": None,
+            "turn_id": None,
+            "error": None,
+        }
+
+    task = eligible[0]
+    result = await _execute_task(
+        task=task,
+        storage=storage,
+        convo_store=convo_store,
+        memory_store=memory_store,
+        llm=llm,
+        interaction_router=interaction_router,
+        emit_event=emit_event,
+        privacy_gate=privacy_gate,
+        privacy_settings=privacy_settings,
+    )
+    return {
+        "ran": True,
+        **result,
+    }
+
+
+async def execute_many(
+    *,
+    storage: StoragePort,
+    convo_store: ConversationStorePort,
+    memory_store: MemoryStorePort,
+    llm: LLMPort,
+    interaction_router: InteractionRouterPort,
+    emit_event: Callable[[Event], None],
+    privacy_gate: PrivacyGatePort | None = None,
+    privacy_settings: PrivacyOutboundSettings | None = None,
+    task_type: str = "convo.ask",
+    limit: int = 10,
+    max_seconds: float = 0.0,
+) -> dict[str, object]:
+    if limit < 1:
+        raise ValueError("Limit must be at least 1")
+    if limit > 200:
+        limit = 200
+    if max_seconds < 0:
+        raise ValueError("max_seconds must be non-negative")
+
+    tasks = _collect_tasks(storage)
+    eligible = _eligible_tasks(tasks, task_type)
+    if not eligible:
+        return {
+            "ran": 0,
+            "completed": 0,
+            "failed": 0,
+            "tasks": [],
+        }
+
+    results: list[dict[str, object]] = []
+    completed = 0
+    failed = 0
+    start = time.monotonic()
+
+    for task in eligible:
+        if len(results) >= limit:
+            break
+        if max_seconds > 0 and time.monotonic() - start >= max_seconds:
+            break
+
+        result = await _execute_task(
+            task=task,
+            storage=storage,
+            convo_store=convo_store,
+            memory_store=memory_store,
+            llm=llm,
+            interaction_router=interaction_router,
+            emit_event=emit_event,
+            privacy_gate=privacy_gate,
+            privacy_settings=privacy_settings,
+        )
+        results.append(result)
+        if result.get("status") == "completed":
+            completed += 1
+        else:
+            failed += 1
+
+    return {
+        "ran": len(results),
+        "completed": completed,
+        "failed": failed,
+        "tasks": results,
+    }

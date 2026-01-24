@@ -44,6 +44,7 @@ SUPPORTED_COMMANDS: tuple[str, ...] = (
     "task.get",
     "task.list",
     "task.run_one",
+    "task.run_many",
     "system.commands",
     "system.health",
     "system.info",
@@ -97,6 +98,16 @@ def coerce_int(value: object, default: int) -> int:
     if isinstance(value, str) and value.isdigit():
         return int(value)
     return default
+
+
+def _parse_run_many_limit(value: object) -> int:
+    if isinstance(value, bool):
+        raise ValueError("Limit must be an integer")
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str) and value.isdigit():
+        return int(value)
+    raise ValueError("Limit must be an integer")
 
 
 def _sanitize_details(details: dict[str, object]) -> dict[str, object]:
@@ -822,6 +833,109 @@ def dispatch_json_command(
                     privacy_gate=getattr(container, "privacy_gate", None),
                     privacy_settings=getattr(container, "privacy_settings", None),
                     task_type=task_type_value,
+                )
+            )
+
+            return json_envelope(
+                command=command,
+                ok=True,
+                result=result,
+                error=None,
+            )
+
+        if command == "task.run_many":
+            task_type_value = args.get("type", "convo.ask")
+            if not isinstance(task_type_value, str) or task_type_value != "convo.ask":
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="Only task type 'convo.ask' is supported",
+                        hint=None,
+                    ),
+                )
+
+            try:
+                run_many_limit = _parse_run_many_limit(args.get("limit", 10))
+            except ValueError:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="Limit must be an integer",
+                        hint=None,
+                    ),
+                )
+
+            if run_many_limit < 1:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="Limit must be at least 1",
+                        hint=None,
+                    ),
+                )
+            if run_many_limit > 200:
+                run_many_limit = 200
+
+            max_seconds_value = args.get("max_seconds", 0)
+            if isinstance(max_seconds_value, bool):
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="max_seconds must be a number",
+                        hint=None,
+                    ),
+                )
+            if isinstance(max_seconds_value, int | float):
+                max_seconds = float(max_seconds_value)
+            else:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="max_seconds must be a number",
+                        hint=None,
+                    ),
+                )
+
+            if max_seconds < 0:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="max_seconds must be non-negative",
+                        hint=None,
+                    ),
+                )
+
+            result = asyncio.run(
+                task_once.execute_many(
+                    storage=container.storage,
+                    convo_store=container.storage,
+                    memory_store=container.storage,
+                    llm=container.llm,
+                    interaction_router=container.interaction_router,
+                    emit_event=container.event_logger.append,
+                    privacy_gate=getattr(container, "privacy_gate", None),
+                    privacy_settings=getattr(container, "privacy_settings", None),
+                    task_type=task_type_value,
+                    limit=run_many_limit,
+                    max_seconds=max_seconds,
                 )
             )
 
