@@ -5,8 +5,10 @@ import json
 import os
 import sys
 import threading
+import time
 from collections import OrderedDict
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from io import TextIOBase
 from queue import Empty, Queue
 from typing import TextIO
@@ -48,9 +50,70 @@ SUPPORTED_COMMANDS: tuple[str, ...] = (
     "system.commands",
     "system.health",
     "system.info",
+    "system.metrics",
     "system.ping",
     "system.shutdown",
 )
+
+
+class MetricsTracker:
+    def __init__(self) -> None:
+        self._started_at = datetime.now(UTC)
+        self._started_monotonic = time.monotonic()
+        self._requests_total = 0
+        self._requests_ok = 0
+        self._requests_error = 0
+        self._by_command: dict[str, int] = {}
+        self._by_error_code: dict[str, int] = {}
+        self._tasks_run_one = 0
+        self._tasks_run_many = 0
+        self._tasks_completed = 0
+        self._tasks_failed = 0
+
+    def record_request(self, command: str, *, ok: bool, error_code: str | None) -> None:
+        self._requests_total += 1
+        if ok:
+            self._requests_ok += 1
+        else:
+            self._requests_error += 1
+        self._by_command[command] = self._by_command.get(command, 0) + 1
+        if error_code:
+            self._by_error_code[error_code] = self._by_error_code.get(error_code, 0) + 1
+
+    def record_task_run(self, kind: str, *, completed: int, failed: int) -> None:
+        if kind == "run_one":
+            self._tasks_run_one += 1
+        elif kind == "run_many":
+            self._tasks_run_many += 1
+
+        if completed > 0:
+            self._tasks_completed += completed
+        if failed > 0:
+            self._tasks_failed += failed
+
+    def snapshot(self) -> dict[str, object]:
+        by_command = dict(sorted(self._by_command.items()))
+        by_error_code = dict(sorted(self._by_error_code.items()))
+        return {
+            "started_at": self._started_at.isoformat(),
+            "uptime_seconds": time.monotonic() - self._started_monotonic,
+            "requests": {
+                "total": self._requests_total,
+                "ok": self._requests_ok,
+                "error": self._requests_error,
+                "by_command": by_command,
+                "by_error_code": by_error_code,
+            },
+            "tasks": {
+                "run_one": self._tasks_run_one,
+                "run_many": self._tasks_run_many,
+                "completed": self._tasks_completed,
+                "failed": self._tasks_failed,
+            },
+        }
+
+
+METRICS = MetricsTracker()
 
 
 def json_error_payload(
@@ -108,6 +171,18 @@ def _parse_run_many_limit(value: object) -> int:
     if isinstance(value, str) and value.isdigit():
         return int(value)
     raise ValueError("Limit must be an integer")
+
+
+def _record_response(command: str, payload: dict[str, object]) -> None:
+    ok_value = payload.get("ok")
+    ok = ok_value is True
+    error_code = None
+    error = payload.get("error")
+    if isinstance(error, dict):
+        code_value = error.get("error_code")
+        if isinstance(code_value, str):
+            error_code = code_value
+    METRICS.record_request(command, ok=ok, error_code=error_code)
 
 
 def _sanitize_details(details: dict[str, object]) -> dict[str, object]:
@@ -280,6 +355,14 @@ def dispatch_json_command(
             command=command,
             ok=True,
             result={"commands": sorted(SUPPORTED_COMMANDS)},
+            error=None,
+        )
+
+    if command == "system.metrics":
+        return json_envelope(
+            command=command,
+            ok=True,
+            result=METRICS.snapshot(),
             error=None,
         )
 
@@ -836,6 +919,13 @@ def dispatch_json_command(
                 )
             )
 
+            if result.get("ran") is True:
+                status = result.get("status")
+                if status == "completed":
+                    METRICS.record_task_run("run_one", completed=1, failed=0)
+                elif status == "failed":
+                    METRICS.record_task_run("run_one", completed=0, failed=1)
+
             return json_envelope(
                 command=command,
                 ok=True,
@@ -939,6 +1029,12 @@ def dispatch_json_command(
                 )
             )
 
+            completed = result.get("completed") if isinstance(result, dict) else 0
+            failed = result.get("failed") if isinstance(result, dict) else 0
+            completed_count = completed if isinstance(completed, int) and completed >= 0 else 0
+            failed_count = failed if isinstance(failed, int) and failed >= 0 else 0
+            METRICS.record_task_run("run_many", completed=completed_count, failed=failed_count)
+
             return json_envelope(
                 command=command,
                 ok=True,
@@ -971,6 +1067,7 @@ def dispatch_request(container: CoreContainer, request: dict[str, object]) -> di
     args_value = request.get("args")
     protocol_value = request.get("protocol_version")
     request_id_value = request.get("request_id")
+    command_name = command_value if isinstance(command_value, str) else "unknown"
     if request_id_value is not None and not isinstance(request_id_value, str):
         payload = json_envelope(
             command=str(command_value) if isinstance(command_value, str) else "unknown",
@@ -983,6 +1080,7 @@ def dispatch_request(container: CoreContainer, request: dict[str, object]) -> di
             ),
         )
         payload["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
+        _record_response(command_name, payload)
         return payload
 
     request_id = request_id_value if isinstance(request_id_value, str) else None
@@ -1000,6 +1098,7 @@ def dispatch_request(container: CoreContainer, request: dict[str, object]) -> di
         )
         payload["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
         _attach_request_id(payload, request_id)
+        _record_response(command_name, payload)
         return payload
 
     if protocol_value is not None and protocol_value != STDIO_RPC_PROTOCOL_VERSION:
@@ -1015,6 +1114,7 @@ def dispatch_request(container: CoreContainer, request: dict[str, object]) -> di
         )
         payload["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
         _attach_request_id(payload, request_id)
+        _record_response(command_name, payload)
         return payload
 
     if not isinstance(command_value, str):
@@ -1030,6 +1130,7 @@ def dispatch_request(container: CoreContainer, request: dict[str, object]) -> di
         )
         payload["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
         _attach_request_id(payload, request_id)
+        _record_response(command_name, payload)
         return payload
 
     if args_value is None:
@@ -1047,11 +1148,20 @@ def dispatch_request(container: CoreContainer, request: dict[str, object]) -> di
         )
         payload["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
         _attach_request_id(payload, request_id)
+        _record_response(command_name, payload)
         return payload
+
+    if command_value == "system.metrics":
+        METRICS.record_request("system.metrics", ok=True, error_code=None)
+        response = dispatch_json_command(container, command_value, args_value)
+        response["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
+        _attach_request_id(response, request_id)
+        return response
 
     response = dispatch_json_command(container, command_value, args_value)
     response["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
     _attach_request_id(response, request_id)
+    _record_response(command_name, response)
     return response
 
 
@@ -1107,6 +1217,7 @@ def serve_stdio(
                 ),
             )
             payload["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
+            METRICS.record_request("unknown", ok=False, error_code="INVALID_JSON")
             output_stream.write(json_dumps_line(payload) + "\n")
             output_stream.flush()
             continue
@@ -1123,6 +1234,7 @@ def serve_stdio(
                 ),
             )
             payload["protocol_version"] = STDIO_RPC_PROTOCOL_VERSION
+            METRICS.record_request("unknown", ok=False, error_code="INVALID_REQUEST")
             output_stream.write(json_dumps_line(payload) + "\n")
             output_stream.flush()
             continue
@@ -1130,6 +1242,9 @@ def serve_stdio(
         request_id = request.get("request_id") if isinstance(request.get("request_id"), str) else None
         if request_id is not None and request_id in cache:
             cached = cache[request_id]
+            cached_command = request.get("command")
+            command_name = cached_command if isinstance(cached_command, str) else "unknown"
+            _record_response(command_name, cached)
             output_stream.write(json_dumps_line(cached) + "\n")
             output_stream.flush()
             continue

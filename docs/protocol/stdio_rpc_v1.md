@@ -89,6 +89,16 @@ Result:
 {"name":"openchronicle","protocol_version":"1","capabilities":{"serve":true,"rpc":true}}
 ```
 
+### system.metrics
+
+Args: `{}`
+
+Result:
+
+```json
+{"started_at":"...","uptime_seconds":1.23,"requests":{"total":1,"ok":1,"error":0,"by_command":{"system.metrics":1},"by_error_code":{}},"tasks":{"run_one":0,"run_many":0,"completed":0,"failed":0}}
+```
+
 ### system.commands
 
 Args: `{}`
@@ -96,7 +106,7 @@ Args: `{}`
 Result:
 
 ```json
-{"commands":["convo.ask","convo.ask_async","convo.export","convo.mode","convo.show","convo.verify","privacy.preview","task.get","task.list","task.run_one","task.run_many","system.commands","system.health","system.info","system.ping","system.shutdown"]}
+{"commands":["convo.ask","convo.ask_async","convo.export","convo.mode","convo.show","convo.verify","privacy.preview","task.get","task.list","task.run_one","task.run_many","system.commands","system.health","system.info","system.metrics","system.ping","system.shutdown"]}
 ```
 
 ### system.health
