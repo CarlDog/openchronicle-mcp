@@ -41,3 +41,11 @@ docker run --rm \
   - /app/output
 - The entrypoint creates missing directories.
 - No external dependencies are required for `oc selftest`.
+
+## Acceptance check (Windows)
+
+```powershell
+pwsh tools/docker/acceptance.ps1
+```
+
+Use `-Keep` to retain the runtime directory for debugging.
