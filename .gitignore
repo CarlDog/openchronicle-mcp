@@ -47,7 +47,6 @@ storage/temp/
 storage/data/memory.db
 storage/data/*.db
 data/*.db
-*.db
 *.jsonl
 *.log
 bandit-report.json
@@ -92,6 +91,10 @@ docs/consolidation/
 test_cleanup_*
 temp_test*
 temp_storypack_*
+/test.db
+/test-*.db
+tests/.tmp/
+tests/temp/
 storage/temp/test_data/test_story_*/
 storage/temp/test_data/perf_test_*/
 storage/temp/test_stories/
