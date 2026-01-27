@@ -4,10 +4,12 @@ v1.reference/
 # VCS / caches
 .git/
 __pycache__/
+.venv/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
 *.pyc
+node_modules/
 
 # Local state
 data/

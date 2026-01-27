@@ -93,9 +93,16 @@ def _prepare_workspace(base_dir: Path) -> tuple[dict[str, Path], bool]:
 
 
 def _copy_storytelling_plugin(target_plugins_dir: Path) -> None:
+    candidates: list[Path] = []
+    env_plugins_dir = os.getenv("OC_PLUGIN_DIR")
+    if env_plugins_dir:
+        candidates.append(Path(env_plugins_dir) / "storytelling")
     repo_root = _find_repo_root(Path(__file__))
-    source = repo_root / "plugins" / "storytelling"
-    if not source.exists():
+    candidates.append(repo_root / "plugins" / "storytelling")
+    candidates.append(Path("/app/plugins/storytelling"))
+
+    source = next((path for path in candidates if path.exists()), None)
+    if source is None:
         raise FileNotFoundError("Storytelling plugin not found in repo plugins directory")
 
     destination = target_plugins_dir / "storytelling"
@@ -113,6 +120,7 @@ def execute(
     json_output: bool,
     keep_artifacts: bool,
     with_plugins: bool = True,
+    telemetry_self_report: bool = False,
 ) -> dict[str, object]:
     base_path = Path(base_dir).resolve()
     workspace: dict[str, Path] | None = None
@@ -141,6 +149,8 @@ def execute(
         "OC_LLM_QUALITY_POOL": "",
         "OC_LLM_POOL_NSFW": "",
     }
+    if telemetry_self_report:
+        env_overrides["OC_TELEMETRY_MEMORY_SELF_REPORT_ENABLED"] = "1"
 
     try:
         workspace, cleanup_base_dir = _prepare_workspace(base_path)

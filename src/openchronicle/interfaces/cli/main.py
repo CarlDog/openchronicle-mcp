@@ -318,6 +318,11 @@ def main(argv: list[str] | None = None) -> int:
     selftest_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
     selftest_cmd.add_argument("--keep-artifacts", action="store_true", help="Keep selftest workspace on success")
     selftest_cmd.add_argument("--no-plugins", action="store_true", help="Skip plugin loading and execution")
+    selftest_cmd.add_argument(
+        "--telemetry-self-report",
+        action="store_true",
+        help="Enable telemetry memory self-report for this selftest run",
+    )
 
     diag_cmd = sub.add_parser("diagnose", help="Troubleshoot runtime, paths, persistence, and provider config")
     diag_cmd.add_argument("--json", action="store_true", help="Output diagnostics as JSON")
@@ -1459,6 +1464,7 @@ def main(argv: list[str] | None = None) -> int:
             json_output=args.json,
             keep_artifacts=args.keep_artifacts,
             with_plugins=not args.no_plugins,
+            telemetry_self_report=args.telemetry_self_report,
         )
         ok = selftest_result.get("ok") is True
 

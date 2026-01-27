@@ -29,3 +29,21 @@ def test_selftest_cli_json(tmp_path: Path) -> None:
     assert workspace.get("data_dir")
     assert workspace.get("plugins_dir")
     assert workspace.get("output_dir")
+
+
+def test_selftest_cli_json_with_telemetry_self_report(tmp_path: Path) -> None:
+    env = build_env(tmp_path, db_name="selftest-cli-telemetry.db")
+    result = run_oc_module(
+        [
+            "selftest",
+            "--json",
+            "--telemetry-self-report",
+            "--dir",
+            str(tmp_path / "selftest-telemetry"),
+        ],
+        env=env,
+    )
+    assert result.returncode == 0
+
+    payload = cast(dict[str, Any], json.loads(result.stdout.strip()))
+    assert payload["ok"] is True
