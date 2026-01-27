@@ -333,7 +333,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "init-project":
         project = create_project.execute(orchestrator, args.name)
-        print(project)
+        print(project.id)
         return 0
 
     if args.command == "init-config":

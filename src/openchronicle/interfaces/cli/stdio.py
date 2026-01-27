@@ -56,6 +56,7 @@ SUPPORTED_COMMANDS: tuple[str, ...] = (
     "task.list",
     "task.run_one",
     "task.run_many",
+    "task.submit",
     "system.commands",
     "system.health",
     "system.info",
@@ -1014,6 +1015,94 @@ def dispatch_json_command(
                 command=command,
                 ok=True,
                 result=result_payload,
+                error=None,
+            )
+
+        if command == "task.submit":
+            from openchronicle.core.application.use_cases import task_submit
+
+            project_id = str(args.get("project_id", ""))
+            task_type = str(args.get("task_type", ""))
+            payload = args.get("payload")
+
+            if not project_id:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="Missing required argument: project_id",
+                        hint=None,
+                    ),
+                )
+
+            if not task_type:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="Missing required argument: task_type",
+                        hint=None,
+                    ),
+                )
+
+            if payload is None or not isinstance(payload, dict):
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="INVALID_ARGUMENT",
+                        message="Missing or invalid required argument: payload (must be a JSON object)",
+                        hint=None,
+                    ),
+                )
+
+            # Validate project exists
+            project = container.storage.get_project(project_id)
+            if project is None:
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code="PROJECT_NOT_FOUND",
+                        message=f"Project not found: {project_id}",
+                        hint="Use 'oc init-project' to create a project first",
+                    ),
+                )
+
+            try:
+                task = task_submit.execute(
+                    orchestrator=container.orchestrator,
+                    project_id=project_id,
+                    task_type=task_type,
+                    payload=payload,
+                )
+            except ValueError as exc:
+                error_message = str(exc)
+                error_code = "UNKNOWN_TASK_TYPE" if "Unknown task type" in error_message else "INVALID_ARGUMENT"
+                return json_envelope(
+                    command=command,
+                    ok=False,
+                    result=None,
+                    error=json_error_payload(
+                        error_code=error_code,
+                        message=error_message,
+                        hint=None,
+                    ),
+                )
+
+            return json_envelope(
+                command=command,
+                ok=True,
+                result={
+                    "task_id": task.id,
+                    "status": task.status.value,
+                },
                 error=None,
             )
 

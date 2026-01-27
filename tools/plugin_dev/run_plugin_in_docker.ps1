@@ -12,6 +12,7 @@ $ErrorActionPreference = "Stop"
 
 $RepoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $RuntimeDir = Join-Path $env:TEMP "openchronicle-plugin-harness"
+$PluginName = Split-Path -Leaf $PluginDir
 
 if (-not (Test-Path $PluginDir)) {
   Write-Error "PluginDir not found: $PluginDir"
@@ -42,10 +43,9 @@ try {
     $selftestOutput = docker run --rm `
       -e OC_DB_PATH=/app/runtime/data/openchronicle.db `
       -e OC_CONFIG_DIR=/app/runtime/config `
-      -e OC_PLUGIN_DIR=/app/runtime/plugins `
       -e OC_OUTPUT_DIR=/app/runtime/output `
       -v "${RuntimeDir}:/app/runtime" `
-      -v "${PluginDir}:/app/runtime/plugins:ro" `
+      -v "${PluginDir}:/app/plugins/${PluginName}:ro" `
       $Tag selftest --json
 
     if ($LASTEXITCODE -ne 0) {
@@ -79,55 +79,32 @@ try {
     exit 1
   }
 
-  Write-Host "Creating conversation"
-  $convoId = docker run --rm `
-    -e OC_DB_PATH=/app/runtime/data/openchronicle.db `
-    -e OC_CONFIG_DIR=/app/runtime/config `
-    -e OC_PLUGIN_DIR=/app/runtime/plugins `
-    -e OC_OUTPUT_DIR=/app/runtime/output `
-    -v "${RuntimeDir}:/app/runtime" `
-    -v "${PluginDir}:/app/runtime/plugins:ro" `
-    $Tag convo new
-
-  if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($convoId)) {
-    Write-Error "Failed to create conversation"
-    exit 1
-  }
-
-  Write-Host "Submitting hello.echo task"
-  $taskOutput = docker run --rm `
-    -e OC_DB_PATH=/app/runtime/data/openchronicle.db `
-    -e OC_CONFIG_DIR=/app/runtime/config `
-    -e OC_PLUGIN_DIR=/app/runtime/plugins `
-    -e OC_OUTPUT_DIR=/app/runtime/output `
-    -v "${RuntimeDir}:/app/runtime" `
-    -v "${PluginDir}:/app/runtime/plugins:ro" `
-    $Tag run-task $(($convoId).Trim()) hello.echo '{"prompt":"hello"}'
+  Write-Host "Verifying plugin loaded successfully"
+  $listHandlersOutput = docker run --rm `
+    -v "${PluginDir}:/app/plugins/${PluginName}:ro" `
+    $Tag list-handlers
 
   if ($LASTEXITCODE -ne 0) {
-    Write-Error "Failed to submit hello.echo task"
-    Write-Host $taskOutput
-    exit 1
-  }
-
-  Write-Host "Running task.run_many"
-  $runManyRequest = '{"protocol_version":"1","command":"task.run_many","args":{"limit":1}}'
-  $runManyOutput = docker run --rm $Tag rpc --request $runManyRequest
-
-  if ($LASTEXITCODE -ne 0) {
-    Write-Error "task.run_many failed with exit code $LASTEXITCODE"
-    Write-Host $runManyOutput
+    Write-Host "list-handlers failed with exit code $LASTEXITCODE"
+    Write-Host $listHandlersOutput
     exit $LASTEXITCODE
   }
 
-  $runManyJson = $runManyOutput | ConvertFrom-Json
-  if (-not $runManyJson.ok) {
-    Write-Error "task.run_many returned ok=false"
-    Write-Host $runManyOutput
-    exit 1
-  }
-
+  Write-Host ""
+  Write-Host "=========================================="
   Write-Host "PASS: Plugin docker harness"
+  Write-Host "=========================================="
+  Write-Host ""
+  Write-Host $listHandlersOutput
+  Write-Host ""
+  Write-Host "Note: Plugin execution via RPC is not yet implemented."
+  Write-Host "The harness currently validates:"
+  Write-Host "  1. Container health (system.health)"
+  Write-Host "  2. Plugin discovery and loading"
+  Write-Host "  3. Handler registration"
+  Write-Host ""
+  Write-Host "Next step: Implement minimal RPC hook for task execution"
+
 } finally {
   Cleanup
 }

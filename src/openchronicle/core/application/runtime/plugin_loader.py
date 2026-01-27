@@ -1,12 +1,26 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
-from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
+from openchronicle.core.application.runtime.task_registry import HandlerCollisionError, TaskHandlerRegistry
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry, TaskHandler
+
+
+class PluginCollisionError(Exception):
+    """Raised when duplicate plugin IDs or handler names are detected."""
+
+    def __init__(self, collision_type: str, key: str, sources: list[str]) -> None:
+        self.collision_type = collision_type
+        self.key = key
+        self.sources = sources
+        sources_str = "\n  - ".join(sources)
+        super().__init__(
+            f"Plugin collision detected: {collision_type} '{key}' is registered by multiple sources:\n  - {sources_str}"
+        )
 
 
 class InMemoryPluginRegistry(PluginRegistry):
@@ -31,7 +45,10 @@ class PluginLoader:
     def __init__(self, plugins_dir: str = "plugins", handler_registry: TaskHandlerRegistry | None = None) -> None:
         self.plugins_dir = Path(plugins_dir)
         self.registry = InMemoryPluginRegistry()
-        self.handler_registry = handler_registry or TaskHandlerRegistry()
+        self.allow_collisions = os.getenv("OC_PLUGIN_ALLOW_COLLISIONS", "0") == "1"
+        # Create handler registry with collision checking enabled (unless collisions are allowed)
+        self.handler_registry = handler_registry or TaskHandlerRegistry(check_collisions=not self.allow_collisions)
+        self._plugin_sources: dict[str, str] = {}  # plugin_name -> source_path
 
     def _find_repo_root(self) -> Path:
         """Find repository root by walking up until pyproject.toml is found."""
@@ -70,6 +87,17 @@ class PluginLoader:
                 continue
 
             plugin_name = plugin_dir.name
+
+            # Check for plugin ID collision
+            if plugin_name in self._plugin_sources and not self.allow_collisions:
+                raise PluginCollisionError(
+                    collision_type="plugin_id",
+                    key=plugin_name,
+                    sources=[self._plugin_sources[plugin_name], str(plugin_dir)],
+                )
+            # With collisions allowed, later plugins override earlier ones (deterministic)
+
+            self._plugin_sources[plugin_name] = str(plugin_dir)
             self._load_plugin(plugin_name, plugin_dir, init_file, plugin_file, context)
 
     def _load_plugin(
@@ -128,10 +156,34 @@ class PluginLoader:
             )
             return
 
+        # Set current source for collision tracking
+        self.handler_registry.set_current_source(plugin_name)
+
         try:
             plugin_module.register(self.registry, self.handler_registry, context)
-        except Exception as exc:
-            print(f"Failed to register plugin {plugin_name}: {exc}", file=sys.stderr)
+        except HandlerCollisionError as exc:
+            # Convert to PluginCollisionError with proper source information
+            # Extract handler name and source from the exception message
+            import re
+
+            match = re.search(r"Handler '([^']+)' is already registered by '([^']+)'", str(exc))
+            if match:
+                handler_name = match.group(1)
+                existing_source = match.group(2)
+                raise PluginCollisionError(
+                    collision_type="handler_name",
+                    key=handler_name,
+                    sources=[f"plugin '{existing_source}'", f"plugin '{plugin_name}'"],
+                ) from None
+            # Fallback if regex doesn't match
+            raise PluginCollisionError(
+                collision_type="handler_name",
+                key="unknown",
+                sources=[str(exc)],
+            ) from None
+        finally:
+            # Clear current source after registration
+            self.handler_registry.set_current_source(None)
 
     def registry_instance(self) -> PluginRegistry:
         return self.registry

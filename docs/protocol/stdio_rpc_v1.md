@@ -303,6 +303,57 @@ Result:
 This enqueues work for a future worker; no LLM execution happens immediately. Setting `allow_pii` bypasses
 the outbound privacy gate for this request and emits an audit event.
 
+### task.submit
+
+Create a task without executing it immediately. The task is queued for later execution via `task.run_one` or `task.run_many`.
+
+Args:
+
+```json
+{
+  "project_id": "...",
+  "task_type": "hello.echo",
+  "payload": {
+    "prompt": "test message"
+  }
+}
+```
+
+- `project_id` (required): The project ID where the task will be created
+- `task_type` (required): The type of task handler to invoke
+- `payload` (required): JSON object containing task-specific parameters
+
+Result:
+
+```json
+{
+  "task_id": "...",
+  "status": "pending"
+}
+```
+
+Error codes:
+
+- `INVALID_ARGUMENT`: Missing or invalid required argument
+- `PROJECT_NOT_FOUND`: Project does not exist
+- `UNKNOWN_TASK_TYPE`: Task type is not registered
+
+Example workflow:
+
+```bash
+# 1. Create a project
+PROJECT_ID=$(oc init-project "test-project")
+
+# 2. Submit a task
+TASK_ID=$(oc rpc --request '{"protocol_version":"1","command":"task.submit","args":{"project_id":"'"$PROJECT_ID"'","task_type":"hello.echo","payload":{"prompt":"hello"}}}' | jq -r '.result.task_id')
+
+# 3. Execute queued tasks
+oc rpc --request '{"protocol_version":"1","command":"task.run_many","args":{"limit":10}}'
+
+# 4. Get task result
+oc rpc --request '{"protocol_version":"1","command":"task.get","args":{"task_id":"'"$TASK_ID"'"}}'
+```
+
 ### task.get
 
 Args:
