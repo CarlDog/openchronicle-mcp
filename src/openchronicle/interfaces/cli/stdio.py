@@ -65,6 +65,13 @@ SUPPORTED_COMMANDS: tuple[str, ...] = (
     "system.shutdown",
 )
 
+RUNNABLE_TASK_TYPES = frozenset(
+    {
+        "convo.ask",
+        "hello.echo",
+    }
+)
+
 
 class MetricsTracker:
     def __init__(self, telemetry: TelemetrySettings) -> None:
@@ -1200,56 +1207,114 @@ def dispatch_json_command(
 
         if command == "task.run_one":
             task_type_value = args.get("type", "convo.ask")
-            if not isinstance(task_type_value, str) or task_type_value != "convo.ask":
+            if not isinstance(task_type_value, str):
                 return json_envelope(
                     command=command,
                     ok=False,
                     result=None,
                     error=json_error_payload(
                         error_code="INVALID_ARGUMENT",
-                        message="Only task type 'convo.ask' is supported",
+                        message="Task type must be a string",
                         hint=None,
                     ),
                 )
 
-            result = asyncio.run(
-                task_once.execute(
-                    storage=container.storage,
-                    convo_store=container.storage,
-                    memory_store=container.storage,
-                    llm=container.llm,
-                    interaction_router=container.interaction_router,
-                    emit_event=container.event_logger.append,
-                    privacy_gate=getattr(container, "privacy_gate", None),
-                    privacy_settings=getattr(container, "privacy_settings", None),
-                    task_type=task_type_value,
-                )
-            )
+            max_scan = 10
+            scanned = 0
+            skipped_unrunnable = 0
+            run_one_result: dict[str, object] = {
+                "ran": False,
+                "task_id": None,
+                "status": "none",
+                "error": None,
+            }
 
-            if result.get("ran") is True:
-                status = result.get("status")
-                if status == "completed":
+            run_one_pending: list[Task] = []
+            for project in container.storage.list_projects():
+                run_one_pending.extend(container.storage.list_tasks_by_project(project.id))
+            run_one_pending = [task for task in run_one_pending if task.status == TaskStatus.PENDING]
+            run_one_pending.sort(key=lambda task: (task.created_at, task.id))
+
+            for task in run_one_pending:
+                if scanned >= max_scan:
+                    break
+                scanned += 1
+
+                if task.type not in RUNNABLE_TASK_TYPES:
+                    skipped_unrunnable += 1
+                    continue
+                if task.type != task_type_value:
+                    continue
+
+                if task.type == "convo.ask":
+                    run_one_result = asyncio.run(
+                        task_once.execute_task_by_id(
+                            storage=container.storage,
+                            convo_store=container.storage,
+                            memory_store=container.storage,
+                            llm=container.llm,
+                            interaction_router=container.interaction_router,
+                            emit_event=container.event_logger.append,
+                            privacy_gate=getattr(container, "privacy_gate", None),
+                            privacy_settings=getattr(container, "privacy_settings", None),
+                            task_id=task.id,
+                            task_type=task_type_value,
+                        )
+                    )
+                else:
+                    error_payload = None
+                    status = "completed"
+                    try:
+                        asyncio.run(run_task.execute(container.orchestrator, task.id))
+                    except Exception as exc:  # noqa: BLE001
+                        status = "failed"
+                        error_payload = {"message": str(exc)}
+
+                    task_after = container.storage.get_task(task.id)
+                    if task_after is not None:
+                        status = task_after.status.value
+                        if task_after.error_json:
+                            try:
+                                error_payload = json.loads(task_after.error_json)
+                            except json.JSONDecodeError:
+                                error_payload = {"message": task_after.error_json}
+
+                    run_one_result = {
+                        "ran": True,
+                        "task_id": task.id,
+                        "status": status,
+                        "error": error_payload,
+                    }
+
+                break
+
+            run_one_result["scanned"] = scanned
+            run_one_result["skipped_unrunnable"] = skipped_unrunnable
+
+            if run_one_result.get("ran") is True:
+                status_value = str(run_one_result.get("status"))
+                if status_value == "completed":
                     METRICS.record_task_run("run_one", completed=1, failed=0)
-                elif status == "failed":
+                elif status_value == "failed":
                     METRICS.record_task_run("run_one", completed=0, failed=1)
 
             return json_envelope(
                 command=command,
                 ok=True,
-                result=result,
+                result=run_one_result,
                 error=None,
             )
 
         if command == "task.run_many":
             task_type_value = args.get("type", "convo.ask")
-            if not isinstance(task_type_value, str) or task_type_value != "convo.ask":
+            if not isinstance(task_type_value, str):
                 return json_envelope(
                     command=command,
                     ok=False,
                     result=None,
                     error=json_error_payload(
                         error_code="INVALID_ARGUMENT",
-                        message="Only task type 'convo.ask' is supported",
+                        message="Task type must be a string",
                         hint=None,
                     ),
                 )
@@ -1320,24 +1385,110 @@ def dispatch_json_command(
                     ),
                 )
 
-            result = asyncio.run(
-                task_once.execute_many(
-                    storage=container.storage,
-                    convo_store=container.storage,
-                    memory_store=container.storage,
-                    llm=container.llm,
-                    interaction_router=container.interaction_router,
-                    emit_event=container.event_logger.append,
-                    privacy_gate=getattr(container, "privacy_gate", None),
-                    privacy_settings=getattr(container, "privacy_settings", None),
-                    task_type=task_type_value,
-                    limit=run_many_limit,
-                    max_seconds=max_seconds,
-                )
-            )
+            start_time = time.monotonic()
+            max_scan = run_many_limit * 10
+            scanned = 0
+            skipped_unrunnable = 0
+            executed = 0
+            completed_count = 0
+            failed_count = 0
+            results: list[dict[str, object]] = []
 
-            completed = result.get("completed") if isinstance(result, dict) else 0
-            failed = result.get("failed") if isinstance(result, dict) else 0
+            run_many_pending: list[Task] = []
+            for project in container.storage.list_projects():
+                run_many_pending.extend(container.storage.list_tasks_by_project(project.id))
+            run_many_pending = [task for task in run_many_pending if task.status == TaskStatus.PENDING]
+            run_many_pending.sort(key=lambda task: (task.created_at, task.id))
+
+            for task in run_many_pending:
+                if executed >= run_many_limit:
+                    break
+                if scanned >= max_scan:
+                    break
+                if max_seconds > 0 and time.monotonic() - start_time >= max_seconds:
+                    break
+
+                scanned += 1
+
+                if task.type not in RUNNABLE_TASK_TYPES:
+                    skipped_unrunnable += 1
+                    continue
+                if task.type != task_type_value:
+                    continue
+
+                if task.type == "convo.ask":
+                    run_many_task_result = asyncio.run(
+                        task_once.execute_task_by_id(
+                            storage=container.storage,
+                            convo_store=container.storage,
+                            memory_store=container.storage,
+                            llm=container.llm,
+                            interaction_router=container.interaction_router,
+                            emit_event=container.event_logger.append,
+                            privacy_gate=getattr(container, "privacy_gate", None),
+                            privacy_settings=getattr(container, "privacy_settings", None),
+                            task_id=task.id,
+                            task_type=task_type_value,
+                        )
+                    )
+                    status = str(run_many_task_result.get("status"))
+                    results.append(run_many_task_result)
+                else:
+                    status = "completed"
+                    error_payload = None
+                    try:
+                        asyncio.run(run_task.execute(container.orchestrator, task.id))
+                    except Exception as exc:  # noqa: BLE001
+                        status = "failed"
+                        error_payload = {"message": str(exc)}
+
+                    task_after = container.storage.get_task(task.id)
+                    if task_after is not None:
+                        status = task_after.status.value
+                        if task_after.error_json:
+                            try:
+                                error_payload = json.loads(task_after.error_json)
+                            except json.JSONDecodeError:
+                                error_payload = {"message": task_after.error_json}
+
+                    results.append(
+                        {
+                            "task_id": task.id,
+                            "status": status,
+                            "error": error_payload,
+                        }
+                    )
+
+                executed += 1
+                if status == "completed":
+                    completed_count += 1
+                elif status == "failed":
+                    failed_count += 1
+
+            remaining_queued = 0
+            refreshed_pending: list[Task] = []
+            for project in container.storage.list_projects():
+                refreshed_pending.extend(container.storage.list_tasks_by_project(project.id))
+            for task in refreshed_pending:
+                if task.status != TaskStatus.PENDING:
+                    continue
+                if task.type in RUNNABLE_TASK_TYPES and task.type == task_type_value:
+                    remaining_queued += 1
+
+            run_many_result = {
+                "ran": executed,
+                "executed": executed,
+                "completed": completed_count,
+                "failed": failed_count,
+                "scanned": scanned,
+                "skipped_unrunnable": skipped_unrunnable,
+                "has_more": remaining_queued > 0,
+                "remaining_queued": remaining_queued,
+                "tasks": results,
+            }
+
+            completed = run_many_result.get("completed") if isinstance(run_many_result, dict) else 0
+            failed = run_many_result.get("failed") if isinstance(run_many_result, dict) else 0
             completed_count = completed if isinstance(completed, int) and completed >= 0 else 0
             failed_count = failed if isinstance(failed, int) and failed >= 0 else 0
             METRICS.record_task_run("run_many", completed=completed_count, failed=failed_count)
@@ -1345,7 +1496,7 @@ def dispatch_json_command(
             return json_envelope(
                 command=command,
                 ok=True,
-                result=result,
+                result=run_many_result,
                 error=None,
             )
 

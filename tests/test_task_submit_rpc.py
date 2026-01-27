@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 
 
@@ -60,58 +62,91 @@ def test_task_submit_creates_task_in_db() -> None:
         assert get_response["result"]["task"]["type"] == "hello.echo"
 
 
-def test_task_submit_and_execute_hello_echo() -> None:
+def test_task_submit_and_execute_hello_echo(tmp_path: Path) -> None:
     """Task.submit + task.run_many should execute hello.echo deterministically."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        runtime_dir = Path(tmpdir)
-        db_path = runtime_dir / "test.db"
+    db_path = tmp_path / "test.db"
 
-        # Create project
-        create_result = _run_oc(["oc", "init-project", "test-project"], db_path)
-        project_id = create_result.stdout.strip()
+    # Create project
+    create_result = _run_oc(["oc", "init-project", "test-project"], db_path)
+    project_id = create_result.stdout.strip()
 
-        # Submit hello.echo task
-        submit_request = {
-            "protocol_version": "1",
-            "command": "task.submit",
-            "args": {
-                "project_id": project_id,
-                "task_type": "hello.echo",
-                "payload": {"prompt": "test message"},
-            },
-        }
+    # Submit hello.echo task
+    submit_request = {
+        "protocol_version": "1",
+        "command": "task.submit",
+        "args": {
+            "project_id": project_id,
+            "task_type": "hello.echo",
+            "payload": {"prompt": "test message"},
+        },
+    }
 
-        submit_result = _run_oc(["oc", "rpc", "--request", json.dumps(submit_request)], db_path)
+    submit_result = _run_oc(["oc", "rpc", "--request", json.dumps(submit_request)], db_path)
 
-        submit_response = json.loads(submit_result.stdout)
-        task_id = submit_response["result"]["task_id"]
+    submit_response = json.loads(submit_result.stdout)
+    task_id = submit_response["result"]["task_id"]
 
-        # Execute task
-        run_request = {
-            "protocol_version": "1",
-            "command": "task.run_many",
-            "args": {"limit": 1, "max_seconds": 5},
-        }
+    # Execute task
+    run_request = {
+        "protocol_version": "1",
+        "command": "task.run_many",
+        "args": {"limit": 1, "max_seconds": 5, "type": "hello.echo"},
+    }
 
-        _run_oc(["oc", "rpc", "--request", json.dumps(run_request)], db_path)
+    _run_oc(["oc", "rpc", "--request", json.dumps(run_request)], db_path)
 
-        # Get task result
-        get_request = {
-            "protocol_version": "1",
-            "command": "task.get",
-            "args": {"task_id": task_id},
-        }
+    # Poll until task completes (or fails) with bounded retries
+    get_request = {
+        "protocol_version": "1",
+        "command": "task.get",
+        "args": {"task_id": task_id},
+    }
 
+    max_attempts = 20
+    sleep_seconds = 0.1
+    last_response: dict[str, object] | None = None
+    status = "pending"
+
+    for _ in range(max_attempts):
         get_result = _run_oc(["oc", "rpc", "--request", json.dumps(get_request)], db_path)
-
         get_response = json.loads(get_result.stdout)
+        last_response = get_response
         assert get_response["ok"] is True
         task = get_response["result"]["task"]
-        # Task execution in test environment may be async - verify task was created successfully
-        assert task["task_id"] == task_id
-        assert task["type"] == "hello.echo"
-        # Status will be pending or completed depending on async execution timing
-        assert task["status"] in ["pending", "completed"]
+        status = str(task.get("status", "pending"))
+
+        if status == "completed":
+            break
+
+        if status == "failed":
+            with sqlite3.connect(db_path) as conn:
+                row = conn.execute(
+                    "SELECT error_json FROM tasks WHERE id = ?",
+                    (task_id,),
+                ).fetchone()
+            error_json = row[0] if row else None
+            raise AssertionError(
+                f"Task failed unexpectedly. task_id={task_id} error_json={error_json} response={get_response}"
+            )
+
+        time.sleep(sleep_seconds)
+
+    assert status == "completed", (
+        f"Task did not complete within timeout. task_id={task_id} last_response={last_response}"
+    )
+
+    # Validate deterministic result payload persisted to storage
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT result_json FROM tasks WHERE id = ?",
+            (task_id,),
+        ).fetchone()
+
+    assert row is not None, f"Task not found in storage for task_id={task_id}"
+    result_json = row[0]
+    assert result_json is not None, f"Task result_json missing for task_id={task_id}"
+    result_payload = json.loads(result_json)
+    assert result_payload == {"echo": "test message"}
 
 
 def test_task_submit_missing_project_id() -> None:

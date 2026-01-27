@@ -58,6 +58,8 @@ def test_task_run_one_none(tmp_path: Path) -> None:
     assert result["ran"] is False
     assert result["task_id"] is None
     assert result["status"] == "none"
+    assert result["scanned"] == 0
+    assert result["skipped_unrunnable"] == 0
 
 
 def test_task_run_one_deterministic(tmp_path: Path) -> None:
@@ -85,6 +87,8 @@ def test_task_run_one_deterministic(tmp_path: Path) -> None:
     result1 = cast(dict[str, Any], payload1["result"])
     assert result1["task_id"] == expected_order[0]
     assert result1["status"] == "completed"
+    assert result1["scanned"] >= 1
+    assert result1["skipped_unrunnable"] == 0
 
     turns_after_first = storage.list_turns(conversation_id)
     assert len(turns_after_first) == 1
@@ -93,6 +97,8 @@ def test_task_run_one_deterministic(tmp_path: Path) -> None:
     result2 = cast(dict[str, Any], payload2["result"])
     assert result2["task_id"] == expected_order[1]
     assert result2["status"] == "completed"
+    assert result2["scanned"] >= 1
+    assert result2["skipped_unrunnable"] == 0
 
     turns_after_second = storage.list_turns(conversation_id)
     assert len(turns_after_second) == 2
@@ -136,11 +142,13 @@ def test_task_run_one_tie_breaker(tmp_path: Path) -> None:
     result1 = cast(dict[str, Any], payload1["result"])
     assert result1["task_id"] == "task-a"
     assert result1["status"] == "completed"
+    assert result1["skipped_unrunnable"] == 0
 
     payload2 = _run_rpc({"command": "task.run_one", "args": {}}, env=env)
     result2 = cast(dict[str, Any], payload2["result"])
     assert result2["task_id"] == "task-b"
     assert result2["status"] == "completed"
+    assert result2["skipped_unrunnable"] == 0
 
 
 def test_task_run_one_failure(tmp_path: Path) -> None:
@@ -159,6 +167,7 @@ def test_task_run_one_failure(tmp_path: Path) -> None:
     assert payload["ok"] is True
     result = cast(dict[str, Any], payload["result"])
     assert result["status"] == "failed"
+    assert result["skipped_unrunnable"] == 0
     error = cast(dict[str, Any], result["error"])
     assert error["error_code"] == "OUTBOUND_PII_BLOCKED"
 
@@ -166,3 +175,36 @@ def test_task_run_one_failure(tmp_path: Path) -> None:
     task = storage.get_task(task_id)
     assert task is not None
     assert task.status.value == "failed"
+
+
+def test_task_run_one_skips_unrunnable(tmp_path: Path) -> None:
+    env = build_env(
+        tmp_path,
+        db_name="run_one.db",
+        extra_env={"OC_LLM_PROVIDER": "stub", "OC_PRIVACY_OUTBOUND_MODE": "off"},
+    )
+    conversation_id = _prepare_conversation(Path(env["OC_DB_PATH"]))
+
+    storage = SqliteStore(str(env["OC_DB_PATH"]))
+    conversation = storage.get_conversation(conversation_id)
+    assert conversation is not None
+
+    unrunnable_task = Task(
+        project_id=conversation.project_id,
+        type="unknown.task",
+        payload={"note": "should be skipped"},
+    )
+    storage.add_task(unrunnable_task)
+
+    _ask_async(conversation_id, env=env, prompt="hello")
+
+    payload = _run_rpc({"command": "task.run_one", "args": {}}, env=env)
+    result = cast(dict[str, Any], payload["result"])
+    assert result["ran"] is True
+    assert result["status"] == "completed"
+    assert result["skipped_unrunnable"] == 1
+    assert result["scanned"] == 2
+
+    skipped_task = storage.get_task(unrunnable_task.id)
+    assert skipped_task is not None
+    assert skipped_task.status.value == "pending"

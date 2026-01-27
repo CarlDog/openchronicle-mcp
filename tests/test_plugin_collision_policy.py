@@ -54,14 +54,22 @@ def register(registry, handler_registry, context):
             # Check collision by simulating the check in load_plugins
             if "test_plugin" in loader._plugin_sources:
                 if not loader.allow_collisions:
+                    existing_source = loader._plugin_sources["test_plugin"]
+                    new_source = str(plugin2_dir)
                     raise PluginCollisionError(
                         collision_type="plugin_id",
                         key="test_plugin",
-                        sources=[loader._plugin_sources["test_plugin"], str(plugin2_dir)],
+                        existing_source=existing_source,
+                        new_source=new_source,
+                        sources=[existing_source, new_source],
+                        error_code="PLUGIN_ID_COLLISION",
                     )
 
         assert exc_info.value.collision_type == "plugin_id"
         assert exc_info.value.key == "test_plugin"
+        assert exc_info.value.error_code == "PLUGIN_ID_COLLISION"
+        assert exc_info.value.existing_source == str(plugin1_dir)
+        assert exc_info.value.new_source == str(plugin2_dir)
         assert len(exc_info.value.sources) == 2
 
 
@@ -106,6 +114,9 @@ def register(registry, handler_registry, context):
 
         assert exc_info.value.collision_type == "handler_name"
         assert exc_info.value.key == "test.handler"
+        assert exc_info.value.error_code == "HANDLER_COLLISION"
+        assert exc_info.value.existing_source == "plugin_one"
+        assert exc_info.value.new_source == "plugin_two"
         assert "plugin_one" in exc_info.value.sources[0]
         assert "plugin_two" in exc_info.value.sources[1]
 
@@ -205,6 +216,9 @@ def register(registry, handler_registry, context):
         assert "conflict.handler" in error_message
         assert "conflict_a" in error_message
         assert "conflict_b" in error_message
+        assert exc_info.value.error_code == "HANDLER_COLLISION"
+        assert exc_info.value.existing_source == "conflict_a"
+        assert exc_info.value.new_source == "conflict_b"
 
 
 def test_no_collision_for_different_handlers() -> None:

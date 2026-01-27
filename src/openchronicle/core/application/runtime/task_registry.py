@@ -11,6 +11,23 @@ TaskHandlerCallable = Callable[[Task, dict[str, Any] | None], Awaitable[Any]]
 class HandlerCollisionError(Exception):
     """Raised when attempting to register a handler that already exists."""
 
+    def __init__(
+        self,
+        handler_name: str,
+        existing_source: str,
+        new_source: str,
+        error_code: str = "HANDLER_COLLISION",
+    ) -> None:
+        self.handler_name = handler_name
+        self.existing_source = existing_source
+        self.new_source = new_source
+        self.error_code = error_code
+        super().__init__(
+            "Handler collision detected: "
+            f"handler_name='{handler_name}', existing_source='{existing_source}', new_source='{new_source}', "
+            f"error_code='{error_code}'"
+        )
+
 
 class TaskHandlerRegistry:
     def __init__(self, check_collisions: bool = False) -> None:
@@ -28,8 +45,9 @@ class TaskHandlerRegistry:
             existing_source = self._handler_sources.get(task_type, "unknown")
             current_source = self._current_source or "unknown"
             raise HandlerCollisionError(
-                f"Handler '{task_type}' is already registered by '{existing_source}', "
-                f"cannot register again from '{current_source}'"
+                handler_name=task_type,
+                existing_source=existing_source,
+                new_source=current_source,
             )
 
         self._handlers[task_type] = handler

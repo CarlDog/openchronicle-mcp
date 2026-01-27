@@ -174,6 +174,47 @@ async def execute(
     }
 
 
+async def execute_task_by_id(
+    *,
+    storage: StoragePort,
+    convo_store: ConversationStorePort,
+    memory_store: MemoryStorePort,
+    llm: LLMPort,
+    interaction_router: InteractionRouterPort,
+    emit_event: Callable[[Event], None],
+    task_id: str,
+    privacy_gate: PrivacyGatePort | None = None,
+    privacy_settings: PrivacyOutboundSettings | None = None,
+    task_type: str = "convo.ask",
+) -> dict[str, object]:
+    task = storage.get_task(task_id)
+    if task is None or task.status != TaskStatus.PENDING or task.type != task_type:
+        return {
+            "ran": False,
+            "task_id": task_id,
+            "status": "none",
+            "conversation_id": None,
+            "turn_id": None,
+            "error": None,
+        }
+
+    result = await _execute_task(
+        task=task,
+        storage=storage,
+        convo_store=convo_store,
+        memory_store=memory_store,
+        llm=llm,
+        interaction_router=interaction_router,
+        emit_event=emit_event,
+        privacy_gate=privacy_gate,
+        privacy_settings=privacy_settings,
+    )
+    return {
+        "ran": True,
+        **result,
+    }
+
+
 async def execute_many(
     *,
     storage: StoragePort,

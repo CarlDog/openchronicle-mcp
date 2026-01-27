@@ -444,8 +444,11 @@ Result:
 ```json
 {
   "ran": 2,
+  "executed": 2,
   "completed": 2,
   "failed": 0,
+  "scanned": 2,
+  "skipped_unrunnable": 0,
   "has_more": false,
   "remaining_queued": 0,
   "tasks": [
@@ -460,7 +463,12 @@ Result:
 }
 ```
 
-This runs up to the requested number of queued tasks deterministically (created_at ASC, task_id ASC). No background loop is started.
+This runs up to the requested number of queued tasks deterministically (created_at ASC, task_id ASC). Tasks whose type is not in the runnable allowlist are skipped (left queued) and counted in `skipped_unrunnable`. Scanning stops once either `limit` tasks are executed or a bounded scan cap is reached (`limit * 10`). No background loop is started.
+
+Runnable allowlist:
+
+- `convo.ask`
+- `hello.echo`
 
 ### privacy.preview
 

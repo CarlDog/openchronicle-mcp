@@ -13,13 +13,33 @@ from openchronicle.core.domain.ports.plugin_port import PluginRegistry, TaskHand
 class PluginCollisionError(Exception):
     """Raised when duplicate plugin IDs or handler names are detected."""
 
-    def __init__(self, collision_type: str, key: str, sources: list[str]) -> None:
+    def __init__(
+        self,
+        collision_type: str,
+        key: str,
+        sources: list[str] | None = None,
+        existing_source: str | None = None,
+        new_source: str | None = None,
+        error_code: str = "PLUGIN_COLLISION",
+    ) -> None:
         self.collision_type = collision_type
         self.key = key
+        self.existing_source = existing_source
+        self.new_source = new_source
+        self.error_code = error_code
+        if sources is None:
+            sources = []
+            if existing_source is not None:
+                sources.append(existing_source)
+            if new_source is not None:
+                sources.append(new_source)
         self.sources = sources
-        sources_str = "\n  - ".join(sources)
+        sources_str = "\n  - ".join(sources) if sources else "(unknown sources)"
         super().__init__(
-            f"Plugin collision detected: {collision_type} '{key}' is registered by multiple sources:\n  - {sources_str}"
+            "Plugin collision detected: "
+            f"collision_type='{collision_type}', key='{key}', "
+            f"existing_source='{existing_source}', new_source='{new_source}', error_code='{error_code}'. "
+            f"Sources:\n  - {sources_str}"
         )
 
 
@@ -90,10 +110,15 @@ class PluginLoader:
 
             # Check for plugin ID collision
             if plugin_name in self._plugin_sources and not self.allow_collisions:
+                existing_source = self._plugin_sources[plugin_name]
+                new_source = str(plugin_dir)
                 raise PluginCollisionError(
                     collision_type="plugin_id",
                     key=plugin_name,
-                    sources=[self._plugin_sources[plugin_name], str(plugin_dir)],
+                    existing_source=existing_source,
+                    new_source=new_source,
+                    sources=[existing_source, new_source],
+                    error_code="PLUGIN_ID_COLLISION",
                 )
             # With collisions allowed, later plugins override earlier ones (deterministic)
 
@@ -162,24 +187,13 @@ class PluginLoader:
         try:
             plugin_module.register(self.registry, self.handler_registry, context)
         except HandlerCollisionError as exc:
-            # Convert to PluginCollisionError with proper source information
-            # Extract handler name and source from the exception message
-            import re
-
-            match = re.search(r"Handler '([^']+)' is already registered by '([^']+)'", str(exc))
-            if match:
-                handler_name = match.group(1)
-                existing_source = match.group(2)
-                raise PluginCollisionError(
-                    collision_type="handler_name",
-                    key=handler_name,
-                    sources=[f"plugin '{existing_source}'", f"plugin '{plugin_name}'"],
-                ) from None
-            # Fallback if regex doesn't match
             raise PluginCollisionError(
                 collision_type="handler_name",
-                key="unknown",
-                sources=[str(exc)],
+                key=exc.handler_name,
+                existing_source=exc.existing_source,
+                new_source=exc.new_source,
+                sources=[f"plugin '{exc.existing_source}'", f"plugin '{exc.new_source}'"],
+                error_code=exc.error_code,
             ) from None
         finally:
             # Clear current source after registration
