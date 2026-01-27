@@ -119,6 +119,6 @@ def test_v1_reference_excluded_from_hygiene_scan() -> None:
 
     # Check that _should_skip_path correctly identifies v1.reference paths
     test_path = v1_ref_path / "some_file.db"
-    assert _should_skip_path(
-        test_path
-    ), f"ERROR: v1.reference path not being skipped: {test_path}\nThe hard exclusion for hygiene scanning is broken!"
+    assert _should_skip_path(test_path), (
+        f"ERROR: v1.reference path not being skipped: {test_path}\nThe hard exclusion for hygiene scanning is broken!"
+    )
