@@ -102,6 +102,7 @@ Result:
 {
   "started_at": "...",
   "uptime_seconds": 1.23,
+  "telemetry_enabled": true,
   "requests": {
     "total": 1,
     "ok": 1,
@@ -109,7 +110,45 @@ Result:
     "by_command": { "system.metrics": 1 },
     "by_error_code": {}
   },
-  "tasks": { "run_one": 0, "run_many": 0, "completed": 0, "failed": 0 }
+  "tasks": { "run_one": 0, "run_many": 0, "completed": 0, "failed": 0 },
+  "llm": {
+    "calls_total": 0,
+    "calls_by_provider": {},
+    "calls_by_model": {},
+    "tokens_prompt_total": 0,
+    "tokens_completion_total": 0,
+    "tokens_total": 0,
+    "usage_unknown_calls": 0,
+    "rate_limit_hits": 0,
+    "quota_hits": 0
+  },
+  "perf": {
+    "ask_total_ms_sum": 0.0,
+    "ask_total_ms_count": 0,
+    "provider_call_ms_sum": 0.0,
+    "provider_call_ms_count": 0,
+    "context_assemble_ms_sum": 0.0,
+    "context_assemble_ms_count": 0
+  },
+  "context": {
+    "max_tokens_known_calls": 0,
+    "prompt_tokens_sum": 0,
+    "max_context_tokens_sum": 0,
+    "utilization_sum": 0.0
+  },
+  "memory": {
+    "retrieved_total": 0,
+    "pinned_total": 0,
+    "retrieved_chars_total": 0,
+    "duplicate_retrieval_total": 0,
+    "unique_memory_ids_seen_total": 0,
+    "retrieval_reason_counts": { "heuristic_v0": 0 },
+    "self_report_enabled": false,
+    "self_report_valid_total": 0,
+    "self_report_invalid_total": 0,
+    "used_ids_total": 0,
+    "used_rate_avg": 0.0
+  }
 }
 ```
 

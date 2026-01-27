@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 import os
+import time
 from collections.abc import Callable, Iterable
+from typing import Protocol
 
 from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.services.llm_execution import execute_with_route
@@ -9,13 +12,108 @@ from openchronicle.core.domain.models.conversation import Turn
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
 from openchronicle.core.domain.ports.interaction_router_port import InteractionRouterPort
-from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
+from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMUsage
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.privacy_gate_port import PrivacyGatePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.infrastructure.config.settings import PrivacyOutboundSettings
 from openchronicle.core.infrastructure.privacy.rule_privacy import is_external_provider
 from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
+
+
+class TelemetryRecorder(Protocol):
+    def telemetry_enabled(self) -> bool: ...
+
+    def usage_enabled(self) -> bool: ...
+
+    def perf_enabled(self) -> bool: ...
+
+    def context_enabled(self) -> bool: ...
+
+    def memory_enabled(self) -> bool: ...
+
+    def memory_self_report_enabled(self) -> bool: ...
+
+    def memory_self_report_max_ids(self) -> int: ...
+
+    def memory_self_report_strict(self) -> bool: ...
+
+    def record_llm_usage(self, *, provider: str, model: str, usage: LLMUsage | None) -> None: ...
+
+    def record_llm_error(self, *, error_code: str | None) -> None: ...
+
+    def record_perf(
+        self,
+        *,
+        ask_total_ms: float | None = None,
+        provider_call_ms: float | None = None,
+        context_assemble_ms: float | None = None,
+    ) -> None: ...
+
+    def record_context(self, *, prompt_tokens: int | None, max_context_tokens: int | None) -> None: ...
+
+    def record_memory_retrieval(
+        self,
+        *,
+        retrieved_ids: Iterable[str],
+        pinned_ids: Iterable[str],
+        retrieved_chars_total: int,
+    ) -> None: ...
+
+    def record_memory_self_report(self, *, used_ids: Iterable[str], valid: bool) -> None: ...
+
+
+def _read_int_env(value: str | None) -> int | None:
+    if value is None:
+        return None
+    raw = value.strip()
+    if not raw.isdigit():
+        return None
+    return int(raw)
+
+
+def _resolve_max_context_tokens() -> int | None:
+    return _read_int_env(os.getenv("OC_LLM_CONTEXT_MAX_TOKENS"))
+
+
+def _extract_meta_block(text: str) -> tuple[str, str | None]:
+    start = text.rfind("<OC_META>")
+    if start == -1:
+        return text, None
+    end = text.find("</OC_META>", start)
+    if end == -1:
+        return text, None
+    meta_raw = text[start + len("<OC_META>") : end]
+    cleaned = (text[:start] + text[end + len("</OC_META>") :]).strip()
+    return cleaned, meta_raw.strip()
+
+
+def _parse_used_memory_ids(
+    meta_raw: str,
+    *,
+    retrieved_ids: set[str],
+    max_ids: int,
+) -> list[str] | None:
+    try:
+        payload = json.loads(meta_raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(payload, dict):
+        return None
+    used_ids_value = payload.get("used_memory_ids")
+    if not isinstance(used_ids_value, list):
+        return None
+    used_ids: list[str] = []
+    for value in used_ids_value:
+        if not isinstance(value, str):
+            return None
+        if value not in retrieved_ids:
+            return None
+        if value and value not in used_ids:
+            used_ids.append(value)
+        if len(used_ids) >= max_ids:
+            break
+    return used_ids
 
 
 async def execute(
@@ -36,7 +134,16 @@ async def execute(
     allow_pii: bool = False,
     privacy_gate: PrivacyGatePort | None = None,
     privacy_settings: PrivacyOutboundSettings | None = None,
+    telemetry: TelemetryRecorder | None = None,
 ) -> Turn:
+    telemetry_recorder = telemetry
+    perf_enabled = telemetry_recorder is not None and telemetry_recorder.perf_enabled()
+    usage_enabled = telemetry_recorder is not None and telemetry_recorder.usage_enabled()
+    context_enabled = telemetry_recorder is not None and telemetry_recorder.context_enabled()
+
+    started_at = time.perf_counter() if perf_enabled else 0.0
+    context_started_at = started_at if perf_enabled else 0.0
+
     conversation = convo_store.get_conversation(conversation_id)
     if conversation is None:
         raise ValueError(f"Conversation not found: {conversation_id}")
@@ -95,6 +202,21 @@ async def execute(
         messages.append({"role": "user", "content": turn.user_text})
         messages.append({"role": "assistant", "content": turn.assistant_text})
     messages.append({"role": "user", "content": prompt_text})
+
+    retrieved_ids = [item.id for item in pinned_memory] + [item.id for item in relevant_memory]
+    pinned_ids = [item.id for item in pinned_memory]
+    retrieved_chars_total = sum(len(item.content) for item in pinned_memory + relevant_memory)
+
+    if telemetry_recorder is not None and telemetry_recorder.memory_enabled():
+        telemetry_recorder.record_memory_retrieval(
+            retrieved_ids=retrieved_ids,
+            pinned_ids=pinned_ids,
+            retrieved_chars_total=retrieved_chars_total,
+        )
+
+    if perf_enabled and telemetry_recorder is not None:
+        context_assemble_ms = (time.perf_counter() - context_started_at) * 1000
+        telemetry_recorder.record_perf(context_assemble_ms=context_assemble_ms)
 
     interaction_router = interaction_router or RuleInteractionRouter()
     router_hint = interaction_router.analyze(user_text=prompt_text, recent_turns=prior_turns)
@@ -284,6 +406,19 @@ async def execute(
                 if report.action == "redact":
                     effective_prompt = redacted_prompt
 
+    self_report_enabled = (
+        telemetry_recorder is not None and telemetry_recorder.memory_self_report_enabled() and bool(retrieved_ids)
+    )
+    if self_report_enabled:
+        retrieved_ids_str = ",".join(retrieved_ids)
+        effective_prompt = (
+            f"{effective_prompt}\n\n"
+            "Return your normal answer. Additionally append a final line containing: "
+            '<OC_META>{"used_memory_ids":[...]}</OC_META> where used_memory_ids includes only IDs from: '
+            f"[{retrieved_ids_str}]."
+        )
+
+    provider_started_at = time.perf_counter() if perf_enabled else 0.0
     try:
         response = await execute_with_route(
             llm,
@@ -293,6 +428,18 @@ async def execute(
             temperature=temperature,
         )
     except LLMProviderError as exc:
+        if perf_enabled and telemetry_recorder is not None:
+            provider_call_ms = (time.perf_counter() - provider_started_at) * 1000
+            telemetry_recorder.record_perf(provider_call_ms=provider_call_ms)
+            ask_total_ms = (time.perf_counter() - started_at) * 1000
+            telemetry_recorder.record_perf(ask_total_ms=ask_total_ms)
+        if usage_enabled and telemetry_recorder is not None:
+            telemetry_recorder.record_llm_usage(
+                provider=route_decision.provider,
+                model=route_decision.model,
+                usage=None,
+            )
+            telemetry_recorder.record_llm_error(error_code=exc.error_code)
         emit_event(
             Event(
                 project_id=conversation.project_id,
@@ -303,7 +450,64 @@ async def execute(
         )
         raise
 
+    if perf_enabled and telemetry_recorder is not None:
+        provider_call_ms = (time.perf_counter() - provider_started_at) * 1000
+        telemetry_recorder.record_perf(provider_call_ms=provider_call_ms)
+
     assistant_text = response.content
+    used_memory_ids: list[str] | None = None
+    if self_report_enabled:
+        cleaned_text, meta_raw = _extract_meta_block(assistant_text)
+        assistant_text = cleaned_text if meta_raw is not None else assistant_text
+        retrieved_id_set = {value for value in retrieved_ids if value}
+        if meta_raw is None:
+            if telemetry_recorder is not None:
+                telemetry_recorder.record_memory_self_report(used_ids=[], valid=False)
+            if telemetry_recorder is not None and telemetry_recorder.memory_self_report_strict():
+                raise LLMProviderError(
+                    "Self-report metadata missing",
+                    error_code="SELF_REPORT_INVALID",
+                    hint="LLM did not provide <OC_META> self-report block.",
+                )
+        else:
+            max_ids = telemetry_recorder.memory_self_report_max_ids() if telemetry_recorder is not None else 20
+            parsed = _parse_used_memory_ids(meta_raw, retrieved_ids=retrieved_id_set, max_ids=max_ids)
+            if parsed is None:
+                if telemetry_recorder is not None:
+                    telemetry_recorder.record_memory_self_report(used_ids=[], valid=False)
+                if telemetry_recorder is not None and telemetry_recorder.memory_self_report_strict():
+                    raise LLMProviderError(
+                        "Self-report metadata invalid",
+                        error_code="SELF_REPORT_INVALID",
+                        hint="Self-report must include valid used_memory_ids from retrieved set.",
+                    )
+            else:
+                used_memory_ids = parsed
+                if telemetry_recorder is not None:
+                    telemetry_recorder.record_memory_self_report(used_ids=used_memory_ids, valid=True)
+                emit_event(
+                    Event(
+                        project_id=conversation.project_id,
+                        task_id=conversation.id,
+                        type="memory.used_reported",
+                        payload={
+                            "retrieved_ids_count": len(retrieved_ids),
+                            "used_ids_count": len(used_memory_ids),
+                            "used_memory_ids": used_memory_ids,
+                            "strict_enabled": bool(
+                                telemetry_recorder is not None and telemetry_recorder.memory_self_report_strict()
+                            ),
+                        },
+                    )
+                )
+
+    if usage_enabled and telemetry_recorder is not None:
+        telemetry_recorder.record_llm_usage(provider=response.provider, model=response.model, usage=response.usage)
+
+    if context_enabled and telemetry_recorder is not None:
+        prompt_tokens = response.usage.input_tokens if response.usage else None
+        max_context_tokens = _resolve_max_context_tokens()
+        telemetry_recorder.record_context(prompt_tokens=prompt_tokens, max_context_tokens=max_context_tokens)
 
     emit_event(
         Event(
@@ -351,6 +555,10 @@ async def execute(
             },
         )
     )
+
+    if perf_enabled and telemetry_recorder is not None:
+        ask_total_ms = (time.perf_counter() - started_at) * 1000
+        telemetry_recorder.record_perf(ask_total_ms=ask_total_ms)
 
     return turn
 

@@ -30,6 +30,7 @@ def execute(
 
     routed_event = _latest_event_before(events, "llm.routed", cutoff)
     memory_event = _latest_event_before(events, "memory.retrieved", cutoff)
+    memory_used_event = _latest_event_before(events, "memory.used_reported", cutoff)
     completed_llm_event = _latest_event_before(events, "llm.completed", cutoff)
     privacy_override_event = _latest_event_before(events, "privacy.override_used", cutoff)
     privacy_checked_event = _latest_event_before(events, "privacy.outbound_checked", cutoff)
@@ -55,6 +56,7 @@ def execute(
 
     routed_payload = routed_event.payload if routed_event else {}
     memory_payload = memory_event.payload if memory_event else {}
+    memory_used_payload = memory_used_event.payload if memory_used_event else {}
     llm_payload = completed_llm_event.payload if completed_llm_event else {}
     privacy_override_used = bool(privacy_override_event)
     privacy_payload = privacy_checked_event.payload if privacy_checked_event else {}
@@ -92,6 +94,20 @@ def execute(
         "output_tokens": None,
         "total_tokens": None,
     }
+    used_ids_value = memory_used_payload.get("used_memory_ids") if isinstance(memory_used_payload, dict) else []
+    if not isinstance(used_ids_value, list):
+        used_ids_value = []
+    memory_used_reported_ids = [value for value in used_ids_value if isinstance(value, str)]
+    retrieved_count = 0
+    pinned_count_value = memory_payload.get("pinned_count", 0) if memory_payload else 0
+    relevant_count_value = memory_payload.get("relevant_count", 0) if memory_payload else 0
+    if isinstance(pinned_count_value, int):
+        retrieved_count += pinned_count_value
+    if isinstance(relevant_count_value, int):
+        retrieved_count += relevant_count_value
+    used_rate = None
+    if retrieved_count > 0:
+        used_rate = len(memory_used_reported_ids) / retrieved_count
 
     return {
         "turn_id": turn_id,
@@ -108,6 +124,8 @@ def execute(
             "relevant_count": memory_payload.get("relevant_count", 0) if memory_payload else 0,
             "top_k": memory_payload.get("top_k") if memory_payload else None,
             "include_pinned_memory": memory_payload.get("include_pinned_memory") if memory_payload else None,
+            "memory_used_reported_ids": memory_used_reported_ids,
+            "used_rate": used_rate,
         },
         "llm": {
             "request_id": llm_payload.get("request_id") if llm_payload else None,

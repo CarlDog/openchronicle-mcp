@@ -11,13 +11,12 @@ from collections.abc import Sequence
 from datetime import UTC, datetime
 from io import TextIOBase
 from queue import Empty, Queue
-from typing import TextIO
+from typing import TextIO, cast
 
 from openchronicle.core.application.routing.pool_config import load_pool_config
 from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.runtime.container import CoreContainer
 from openchronicle.core.application.use_cases import (
-    ask_conversation,
     convo_mode,
     explain_turn,
     export_convo,
@@ -25,11 +24,21 @@ from openchronicle.core.application.use_cases import (
     show_conversation,
     task_once,
 )
+from openchronicle.core.application.use_cases.ask_conversation import (
+    TelemetryRecorder,
+)
+from openchronicle.core.application.use_cases.ask_conversation import (
+    execute as ask_conversation_execute,
+)
 from openchronicle.core.domain.models.project import Event, Task, TaskStatus
-from openchronicle.core.domain.ports.llm_port import LLMProviderError
+from openchronicle.core.domain.ports.llm_port import LLMProviderError, LLMUsage
 from openchronicle.core.domain.ports.privacy_gate_port import PrivacyGatePort
 from openchronicle.core.domain.services.verification import VerificationResult, VerificationService
-from openchronicle.core.infrastructure.config.settings import PrivacyOutboundSettings
+from openchronicle.core.infrastructure.config.settings import (
+    PrivacyOutboundSettings,
+    TelemetrySettings,
+    load_telemetry_settings,
+)
 from openchronicle.core.infrastructure.privacy.rule_privacy import is_external_provider
 from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
@@ -57,7 +66,8 @@ SUPPORTED_COMMANDS: tuple[str, ...] = (
 
 
 class MetricsTracker:
-    def __init__(self) -> None:
+    def __init__(self, telemetry: TelemetrySettings) -> None:
+        self._telemetry = telemetry
         self._started_at = datetime.now(UTC)
         self._started_monotonic = time.monotonic()
         self._requests_total = 0
@@ -69,6 +79,58 @@ class MetricsTracker:
         self._tasks_run_many = 0
         self._tasks_completed = 0
         self._tasks_failed = 0
+        self._llm_calls_total = 0
+        self._calls_by_provider: dict[str, int] = {}
+        self._calls_by_model: dict[str, int] = {}
+        self._tokens_prompt_total = 0
+        self._tokens_completion_total = 0
+        self._tokens_total = 0
+        self._usage_unknown_calls = 0
+        self._rate_limit_hits = 0
+        self._quota_hits = 0
+        self._ask_total_ms_sum = 0.0
+        self._ask_total_ms_count = 0
+        self._provider_call_ms_sum = 0.0
+        self._provider_call_ms_count = 0
+        self._context_assemble_ms_sum = 0.0
+        self._context_assemble_ms_count = 0
+        self._context_max_tokens_known_calls = 0
+        self._context_prompt_tokens_sum = 0
+        self._context_max_tokens_sum = 0
+        self._context_utilization_sum = 0.0
+        self._memory_retrieved_total = 0
+        self._memory_pinned_total = 0
+        self._memory_retrieved_chars_total = 0
+        self._memory_duplicate_retrieval_total = 0
+        self._memory_unique_ids_seen: set[str] = set()
+        self._memory_retrieval_reason_counts: dict[str, int] = {}
+        self._memory_self_report_valid_total = 0
+        self._memory_self_report_invalid_total = 0
+        self._memory_used_ids_total = 0
+
+    def telemetry_enabled(self) -> bool:
+        return self._telemetry.enabled
+
+    def usage_enabled(self) -> bool:
+        return self._telemetry.enabled and self._telemetry.usage_enabled
+
+    def perf_enabled(self) -> bool:
+        return self._telemetry.enabled and self._telemetry.perf_enabled
+
+    def context_enabled(self) -> bool:
+        return self._telemetry.enabled and self._telemetry.context_enabled
+
+    def memory_enabled(self) -> bool:
+        return self._telemetry.enabled and self._telemetry.memory_enabled
+
+    def memory_self_report_enabled(self) -> bool:
+        return self._telemetry.enabled and self._telemetry.memory_self_report_enabled
+
+    def memory_self_report_max_ids(self) -> int:
+        return self._telemetry.memory_self_report_max_ids
+
+    def memory_self_report_strict(self) -> bool:
+        return self._telemetry.memory_self_report_strict
 
     def record_request(self, command: str, *, ok: bool, error_code: str | None) -> None:
         self._requests_total += 1
@@ -91,10 +153,117 @@ class MetricsTracker:
         if failed > 0:
             self._tasks_failed += failed
 
+    def record_llm_usage(self, *, provider: str, model: str, usage: LLMUsage | None) -> None:
+        if not self.usage_enabled():
+            return
+        self._llm_calls_total += 1
+        self._calls_by_provider[provider] = self._calls_by_provider.get(provider, 0) + 1
+        self._calls_by_model[model] = self._calls_by_model.get(model, 0) + 1
+
+        if usage is None:
+            self._usage_unknown_calls += 1
+            return
+
+        prompt_tokens = usage.input_tokens
+        completion_tokens = usage.output_tokens
+        total_tokens = usage.total_tokens
+
+        if prompt_tokens is None and completion_tokens is None and total_tokens is None:
+            self._usage_unknown_calls += 1
+            return
+
+        if isinstance(prompt_tokens, int):
+            self._tokens_prompt_total += prompt_tokens
+        if isinstance(completion_tokens, int):
+            self._tokens_completion_total += completion_tokens
+
+        if isinstance(total_tokens, int):
+            self._tokens_total += total_tokens
+        elif isinstance(prompt_tokens, int) and isinstance(completion_tokens, int):
+            self._tokens_total += prompt_tokens + completion_tokens
+
+    def record_llm_error(self, *, error_code: str | None) -> None:
+        if not self.usage_enabled() or not error_code:
+            return
+        code = error_code.lower()
+        if code in {"rate_limit", "rate_limit_exceeded", "too_many_requests", "http_429", "429"}:
+            self._rate_limit_hits += 1
+            return
+        if code in {"insufficient_quota", "quota_exceeded", "billing_hard_limit_reached"}:
+            self._quota_hits += 1
+            return
+
+    def record_perf(
+        self,
+        *,
+        ask_total_ms: float | None = None,
+        provider_call_ms: float | None = None,
+        context_assemble_ms: float | None = None,
+    ) -> None:
+        if not self.perf_enabled():
+            return
+        if isinstance(ask_total_ms, float):
+            self._ask_total_ms_sum += ask_total_ms
+            self._ask_total_ms_count += 1
+        if isinstance(provider_call_ms, float):
+            self._provider_call_ms_sum += provider_call_ms
+            self._provider_call_ms_count += 1
+        if isinstance(context_assemble_ms, float):
+            self._context_assemble_ms_sum += context_assemble_ms
+            self._context_assemble_ms_count += 1
+
+    def record_context(self, *, prompt_tokens: int | None, max_context_tokens: int | None) -> None:
+        if not self.context_enabled():
+            return
+        if isinstance(prompt_tokens, int):
+            self._context_prompt_tokens_sum += prompt_tokens
+        if isinstance(max_context_tokens, int):
+            self._context_max_tokens_sum += max_context_tokens
+            self._context_max_tokens_known_calls += 1
+            if isinstance(prompt_tokens, int) and max_context_tokens > 0:
+                self._context_utilization_sum += prompt_tokens / max_context_tokens
+
+    def record_memory_retrieval(
+        self,
+        *,
+        retrieved_ids: Sequence[str],
+        pinned_ids: Sequence[str],
+        retrieved_chars_total: int,
+    ) -> None:
+        if not self.memory_enabled():
+            return
+        retrieved_list = [value for value in retrieved_ids if isinstance(value, str) and value]
+        pinned_list = [value for value in pinned_ids if isinstance(value, str) and value]
+        self._memory_retrieved_total += len(retrieved_list)
+        self._memory_pinned_total += len(pinned_list)
+        if retrieved_chars_total > 0:
+            self._memory_retrieved_chars_total += retrieved_chars_total
+
+        for memory_id in retrieved_list:
+            if memory_id in self._memory_unique_ids_seen:
+                self._memory_duplicate_retrieval_total += 1
+            else:
+                self._memory_unique_ids_seen.add(memory_id)
+
+        if retrieved_list:
+            reason = "heuristic_v0"
+            self._memory_retrieval_reason_counts[reason] = self._memory_retrieval_reason_counts.get(reason, 0) + len(
+                retrieved_list
+            )
+
+    def record_memory_self_report(self, *, used_ids: Sequence[str], valid: bool) -> None:
+        if not self.memory_enabled() or not self.memory_self_report_enabled():
+            return
+        if valid:
+            self._memory_self_report_valid_total += 1
+            self._memory_used_ids_total += len([value for value in used_ids if isinstance(value, str) and value])
+        else:
+            self._memory_self_report_invalid_total += 1
+
     def snapshot(self) -> dict[str, object]:
         by_command = dict(sorted(self._by_command.items()))
         by_error_code = dict(sorted(self._by_error_code.items()))
-        return {
+        snapshot: dict[str, object] = {
             "started_at": self._started_at.isoformat(),
             "uptime_seconds": time.monotonic() - self._started_monotonic,
             "requests": {
@@ -111,9 +280,57 @@ class MetricsTracker:
                 "failed": self._tasks_failed,
             },
         }
+        if not self.telemetry_enabled():
+            snapshot["telemetry_enabled"] = False
+            return snapshot
+
+        snapshot["telemetry_enabled"] = True
+        snapshot["llm"] = {
+            "calls_total": self._llm_calls_total,
+            "calls_by_provider": dict(sorted(self._calls_by_provider.items())),
+            "calls_by_model": dict(sorted(self._calls_by_model.items())),
+            "tokens_prompt_total": self._tokens_prompt_total,
+            "tokens_completion_total": self._tokens_completion_total,
+            "tokens_total": self._tokens_total,
+            "usage_unknown_calls": self._usage_unknown_calls,
+            "rate_limit_hits": self._rate_limit_hits,
+            "quota_hits": self._quota_hits,
+        }
+        snapshot["perf"] = {
+            "ask_total_ms_sum": self._ask_total_ms_sum,
+            "ask_total_ms_count": self._ask_total_ms_count,
+            "provider_call_ms_sum": self._provider_call_ms_sum,
+            "provider_call_ms_count": self._provider_call_ms_count,
+            "context_assemble_ms_sum": self._context_assemble_ms_sum,
+            "context_assemble_ms_count": self._context_assemble_ms_count,
+        }
+        snapshot["context"] = {
+            "max_tokens_known_calls": self._context_max_tokens_known_calls,
+            "prompt_tokens_sum": self._context_prompt_tokens_sum,
+            "max_context_tokens_sum": self._context_max_tokens_sum,
+            "utilization_sum": self._context_utilization_sum,
+        }
+        used_rate_avg = 0.0
+        if self._memory_retrieved_total > 0:
+            used_rate_avg = self._memory_used_ids_total / self._memory_retrieved_total
+        snapshot["memory"] = {
+            "retrieved_total": self._memory_retrieved_total,
+            "pinned_total": self._memory_pinned_total,
+            "retrieved_chars_total": self._memory_retrieved_chars_total,
+            "duplicate_retrieval_total": self._memory_duplicate_retrieval_total,
+            "unique_memory_ids_seen_total": len(self._memory_unique_ids_seen),
+            "retrieval_reason_counts": dict(sorted(self._memory_retrieval_reason_counts.items())),
+            "self_report_enabled": self._telemetry.memory_self_report_enabled,
+            "self_report_valid_total": self._memory_self_report_valid_total,
+            "self_report_invalid_total": self._memory_self_report_invalid_total,
+            "used_ids_total": self._memory_used_ids_total,
+            "used_rate_avg": used_rate_avg,
+        }
+        return snapshot
 
 
-METRICS = MetricsTracker()
+TELEMETRY_SETTINGS = load_telemetry_settings()
+METRICS = MetricsTracker(telemetry=TELEMETRY_SETTINGS)
 
 
 def json_error_payload(
@@ -576,7 +793,7 @@ def dispatch_json_command(
             allow_pii = bool(args.get("allow_pii", False))
 
             async def _run() -> dict[str, object]:
-                turn = await ask_conversation.execute(
+                turn = await ask_conversation_execute(
                     convo_store=container.storage,
                     storage=container.storage,
                     memory_store=container.storage,
@@ -591,6 +808,7 @@ def dispatch_json_command(
                     allow_pii=allow_pii,
                     privacy_gate=getattr(container, "privacy_gate", None),
                     privacy_settings=getattr(container, "privacy_settings", None),
+                    telemetry=cast(TelemetryRecorder, METRICS),
                 )
 
                 explain_payload: dict[str, object] | None = None
