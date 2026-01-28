@@ -27,7 +27,7 @@ def register(
     handler_registry: TaskHandlerRegistry,
     context: dict[str, Any] | None = None
 ) -> None:
-    # Register task handlers
+    # Register task handlers by handler name (namespace.action)
     handler_registry.register("my.task.type", my_handler_function)
 
     # Optionally register agent templates
@@ -93,7 +93,7 @@ Task handlers are async functions that process tasks:
 ```python
 async def my_handler(task: Task, context: dict[str, Any] | None = None) -> dict[str, Any]:
     """
-    Handle a task of type "my.task.type".
+    Handle a task via handler name "my.task.type".
 
     Args:
         task: The task to process (includes payload, project_id, etc.)
@@ -157,11 +157,21 @@ def register(
 
 ## Using Plugin Task Handlers
 
-Once registered, plugin task handlers can be invoked via the CLI or API:
+Once registered, plugin handlers are executed via task_type = plugin.invoke with a payload specifying the handler.
+Dotted task_type strings (for example, story.draft) are invalid and return INVALID_TASK_TYPE.
 
 ```bash
-# Via CLI
-oc run-task <project_id> story.draft '{"prompt": "Write a sci-fi story"}'
+# Create a project
+PROJECT_ID=$(oc init-project "plugin-demo")
+
+# Submit plugin invocation
+TASK_ID=$(oc rpc --request '{"protocol_version":"1","command":"task.submit","args":{"project_id":"'"$PROJECT_ID"'","task_type":"plugin.invoke","payload":{"handler":"story.draft","input":{"prompt":"Write a sci-fi story"}}}}' | jq -r '.result.task_id')
+
+# Execute queued tasks
+oc rpc --request '{"protocol_version":"1","command":"task.run_many","args":{"limit":5,"type":"plugin.invoke","max_seconds":0}}'
+
+# Show result
+oc show-task --result "$TASK_ID"
 
 # List all registered handlers (including plugin handlers)
 oc list-handlers
@@ -182,7 +192,7 @@ Test your plugin by:
        loader = PluginLoader(plugins_dir="plugins", handler_registry=registry)
        loader.load_plugins()
 
-       handler = registry.get("my.task.type")
+    handler = registry.get("my.task.type")
        assert handler is not None
    ```
 
@@ -197,9 +207,9 @@ Test your plugin by:
        # Set up orchestrator with plugin loader
        orchestrator = OrchestratorService(...)
 
-       # Submit task that routes to your plugin
-       task = orchestrator.submit_task(project_id, "my.task.type", {...})
-       result = await orchestrator.execute_task(task.id)
+    # Submit task that routes to your plugin via plugin.invoke
+    task = orchestrator.submit_task(project_id, "plugin.invoke", {"handler": "my.task.type", "input": {...}})
+    result = await orchestrator.execute_task(task.id)
 
        assert result["output"] == "expected"
    ```

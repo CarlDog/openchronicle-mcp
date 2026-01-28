@@ -1,22 +1,15 @@
 from __future__ import annotations
 
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
 
+from tests.helpers.subprocess_env import build_env
+
 
 def _serve_env(tmp_path: Path) -> dict[str, str]:
-    env = os.environ.copy()
-    env["OC_DB_PATH"] = str(tmp_path / "idle.db")
-    env["OC_CONFIG_DIR"] = str(tmp_path / "config")
-    env["OC_PLUGIN_DIR"] = str(tmp_path / "plugins")
-    env["OC_OUTPUT_DIR"] = str(tmp_path / "output")
-    Path(env["OC_CONFIG_DIR"]).mkdir(parents=True, exist_ok=True)
-    Path(env["OC_PLUGIN_DIR"]).mkdir(parents=True, exist_ok=True)
-    Path(env["OC_OUTPUT_DIR"]).mkdir(parents=True, exist_ok=True)
-    return env
+    return build_env(tmp_path, db_name="idle.db")
 
 
 def test_serve_idle_timeout_exits(tmp_path: Path) -> None:

@@ -3,8 +3,9 @@
 ## Core promises
 
 - Plugin loader discovers packages under plugins/ with **init**.py and plugin.py.
-- Handlers are registered by task type using the TaskHandlerRegistry.
-- Handler naming follows the pattern namespace.action (for example, hello.echo).
+- Handlers are registered by name using the TaskHandlerRegistry (handlers may be named namespace.action).
+- Plugin execution uses task_type = plugin.invoke with payload { "handler": "namespace.action", "input": { ... } }.
+- Dotted task_type strings (for example, hello.echo) are invalid and return INVALID_TASK_TYPE.
 - Execution is deterministic for identical inputs unless explicitly stated.
 - Core selftests require no external network calls or API keys.
 - Events record task lifecycle and plugin handler start/finish but do not record raw prompts or tokens.
@@ -39,4 +40,9 @@ pwsh tools/docker/acceptance.ps1
 
 ```powershell
 pwsh tools/plugin_dev/run_plugin_in_docker.ps1 -PluginDir .\plugins
+
+## Collision behavior (high level)
+
+- Duplicate plugin IDs or handler names fail fast with actionable errors and a canonical error_code.
+- Expect error_code values like PLUGIN_ID_COLLISION or HANDLER_COLLISION and a hint describing the conflicting sources.
 ```
