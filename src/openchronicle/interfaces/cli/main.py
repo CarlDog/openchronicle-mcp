@@ -104,11 +104,11 @@ def _ensure_demo_agents(orchestrator: OrchestratorService, project_id: str) -> t
 def _print_verification_result(result: VerificationResult) -> None:
     """Unified printing for verification results (used by verify-task and replay-task --mode verify)."""
     if result.success:
-        print("✓ Hash chain verified successfully")
+        print("[PASS] Hash chain verified successfully")
         print(f"  Total events: {result.total_events}")
         print(f"  Verified events: {result.verified_events}")
     else:
-        print("✗ Hash chain verification failed")
+        print("[FAIL] Hash chain verification failed")
         print(f"  Error: {result.error_message}")
         if result.first_mismatch:
             print(f"  First mismatch at event {result.first_mismatch.get('event_index')}:")
@@ -855,9 +855,9 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"    Error: {failure['error_message']}")
 
         if project_result.success:
-            print("\n✓ All tasks verified successfully")
+            print("\n[PASS] All tasks verified successfully")
             return 0
-        print("\n✗ Some tasks failed verification")
+        print("\n[FAIL] Some tasks failed verification")
         return 1
 
     if args.command == "replay-task":
@@ -875,25 +875,25 @@ def main(argv: list[str] | None = None) -> int:
             if replay_result.verification_result:
                 _print_verification_result(replay_result.verification_result)
                 return 0 if replay_result.success else 1
-            print("✗ Verification failed - no result available")
+            print("[FAIL] Verification failed - no result available")
             return 1
         if args.mode == "replay-events":
             # Replay events mode - show reconstructed output
             if replay_result.success:
-                print("✓ Task replay successful")
+                print("[PASS] Task replay successful")
                 print("\nReconstructed output:")
                 print(json.dumps(replay_result.reconstructed_output, indent=2))
                 return 0
-            print(f"✗ Task replay failed: {replay_result.error_message}")
+            print(f"[FAIL] Task replay failed: {replay_result.error_message}")
             return 1
         if args.mode == "dry-run":
             # Dry run mode - show execution trace
             if replay_result.success:
-                print("✓ Dry run successful")
+                print("[PASS] Dry run successful")
                 print("\nExecution trace:")
                 print(json.dumps(replay_result.reconstructed_output, indent=2))
                 return 0
-            print(f"✗ Dry run failed: {replay_result.error_message}")
+            print(f"[FAIL] Dry run failed: {replay_result.error_message}")
             return 1
 
     if args.command == "explain-task":
@@ -1633,7 +1633,7 @@ def main(argv: list[str] | None = None) -> int:
         summary = resume_project.execute(orchestrator, args.project_id)
 
         print(f"Project resumed: {summary.project_id}")
-        print(f"  Tasks moved RUNNING → PENDING: {summary.orphaned_to_pending}")
+        print(f"  Tasks moved RUNNING -> PENDING: {summary.orphaned_to_pending}")
         print("  Current status counts:")
         print(f"    PENDING:   {summary.pending}")
         print(f"    RUNNING:   {summary.running}")
@@ -1679,7 +1679,7 @@ def main(argv: list[str] | None = None) -> int:
             for llm_summary in state_view.llm_executions[:10]:  # Show top 10
                 provider = llm_summary.provider_used or llm_summary.provider_requested or "unknown"
                 outcome = llm_summary.outcome or "unknown"
-                print(f"    - {llm_summary.execution_id}: {provider} → {outcome}")
+                print(f"    - {llm_summary.execution_id}: {provider} -> {outcome}")
             if len(state_view.llm_executions) > 10:
                 print(f"    ... and {len(state_view.llm_executions) - 10} more")
 

@@ -104,9 +104,15 @@ class TestSmokeLiveIntegration:
             assert result.outcome in ("blocked", "failed")
             assert result.error_code is not None
             # Ensure no secrets are in error message
+            # Note: error CODE names like [invalid_api_key] are not secrets
             if result.error_message:
-                assert "api_key" not in result.error_message.lower()
-                assert "OPENAI" not in result.error_message  # (but "OpenAI" is ok)
+                # Check for actual API key patterns (e.g., OpenAI keys start with "sk-")
+                assert "sk-" not in result.error_message
+                # Extract message portion after error code bracket for additional checks
+                msg_part = (
+                    result.error_message.split("] ", 1)[-1] if "]" in result.error_message else result.error_message
+                )
+                assert "OPENAI" not in msg_part  # (but "OpenAI" is ok in message text)
         finally:
             # Restore original env var
             if original_key:
@@ -154,9 +160,9 @@ class TestSmokeLiveIntegration:
         if result.outcome == "completed":
             assert "llm.execution_recorded" in event_types, f"Missing llm.execution_recorded. Got: {event_types}"
         else:
-            assert "task_failed" in event_types or "llm.budget_exceeded" in event_types, (
-                f"Missing failure event for outcome={result.outcome}. Got: {event_types}"
-            )
+            assert (
+                "task_failed" in event_types or "llm.budget_exceeded" in event_types
+            ), f"Missing failure event for outcome={result.outcome}. Got: {event_types}"
 
     @pytest.mark.integration
     async def test_smoke_live_result_serializeable(self) -> None:

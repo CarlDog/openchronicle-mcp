@@ -22,18 +22,22 @@ Base installation (includes stub provider):
 pip install -e .
 ```
 
-With OpenAI support:
+With provider support:
 
 ```bash
-pip install -e ".[openai]"
+pip install -e ".[openai]"   # OpenAI support
+pip install -e ".[ollama]"   # Ollama local inference (requires httpx)
+pip install -e ".[dev]"      # Development dependencies
 ```
 
 ### Provider Selection
 
 Control which LLM provider to use via the `OC_LLM_PROVIDER` environment variable:
 
-- **`stub` (default)**: Uses a simple stub adapter for testing/demos
+- **`stub` (default)**: Uses a deterministic stub adapter for testing/demos
 - **`openai`**: Uses OpenAI API (requires `OPENAI_API_KEY`)
+- **`ollama`**: Uses local Ollama instance (requires `OLLAMA_BASE_URL`)
+- **`anthropic`**: Anthropic Claude API (mock implementation)
 
 ```bash
 # Default behavior (uses stub)
@@ -44,29 +48,110 @@ export OC_LLM_PROVIDER=openai
 export OPENAI_API_KEY=sk-...
 oc demo-summary <project_id> "Your text here"
 
+# Use local Ollama
+export OC_LLM_PROVIDER=ollama
+export OLLAMA_BASE_URL=http://localhost:11434  # optional, this is the default
+export OLLAMA_MODEL=llama3.1                   # optional default model
+oc demo-summary <project_id> "Your text here"
+
 # Override provider for a single command
-export OC_LLM_PROVIDER=stub  # or unset
 oc demo-summary <project_id> "Your text here" --use-openai
 ```
 
 ### Environment Variables
 
-| Variable | Values | Default | Description |
-| -------- | ------ | ------- | ----------- |
-| `OC_LLM_PROVIDER` | `stub`, `openai` | `stub` | Selects LLM provider |
-| `OPENAI_API_KEY` | API key string | - | Required when using OpenAI provider |
-| `OPENAI_MODEL` | Model name | `gpt-4o-mini` | OpenAI model to use |
-| `OPENAI_BASE_URL` | URL string | - | Optional custom API endpoint |
-| `OC_MAX_TOKENS_PER_TASK` | Integer | - | Budget limit: blocks LLM calls if task exceeds this total token count |
-| `OC_MAX_OUTPUT_TOKENS_PER_CALL` | Integer | - | Clamps max_output_tokens for each LLM request to this value |
-| `OC_LLM_RPM_LIMIT` | Integer | - | Rate limit: maximum requests per minute (optional, disabled by default) |
-| `OC_LLM_TPM_LIMIT` | Integer | - | Rate limit: maximum tokens per minute (optional, disabled by default) |
-| `OC_LLM_MAX_WAIT_MS` | Integer | `5000` | Maximum wait time for rate limiting before failing |
-| `OC_LLM_MAX_RETRIES` | Integer | `2` | Maximum retry attempts for transient LLM failures |
-| `OC_LLM_MAX_RETRY_SLEEP_MS` | Integer | `2000` | Maximum sleep duration per retry attempt |
-| `OC_DB_PATH` | path | `data/openchronicle.db` (dev) or `/data/openchronicle.db` (Docker) | SQLite database location |
-| `OC_CONFIG_DIR` | path | `config` (dev) or `/config` (Docker) | Optional configuration directory |
-| `OC_PLUGIN_DIR` | path | `plugins` (dev) or `/plugins` (Docker) | Plugin directory (explicit loading only) |
+#### Core Paths
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_DB_PATH` | `data/openchronicle.db` | SQLite database location |
+| `OC_CONFIG_DIR` | `config` | Configuration directory |
+| `OC_PLUGIN_DIR` | `plugins` | Plugin directory |
+| `OC_OUTPUT_DIR` | `output` | Output/artifacts directory |
+
+#### Provider Selection
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_LLM_PROVIDER` | `stub` | Primary LLM provider (`stub`, `openai`, `ollama`, `anthropic`) |
+| `OPENAI_API_KEY` | - | Required for OpenAI provider |
+| `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model to use |
+| `OPENAI_BASE_URL` | - | Custom OpenAI API endpoint |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API endpoint |
+| `OLLAMA_MODEL` | `llama3.1` | Default Ollama model |
+
+#### Budget and Rate Limiting
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_MAX_TOKENS_PER_TASK` | - | Budget limit per task (total tokens) |
+| `OC_MAX_OUTPUT_TOKENS_PER_CALL` | - | Clamps max_output_tokens per LLM request |
+| `OC_BUDGET_MAX_TOKENS` | - | Global maximum total tokens |
+| `OC_BUDGET_MAX_CALLS` | - | Global maximum LLM calls |
+| `OC_LLM_RPM_LIMIT` | - | Rate limit: requests per minute |
+| `OC_LLM_TPM_LIMIT` | - | Rate limit: tokens per minute |
+| `OC_LLM_MAX_WAIT_MS` | `5000` | Maximum rate limit wait time (ms) |
+| `OC_LLM_MAX_RETRIES` | `2` | Maximum retry attempts |
+| `OC_LLM_MAX_RETRY_SLEEP_MS` | `2000` | Maximum sleep between retries (ms) |
+
+#### Routing and Pools
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_LLM_DEFAULT_MODE` | `fast` | Default routing mode (`fast`, `quality`) |
+| `OC_LLM_MODEL_FAST` | `gpt-4o-mini` | Model for fast mode |
+| `OC_LLM_MODEL_QUALITY` | `gpt-4o` | Model for quality mode |
+| `OC_LLM_FAST_POOL` | - | Fast pool config (e.g., `ollama:llama3.1,openai:gpt-4o-mini`) |
+| `OC_LLM_QUALITY_POOL` | - | Quality pool config |
+| `OC_LLM_POOL_NSFW` | - | NSFW-capable pool config |
+| `OC_LLM_PROVIDER_WEIGHTS` | `ollama:100,openai:20` | Provider preference weights |
+| `OC_LLM_MAX_FALLBACKS` | `1` | Maximum fallback attempts |
+| `OC_LLM_FALLBACK_ON_TRANSIENT` | `1` | Allow fallback on transient errors |
+| `OC_LLM_FALLBACK_ON_CONSTRAINT` | `1` | Allow fallback on constraint errors |
+| `OC_LLM_FALLBACK_ON_REFUSAL` | `0` | Allow fallback on refusals |
+| `OC_LLM_LOW_BUDGET_THRESHOLD` | `500` | Token threshold for budget-aware routing |
+| `OC_LLM_DOWNGRADE_ON_RATE_LIMIT` | `1` | Downgrade mode on rate limit |
+| `OC_LLM_CONTEXT_MAX_TOKENS` | - | Maximum context window tokens |
+
+#### Privacy Gate
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_PRIVACY_OUTBOUND_MODE` | `off` | Privacy mode (`off`, `warn`, `block`, `redact`) |
+| `OC_PRIVACY_OUTBOUND_EXTERNAL_ONLY` | `true` | Only apply to external providers |
+| `OC_PRIVACY_OUTBOUND_CATEGORIES` | - | PII categories to detect (comma-separated) |
+| `OC_PRIVACY_OUTBOUND_REDACT_STYLE` | `mask` | Redaction style (`mask`, `remove`) |
+| `OC_PRIVACY_OUTBOUND_LOG` | `true` | Log privacy events |
+
+#### Telemetry
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_TELEMETRY_ENABLED` | `true` | Enable telemetry collection |
+| `OC_TELEMETRY_PERF_ENABLED` | `true` | Enable performance telemetry |
+| `OC_TELEMETRY_USAGE_ENABLED` | `true` | Enable usage telemetry |
+| `OC_TELEMETRY_CONTEXT_ENABLED` | `true` | Enable context telemetry |
+| `OC_TELEMETRY_MEMORY_ENABLED` | `true` | Enable memory telemetry |
+| `OC_TELEMETRY_MEMORY_SELF_REPORT_ENABLED` | `false` | Enable LLM memory self-reporting |
+
+#### Router Assist (ML-based routing)
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_ROUTER_ENABLED` | `true` | Enable rule-based routing |
+| `OC_ROUTER_LOG_REASONS` | `false` | Log routing decisions |
+| `OC_ROUTER_ASSIST_ENABLED` | `false` | Enable ML-assisted routing |
+| `OC_ROUTER_ASSIST_BACKEND` | `linear` | Backend type (`linear`, `onnx`) |
+| `OC_ROUTER_ASSIST_MODEL_PATH` | - | Path to router model JSON |
+| `OC_ROUTER_ASSIST_TIMEOUT_MS` | `50` | Router assist timeout |
+| `OC_ROUTER_NSFW_ROUTE_GTE` | `0.70` | NSFW routing threshold |
+| `OC_ROUTER_NSFW_UNCERTAIN_GTE` | `0.45` | NSFW uncertainty threshold |
+
+#### Plugin System
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_PLUGIN_ALLOW_COLLISIONS` | `0` | Allow handler name collisions |
 
 ### Secret Management
 

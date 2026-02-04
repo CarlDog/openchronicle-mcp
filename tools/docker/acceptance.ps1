@@ -74,14 +74,15 @@ try {
 
   if (-not $SkipHealth) {
     Write-Host "Running system.health RPC"
-    $healthRequest = '{"protocol_version":"1","command":"system.health","args":{}}'
+    # Escape double quotes for PowerShell -> Docker command line passing
+    $healthRequest = '{"protocol_version":"1","command":"system.health","args":{}}' -replace '"', '\"'
     $healthOutput = docker run --rm `
       -e OC_DB_PATH=/app/runtime/data/openchronicle.db `
       -e OC_CONFIG_DIR=/app/runtime/config `
       -e OC_PLUGIN_DIR=/app/runtime/plugins `
       -e OC_OUTPUT_DIR=/app/runtime/output `
       -v "${RuntimeDir}:/app/runtime" `
-      $Tag rpc --request $healthRequest
+      $Tag rpc --request "$healthRequest"
 
     if ($LASTEXITCODE -ne 0) {
       Write-Error "Health RPC failed with exit code $LASTEXITCODE"

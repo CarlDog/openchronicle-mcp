@@ -9,8 +9,8 @@ Plugins live in the root-level `plugins/` directory. Each plugin must follow thi
 ```text
 plugins/
   <plugin_name>/
+    __init__.py     # Required: makes the plugin a Python package
     plugin.py       # Required: contains register() function
-    __init__.py     # Optional
     ... other files ...
 ```
 
@@ -19,7 +19,7 @@ plugins/
 Each plugin must have a `plugin.py` file that exports a `register()` function with this signature:
 
 ```python
-from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 
 def register(
@@ -46,13 +46,21 @@ The `PluginLoader` automatically discovers and loads plugins:
 3. **Registration**: Calls the plugin's `register()` function to register handlers and capabilities
 4. **Error Handling**: Plugin load failures are logged but don't crash the system
 
-### No sys.path Manipulation
+### Package-Based Loading
 
-The plugin system does **NOT** modify `sys.path`. Plugins are loaded directly by file path, ensuring:
+Plugins are loaded as Python packages under the `oc_plugins` namespace:
 
-- Clean isolation between plugins
-- No import path conflicts
-- Predictable module loading behavior
+- Plugins are registered as `oc_plugins.<plugin_name>` in `sys.modules`
+- This enables relative imports within plugin directories
+- Each plugin must have `__init__.py` to support package semantics
+
+### Handler Collision Detection
+
+By default, the plugin system prevents handler name collisions:
+
+- If two plugins register the same handler name, a `PluginCollisionError` is raised
+- Set `OC_PLUGIN_ALLOW_COLLISIONS=1` to allow later plugins to override earlier ones
+- Collision checking applies to both plugin IDs and handler names
 
 ## Creating a New Plugin
 
@@ -68,7 +76,7 @@ To add a new plugin:
 
    ```python
    from typing import Any
-   from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+   from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
    from openchronicle.core.domain.models.project import Task
    from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 
@@ -185,7 +193,7 @@ Test your plugin by:
 
    ```python
    from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-   from openchronicle.core.application.runtime.task_handler_registry import TaskHandlerRegistry
+   from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
 
    def test_my_plugin():
        registry = TaskHandlerRegistry()

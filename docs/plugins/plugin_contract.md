@@ -40,9 +40,10 @@ pwsh tools/docker/acceptance.ps1
 
 ```powershell
 pwsh tools/plugin_dev/run_plugin_in_docker.ps1 -PluginDir .\plugins
+```
 
 ## Collision behavior (high level)
 
 - Duplicate plugin IDs or handler names fail fast with actionable errors and a canonical error_code.
 - Expect error_code values like PLUGIN_ID_COLLISION or HANDLER_COLLISION and a hint describing the conflicting sources.
-```
+- Set `OC_PLUGIN_ALLOW_COLLISIONS=1` to allow later plugins to override earlier ones.

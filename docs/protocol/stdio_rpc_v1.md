@@ -208,6 +208,7 @@ Result:
     "task.list",
     "task.run_one",
     "task.run_many",
+    "task.submit",
     "system.commands",
     "system.health",
     "system.info",

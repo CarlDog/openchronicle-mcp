@@ -6,13 +6,21 @@ import json
 import os
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
 
 
 def _run_oc(args: list[str], db_path: Path, check: bool = True) -> subprocess.CompletedProcess[str]:
-    """Helper to run oc with environment variables."""
+    """Helper to run oc with environment variables.
+
+    Uses sys.executable -m to invoke the CLI module directly,
+    avoiding PATH dependency issues on Windows.
+    """
+    # Replace "oc" with python -m invocation
+    if args and args[0] == "oc":
+        args = [sys.executable, "-m", "openchronicle.interfaces.cli.main", *args[1:]]
     env = {**os.environ, "OC_DB_PATH": str(db_path)}
     return subprocess.run(args, capture_output=True, text=True, check=check, env=env)
 
@@ -131,9 +139,9 @@ def test_task_submit_and_execute_hello_echo(tmp_path: Path) -> None:
 
         time.sleep(sleep_seconds)
 
-    assert status == "completed", (
-        f"Task did not complete within timeout. task_id={task_id} last_response={last_response}"
-    )
+    assert (
+        status == "completed"
+    ), f"Task did not complete within timeout. task_id={task_id} last_response={last_response}"
 
     # Validate deterministic result payload persisted to storage
     with sqlite3.connect(db_path) as conn:
