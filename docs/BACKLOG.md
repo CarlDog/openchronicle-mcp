@@ -274,7 +274,7 @@ This document tracks planned features, implementation gaps, and future work for 
 
 All enforced via CI/tests:
 
-- ✅ No TODO/FIXME/HACK/XXX comments (`test_no_soft_deprecation.py`)
+- ✅ No tech debt marker comments (`test_no_soft_deprecation.py`)
 - ✅ No secrets committed (`test_no_secrets_committed.py`)
 - ✅ Strict mypy typing required
 - ✅ Ruff formatting + linting required

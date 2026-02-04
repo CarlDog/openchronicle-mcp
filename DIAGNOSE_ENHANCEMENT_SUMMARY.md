@@ -160,7 +160,7 @@ Tests cover:
 
 ## Files Modified
 
-```
+```text
 src/openchronicle/core/application/use_cases/diagnose_runtime.py
 src/openchronicle/core/application/models/diagnostics_report.py
 src/openchronicle/core/infrastructure/llm/provider_facade.py
@@ -171,7 +171,7 @@ tests/test_diagnose_model_configs.py (NEW)
 
 ## Test Results
 
-```
+```text
 test_diagnose_model_configs.py        12/12 PASSED
 test_actionable_provider_errors.py     8/8  PASSED
 test_diagnose.py                      12/12 PASSED
@@ -184,7 +184,7 @@ Total:                                32/32 PASSED
 
 After these changes, `oc diagnose` output now includes:
 
-```
+```yaml
 models_dir: config/models
 models_dir_exists: True
 model_config_files_count: 3
@@ -206,7 +206,7 @@ model_config_load_errors: {}
 
 When a provider is not configured, user sees:
 
-```
+```text
 Error: Provider 'anthropic' not configured. Available: openai, ollama, stub
 Hint: Add an enabled model config in config/models/anthropic_*.json.
       For legacy setup, set ANTHROPIC_API_KEY environment variable.

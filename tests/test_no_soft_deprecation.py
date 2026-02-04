@@ -254,9 +254,9 @@ def test_v1_reference_excluded() -> None:
 
     # None should contain "v1.reference" as a path segment
     for path in scanned_paths:
-        assert "v1.reference" not in path.split("/"), (
-            f"ERROR: scan_repository returned path containing v1.reference: {path}\nThe hard exclusion is broken!"
-        )
+        assert "v1.reference" not in path.split(
+            "/"
+        ), f"ERROR: scan_repository returned path containing v1.reference: {path}\nThe hard exclusion is broken!"
 
 
 def _format_violations_message(violations: list[tuple[Path, str, list[tuple[int, str]]]]) -> str:
