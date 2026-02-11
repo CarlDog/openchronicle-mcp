@@ -13,6 +13,8 @@ useDefault = true
     '''\.gitleaks\.toml$''',
     '''\.gitignore$''',
     '''\.env\.example$''',
+    '''(^|/)\.?venv/''',
+    '''(^|/)node_modules/''',
   ]
 
   regexTarget = "match"
