@@ -12,13 +12,22 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "Installing hooks for openchronicle-core..."
 
-# Install pre-commit framework hooks (if pre-commit is available)
+# Find pre-commit: check PATH first, then .venv
+PRE_COMMIT=""
 if command -v pre-commit &>/dev/null; then
+    PRE_COMMIT="pre-commit"
+elif [ -f "$REPO_ROOT/.venv/Scripts/pre-commit.exe" ]; then
+    PRE_COMMIT="$REPO_ROOT/.venv/Scripts/pre-commit.exe"
+elif [ -f "$REPO_ROOT/.venv/bin/pre-commit" ]; then
+    PRE_COMMIT="$REPO_ROOT/.venv/bin/pre-commit"
+fi
+
+if [ -n "$PRE_COMMIT" ]; then
     echo "  Installing pre-commit hooks..."
-    pre-commit install
+    "$PRE_COMMIT" install
 else
-    echo "  WARNING: 'pre-commit' not found. Install with: pip install pre-commit"
-    echo "           Then run: pre-commit install"
+    echo "  WARNING: 'pre-commit' not found in PATH or .venv."
+    echo "           Run: pip install pre-commit && pre-commit install"
 fi
 
 # Install post-commit hook
