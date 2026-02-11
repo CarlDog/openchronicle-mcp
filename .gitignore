@@ -368,6 +368,11 @@ ClientBin/
 *.dbproj.schemaview
 *.jfm
 *.pfx
+*.p12
+*.pem
+*.key
+*.cer
+*.crt
 *.publishsettings
 orleans.codegen.cs
 

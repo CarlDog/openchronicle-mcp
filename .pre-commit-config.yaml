@@ -40,6 +40,13 @@ repos:
         types: [markdown]
         exclude: ^(node_modules|\.venv|v1\.reference)/
 
+  # Secret Scanning - Gitleaks
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.0
+    hooks:
+      - id: gitleaks
+        name: Detect secrets with Gitleaks
+
   # General File Quality
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0

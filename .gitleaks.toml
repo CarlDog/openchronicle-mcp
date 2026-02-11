@@ -1,0 +1,22 @@
+# Gitleaks configuration for openchronicle-core
+# https://github.com/gitleaks/gitleaks
+
+title = "openchronicle-core gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+  description = "Global allowlist for known false positives"
+
+  paths = [
+    '''\.gitleaks\.toml$''',
+    '''\.gitignore$''',
+    '''\.env\.example$''',
+  ]
+
+  regexTarget = "match"
+  regexes = [
+    '''sk-(test|secret|fake|file)-key-\d+''',
+    '''default_api_key''',
+  ]
