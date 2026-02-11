@@ -70,7 +70,9 @@ if command -v zip &>/dev/null; then
 elif command -v 7z &>/dev/null; then
     7z a -tzip "$ZIP_PATH" . -x'!.*' >/dev/null
 elif command -v powershell.exe &>/dev/null; then
-    powershell.exe -NoProfile -Command "Compress-Archive -Path '$STAGING_DIR\\*' -DestinationPath '$(cygpath -w "$ZIP_PATH")' -Force"
+    WIN_STAGING="$(cygpath -w "$STAGING_DIR")"
+    WIN_ZIP="$(cygpath -w "$ZIP_PATH")"
+    powershell.exe -NoProfile -Command "Compress-Archive -Path '${WIN_STAGING}\\*' -DestinationPath '${WIN_ZIP}' -Force"
 else
     echo "[post-commit] ERROR: No zip tool found (tried zip, 7z, PowerShell)."
     exit 1
