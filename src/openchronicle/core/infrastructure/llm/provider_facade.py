@@ -149,6 +149,12 @@ class ProviderAwareLLMFacade(LLMPort):
             return (
                 f"{config_file_hint}. Optionally set OLLAMA_HOST environment variable (e.g., http://localhost:11434)."
             )
+        if provider == "anthropic":
+            return f"{config_file_hint}. Optionally set ANTHROPIC_API_KEY environment variable as override."
+        if provider == "groq":
+            return f"{config_file_hint}. Optionally set GROQ_API_KEY environment variable as override."
+        if provider == "gemini":
+            return f"{config_file_hint}. Optionally set GEMINI_API_KEY (or GOOGLE_API_KEY) environment variable as override."
         return (
             f"{config_file_hint}. "
             "Or add the provider to routing pools (OC_LLM_FAST_POOL, OC_LLM_QUALITY_POOL) via environment."
@@ -204,6 +210,21 @@ def create_provider_aware_llm(
 
         return OllamaAdapter(model=cfg.model, base_url=cfg.base_url or cfg.endpoint)
 
+    def _make_anthropic_adapter(cfg: ResolvedModelConfig) -> LLMPort:
+        from openchronicle.core.infrastructure.llm.anthropic_adapter import AnthropicAdapter
+
+        return AnthropicAdapter(api_key=cfg.api_key, model=cfg.model, base_url=cfg.base_url)
+
+    def _make_groq_adapter(cfg: ResolvedModelConfig) -> LLMPort:
+        from openchronicle.core.infrastructure.llm.groq_adapter import GroqAdapter
+
+        return GroqAdapter(api_key=cfg.api_key, model=cfg.model)
+
+    def _make_gemini_adapter(cfg: ResolvedModelConfig) -> LLMPort:
+        from openchronicle.core.infrastructure.llm.gemini_adapter import GeminiAdapter
+
+        return GeminiAdapter(api_key=cfg.api_key, model=cfg.model)
+
     # Configure factories for providers found in configs
     providers_with_configs = sorted(loader.providers())
     for provider in providers_with_configs:
@@ -213,6 +234,12 @@ def create_provider_aware_llm(
             adapter_factories[provider] = _make_openai_adapter
         elif provider == "ollama":
             adapter_factories[provider] = _make_ollama_adapter
+        elif provider == "anthropic":
+            adapter_factories[provider] = _make_anthropic_adapter
+        elif provider == "groq":
+            adapter_factories[provider] = _make_groq_adapter
+        elif provider == "gemini":
+            adapter_factories[provider] = _make_gemini_adapter
 
     # Env-based wiring for providers without configs
     # Only wire env-based providers if they're NOT already configured via config files
@@ -232,6 +259,24 @@ def create_provider_aware_llm(
                 static_adapters[provider] = _make_ollama_adapter(
                     ResolvedModelConfig(provider="ollama", model="default", endpoint=os.getenv("OLLAMA_HOST"))
                 )
+            elif provider == "anthropic":
+                api_key = os.getenv("ANTHROPIC_API_KEY")
+                if api_key:
+                    static_adapters[provider] = _make_anthropic_adapter(
+                        ResolvedModelConfig(provider="anthropic", model="claude-sonnet-4-20250514", api_key=api_key)
+                    )
+            elif provider == "groq":
+                api_key = os.getenv("GROQ_API_KEY")
+                if api_key:
+                    static_adapters[provider] = _make_groq_adapter(
+                        ResolvedModelConfig(provider="groq", model="llama-3.3-70b-versatile", api_key=api_key)
+                    )
+            elif provider == "gemini":
+                api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+                if api_key:
+                    static_adapters[provider] = _make_gemini_adapter(
+                        ResolvedModelConfig(provider="gemini", model="gemini-2.0-flash", api_key=api_key)
+                    )
 
     default_provider_name = os.getenv("OC_LLM_PROVIDER", "").strip()
     available_for_default = set(static_adapters.keys()) | set(adapter_factories.keys())

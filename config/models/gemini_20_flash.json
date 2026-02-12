@@ -1,0 +1,11 @@
+{
+  "provider": "gemini",
+  "model": "gemini-2.0-flash",
+  "display_name": "Google Gemini 2.0 Flash",
+  "description": "Gemini 2.0 Flash - fast and capable",
+  "api_config": {
+    "endpoint": "https://generativelanguage.googleapis.com/v1beta",
+    "timeout": 30,
+    "api_key": "changeme-gemini-key"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "provider": "groq",
+  "model": "llama-3.3-70b-versatile",
+  "display_name": "Groq - Llama 3.3 70B",
+  "description": "Llama 3.3 70B via Groq inference (fast)",
+  "api_config": {
+    "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+    "default_base_url": "https://api.groq.com/openai/v1",
+    "timeout": 30,
+    "auth_header": "Authorization",
+    "auth_format": "Bearer {api_key}",
+    "api_key": "changeme-groq-key"
+  }
+}

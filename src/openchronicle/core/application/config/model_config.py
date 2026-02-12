@@ -173,6 +173,7 @@ class ModelConfigLoader:
             "openai": "OPENAI_API_KEY",
             "anthropic": "ANTHROPIC_API_KEY",
             "groq": "GROQ_API_KEY",
+            "gemini": "GEMINI_API_KEY",
         }
         return mapping.get(provider.lower())
 

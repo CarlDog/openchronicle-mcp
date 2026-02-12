@@ -2,48 +2,40 @@ from __future__ import annotations
 
 import os
 import time
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:  # pragma: no cover
-    pass
+from typing import Any
 
 try:
-    import openai
+    import groq
 except ImportError:  # pragma: no cover - optional dependency
-    openai = None  # type: ignore[assignment,unused-ignore]
+    groq = None  # type: ignore[assignment,unused-ignore]
 
 from openchronicle.core.domain.errors import CLIENT_MISSING, MISSING_API_KEY
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMResponse, LLMUsage
 
 
-class OpenAIAdapter(LLMPort):
+class GroqAdapter(LLMPort):
     def __init__(
         self,
         *,
         api_key: str | None = None,
         model: str | None = None,
-        base_url: str | None = None,
     ) -> None:
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
+        self.api_key = api_key or os.getenv("GROQ_API_KEY")
+        self.model = model or os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
         self._client = self._build_client()
 
     def _build_client(self) -> Any:
         if not self.api_key:
             return None
-        if openai is None:
+        if groq is None:
             return None
-        return openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-
-    def is_configured(self) -> bool:
-        return bool(self.api_key)
+        return groq.AsyncGroq(api_key=self.api_key)
 
     def _ensure_ready(self) -> None:
         if not self.api_key:
-            raise LLMProviderError("OPENAI_API_KEY not set", status_code=401, error_code=MISSING_API_KEY)
-        if openai is None or self._client is None:
-            raise LLMProviderError("openai package not installed", status_code=None, error_code=CLIENT_MISSING)
+            raise LLMProviderError("GROQ_API_KEY not set", status_code=401, error_code=MISSING_API_KEY)
+        if groq is None or self._client is None:
+            raise LLMProviderError("groq package not installed", status_code=None, error_code=CLIENT_MISSING)
 
     async def complete_async(
         self,
@@ -64,7 +56,7 @@ class OpenAIAdapter(LLMPort):
                 max_tokens=max_output_tokens,
                 temperature=temperature,
             )
-        except Exception as exc:  # pragma: no cover - exercised via fake in tests
+        except Exception as exc:
             status = getattr(exc, "status_code", None)
             code = getattr(exc, "code", None)
             raise LLMProviderError(str(exc), status_code=status, error_code=code) from exc
@@ -78,14 +70,14 @@ class OpenAIAdapter(LLMPort):
         usage_obj = None
         if usage is not None:
             usage_obj = LLMUsage(
-                input_tokens=getattr(usage, "prompt_tokens", None) or getattr(usage, "input_tokens", None),
-                output_tokens=getattr(usage, "completion_tokens", None) or getattr(usage, "output_tokens", None),
+                input_tokens=getattr(usage, "prompt_tokens", None),
+                output_tokens=getattr(usage, "completion_tokens", None),
                 total_tokens=getattr(usage, "total_tokens", None),
             )
 
         return LLMResponse(
             content=content,
-            provider="openai",
+            provider="groq",
             model=model or self.model,
             request_id=getattr(response, "id", None),
             finish_reason=finish_reason,
