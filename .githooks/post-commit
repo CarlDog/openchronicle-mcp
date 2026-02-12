@@ -12,7 +12,7 @@ set -euo pipefail
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 REPO_NAME="$(basename "$REPO_ROOT")"
 TIMESTAMP="$(date +%Y-%m-%d_%H%M%S)"
-OUTPUT_DIR="/d/GitHub"
+OUTPUT_DIR="/d/GitHub/openchronicle-snapshots"
 ZIP_NAME="${REPO_NAME}_${TIMESTAMP}.zip"
 ZIP_PATH="${OUTPUT_DIR}/${ZIP_NAME}"
 STAGING_DIR="$(mktemp -d)"

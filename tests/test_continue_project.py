@@ -200,16 +200,16 @@ class TestCLIBoundaryGuard:
 
     def test_cli_does_not_import_storage_directly(self) -> None:
         """CLI should not directly access container.storage for resume-project --continue."""
-        # Read the CLI file
-        with open("src/openchronicle/interfaces/cli/main.py", encoding="utf-8") as f:
+        # Read the CLI command handler file (refactored from main.py)
+        with open("src/openchronicle/interfaces/cli/commands/project.py", encoding="utf-8") as f:
             cli_content = f.read()
 
         # Check for the specific boundary violation in resume-project command
         # The old code had: container.storage.list_tasks_by_project in the --continue path
-        resume_section_start = cli_content.find('if args.command == "resume-project":')
-        resume_section_end = cli_content.find("if args.command ==", resume_section_start + 1)
+        resume_section_start = cli_content.find("def cmd_resume_project(")
+        resume_section_end = cli_content.find("\ndef ", resume_section_start + 1)
         if resume_section_end == -1:
-            resume_section_end = cli_content.find("parser.print_help()", resume_section_start)
+            resume_section_end = len(cli_content)
 
         resume_section = cli_content[resume_section_start:resume_section_end]
 
