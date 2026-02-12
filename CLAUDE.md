@@ -2,6 +2,73 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working Style
+
+**Read these first every session:**
+
+- This file (always loaded automatically)
+- `docs/CODEBASE_ASSESSMENT.md` — the project bible. Contains current state,
+  Definition of Done, resolved decisions, and refactoring priorities. Read it
+  before proposing or starting any work.
+
+**How the owner works:**
+
+- **Discuss before implementing.** Always talk through the approach before writing
+  code. The owner wants to understand and approve the direction, not just see a PR.
+- **No backwards compatibility.** This is a personal project with no public users
+  and no production deployment. Break whatever needs breaking.
+- **Push back on scope creep.** The owner self-describes as having "a tendency to
+  wander." If a request is drifting away from the current sprint or the Definition
+  of Done, say so directly. Be a guardrail, not a yes-man.
+- **Be direct.** The owner responds well to honest technical opinions and pushback.
+  Don't hedge or soften assessments. Say what you think.
+- **Don't over-engineer.** This is a personal project. Solve the problem in front
+  of you. Don't add abstraction layers for hypothetical future requirements.
+
+**Session discipline:**
+
+- If a session is getting long or complex, proactively offer to write a handoff
+  note (update Current Sprint below + MEMORY.md) before context compression hits.
+- When starting a new session after compression, read the assessment document
+  before doing anything else.
+
+## Current Sprint
+
+**Objective:** Get core to "done" — a fully operational daemon you can interact
+with like a chatbot via CLI, with durable memory, explainable routing, and a
+stable plugin surface.
+
+**Definition of Done (4 must-haves):**
+
+1. Interactive chat REPL (`oc chat`) — auto-create/resume conversations, no UUIDs
+2. Streaming responses (`stream_async()` on LLMPort + all 5 adapters + CLI, with
+   `--no-stream` opt-out toggle)
+3. Interface layer refactoring — split God Functions into dispatch tables
+4. Conversation UX shortcuts — `--latest`, `--resume`, auto-create
+
+**Current status:** Planning phase. Assessment complete (rev 2), all three open
+decisions resolved, CLAUDE.md and MEMORY.md updated with working style and sprint
+context. No code changes pending — clean working tree except docs.
+
+**Next action:** Commit the assessment + CLAUDE.md + MEMORY.md updates, then plan
+Phase 1 (interface layer refactoring — split God Functions in main.py and stdio.py
+into dispatch tables). This unblocks everything else.
+
+**Important:** docs/CODEBASE_ASSESSMENT.md, CLAUDE.md, and MEMORY.md all have
+uncommitted changes from this session. Commit these first.
+
+**Recently completed:**
+
+- All 5 LLM adapters built out (OpenAI, Anthropic, Groq, Gemini, Ollama)
+- Codebase assessment written with full project history context
+- Three open decisions resolved (manager/worker, streaming, memory self-report)
+
+**Resolved decisions (see assessment for full rationale):**
+
+- Manager/worker stays in core (runtime capability, not domain feature)
+- Streaming is must-have with `--no-stream` opt-out
+- Memory self-report: keep lenient, remove strict mode
+
 ## Build and Development
 
 ```bash
