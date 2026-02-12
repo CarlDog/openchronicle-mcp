@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-12
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 3 (core done — all 4 must-haves complete)
+**Revision:** 4 (core done — all must-haves and should-haves complete)
 
 ---
 
@@ -23,11 +23,10 @@ shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
 Tests are strong (404+), architecture is enforced, and the STDIO RPC daemon
 mode exists.
 
-**What's next** is the plugin phase (scheduler, Discord driver, security scanner)
-and optional should-have refactoring (all 3 items now complete).
+**What's next** is the plugin phase (scheduler, Discord driver, security scanner).
+All internal quality refactoring is complete.
 
-**Overall: Core done.** Both backend and UX are at the "you can use this as a
-chatbot" bar. Remaining work is polish and extensibility.
+**Overall: Core done, fully polished.** Ready for plugin phase or merge to main.
 
 ---
 
@@ -136,80 +135,19 @@ zero SDK imports. This is genuinely enforced, not aspirational.
 
 ---
 
-## Current State: What's Missing
+## Core Gaps (All Resolved)
 
-### 1. No Interactive Chat Experience
+The following gaps were identified at the start of the v2 rebuild and have all
+been closed. Kept here for architectural context — see Definition of Done and
+Refactoring Priorities sections for implementation details.
 
-The CLI requires this to have a conversation:
-
-```bash
-oc convo create --title "My Chat"
-# → outputs conversation_id (UUID)
-oc convo ask --conversation-id 550e8400-... "Hello, how are you?"
-# → outputs response
-oc convo ask --conversation-id 550e8400-... "Tell me more"
-# → outputs response
-```
-
-**What "interact like a chatbot" requires:**
-
-```bash
-oc chat
-# → enters interactive REPL
-# → auto-creates or resumes conversation
-You: Hello, how are you?
-Assistant: I'm doing well! How can I help you today?
-You: Tell me more about X
-Assistant: ...
-```
-
-This is the single biggest UX gap. The backend supports it — conversations, turns,
-memory all work. There's just no interactive shell wrapping it.
-
-### 2. No Streaming Responses
-
-`LLMPort.complete_async()` returns a complete `LLMResponse`. There's no streaming
-API. For a chatbot experience, watching tokens arrive is table stakes — especially
-for long responses that take 10+ seconds.
-
-All 5 provider SDKs support streaming natively. The port interface would need a
-`stream_async()` method returning an async iterator of chunks.
-
-### 3. God Functions in Interface Layer
-
-| Function | File | Lines | Problem |
-|----------|------|-------|---------|
-| `main()` | `interfaces/cli/main.py` | **1,574** | All 50+ CLI commands in one function |
-| `dispatch_json_command()` | `interfaces/cli/stdio.py` | **974** | All 18 RPC commands in one function |
-
-These make the interface layer untestable in isolation and fragile to change.
-Every new command means editing a function that's already 1,000+ lines.
-
-**This matters for "core done" because:** Plugins don't add CLI commands (they use
-`plugin.invoke`), but core maintenance and future core commands (like `oc chat`)
-need a clean interface layer. The God Functions also prevent proper command-level
-unit testing.
-
-### 4. Manager/Worker Methods Need Decomposition
-
-`OrchestratorService` (831 lines) contains `_run_worker_summarize()` (339 lines)
-and `_run_analysis_summary()` (119 lines). These implement the manager/worker
-pattern — a core runtime capability (like multi-threading) that stays in core.
-
-The conversation flow bypasses these methods — `ask_conversation.py` calls
-`execute_with_route()` directly. But manager/worker is available for task-based
-workflows and future plugins that need parallel execution.
-
-**Resolved:** Stays in core. Methods need internal decomposition into phases
-(setup, prompt building, LLM call, result parsing, worker spawning) for
-readability and testability. See Resolved Decisions section.
-
-### 5. `ask_conversation.execute()` — 444 Lines in One Function
-
-This is the core conversation workflow. It works correctly but does too much in one
-function: context assembly, memory retrieval, routing, privacy gate, LLM call,
-response parsing, turn persistence, telemetry. Decomposing into 3-4 helper
-functions would make it testable and readable without changing behavior.
+| # | Gap | Resolution |
+|---|-----|------------|
+| 1 | No interactive chat experience | `oc chat` REPL with auto-create, `--resume`, streaming (e368db4) |
+| 2 | No streaming responses | `stream_async()` on LLMPort + all 6 adapters (6416c76) |
+| 3 | God Functions in interface layer | Dispatch tables in `cli/commands/` + `rpc_handlers.py` (e368db4) |
+| 4 | Manager/worker methods need decomposition | Phase-separated into 6 private helpers + dataclass (f4416d0) |
+| 5 | `ask_conversation.execute()` too large | Split into `prepare_ask()` / `finalize_turn()` pipeline (95cab4c) |
 
 ---
 
@@ -307,7 +245,7 @@ oc task submit --handler story.draft --input '{"prompt":"..."}'
 - `oc chat --resume` picks up most recent conversation
 - `oc convo ask/show/export --latest` resolves most recent conversation
 
-### Phase 4: Internal Quality (Should-Have, Not Started)
+### Phase 4: Internal Quality — DONE
 
 **4a. Decompose `ask_conversation.execute()`** — Done. Extracted into
 `prepare_ask()` (phases 1-5), `finalize_turn()` (phases 7-9), and
@@ -396,8 +334,6 @@ configuration (settings dataclasses + env vars).
 
 **Stub only:** ONNX router assist (intentional placeholder).
 
-**Not started:** Streaming in LLM adapters.
-
 ### Test Suite (93 files, 400+ tests)
 
 Well-organized into 12 categories: business logic (23), CLI/RPC (15), hygiene (10),
@@ -407,8 +343,8 @@ advanced (5), data format (4), plugin (2), integration (2).
 **Strongest coverage:** Provider routing, budget enforcement, conversation flow,
 event verification, architectural boundaries.
 
-**Gap:** Interface layer is largely untested in isolation due to God Functions.
-Splitting them would unlock proper command-level testing.
+Interface layer was split into dispatch tables (e368db4), unlocking
+command-level testing.
 
 ---
 
@@ -512,15 +448,16 @@ v1 (embeddings/vector search) — self-report data will inform retrieval quality
 
 ## Files to Know
 
-| File | Lines | Role | Priority |
-|------|-------|------|----------|
-| `interfaces/cli/main.py` | 1,858 | CLI entry point | **Refactor** — God function |
-| `interfaces/cli/stdio.py` | 1,842 | RPC handler | **Refactor** — God function |
-| `services/orchestrator.py` | 831 | Task orchestration | **Decompose** — manager/worker methods |
-| `persistence/sqlite_store.py` | 1,049 | All persistence | **Monitor** — 3 ports, 48 methods |
-| `use_cases/ask_conversation.py` | 758 | Conversation logic | **Decompose** — oversized execute() |
+| File | Lines | Role | Status |
+|------|-------|------|--------|
+| `interfaces/cli/main.py` | ~350 | CLI entry point | Clean (dispatch tables) |
+| `interfaces/cli/stdio.py` | ~200 | RPC dispatch | Clean (handlers extracted) |
+| `services/orchestrator.py` | 927 | Task orchestration | Clean (phases decomposed) |
+| `persistence/sqlite_store.py` | 918 | All persistence | Clean (mappers extracted) |
+| `persistence/row_mappers.py` | ~180 | Row → domain model | Clean |
+| `use_cases/ask_conversation.py` | 832 | Conversation logic | Clean (prepare/finalize pipeline) |
 | `infrastructure/llm/provider_facade.py` | ~291 | Provider routing | Clean |
 | `application/routing/router_policy.py` | 236 | Route decisions | Clean |
-| `domain/ports/llm_port.py` | 98 | LLM contract | Clean (needs streaming) |
+| `domain/ports/llm_port.py` | 146 | LLM contract | Clean (includes streaming) |
 | `application/services/llm_execution.py` | ~200 | LLM call + fallback | Clean |
 | `application/runtime/container.py` | ~118 | DI container | Clean |
