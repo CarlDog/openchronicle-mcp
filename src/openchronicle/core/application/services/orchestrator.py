@@ -5,6 +5,7 @@ import json
 import os
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any
 from uuid import uuid4
 
@@ -17,17 +18,31 @@ from openchronicle.core.application.policies.rate_limiter import (
 from openchronicle.core.application.policies.retry_controller import RetryController
 from openchronicle.core.application.policies.retry_policy import RetryAttempt, RetryConfig, RetryPolicy
 from openchronicle.core.application.routing.fallback_executor import FallbackExecutor
-from openchronicle.core.application.routing.router_policy import RouterPolicy
+from openchronicle.core.application.routing.router_policy import RouteDecision, RouterPolicy
 from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
 from openchronicle.core.application.services.llm_execution import execute_with_explicit_provider
 from openchronicle.core.domain.exceptions import BudgetExceededError
 from openchronicle.core.domain.models.execution_record import LLMExecutionRecord
 from openchronicle.core.domain.models.project import Agent, Event, Project, Resource, Span, SpanStatus, Task, TaskStatus
 from openchronicle.core.domain.models.retry_policy import TaskRetryPolicy
-from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
+from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMResponse
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.services.usage_tracker import UsageTracker
+
+
+@dataclass
+class _WorkerRoutingContext:
+    """Inter-phase state for _run_worker_summarize pipeline."""
+
+    route_decision: RouteDecision
+    messages: list[dict[str, str]]
+    input_concat: str
+    input_hash: str
+    max_tokens: int
+    temperature: float
+    max_tokens_per_task: int | None
+    current_total_tokens: int
 
 
 class OrchestratorService:
@@ -216,7 +231,6 @@ class OrchestratorService:
             else:
                 # Extract provider-related context if available
                 provider_ctx: dict[str, Any] = {}
-                from openchronicle.core.domain.ports.llm_port import LLMProviderError
 
                 if isinstance(handler_error, LLMProviderError):
                     if handler_error.error_code is not None:
@@ -315,6 +329,38 @@ class OrchestratorService:
             raise ValueError("Not enough worker agents registered")
         return workers[:count]
 
+    def _resolve_worker_modes(
+        self,
+        payload: dict[str, Any],
+    ) -> tuple[list[str], str]:
+        """Resolve worker modes from task payload (4-way resolution).
+
+        Returns (worker_modes, rationale).
+        """
+        desired_quality = payload.get("desired_quality")
+        worker_modes_raw = payload.get("worker_modes")
+        worker_count = payload.get("worker_count", 2)
+        mix_strategy = payload.get("mix_strategy")
+
+        if mix_strategy and not worker_modes_raw:
+            if worker_count != 2:
+                raise ValueError("mix_strategy requires worker_count=2")
+            if mix_strategy == "fast_then_quality":
+                return ["fast", "quality"], "mix_strategy"
+            if mix_strategy == "quality_then_fast":
+                return ["quality", "fast"], "mix_strategy"
+            raise ValueError(f"Invalid mix_strategy: {mix_strategy}")
+        if worker_modes_raw:
+            if len(worker_modes_raw) != worker_count:
+                raise ValueError(
+                    f"worker_modes length ({len(worker_modes_raw)}) must match worker_count ({worker_count})"
+                )
+            return worker_modes_raw, "explicit_worker_modes"
+        if desired_quality:
+            return [desired_quality] * worker_count, "desired_quality_replicated"
+        default_mode = os.getenv("OC_LLM_DEFAULT_MODE", "fast")
+        return [default_mode] * worker_count, "default_mode"
+
     async def _run_analysis_summary(self, task: Task, agent_id: str | None, attempt_id: str) -> dict[str, Any]:
         text = task.payload.get("text") or ""
         text_hash = self._hash_text(text)
@@ -328,44 +374,9 @@ class OrchestratorService:
             )
         )
 
-        # Extract worker configuration from task payload
-        desired_quality = task.payload.get("desired_quality")
-        worker_modes_raw = task.payload.get("worker_modes")
         worker_count = task.payload.get("worker_count", 2)
-        mix_strategy = task.payload.get("mix_strategy")
-
-        # Determine worker_modes list
-        worker_modes: list[str]
-        rationale: str
-
-        # Apply mix_strategy convenience if provided
-        if mix_strategy and not worker_modes_raw:
-            if worker_count != 2:
-                raise ValueError("mix_strategy requires worker_count=2")
-            if mix_strategy == "fast_then_quality":
-                worker_modes = ["fast", "quality"]
-                rationale = "mix_strategy"
-            elif mix_strategy == "quality_then_fast":
-                worker_modes = ["quality", "fast"]
-                rationale = "mix_strategy"
-            else:
-                raise ValueError(f"Invalid mix_strategy: {mix_strategy}")
-        elif worker_modes_raw:
-            # Explicit worker_modes provided
-            worker_modes = worker_modes_raw
-            rationale = "explicit_worker_modes"
-            # Validate length matches worker_count
-            if len(worker_modes) != worker_count:
-                raise ValueError(f"worker_modes length ({len(worker_modes)}) must match worker_count ({worker_count})")
-        elif desired_quality:
-            # Replicate desired_quality for all workers
-            worker_modes = [desired_quality] * worker_count
-            rationale = "desired_quality_replicated"
-        else:
-            # Use default mode for all workers
-            default_mode = os.getenv("OC_LLM_DEFAULT_MODE", "fast")
-            worker_modes = [default_mode] * worker_count
-            rationale = "default_mode"
+        desired_quality = task.payload.get("desired_quality")
+        worker_modes, rationale = self._resolve_worker_modes(task.payload)
 
         # Emit worker plan event
         self.emit_event(
@@ -436,6 +447,44 @@ class OrchestratorService:
         return {"summary": final_summary, "worker_summaries": worker_results}
 
     async def _run_worker_summarize(self, task: Task, agent_id: str | None, attempt_id: str) -> str:
+        ctx = self._worker_setup_routing(task, agent_id)
+        max_tokens = self._worker_enforce_budget(task, agent_id, ctx)
+        estimated_tokens = self._worker_acquire_rate_limit(
+            task,
+            agent_id,
+            ctx.route_decision.provider,
+            ctx.route_decision.model,
+            ctx.input_concat,
+        )
+        response, execution_id, requested_event_id, start_time = await self._worker_execute_llm(
+            task,
+            agent_id,
+            ctx.route_decision,
+            ctx.messages,
+            max_tokens,
+            ctx.temperature,
+            ctx.input_concat,
+            ctx.input_hash,
+            estimated_tokens,
+        )
+        return self._worker_record_completion(
+            task,
+            agent_id,
+            attempt_id,
+            ctx.route_decision,
+            response,
+            execution_id,
+            requested_event_id,
+            start_time,
+            ctx.input_hash,
+        )
+
+    def _worker_setup_routing(
+        self,
+        task: Task,
+        agent_id: str | None,
+    ) -> _WorkerRoutingContext:
+        """Phase 0: Extract text, route to provider/model, build messages."""
         text = task.payload.get("text") or ""
 
         # Get agent details for routing
@@ -453,19 +502,19 @@ class OrchestratorService:
         current_totals = self.usage_tracker.get_task_token_totals(task.id)
         current_total_tokens = current_totals.get("total_tokens") or 0
 
-        # Check if rate limiting was recently triggered (look for recent rate_limited events)
+        # Check if rate limiting was recently triggered
         recent_events = self.storage.list_events(task_id=task.id)
         rate_limit_triggered = any(e.type == "llm.rate_limited" for e in recent_events[-5:] if recent_events)
         rpm_limit_str = os.getenv("OC_LLM_RPM_LIMIT")
         rpm_limit = int(rpm_limit_str) if rpm_limit_str else None
 
-        # Step 0: Route to provider and model
+        # Route to provider and model
         route_decision = self.router.route(
             task_type=task.type,
             agent_role=agent_role,
             agent_tags=agent_tags,
             desired_quality=desired_quality,
-            provider_preference=agent_provider,  # Use agent's preferred provider
+            provider_preference=agent_provider,
             current_task_tokens=current_total_tokens,
             max_tokens_per_task=max_tokens_per_task,
             rate_limit_triggered=rate_limit_triggered,
@@ -497,22 +546,36 @@ class OrchestratorService:
             )
         )
 
-        # Use routed model
-        llm_model = route_decision.model
-
-        # Always use the injected LLM adapter (which may be stub or real based on provider selection)
-        messages = [
+        # Build messages
+        messages: list[dict[str, str]] = [
             {"role": "system", "content": "Summarize the provided text succinctly."},
             {"role": "user", "content": text},
         ]
         input_concat = "".join(m.get("content", "") for m in messages)
         input_hash = self._hash_text(input_concat)
-        max_tokens = 256
-        temperature = 0.2
 
-        # Step 1: Budget enforcement - check if task has exceeded token limit
-        if max_tokens_per_task is not None and current_total_tokens >= max_tokens_per_task:
-            provider = route_decision.provider
+        return _WorkerRoutingContext(
+            route_decision=route_decision,
+            messages=messages,
+            input_concat=input_concat,
+            input_hash=input_hash,
+            max_tokens=256,
+            temperature=0.2,
+            max_tokens_per_task=max_tokens_per_task,
+            current_total_tokens=current_total_tokens,
+        )
+
+    def _worker_enforce_budget(
+        self,
+        task: Task,
+        agent_id: str | None,
+        ctx: _WorkerRoutingContext,
+    ) -> int:
+        """Phase 1: Check token budget, clamp output tokens. Returns effective max_tokens."""
+        max_tokens = ctx.max_tokens
+
+        if ctx.max_tokens_per_task is not None and ctx.current_total_tokens >= ctx.max_tokens_per_task:
+            provider = ctx.route_decision.provider
             self.emit_event(
                 Event(
                     project_id=task.project_id,
@@ -520,14 +583,16 @@ class OrchestratorService:
                     agent_id=agent_id,
                     type="llm.budget_exceeded",
                     payload={
-                        "limit": max_tokens_per_task,
-                        "current": current_total_tokens,
+                        "limit": ctx.max_tokens_per_task,
+                        "current": ctx.current_total_tokens,
                         "provider": provider,
-                        "model": llm_model,
+                        "model": ctx.route_decision.model,
                     },
                 )
             )
-            raise BudgetExceededError(max_tokens_per_task, current_total_tokens, provider, llm_model)
+            raise BudgetExceededError(
+                ctx.max_tokens_per_task, ctx.current_total_tokens, provider, ctx.route_decision.model
+            )
 
         # Output token clamping
         max_output_tokens_per_call_str = os.getenv("OC_MAX_OUTPUT_TOKENS_PER_CALL")
@@ -548,15 +613,23 @@ class OrchestratorService:
                 )
                 max_tokens = max_output_tokens_per_call
 
-        # Step 2: Token estimation for TPM rate limiting
-        estimated_input_tokens = estimate_tokens(input_concat)
+        return max_tokens
 
-        # Step 3: Rate limiter acquire
-        provider = route_decision.provider
+    def _worker_acquire_rate_limit(
+        self,
+        task: Task,
+        agent_id: str | None,
+        provider: str,
+        model: str,
+        input_text: str,
+    ) -> int:
+        """Phase 2-3: Estimate tokens and acquire rate limiter. Returns estimated_input_tokens."""
+        estimated_input_tokens = estimate_tokens(input_text)
+
         try:
             rate_limit_info = self.rate_limiter.acquire(
                 provider=provider,
-                model=llm_model,
+                model=model,
                 estimated_tokens=estimated_input_tokens,
             )
             wait_ms = rate_limit_info.get("wait_ms", 0) or 0
@@ -570,7 +643,7 @@ class OrchestratorService:
                         payload={
                             "wait_ms": wait_ms,
                             "provider": provider,
-                            "model": llm_model,
+                            "model": model,
                             "rpm_limit": rate_limit_info.get("rpm_limit"),
                             "tpm_limit": rate_limit_info.get("tpm_limit"),
                         },
@@ -587,16 +660,31 @@ class OrchestratorService:
                         "max_wait_ms": exc.max_wait_ms,
                         "required_wait_ms": exc.required_wait_ms,
                         "provider": provider,
-                        "model": llm_model,
+                        "model": model,
                     },
                 )
             )
             raise
 
-        # Step 4: Generate unique execution_id for this LLM attempt (correlates all events)
-        execution_id = uuid4().hex
+        return estimated_input_tokens
 
-        # Emit llm.requested (include estimated_input_tokens and execution_id)
+    async def _worker_execute_llm(
+        self,
+        task: Task,
+        agent_id: str | None,
+        route_decision: RouteDecision,
+        messages: list[dict[str, str]],
+        max_tokens: int,
+        temperature: float,
+        input_concat: str,
+        input_hash: str,
+        estimated_input_tokens: int,
+    ) -> tuple[LLMResponse, str, str, float]:
+        """Phase 4-5: Generate execution_id, emit llm.requested, call LLM with retry + fallback."""
+        execution_id = uuid4().hex
+        provider = route_decision.provider
+        llm_model = route_decision.model
+
         requested_event = Event(
             project_id=task.project_id,
             task_id=task.id,
@@ -616,10 +704,8 @@ class OrchestratorService:
         )
         self.emit_event(requested_event)
 
-        # Step 5: Call adapter with retry + fallback
         start = time.perf_counter()
 
-        # Define retry callbacks
         def on_retry(attempt: RetryAttempt) -> None:
             self.emit_event(
                 Event(
@@ -654,12 +740,10 @@ class OrchestratorService:
                 )
             )
 
-        # Create async callable for fallback executor
         async def llm_call_with_provider(provider_name: str, model_name: str) -> Any:
             """Execute LLM call with specific provider and model, including retry logic."""
 
             async def single_call() -> Any:
-                # Use routing-anchored execution helper to enforce discipline
                 return await execute_with_explicit_provider(
                     llm=self.llm,
                     provider=provider_name,
@@ -682,13 +766,26 @@ class OrchestratorService:
                 execution_id=execution_id,
             )
         except Exception:
-            # Fallback executor already emitted llm.failed/llm.refused
             raise
 
-        # Step 6: On success
-        latency_ms = int((time.perf_counter() - start) * 1000)
+        return response, execution_id, requested_event.id, start
 
-        # Check for provider mismatch (routing decision vs actual execution)
+    def _worker_record_completion(
+        self,
+        task: Task,
+        agent_id: str | None,
+        attempt_id: str,
+        route_decision: RouteDecision,
+        response: LLMResponse,
+        execution_id: str,
+        requested_event_id: str,
+        start_time: float,
+        input_hash: str,
+    ) -> str:
+        """Phase 6: Compute latency, emit completion events, record usage. Returns summary string."""
+        latency_ms = int((time.perf_counter() - start_time) * 1000)
+
+        # Check for provider mismatch
         if response.provider != route_decision.provider:
             self.emit_event(
                 Event(
@@ -728,12 +825,12 @@ class OrchestratorService:
             )
         )
 
-        # Emit a single normalized execution record for success
+        # Emit normalized execution record
         usage = response.usage
         record = LLMExecutionRecord(
             task_id=task.id,
             execution_id=execution_id,
-            route_reference_id=requested_event.id,
+            route_reference_id=requested_event_id,
             provider_requested=route_decision.provider,
             provider_used=response.provider,
             model_requested=route_decision.model,
@@ -745,7 +842,7 @@ class OrchestratorService:
             error_code=None,
         )
         payload = record.to_payload()
-        payload["attempt_id"] = attempt_id  # Add attempt_id to execution record
+        payload["attempt_id"] = attempt_id
         self.emit_event(
             Event(
                 project_id=task.project_id,
@@ -756,7 +853,7 @@ class OrchestratorService:
             )
         )
 
-        # Record usage to database (only successful calls)
+        # Record usage to database
         self.usage_tracker.record_call(
             project_id=task.project_id,
             task_id=task.id,

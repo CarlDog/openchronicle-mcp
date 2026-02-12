@@ -233,8 +233,8 @@ surface. No backwards compatibility concerns. No production deployment yet.
 
 | # | Item | Status | Impact |
 |---|------|--------|--------|
-| 5 | **Decompose `ask_conversation.execute()`** | Not started | Testability, readability |
-| 6 | **Decompose orchestrator manager/worker methods** | Not started | 339+119 lines in two methods need phase separation |
+| 5 | **Decompose `ask_conversation.execute()`** | Done | Testability, readability |
+| 6 | **Decompose orchestrator manager/worker methods** | Done | Phase-separated into 6 private helpers + dataclass |
 | 7 | **SqliteStore row mapper extraction** | Not started | Cognitive load reduction |
 
 ### Defer to Plugin Phase
@@ -310,11 +310,17 @@ oc task submit --handler story.draft --input '{"prompt":"..."}'
 
 ### Phase 4: Internal Quality (Should-Have, Not Started)
 
-**4a. Decompose `ask_conversation.execute()`** — Extract context assembly, memory
-retrieval, LLM interaction, and telemetry recording into helper functions.
+**4a. Decompose `ask_conversation.execute()`** — Done. Extracted into
+`prepare_ask()` (phases 1-5), `finalize_turn()` (phases 7-9), and
+`_record_error_telemetry()`. `execute()` is now a ~35-line orchestrator.
+Streaming path in `chat.py` rewritten to use the full pipeline (memory,
+privacy, routing, telemetry).
 
-**4b. Decompose orchestrator manager/worker methods** — 339+119 lines need phase
-separation. Decision resolved: stays in core as runtime capability.
+**4b. Decompose orchestrator manager/worker methods** — Done. Extracted
+`_WorkerRoutingContext` dataclass, `_resolve_worker_modes` (4-way mode
+resolution), and 5 `_worker_*` phase helpers. `_run_worker_summarize` is now a
+~20-line orchestrator calling setup → budget → rate-limit → execute → record.
+`_run_analysis_summary` uses `_resolve_worker_modes` (~85 lines, down from ~119).
 
 **4c. Extract SqliteStore row mappers** — Move 11 `_row_to_*` methods to a
 `row_mappers.py` module.
