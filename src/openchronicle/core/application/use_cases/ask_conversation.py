@@ -4,9 +4,10 @@ import json
 import os
 import time
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from typing import Protocol
 
-from openchronicle.core.application.routing.router_policy import RouterPolicy
+from openchronicle.core.application.routing.router_policy import RouteDecision, RouterPolicy
 from openchronicle.core.application.services.llm_execution import execute_with_route
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.use_cases import run_task
@@ -17,11 +18,11 @@ from openchronicle.core.domain.errors.error_codes import (
     SELF_REPORT_INVALID,
     TIMEOUT,
 )
-from openchronicle.core.domain.models.conversation import Turn
+from openchronicle.core.domain.models.conversation import Conversation, Turn
 from openchronicle.core.domain.models.project import Event, Task
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
 from openchronicle.core.domain.ports.interaction_router_port import InteractionRouterPort
-from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMUsage
+from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, LLMResponse, LLMUsage
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.privacy_gate_port import PrivacyGatePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
@@ -137,11 +138,32 @@ def _parse_used_memory_ids(
     return used_ids
 
 
-async def execute(
+@dataclass
+class PreparedContext:
+    """Pre-computed context for a conversation turn.
+
+    Produced by prepare_ask(), consumed by execute() and finalize_turn().
+    The streaming path in chat.py uses this to get memory, privacy, routing,
+    and telemetry without duplicating the pipeline.
+    """
+
+    conversation: Conversation
+    prior_turns: list[Turn]
+    messages: list[dict[str, str]]
+    route_decision: RouteDecision
+    effective_prompt: str
+    retrieved_ids: list[str]
+    self_report_enabled: bool
+    prompt_text: str
+    conversation_id: str
+    max_output_tokens: int
+    temperature: float
+    started_at: float
+
+
+async def prepare_ask(
     convo_store: ConversationStorePort,
-    storage: StoragePort,
     memory_store: MemoryStorePort,
-    llm: LLMPort,
     emit_event: Callable[[Event], None],
     conversation_id: str,
     prompt_text: str,
@@ -156,12 +178,14 @@ async def execute(
     privacy_gate: PrivacyGatePort | None = None,
     privacy_settings: PrivacyOutboundSettings | None = None,
     telemetry: TelemetryRecorder | None = None,
-) -> Turn:
-    telemetry_recorder = telemetry
-    perf_enabled = telemetry_recorder is not None and telemetry_recorder.perf_enabled()
-    usage_enabled = telemetry_recorder is not None and telemetry_recorder.usage_enabled()
-    context_enabled = telemetry_recorder is not None and telemetry_recorder.context_enabled()
+) -> PreparedContext:
+    """Prepare context for a conversation turn (phases 1-5).
 
+    Performs validation, memory retrieval, routing, privacy gating, and
+    self-report injection. Returns a PreparedContext that can be used with
+    either execute_with_route() or stream_with_route().
+    """
+    perf_enabled = telemetry is not None and telemetry.perf_enabled()
     started_at = time.perf_counter() if perf_enabled else 0.0
     context_started_at = started_at if perf_enabled else 0.0
 
@@ -228,16 +252,16 @@ async def execute(
     pinned_ids = [item.id for item in pinned_memory]
     retrieved_chars_total = sum(len(item.content) for item in pinned_memory + relevant_memory)
 
-    if telemetry_recorder is not None and telemetry_recorder.memory_enabled():
-        telemetry_recorder.record_memory_retrieval(
+    if telemetry is not None and telemetry.memory_enabled():
+        telemetry.record_memory_retrieval(
             retrieved_ids=retrieved_ids,
             pinned_ids=pinned_ids,
             retrieved_chars_total=retrieved_chars_total,
         )
 
-    if perf_enabled and telemetry_recorder is not None:
+    if perf_enabled and telemetry is not None:
         context_assemble_ms = (time.perf_counter() - context_started_at) * 1000
-        telemetry_recorder.record_perf(context_assemble_ms=context_assemble_ms)
+        telemetry.record_perf(context_assemble_ms=context_assemble_ms)
 
     interaction_router = interaction_router or RuleInteractionRouter()
     router_hint = interaction_router.analyze(user_text=prompt_text, recent_turns=prior_turns)
@@ -427,9 +451,7 @@ async def execute(
                 if report.action == "redact":
                     effective_prompt = redacted_prompt
 
-    self_report_enabled = (
-        telemetry_recorder is not None and telemetry_recorder.memory_self_report_enabled() and bool(retrieved_ids)
-    )
+    self_report_enabled = telemetry is not None and telemetry.memory_self_report_enabled() and bool(retrieved_ids)
     if self_report_enabled:
         retrieved_ids_str = ",".join(retrieved_ids)
         effective_prompt = (
@@ -439,64 +461,89 @@ async def execute(
             f"[{retrieved_ids_str}]."
         )
 
-    provider_started_at = time.perf_counter() if perf_enabled else 0.0
-    try:
-        response = await execute_with_route(
-            llm,
-            route_decision,
-            messages[:-1] + [{"role": "user", "content": effective_prompt}],
-            max_output_tokens=max_output_tokens,
-            temperature=temperature,
-        )
-    except LLMProviderError as exc:
-        if perf_enabled and telemetry_recorder is not None:
-            provider_call_ms = (time.perf_counter() - provider_started_at) * 1000
-            telemetry_recorder.record_perf(provider_call_ms=provider_call_ms)
-            ask_total_ms = (time.perf_counter() - started_at) * 1000
-            telemetry_recorder.record_perf(ask_total_ms=ask_total_ms)
-        if usage_enabled and telemetry_recorder is not None:
-            telemetry_recorder.record_llm_usage(
-                provider=route_decision.provider,
-                model=route_decision.model,
-                usage=None,
-            )
-            telemetry_recorder.record_llm_error(error_code=exc.error_code)
-        emit_event(
-            Event(
-                project_id=conversation.project_id,
-                task_id=conversation.id,
-                type="convo.turn_failed",
-                payload={"error_code": exc.error_code, "hint": exc.hint},
-            )
-        )
-        raise
+    return PreparedContext(
+        conversation=conversation,
+        prior_turns=prior_turns,
+        messages=messages,
+        route_decision=route_decision,
+        effective_prompt=effective_prompt,
+        retrieved_ids=retrieved_ids,
+        self_report_enabled=self_report_enabled,
+        prompt_text=prompt_text,
+        conversation_id=conversation_id,
+        max_output_tokens=max_output_tokens,
+        temperature=temperature,
+        started_at=started_at,
+    )
 
-    if perf_enabled and telemetry_recorder is not None:
+
+def _record_error_telemetry(
+    ctx: PreparedContext,
+    exc: LLMProviderError,
+    provider_started_at: float,
+    telemetry: TelemetryRecorder | None,
+    emit_event: Callable[[Event], None],
+) -> None:
+    """Record telemetry and emit event for a failed LLM call."""
+    perf_enabled = ctx.started_at > 0.0
+    if perf_enabled and telemetry is not None:
         provider_call_ms = (time.perf_counter() - provider_started_at) * 1000
-        telemetry_recorder.record_perf(provider_call_ms=provider_call_ms)
+        telemetry.record_perf(provider_call_ms=provider_call_ms)
+        ask_total_ms = (time.perf_counter() - ctx.started_at) * 1000
+        telemetry.record_perf(ask_total_ms=ask_total_ms)
+    if telemetry is not None and telemetry.usage_enabled():
+        telemetry.record_llm_usage(
+            provider=ctx.route_decision.provider,
+            model=ctx.route_decision.model,
+            usage=None,
+        )
+        telemetry.record_llm_error(error_code=exc.error_code)
+    emit_event(
+        Event(
+            project_id=ctx.conversation.project_id,
+            task_id=ctx.conversation.id,
+            type="convo.turn_failed",
+            payload={"error_code": exc.error_code, "hint": exc.hint},
+        )
+    )
 
-    assistant_text = response.content
+
+async def finalize_turn(
+    ctx: PreparedContext,
+    assistant_text: str,
+    response: LLMResponse | None,
+    convo_store: ConversationStorePort,
+    storage: StoragePort,
+    emit_event: Callable[[Event], None],
+    telemetry: TelemetryRecorder | None = None,
+) -> Turn:
+    """Finalize a conversation turn (phases 7-9).
+
+    Performs self-report extraction, turn persistence, event emission, and
+    telemetry recording. When response is None (streaming path), skips
+    llm.completed event, record_llm_usage, and record_context.
+    """
     used_memory_ids: list[str] | None = None
-    if self_report_enabled:
+    if ctx.self_report_enabled:
         cleaned_text, meta_raw = _extract_meta_block(assistant_text)
         assistant_text = cleaned_text if meta_raw is not None else assistant_text
-        retrieved_id_set = {value for value in retrieved_ids if value}
+        retrieved_id_set = {value for value in ctx.retrieved_ids if value}
         if meta_raw is None:
-            if telemetry_recorder is not None:
-                telemetry_recorder.record_memory_self_report(used_ids=[], valid=False)
-            if telemetry_recorder is not None and telemetry_recorder.memory_self_report_strict():
+            if telemetry is not None:
+                telemetry.record_memory_self_report(used_ids=[], valid=False)
+            if telemetry is not None and telemetry.memory_self_report_strict():
                 raise LLMProviderError(
                     "Self-report metadata missing",
                     error_code=SELF_REPORT_INVALID,
                     hint="LLM did not provide <OC_META> self-report block.",
                 )
         else:
-            max_ids = telemetry_recorder.memory_self_report_max_ids() if telemetry_recorder is not None else 20
+            max_ids = telemetry.memory_self_report_max_ids() if telemetry is not None else 20
             parsed = _parse_used_memory_ids(meta_raw, retrieved_ids=retrieved_id_set, max_ids=max_ids)
             if parsed is None:
-                if telemetry_recorder is not None:
-                    telemetry_recorder.record_memory_self_report(used_ids=[], valid=False)
-                if telemetry_recorder is not None and telemetry_recorder.memory_self_report_strict():
+                if telemetry is not None:
+                    telemetry.record_memory_self_report(used_ids=[], valid=False)
+                if telemetry is not None and telemetry.memory_self_report_strict():
                     raise LLMProviderError(
                         "Self-report metadata invalid",
                         error_code=SELF_REPORT_INVALID,
@@ -504,69 +551,68 @@ async def execute(
                     )
             else:
                 used_memory_ids = parsed
-                if telemetry_recorder is not None:
-                    telemetry_recorder.record_memory_self_report(used_ids=used_memory_ids, valid=True)
+                if telemetry is not None:
+                    telemetry.record_memory_self_report(used_ids=used_memory_ids, valid=True)
                 emit_event(
                     Event(
-                        project_id=conversation.project_id,
-                        task_id=conversation.id,
+                        project_id=ctx.conversation.project_id,
+                        task_id=ctx.conversation.id,
                         type="memory.used_reported",
                         payload={
-                            "retrieved_ids_count": len(retrieved_ids),
+                            "retrieved_ids_count": len(ctx.retrieved_ids),
                             "used_ids_count": len(used_memory_ids),
                             "used_memory_ids": used_memory_ids,
-                            "strict_enabled": bool(
-                                telemetry_recorder is not None and telemetry_recorder.memory_self_report_strict()
-                            ),
+                            "strict_enabled": bool(telemetry is not None and telemetry.memory_self_report_strict()),
                         },
                     )
                 )
 
-    if usage_enabled and telemetry_recorder is not None:
-        telemetry_recorder.record_llm_usage(provider=response.provider, model=response.model, usage=response.usage)
+    if response is not None:
+        if telemetry is not None and telemetry.usage_enabled():
+            telemetry.record_llm_usage(provider=response.provider, model=response.model, usage=response.usage)
 
-    if context_enabled and telemetry_recorder is not None:
-        prompt_tokens = response.usage.input_tokens if response.usage else None
-        max_context_tokens = _resolve_max_context_tokens()
-        telemetry_recorder.record_context(prompt_tokens=prompt_tokens, max_context_tokens=max_context_tokens)
+        if telemetry is not None and telemetry.context_enabled():
+            prompt_tokens = response.usage.input_tokens if response.usage else None
+            max_context_tokens = _resolve_max_context_tokens()
+            telemetry.record_context(prompt_tokens=prompt_tokens, max_context_tokens=max_context_tokens)
 
-    emit_event(
-        Event(
-            project_id=conversation.project_id,
-            task_id=conversation.id,
-            type="llm.completed",
-            payload={
-                "provider": response.provider,
-                "model": response.model,
-                "request_id": response.request_id,
-                "finish_reason": response.finish_reason,
-                "latency_ms": response.latency_ms,
-                "usage": {
-                    "input_tokens": response.usage.input_tokens if response.usage else None,
-                    "output_tokens": response.usage.output_tokens if response.usage else None,
-                    "total_tokens": response.usage.total_tokens if response.usage else None,
+        emit_event(
+            Event(
+                project_id=ctx.conversation.project_id,
+                task_id=ctx.conversation.id,
+                type="llm.completed",
+                payload={
+                    "provider": response.provider,
+                    "model": response.model,
+                    "request_id": response.request_id,
+                    "finish_reason": response.finish_reason,
+                    "latency_ms": response.latency_ms,
+                    "usage": {
+                        "input_tokens": response.usage.input_tokens if response.usage else None,
+                        "output_tokens": response.usage.output_tokens if response.usage else None,
+                        "total_tokens": response.usage.total_tokens if response.usage else None,
+                    },
                 },
-            },
+            )
         )
-    )
 
     with storage.transaction():
-        turn_index = convo_store.next_turn_index(conversation_id)
+        turn_index = convo_store.next_turn_index(ctx.conversation_id)
         turn = Turn(
-            conversation_id=conversation_id,
+            conversation_id=ctx.conversation_id,
             turn_index=turn_index,
-            user_text=prompt_text,
+            user_text=ctx.prompt_text,
             assistant_text=assistant_text,
-            provider=route_decision.provider,
-            model=route_decision.model,
-            routing_reasons=route_decision.reasons,
+            provider=ctx.route_decision.provider,
+            model=ctx.route_decision.model,
+            routing_reasons=ctx.route_decision.reasons,
         )
         convo_store.add_turn(turn)
 
     emit_event(
         Event(
-            project_id=conversation.project_id,
-            task_id=conversation.id,
+            project_id=ctx.conversation.project_id,
+            task_id=ctx.conversation.id,
             type="convo.turn_completed",
             payload={
                 "turn_id": turn.id,
@@ -577,11 +623,78 @@ async def execute(
         )
     )
 
-    if perf_enabled and telemetry_recorder is not None:
-        ask_total_ms = (time.perf_counter() - started_at) * 1000
-        telemetry_recorder.record_perf(ask_total_ms=ask_total_ms)
+    if ctx.started_at > 0.0 and telemetry is not None:
+        ask_total_ms = (time.perf_counter() - ctx.started_at) * 1000
+        telemetry.record_perf(ask_total_ms=ask_total_ms)
 
     return turn
+
+
+async def execute(
+    convo_store: ConversationStorePort,
+    storage: StoragePort,
+    memory_store: MemoryStorePort,
+    llm: LLMPort,
+    emit_event: Callable[[Event], None],
+    conversation_id: str,
+    prompt_text: str,
+    *,
+    interaction_router: InteractionRouterPort | None = None,
+    last_n: int = 10,
+    top_k_memory: int = 8,
+    include_pinned_memory: bool = True,
+    max_output_tokens: int = 512,
+    temperature: float = 0.2,
+    allow_pii: bool = False,
+    privacy_gate: PrivacyGatePort | None = None,
+    privacy_settings: PrivacyOutboundSettings | None = None,
+    telemetry: TelemetryRecorder | None = None,
+) -> Turn:
+    ctx = await prepare_ask(
+        convo_store=convo_store,
+        memory_store=memory_store,
+        emit_event=emit_event,
+        conversation_id=conversation_id,
+        prompt_text=prompt_text,
+        interaction_router=interaction_router,
+        last_n=last_n,
+        top_k_memory=top_k_memory,
+        include_pinned_memory=include_pinned_memory,
+        max_output_tokens=max_output_tokens,
+        temperature=temperature,
+        allow_pii=allow_pii,
+        privacy_gate=privacy_gate,
+        privacy_settings=privacy_settings,
+        telemetry=telemetry,
+    )
+
+    perf_enabled = ctx.started_at > 0.0
+    provider_started_at = time.perf_counter() if perf_enabled else 0.0
+    try:
+        response = await execute_with_route(
+            llm,
+            ctx.route_decision,
+            ctx.messages[:-1] + [{"role": "user", "content": ctx.effective_prompt}],
+            max_output_tokens=ctx.max_output_tokens,
+            temperature=ctx.temperature,
+        )
+    except LLMProviderError as exc:
+        _record_error_telemetry(ctx, exc, provider_started_at, telemetry, emit_event)
+        raise
+
+    if perf_enabled and telemetry is not None:
+        provider_call_ms = (time.perf_counter() - provider_started_at) * 1000
+        telemetry.record_perf(provider_call_ms=provider_call_ms)
+
+    return await finalize_turn(
+        ctx=ctx,
+        assistant_text=response.content,
+        response=response,
+        convo_store=convo_store,
+        storage=storage,
+        emit_event=emit_event,
+        telemetry=telemetry,
+    )
 
 
 def enqueue(

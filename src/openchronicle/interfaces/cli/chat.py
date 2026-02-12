@@ -11,89 +11,47 @@ from openchronicle.core.domain.ports.llm_port import LLMProviderError
 
 
 async def _stream_turn(container: CoreContainer, conversation_id: str, prompt: str) -> str:
-    """Stream a single turn, printing tokens as they arrive. Returns full text."""
-    from openchronicle.core.application.routing.router_policy import RouterPolicy
+    """Stream a single turn, printing tokens as they arrive. Returns full text.
+
+    Uses the full prepare/finalize pipeline so streaming gets memory retrieval,
+    privacy gating, router analysis, self-report extraction, and telemetry.
+    """
     from openchronicle.core.application.services.llm_execution import stream_with_route
-    from openchronicle.core.domain.models.conversation import Turn
-    from openchronicle.core.domain.models.project import Event
 
-    convo = container.storage.get_conversation(conversation_id)
-    if convo is None:
-        raise ValueError(f"Conversation not found: {conversation_id}")
-
-    prior_turns = container.storage.list_turns(conversation_id, limit=10)
-
-    messages: list[dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
-    for turn in prior_turns:
-        messages.append({"role": "user", "content": turn.user_text})
-        messages.append({"role": "assistant", "content": turn.assistant_text})
-    messages.append({"role": "user", "content": prompt})
-
-    router = RouterPolicy()
-    route_decision = router.route(
-        task_type="convo.ask",
-        agent_role="user",
-        agent_tags=None,
-        desired_quality=None,
-        provider_preference=None,
-        current_task_tokens=None,
-        max_tokens_per_task=None,
-        rate_limit_triggered=False,
-        rpm_limit=None,
-    )
-
-    container.event_logger.append(
-        Event(
-            project_id=convo.project_id,
-            task_id=conversation_id,
-            type="convo.turn_started",
-            payload={"prompt_chars": len(prompt)},
-        )
+    ctx = await ask_conversation.prepare_ask(
+        convo_store=container.storage,
+        memory_store=container.storage,
+        emit_event=container.event_logger.append,
+        conversation_id=conversation_id,
+        prompt_text=prompt,
+        interaction_router=container.interaction_router,
+        privacy_gate=getattr(container, "privacy_gate", None),
+        privacy_settings=getattr(container, "privacy_settings", None),
     )
 
     collected: list[str] = []
     async for chunk in stream_with_route(
         container.llm,
-        route_decision,
-        messages,
-        max_output_tokens=512,
-        temperature=0.2,
+        ctx.route_decision,
+        ctx.messages[:-1] + [{"role": "user", "content": ctx.effective_prompt}],
+        max_output_tokens=ctx.max_output_tokens,
+        temperature=ctx.temperature,
     ):
         if chunk.text:
             print(chunk.text, end="", flush=True)
             collected.append(chunk.text)
     print()  # newline after streaming
 
-    assistant_text = "".join(collected)
-
-    with container.storage.transaction():
-        turn_index = container.storage.next_turn_index(conversation_id)
-        turn = Turn(
-            conversation_id=conversation_id,
-            turn_index=turn_index,
-            user_text=prompt,
-            assistant_text=assistant_text,
-            provider=route_decision.provider,
-            model=route_decision.model,
-            routing_reasons=route_decision.reasons,
-        )
-        container.storage.add_turn(turn)
-
-    container.event_logger.append(
-        Event(
-            project_id=convo.project_id,
-            task_id=conversation_id,
-            type="convo.turn_completed",
-            payload={
-                "turn_id": turn.id,
-                "turn_index": turn.turn_index,
-                "provider": turn.provider,
-                "model": turn.model,
-            },
-        )
+    turn = await ask_conversation.finalize_turn(
+        ctx=ctx,
+        assistant_text="".join(collected),
+        response=None,
+        convo_store=container.storage,
+        storage=container.storage,
+        emit_event=container.event_logger.append,
     )
 
-    return assistant_text
+    return turn.assistant_text
 
 
 async def chat_loop(container: CoreContainer, conversation_id: str, *, stream: bool = True) -> int:
