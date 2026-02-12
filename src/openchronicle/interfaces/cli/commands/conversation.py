@@ -22,6 +22,31 @@ from openchronicle.core.domain.services.verification import VerificationResult, 
 from ._helpers import json_envelope, json_error_payload, print_json
 
 
+def _resolve_latest(container: CoreContainer) -> str | None:
+    """Return the most recent conversation ID, or None if none exist."""
+    convos = container.storage.list_conversations(limit=1)
+    if not convos:
+        return None
+    return convos[0].id
+
+
+def _resolve_convo_id(args: argparse.Namespace, container: CoreContainer) -> str | None:
+    """Resolve conversation_id from args, supporting --latest.
+
+    Returns the resolved ID, or None if resolution fails (error already printed).
+    """
+    if getattr(args, "latest", False):
+        convo_id = _resolve_latest(container)
+        if convo_id is None:
+            print("No conversations found. Create one with: oc convo new")
+            return None
+        return convo_id
+    if args.conversation_id:
+        return str(args.conversation_id)
+    print("conversation_id is required (or use --latest)")
+    return None
+
+
 def cmd_convo(args: argparse.Namespace, container: CoreContainer) -> int:
     """Dispatch to convo subcommands."""
     from collections.abc import Callable
@@ -55,6 +80,10 @@ def cmd_convo_new(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_convo_show(args: argparse.Namespace, container: CoreContainer) -> int:
+    resolved = _resolve_convo_id(args, container)
+    if resolved is None:
+        return 1
+    args.conversation_id = resolved
     try:
         conversation, turns = show_conversation.execute(
             convo_store=container.storage,
@@ -135,6 +164,10 @@ def cmd_convo_show(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_convo_export(args: argparse.Namespace, container: CoreContainer) -> int:
+    resolved = _resolve_convo_id(args, container)
+    if resolved is None:
+        return 1
+    args.conversation_id = resolved
     try:
         export = export_convo.execute(
             storage=container.storage,
@@ -313,6 +346,18 @@ def cmd_convo_remember(args: argparse.Namespace, container: CoreContainer) -> in
 
 
 def cmd_convo_ask(args: argparse.Namespace, container: CoreContainer) -> int:
+    # Handle positional ambiguity: `oc convo ask --latest "hello"` puts "hello" in conversation_id
+    if getattr(args, "latest", False) and args.prompt is None and args.conversation_id is not None:
+        args.prompt = args.conversation_id
+        args.conversation_id = None
+    resolved = _resolve_convo_id(args, container)
+    if resolved is None:
+        return 1
+    args.conversation_id = resolved
+    if not args.prompt:
+        print("prompt is required")
+        return 1
+
     async def _run_ask() -> int:
         try:
             turn = await ask_conversation.execute(

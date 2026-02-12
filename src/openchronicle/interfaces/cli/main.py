@@ -119,13 +119,15 @@ def main(argv: list[str] | None = None) -> int:
     convo_new_cmd.add_argument("--title", default=None, help="Optional conversation title")
 
     convo_show_cmd = convo_sub.add_parser("show", help="Show conversation transcript")
-    convo_show_cmd.add_argument("conversation_id")
+    convo_show_cmd.add_argument("conversation_id", nargs="?", default=None)
+    convo_show_cmd.add_argument("--latest", action="store_true", help="Use most recent conversation")
     convo_show_cmd.add_argument("--limit", type=int, default=None, help="Limit number of turns shown")
     convo_show_cmd.add_argument("--explain", action="store_true", help="Explain each turn from events")
     convo_show_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     convo_export_cmd = convo_sub.add_parser("export", help="Export conversation as JSON")
-    convo_export_cmd.add_argument("conversation_id")
+    convo_export_cmd.add_argument("conversation_id", nargs="?", default=None)
+    convo_export_cmd.add_argument("--latest", action="store_true", help="Use most recent conversation")
     convo_export_cmd.add_argument("--explain", action="store_true", help="Include explain bundles per turn")
     convo_export_cmd.add_argument("--verify", action="store_true", help="Include verification results")
     convo_export_cmd.add_argument("--fail-on-verify", action="store_true", help="Exit non-zero on verification failure")
@@ -146,8 +148,11 @@ def main(argv: list[str] | None = None) -> int:
     convo_mode_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     convo_ask_cmd = convo_sub.add_parser("ask", help="Ask a prompt in a conversation")
-    convo_ask_cmd.add_argument("conversation_id")
-    convo_ask_cmd.add_argument("prompt")
+    convo_ask_cmd.add_argument(
+        "conversation_id", nargs="?", default=None, help="Conversation ID (or prompt if --latest)"
+    )
+    convo_ask_cmd.add_argument("prompt", nargs="?", default=None, help="Prompt text")
+    convo_ask_cmd.add_argument("--latest", action="store_true", help="Use most recent conversation")
     convo_ask_cmd.add_argument("--last-n", type=int, default=10, help="Number of prior turns to include")
     convo_ask_cmd.add_argument("--top-k-memory", type=int, default=8, help="Number of memory items to include")
     convo_ask_cmd.add_argument("--explain", action="store_true", help="Explain the turn from events")
@@ -284,7 +289,8 @@ def main(argv: list[str] | None = None) -> int:
 
     # --- Chat ---
     chat_cmd = sub.add_parser("chat", help="Interactive chat session")
-    chat_cmd.add_argument("--conversation-id", default=None, help="Resume existing conversation")
+    chat_cmd.add_argument("--conversation-id", default=None, help="Resume specific conversation by ID")
+    chat_cmd.add_argument("--resume", action="store_true", help="Resume most recent conversation")
     chat_cmd.add_argument("--title", default=None, help="Title for new conversation")
 
     # --- Parse ---
