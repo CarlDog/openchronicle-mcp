@@ -1,15 +1,21 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## BEFORE ANYTHING ELSE
+
+**STOP. Complete these steps before responding to any user message.**
+**This includes resumptions after context compression.**
+**A compression summary is NOT a substitute — it may be stale or incomplete.**
+
+1. Run `mcp__serena__check_onboarding_performed`
+2. Read the Definition of Done table + Refactoring Priorities in
+   `docs/CODEBASE_ASSESSMENT.md` (the single source of truth for project status)
+3. Read the Current Sprint section in this file (below)
+4. Cross-check: does the doc state match your understanding? Flag discrepancies.
+5. Only then respond to the user.
+
+---
 
 ## Working Style
-
-**Read these first every session:**
-
-- This file (always loaded automatically)
-- `docs/CODEBASE_ASSESSMENT.md` — the project bible. Contains current state,
-  Definition of Done, resolved decisions, and refactoring priorities. Read it
-  before proposing or starting any work.
 
 **How the owner works:**
 
@@ -28,9 +34,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Session discipline:**
 
 - If a session is getting long or complex, proactively offer to write a handoff
-  note (update Current Sprint below + MEMORY.md) before context compression hits.
-- When starting a new session after compression, read the assessment document
-  before doing anything else.
+  note (update `docs/CODEBASE_ASSESSMENT.md`) before context compression hits.
+- When status changes (phase completed, decision made), update
+  `docs/CODEBASE_ASSESSMENT.md` and nothing else. That's the only status file.
 
 ## Current Sprint
 
