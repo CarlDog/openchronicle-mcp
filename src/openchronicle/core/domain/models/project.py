@@ -5,7 +5,7 @@ import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
@@ -13,14 +13,14 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
 
 
-class SpanStatus(str, Enum):
+class SpanStatus(StrEnum):
     STARTED = "started"
     COMPLETED = "completed"
     FAILED = "failed"

@@ -5,10 +5,10 @@ Verification is orthogonal to execution status—a task can complete successfull
 but remain unverified until explicit verification events are recorded.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class VerificationStatus(str, Enum):
+class VerificationStatus(StrEnum):
     """Status of task output verification.
 
     Verification is explicit and event-driven:
