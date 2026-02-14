@@ -35,3 +35,11 @@ class ConversationStorePort(ABC):
 
     @abstractmethod
     def link_memory_to_turn(self, turn_id: str, memory_id: str) -> None: ...
+
+    @abstractmethod
+    def delete_conversation(self, conversation_id: str) -> int:
+        """Delete a conversation and all related data (turns, memory, events).
+
+        Returns total rows deleted.
+        """
+        ...

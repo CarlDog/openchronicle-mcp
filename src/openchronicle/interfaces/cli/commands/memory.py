@@ -25,6 +25,7 @@ def cmd_memory(args: argparse.Namespace, container: CoreContainer) -> int:
         "show": cmd_memory_show,
         "pin": cmd_memory_pin,
         "search": cmd_memory_search,
+        "delete": cmd_memory_delete,
     }
     handler = memory_dispatch.get(args.memory_command)
     if handler is None:
@@ -116,4 +117,41 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
         tags_str = ",".join(item.tags)
         snippet = item.content if len(item.content) <= 120 else item.content[:120] + "..."
         print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
+    return 0
+
+
+def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int:
+    """Delete a memory item."""
+    from openchronicle.interfaces.cli.commands._helpers import json_envelope, json_error_payload, print_json
+
+    # Verify exists
+    item = container.storage.get_memory(args.memory_id)
+    if item is None:
+        if args.json:
+            payload = json_envelope(
+                command="memory.delete",
+                ok=False,
+                result=None,
+                error=json_error_payload(
+                    error_code=None, message=f"Memory item not found: {args.memory_id}", hint=None
+                ),
+            )
+            print_json(payload)
+            return 1
+        print(f"Memory item not found: {args.memory_id}")
+        return 1
+
+    container.storage.delete_memory(args.memory_id)
+
+    if args.json:
+        payload = json_envelope(
+            command="memory.delete",
+            ok=True,
+            result={"memory_id": args.memory_id},
+            error=None,
+        )
+        print_json(payload)
+        return 0
+
+    print(f"Deleted memory item {args.memory_id}")
     return 0

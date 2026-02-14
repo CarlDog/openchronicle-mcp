@@ -60,6 +60,7 @@ def cmd_convo(args: argparse.Namespace, container: CoreContainer) -> int:
         "list": cmd_convo_list,
         "remember": cmd_convo_remember,
         "ask": cmd_convo_ask,
+        "delete": cmd_convo_delete,
     }
     handler = convo_dispatch.get(args.convo_command)
     if handler is None:
@@ -324,6 +325,62 @@ def cmd_convo_list(args: argparse.Namespace, container: CoreContainer) -> int:
     conversations = list_conversations.execute(convo_store=container.storage, limit=args.limit)
     for conversation in conversations:
         print(f"{conversation.id}\t{conversation.title}\t{conversation.created_at.isoformat()}")
+    return 0
+
+
+def cmd_convo_delete(args: argparse.Namespace, container: CoreContainer) -> int:
+    """Delete a conversation and all related data."""
+    if not args.force:
+        if args.json:
+            payload = json_envelope(
+                command="convo.delete",
+                ok=False,
+                result=None,
+                error=json_error_payload(
+                    error_code=None,
+                    message="--force flag is required for destructive delete",
+                    hint="This permanently removes the conversation, its turns, memory items, and events.",
+                ),
+            )
+            print_json(payload)
+            return 1
+        print("Error: --force flag is required for destructive delete.")
+        print("This permanently removes the conversation, its turns, memory items, and events.")
+        return 1
+
+    # Verify exists
+    conversation = container.storage.get_conversation(args.conversation_id)
+    if conversation is None:
+        if args.json:
+            payload = json_envelope(
+                command="convo.delete",
+                ok=False,
+                result=None,
+                error=json_error_payload(
+                    error_code=None, message=f"Conversation not found: {args.conversation_id}", hint=None
+                ),
+            )
+            print_json(payload)
+            return 1
+        print(f"Conversation not found: {args.conversation_id}")
+        return 1
+
+    rows_deleted = container.storage.delete_conversation(args.conversation_id)
+
+    if args.json:
+        payload = json_envelope(
+            command="convo.delete",
+            ok=True,
+            result={
+                "conversation_id": args.conversation_id,
+                "rows_deleted": rows_deleted,
+            },
+            error=None,
+        )
+        print_json(payload)
+        return 0
+
+    print(f"Deleted conversation {args.conversation_id} ({rows_deleted} rows)")
     return 0
 
 

@@ -28,3 +28,11 @@ class MemoryStorePort(ABC):
         project_id: str | None = None,
         include_pinned: bool = True,
     ) -> list[MemoryItem]: ...
+
+    @abstractmethod
+    def delete_memory(self, memory_id: str) -> bool:
+        """Delete a memory item and clean up turn references.
+
+        Returns True if deleted, False if not found.
+        """
+        ...

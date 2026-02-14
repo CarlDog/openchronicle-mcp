@@ -73,6 +73,17 @@ def main(argv: list[str] | None = None) -> int:
     replay_project_cmd.add_argument("--project-id", required=True, help="Project identifier")
     replay_project_cmd.add_argument("--show-llm", action="store_true", help="Show LLM execution summaries")
 
+    events_cmd = sub.add_parser("events", help="View raw event log")
+    events_cmd.add_argument("project_id")
+    events_cmd.add_argument("--task-id", default=None, help="Filter by task ID")
+    events_cmd.add_argument("--type", dest="event_type", default=None, help="Filter by event type")
+    events_cmd.add_argument("--limit", type=int, default=50, help="Max events shown (default: 50)")
+    events_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    show_project_cmd = sub.add_parser("show-project", help="Show project details")
+    show_project_cmd.add_argument("project_id")
+    show_project_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
     # --- Task commands ---
     run_cmd = sub.add_parser("run-task", help="Submit and run a task")
     run_cmd.add_argument("project_id")
@@ -168,6 +179,11 @@ def main(argv: list[str] | None = None) -> int:
     convo_ask_group.add_argument("--no-include-pinned-memory", dest="include_pinned_memory", action="store_false")
     convo_ask_cmd.set_defaults(include_pinned_memory=True)
 
+    convo_delete_cmd = convo_sub.add_parser("delete", help="Delete conversation and all related data")
+    convo_delete_cmd.add_argument("conversation_id")
+    convo_delete_cmd.add_argument("--force", action="store_true", help="Required for destructive delete")
+    convo_delete_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
     convo_list_cmd = convo_sub.add_parser("list", help="List conversations")
     convo_list_cmd.add_argument("--limit", type=int, default=None, help="Limit number of conversations shown")
 
@@ -203,6 +219,10 @@ def main(argv: list[str] | None = None) -> int:
     pin_group = memory_pin_cmd.add_mutually_exclusive_group(required=True)
     pin_group.add_argument("--on", dest="pin_on", action="store_true")
     pin_group.add_argument("--off", dest="pin_on", action="store_false")
+
+    memory_delete_cmd = memory_sub.add_parser("delete", help="Delete a memory item")
+    memory_delete_cmd.add_argument("memory_id")
+    memory_delete_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     memory_search_cmd = memory_sub.add_parser("search", help="Search memory items")
     memory_search_cmd.add_argument("query")
@@ -249,7 +269,32 @@ def main(argv: list[str] | None = None) -> int:
         help="Configuration directory (default: OC_CONFIG_DIR env var or 'config')",
     )
 
-    # --- System commands ---
+    # --- Config commands ---
+    config_cmd = sub.add_parser("config", help="Configuration commands")
+    config_sub = config_cmd.add_subparsers(dest="config_command")
+    config_show_cmd = config_sub.add_parser("show", help="Show effective configuration")
+    config_show_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    # --- Version command ---
+    version_cmd = sub.add_parser("version", help="Show version information")
+    version_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    # --- Database commands ---
+    db_cmd = sub.add_parser("db", help="Database maintenance commands")
+    db_sub = db_cmd.add_subparsers(dest="db_command")
+
+    db_info_cmd = db_sub.add_parser("info", help="Show database information")
+    db_info_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    db_sub.add_parser("vacuum", help="Compact database and truncate WAL")
+
+    db_backup_cmd = db_sub.add_parser("backup", help="Hot-backup database to a file")
+    db_backup_cmd.add_argument("path", help="Destination file path")
+    db_backup_cmd.add_argument("--force", action="store_true", help="Overwrite if destination exists")
+
+    db_stats_cmd = db_sub.add_parser("stats", help="Show global token usage statistics")
+    db_stats_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
     # --- System commands ---
     init_config_cmd = sub.add_parser("init-config", help="Initialize model configuration with examples")
     init_config_cmd.add_argument(

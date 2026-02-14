@@ -20,6 +20,173 @@ from openchronicle.interfaces.cli.stdio import (
 )
 
 
+def cmd_version(args: argparse.Namespace) -> int:
+    """Print version information."""
+    import importlib.metadata
+
+    from openchronicle.interfaces.cli.commands._helpers import json_envelope, print_json
+
+    try:
+        pkg_version = importlib.metadata.version("openchronicle")
+    except importlib.metadata.PackageNotFoundError:
+        pkg_version = "unknown"
+
+    python_version = sys.version.split()[0]
+    protocol_version = STDIO_RPC_PROTOCOL_VERSION
+
+    if args.json:
+        payload = json_envelope(
+            command="version",
+            ok=True,
+            result={
+                "package_version": pkg_version,
+                "python_version": python_version,
+                "protocol_version": protocol_version,
+            },
+            error=None,
+        )
+        print_json(payload)
+        return 0
+
+    print(f"openchronicle {pkg_version}")
+    print(f"Python {python_version}")
+    print(f"Protocol v{protocol_version}")
+    return 0
+
+
+def cmd_config(args: argparse.Namespace) -> int:
+    """Dispatch config subcommands."""
+    sub = getattr(args, "config_command", None)
+    if sub == "show":
+        return cmd_config_show(args)
+    print("Usage: oc config {show}")
+    return 0
+
+
+def _mask_secret(value: str) -> str:
+    """Mask a string that looks like a secret (API key, token, etc.)."""
+    if len(value) <= 8:
+        return "****"
+    return value[:4] + "****" + value[-4:]
+
+
+def cmd_config_show(args: argparse.Namespace) -> int:
+    """Show effective runtime configuration."""
+    from dataclasses import asdict
+
+    from openchronicle.core.application.routing.pool_config import load_pool_config
+    from openchronicle.core.infrastructure.config.budget_config import load_budget_policy
+    from openchronicle.core.infrastructure.config.settings import (
+        load_privacy_outbound_settings,
+        load_router_assist_settings,
+        load_telemetry_settings,
+    )
+
+    # Resolved paths
+    paths = {
+        "db_path": os.getenv("OC_DB_PATH", "data/openchronicle.db"),
+        "config_dir": os.getenv("OC_CONFIG_DIR", "config"),
+        "plugin_dir": os.getenv("OC_PLUGIN_DIR", "plugins"),
+        "output_dir": os.getenv("OC_OUTPUT_DIR", "output"),
+    }
+
+    # Provider
+    provider = os.getenv("OC_LLM_PROVIDER", "stub")
+
+    # Pools
+    pool_config = load_pool_config()
+    pools = {
+        "fast_pool": [f"{c.provider}:{c.model}" for c in pool_config.fast_pool],
+        "quality_pool": [f"{c.provider}:{c.model}" for c in pool_config.quality_pool],
+        "nsfw_pool": [f"{c.provider}:{c.model}" for c in pool_config.nsfw_pool],
+        "provider_weights": pool_config.provider_weights,
+        "max_fallbacks": pool_config.max_fallbacks,
+        "fallback_on_transient": pool_config.fallback_on_transient,
+        "fallback_on_constraint": pool_config.fallback_on_constraint,
+        "fallback_on_refusal": pool_config.fallback_on_refusal,
+    }
+
+    # Budget
+    budget = load_budget_policy()
+    budget_dict = budget.to_dict()
+
+    # Privacy
+    privacy = load_privacy_outbound_settings()
+    privacy_dict = asdict(privacy)
+
+    # Telemetry
+    telemetry = load_telemetry_settings()
+    telemetry_dict = asdict(telemetry)
+
+    # Router assist
+    router_assist = load_router_assist_settings()
+    router_assist_dict = asdict(router_assist)
+
+    # Mask any env vars that look like secrets
+    masked_env: dict[str, str] = {}
+    for key in sorted(os.environ):
+        if key.startswith("OC_") and any(s in key.upper() for s in ("KEY", "SECRET", "TOKEN", "PASSWORD")):
+            masked_env[key] = _mask_secret(os.environ[key])
+
+    if args.json:
+        payload = json_envelope(
+            command="config.show",
+            ok=True,
+            result={
+                "paths": paths,
+                "provider": provider,
+                "pools": pools,
+                "budget": budget_dict,
+                "privacy": privacy_dict,
+                "telemetry": telemetry_dict,
+                "router_assist": router_assist_dict,
+                "masked_secrets": masked_env,
+            },
+            error=None,
+        )
+        print_json(payload)
+        return 0
+
+    print("Paths:")
+    for key, value in paths.items():
+        print(f"  {key:<16} {value}")
+
+    print(f"\nProvider: {provider}")
+
+    print("\nPools:")
+    fast_list: list[str] = pools["fast_pool"]  # type: ignore[assignment]
+    quality_list: list[str] = pools["quality_pool"]  # type: ignore[assignment]
+    nsfw_list: list[str] = pools["nsfw_pool"]  # type: ignore[assignment]
+    print(f"  fast:    {', '.join(fast_list) or '(empty)'}")
+    print(f"  quality: {', '.join(quality_list) or '(empty)'}")
+    print(f"  nsfw:    {', '.join(nsfw_list) or '(empty)'}")
+    print(f"  weights: {pools['provider_weights']}")
+    print(f"  max_fallbacks: {pools['max_fallbacks']}")
+
+    print("\nBudget:")
+    print(f"  max_total_tokens: {budget_dict['max_total_tokens'] or '(none)'}")
+    print(f"  max_llm_calls:    {budget_dict['max_llm_calls'] or '(none)'}")
+
+    print("\nPrivacy:")
+    for key, value in privacy_dict.items():
+        print(f"  {key:<20} {value}")
+
+    print("\nTelemetry:")
+    for key, value in telemetry_dict.items():
+        print(f"  {key:<35} {value}")
+
+    print("\nRouter Assist:")
+    for key, value in router_assist_dict.items():
+        print(f"  {key:<16} {value}")
+
+    if masked_env:
+        print("\nMasked Secrets:")
+        for key, value in masked_env.items():
+            print(f"  {key}: {value}")
+
+    return 0
+
+
 def _configure_stdio_logging() -> None:
     root_logger = logging.getLogger()
     if not root_logger.handlers:

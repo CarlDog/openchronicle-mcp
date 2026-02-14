@@ -507,6 +507,59 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
                     (json.dumps(memory_ids, sort_keys=True), turn_id),
                 )
 
+    def delete_conversation(self, conversation_id: str) -> int:
+        """Delete a conversation and all related data (turns, memory items, events).
+
+        Returns total rows deleted across all tables.
+        """
+        total = 0
+        with self.transaction():
+            cur = self._conn.cursor()
+            # Conversation uses its ID as the task_id for events
+            cur.execute("DELETE FROM events WHERE task_id = ?", (conversation_id,))
+            total += cur.rowcount
+            cur.execute("DELETE FROM memory_items WHERE conversation_id = ?", (conversation_id,))
+            total += cur.rowcount
+            cur.execute("DELETE FROM turns WHERE conversation_id = ?", (conversation_id,))
+            total += cur.rowcount
+            cur.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
+            total += cur.rowcount
+        return total
+
+    def delete_memory(self, memory_id: str) -> bool:
+        """Delete a memory item and clean up turn memory_written_ids references.
+
+        Returns True if deleted, False if not found.
+        """
+        with self.transaction():
+            cur = self._conn.cursor()
+            # Check existence
+            row = cur.execute("SELECT id FROM memory_items WHERE id = ?", (memory_id,)).fetchone()
+            if row is None:
+                return False
+
+            # Clean up turn references — memory_written_ids is a JSON array
+            # UUID format means LIKE won't produce false positives
+            turns_with_ref = cur.execute(
+                "SELECT id, memory_written_ids FROM turns WHERE memory_written_ids LIKE ?",
+                (f"%{memory_id}%",),
+            ).fetchall()
+
+            for turn_row in turns_with_ref:
+                try:
+                    ids = json.loads(turn_row["memory_written_ids"] or "[]")
+                except json.JSONDecodeError:
+                    ids = []
+                if memory_id in ids:
+                    ids.remove(memory_id)
+                    cur.execute(
+                        "UPDATE turns SET memory_written_ids = ? WHERE id = ?",
+                        (json.dumps(ids, sort_keys=True), turn_row["id"]),
+                    )
+
+            cur.execute("DELETE FROM memory_items WHERE id = ?", (memory_id,))
+            return True
+
     # Memory
     def add_memory(self, item: MemoryItem) -> None:
         cur = self._conn.cursor()

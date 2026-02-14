@@ -118,6 +118,7 @@ telemetry, and more): [docs/configuration/env_vars.md](docs/configuration/env_va
 - `pyproject.toml` - Project config, dependencies, tool settings
 - `docs/architecture/ARCHITECTURE.md` - Detailed architecture documentation
 - `docs/architecture/PLUGINS.md` - Plugin development guide
+- `docs/cli/commands.md` - CLI command reference (all `oc` subcommands)
 - `docs/configuration/env_vars.md` - Full environment variables reference
 - `docs/design/design_decisions.md` - Core subsystem design rationale
 - `docs/protocol/stdio_rpc_v1.md` - RPC protocol specification

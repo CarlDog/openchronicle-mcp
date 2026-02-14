@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (430+ unit/functional, 13 real-world integration, 5 concurrency
+Tests are strong (470+ unit/functional, 13 real-world integration, 5 concurrency
 stress), architecture is enforced, and the STDIO RPC daemon mode exists. The full
 pipeline has been validated against OpenAI (gpt-4o-mini) and Anthropic (Claude
 Sonnet 4) with all 13 integration scenarios passing.
@@ -120,7 +120,7 @@ validates against live providers (OpenAI, Anthropic).
 |-----------|--------|----------|
 | **5 LLM providers** (OpenAI, Anthropic, Groq, Gemini, Ollama) | Working | Async-native adapters, contract tests |
 | **Provider routing** (pools, fallback, NSFW, budget-aware) | Working | 1,278-line test suite |
-| **SQLite persistence** (10 tables, 48 methods, WAL mode) | Working | Handles tasks, conversations, memory, events |
+| **SQLite persistence** (10 tables, 50 methods, WAL mode) | Working | Handles tasks, conversations, memory, events, delete operations |
 | **Hash-chained events** (SHA256, prev_hash → hash) | Working | Verification + replay services |
 | **Privacy gate** (6 PII categories, Luhn validation) | Working | Rule-based, provider-aware |
 | **Interaction routing** (rule + hybrid ML assist) | Working | NSFW scoring, mode detection |
@@ -128,9 +128,9 @@ validates against live providers (OpenAI, Anthropic).
 | **Budget/rate limiting** | Working | Token limits, call limits, rate gates |
 | **Plugin system** (discover, load, register, invoke) | Working | 2 example plugins, collision detection |
 | **STDIO RPC** (18 commands, serve + oneshot) | Working | Request dedup, telemetry, error codes |
-| **CLI** (50+ subcommands) | Working | Project/task/convo/memory/diagnostics |
+| **CLI** (60+ subcommands) | Working | Project/task/convo/memory/diagnostics/db/config/version/events |
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
-| **Test suite** (430+ unit/functional, 13 real-world integration, 5 concurrency stress) | Passing | 12 test categories, architecture guards, live provider validation, concurrency race proofs |
+| **Test suite** (470+ unit/functional, 13 real-world integration, 5 concurrency stress) | Passing | 12 test categories, architecture guards, live provider validation, concurrency race proofs |
 
 ### Architecture (Enforced and Clean)
 
@@ -377,7 +377,7 @@ configuration (settings dataclasses + env vars).
 
 **Stub only:** ONNX router assist (intentional placeholder).
 
-### Test Suite (94 files, 430+ unit/functional + 13 real-world integration + 5 concurrency stress)
+### Test Suite (102 files, 470+ unit/functional + 13 real-world integration + 5 concurrency stress)
 
 Well-organized into 12 categories: business logic (23), CLI/RPC (15), hygiene (10),
 infrastructure (10), contract (8), policy (5), memory (5), architecture guard (4),
@@ -518,7 +518,7 @@ v1 (embeddings/vector search) — self-report data will inform retrieval quality
 | `interfaces/cli/main.py` | ~350 | CLI entry point | Clean (dispatch tables) |
 | `interfaces/cli/stdio.py` | ~200 | RPC dispatch | Clean (handlers extracted) |
 | `services/orchestrator.py` | 927 | Task orchestration | Clean (phases decomposed) |
-| `persistence/sqlite_store.py` | 918 | All persistence | Clean (mappers extracted) |
+| `persistence/sqlite_store.py` | ~980 | All persistence | Clean (mappers extracted, delete ops added) |
 | `persistence/row_mappers.py` | ~180 | Row → domain model | Clean |
 | `use_cases/ask_conversation.py` | 832 | Conversation logic | Clean (prepare/finalize pipeline) |
 | `infrastructure/llm/provider_facade.py` | ~291 | Provider routing | Clean |
