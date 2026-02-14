@@ -11,7 +11,9 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
     Initialize configuration directory with example model configs.
 
     Creates <config_dir>/models if missing and populates it with minimal
-    example v1-style model configs.
+    example v1-style model configs.  API keys are resolved at runtime from
+    standard environment variables (e.g. OPENAI_API_KEY), so configs don't
+    need embedded keys.
 
     Args:
         config_dir: Base configuration directory
@@ -25,7 +27,8 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
     # Ensure directories exist
     models_dir.mkdir(parents=True, exist_ok=True)
 
-    # Define minimal example configs
+    # Define minimal example configs — no embedded API keys.
+    # Keys are resolved at runtime: inline → api_key_env → standard env var.
     examples = {
         "openai_gpt4o_mini.json": {
             "provider": "openai",
@@ -38,21 +41,19 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
                 "timeout": 30,
                 "auth_header": "Authorization",
                 "auth_format": "Bearer {api_key}",
-                "api_key": "changeme-openai-key",
             },
         },
-        "anthropic_claude35_sonnet.json": {
+        "anthropic_claude_sonnet4.json": {
             "provider": "anthropic",
-            "model": "claude-3-5-sonnet-20241022",
-            "display_name": "Anthropic Claude 3.5 Sonnet",
-            "description": "Claude 3.5 Sonnet - excellent reasoning and writing",
+            "model": "claude-sonnet-4-20250514",
+            "display_name": "Anthropic Claude Sonnet 4",
+            "description": "Claude Sonnet 4 - excellent reasoning and writing",
             "api_config": {
                 "endpoint": "https://api.anthropic.com/v1/messages",
                 "default_base_url": "https://api.anthropic.com",
                 "timeout": 60,
                 "auth_header": "x-api-key",
                 "auth_format": "{api_key}",
-                "api_key": "changeme-anthropic-key",
             },
         },
         "ollama_mistral_7b.json": {

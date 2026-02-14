@@ -8,7 +8,6 @@
     "default_base_url": "https://api.groq.com/openai/v1",
     "timeout": 30,
     "auth_header": "Authorization",
-    "auth_format": "Bearer {api_key}",
-    "api_key": "changeme-groq-key"
+    "auth_format": "Bearer {api_key}"
   }
 }

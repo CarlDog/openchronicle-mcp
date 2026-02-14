@@ -8,7 +8,6 @@
     "default_base_url": "https://api.openai.com/v1",
     "timeout": 30,
     "auth_header": "Authorization",
-    "auth_format": "Bearer {api_key}",
-    "api_key": "changeme-openai-key"
+    "auth_format": "Bearer {api_key}"
   }
 }

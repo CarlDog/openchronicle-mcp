@@ -5,7 +5,6 @@
   "description": "Gemini 2.0 Flash - fast and capable",
   "api_config": {
     "endpoint": "https://generativelanguage.googleapis.com/v1beta",
-    "timeout": 30,
-    "api_key": "changeme-gemini-key"
+    "timeout": 30
   }
 }

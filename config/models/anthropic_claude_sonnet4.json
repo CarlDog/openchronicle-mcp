@@ -1,0 +1,13 @@
+{
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-20250514",
+  "display_name": "Anthropic Claude Sonnet 4",
+  "description": "Claude Sonnet 4 - excellent reasoning and writing",
+  "api_config": {
+    "endpoint": "https://api.anthropic.com/v1/messages",
+    "default_base_url": "https://api.anthropic.com",
+    "timeout": 60,
+    "auth_header": "x-api-key",
+    "auth_format": "{api_key}"
+  }
+}
