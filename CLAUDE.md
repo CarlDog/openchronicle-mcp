@@ -11,11 +11,12 @@
 
 ## Current Sprint
 
-**Status:** Core done. All must-haves and should-have refactoring complete.
-Plugin phase starting. See
-[docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
+**Status:** Core done. Post-core phase starting. Hybrid taxonomy decided:
+scheduler and Discord are core features, not plugins (Decision #4 in assessment).
+See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Scheduler Plugin (P0) — design and implement.
+**Next action:** Add function calling / tool use to LLMPort (core gap), then
+scheduler service.
 
 ## Build and Development
 

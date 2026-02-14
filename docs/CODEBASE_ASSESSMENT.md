@@ -443,23 +443,30 @@ historical context and a feature roadmap for the plugin phase.
 
 ---
 
-## Plugin Roadmap (Post Core-Done)
+## Post-Core Roadmap
+
+A plugin-readiness audit (2026-02-13) identified that the plugin system works for
+stateless task handlers but cannot support stateful, long-running, or
+service-dependent features. See Decision #4 below for the architectural response.
 
 ```text
 Core Done
-  → Scheduler Plugin (P0) — unlocks all downstream plugins
-  → Discord Driver (P1) — first external client
-  → Security Scanner (P2) — gitleaks/osv-scanner/trivy
-  → Dev Agent Runner (P3) — sandboxed execution
-  → Serena MCP (P3.2) — inside sandbox only
-  → MoE Mode (P4) — multi-expert consensus
-  → HTTP API (infra) — FastAPI/Flask
-  → VS Code / Copilot SDK (P5.1)
-  → Goose Integration (P5.2)
-  → Private Git Server (P6)
+  → LLMPort: function calling / tool use (core gap)
+  → Scheduler (core — application/services)
+  → Discord Driver (core — interfaces/)
+  → Security Scanner (plugin — stateless handler)
+  → Dev Agent Runner (core — needs LLM + sandbox)
+  → Serena MCP (core — inside sandbox only)
+  → MoE Mode (plugin — stateless handler)
+  → HTTP API (core — interfaces/)
+  → VS Code / Copilot SDK (external client via RPC)
+  → Goose Integration (external client via RPC)
+  → Private Git Server (plugin or external)
 ```
 
-Each plugin composes on core via STDIO RPC. Core stays standalone.
+**Taxonomy:** Features that need persistent state, lifecycle hooks, or direct
+service access are core features (in `application/` or `interfaces/`). Stateless
+input→output handlers remain plugins. External clients compose via STDIO RPC.
 
 ---
 
@@ -515,6 +522,34 @@ retrieval relevance scoring, response analysis, A/B testing with/without memory.
 **Action:** Remove strict mode code path. Keep lenient self-report as opt-in
 telemetry. Surface usage data in `--explain` output. Revisit when building memory
 v1 (embeddings/vector search) — self-report data will inform retrieval quality.
+
+### 4. Hybrid plugin taxonomy: core vs plugin vs external (Decision: 2026-02-13)
+
+**Decision:** Scheduler and Discord driver are core features, not plugins. The
+plugin system stays as-is for stateless task handlers.
+
+**Rationale:** A plugin-readiness audit found the plugin API provides
+`(task, context) → result` with minimal context (`agent_id`, `attempt_id`,
+`emit_event`). Stateful features need persistent storage, lifecycle hooks, direct
+service access, event subscription, and configuration — all of which the plugin
+API lacks. Building a mini-framework inside the plugin API to support these would
+duplicate what core already provides.
+
+The scheduler is a **runtime concern** (like the event logger or transaction
+retry). The Discord driver is an **interface** (like CLI or STDIO RPC). Neither
+is an optional bolt-on — they need the same level of access as core services.
+
+**Taxonomy:**
+
+| Feature needs... | Lives in... | Examples |
+|------------------|-------------|----------|
+| Persistent state, lifecycle, service access | Core (`application/` or `interfaces/`) | Scheduler, Discord, HTTP API, Dev Agent Runner |
+| Stateless input→output processing | Plugin (`plugins/`) | Story generation, analysis, formatting, security scan |
+| External process composing via RPC | External client | VS Code extension, Goose, CI integrations |
+
+**Action:** Build scheduler in `application/services/`, Discord driver in
+`interfaces/discord/`. Keep the plugin system for what it's good at. Close one
+core gap first: add function calling / tool use to LLMPort.
 
 ---
 
