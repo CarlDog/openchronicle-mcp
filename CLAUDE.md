@@ -11,11 +11,11 @@
 
 ## Current Sprint
 
-**Status:** Core done. All 4 must-haves complete. See
-[docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status,
-Definition of Done table, and refactoring priorities.
+**Status:** Core done. All must-haves and should-have refactoring complete.
+Plugin phase starting. See
+[docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Decide whether to start plugin phase or should-have refactoring.
+**Next action:** Scheduler Plugin (P0) — design and implement.
 
 ## Build and Development
 
