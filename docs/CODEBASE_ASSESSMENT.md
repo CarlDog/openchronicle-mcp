@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-14
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 11 (Scheduler service)
+**Revision:** 12 (Integration test auto-detection)
 
 ---
 
@@ -21,9 +21,11 @@ provider routing → LLM call → streaming response → turn persistence → ev
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
 Tests are strong (590+ unit/functional, 13 real-world integration, 6 concurrency
-stress), architecture is enforced, and the STDIO RPC daemon mode exists. The full
-pipeline has been validated against OpenAI (gpt-4o-mini) and Anthropic (Claude
-Sonnet 4) with all 13 integration scenarios passing.
+stress), architecture is enforced, and the STDIO RPC daemon mode exists. Integration
+tests auto-detect application configuration (config directory, provider, credentials
+from model configs) via a shared `conftest.py` — only `OC_INTEGRATION_TESTS=1` is
+needed to run. The full pipeline has been validated against OpenAI (gpt-4o-mini) and
+Anthropic (Claude Sonnet 4) with all 13 integration scenarios passing.
 
 A **concurrency audit** revealed 4 race conditions in the persistence and event
 logging layers. All four have been fixed: hash chain forking (`EventLogger.append`
@@ -137,7 +139,7 @@ validates against live providers (OpenAI, Anthropic).
 | **STDIO RPC** (24 commands, serve + oneshot) | Working | Request dedup, telemetry, error codes |
 | **CLI** (76+ subcommands) | Working | Project/task/convo/memory/diagnostics/db maintenance/config/version/events/delete/scheduler |
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
-| **Test suite** (590+ unit/functional, 13 real-world integration, 6 concurrency stress) | Passing | 13 test categories, architecture guards, live provider validation, concurrency race proofs |
+| **Test suite** (590+ unit/functional, 13 real-world integration, 6 concurrency stress) | Passing | 13 test categories, architecture guards, live provider validation, concurrency race proofs, auto-detecting conftest |
 
 ### Architecture (Enforced and Clean)
 
@@ -389,7 +391,7 @@ configuration (settings dataclasses + env vars).
 
 Well-organized into 12 categories: business logic (23), CLI/RPC (23), hygiene (10),
 infrastructure (11), contract (8), policy (5), memory (5), architecture guard (4),
-advanced (5), data format (4), plugin (2), integration (3).
+advanced (5), data format (4), plugin (2), integration (3 + conftest).
 
 **Real-world integration** (`test_real_world.py`): 13 scenarios exercising the
 full stack against live LLM providers — single/multi-turn, memory save/recall,
@@ -398,6 +400,15 @@ privacy gate PII detection, conversation resume, export with verify/explain,
 streaming vs non-streaming, and conversation mode. Validated against OpenAI
 (gpt-4o-mini) and Anthropic (Claude Sonnet 4). Manual checklist covers
 interactive features (streaming visual, chat resume, quit, diagnose).
+
+**Integration test auto-detection** (`tests/integration/conftest.py`): Session-scoped
+conftest auto-detects the application's config directory (well-known deployment paths
+with `models/*.json`, e.g. `C:\Docker\openchronicle\config`), LLM provider (from env
+vars or model config scan), and credentials (embedded in model config JSON files).
+Only `OC_INTEGRATION_TESTS=1` is needed to run — no manual `OC_CONFIG_DIR` or
+`OC_LLM_PROVIDER` setup. Explicit env vars always take precedence. Smoke tests
+(`test_smoke_live.py`) adapted to handle config-embedded credentials (skip
+credential-removal tests when keys aren't in env vars).
 
 **Concurrency stress tests** (`test_stress.py`): 5 threading-based tests using
 separate `SqliteStore` connections to the same database file (simulating
