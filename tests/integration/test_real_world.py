@@ -4,14 +4,10 @@ These tests exercise the full stack with real API calls, real token counts,
 real latency, and real responses. They verify observable outcomes in the
 database, event chain, and return values.
 
-Gate: OC_INTEGRATION_TESTS=1 (same as existing integration tests).
-Provider: Uses OC_LLM_PROVIDER env var + OC_CONFIG_DIR pointing to real
-model configs. Provider-agnostic — works with any configured provider.
+Gate: OC_INTEGRATION_TESTS=1.
+Config: auto-detected by ``conftest.py`` (config dir, provider).
 
 Usage:
-    export OC_CONFIG_DIR="C:\\Docker\\openchronicle\\config"
-    export OC_LLM_PROVIDER=openai
-    export OPENAI_API_KEY=<key>
     export OC_INTEGRATION_TESTS=1
     pytest tests/integration/test_real_world.py -v
 """
@@ -67,7 +63,7 @@ def tmp_db_dir() -> Any:
 
 @pytest.fixture(scope="module")
 def container(tmp_db_dir: str) -> Any:
-    """Module-scoped container with real provider and temp database."""
+    """Module-scoped container — config/provider set by conftest."""
     db_path = str(Path(tmp_db_dir) / "test_real_world.db")
     c = CoreContainer(db_path=db_path)
     yield c

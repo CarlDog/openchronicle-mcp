@@ -3,7 +3,7 @@
 These tests are opt-in and only run when required environment variables are present.
 They test real provider integration (e.g., OpenAI, Ollama) when configured.
 
-Marking these as integration tests so unit test suite stays keyless.
+Config: auto-detected by ``conftest.py`` (config dir, provider).
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import os
 
 import pytest
 
+from openchronicle.core.application.config.model_config import ModelConfigLoader
 from openchronicle.core.application.runtime.container import CoreContainer
 from openchronicle.core.application.use_cases import smoke_live
 from openchronicle.core.domain.models.failure_category import (
@@ -25,6 +26,14 @@ pytestmark = pytest.mark.skipif(
     os.getenv("OC_INTEGRATION_TESTS") != "1",
     reason="Integration tests skipped unless OC_INTEGRATION_TESTS=1",
 )
+
+
+def _has_openai() -> bool:
+    """Check if OpenAI is available via env var or model configs."""
+    if os.getenv("OPENAI_API_KEY"):
+        return True
+    loader = ModelConfigLoader(os.getenv("OC_CONFIG_DIR", "config"))
+    return "openai" in loader.providers()
 
 
 class TestSmokeLiveIntegration:
@@ -65,11 +74,8 @@ class TestSmokeLiveIntegration:
     @pytest.mark.integration
     async def test_smoke_live_with_provider_override(self) -> None:
         """Test smoke_live with explicit provider override."""
-        # Check if OpenAI is configured
-        has_openai = os.getenv("OPENAI_API_KEY") is not None
-
-        if not has_openai:
-            pytest.skip("OpenAI not configured (no OPENAI_API_KEY)")
+        if not _has_openai():
+            pytest.skip("OpenAI not configured")
 
         result = await smoke_live.execute(
             self.orchestrator,
@@ -87,10 +93,17 @@ class TestSmokeLiveIntegration:
 
     @pytest.mark.integration
     async def test_smoke_live_missing_credentials_error(self) -> None:
-        """Test that missing credentials raise clear errors (no secrets leaked)."""
-        # Force a provider that is not configured
-        # Save original env var if present
-        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        """Test that missing credentials raise clear errors (no secrets leaked).
+
+        Only meaningful when credentials come from env vars, not from
+        model config files with embedded keys.
+        """
+        # If OPENAI_API_KEY was never in the env, credentials come from model
+        # configs (embedded keys) and can't be removed at runtime.
+        if "OPENAI_API_KEY" not in os.environ:
+            pytest.skip("Credentials are embedded in model configs, not env vars")
+
+        original_key = os.environ.pop("OPENAI_API_KEY")
 
         try:
             result = await smoke_live.execute(
@@ -114,9 +127,7 @@ class TestSmokeLiveIntegration:
                 )
                 assert "OPENAI" not in msg_part  # (but "OpenAI" is ok in message text)
         finally:
-            # Restore original env var
-            if original_key:
-                os.environ["OPENAI_API_KEY"] = original_key
+            os.environ["OPENAI_API_KEY"] = original_key
 
     @pytest.mark.integration
     async def test_smoke_live_with_custom_prompt(self) -> None:
@@ -201,9 +212,15 @@ class TestFailureClassification:
 
     @pytest.mark.integration
     async def test_failure_category_config_error_missing_credentials(self) -> None:
-        """Test that missing credentials are classified as CONFIG_ERROR."""
-        # Remove OpenAI API key if present
-        original_key = os.environ.pop("OPENAI_API_KEY", None)
+        """Test that missing credentials are classified as CONFIG_ERROR.
+
+        Only meaningful when credentials come from env vars, not from
+        model config files with embedded keys.
+        """
+        if "OPENAI_API_KEY" not in os.environ:
+            pytest.skip("Credentials are embedded in model configs, not env vars")
+
+        original_key = os.environ.pop("OPENAI_API_KEY")
 
         try:
             result = await smoke_live.execute(
@@ -215,14 +232,12 @@ class TestFailureClassification:
 
             # Should be classified as CONFIG_ERROR
             if result.outcome != "completed":
-                # Smoke test expects to fail; check failure classification
                 if result.error_code and "credential" in result.error_code.lower():
                     assert result.failure_category == "CONFIG_ERROR"
                 elif result.error_code and "auth" in result.error_code.lower():
                     assert result.failure_category == "CONFIG_ERROR"
         finally:
-            if original_key:
-                os.environ["OPENAI_API_KEY"] = original_key
+            os.environ["OPENAI_API_KEY"] = original_key
 
     @pytest.mark.integration
     async def test_failure_category_budget_blocked(self) -> None:
