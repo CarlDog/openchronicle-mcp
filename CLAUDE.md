@@ -18,6 +18,10 @@ See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 **Next action:** Discord driver (core, `interfaces/discord/`).
 Scheduler service is done (tick-driven, atomic claim, 52+ tests, CLI + RPC).
 LLMPort function calling/tool use is done (all 6 adapters, 30 contract tests).
+Time context injection is done (current time, last interaction timestamp,
+seconds delta — raw data in every conversation turn for bot time awareness).
+File-based config is done (single `core.json`, enriched model configs, plugin
+configs co-located at `plugins/<name>/config.json`).
 
 ## Build and Development
 

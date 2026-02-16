@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-14
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 14 (Config consolidation: single core.json + enriched model configs)
+**Revision:** 15 (Time context injection in conversation pipeline)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (670+ unit/functional, 13 real-world integration, 6 concurrency
+Tests are strong (680+ unit/functional, 13 real-world integration, 6 concurrency
 stress), architecture is enforced, and the STDIO RPC daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
 from model configs) via a shared `conftest.py` — only `OC_INTEGRATION_TESTS=1` is
@@ -107,7 +107,7 @@ User prompt
   → Conversation lookup + turn history assembly
   → Pinned memory retrieval
   → Keyword-based memory search
-  → System prompt construction with memory context
+  → System prompt construction with memory context + time context
   → Interaction routing (rule-based + optional ML assist)
   → Privacy gate check (optional PII detection)
   → Provider/model selection via routing policy
@@ -140,7 +140,8 @@ validates against live providers (OpenAI, Anthropic).
 | **CLI** (76+ subcommands) | Working | Project/task/convo/memory/diagnostics/db maintenance/config/version/events/delete/scheduler |
 | **File-based configuration** (single `core.json`, three-layer precedence) | Working | `config/core.json` + enriched `models/*.json` (limits, capabilities, cost, performance) + per-plugin JSON + env var overrides |
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
-| **Test suite** (590+ unit/functional, 13 real-world integration, 6 concurrency stress) | Passing | 13 test categories, architecture guards, live provider validation, concurrency race proofs, auto-detecting conftest |
+| **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
+| **Test suite** (680+ unit/functional, 13 real-world integration, 6 concurrency stress) | Passing | 13 test categories, architecture guards, live provider validation, concurrency race proofs, auto-detecting conftest |
 
 ### Architecture (Enforced and Clean)
 
