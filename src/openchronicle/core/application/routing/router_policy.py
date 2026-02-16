@@ -4,8 +4,15 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Any
 
 from openchronicle.core.application.routing.pool_config import PoolConfig, ProviderCandidate, load_pool_config
+from openchronicle.core.infrastructure.config.env_helpers import (
+    env_override,
+    parse_bool,
+    parse_int,
+    parse_str,
+)
 
 
 @dataclass
@@ -32,26 +39,57 @@ class RouterPolicy:
     - Environment configuration
     """
 
-    def __init__(self) -> None:
-        """Initialize router with environment configuration."""
+    def __init__(
+        self,
+        file_config: dict[str, Any] | None = None,
+        *,
+        pool_config: PoolConfig | None = None,
+    ) -> None:
+        """Initialize router with JSON config + env var overrides.
+
+        Args:
+            file_config: Parsed app.json contents (or None for env-only).
+            pool_config: Pre-built PoolConfig (avoids double loading in container).
+        """
+        fc = file_config or {}
+
         # Provider selection
-        self.default_provider = os.getenv("OC_LLM_PROVIDER", "stub")
+        self.default_provider = parse_str(
+            env_override("OC_LLM_PROVIDER", fc.get("provider")),
+            default="stub",
+        )
 
         # Model selection (fallback when pools not configured)
-        self.model_fast = os.getenv("OC_LLM_MODEL_FAST") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        self.model_quality = os.getenv("OC_LLM_MODEL_QUALITY") or os.getenv("OPENAI_MODEL", "gpt-4o")
+        model_fast_raw = env_override("OC_LLM_MODEL_FAST", fc.get("model_fast"))
+        if model_fast_raw is None:
+            model_fast_raw = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.model_fast = parse_str(model_fast_raw, default="gpt-4o-mini")
+
+        model_quality_raw = env_override("OC_LLM_MODEL_QUALITY", fc.get("model_quality"))
+        if model_quality_raw is None:
+            model_quality_raw = os.getenv("OPENAI_MODEL", "gpt-4o")
+        self.model_quality = parse_str(model_quality_raw, default="gpt-4o")
 
         # Default mode
-        self.default_mode = os.getenv("OC_LLM_DEFAULT_MODE", "fast")
+        self.default_mode = parse_str(
+            env_override("OC_LLM_DEFAULT_MODE", fc.get("default_mode")),
+            default="fast",
+        )
 
         # Budget thresholds
-        self.low_budget_threshold = int(os.getenv("OC_LLM_LOW_BUDGET_THRESHOLD", "500"))
+        self.low_budget_threshold = parse_int(
+            env_override("OC_LLM_LOW_BUDGET_THRESHOLD", fc.get("low_budget_threshold")),
+            default=500,
+        )
 
         # Rate limit downgrade
-        self.downgrade_on_rate_limit = os.getenv("OC_LLM_DOWNGRADE_ON_RATE_LIMIT", "1") == "1"
+        self.downgrade_on_rate_limit = parse_bool(
+            env_override("OC_LLM_DOWNGRADE_ON_RATE_LIMIT", fc.get("downgrade_on_rate_limit")),
+            default=True,
+        )
 
-        # Load pool configuration
-        self.pool_config: PoolConfig = load_pool_config()
+        # Load pool configuration (use pre-built if provided)
+        self.pool_config: PoolConfig = pool_config if pool_config is not None else load_pool_config()
 
     def route(
         self,

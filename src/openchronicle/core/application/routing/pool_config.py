@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
+from typing import Any
+
+from openchronicle.core.infrastructure.config.env_helpers import (
+    env_override,
+    parse_bool,
+    parse_int,
+    parse_str,
+)
 
 
 @dataclass
@@ -68,27 +75,9 @@ def parse_pool_string(pool_str: str, provider_weights: dict[str, int]) -> list[P
     return candidates
 
 
-def load_pool_config() -> PoolConfig:
-    """
-    Load provider pool configuration from environment variables.
-
-    Environment Variables:
-    - OC_LLM_FAST_POOL: Fast mode pool (e.g., "ollama:llama3.1,openai:gpt-4o-mini")
-    - OC_LLM_QUALITY_POOL: Quality mode pool (e.g., "openai:gpt-4o,ollama:mixtral")
-    - OC_LLM_POOL_NSFW: NSFW mode pool (e.g., "openai:gpt-4o,ollama:mixtral")
-    - OC_LLM_PROVIDER_WEIGHTS: Provider preference weights (e.g., "ollama:100,openai:20")
-    - OC_LLM_MAX_FALLBACKS: Maximum fallback attempts (default: 1)
-    - OC_LLM_FALLBACK_ON_TRANSIENT: Allow fallback on transient errors (default: 1)
-    - OC_LLM_FALLBACK_ON_CONSTRAINT: Allow fallback on constraint errors (default: 1)
-    - OC_LLM_FALLBACK_ON_REFUSAL: Allow fallback on refusals (default: 0)
-
-    Returns:
-        PoolConfig with parsed pools and settings
-    """
-    # Parse provider weights
-    weights_str = os.getenv("OC_LLM_PROVIDER_WEIGHTS", "ollama:100,openai:20")
+def _parse_weights_string(weights_str: str) -> dict[str, int]:
+    """Parse a 'provider:weight,...' string into a dict."""
     provider_weights: dict[str, int] = {}
-
     for entry in weights_str.split(","):
         entry = entry.strip()
         if not entry or ":" not in entry:
@@ -101,21 +90,87 @@ def load_pool_config() -> PoolConfig:
                 provider_weights[provider] = weight
             except ValueError:
                 continue
+    return provider_weights
 
-    # Parse pools
-    fast_pool_str = os.getenv("OC_LLM_FAST_POOL", "")
-    quality_pool_str = os.getenv("OC_LLM_QUALITY_POOL", "")
-    nsfw_pool_str = os.getenv("OC_LLM_POOL_NSFW", "")
+
+def _parse_weights(value: object) -> dict[str, int]:
+    """Parse weights from a JSON object or CSV string.
+
+    JSON: {"ollama": 100, "openai": 20}
+    CSV:  "ollama:100,openai:20"
+    """
+    if isinstance(value, dict):
+        result: dict[str, int] = {}
+        for k, v in value.items():
+            try:
+                result[str(k)] = int(v)
+            except (ValueError, TypeError):
+                continue
+        return result
+    if isinstance(value, str):
+        return _parse_weights_string(value)
+    return {}
+
+
+def load_pool_config(
+    file_config: dict[str, Any] | None = None,
+) -> PoolConfig:
+    """Load provider pool configuration from JSON config + env var overrides.
+
+    Three-layer precedence: defaults -> JSON file -> env var.
+
+    JSON schema (routing.json):
+        {"pools": {"fast": "...", "quality": "...", "nsfw": ""},
+         "weights": {"ollama": 100, "openai": 20},
+         "fallback": {"max_fallbacks": 1, ...}}
+    """
+    fc = file_config or {}
+    pools_fc = fc.get("pools", {}) if isinstance(fc.get("pools"), dict) else {}
+    fallback_fc = fc.get("fallback", {}) if isinstance(fc.get("fallback"), dict) else {}
+
+    # Weights: JSON object or CSV string
+    raw_weights = env_override("OC_LLM_PROVIDER_WEIGHTS", fc.get("weights"))
+    if raw_weights is None:
+        # No file config and no env var — use built-in defaults
+        provider_weights = _parse_weights_string("ollama:100,openai:20")
+    else:
+        provider_weights = _parse_weights(raw_weights)
+
+    # Pool strings
+    fast_pool_str = parse_str(
+        env_override("OC_LLM_FAST_POOL", pools_fc.get("fast")),
+        default="",
+    )
+    quality_pool_str = parse_str(
+        env_override("OC_LLM_QUALITY_POOL", pools_fc.get("quality")),
+        default="",
+    )
+    nsfw_pool_str = parse_str(
+        env_override("OC_LLM_POOL_NSFW", pools_fc.get("nsfw")),
+        default="",
+    )
 
     fast_pool = parse_pool_string(fast_pool_str, provider_weights)
     quality_pool = parse_pool_string(quality_pool_str, provider_weights)
     nsfw_pool = parse_pool_string(nsfw_pool_str, provider_weights)
 
-    # Parse fallback controls
-    max_fallbacks = int(os.getenv("OC_LLM_MAX_FALLBACKS", "1"))
-    fallback_on_transient = os.getenv("OC_LLM_FALLBACK_ON_TRANSIENT", "1") == "1"
-    fallback_on_constraint = os.getenv("OC_LLM_FALLBACK_ON_CONSTRAINT", "1") == "1"
-    fallback_on_refusal = os.getenv("OC_LLM_FALLBACK_ON_REFUSAL", "0") == "1"
+    # Fallback controls
+    max_fallbacks = parse_int(
+        env_override("OC_LLM_MAX_FALLBACKS", fallback_fc.get("max_fallbacks")),
+        default=1,
+    )
+    fallback_on_transient = parse_bool(
+        env_override("OC_LLM_FALLBACK_ON_TRANSIENT", fallback_fc.get("on_transient")),
+        default=True,
+    )
+    fallback_on_constraint = parse_bool(
+        env_override("OC_LLM_FALLBACK_ON_CONSTRAINT", fallback_fc.get("on_constraint")),
+        default=True,
+    )
+    fallback_on_refusal = parse_bool(
+        env_override("OC_LLM_FALLBACK_ON_REFUSAL", fallback_fc.get("on_refusal")),
+        default=False,
+    )
 
     return PoolConfig(
         fast_pool=fast_pool,

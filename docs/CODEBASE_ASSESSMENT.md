@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-14
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 12 (Integration test auto-detection)
+**Revision:** 14 (Config consolidation: single core.json + enriched model configs)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (590+ unit/functional, 13 real-world integration, 6 concurrency
+Tests are strong (670+ unit/functional, 13 real-world integration, 6 concurrency
 stress), architecture is enforced, and the STDIO RPC daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
 from model configs) via a shared `conftest.py` — only `OC_INTEGRATION_TESTS=1` is
@@ -138,6 +138,7 @@ validates against live providers (OpenAI, Anthropic).
 | **Scheduler** (tick-driven, atomic claim, drift prevention) | Working | Core service, 6 CLI + 6 RPC commands, 52+ tests |
 | **STDIO RPC** (24 commands, serve + oneshot) | Working | Request dedup, telemetry, error codes |
 | **CLI** (76+ subcommands) | Working | Project/task/convo/memory/diagnostics/db maintenance/config/version/events/delete/scheduler |
+| **File-based configuration** (single `core.json`, three-layer precedence) | Working | `config/core.json` + enriched `models/*.json` (limits, capabilities, cost, performance) + per-plugin JSON + env var overrides |
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Test suite** (590+ unit/functional, 13 real-world integration, 6 concurrency stress) | Passing | 13 test categories, architecture guards, live provider validation, concurrency race proofs, auto-detecting conftest |
 
@@ -383,11 +384,13 @@ navigation methods feel like read-model concerns that could be a separate port.
 **Complete:** SQLite persistence (10 tables, crash recovery, transactions), privacy
 gate (6 PII categories), rule routing (NSFW + mode detection), hybrid routing
 (rule + ML), linear router assist (logistic regression), event logger (hash chains),
-configuration (settings dataclasses + env vars).
+file-based configuration (single `core.json` with three-layer precedence:
+dataclass defaults → JSON file → env var override; enriched model configs with
+limits, capabilities, cost tracking, and performance metadata; per-plugin JSON config).
 
 **Stub only:** ONNX router assist (intentional placeholder).
 
-### Test Suite (115 files, 590+ unit/functional + 13 real-world integration + 6 concurrency stress)
+### Test Suite (118 files, 670+ unit/functional + 13 real-world integration + 6 concurrency stress)
 
 Well-organized into 12 categories: business logic (23), CLI/RPC (23), hygiene (10),
 infrastructure (11), contract (8), policy (5), memory (5), architecture guard (4),
@@ -584,4 +587,4 @@ ToolCall, tool_calls on LLMResponse/StreamChunk, tools/tool_choice params on all
 | `domain/ports/llm_port.py` | 146 | LLM contract | Clean (includes streaming) |
 | `application/services/llm_execution.py` | ~200 | LLM call + fallback | Clean |
 | `services/scheduler.py` | ~250 | Tick-driven scheduler | New (core service) |
-| `application/runtime/container.py` | ~122 | DI container | Clean (scheduler wired) |
+| `application/runtime/container.py` | ~189 | DI container | Clean (file-based config, scheduler wired) |

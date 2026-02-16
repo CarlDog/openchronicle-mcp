@@ -53,6 +53,10 @@ class OrchestratorService:
         plugins: PluginRegistry,
         handler_registry: TaskHandlerRegistry,
         emit_event: Callable[[Event], None],
+        *,
+        rate_limiter: RateLimiter | None = None,
+        retry_policy: RetryPolicy | None = None,
+        router: RouterPolicy | None = None,
     ) -> None:
         self.storage = storage
         self.llm = llm
@@ -61,30 +65,32 @@ class OrchestratorService:
         self.emit_event = emit_event
         self.usage_tracker = UsageTracker(storage)
 
-        # Initialize rate limiter from env vars
-        rpm_limit_str = os.getenv("OC_LLM_RPM_LIMIT")
-        tpm_limit_str = os.getenv("OC_LLM_TPM_LIMIT")
-        max_wait_ms_str = os.getenv("OC_LLM_MAX_WAIT_MS")
+        if rate_limiter is not None:
+            self.rate_limiter = rate_limiter
+        else:
+            rpm_limit_str = os.getenv("OC_LLM_RPM_LIMIT")
+            tpm_limit_str = os.getenv("OC_LLM_TPM_LIMIT")
+            max_wait_ms_str = os.getenv("OC_LLM_MAX_WAIT_MS")
+            rate_config = RateLimitConfig(
+                rpm_limit=int(rpm_limit_str) if rpm_limit_str else None,
+                tpm_limit=int(tpm_limit_str) if tpm_limit_str else None,
+                max_wait_ms=int(max_wait_ms_str) if max_wait_ms_str else 5000,
+            )
+            self.rate_limiter = RateLimiter(rate_config)
 
-        rate_config = RateLimitConfig(
-            rpm_limit=int(rpm_limit_str) if rpm_limit_str else None,
-            tpm_limit=int(tpm_limit_str) if tpm_limit_str else None,
-            max_wait_ms=int(max_wait_ms_str) if max_wait_ms_str else 5000,
-        )
-        self.rate_limiter = RateLimiter(rate_config)
-
-        # Initialize retry policy from env vars
-        max_retries_str = os.getenv("OC_LLM_MAX_RETRIES")
-        max_retry_sleep_ms_str = os.getenv("OC_LLM_MAX_RETRY_SLEEP_MS")
-
-        retry_config = RetryConfig(
-            max_retries=int(max_retries_str) if max_retries_str else 2,
-            max_retry_sleep_ms=int(max_retry_sleep_ms_str) if max_retry_sleep_ms_str else 2000,
-        )
-        self.retry_policy = RetryPolicy(retry_config)
+        if retry_policy is not None:
+            self.retry_policy = retry_policy
+        else:
+            max_retries_str = os.getenv("OC_LLM_MAX_RETRIES")
+            max_retry_sleep_ms_str = os.getenv("OC_LLM_MAX_RETRY_SLEEP_MS")
+            retry_config = RetryConfig(
+                max_retries=int(max_retries_str) if max_retries_str else 2,
+                max_retry_sleep_ms=int(max_retry_sleep_ms_str) if max_retry_sleep_ms_str else 2000,
+            )
+            self.retry_policy = RetryPolicy(retry_config)
 
         # Initialize router policy
-        self.router = RouterPolicy()
+        self.router = router if router is not None else RouterPolicy()
 
         # Initialize fallback executor
         self.fallback_executor = FallbackExecutor(

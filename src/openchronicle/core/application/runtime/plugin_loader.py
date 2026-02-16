@@ -9,6 +9,7 @@ from typing import Any
 from openchronicle.core.application.runtime.task_registry import HandlerCollisionError, TaskHandlerRegistry
 from openchronicle.core.domain.errors import PLUGIN_COLLISION, PLUGIN_ID_COLLISION
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry, TaskHandler
+from openchronicle.core.infrastructure.config.config_loader import load_plugin_config
 
 
 class PluginCollisionError(Exception):
@@ -63,8 +64,14 @@ class InMemoryPluginRegistry(PluginRegistry):
 
 
 class PluginLoader:
-    def __init__(self, plugins_dir: str = "plugins", handler_registry: TaskHandlerRegistry | None = None) -> None:
+    def __init__(
+        self,
+        plugins_dir: str = "plugins",
+        handler_registry: TaskHandlerRegistry | None = None,
+        config_dir: str | None = None,
+    ) -> None:
         self.plugins_dir = Path(plugins_dir)
+        self.config_dir = config_dir
         self.registry = InMemoryPluginRegistry()
         self.allow_collisions = os.getenv("OC_PLUGIN_ALLOW_COLLISIONS", "0") == "1"
         # Create handler registry with collision checking enabled (unless collisions are allowed)
@@ -124,7 +131,15 @@ class PluginLoader:
             # With collisions allowed, later plugins override earlier ones (deterministic)
 
             self._plugin_sources[plugin_name] = str(plugin_dir)
-            self._load_plugin(plugin_name, plugin_dir, init_file, plugin_file, context)
+
+            # Inject per-plugin JSON config into context
+            plugin_context = dict(context) if context else {}
+            if self.config_dir:
+                plugin_cfg = load_plugin_config(self.config_dir, plugin_name)
+                if plugin_cfg:
+                    plugin_context["config"] = plugin_cfg
+
+            self._load_plugin(plugin_name, plugin_dir, init_file, plugin_file, plugin_context or None)
 
     def _load_plugin(
         self, plugin_name: str, plugin_dir: Path, init_file: Path, plugin_file: Path, context: dict[str, Any] | None

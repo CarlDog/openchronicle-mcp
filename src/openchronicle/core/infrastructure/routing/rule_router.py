@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import os
+from typing import Any
 
 from openchronicle.core.domain.models.conversation import Turn
 from openchronicle.core.domain.models.interaction_hint import InteractionHint
 from openchronicle.core.domain.ports.interaction_router_port import InteractionRouterPort
+from openchronicle.core.infrastructure.config.env_helpers import env_override, parse_bool, parse_float
 
 _DEFAULT_ROUTER_ENABLED = True
 _DEFAULT_ROUTER_LOG_REASONS = False
@@ -51,30 +52,47 @@ class RuleInteractionRouter(InteractionRouterPort):
     def __init__(
         self,
         *,
+        file_config: dict[str, Any] | None = None,
         router_enabled: bool | None = None,
         router_log_reasons: bool | None = None,
         nsfw_route_if_score_gte: float | None = None,
         nsfw_uncertain_if_score_gte: float | None = None,
         persona_uncertain_routes_to_nsfw: bool | None = None,
     ) -> None:
-        self.router_enabled = _read_bool("OC_ROUTER_ENABLED", _DEFAULT_ROUTER_ENABLED)
+        fc = file_config or {}
+        rules = fc.get("rules", {}) if isinstance(fc.get("rules"), dict) else {}
+
+        self.router_enabled = parse_bool(
+            env_override("OC_ROUTER_ENABLED", rules.get("enabled")),
+            default=_DEFAULT_ROUTER_ENABLED,
+        )
         if router_enabled is not None:
             self.router_enabled = router_enabled
 
-        self.router_log_reasons = _read_bool("OC_ROUTER_LOG_REASONS", _DEFAULT_ROUTER_LOG_REASONS)
+        self.router_log_reasons = parse_bool(
+            env_override("OC_ROUTER_LOG_REASONS", rules.get("log_reasons")),
+            default=_DEFAULT_ROUTER_LOG_REASONS,
+        )
         if router_log_reasons is not None:
             self.router_log_reasons = router_log_reasons
 
-        self.nsfw_route_if_score_gte = _read_float("OC_ROUTER_NSFW_ROUTE_GTE", _DEFAULT_NSFW_ROUTE_GTE)
+        self.nsfw_route_if_score_gte = parse_float(
+            env_override("OC_ROUTER_NSFW_ROUTE_GTE", rules.get("nsfw_route_gte")),
+            default=_DEFAULT_NSFW_ROUTE_GTE,
+        )
         if nsfw_route_if_score_gte is not None:
             self.nsfw_route_if_score_gte = nsfw_route_if_score_gte
 
-        self.nsfw_uncertain_if_score_gte = _read_float("OC_ROUTER_NSFW_UNCERTAIN_GTE", _DEFAULT_NSFW_UNCERTAIN_GTE)
+        self.nsfw_uncertain_if_score_gte = parse_float(
+            env_override("OC_ROUTER_NSFW_UNCERTAIN_GTE", rules.get("nsfw_uncertain_gte")),
+            default=_DEFAULT_NSFW_UNCERTAIN_GTE,
+        )
         if nsfw_uncertain_if_score_gte is not None:
             self.nsfw_uncertain_if_score_gte = nsfw_uncertain_if_score_gte
 
-        self.persona_uncertain_routes_to_nsfw = _read_bool(
-            "OC_ROUTER_PERSONA_UNCERTAIN_TO_NSFW", _DEFAULT_PERSONA_UNCERTAIN_TO_NSFW
+        self.persona_uncertain_routes_to_nsfw = parse_bool(
+            env_override("OC_ROUTER_PERSONA_UNCERTAIN_TO_NSFW", rules.get("persona_uncertain_to_nsfw")),
+            default=_DEFAULT_PERSONA_UNCERTAIN_TO_NSFW,
         )
         if persona_uncertain_routes_to_nsfw is not None:
             self.persona_uncertain_routes_to_nsfw = persona_uncertain_routes_to_nsfw
@@ -144,20 +162,3 @@ def _match_tokens(text: str, tokens: list[str]) -> list[str]:
         if token in text:
             hits.append(token)
     return hits
-
-
-def _read_bool(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip() not in {"0", "false", "False", "no"}
-
-
-def _read_float(name: str, default: float) -> float:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        return default

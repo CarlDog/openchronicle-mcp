@@ -1,32 +1,39 @@
-"""Load budget policy from environment variables."""
+"""Load budget policy from config file and/or environment variables."""
 
 from __future__ import annotations
 
-import contextlib
-import os
+from typing import Any
 
 from openchronicle.core.domain.models.budget_policy import BudgetPolicy
+from openchronicle.core.infrastructure.config.env_helpers import env_override, parse_int
 
 
-def load_budget_policy() -> BudgetPolicy:
-    """
-    Load budget policy from environment variables.
+def load_budget_policy(
+    file_config: dict[str, Any] | None = None,
+) -> BudgetPolicy:
+    """Load budget policy from JSON config + env var overrides.
+
+    Three-layer precedence: dataclass defaults -> JSON file -> env var.
+
+    JSON schema (core.json "budget" section):
+        {"max_total_tokens": 0, "max_llm_calls": 0}
 
     Environment variables:
     - OC_BUDGET_MAX_TOKENS: Maximum total tokens (optional, int)
     - OC_BUDGET_MAX_CALLS: Maximum LLM calls (optional, int)
-
-    Returns:
-        BudgetPolicy with constraints from environment, or empty if none set
     """
-    policy = BudgetPolicy()
+    fc = file_config or {}
 
-    if max_tokens_str := os.getenv("OC_BUDGET_MAX_TOKENS"):
-        with contextlib.suppress(ValueError):
-            policy.max_total_tokens = int(max_tokens_str)
+    max_tokens = parse_int(
+        env_override("OC_BUDGET_MAX_TOKENS", fc.get("max_total_tokens")),
+        default=0,
+    )
+    max_calls = parse_int(
+        env_override("OC_BUDGET_MAX_CALLS", fc.get("max_llm_calls")),
+        default=0,
+    )
 
-    if max_calls_str := os.getenv("OC_BUDGET_MAX_CALLS"):
-        with contextlib.suppress(ValueError):
-            policy.max_llm_calls = int(max_calls_str)
-
-    return policy
+    return BudgetPolicy(
+        max_total_tokens=max_tokens or None,
+        max_llm_calls=max_calls or None,
+    )

@@ -26,6 +26,7 @@ from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, 
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.privacy_gate_port import PrivacyGatePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
+from openchronicle.core.infrastructure.config.env_helpers import parse_bool, parse_float, parse_int
 from openchronicle.core.infrastructure.config.settings import PrivacyOutboundSettings
 from openchronicle.core.infrastructure.privacy.rule_privacy import is_external_provider
 from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
@@ -85,17 +86,8 @@ def is_enqueueable_provider_failure(error_code: str | None) -> bool:
     return error_code in {CONNECTION_ERROR, TIMEOUT}
 
 
-def _read_int_env(value: str | None) -> int | None:
-    if value is None:
-        return None
-    raw = value.strip()
-    if not raw.isdigit():
-        return None
-    return int(raw)
-
-
 def _resolve_max_context_tokens() -> int | None:
-    return _read_int_env(os.getenv("OC_LLM_CONTEXT_MAX_TOKENS"))
+    return parse_int(os.getenv("OC_LLM_CONTEXT_MAX_TOKENS"), default=0) or None
 
 
 def _extract_meta_block(text: str) -> tuple[str, str | None]:
@@ -782,33 +774,20 @@ def enqueue(
 def _router_thresholds(router: InteractionRouterPort) -> dict[str, object]:
     return {
         "nsfw_route_if_score_gte": getattr(
-            router, "nsfw_route_if_score_gte", _read_float("OC_ROUTER_NSFW_ROUTE_GTE", 0.70)
+            router, "nsfw_route_if_score_gte", parse_float(os.getenv("OC_ROUTER_NSFW_ROUTE_GTE"), default=0.70)
         ),
         "nsfw_uncertain_if_score_gte": getattr(
-            router, "nsfw_uncertain_if_score_gte", _read_float("OC_ROUTER_NSFW_UNCERTAIN_GTE", 0.45)
+            router, "nsfw_uncertain_if_score_gte", parse_float(os.getenv("OC_ROUTER_NSFW_UNCERTAIN_GTE"), default=0.45)
         ),
         "persona_uncertain_routes_to_nsfw": getattr(
-            router, "persona_uncertain_routes_to_nsfw", _read_bool("OC_ROUTER_PERSONA_UNCERTAIN_TO_NSFW", True)
+            router,
+            "persona_uncertain_routes_to_nsfw",
+            parse_bool(os.getenv("OC_ROUTER_PERSONA_UNCERTAIN_TO_NSFW"), default=True),
         ),
-        "router_log_reasons": getattr(router, "router_log_reasons", _read_bool("OC_ROUTER_LOG_REASONS", False)),
+        "router_log_reasons": getattr(
+            router, "router_log_reasons", parse_bool(os.getenv("OC_ROUTER_LOG_REASONS"), default=False)
+        ),
     }
-
-
-def _read_float(name: str, default: float) -> float:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    try:
-        return float(raw)
-    except ValueError:
-        return default
-
-
-def _read_bool(name: str, default: bool) -> bool:
-    raw = os.getenv(name)
-    if raw is None:
-        return default
-    return raw.strip() not in {"0", "false", "False", "no"}
 
 
 def _pool_candidates(pool: Iterable[object]) -> list[dict[str, object]]:

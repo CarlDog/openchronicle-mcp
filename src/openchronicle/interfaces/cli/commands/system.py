@@ -70,12 +70,28 @@ def _mask_secret(value: str) -> str:
     return value[:4] + "****" + value[-4:]
 
 
+def _value_source(env_name: str, file_value: object) -> str:
+    """Determine where a config value came from: env, file, or default."""
+    if os.getenv(env_name) is not None:
+        return "env"
+    if file_value is not None:
+        return "file"
+    return "default"
+
+
+def _fmt(value: object, source: str) -> str:
+    """Format value with source tag for human-readable output."""
+    return f"{value}  [{source}]"
+
+
 def cmd_config_show(args: argparse.Namespace) -> int:
-    """Show effective runtime configuration."""
+    """Show effective runtime configuration with value sources."""
     from dataclasses import asdict
+    from pathlib import Path
 
     from openchronicle.core.application.routing.pool_config import load_pool_config
     from openchronicle.core.infrastructure.config.budget_config import load_budget_policy
+    from openchronicle.core.infrastructure.config.config_loader import load_config_files
     from openchronicle.core.infrastructure.config.settings import (
         load_privacy_outbound_settings,
         load_router_assist_settings,
@@ -83,18 +99,27 @@ def cmd_config_show(args: argparse.Namespace) -> int:
     )
 
     # Resolved paths
+    config_dir = os.getenv("OC_CONFIG_DIR", "config")
     paths = {
         "db_path": os.getenv("OC_DB_PATH", "data/openchronicle.db"),
-        "config_dir": os.getenv("OC_CONFIG_DIR", "config"),
+        "config_dir": config_dir,
         "plugin_dir": os.getenv("OC_PLUGIN_DIR", "plugins"),
         "output_dir": os.getenv("OC_OUTPUT_DIR", "output"),
     }
 
-    # Provider
-    provider = os.getenv("OC_LLM_PROVIDER", "stub")
+    # Load core.json (silent empty dict if dir doesn't exist or file missing)
+    config_path = Path(config_dir)
+    file_configs = load_config_files(config_path) if config_path.exists() else {}
 
-    # Pools
-    pool_config = load_pool_config()
+    # Config file status (for display)
+    core_loaded = bool(file_configs)
+
+    # Provider (top-level key in core.json)
+    provider_src = _value_source("OC_LLM_PROVIDER", file_configs.get("provider"))
+    provider = os.getenv("OC_LLM_PROVIDER") or file_configs.get("provider", "stub")
+
+    # Pools (top-level keys in core.json)
+    pool_config = load_pool_config(file_configs)
     pools = {
         "fast_pool": [f"{c.provider}:{c.model}" for c in pool_config.fast_pool],
         "quality_pool": [f"{c.provider}:{c.model}" for c in pool_config.quality_pool],
@@ -106,20 +131,22 @@ def cmd_config_show(args: argparse.Namespace) -> int:
         "fallback_on_refusal": pool_config.fallback_on_refusal,
     }
 
-    # Budget
-    budget = load_budget_policy()
+    # Budget (nested section in core.json)
+    budget = load_budget_policy(file_configs.get("budget"))
     budget_dict = budget.to_dict()
 
-    # Privacy
-    privacy = load_privacy_outbound_settings()
+    # Privacy (nested section in core.json)
+    privacy = load_privacy_outbound_settings(file_configs.get("privacy"))
     privacy_dict = asdict(privacy)
 
-    # Telemetry
-    telemetry = load_telemetry_settings()
+    # Telemetry (nested section in core.json)
+    telemetry = load_telemetry_settings(file_configs.get("telemetry"))
     telemetry_dict = asdict(telemetry)
 
-    # Router assist
-    router_assist = load_router_assist_settings()
+    # Router assist (nested section in core.json)
+    router_fc = file_configs.get("router", {})
+    assist_fc = router_fc.get("assist") if isinstance(router_fc, dict) else None
+    router_assist = load_router_assist_settings(assist_fc)
     router_assist_dict = asdict(router_assist)
 
     # Mask any env vars that look like secrets
@@ -135,6 +162,8 @@ def cmd_config_show(args: argparse.Namespace) -> int:
             result={
                 "paths": paths,
                 "provider": provider,
+                "provider_source": provider_src,
+                "core_config_loaded": core_loaded,
                 "pools": pools,
                 "budget": budget_dict,
                 "privacy": privacy_dict,
@@ -151,7 +180,12 @@ def cmd_config_show(args: argparse.Namespace) -> int:
     for key, value in paths.items():
         print(f"  {key:<16} {value}")
 
-    print(f"\nProvider: {provider}")
+    if core_loaded:
+        print("\nConfig file: core.json (loaded)")
+    else:
+        print("\nConfig file: core.json (not found, using defaults)")
+
+    print(f"\nProvider: {_fmt(provider, provider_src)}")
 
     print("\nPools:")
     fast_list: list[str] = pools["fast_pool"]  # type: ignore[assignment]
@@ -226,16 +260,15 @@ def cmd_init_config(args: argparse.Namespace) -> int:
     result = init_config.execute(config_dir)
 
     print(f"\nConfiguration initialized at: {result['config_dir']}")
-    print(f"Models directory: {result['models_dir']}")
     print()
 
     created_files = result["created"]
     if isinstance(created_files, list) and created_files:
-        print(f"Created {result['created_count']} model config(s):")
+        print(f"Created {result['created_count']} config(s):")
         for filename in created_files:
-            print(f"  - {filename}")
+            print(f"  + {filename}")
     else:
-        print("No new configs created (all examples already exist)")
+        print("No new configs created (all already exist)")
 
     skipped_files = result["skipped"]
     if isinstance(skipped_files, list) and skipped_files:

@@ -94,3 +94,8 @@ Canonical reference for all OpenChronicle environment variables.
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
 | `OC_PLUGIN_ALLOW_COLLISIONS` | `0` | Allow handler name collisions |
+
+## See Also
+
+- [File-Based Configuration](config_files.md) — per-concern JSON config files
+  with env var overrides

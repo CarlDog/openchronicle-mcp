@@ -1,19 +1,81 @@
-"""Initialize model configuration directory with examples."""
+"""Initialize configuration directory with model and core JSON configs."""
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
 
+# Core config template with sensible defaults.
+# Matches the schema documented in docs/configuration/config_files.md.
+_CORE_TEMPLATE: dict = {
+    "provider": "stub",
+    "default_mode": "fast",
+    "model_fast": "gpt-4o-mini",
+    "model_quality": "gpt-4o",
+    "context_max_tokens": 8192,
+    "pools": {
+        "fast": "",
+        "quality": "",
+        "nsfw": "",
+    },
+    "weights": {
+        "ollama": 100,
+        "openai": 20,
+    },
+    "fallback": {
+        "max_fallbacks": 1,
+        "on_transient": True,
+        "on_constraint": True,
+        "on_refusal": False,
+    },
+    "budget": {
+        "max_total_tokens": 0,
+        "max_llm_calls": 0,
+    },
+    "retry": {
+        "max_retries": 2,
+        "max_retry_sleep_ms": 2000,
+        "rate_limit_max_wait_ms": 5000,
+    },
+    "privacy": {
+        "mode": "off",
+        "external_only": True,
+        "categories": ["email", "phone", "ip", "ssn", "cc", "api_key"],
+        "redact_style": "mask",
+        "log_events": True,
+    },
+    "telemetry": {
+        "enabled": True,
+    },
+    "router": {
+        "rules": {
+            "enabled": True,
+            "log_reasons": False,
+            "nsfw_route_gte": 0.70,
+            "nsfw_uncertain_gte": 0.45,
+            "persona_uncertain_to_nsfw": True,
+        },
+        "assist": {
+            "enabled": False,
+            "backend": "linear",
+            "model_path": "",
+            "timeout_ms": 50,
+        },
+    },
+}
+
 
 def execute(config_dir: str) -> dict[str, str | int | list[str]]:
     """
-    Initialize configuration directory with example model configs.
+    Initialize configuration directory with example model configs and
+    the core JSON config template.
 
     Creates <config_dir>/models if missing and populates it with minimal
-    example v1-style model configs.  API keys are resolved at runtime from
-    standard environment variables (e.g. OPENAI_API_KEY), so configs don't
-    need embedded keys.
+    example v1-style model configs.  Also creates core.json if it doesn't
+    exist.
+
+    API keys are resolved at runtime from standard environment variables
+    (e.g. OPENAI_API_KEY), so configs don't need embedded keys.
 
     Args:
         config_dir: Base configuration directory
@@ -23,13 +85,15 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
     """
     config_path = Path(config_dir)
     models_dir = config_path / "models"
+    plugins_dir = config_path / "plugins"
 
     # Ensure directories exist
     models_dir.mkdir(parents=True, exist_ok=True)
+    plugins_dir.mkdir(parents=True, exist_ok=True)
 
-    # Define minimal example configs — no embedded API keys.
-    # Keys are resolved at runtime: inline → api_key_env → standard env var.
-    examples = {
+    # Define minimal example model configs — no embedded API keys.
+    # Keys are resolved at runtime: inline -> api_key_env -> standard env var.
+    model_examples = {
         "openai_gpt4o_mini.json": {
             "provider": "openai",
             "model": "gpt-4o-mini",
@@ -41,6 +105,12 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
                 "timeout": 30,
                 "auth_header": "Authorization",
                 "auth_format": "Bearer {api_key}",
+            },
+            "limits": {
+                "max_tokens": 16384,
+                "context_window": 128000,
+                "rate_limit_rpm": None,
+                "rate_limit_tpm": None,
             },
         },
         "anthropic_claude_sonnet4.json": {
@@ -55,6 +125,12 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
                 "auth_header": "x-api-key",
                 "auth_format": "{api_key}",
             },
+            "limits": {
+                "max_tokens": 8192,
+                "context_window": 200000,
+                "rate_limit_rpm": None,
+                "rate_limit_tpm": None,
+            },
         },
         "ollama_mistral_7b.json": {
             "provider": "ollama",
@@ -66,19 +142,34 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
                 "default_base_url": "http://localhost:11434",
                 "timeout": 120,
             },
+            "limits": {
+                "max_tokens": 4096,
+                "context_window": 32000,
+                "rate_limit_rpm": None,
+                "rate_limit_tpm": None,
+            },
         },
     }
 
-    created = []
-    skipped = []
+    created: list[str] = []
+    skipped: list[str] = []
 
-    for filename, config_content in examples.items():
+    # Write model configs
+    for filename, config_content in model_examples.items():
         config_file = models_dir / filename
         if config_file.exists():
-            skipped.append(filename)
+            skipped.append(f"models/{filename}")
         else:
             config_file.write_text(json.dumps(config_content, indent=2) + "\n", encoding="utf-8")
-            created.append(filename)
+            created.append(f"models/{filename}")
+
+    # Write core config template
+    core_file = config_path / "core.json"
+    if core_file.exists():
+        skipped.append("core.json")
+    else:
+        core_file.write_text(json.dumps(_CORE_TEMPLATE, indent=2) + "\n", encoding="utf-8")
+        created.append("core.json")
 
     return {
         "config_dir": str(config_path),
