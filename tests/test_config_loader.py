@@ -103,11 +103,15 @@ class TestLoadPluginConfig:
         assert result == {}
 
     def test_valid_plugin_config(self, tmp_path: Path) -> None:
-        (tmp_path / "myplugin.json").write_text(json.dumps({"key": "val"}), encoding="utf-8")
+        plugin_dir = tmp_path / "myplugin"
+        plugin_dir.mkdir()
+        (plugin_dir / "config.json").write_text(json.dumps({"key": "val"}), encoding="utf-8")
         result = load_plugin_config(tmp_path, "myplugin")
         assert result == {"key": "val"}
 
     def test_invalid_plugin_config_raises(self, tmp_path: Path) -> None:
-        (tmp_path / "bad.json").write_text("{broken", encoding="utf-8")
+        plugin_dir = tmp_path / "bad"
+        plugin_dir.mkdir()
+        (plugin_dir / "config.json").write_text("{broken", encoding="utf-8")
         with pytest.raises(ConfigLoadError):
             load_plugin_config(tmp_path, "bad")

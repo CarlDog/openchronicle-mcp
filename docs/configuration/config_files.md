@@ -236,9 +236,17 @@ execution layer.
 
 ## Plugin Configuration
 
-Plugins can have a JSON config file co-located with their code at
-`plugins/<plugin_name>.json`. The config is injected into the plugin's
-`register()` context as `context["config"]`.
+Each plugin can include a `config.json` inside its package directory.
+The config is injected into the plugin's `register()` context as
+`context["config"]`.
+
+```text
+plugins/
+  hello/
+    __init__.py       # package init
+    plugin.py         # register() entry point
+    config.json       # plugin configuration (optional)
+```
 
 ```json
 {
