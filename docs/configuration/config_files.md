@@ -21,7 +21,7 @@ Dataclass defaults  →  JSON config file  →  Environment variable
 config/
   core.json         # All runtime settings (routing, budget, privacy, etc.)
   models/           # Per-model JSON configs (provider, limits, capabilities)
-  plugins/          # Per-plugin JSON overrides
+plugins/            # Plugin code + optional per-plugin JSON configs
 ```
 
 Run `oc init-config` to generate `core.json` and example model configs.
@@ -236,9 +236,9 @@ execution layer.
 
 ## Plugin Configuration
 
-Plugins can have per-plugin JSON config files at
-`config/plugins/<plugin_name>.json`. The config is injected into the
-plugin's `register()` context as `context["config"]`.
+Plugins can have a JSON config file co-located with their code at
+`plugins/<plugin_name>.json`. The config is injected into the plugin's
+`register()` context as `context["config"]`.
 
 ```json
 {

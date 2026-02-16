@@ -147,7 +147,6 @@ class CoreContainer:
         self.plugin_loader = PluginLoader(
             plugins_dir=str(plugin_dir_resolved),
             handler_registry=self.handler_registry,
-            config_dir=str(config_dir_resolved),
         )
         self.plugin_loader.load_plugins()
         self.orchestrator = OrchestratorService(

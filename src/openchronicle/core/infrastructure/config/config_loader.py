@@ -59,10 +59,10 @@ def load_config_files(config_dir: str | Path) -> dict[str, Any]:
     return load_json_config(config_path / CORE_CONFIG_NAME)
 
 
-def load_plugin_config(config_dir: str | Path, plugin_name: str) -> dict:
+def load_plugin_config(plugins_dir: str | Path, plugin_name: str) -> dict:
     """Load a per-plugin JSON config file.
 
-    Looks for ``<config_dir>/plugins/<plugin_name>.json``.
+    Looks for ``<plugins_dir>/<plugin_name>.json`` alongside the plugin code.
     Returns an empty dict if the file does not exist.
     """
-    return load_json_config(Path(config_dir) / "plugins" / f"{plugin_name}.json")
+    return load_json_config(Path(plugins_dir) / f"{plugin_name}.json")

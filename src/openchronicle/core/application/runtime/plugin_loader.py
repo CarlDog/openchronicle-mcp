@@ -68,15 +68,13 @@ class PluginLoader:
         self,
         plugins_dir: str = "plugins",
         handler_registry: TaskHandlerRegistry | None = None,
-        config_dir: str | None = None,
     ) -> None:
         self.plugins_dir = Path(plugins_dir)
-        self.config_dir = config_dir
         self.registry = InMemoryPluginRegistry()
         self.allow_collisions = os.getenv("OC_PLUGIN_ALLOW_COLLISIONS", "0") == "1"
         # Create handler registry with collision checking enabled (unless collisions are allowed)
         self.handler_registry = handler_registry or TaskHandlerRegistry(check_collisions=not self.allow_collisions)
-        self._plugin_sources: dict[str, str] = {}  # plugin_name -> source_path
+        self._plugin_sources: dict[str, str] = {}  # plugin_name -> source_path  # plugin_name -> source_path
 
     def _find_repo_root(self) -> Path:
         """Find repository root by walking up until pyproject.toml is found."""
@@ -132,12 +130,11 @@ class PluginLoader:
 
             self._plugin_sources[plugin_name] = str(plugin_dir)
 
-            # Inject per-plugin JSON config into context
+            # Inject per-plugin JSON config into context (co-located with plugin code)
             plugin_context = dict(context) if context else {}
-            if self.config_dir:
-                plugin_cfg = load_plugin_config(self.config_dir, plugin_name)
-                if plugin_cfg:
-                    plugin_context["config"] = plugin_cfg
+            plugin_cfg = load_plugin_config(plugins_root, plugin_name)
+            if plugin_cfg:
+                plugin_context["config"] = plugin_cfg
 
             self._load_plugin(plugin_name, plugin_dir, init_file, plugin_file, plugin_context or None)
 

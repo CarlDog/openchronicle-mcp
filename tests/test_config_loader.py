@@ -98,25 +98,16 @@ class TestLoadConfigFiles:
 
 
 class TestLoadPluginConfig:
-    def test_missing_plugin_dir_returns_empty(self, tmp_path: Path) -> None:
-        result = load_plugin_config(tmp_path, "myplugin")
-        assert result == {}
-
     def test_missing_plugin_file_returns_empty(self, tmp_path: Path) -> None:
-        (tmp_path / "plugins").mkdir()
         result = load_plugin_config(tmp_path, "myplugin")
         assert result == {}
 
     def test_valid_plugin_config(self, tmp_path: Path) -> None:
-        plugins_dir = tmp_path / "plugins"
-        plugins_dir.mkdir()
-        (plugins_dir / "myplugin.json").write_text(json.dumps({"key": "val"}), encoding="utf-8")
+        (tmp_path / "myplugin.json").write_text(json.dumps({"key": "val"}), encoding="utf-8")
         result = load_plugin_config(tmp_path, "myplugin")
         assert result == {"key": "val"}
 
     def test_invalid_plugin_config_raises(self, tmp_path: Path) -> None:
-        plugins_dir = tmp_path / "plugins"
-        plugins_dir.mkdir()
-        (plugins_dir / "bad.json").write_text("{broken", encoding="utf-8")
+        (tmp_path / "bad.json").write_text("{broken", encoding="utf-8")
         with pytest.raises(ConfigLoadError):
             load_plugin_config(tmp_path, "bad")

@@ -85,11 +85,9 @@ def execute(config_dir: str) -> dict[str, str | int | list[str]]:
     """
     config_path = Path(config_dir)
     models_dir = config_path / "models"
-    plugins_dir = config_path / "plugins"
 
     # Ensure directories exist
     models_dir.mkdir(parents=True, exist_ok=True)
-    plugins_dir.mkdir(parents=True, exist_ok=True)
 
     # Define minimal example model configs — no embedded API keys.
     # Keys are resolved at runtime: inline -> api_key_env -> standard env var.
