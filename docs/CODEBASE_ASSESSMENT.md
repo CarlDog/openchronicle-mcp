@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-16
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 18 (config externalization — conversation + Discord defaults)
+**Revision:** 19 (hex boundary enforcement + posture tests)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (760+ unit/functional, 20 real-world integration, 6 concurrency
+Tests are strong (780+ unit/functional, 20 real-world integration, 6 concurrency
 stress), architecture is enforced, and the STDIO RPC daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
 from model configs) via a shared `conftest.py` — only `OC_INTEGRATION_TESTS=1` is
@@ -51,9 +51,17 @@ the last holdouts — both are now externalized with a hygiene test
 (`test_config_completeness.py`) that enforces config-code default synchronization
 via `inspect.signature()`.
 
+The **hexagonal boundary** between application and infrastructure layers is now
+fully enforced: zero `core.application` → `core.infrastructure` imports.
+`CoreContainer` moved to `infrastructure/wiring/`, config utilities moved to
+`application/config/`, and concrete infra types replaced with Protocol-based
+dependency injection. Posture tests (`test_architectural_posture.py`) verify
+core runs without Discord installed, no Discord imports leak inward,
+multi-session isolation holds, and the enqueue allowlist stays tight.
+
 **What's next:** Security scanner plugin or dev agent runner.
 
-**Overall: Core feature-complete, Discord interface operational, config fully externalized, concurrency-safe for multi-process deployment.**
+**Overall: Core feature-complete, Discord interface operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment.**
 
 ---
 
@@ -148,19 +156,24 @@ validates against live providers (OpenAI, Anthropic).
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
 | **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, config from `core.json`, 60 tests |
-| **Test suite** (760+ unit/functional, 20 real-world integration, 6 concurrency stress) | Passing | 13 test categories + Discord, architecture guards, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest |
+| **Test suite** (780+ unit/functional, 20 real-world integration, 6 concurrency stress) | Passing | 13 test categories + Discord, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest |
 
 ### Architecture (Enforced and Clean)
 
 ```text
 interfaces/ (CLI, RPC, Discord, API stub)
     ↓ calls
-application/ (use cases, orchestrator, policies, routing)
+application/ (use cases, orchestrator, policies, routing, config)
     ↓ depends on
 domain/ (models, ports, services)
     ↑ implements
-infrastructure/ (LLM adapters, SQLite, privacy, router assist)
+infrastructure/ (LLM adapters, SQLite, privacy, router assist, wiring)
 ```
+
+Boundary discipline enforced by `test_hexagonal_boundaries.py` (3 tests) and
+`test_architectural_posture.py` (19 tests): domain imports nothing outward,
+application imports nothing from infrastructure, core imports nothing from
+Discord. Composition root (`CoreContainer`) lives in `infrastructure/wiring/`.
 
 Enforced by: `test_hexagonal_boundaries.py`, `test_core_agnosticism.py`,
 `test_policies_purity.py`. Domain has zero infrastructure imports. Application has
