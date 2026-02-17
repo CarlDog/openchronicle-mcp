@@ -28,9 +28,14 @@ def _source_root() -> Path:
 
 
 def _iter_source_files() -> list[Path]:
-    root = _source_root()
+    """Iterate core source files (domain + application + infrastructure).
+
+    Excludes ``interfaces/`` — that layer is the driving adapter where
+    framework imports (discord.py, Flask, etc.) legitimately belong.
+    """
+    root = _source_root() / "core"
     if not root.exists():
-        raise AssertionError(f"Source root not found: {root}")
+        raise AssertionError(f"Core source root not found: {root}")
 
     files: list[Path] = []
     for path in root.rglob("*.py"):

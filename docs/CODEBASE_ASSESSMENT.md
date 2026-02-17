@@ -1,8 +1,8 @@
 # OpenChronicle v2 — Senior Developer Codebase Assessment
 
-**Date:** 2026-02-14
+**Date:** 2026-02-16
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 15 (Time context injection in conversation pipeline)
+**Revision:** 16 (Discord interface — driving adapter)
 
 ---
 
@@ -45,9 +45,9 @@ Six operational CLI utilities were added to close day-one gaps: `oc version`,
 domain port additions (`delete_conversation`, `delete_memory`) with cascade
 logic in SqliteStore. CLI command reference documented in `docs/cli/commands.md`.
 
-**What's next:** Discord driver (core interface).
+**What's next:** Discord driver done. Next: security scanner plugin or dev agent runner.
 
-**Overall: Core feature-complete, concurrency-safe for multi-process deployment.**
+**Overall: Core feature-complete, Discord interface operational, concurrency-safe for multi-process deployment.**
 
 ---
 
@@ -141,12 +141,13 @@ validates against live providers (OpenAI, Anthropic).
 | **File-based configuration** (single `core.json`, three-layer precedence) | Working | `config/core.json` + enriched `models/*.json` (limits, capabilities, cost, performance) + per-plugin JSON + env var overrides |
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
-| **Test suite** (680+ unit/functional, 13 real-world integration, 6 concurrency stress) | Passing | 13 test categories, architecture guards, live provider validation, concurrency race proofs, auto-detecting conftest |
+| **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, 60 tests |
+| **Test suite** (740+ unit/functional, 13 real-world integration, 6 concurrency stress) | Passing | 13 test categories + Discord, architecture guards, live provider validation, concurrency race proofs, auto-detecting conftest |
 
 ### Architecture (Enforced and Clean)
 
 ```text
-interfaces/ (CLI, RPC, API stub)
+interfaces/ (CLI, RPC, Discord, API stub)
     ↓ calls
 application/ (use cases, orchestrator, policies, routing)
     ↓ depends on
@@ -470,7 +471,7 @@ service-dependent features. See Decision #4 below for the architectural response
 Core Done
   ✓ LLMPort: function calling / tool use (done)
   ✓ Scheduler (core — application/services)
-  → Discord Driver (core — interfaces/)
+  ✓ Discord Driver (core — interfaces/)
   → Security Scanner (plugin — stateless handler)
   → Dev Agent Runner (core — needs LLM + sandbox)
   → Serena MCP (core — inside sandbox only)
@@ -588,4 +589,6 @@ ToolCall, tool_calls on LLMResponse/StreamChunk, tools/tool_choice params on all
 | `domain/ports/llm_port.py` | 146 | LLM contract | Clean (includes streaming) |
 | `application/services/llm_execution.py` | ~200 | LLM call + fallback | Clean |
 | `services/scheduler.py` | ~250 | Tick-driven scheduler | New (core service) |
+| `interfaces/discord/bot.py` | ~130 | Discord bot | New (commands.Bot, on_message, streaming pipeline) |
+| `interfaces/discord/commands.py` | ~170 | Slash commands | New (6 commands, Cog pattern) |
 | `application/runtime/container.py` | ~189 | DI container | Clean (file-based config, scheduler wired) |

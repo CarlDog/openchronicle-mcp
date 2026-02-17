@@ -330,6 +330,11 @@ def main(argv: list[str] | None = None) -> int:
     sched_tick.add_argument("--max-jobs", type=int, default=10, help="Max jobs per tick")
     sched_tick.add_argument("--json", action="store_true", help="Emit JSON output")
 
+    # --- Discord commands ---
+    discord_cmd = sub.add_parser("discord", help="Discord bot commands")
+    discord_sub = discord_cmd.add_subparsers(dest="discord_command")
+    discord_sub.add_parser("start", help="Start the Discord bot (long-running)")
+
     # --- System commands ---
     init_config_cmd = sub.add_parser("init-config", help="Initialize model configuration with examples")
     init_config_cmd.add_argument(

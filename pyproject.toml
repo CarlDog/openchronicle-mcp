@@ -27,6 +27,9 @@ groq = [
 gemini = [
 	"google-genai>=1.0.0",
 ]
+discord = [
+	"discord.py>=2.0",
+]
 dev = [
 	"pytest>=7",
 	"pytest-asyncio>=0.23",
@@ -125,4 +128,8 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "google.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "discord.*"
 ignore_missing_imports = true

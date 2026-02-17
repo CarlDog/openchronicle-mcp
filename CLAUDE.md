@@ -15,7 +15,9 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Discord driver (core, `interfaces/discord/`).
+**Next action:** Security scanner plugin or dev agent runner.
+Discord interface is done (`interfaces/discord/`, `commands.Bot` subclass, 6 slash
+commands, session mapping, message splitting, 60 tests, `oc discord start` CLI).
 Scheduler service is done (tick-driven, atomic claim, 52+ tests, CLI + RPC).
 LLMPort function calling/tool use is done (all 6 adapters, 30 contract tests).
 Time context injection is done (current time, last interaction timestamp,
@@ -32,6 +34,7 @@ pip install -e ".[dev]"
 # With optional LLM providers
 pip install -e ".[openai]"    # OpenAI support
 pip install -e ".[ollama]"    # Ollama support
+pip install -e ".[discord]"   # Discord bot support
 
 # Setup pre-commit hooks
 pip install pre-commit && pre-commit install
