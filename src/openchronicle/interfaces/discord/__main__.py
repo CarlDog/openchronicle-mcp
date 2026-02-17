@@ -9,6 +9,7 @@ from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.discord.bot import DiscordBot
 from openchronicle.interfaces.discord.commands import setup_commands
 from openchronicle.interfaces.discord.config import DiscordConfig
+from openchronicle.interfaces.discord.pid_file import PidFile
 
 
 def main() -> int:
@@ -22,6 +23,15 @@ def main() -> int:
         print(f"Configuration error: {exc}", file=sys.stderr)
         return 1
 
+    pid = PidFile()
+    force = "--force" in sys.argv
+    if not force and pid.is_alive():
+        print(
+            f"Bot already running (PID {pid.read_pid()}). Use --force to override.",
+            file=sys.stderr,
+        )
+        return 1
+
     bot = DiscordBot(container, config)
 
     async def on_ready_with_commands() -> None:
@@ -30,7 +40,11 @@ def main() -> int:
 
     bot.on_ready = on_ready_with_commands  # type: ignore[method-assign]
 
-    bot.run(config.token, log_handler=None)
+    pid.acquire()
+    try:
+        bot.run(config.token, log_handler=None)
+    finally:
+        pid.release()
     return 0
 
 

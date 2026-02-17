@@ -333,7 +333,8 @@ def main(argv: list[str] | None = None) -> int:
     # --- Discord commands ---
     discord_cmd = sub.add_parser("discord", help="Discord bot commands")
     discord_sub = discord_cmd.add_subparsers(dest="discord_command")
-    discord_sub.add_parser("start", help="Start the Discord bot (long-running)")
+    discord_start = discord_sub.add_parser("start", help="Start the Discord bot (long-running)")
+    discord_start.add_argument("--force", action="store_true", help="Ignore existing PID file and start anyway")
 
     # --- System commands ---
     init_config_cmd = sub.add_parser("init-config", help="Initialize model configuration with examples")

@@ -29,6 +29,7 @@ def _cmd_discord_start(args: argparse.Namespace, container: CoreContainer) -> in
     from openchronicle.interfaces.discord.bot import DiscordBot
     from openchronicle.interfaces.discord.commands import setup_commands
     from openchronicle.interfaces.discord.config import DiscordConfig
+    from openchronicle.interfaces.discord.pid_file import PidFile
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
@@ -36,6 +37,15 @@ def _cmd_discord_start(args: argparse.Namespace, container: CoreContainer) -> in
         config = DiscordConfig.from_env(file_config=container.file_configs.get("discord"))
     except ValueError as exc:
         print(f"Configuration error: {exc}", file=sys.stderr)
+        return 1
+
+    pid = PidFile()
+    force = getattr(args, "force", False)
+    if not force and pid.is_alive():
+        print(
+            f"Bot already running (PID {pid.read_pid()}). Use --force to override.",
+            file=sys.stderr,
+        )
         return 1
 
     bot = DiscordBot(container, config)
@@ -47,5 +57,9 @@ def _cmd_discord_start(args: argparse.Namespace, container: CoreContainer) -> in
     bot.on_ready = on_ready_with_commands  # type: ignore[method-assign]
 
     print("Starting Discord bot...")
-    bot.run(config.token, log_handler=None)
+    pid.acquire()
+    try:
+        bot.run(config.token, log_handler=None)
+    finally:
+        pid.release()
     return 0
