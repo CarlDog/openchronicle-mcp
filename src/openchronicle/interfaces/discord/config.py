@@ -11,7 +11,7 @@ class DiscordConfig:
     """Immutable Discord bot configuration loaded from env vars and file config.
 
     Required:
-        DISCORD_BOT_TOKEN — Bot authentication token (env-only, never in config files).
+        DISCORD_BOT_TOKEN (env var) or token (in core.json discord section).
 
     Optional (env var > file config > default):
         OC_DISCORD_GUILD_IDS — CSV guild IDs for slash command sync.
@@ -33,12 +33,15 @@ class DiscordConfig:
         """Load config from environment variables with file_config fallback.
 
         Raises:
-            ValueError: If DISCORD_BOT_TOKEN is not set or empty.
+            ValueError: If bot token is not found in env var or file config.
         """
         fc = file_config or {}
-        token = os.environ.get("DISCORD_BOT_TOKEN", "").strip()
+        token = os.environ.get("DISCORD_BOT_TOKEN", "").strip() or _str_or_default(fc.get("token"), "")
         if not token:
-            raise ValueError("DISCORD_BOT_TOKEN environment variable is required but not set")
+            raise ValueError(
+                "Bot token not found. Set DISCORD_BOT_TOKEN env var or add"
+                ' "token" to the discord section in core.json'
+            )
 
         guild_ids = _resolve_int_list("OC_DISCORD_GUILD_IDS", fc.get("guild_ids"))
         channel_allowlist = _resolve_int_list("OC_DISCORD_CHANNEL_ALLOWLIST", fc.get("channel_allowlist"))

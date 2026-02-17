@@ -103,7 +103,7 @@ Canonical reference for all OpenChronicle environment variables.
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `DISCORD_BOT_TOKEN` | - | Bot authentication token (required, env-only) |
+| `DISCORD_BOT_TOKEN` | - | Bot authentication token (required; also accepted as `token` in core.json) |
 | `OC_DISCORD_GUILD_IDS` | - | CSV guild IDs for slash command sync |
 | `OC_DISCORD_CHANNEL_ALLOWLIST` | - | CSV channel IDs (empty = all channels) |
 | `OC_DISCORD_SESSION_STORE_PATH` | `data/discord_sessions.json` | Session persistence path |

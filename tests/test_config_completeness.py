@@ -114,7 +114,7 @@ class TestConversationSettingsMatchPrepareAsk:
 
 
 class TestDiscordConfigFileConfig:
-    """DiscordConfig.from_env() picks up file_config values for non-secret fields."""
+    """DiscordConfig.from_env() picks up file_config values for all fields."""
 
     @pytest.fixture(autouse=True)
     def _set_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -165,6 +165,19 @@ class TestDiscordConfigFileConfig:
         monkeypatch.setenv("OC_DISCORD_CONVERSATION_TITLE", "Env Title")
         config = DiscordConfig.from_env(file_config={"conversation_title": "File Title"})
         assert config.conversation_title == "Env Title"
+
+    def test_token_from_file_config(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from openchronicle.interfaces.discord.config import DiscordConfig
+
+        monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
+        config = DiscordConfig.from_env(file_config={"token": "file-token"})
+        assert config.token == "file-token"
+
+    def test_env_token_overrides_file_token(self) -> None:
+        from openchronicle.interfaces.discord.config import DiscordConfig
+
+        config = DiscordConfig.from_env(file_config={"token": "file-token"})
+        assert config.token == "test-token"  # env wins
 
     def test_defaults_without_file_config(self) -> None:
         from openchronicle.interfaces.discord.config import DiscordConfig

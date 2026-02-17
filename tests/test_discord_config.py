@@ -34,12 +34,12 @@ class TestParseIntCsv:
 class TestDiscordConfig:
     def test_missing_token_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("DISCORD_BOT_TOKEN", raising=False)
-        with pytest.raises(ValueError, match="DISCORD_BOT_TOKEN"):
+        with pytest.raises(ValueError, match="Bot token not found"):
             DiscordConfig.from_env()
 
     def test_empty_token_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DISCORD_BOT_TOKEN", "   ")
-        with pytest.raises(ValueError, match="DISCORD_BOT_TOKEN"):
+        with pytest.raises(ValueError, match="Bot token not found"):
             DiscordConfig.from_env()
 
     def test_minimal_config(self, monkeypatch: pytest.MonkeyPatch) -> None:

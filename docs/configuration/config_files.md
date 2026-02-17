@@ -179,11 +179,13 @@ CLI, Discord, and RPC when no per-call override is provided.
 | `conversation.last_n` | `OC_CONVO_LAST_N` | `10` |
 | `conversation.include_pinned_memory` | `OC_CONVO_INCLUDE_PINNED_MEMORY` | `true` |
 
-**`discord`** — Discord bot operational settings. The bot token is
-env-only (`DISCORD_BOT_TOKEN`) and never belongs in config files.
+**`discord`** — Discord bot operational settings. The bot token can be
+provided via `DISCORD_BOT_TOKEN` env var or as `token` in this section
+(env var takes precedence).
 
 | Field | Env Override | Default |
 | ----- | ----------- | ------- |
+| `discord.token` | `DISCORD_BOT_TOKEN` | (required) |
 | `discord.guild_ids` | `OC_DISCORD_GUILD_IDS` (CSV) | `[]` |
 | `discord.channel_allowlist` | `OC_DISCORD_CHANNEL_ALLOWLIST` (CSV) | `[]` |
 | `discord.session_store_path` | `OC_DISCORD_SESSION_STORE_PATH` | `data/discord_sessions.json` |
