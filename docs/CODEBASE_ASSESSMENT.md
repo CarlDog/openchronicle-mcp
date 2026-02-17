@@ -1,8 +1,8 @@
 # OpenChronicle v2 — Senior Developer Codebase Assessment
 
-**Date:** 2026-02-16
+**Date:** 2026-02-17
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 20 (router policy threading + Ollama streaming fix + Discord integration tests)
+**Revision:** 21 (router policy fix, Ollama streaming fix, PID file, Discord integration tests)
 
 ---
 
@@ -20,8 +20,9 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (780+ unit/functional, 20 real-world integration, 6 concurrency
-stress), architecture is enforced, and the STDIO RPC daemon mode exists. Integration
+Tests are strong (791 unit/functional, 20 real-world integration, 14 Discord
+integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
+daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
 from model configs) via a shared `conftest.py` — only `OC_INTEGRATION_TESTS=1` is
 needed to run. The full pipeline has been validated against OpenAI (gpt-4o-mini) and
@@ -58,6 +59,19 @@ fully enforced: zero `core.application` → `core.infrastructure` imports.
 dependency injection. Posture tests (`test_architectural_posture.py`) verify
 core runs without Discord installed, no Discord imports leak inward,
 multi-session isolation holds, and the enqueue allowlist stays tight.
+
+A **routing policy bug** was found and fixed: `prepare_ask()`, `execute()`, and
+`enqueue()` in `ask_conversation.py` were constructing `RouterPolicy()` with no
+arguments (defaulting to `stub:stub-model`), ignoring the configured policy built
+by `CoreContainer`. `router_policy` is now a required parameter threaded through
+the entire call chain — all callers pass `container.router_policy`. The Ollama
+adapter's streaming error handler was also fixed (couldn't read response body on
+a streaming `httpx` response without calling `aread()` first).
+
+The Discord bot now writes a **PID file** (`data/discord_bot.pid`) on startup and
+cleans it up on shutdown. If a prior instance is still alive, startup exits with
+an error. `--force` overrides the check. Cross-platform: uses `PermissionError`
+vs generic `OSError` distinction since Windows doesn't raise `ProcessLookupError`.
 
 **What's next:** Security scanner plugin or dev agent runner.
 
@@ -155,8 +169,8 @@ validates against live providers (OpenAI, Anthropic).
 | **File-based configuration** (single `core.json`, three-layer precedence) | Working | All subsystems wired: routing, budget, retry, privacy, telemetry, conversation, Discord. Secrets (API keys, bot token) follow same precedence — no env-only exceptions. Enriched `models/*.json` + per-plugin JSON. Hygiene test enforces config-code default sync |
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
-| **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, config from `core.json`, 60 tests |
-| **Test suite** (780+ unit/functional, 20 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 13 test categories + Discord, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest |
+| **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, PID file guard, config from `core.json`, 71 tests |
+| **Test suite** (791 unit/functional, 20 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 13 test categories + Discord, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest |
 
 ### Architecture (Enforced and Clean)
 
@@ -617,6 +631,7 @@ ToolCall, tool_calls on LLMResponse/StreamChunk, tools/tool_choice params on all
 | `domain/ports/llm_port.py` | 146 | LLM contract | Clean (includes streaming) |
 | `application/services/llm_execution.py` | ~200 | LLM call + fallback | Clean |
 | `services/scheduler.py` | ~250 | Tick-driven scheduler | New (core service) |
-| `interfaces/discord/bot.py` | ~130 | Discord bot | New (commands.Bot, on_message, streaming pipeline) |
+| `interfaces/discord/bot.py` | ~130 | Discord bot | Clean (commands.Bot, on_message, streaming pipeline) |
+| `interfaces/discord/pid_file.py` | ~60 | PID file guard | New (atomic write, cross-platform alive check) |
 | `interfaces/discord/commands.py` | ~170 | Slash commands | New (6 commands, Cog pattern) |
-| `application/runtime/container.py` | ~191 | DI container | Clean (file-based config, all settings wired) |
+| `infrastructure/wiring/container.py` | ~191 | DI container | Clean (file-based config, exposes router_policy) |
