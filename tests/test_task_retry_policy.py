@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -162,9 +163,9 @@ def test_retry_controller_allows_retry_with_no_selective_errors() -> None:
 
 
 @pytest.fixture
-def container() -> CoreContainer:
-    """Create a fresh container for each test."""
-    return CoreContainer()
+def container(tmp_path: Path) -> CoreContainer:
+    """Create a fresh container with isolated temp database for each test."""
+    return CoreContainer(db_path=str(tmp_path / "test_retry.db"))
 
 
 @pytest.fixture

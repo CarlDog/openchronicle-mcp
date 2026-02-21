@@ -15,7 +15,9 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Security scanner plugin or dev agent runner.
+**Next action:** OC MCP server interface (Decision #5), security scanner plugin,
+or dev agent runner. MCP server unblocks Goose + Serena triangle and VS Code
+integration.
 Discord interface is done (`interfaces/discord/`, `commands.Bot` subclass, 6 slash
 commands, session mapping, message splitting, 60 tests, `oc discord start` CLI).
 Scheduler service is done (tick-driven, atomic claim, 52+ tests, CLI + RPC).
@@ -135,6 +137,7 @@ telemetry, and more): [docs/configuration/env_vars.md](docs/configuration/env_va
 - `docs/configuration/env_vars.md` - Full environment variables reference
 - `docs/design/design_decisions.md` - Core subsystem design rationale
 - `docs/protocol/stdio_rpc_v1.md` - RPC protocol specification
+- `docs/integrations/mcp_server_spec.md` - OC MCP server spec (Goose/Serena triangle)
 - `docs/BACKLOG.md` - Feature and implementation backlog
 - `tests/test_architectural_posture.py` - Posture enforcement (core agnostic, session isolation, enqueue allowlist)
 - `tests/test_hexagonal_boundaries.py` - Layer boundary enforcement (domain, application, core vs discord)

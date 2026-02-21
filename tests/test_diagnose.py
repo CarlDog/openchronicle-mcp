@@ -152,13 +152,14 @@ def test_diagnose_runtime_provider_env_summary() -> None:
         assert report.provider_env_summary.get("OC_LLM_RPM_LIMIT") == "3000"
 
 
-def test_diagnose_runtime_cli_human_readable(monkeypatch) -> None:  # type: ignore
+def test_diagnose_runtime_cli_human_readable(monkeypatch, tmp_path) -> None:  # type: ignore
     """Verify that CLI human-readable output does not leak secrets."""
     import sys
     from io import StringIO
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-super-secret-key")
     monkeypatch.setenv("OC_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "diag_human.db"))
 
     # Capture output
     from openchronicle.interfaces.cli.main import main
@@ -181,13 +182,14 @@ def test_diagnose_runtime_cli_human_readable(monkeypatch) -> None:  # type: igno
     assert "set" in output or "OPENAI_API_KEY" in output
 
 
-def test_diagnose_runtime_cli_json_output(monkeypatch) -> None:  # type: ignore
+def test_diagnose_runtime_cli_json_output(monkeypatch, tmp_path) -> None:  # type: ignore
     """Verify that CLI JSON output is valid and does not leak secrets."""
     import sys
     from io import StringIO
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-super-secret-json-key")
     monkeypatch.setenv("OC_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "diag_json.db"))
 
     from openchronicle.interfaces.cli.main import main
 

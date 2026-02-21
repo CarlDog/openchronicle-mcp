@@ -73,7 +73,9 @@ cleans it up on shutdown. If a prior instance is still alive, startup exits with
 an error. `--force` overrides the check. Cross-platform: uses `PermissionError`
 vs generic `OSError` distinction since Windows doesn't raise `ProcessLookupError`.
 
-**What's next:** Security scanner plugin or dev agent runner.
+**What's next:** OC MCP server interface (Decision #5), security scanner plugin,
+or dev agent runner. MCP server unblocks Goose + Serena triangle and VS Code
+integration.
 
 **Overall: Core feature-complete, Discord interface operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment.**
 
@@ -514,19 +516,21 @@ Core Done
   ✓ LLMPort: function calling / tool use (done)
   ✓ Scheduler (core — application/services)
   ✓ Discord Driver (core — interfaces/)
+  → OC MCP Server (core — interfaces/mcp, Decision #5)
   → Security Scanner (plugin — stateless handler)
   → Dev Agent Runner (core — needs LLM + sandbox)
   → Serena MCP (core — inside sandbox only)
   → MoE Mode (plugin — stateless handler)
   → HTTP API (core — interfaces/)
-  → VS Code / Copilot SDK (external client via RPC)
-  → Goose Integration (external client via RPC)
+  → VS Code / Copilot SDK (MCP client or external via RPC)
+  → Goose Integration (MCP client — uses OC MCP + Serena MCP)
   → Private Git Server (plugin or external)
 ```
 
 **Taxonomy:** Features that need persistent state, lifecycle hooks, or direct
 service access are core features (in `application/` or `interfaces/`). Stateless
-input→output handlers remain plugins. External clients compose via STDIO RPC.
+input→output handlers remain plugins. External clients compose via MCP or STDIO
+RPC. See Decision #5 for the MCP-first integration strategy.
 
 ---
 
@@ -612,6 +616,57 @@ is an optional bolt-on — they need the same level of access as core services.
 core gap first: add function calling / tool use to LLMPort (done — ToolDefinition,
 ToolCall, tool_calls on LLMResponse/StreamChunk, tools/tool_choice params on all
 6 adapters + facade + execution layer, 30 contract tests).
+
+### 5. MCP-first integration strategy: OC as an MCP server (Decision: 2026-02-20)
+
+**Decision:** Build an OC MCP server as a core interface (`interfaces/mcp/`).
+This is the primary integration path for external agents (Goose, VS Code, Claude
+Desktop) rather than requiring each to implement a custom STDIO RPC client.
+
+**Rationale:** Three tools compose naturally:
+
+| Tool | Role | Persistence |
+|------|------|-------------|
+| **Serena** (MCP server) | Code understanding — what the code **is** | Stateless |
+| **OpenChronicle** (MCP server) | Persistent memory — what was **decided** and **why** | Persistent |
+| **Goose** (MCP client) | Agent execution — edit files, run commands, iterate | Ephemeral |
+
+Goose already speaks MCP. Serena is already an MCP server. Making OC an MCP
+server completes the triangle with zero custom glue code per client. Any
+MCP-compatible agent gets persistent memory and conversation capabilities.
+
+The MCP server is a transport layer exposing existing core capabilities (memory
+ports, `AskConversation`, health checks) — same category as CLI, STDIO RPC, and
+Discord. It needs direct access to `CoreContainer` and the full port surface,
+so it cannot be a plugin (same reasoning as Decision #4 for Discord).
+
+**What this changes in the roadmap:**
+
+- **OC MCP Server** becomes next priority after security scanner (or parallel).
+  10 tools, maps 1:1 to existing ports/use cases.
+- **Goose integration** no longer requires Dev Agent Runner, Security Scanner,
+  or Sandbox Runner as prerequisites. Goose connects to OC MCP server directly.
+- **VS Code / Copilot SDK** can also connect via MCP instead of custom RPC
+  client.
+- **Dev Agent Runner** remains on the roadmap as an upgrade path where OC
+  orchestrates Goose (flipped control, full audit trail via event chain).
+
+**Architecture:**
+
+```text
+interfaces/mcp/
+  server.py           # MCP server setup, tool registration
+  tools/
+    memory.py         # memory_search, memory_save, memory_list, memory_pin
+    conversation.py   # conversation_ask, conversation_history, conversation_list, conversation_create
+    context.py        # context_recent
+    system.py         # health
+```
+
+**Posture:** Optional extra (`.[mcp]`). Core runs without MCP SDK. All MCP
+imports lazy, confined to `interfaces/mcp/`. Enforced by posture tests.
+
+**Spec:** [`docs/integrations/mcp_server_spec.md`](integrations/mcp_server_spec.md)
 
 ---
 
