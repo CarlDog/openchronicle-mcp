@@ -1,8 +1,8 @@
 # OpenChronicle v2 — Senior Developer Codebase Assessment
 
 **Date:** 2026-02-17
-**Branch:** `refactor/new-core-from-scratch`
-**Revision:** 27 (MCP/MoE usage tracking, hexagonal architecture enforcement)
+**Branch:** `main`
+**Revision:** 28 (Docker CI via ghcr.io, MCP extra in image, asset dir support)
 
 ---
 
@@ -278,7 +278,7 @@ surface. No backwards compatibility concerns. No production deployment yet.
 | HTTP API | CLI + RPC cover the chatbot use case |
 | ONNX router assist | Linear model works; ONNX is a performance optimization |
 | Embeddings / vector memory search | Keyword search works for v0; embeddings are a plugin concern |
-| Docker hardening | Not needed until deployment |
+| ~~Docker hardening~~ | ✅ CI builds multi-arch image to `ghcr.io/openchronicle/core` on push to main |
 | ~~Scheduler~~ | ✅ Core service (`application/services/scheduler.py`, 52+ tests) |
 | ~~Discord driver~~ | ✅ Interfaces driver (`interfaces/discord/`, 60 tests, optional extra) |
 | ~~OC MCP Server~~ | ✅ Interfaces driver (`interfaces/mcp/`, 16 tools, 40+7 tests, optional extra) |
@@ -524,6 +524,7 @@ Core Done
   ✓ Scheduler (core — application/services)
   ✓ Discord Driver (core — interfaces/)
   ✓ OC MCP Server (core — interfaces/mcp, Decision #5)
+  ✓ Docker CI (ghcr.io/openchronicle/core, multi-arch, GitHub Actions)
   → Security Scanner (plugin — stateless handler)
   → Dev Agent Runner (core — needs LLM + sandbox)
   → Serena MCP (core — inside sandbox only)

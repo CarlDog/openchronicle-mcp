@@ -37,6 +37,8 @@ File-based config is done (single `core.json`, enriched model configs, plugin
 configs co-located at `plugins/<name>/config.json`).
 Config externalization is done (conversation defaults + Discord operational
 settings wired through three-layer precedence, hygiene test prevents drift).
+Docker CI is done (GitHub Actions multi-arch build to `ghcr.io/openchronicle/core`,
+`latest` + SHA tags, GHA cache, `.gitattributes` for LF shell scripts).
 
 ## Build and Development
 
