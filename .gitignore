@@ -49,7 +49,7 @@ storage/*/exports/
 storage/temp/
 storage/data/memory.db
 storage/data/*.db
-data/*.db
+data/
 *.jsonl
 *.log
 bandit-report.json
