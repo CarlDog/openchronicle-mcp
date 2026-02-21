@@ -6,6 +6,7 @@ import inspect
 
 import pytest
 
+from openchronicle.core.application.config.budget_config import load_budget_policy
 from openchronicle.core.application.config.settings import (
     ConversationSettings,
     load_conversation_settings,
@@ -13,6 +14,7 @@ from openchronicle.core.application.config.settings import (
     load_router_assist_settings,
     load_telemetry_settings,
 )
+from openchronicle.core.application.routing.pool_config import load_pool_config
 
 # ---------------------------------------------------------------------------
 # A. Config sections have working loaders
@@ -41,6 +43,22 @@ class TestConfigLoadersExist:
     def test_conversation_loader_with_none(self) -> None:
         settings = load_conversation_settings(None)
         assert settings is not None
+
+    def test_budget_policy_loader(self) -> None:
+        policy = load_budget_policy({})
+        assert policy is not None
+
+    def test_budget_policy_loader_with_none(self) -> None:
+        policy = load_budget_policy(None)
+        assert policy is not None
+
+    def test_pool_config_loader(self) -> None:
+        config = load_pool_config({})
+        assert config is not None
+
+    def test_pool_config_loader_with_none(self) -> None:
+        config = load_pool_config(None)
+        assert config is not None
 
 
 # ---------------------------------------------------------------------------

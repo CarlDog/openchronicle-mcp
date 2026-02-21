@@ -487,11 +487,17 @@ def handle_privacy_preview(container: CoreContainer, command: str, args: dict[st
     if provider is None and resolved_settings.external_only:
         applies = True
 
-    analysis_mode = "warn" if applies and effective_mode != "off" else "warn"
+    # Determine analysis mode for the preview:
+    # - "off" if privacy is disabled
+    # - effective_mode if privacy applies (respects block/warn/redact)
+    # - "warn" if configured but doesn't apply to this provider
+    #   (informational: shows detected PII without blocking)
     if effective_mode == "off":
         analysis_mode = "off"
-    if applies:
+    elif applies:
         analysis_mode = effective_mode
+    else:
+        analysis_mode = "warn"
 
     redacted_text, report = privacy_gate.analyze_and_apply(
         text=text_value,

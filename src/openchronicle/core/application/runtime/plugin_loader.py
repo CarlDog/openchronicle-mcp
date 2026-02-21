@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 from openchronicle.core.application.runtime.task_registry import HandlerCollisionError, TaskHandlerRegistry
 from openchronicle.core.domain.errors import PLUGIN_COLLISION, PLUGIN_ID_COLLISION
-from openchronicle.core.domain.ports.plugin_port import PluginRegistry, TaskHandler
+from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 
 
 class PluginConfigLoaderPort(Protocol):
@@ -52,14 +52,7 @@ class PluginCollisionError(Exception):
 
 class InMemoryPluginRegistry(PluginRegistry):
     def __init__(self) -> None:
-        self._task_handlers: dict[str, TaskHandler] = {}
         self._agent_templates: list[dict[str, Any]] = []
-
-    def register_task_handler(self, task_type: str, handler: TaskHandler) -> None:
-        self._task_handlers[task_type] = handler
-
-    def get_task_handler(self, task_type: str) -> TaskHandler | None:
-        return self._task_handlers.get(task_type)
 
     def register_agent_template(self, agent: dict[str, Any]) -> None:
         self._agent_templates.append(agent)
