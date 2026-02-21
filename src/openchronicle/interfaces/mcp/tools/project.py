@@ -9,6 +9,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from openchronicle.core.application.use_cases import create_project, list_projects
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.mcp.tracking import track_tool
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -28,6 +29,7 @@ def register(mcp: FastMCP) -> None:
     """Register project tools on the MCP server."""
 
     @mcp.tool()
+    @track_tool
     def project_create(
         name: str,
         ctx: Context,
@@ -52,6 +54,7 @@ def register(mcp: FastMCP) -> None:
         return _project_to_dict(project)
 
     @mcp.tool()
+    @track_tool
     def project_list(
         ctx: Context,
     ) -> list[dict[str, Any]]:

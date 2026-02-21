@@ -68,6 +68,8 @@ def test_fresh_database_has_all_indexes(fresh_db: SqliteStore) -> None:
         "idx_memory_project_created",
         "idx_scheduled_jobs_due",
         "idx_scheduled_jobs_project",
+        "idx_mcp_tool_usage_tool_created",
+        "idx_mcp_tool_usage_created",
     }
 
     assert index_names == expected, f"Missing or unexpected indexes. Got {index_names}, expected {expected}"
@@ -101,6 +103,8 @@ def test_migration_creates_indexes_on_existing_db(migrated_db: SqliteStore) -> N
         "idx_memory_project_created",
         "idx_scheduled_jobs_due",
         "idx_scheduled_jobs_project",
+        "idx_mcp_tool_usage_tool_created",
+        "idx_mcp_tool_usage_created",
     }
 
     assert index_names == expected
@@ -206,6 +210,8 @@ def test_index_creation_is_idempotent(tmp_path: Path) -> None:
         "idx_memory_project_created",
         "idx_scheduled_jobs_due",
         "idx_scheduled_jobs_project",
+        "idx_mcp_tool_usage_tool_created",
+        "idx_mcp_tool_usage_created",
     }
 
     assert index_names == expected

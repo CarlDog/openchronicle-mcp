@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (859 unit/functional, 20 real-world integration, 14 Discord
+Tests are strong (873 unit/functional, 20 real-world integration, 14 Discord
 integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
 daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
@@ -174,7 +174,7 @@ validates against live providers (OpenAI, Anthropic).
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
 | **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, PID file guard, config from `core.json`, 71 tests |
-| **MCP server interface** (12 tools, FastMCP, stdio + SSE) | Working | Memory, conversation, context, health tools; lazy import guard; posture-enforced isolation; 21 unit + 7 posture tests |
+| **MCP server interface** (13 tools, FastMCP, stdio + SSE) | Working | Memory, conversation, context, health tools; lazy import guard; posture-enforced isolation; 30 unit + 7 posture tests |
 | **Test suite** (827 unit/functional, 20 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 13 test categories + Discord + MCP, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest |
 
 ### Architecture (Enforced and Clean)
@@ -278,7 +278,7 @@ surface. No backwards compatibility concerns. No production deployment yet.
 | Docker hardening | Not needed until deployment |
 | ~~Scheduler~~ | ✅ Core service (`application/services/scheduler.py`, 52+ tests) |
 | ~~Discord driver~~ | ✅ Interfaces driver (`interfaces/discord/`, 60 tests, optional extra) |
-| ~~OC MCP Server~~ | ✅ Interfaces driver (`interfaces/mcp/`, 12 tools, 23+7 tests, optional extra) |
+| ~~OC MCP Server~~ | ✅ Interfaces driver (`interfaces/mcp/`, 13 tools, 30+7 tests, optional extra) |
 
 ---
 
@@ -647,7 +647,7 @@ so it cannot be a plugin (same reasoning as Decision #4 for Discord).
 **What this changes in the roadmap:**
 
 - **OC MCP Server** becomes next priority after security scanner (or parallel).
-  12 tools, maps 1:1 to existing ports/use cases.
+  13 tools, maps 1:1 to existing ports/use cases.
 - **Goose integration** no longer requires Dev Agent Runner, Security Scanner,
   or Sandbox Runner as prerequisites. Goose connects to OC MCP server directly.
 - **VS Code / Copilot SDK** can also connect via MCP instead of custom RPC

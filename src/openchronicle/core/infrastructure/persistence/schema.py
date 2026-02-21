@@ -166,6 +166,19 @@ CREATE TABLE IF NOT EXISTS scheduled_jobs (
 );
 """
 
+MCP_TOOL_USAGE_TABLE = """
+CREATE TABLE IF NOT EXISTS mcp_tool_usage (
+    id TEXT PRIMARY KEY,
+    tool_name TEXT NOT NULL,
+    started_at TEXT NOT NULL,
+    latency_ms INTEGER NOT NULL,
+    success INTEGER NOT NULL,
+    error_type TEXT,
+    error_message TEXT,
+    created_at TEXT NOT NULL
+);
+"""
+
 INDEXES = [
     # Tasks: optimize project queries with ordering
     "CREATE INDEX IF NOT EXISTS idx_tasks_project_created ON tasks(project_id, created_at, id)",
@@ -201,6 +214,10 @@ INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_due ON scheduled_jobs(status, next_due_at, created_at, id)",
     # Scheduled jobs: optimize project listing
     "CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_project ON scheduled_jobs(project_id, created_at, id)",
+    # MCP tool usage: optimize tool_name + time queries
+    "CREATE INDEX IF NOT EXISTS idx_mcp_tool_usage_tool_created ON mcp_tool_usage(tool_name, created_at, id)",
+    # MCP tool usage: optimize time-range queries
+    "CREATE INDEX IF NOT EXISTS idx_mcp_tool_usage_created ON mcp_tool_usage(created_at, id)",
 ]
 
 ALL_TABLES = [
@@ -215,4 +232,5 @@ ALL_TABLES = [
     TURNS_TABLE,
     MEMORY_ITEMS_TABLE,
     SCHEDULED_JOBS_TABLE,
+    MCP_TOOL_USAGE_TABLE,
 ]

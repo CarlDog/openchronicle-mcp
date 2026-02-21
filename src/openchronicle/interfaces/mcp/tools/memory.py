@@ -9,6 +9,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from openchronicle.core.application.use_cases import add_memory, list_memory, pin_memory, search_memory
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.mcp.tracking import track_tool
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -32,6 +33,7 @@ def register(mcp: FastMCP) -> None:
     """Register memory tools on the MCP server."""
 
     @mcp.tool()
+    @track_tool
     def memory_search(
         query: str,
         ctx: Context,
@@ -58,6 +60,7 @@ def register(mcp: FastMCP) -> None:
         return [_memory_to_dict(m) for m in results]
 
     @mcp.tool()
+    @track_tool
     def memory_save(
         content: str,
         ctx: Context,
@@ -107,6 +110,7 @@ def register(mcp: FastMCP) -> None:
         return _memory_to_dict(saved)
 
     @mcp.tool()
+    @track_tool
     def memory_list(
         ctx: Context,
         limit: int | None = None,
@@ -127,6 +131,7 @@ def register(mcp: FastMCP) -> None:
         return [_memory_to_dict(m) for m in results]
 
     @mcp.tool()
+    @track_tool
     def memory_pin(
         memory_id: str,
         ctx: Context,

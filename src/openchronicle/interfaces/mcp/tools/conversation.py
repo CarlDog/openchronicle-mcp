@@ -14,6 +14,7 @@ from openchronicle.core.application.use_cases import (
 )
 from openchronicle.core.domain.models.conversation import Conversation, Turn
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.mcp.tracking import track_tool
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -50,6 +51,7 @@ def register(mcp: FastMCP) -> None:
     """Register conversation tools on the MCP server."""
 
     @mcp.tool()
+    @track_tool
     def conversation_create(
         ctx: Context,
         title: str | None = None,
@@ -69,6 +71,7 @@ def register(mcp: FastMCP) -> None:
         return _convo_to_dict(convo)
 
     @mcp.tool()
+    @track_tool
     def conversation_list(
         ctx: Context,
         limit: int | None = None,
@@ -86,6 +89,7 @@ def register(mcp: FastMCP) -> None:
         return [_convo_to_dict(c) for c in convos]
 
     @mcp.tool()
+    @track_tool
     def conversation_history(
         conversation_id: str,
         ctx: Context,
@@ -109,6 +113,7 @@ def register(mcp: FastMCP) -> None:
         }
 
     @mcp.tool()
+    @track_tool
     async def conversation_ask(
         conversation_id: str,
         prompt: str,

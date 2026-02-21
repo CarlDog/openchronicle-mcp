@@ -34,6 +34,7 @@ class TelemetrySettings:
     memory_self_report_enabled: bool = False
     memory_self_report_max_ids: int = 20
     memory_self_report_strict: bool = False
+    mcp_tracking_enabled: bool = True
 
 
 @dataclass(frozen=True)
@@ -108,6 +109,10 @@ def load_telemetry_settings(
         memory_self_report_strict=parse_bool(
             env_override("OC_TELEMETRY_MEMORY_SELF_REPORT_STRICT", fc.get("memory_self_report_strict")),
             default=False,
+        ),
+        mcp_tracking_enabled=parse_bool(
+            env_override("OC_TELEMETRY_MCP_TRACKING_ENABLED", fc.get("mcp_tracking_enabled")),
+            default=True,
         ),
     )
 

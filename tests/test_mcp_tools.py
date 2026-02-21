@@ -120,6 +120,7 @@ class TestServerCreation:
             "conversation_history",
             "conversation_ask",
             "context_recent",
+            "tool_stats",
         ]
         assert sorted(tool_names) == sorted(expected)
 

@@ -1142,3 +1142,85 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort):
             (task_id, now, job_id),
         )
         self._commit_if_needed()
+
+    # ── MCP tool usage tracking ──────────────────────────────────────
+
+    def insert_mcp_tool_usage(
+        self,
+        *,
+        id: str,
+        tool_name: str,
+        started_at: str,
+        latency_ms: int,
+        success: bool,
+        error_type: str | None,
+        error_message: str | None,
+        created_at: str,
+    ) -> None:
+        """Record an MCP tool invocation for usage tracking."""
+        cur = self._conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO mcp_tool_usage (
+                id, tool_name, started_at, latency_ms, success,
+                error_type, error_message, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                id,
+                tool_name,
+                started_at,
+                latency_ms,
+                1 if success else 0,
+                error_type,
+                error_message,
+                created_at,
+            ),
+        )
+        self._commit_if_needed()
+
+    def get_mcp_tool_stats(
+        self,
+        tool_name: str | None = None,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Aggregate MCP tool usage stats, grouped by tool_name.
+
+        Returns list of dicts with: tool_name, call_count, avg_latency_ms,
+        max_latency_ms, error_count, last_called_at.
+        """
+        sql = """
+            SELECT
+                tool_name,
+                COUNT(*) AS call_count,
+                CAST(AVG(latency_ms) AS INTEGER) AS avg_latency_ms,
+                MAX(latency_ms) AS max_latency_ms,
+                SUM(CASE WHEN success = 0 THEN 1 ELSE 0 END) AS error_count,
+                MAX(created_at) AS last_called_at
+            FROM mcp_tool_usage
+        """
+        conditions: list[str] = []
+        params: list[str] = []
+        if tool_name:
+            conditions.append("tool_name = ?")
+            params.append(tool_name)
+        if since:
+            conditions.append("created_at >= ?")
+            params.append(since)
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+        sql += " GROUP BY tool_name ORDER BY call_count DESC"
+
+        cur = self._conn.cursor()
+        rows = cur.execute(sql, params).fetchall()
+        return [
+            {
+                "tool_name": row[0],
+                "call_count": row[1],
+                "avg_latency_ms": row[2],
+                "max_latency_ms": row[3],
+                "error_count": row[4],
+                "last_called_at": row[5],
+            }
+            for row in rows
+        ]
