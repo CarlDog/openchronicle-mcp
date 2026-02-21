@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-17
 **Branch:** `refactor/new-core-from-scratch`
-**Revision:** 24 (MoE execution strategy: consensus scoring, CLI/MCP --moe, 32 new tests)
+**Revision:** 27 (MCP/MoE usage tracking, hexagonal architecture enforcement)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (883 unit/functional, 20 real-world integration, 14 Discord
+Tests are strong (886 unit/functional, 22 real-world integration, 14 Discord
 integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
 daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
@@ -77,9 +77,11 @@ vs generic `OSError` distinction since Windows doesn't raise `ProcessLookupError
 MoE (Mixture-of-Experts) execution strategy is implemented — Jaccard-based
 consensus scoring, `--moe` CLI/MCP flag, quality pool parallel execution, 32 tests.
 MCP server (Decision #5) is implemented — unblocks Goose + Serena triangle, VS
-Code integration, and any MCP-compatible client.
+Code integration, and any MCP-compatible client. MCP tool usage tracking and MoE
+usage tracking provide operational observability — dedicated tables, aggregate
+stats queries, `tool_stats` and `moe_stats` MCP tools.
 
-**Overall: Core feature-complete, Discord + MCP interfaces operational, MoE consensus execution implemented, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment.**
+**Overall: Core feature-complete, Discord + MCP interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment.**
 
 ---
 
@@ -160,7 +162,7 @@ validates against live providers (OpenAI, Anthropic).
 |-----------|--------|----------|
 | **5 LLM providers** (OpenAI, Anthropic, Groq, Gemini, Ollama) | Working | Async-native adapters, contract tests |
 | **Provider routing** (pools, fallback, NSFW, budget-aware) | Working | 1,278-line test suite |
-| **SQLite persistence** (11 tables, 58 methods, WAL mode) | Working | Handles tasks, conversations, memory, events, scheduled jobs, delete + cascade operations |
+| **SQLite persistence** (13 tables, 58 methods, WAL mode) | Working | Handles tasks, conversations, memory, events, scheduled jobs, delete + cascade, MCP/MoE usage tracking |
 | **Hash-chained events** (SHA256, prev_hash → hash) | Working | Verification + replay services |
 | **Privacy gate** (6 PII categories, Luhn validation) | Working | Rule-based, provider-aware |
 | **Interaction routing** (rule + hybrid ML assist) | Working | NSFW scoring, mode detection |
@@ -174,8 +176,8 @@ validates against live providers (OpenAI, Anthropic).
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
 | **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, PID file guard, config from `core.json`, 71 tests |
-| **MCP server interface** (14 tools, FastMCP, stdio + SSE) | Working | Memory, conversation, context, health tools; lazy import guard; posture-enforced isolation; 40 unit + 7 posture tests |
-| **Test suite** (827 unit/functional, 20 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 13 test categories + Discord + MCP, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest |
+| **MCP server interface** (14 tools, FastMCP, stdio + SSE) | Working | Memory, conversation, context, system tools (health, tool_stats, moe_stats); `@track_tool` decorator; lazy import guard; posture-enforced isolation |
+| **Test suite** (886 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 13 test categories + Discord + MCP, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
 
 ### Architecture (Enforced and Clean)
 
@@ -189,10 +191,10 @@ domain/ (models, ports, services)
 infrastructure/ (LLM adapters, SQLite, privacy, router assist, wiring)
 ```
 
-Boundary discipline enforced by `test_hexagonal_boundaries.py` (4 tests) and
-`test_architectural_posture.py` (26 tests): domain imports nothing outward,
+Boundary discipline enforced by `test_hexagonal_boundaries.py` (5 tests) and
+`test_architectural_posture.py` (24 tests): domain imports nothing outward,
 application imports nothing from infrastructure, core imports nothing from
-Discord or MCP. Composition root (`CoreContainer`) lives in `infrastructure/wiring/`.
+any interface layer. Composition root (`CoreContainer`) lives in `infrastructure/wiring/`.
 
 Enforced by: `test_hexagonal_boundaries.py`, `test_core_agnosticism.py`,
 `test_policies_purity.py`. Domain has zero infrastructure imports. Application has
@@ -389,7 +391,7 @@ business logic. This is correct architecture — not everything needs to be comp
 
 | File | Lines | Complexity |
 |------|-------|------------|
-| `ask_conversation.py` | 758 | Full conversation turn orchestration |
+| `ask_conversation.py` | 936 | Full conversation turn orchestration |
 | `smoke_live.py` | 360 | End-to-end provider testing |
 | `task_once.py` | 333 | Task execution with error handling |
 | `selftest_run.py` | 330 | Comprehensive workflow testing |
@@ -400,7 +402,7 @@ business logic. This is correct architecture — not everything needs to be comp
 
 **Concern:** The boundary between "what belongs in a use case" vs "what belongs in
 the orchestrator" is unclear. `run_task.py` is 28 lines (pure forwarding) while
-`ask_conversation.py` is 758 lines (full orchestration). The orchestrator also owns
+`ask_conversation.py` is 936 lines (full orchestration). The orchestrator also owns
 built-in handler logic that could be use cases.
 
 ### Domain Layer (13 models, 8 ports, 3 services)
@@ -413,17 +415,17 @@ Clean and well-typed. Key models:
 - **`BudgetPolicy`, `TaskRetryPolicy`** — Policy-as-data pattern
 - **`InteractionHint`, `RouterAssistResult`** — Routing decision outputs
 
-Ports define clean contracts: `StoragePort` (34+ methods), `ConversationStorePort`
+Ports define clean contracts: `StoragePort` (38 methods), `ConversationStorePort`
 (12 methods, including cascade delete), `MemoryStorePort` (7 methods, including
 delete with turn reference cleanup), `LLMPort` (2 methods), plus single-method
 ports for routing, privacy, and plugin hosting.
 
-**Concern:** `StoragePort` at 28+ abstract methods is doing too much. The task tree
+**Concern:** `StoragePort` at 38 abstract methods is doing too much. The task tree
 navigation methods feel like read-model concerns that could be a separate port.
 
 ### Infrastructure Layer
 
-**Complete:** SQLite persistence (10 tables, crash recovery, transactions), privacy
+**Complete:** SQLite persistence (13 tables, crash recovery, transactions), privacy
 gate (6 PII categories), rule routing (NSFW + mode detection), hybrid routing
 (rule + ML), linear router assist (logistic regression), event logger (hash chains),
 file-based configuration (single `core.json` with three-layer precedence:
@@ -432,7 +434,7 @@ limits, capabilities, cost tracking, and performance metadata; per-plugin JSON c
 
 **Stub only:** ONNX router assist (intentional placeholder).
 
-### Test Suite (123 files, 827 unit/functional + 20 real-world integration + 14 Discord integration + 6 concurrency stress)
+### Test Suite (121 files, 886 unit/functional + 22 real-world integration + 14 Discord integration + 6 concurrency stress)
 
 Well-organized into 12 categories: business logic (23), CLI/RPC (23), hygiene (11),
 infrastructure (11), contract (8), policy (5), memory (5), architecture guard (4),
@@ -682,9 +684,9 @@ imports lazy, confined to `interfaces/mcp/`. Enforced by posture tests.
 | `interfaces/cli/commands/db.py` | ~170 | DB maintenance CLI | New (info, vacuum, backup, stats) |
 | `interfaces/cli/stdio.py` | ~200 | RPC dispatch | Clean (handlers extracted) |
 | `services/orchestrator.py` | 927 | Task orchestration | Clean (phases decomposed) |
-| `persistence/sqlite_store.py` | ~1,150 | All persistence | Clean (mappers extracted, delete + cascade, scheduled jobs) |
+| `persistence/sqlite_store.py` | ~1,332 | All persistence | Clean (mappers extracted, delete + cascade, scheduled jobs, MCP/MoE tracking) |
 | `persistence/row_mappers.py` | ~180 | Row → domain model | Clean |
-| `use_cases/ask_conversation.py` | 832 | Conversation logic | Clean (prepare/finalize pipeline) |
+| `use_cases/ask_conversation.py` | ~936 | Conversation logic | Clean (prepare/finalize pipeline, MoE recording) |
 | `infrastructure/llm/provider_facade.py` | ~291 | Provider routing | Clean |
 | `application/routing/router_policy.py` | 236 | Route decisions | Clean |
 | `domain/ports/llm_port.py` | 146 | LLM contract | Clean (includes streaming) |
