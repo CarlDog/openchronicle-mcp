@@ -167,10 +167,11 @@ class TestRecordMoeUsage:
         # Only 1 successful expert's tokens counted
         assert stats[0]["avg_total_tokens"] == 30
 
-    def test_no_insert_method_is_noop(self) -> None:
-        storage = MagicMock(spec=[])  # No insert_moe_usage attribute
+    def test_persistence_failure_swallowed(self) -> None:
+        storage = MagicMock()
+        storage.insert_moe_usage.side_effect = RuntimeError("db gone")
         moe_result = _make_moe_result()
-        # Should not raise
+        # Should not raise — tracking must never break a turn
         _record_moe_usage(storage, moe_result, "convo-1")
 
 

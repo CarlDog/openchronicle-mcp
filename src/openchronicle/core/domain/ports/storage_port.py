@@ -141,3 +141,25 @@ class StoragePort(ABC):
 
     @abstractmethod
     def update_scheduled_job_last_task(self, job_id: str, task_id: str) -> None: ...
+
+    # ── Usage tracking ───────────────────────────────────────────────
+
+    @abstractmethod
+    def insert_moe_usage(
+        self,
+        *,
+        id: str,
+        conversation_id: str,
+        expert_count: int,
+        successful_count: int,
+        agreement_ratio: float,
+        winner_provider: str,
+        winner_model: str,
+        winner_consensus_score: float,
+        total_latency_ms: int,
+        total_input_tokens: int,
+        total_output_tokens: int,
+        total_tokens: int,
+        failure_count: int,
+        created_at: str,
+    ) -> None: ...

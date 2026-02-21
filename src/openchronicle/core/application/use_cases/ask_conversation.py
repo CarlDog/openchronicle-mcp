@@ -533,10 +533,6 @@ def _record_moe_usage(
     try:
         import uuid
 
-        insert = getattr(storage, "insert_moe_usage", None)
-        if insert is None:
-            return
-
         experts = moe_result.experts
         successful = [e for e in experts if e.error is None]
 
@@ -548,7 +544,7 @@ def _record_moe_usage(
         # Wall-clock = max latency (parallel execution)
         total_latency = max((e.latency_ms or 0) for e in experts) if experts else 0
 
-        insert(
+        storage.insert_moe_usage(
             id=uuid.uuid4().hex,
             conversation_id=conversation_id,
             expert_count=len(experts),

@@ -1,9 +1,10 @@
 """Test hexagonal architecture boundaries.
 
-Enforces three boundaries:
+Enforces four boundaries:
 1. Domain layer must not import from application or infrastructure.
 2. Application layer must not import from infrastructure.
-3. Core (domain + application + infrastructure) must not import from interfaces.discord.
+3. Core (domain + application + infrastructure) must not import from any interface.
+4. Per-interface tests for Discord and MCP (catch library imports too).
 """
 
 from __future__ import annotations
@@ -86,6 +87,30 @@ def test_application_layer_has_no_infrastructure_imports() -> None:
 
     if violations:
         msg = "Application layer has forbidden infrastructure imports:\n" + "\n".join(f"  - {v}" for v in violations)
+        raise AssertionError(msg)
+
+
+def test_core_has_no_interfaces_imports() -> None:
+    """
+    Core layers must not import from any interfaces module.
+
+    Interfaces (CLI, Discord, MCP, RPC) are driving adapters that depend
+    on core, not the reverse. This catches any current or future interface
+    leaking into core.
+    """
+    src_root = Path(__file__).parent.parent / "src"
+    core_path = src_root / "openchronicle" / "core"
+
+    violations = _scan_layer_for_forbidden_imports(
+        core_path,
+        [
+            "openchronicle.interfaces",
+        ],
+        src_root=src_root,
+    )
+
+    if violations:
+        msg = "Core has forbidden interfaces imports:\n" + "\n".join(f"  - {v}" for v in violations)
         raise AssertionError(msg)
 
 
