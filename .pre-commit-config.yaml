@@ -38,7 +38,7 @@ repos:
         name: Lint Markdown with markdownlint-cli2
         args: [--fix]
         types: [markdown]
-        exclude: ^(node_modules|\.venv|v1\.reference)/
+        exclude: ^(node_modules|\.venv|v1\.reference|\.pytest_cache)/
 
   # Secret Scanning - Gitleaks
   - repo: https://github.com/gitleaks/gitleaks
