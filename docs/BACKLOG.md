@@ -224,9 +224,46 @@ strategy (like streaming vs non-streaming), not a stateless handler.
 
 ---
 
-## Priority 6 — IDE / Developer Platform Integrations
+## Priority 6 — Memory Enhancement
 
-### 6.1 VS Code Copilot SDK Integration
+### 6.1 Memory v1 (Embeddings / Semantic Search)
+
+**Status:** 🔴 Not Started
+**Effort:** Medium-Large
+**Classification:** Core enhancement (upgrades existing `MemoryStorePort`)
+
+Memory v0 uses keyword-based search — functional but limited. Memory v1
+introduces embedding-based semantic search for higher recall and relevance.
+
+**Why core, not plugin:** Memory is the foundational product feature — OC
+exists because chat context dies between sessions. Improving retrieval
+quality affects every conversation turn. The memory port surface
+(`MemoryStorePort`) is already in core; embeddings enhance it.
+
+**Requirements:**
+
+- [ ] Embedding generation (per memory item, on save)
+- [ ] Vector similarity search (cosine or dot product)
+- [ ] Hybrid retrieval: semantic search + existing keyword search
+- [ ] Embedding provider abstraction (local vs API-based)
+- [ ] Incremental re-embedding on memory update
+- [ ] Storage: embeddings table or extension to existing memory table
+
+**Open questions (decide at implementation time):**
+
+- Embedding provider: local (sentence-transformers) vs API (OpenAI embeddings)?
+- Storage: SQLite with vector extension (sqlite-vec) vs separate vector store?
+- Retrieval strategy: semantic-only, keyword-only, or hybrid scoring?
+
+**Context:** Decision #3 in `docs/CODEBASE_ASSESSMENT.md` established memory
+self-report as v0 baseline. Memory v1 is the planned upgrade path. Self-report
+data collected now informs retrieval quality when embeddings are added.
+
+---
+
+## Priority 7 — IDE / Developer Platform Integrations
+
+### 7.1 VS Code Copilot SDK Integration
 
 **Status:** 🔴 Not Started
 **Effort:** Medium
@@ -242,7 +279,7 @@ option if deeper IDE integration is needed.
 - [ ] Authenticate explicitly (user-managed)
 - [ ] Sanitize payloads / respect PII gate
 
-### 6.2 Goose (Block) Integration (MCP Client)
+### 7.2 Goose (Block) Integration (MCP Client)
 
 **Status:** 🔴 Not Started
 **Effort:** Low (once OC MCP server exists)
@@ -303,9 +340,9 @@ prerequisite for both approaches.
 
 ---
 
-## Priority 7 — Platform Infrastructure
+## Priority 8 — Platform Infrastructure
 
-### 7.1 Private Git Server Integration
+### 8.1 Private Git Server Integration
 
 **Status:** 🔴 Not Started
 **Effort:** Medium
@@ -390,6 +427,7 @@ prerequisite for both approaches.
 
 | Issue                               | Location                               | Priority |
 | ----------------------------------- | -------------------------------------- | -------- |
+| Ollama token counts are estimates   | `infrastructure/llm/ollama_adapter.py` | Low      |
 | ~~Unicode encoding on Windows CLI~~ | `interfaces/cli/main.py`               | ✅ Fixed |
 | ~~Test subprocess PATH issue~~      | `tests/test_task_submit_rpc.py`        | ✅ Fixed |
 | ~~Docker acceptance JSON escaping~~ | `tools/docker/acceptance.ps1`          | ✅ Fixed |
@@ -420,36 +458,41 @@ Recommended order based on dependencies:
 
 3. OC MCP Server (P2) ✅
    └── Core interface in interfaces/mcp/
-   └── 12 tools, maps to existing ports/use cases
+   └── 14 tools, maps to existing ports/use cases
    └── Unblocks: Goose, VS Code, Claude Desktop, any MCP client
 
-4. Security Scanner Plugin (P3)
+4. Mixture-of-Experts (P5) ✅
+   └── Core execution strategy in application/services/
+   └── Jaccard consensus, --moe CLI/MCP flag, 32 tests
+
+5. Security Scanner Plugin (P3)
    └── Runs via scheduler service
    └── Safety rail for dev agent
 
-5. Goose Integration (P6.2) ← MOVED UP (unblocked by MCP server)
+6. Goose Integration (P7.2) ← MOVED UP (unblocked by MCP server)
    └── MCP client connecting to OC MCP + Serena MCP
    └── No custom code — just config
 
-6. HTTP API (Infrastructure)
+7. Memory v1 — Embeddings (P6)
+   └── Semantic search for memory retrieval
+   └── Core enhancement to MemoryStorePort
+
+8. HTTP API (Infrastructure)
    └── Web integrations
    └── External tool access
 
-7. Dev Agent Runner (P4.1)
+9. Dev Agent Runner (P4.1)
    └── Uses scheduler + scanner
    └── Sandboxed execution
    └── Upgrade path: OC orchestrates Goose
 
-8. Serena MCP in Sandbox (P4.2)
-   └── Inside sandbox runner only
+10. Serena MCP in Sandbox (P4.2)
+    └── Inside sandbox runner only
 
-9. VS Code Copilot SDK (P6.1)
-   └── MCP client or custom RPC
+11. VS Code Copilot SDK (P7.1)
+    └── MCP client or custom RPC
 
-10. Mixture-of-Experts (P5)
-    └── Optional advanced feature
-
-11. Private Git Server (P7)
+12. Private Git Server (P8)
     └── Platform infrastructure
 ```
 

@@ -159,9 +159,43 @@ See `docs/BACKLOG.md` section 5.1 for full requirements.
 
 ---
 
-## Priority 5 — IDE / Developer platform integrations
+## Priority 5 — V1 Feature Rebuilds (Plugins)
 
-### 5.1 VS Code / Copilot SDK Integration (MCP Client — Not a Plugin)
+### 5.1 Storytelling Plugin Suite
+
+**Status:** 🔴 Not Started (demo handler exists in `plugins/storytelling/`)
+**Effort:** Large
+**Reference:** `v1.reference/` directory contains the full v1 implementation
+
+V1 was a comprehensive narrative AI engine. V2 stripped to domain-agnostic core.
+The v1 features belong in a plugin suite built on v2's stable foundation.
+
+**V1 features to rebuild as plugins:**
+
+- **Character management** — entity tracking, stats, behavior engine, interaction dynamics
+- **Scene/timeline management** — scene persistence, timeline navigation, rollback
+- **Narrative engines** — consistency checker, emotional analyzer, response planner
+- **Game mechanics** — dice engine, narrative branching
+- **Content analysis** — detection, extraction, classification (NLP pipeline)
+- **Image generation** — multi-provider orchestrator, style presets, character portraits
+- **Import system** — storypack orchestrator, multi-phase import with AI-assisted analysis
+- **Bookmark system** — scene bookmarking, chapters, navigation
+
+**Approach:** Each subsystem can be an independent plugin or grouped into a
+storytelling suite. The `v1.reference/` directory serves as both design reference
+and implementation roadmap. Rebuild incrementally — character + scene management
+first (highest user value), then narrative engines, then image generation.
+
+**Plugin API note:** Some of these (character memory, scene state) need persistent
+storage beyond what the current plugin API provides. Options: use OC's memory
+system for persistence, extend the plugin context, or promote to core services
+if the plugin API proves insufficient (same pattern as scheduler/Discord).
+
+---
+
+## Priority 6 — IDE / Developer platform integrations
+
+### 6.1 VS Code / Copilot SDK Integration (MCP Client — Not a Plugin)
 
 **Status:** Reclassified per Decision #5 (MCP-first integration strategy,
 2026-02-20). VS Code supports MCP servers natively. Primary integration path
@@ -172,9 +206,9 @@ access to OC's persistent memory and conversation capabilities. Same mechanism
 as the Goose integration. A custom Copilot SDK integration is a secondary
 option only if deeper IDE-specific features are needed.
 
-See `docs/BACKLOG.md` section 6.1 for requirements.
+See `docs/BACKLOG.md` section 7.1 for requirements.
 
-### 5.2 Goose Integration (MCP Client — Not a Plugin)
+### 6.2 Goose Integration (MCP Client — Not a Plugin)
 
 **Status:** Reclassified per Decision #5 (MCP-first integration strategy,
 2026-02-20). Goose supports MCP servers natively. No custom Goose extension
@@ -184,14 +218,14 @@ or OC plugin needed.
 forming the triangle: persistent memory (OC) + code understanding (Serena) +
 agent execution (Goose). Zero custom glue code.
 
-See `docs/BACKLOG.md` section 6.2 and `docs/integrations/mcp_server_spec.md`
+See `docs/BACKLOG.md` section 7.2 and `docs/integrations/mcp_server_spec.md`
 for full details.
 
 ---
 
-## Priority 6 — Platform infrastructure (optional, enabling)
+## Priority 7 — Platform infrastructure (optional, enabling)
 
-### 6.1 Private Git Server (External Infrastructure)
+### 7.1 Private Git Server (External Infrastructure)
 
 **Problem:** Keep code “off the net” while enabling safe automated tooling to work on repos.
 
@@ -214,8 +248,8 @@ because they are foundational:
 
 - **Scheduler service** — `application/services/scheduler.py` (52+ tests)
 - **Discord interface** — `interfaces/discord/` (60 tests, optional extra)
-- **OC MCP server** — `interfaces/mcp/` (Decision #5, spec'd not yet built)
-- **MoE mode** — `application/services/` (needs LLMPort + routing, not stateless)
+- **OC MCP server** — `interfaces/mcp/` (Decision #5, 14 tools, stdio + SSE)
+- **MoE mode** — `application/services/moe_execution.py` (Jaccard consensus, 32 tests)
 - **Router assist seam + local classifier baseline**
 - **Privacy gate / PII controls + override**
 - **Deterministic metrics surface + telemetry hooks**
@@ -234,14 +268,15 @@ External clients (not plugins, not core — compose via MCP or RPC):
 
 1. ~~**Scheduler service**~~ ✅ (core — `application/services/scheduler.py`)
 2. ~~**Discord interface**~~ ✅ (core — `interfaces/discord/`)
-3. **OC MCP server** (core — `interfaces/mcp/`, Decision #5)
-4. **Security scanner plugin** (runs via scheduler service)
-5. **Goose integration** (MCP client — unblocked by #3, config only)
-6. **Sandbox dev-agent runner** (uses scheduler + scanner as safety rails)
-7. **Serena MCP capabilities inside sandbox runner**
-8. **Mixture-of-experts mode** (core — `application/services/`, optional)
-9. **VS Code / Copilot SDK** (MCP client — unblocked by #3)
-10. **Private Git server integration** (platform + sandbox workflows)
+3. ~~**OC MCP server**~~ ✅ (core — `interfaces/mcp/`, 14 tools)
+4. ~~**Mixture-of-experts mode**~~ ✅ (core — `application/services/moe_execution.py`)
+5. **Security scanner plugin** (runs via scheduler service)
+6. **Goose integration** (MCP client — unblocked by #3, config only)
+7. **Storytelling plugin suite** (rebuild v1 features as plugins)
+8. **Sandbox dev-agent runner** (uses scheduler + scanner as safety rails)
+9. **Serena MCP capabilities inside sandbox runner**
+10. **VS Code / Copilot SDK** (MCP client — unblocked by #3)
+11. **Private Git server integration** (platform + sandbox workflows)
 
 See `docs/BACKLOG.md` for the authoritative sequence with full details.
 

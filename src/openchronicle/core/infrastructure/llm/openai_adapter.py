@@ -46,9 +46,6 @@ class OpenAIAdapter(LLMPort):
             return None
         return openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
 
-    def is_configured(self) -> bool:
-        return bool(self.api_key)
-
     def _ensure_ready(self) -> None:
         if not self.api_key:
             raise LLMProviderError("OPENAI_API_KEY not set", status_code=401, error_code=MISSING_API_KEY)
