@@ -5,7 +5,7 @@ hexagonal architecture in Python 3.11+.
 
 - Source root: `src/openchronicle/`
 - Plugins: `plugins/`
-- Legacy snapshot: `v1.reference/` (read-only reference from v1)
+- Docker: `ghcr.io/openchronicle/core`
 
 ## Installation
 
@@ -83,3 +83,9 @@ Persistent volumes:
 | [RPC Protocol](docs/protocol/stdio_rpc_v1.md) | JSON-RPC stdio protocol spec |
 | [Backlog](docs/BACKLOG.md) | Feature and implementation backlog |
 | [CLAUDE.md](CLAUDE.md) | AI assistant instructions for this repo |
+
+## License
+
+[AGPL-3.0](LICENSE) — free to use, modify, and share. If you run a modified
+version as a network service, you must publish your source under the same
+license.
