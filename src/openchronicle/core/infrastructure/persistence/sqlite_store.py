@@ -684,7 +684,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         row = cur.execute("SELECT * FROM memory_items WHERE id=?", (memory_id,)).fetchone()
         return row_to_memory_item(row) if row else None
 
-    def list_memory(self, limit: int | None = None, pinned_only: bool = False) -> list[MemoryItem]:
+    def list_memory(self, limit: int | None = None, pinned_only: bool = False, offset: int = 0) -> list[MemoryItem]:
         cur = self._conn.cursor()
         sql = "SELECT * FROM memory_items"
         params: list[int] = []
@@ -697,6 +697,12 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         if limit is not None:
             sql += " LIMIT ?"
             params.append(limit)
+
+        if offset > 0:
+            if limit is None:
+                sql += " LIMIT -1"
+            sql += " OFFSET ?"
+            params.append(offset)
 
         rows = cur.execute(sql, params).fetchall()
         return [row_to_memory_item(r) for r in rows]
@@ -887,7 +893,11 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         project_id: str | None = None,
         include_pinned: bool = True,
         tags: list[str] | None = None,
+        offset: int = 0,
     ) -> list[MemoryItem]:
+        # Over-fetch to support offset
+        effective_top_k = top_k + offset
+
         # Pinned items — always included regardless of query
         pinned_items: list[MemoryItem] = []
         if include_pinned:
@@ -896,7 +906,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
             if tags:
                 pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
 
-        remaining = max(top_k - len(pinned_items), 0)
+        remaining = max(effective_top_k - len(pinned_items), 0)
 
         # Non-pinned search — FTS5 or fallback
         if self._fts5_active:
@@ -910,7 +920,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
 
         results: list[MemoryItem] = list(pinned_items)
         results.extend(non_pinned[:remaining])
-        return results
+        return results[offset : offset + top_k]
 
     # ---- helpers ----
     def _normalize_tokens(self, text: str) -> list[str]:

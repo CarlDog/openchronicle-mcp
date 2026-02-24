@@ -7,7 +7,14 @@ from typing import Any, cast
 
 from mcp.server.fastmcp import Context, FastMCP
 
-from openchronicle.core.application.use_cases import add_memory, list_memory, pin_memory, search_memory, update_memory
+from openchronicle.core.application.use_cases import (
+    add_memory,
+    delete_memory,
+    list_memory,
+    pin_memory,
+    search_memory,
+    update_memory,
+)
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.mcp.tracking import track_tool
@@ -30,6 +37,7 @@ def register(mcp: FastMCP) -> None:
         conversation_id: str | None = None,
         project_id: str | None = None,
         tags: list[str] | None = None,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """Search memory items by keyword.
 
@@ -48,6 +56,7 @@ def register(mcp: FastMCP) -> None:
             conversation_id=conversation_id,
             project_id=project_id,
             tags=tags,
+            offset=offset,
         )
         return [memory_to_dict(m) for m in results]
 
@@ -112,6 +121,7 @@ def register(mcp: FastMCP) -> None:
         ctx: Context,
         limit: int | None = None,
         pinned_only: bool = False,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         """List memory items.
 
@@ -124,6 +134,7 @@ def register(mcp: FastMCP) -> None:
             store=container.storage,
             limit=limit,
             pinned_only=pinned_only,
+            offset=offset,
         )
         return [memory_to_dict(m) for m in results]
 
@@ -179,3 +190,73 @@ def register(mcp: FastMCP) -> None:
             tags=tags,
         )
         return memory_to_dict(updated)
+
+    @mcp.tool()
+    @track_tool
+    def memory_get(
+        memory_id: str,
+        ctx: Context,
+    ) -> dict[str, Any]:
+        """Get a single memory item by ID.
+
+        Args:
+            memory_id: The ID of the memory to retrieve.
+        """
+        container = _get_container(ctx)
+        item = container.storage.get_memory(memory_id)
+        if item is None:
+            raise ValueError(f"Memory not found: {memory_id}")
+        return memory_to_dict(item)
+
+    @mcp.tool()
+    @track_tool
+    def memory_delete(
+        memory_id: str,
+        ctx: Context,
+    ) -> dict[str, str]:
+        """Delete a memory item permanently.
+
+        Args:
+            memory_id: The ID of the memory to delete.
+        """
+        container = _get_container(ctx)
+        delete_memory.execute(
+            store=container.storage,
+            emit_event=container.event_logger.append,
+            memory_id=memory_id,
+        )
+        return {"status": "ok", "memory_id": memory_id}
+
+    @mcp.tool()
+    @track_tool
+    def memory_stats(
+        ctx: Context,
+        project_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Get memory usage statistics.
+
+        Returns counts of total, pinned, and per-tag/per-source breakdowns.
+
+        Args:
+            project_id: Optional — restrict stats to a specific project.
+        """
+        container = _get_container(ctx)
+        all_items = container.storage.list_memory(limit=None, pinned_only=False)
+        if project_id:
+            all_items = [i for i in all_items if i.project_id == project_id]
+
+        pinned_count = sum(1 for i in all_items if i.pinned)
+        by_tag: dict[str, int] = {}
+        by_source: dict[str, int] = {}
+        for item in all_items:
+            for tag in item.tags:
+                by_tag[tag] = by_tag.get(tag, 0) + 1
+            source = item.source or "unknown"
+            by_source[source] = by_source.get(source, 0) + 1
+
+        return {
+            "total": len(all_items),
+            "pinned": pinned_count,
+            "by_tag": by_tag,
+            "by_source": by_source,
+        }

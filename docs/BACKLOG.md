@@ -107,6 +107,9 @@ use OC without custom integration code. See Decision #5 in assessment.
 - [x] `memory_pin` — pin/unpin a memory for persistent retrieval
 - [x] `memory_update` — update content and/or tags of an existing memory
 - [x] `memory_search` tag filter — AND-logic tag filtering on search results
+- [x] `memory_get` — retrieve a single memory item by ID
+- [x] `memory_delete` — delete a memory item (emits `memory.deleted` event)
+- [x] `memory_stats` — aggregate counts (total, pinned, by tag, by source)
 - [x] `conversation_ask` — send a message through full OC pipeline (async)
 - [x] `conversation_history` — retrieve recent turns
 - [x] `conversation_list` — list conversations
@@ -380,6 +383,20 @@ Memory improvements are tracked in two dimensions:
 - [x] Schema migration (`updated_at` column, idempotent ALTER TABLE)
 - [x] All interfaces: MCP tool, API endpoint, CLI command, serializer
 - [x] 19 new tests (11 update, 8 tag search)
+
+### 8.0.05 Memory Phase 1.1 (Interface Parity + Observability)
+
+**Status:** ✅ Implemented
+
+- [x] `delete_memory` use case — captures project_id before deletion, emits `memory.deleted` event
+- [x] MCP tools: `memory_get`, `memory_delete`, `memory_stats` (21→24 tools)
+- [x] API routes: `GET /memory/{id}`, `DELETE /memory/{id}`, `GET /memory/stats` (19→22 endpoints)
+- [x] Pagination — `offset` parameter on `list_memory()` and `search_memory()` (all interfaces)
+- [x] Source index — `idx_memory_source` on `memory_items(source)`
+- [x] Streaming telemetry fix — `_stream_turn()` now passes telemetry to `prepare_ask()` and `finalize_turn()`
+- [x] Observability events: `memory.search_completed` (latency, result count), `context.assembly_breakdown` (phase timing)
+- [x] Fixed `MetricsTracker` protocol conformance (`Sequence` → `Iterable` for input params)
+- [x] 27 new tests across 4 files
 
 ### 8.0.1 Memory Phase 2 (Context Assembly + Turn Recording)
 

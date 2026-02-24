@@ -6,6 +6,7 @@ import argparse
 
 from openchronicle.core.application.use_cases import (
     add_memory,
+    delete_memory,
     list_memory,
     pin_memory,
     search_memory,
@@ -69,6 +70,7 @@ def cmd_memory_list(args: argparse.Namespace, container: CoreContainer) -> int:
         store=container.storage,
         limit=args.limit,
         pinned_only=args.pinned_only,
+        offset=args.offset,
     )
     for item in items:
         tags_str = ",".join(item.tags)
@@ -117,6 +119,7 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
         project_id=args.project_id,
         include_pinned=args.include_pinned,
         tags=tag_list,
+        offset=args.offset,
     )
     for item in items:
         tags_str = ",".join(item.tags)
@@ -129,9 +132,13 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
     """Delete a memory item."""
     from openchronicle.interfaces.cli.commands._helpers import json_envelope, json_error_payload, print_json
 
-    # Verify exists
-    item = container.storage.get_memory(args.memory_id)
-    if item is None:
+    try:
+        delete_memory.execute(
+            store=container.storage,
+            emit_event=container.event_logger.append,
+            memory_id=args.memory_id,
+        )
+    except ValueError:
         if args.json:
             payload = json_envelope(
                 command="memory.delete",
@@ -146,8 +153,6 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
         print(f"Memory item not found: {args.memory_id}")
         return 1
 
-    container.storage.delete_memory(args.memory_id)
-
     if args.json:
         payload = json_envelope(
             command="memory.delete",
@@ -157,6 +162,9 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
         )
         print_json(payload)
         return 0
+
+    print(f"Deleted memory item {args.memory_id}")
+    return 0
 
     print(f"Deleted memory item {args.memory_id}")
     return 0

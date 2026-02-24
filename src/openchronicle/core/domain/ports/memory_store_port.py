@@ -13,7 +13,7 @@ class MemoryStorePort(ABC):
     def get_memory(self, memory_id: str) -> MemoryItem | None: ...
 
     @abstractmethod
-    def list_memory(self, limit: int | None = None, pinned_only: bool = False) -> list[MemoryItem]: ...
+    def list_memory(self, limit: int | None = None, pinned_only: bool = False, offset: int = 0) -> list[MemoryItem]: ...
 
     @abstractmethod
     def set_pinned(self, memory_id: str, pinned: bool) -> None: ...
@@ -41,6 +41,7 @@ class MemoryStorePort(ABC):
         project_id: str | None = None,
         include_pinned: bool = True,
         tags: list[str] | None = None,
+        offset: int = 0,
     ) -> list[MemoryItem]: ...
 
     @abstractmethod

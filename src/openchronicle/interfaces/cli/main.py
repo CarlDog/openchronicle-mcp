@@ -211,6 +211,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_list_cmd = memory_sub.add_parser("list", help="List memory items")
     memory_list_cmd.add_argument("--limit", type=int, default=None, help="Limit number of memories shown")
     memory_list_cmd.add_argument("--pinned-only", action="store_true", help="Show only pinned items")
+    memory_list_cmd.add_argument("--offset", type=int, default=0, help="Skip first N items")
 
     memory_show_cmd = memory_sub.add_parser("show", help="Show memory item")
     memory_show_cmd.add_argument("memory_id")
@@ -235,6 +236,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_group.add_argument("--include-pinned", dest="include_pinned", action="store_true")
     memory_search_group.add_argument("--no-include-pinned", dest="include_pinned", action="store_false")
     memory_search_cmd.set_defaults(include_pinned=True)
+    memory_search_cmd.add_argument("--offset", type=int, default=0, help="Skip first N results")
 
     memory_update_cmd = memory_sub.add_parser("update", help="Update a memory item")
     memory_update_cmd.add_argument("memory_id")

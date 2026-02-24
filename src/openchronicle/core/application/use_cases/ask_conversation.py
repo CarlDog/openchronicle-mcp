@@ -202,12 +202,28 @@ async def prepare_ask(
 
     messages: list[dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
 
+    memory_search_start = time.perf_counter() if perf_enabled else 0.0
     pinned_memory = memory_store.list_memory(limit=top_k_memory, pinned_only=True) if include_pinned_memory else []
     relevant_memory = memory_store.search_memory(
         prompt_text,
         top_k=top_k_memory,
         conversation_id=conversation_id,
         include_pinned=False,
+    )
+    memory_retrieval_ms = (time.perf_counter() - memory_search_start) * 1000 if perf_enabled else 0.0
+
+    emit_event(
+        Event(
+            project_id=conversation.project_id,
+            task_id=conversation.id,
+            type="memory.search_completed",
+            payload={
+                "query_len": len(prompt_text),
+                "result_count": len(relevant_memory),
+                "pinned_count": len(pinned_memory),
+                "latency_ms": round(memory_retrieval_ms, 2),
+            },
+        )
     )
 
     emit_event(
@@ -272,9 +288,7 @@ async def prepare_ask(
             retrieved_chars_total=retrieved_chars_total,
         )
 
-    if perf_enabled and telemetry is not None:
-        context_assemble_ms = (time.perf_counter() - context_started_at) * 1000
-        telemetry.record_perf(context_assemble_ms=context_assemble_ms)
+    context_build_start = time.perf_counter() if perf_enabled else 0.0
 
     router_hint = interaction_router.analyze(user_text=prompt_text, recent_turns=prior_turns)
     thresholds = _router_thresholds(interaction_router)
@@ -473,6 +487,23 @@ async def prepare_ask(
             "Return your normal answer. Additionally append a final line containing: "
             '<OC_META>{"used_memory_ids":[...]}</OC_META> where used_memory_ids includes only IDs from: '
             f"[{retrieved_ids_str}]."
+        )
+
+    if perf_enabled and telemetry is not None:
+        context_assemble_ms = (time.perf_counter() - context_started_at) * 1000
+        context_build_ms = (time.perf_counter() - context_build_start) * 1000
+        telemetry.record_perf(context_assemble_ms=context_assemble_ms)
+        emit_event(
+            Event(
+                project_id=conversation.project_id,
+                task_id=conversation.id,
+                type="context.assembly_breakdown",
+                payload={
+                    "memory_retrieval_ms": round(memory_retrieval_ms, 2),
+                    "context_build_ms": round(context_build_ms, 2),
+                    "total_ms": round(context_assemble_ms, 2),
+                },
+            )
         )
 
     return PreparedContext(

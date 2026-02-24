@@ -6,11 +6,17 @@ import argparse
 import asyncio
 
 from openchronicle.core.application.use_cases import ask_conversation, create_conversation
+from openchronicle.core.application.use_cases.ask_conversation import TelemetryRecorder
 from openchronicle.core.domain.ports.llm_port import LLMProviderError
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 
-async def _stream_turn(container: CoreContainer, conversation_id: str, prompt: str) -> str:
+async def _stream_turn(
+    container: CoreContainer,
+    conversation_id: str,
+    prompt: str,
+    telemetry: TelemetryRecorder | None = None,
+) -> str:
     """Stream a single turn, printing tokens as they arrive. Returns full text.
 
     Uses the full prepare/finalize pipeline so streaming gets memory retrieval,
@@ -34,6 +40,7 @@ async def _stream_turn(container: CoreContainer, conversation_id: str, prompt: s
         temperature=cs.temperature,
         privacy_gate=getattr(container, "privacy_gate", None),
         privacy_settings=getattr(container, "privacy_settings", None),
+        telemetry=telemetry,
     )
 
     collected: list[str] = []
@@ -56,6 +63,7 @@ async def _stream_turn(container: CoreContainer, conversation_id: str, prompt: s
         convo_store=container.storage,
         storage=container.storage,
         emit_event=container.event_logger.append,
+        telemetry=telemetry,
     )
 
     return turn.assistant_text
@@ -63,6 +71,10 @@ async def _stream_turn(container: CoreContainer, conversation_id: str, prompt: s
 
 async def chat_loop(container: CoreContainer, conversation_id: str, *, stream: bool = True, moe: bool = False) -> int:
     """Interactive chat REPL."""
+    from openchronicle.interfaces.cli.stdio import MetricsTracker
+
+    telemetry: TelemetryRecorder = MetricsTracker(telemetry=container.telemetry_settings)
+
     label = f"Chat ({conversation_id[:8]}...)"
     if moe:
         label += " [MoE]"
@@ -83,7 +95,7 @@ async def chat_loop(container: CoreContainer, conversation_id: str, *, stream: b
         try:
             if stream:
                 print()
-                await _stream_turn(container, conversation_id, stripped)
+                await _stream_turn(container, conversation_id, stripped, telemetry=telemetry)
             else:
                 cs = container.conversation_settings
                 turn = await ask_conversation.execute(
@@ -104,6 +116,7 @@ async def chat_loop(container: CoreContainer, conversation_id: str, *, stream: b
                     allow_pii=False,
                     privacy_gate=getattr(container, "privacy_gate", None),
                     privacy_settings=getattr(container, "privacy_settings", None),
+                    telemetry=telemetry,
                     moe=moe,
                 )
                 print(f"\n{turn.assistant_text}")

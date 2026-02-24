@@ -8,7 +8,14 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from openchronicle.core.application.use_cases import add_memory, list_memory, pin_memory, search_memory, update_memory
+from openchronicle.core.application.use_cases import (
+    add_memory,
+    delete_memory,
+    list_memory,
+    pin_memory,
+    search_memory,
+    update_memory,
+)
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.deps import get_container
@@ -27,6 +34,7 @@ def memory_search(
     conversation_id: str | None = None,
     project_id: str | None = None,
     tags: str | None = None,
+    offset: int = 0,
 ) -> list[dict[str, Any]]:
     """Search memory items by keyword.
 
@@ -40,8 +48,36 @@ def memory_search(
         conversation_id=conversation_id,
         project_id=project_id,
         tags=tag_list,
+        offset=offset,
     )
     return [memory_to_dict(m) for m in results]
+
+
+@router.get("/stats")
+def memory_stats(
+    container: ContainerDep,
+    project_id: str | None = None,
+) -> dict[str, Any]:
+    """Get memory usage statistics."""
+    all_items = list_memory.execute(store=container.storage, limit=None, pinned_only=False)
+    if project_id:
+        all_items = [i for i in all_items if i.project_id == project_id]
+
+    pinned_count = sum(1 for i in all_items if i.pinned)
+    by_tag: dict[str, int] = {}
+    by_source: dict[str, int] = {}
+    for item in all_items:
+        for tag in item.tags:
+            by_tag[tag] = by_tag.get(tag, 0) + 1
+        source = item.source or "unknown"
+        by_source[source] = by_source.get(source, 0) + 1
+
+    return {
+        "total": len(all_items),
+        "pinned": pinned_count,
+        "by_tag": by_tag,
+        "by_source": by_source,
+    }
 
 
 class MemorySaveRequest(BaseModel):
@@ -97,14 +133,45 @@ def memory_list(
     container: ContainerDep,
     limit: int | None = None,
     pinned_only: bool = False,
+    offset: int = 0,
 ) -> list[dict[str, Any]]:
     """List memory items."""
     results = list_memory.execute(
         store=container.storage,
         limit=limit,
         pinned_only=pinned_only,
+        offset=offset,
     )
     return [memory_to_dict(m) for m in results]
+
+
+@router.get("/{memory_id}")
+def memory_get(
+    memory_id: str,
+    container: ContainerDep,
+) -> dict[str, Any]:
+    """Get a single memory item by ID."""
+    item = container.storage.get_memory(memory_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"Memory not found: {memory_id}")
+    return memory_to_dict(item)
+
+
+@router.delete("/{memory_id}")
+def memory_delete(
+    memory_id: str,
+    container: ContainerDep,
+) -> dict[str, str]:
+    """Delete a memory item permanently."""
+    try:
+        delete_memory.execute(
+            store=container.storage,
+            emit_event=container.event_logger.append,
+            memory_id=memory_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"status": "ok", "memory_id": memory_id}
 
 
 class MemoryPinRequest(BaseModel):

@@ -257,6 +257,8 @@ INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_memory_convo_created ON memory_items(conversation_id, created_at, id)",
     # Memory: optimize project ordering
     "CREATE INDEX IF NOT EXISTS idx_memory_project_created ON memory_items(project_id, created_at, id)",
+    # Memory: optimize source-based queries (e.g. list_memory_by_source)
+    "CREATE INDEX IF NOT EXISTS idx_memory_source ON memory_items(source)",
     # Scheduled jobs: optimize tick query (find due active jobs)
     "CREATE INDEX IF NOT EXISTS idx_scheduled_jobs_due ON scheduled_jobs(status, next_due_at, created_at, id)",
     # Scheduled jobs: optimize project listing

@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from collections import OrderedDict
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from io import TextIOBase
 from queue import Empty, Queue
@@ -229,8 +229,8 @@ class MetricsTracker:
     def record_memory_retrieval(
         self,
         *,
-        retrieved_ids: Sequence[str],
-        pinned_ids: Sequence[str],
+        retrieved_ids: Iterable[str],
+        pinned_ids: Iterable[str],
         retrieved_chars_total: int,
     ) -> None:
         if not self.memory_enabled():
@@ -254,7 +254,7 @@ class MetricsTracker:
                 retrieved_list
             )
 
-    def record_memory_self_report(self, *, used_ids: Sequence[str], valid: bool) -> None:
+    def record_memory_self_report(self, *, used_ids: Iterable[str], valid: bool) -> None:
         if not self.memory_enabled() or not self.memory_self_report_enabled():
             return
         if valid:

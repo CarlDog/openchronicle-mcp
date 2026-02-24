@@ -74,7 +74,7 @@ an error. `--force` overrides the check. Cross-platform: uses `PermissionError`
 vs generic `OSError` distinction since Windows doesn't raise `ProcessLookupError`.
 
 **HTTP API** (Decision #6) is implemented — FastAPI/uvicorn are core dependencies,
-19 REST endpoints mirroring the MCP tool surface, starts automatically with
+22 REST endpoints mirroring the MCP tool surface, starts automatically with
 `oc serve` in a daemon thread. Includes API key auth (timing-safe), per-client
 rate limiting (thread-safe sliding window), optional CORS, and proper HTTP error
 codes. Shared serializers (`interfaces/serializers.py`) eliminate duplication
@@ -92,7 +92,7 @@ Code integration, and any MCP-compatible client. MCP tool usage tracking and MoE
 usage tracking provide operational observability — dedicated tables, aggregate
 stats queries, `tool_stats` and `moe_stats` MCP tools.
 
-**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system enhanced with `memory_update` (partial update preserving identity) and tag-filtered search (AND logic). Capability-aware routing and media generation are next (Decision #7).**
+**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system enhanced with `memory_update`, tag-filtered search, full CRUD parity (get/delete/stats across all interfaces), pagination, and observability events (`memory.search_completed`, `context.assembly_breakdown`). Streaming telemetry fixed. Capability-aware routing and media generation are next (Decision #7).**
 
 ---
 
@@ -187,9 +187,9 @@ validates against live providers (OpenAI, Anthropic).
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
 | **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, PID file guard, config from `core.json`, 71 tests |
-| **MCP server interface** (21 tools, FastMCP, stdio + SSE) | Working | Memory, conversation, context, system, onboard, asset tools (health, tool_stats, moe_stats, onboard_git, asset_upload/list/get/link, memory_update); `@track_tool` decorator; lazy import guard; posture-enforced isolation |
+| **MCP server interface** (24 tools, FastMCP, stdio + SSE) | Working | Memory (save/search/list/pin/update/get/delete/stats), conversation, context, system, onboard, asset tools; `@track_tool` decorator; lazy import guard; posture-enforced isolation |
 | **Asset management** (filesystem storage, SHA-256 dedup, generic linking) | Working | Asset/AssetLink models, AssetStorePort, AssetFileStorage, upload/link use cases, 4 MCP tools, 4 CLI commands, 48 tests |
-| **HTTP API interface** (FastAPI, always-on daemon, 19 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51 tests |
+| **HTTP API interface** (FastAPI, always-on daemon, 22 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51+ tests |
 | **Test suite** (1069 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 14 test categories + Discord + MCP + Assets + HTTP API, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
 
 ### Architecture (Enforced and Clean)
@@ -293,7 +293,7 @@ surface. No backwards compatibility concerns. No production deployment yet.
 | ~~Docker hardening~~ | ✅ CI builds multi-arch image to `ghcr.io/openchronicle/core` on push to main |
 | ~~Scheduler~~ | ✅ Core service (`application/services/scheduler.py`, 53 tests) |
 | ~~Discord driver~~ | ✅ Interfaces driver (`interfaces/discord/`, 85 tests, optional extra) |
-| ~~OC MCP Server~~ | ✅ Interfaces driver (`interfaces/mcp/`, 16 tools, 40+7 tests, optional extra) |
+| ~~OC MCP Server~~ | ✅ Interfaces driver (`interfaces/mcp/`, 24 tools, 40+7 tests, optional extra) |
 
 ---
 
