@@ -12,6 +12,8 @@ from openchronicle.core.application.services.git_onboard import (
     filter_commits,
     format_cluster_for_synthesis,
 )
+from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.mcp.tracking import track_tool
@@ -53,7 +55,7 @@ def register(mcp: FastMCP) -> None:
         # Validate project
         project = container.storage.get_project(project_id)
         if project is None:
-            raise ValueError(f"Project not found: {project_id}")
+            raise NotFoundError(f"Project not found: {project_id}", code=PROJECT_NOT_FOUND)
 
         # Idempotency check
         store = container.storage

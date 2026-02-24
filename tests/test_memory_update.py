@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 
 from openchronicle.core.application.use_cases import update_memory
+from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
@@ -106,7 +108,7 @@ def test_created_at_unchanged_on_update(tmp_path: Path) -> None:
 
 def test_update_nonexistent_raises(tmp_path: Path) -> None:
     storage, event_logger, _ = _setup(tmp_path)
-    with pytest.raises(ValueError, match="Memory not found"):
+    with pytest.raises(NotFoundError, match="Memory not found"):
         update_memory.execute(
             store=storage,
             emit_event=event_logger.append,
@@ -117,7 +119,7 @@ def test_update_nonexistent_raises(tmp_path: Path) -> None:
 
 def test_neither_content_nor_tags_raises(tmp_path: Path) -> None:
     storage, event_logger, _ = _setup(tmp_path)
-    with pytest.raises(ValueError, match="At least one"):
+    with pytest.raises(DomainValidationError, match="At least one"):
         update_memory.execute(
             store=storage,
             emit_event=event_logger.append,

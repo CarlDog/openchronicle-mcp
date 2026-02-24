@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from openchronicle.core.application.services.orchestrator import OrchestratorService
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.project import Task
 
 
@@ -67,7 +68,7 @@ def execute(
         handler = orchestrator.handler_registry.get(task_type)
         if handler is None:
             registered_types = orchestrator.handler_registry.list_task_types()
-            raise ValueError(
+            raise DomainValidationError(
                 f"Unknown task type: {task_type}. Registered task types: {', '.join(sorted(registered_types)) or 'none'}"
             )
 

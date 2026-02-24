@@ -18,6 +18,7 @@ from openchronicle.core.application.config.provider_registry import (
 from openchronicle.core.application.config.provider_registry import (
     list_providers as registry_list_providers,
 )
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 
 
 def list_providers() -> list[dict[str, object]]:
@@ -89,7 +90,7 @@ def setup_provider(
     """
     provider = get_provider(provider_name)
     if provider is None:
-        raise ValueError(f"Unknown provider: {provider_name!r}")
+        raise DomainValidationError(f"Unknown provider: {provider_name!r}")
 
     models_dir = Path(config_dir) / "models"
     models_dir.mkdir(parents=True, exist_ok=True)

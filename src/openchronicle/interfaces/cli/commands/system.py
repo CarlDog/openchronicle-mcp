@@ -10,6 +10,7 @@ import sys
 
 from openchronicle.core.application.use_cases import init_config, init_runtime, provider_setup
 from openchronicle.core.domain.errors.error_codes import INVALID_JSON, INVALID_REQUEST
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.commands._helpers import json_envelope, json_error_payload, print_json
 from openchronicle.interfaces.cli.stdio import (
@@ -554,7 +555,7 @@ def _cmd_provider_setup(args: argparse.Namespace) -> int:
             api_key_env=api_key_env,
             models=model_filter,
         )
-    except ValueError as exc:
+    except (ValueError, DomainValidationError) as exc:
         print(str(exc))
         return 1
 

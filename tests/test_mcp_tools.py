@@ -10,6 +10,7 @@ import pytest
 
 mcp_mod = pytest.importorskip("mcp")  # noqa: F841
 
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError  # noqa: E402
 from openchronicle.core.domain.models.conversation import Conversation, Turn  # noqa: E402
 from openchronicle.core.domain.models.memory_item import MemoryItem  # noqa: E402
 from openchronicle.core.domain.models.project import Project  # noqa: E402
@@ -268,7 +269,7 @@ class TestMemorySave:
         register(mcp)
 
         tool_fn = mcp._tool_manager._tools["memory_save"].fn
-        with pytest.raises(ValueError, match="project_id is required"):
+        with pytest.raises(DomainValidationError, match="project_id is required"):
             tool_fn(content="Remember this", ctx=ctx)
 
 

@@ -10,6 +10,7 @@ import pytest
 from openchronicle.core.application.config.model_config import ModelConfigLoader
 from openchronicle.core.application.config.provider_registry import PROVIDERS
 from openchronicle.core.application.use_cases.provider_setup import setup_custom, setup_provider
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 
 
 @pytest.fixture()
@@ -86,7 +87,7 @@ class TestSetupProvider:
         assert "api_key_env" not in config["api_config"]
 
     def test_unknown_provider_raises(self, config_dir: str) -> None:
-        with pytest.raises(ValueError, match="Unknown provider"):
+        with pytest.raises(DomainValidationError, match="Unknown provider"):
             setup_provider("nonexistent", config_dir)
 
     def test_configs_loadable_by_model_config_loader(self, config_dir: str) -> None:

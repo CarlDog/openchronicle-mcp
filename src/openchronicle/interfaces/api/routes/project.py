@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from openchronicle.core.application.use_cases import create_project, list_projects
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -18,7 +18,7 @@ ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 
 
 class ProjectCreateRequest(BaseModel):
-    name: str
+    name: str = Field(min_length=1, max_length=200)
     metadata: dict[str, Any] | None = None
 
 

@@ -746,7 +746,7 @@ categorization, bill/subscription monitoring, and investment overview.
 Deferred items from fresh-eyes usability audit:
 
 | ID | Finding | Severity | Notes |
-|----|---------|----------|-------|
+| ---- | --------- | ---------- | ------- |
 | M1 | HTTP API has 19 endpoints, not 21 — delta is `search_turns` and `context_recent` as standalone MCP tool | Medium | Decide if API should gain these 2 endpoints |
 | M4 | ARCHITECTURE.md route section structure correct but endpoint count was wrong | Medium | Fixed in C1 pass |
 | M6 | Routing terminology inconsistent ("Router assist" vs "Router policy" vs "Smart routing") | Low | Context usually clarifies; glossary entry would help |
@@ -757,15 +757,15 @@ Deferred items from fresh-eyes usability audit:
 
 ### Known Issues
 
-| Issue                               | Location                               | Priority |
-| ----------------------------------- | -------------------------------------- | -------- |
-| FTS5 rebuild on every startup       | `infrastructure/persistence/sqlite_store.py` `_ensure_fts5()` | Low |
-| Ollama token counts are estimates   | `infrastructure/llm/ollama_adapter.py` | Low      |
-| ~~Unicode encoding on Windows CLI~~ | `interfaces/cli/main.py`               | ✅ Fixed |
-| ~~Test subprocess PATH issue~~      | `tests/test_task_submit_rpc.py`        | ✅ Fixed |
-| ~~Docker acceptance JSON escaping~~ | `tools/docker/acceptance.ps1`          | ✅ Fixed |
-| ~~docker-compose .env required~~    | `docker-compose.yml`                   | ✅ Fixed |
-| ~~Smoke test assertion too strict~~ | `tests/integration/test_smoke_live.py` | ✅ Fixed |
+| Issue                               | Location                                                      | Priority |
+| ----------------------------------- | ------------------------------------------------------------- | -------- |
+| FTS5 rebuild on every startup       | `infrastructure/persistence/sqlite_store.py _ensure_fts5()`   | Low      |
+| Ollama token counts are estimates   | `infrastructure/llm/ollama_adapter.py`                        | Low      |
+| ~~Unicode encoding on Windows CLI~~ | `interfaces/cli/main.py`                                      | ✅ Fixed |
+| ~~Test subprocess PATH issue~~      | `tests/test_task_submit_rpc.py`                               | ✅ Fixed |
+| ~~Docker acceptance JSON escaping~~ | `tools/docker/acceptance.ps1`                                 | ✅ Fixed |
+| ~~docker-compose .env required~~    | `docker-compose.yml`                                          | ✅ Fixed |
+| ~~Smoke test assertion too strict~~ | `tests/integration/test_smoke_live.py`                        | ✅ Fixed |
 
 ### Code Quality Enforcement
 

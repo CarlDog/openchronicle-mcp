@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from openchronicle.core.application.use_cases import link_asset, upload_asset
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -18,13 +18,13 @@ ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 
 
 class AssetUploadRequest(BaseModel):
-    project_id: str
-    source_path: str
-    filename: str | None = None
-    mime_type: str | None = None
-    link_target_type: str | None = None
-    link_target_id: str | None = None
-    link_role: str = "reference"
+    project_id: str = Field(min_length=1, max_length=200)
+    source_path: str = Field(min_length=1, max_length=4096)
+    filename: str | None = Field(default=None, max_length=255)
+    mime_type: str | None = Field(default=None, max_length=200)
+    link_target_type: str | None = Field(default=None, min_length=1, max_length=100)
+    link_target_id: str | None = Field(default=None, min_length=1, max_length=200)
+    link_role: str = Field(default="reference", min_length=1, max_length=100)
 
 
 @router.post("")
@@ -54,7 +54,7 @@ def asset_upload(
 def asset_list(
     project_id: str,
     container: ContainerDep,
-    limit: int | None = None,
+    limit: int | None = Query(default=None, ge=1, le=10_000),
 ) -> list[dict[str, Any]]:
     """List assets in a project."""
     assets = container.storage.list_assets(project_id, limit=limit)
@@ -77,9 +77,9 @@ def asset_get(
 
 
 class AssetLinkRequest(BaseModel):
-    target_type: str
-    target_id: str
-    role: str = "reference"
+    target_type: str = Field(min_length=1, max_length=100)
+    target_id: str = Field(min_length=1, max_length=200)
+    role: str = Field(default="reference", min_length=1, max_length=100)
 
 
 @router.post("/{asset_id}/link")

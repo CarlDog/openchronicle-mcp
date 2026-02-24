@@ -15,6 +15,9 @@ from openchronicle.core.application.use_cases import (
     search_memory,
     update_memory,
 )
+from openchronicle.core.domain.errors.error_codes import CONVERSATION_NOT_FOUND, MEMORY_NOT_FOUND
+from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.mcp.tracking import track_tool
@@ -91,11 +94,11 @@ def register(mcp: FastMCP) -> None:
         if resolved_project_id is None and conversation_id:
             convo = container.storage.get_conversation(conversation_id)
             if convo is None:
-                raise ValueError(f"Conversation not found: {conversation_id}")
+                raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
             resolved_project_id = convo.project_id
 
         if not resolved_project_id:
-            raise ValueError("project_id is required (provide directly or via conversation_id)")
+            raise DomainValidationError("project_id is required (provide directly or via conversation_id)")
 
         kwargs: dict[str, Any] = {
             "content": content,
@@ -205,7 +208,7 @@ def register(mcp: FastMCP) -> None:
         container = _get_container(ctx)
         item = container.storage.get_memory(memory_id)
         if item is None:
-            raise ValueError(f"Memory not found: {memory_id}")
+            raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
         return memory_to_dict(item)
 
     @mcp.tool()

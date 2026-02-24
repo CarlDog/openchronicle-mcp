@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 
 from openchronicle.core.application.use_cases import (
     ask_conversation,
@@ -24,7 +24,7 @@ ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 
 
 class ConversationCreateRequest(BaseModel):
-    title: str | None = None
+    title: str | None = Field(default=None, max_length=500)
 
 
 @router.post("")
@@ -45,7 +45,7 @@ def conversation_create(
 @router.get("")
 def conversation_list(
     container: ContainerDep,
-    limit: int | None = None,
+    limit: int | None = Query(default=None, ge=1, le=10_000),
 ) -> list[dict[str, Any]]:
     """List conversations, most recent first."""
     convos = list_conversations.execute(
@@ -59,7 +59,7 @@ def conversation_list(
 def conversation_history(
     conversation_id: str,
     container: ContainerDep,
-    limit: int | None = None,
+    limit: int | None = Query(default=None, ge=1, le=10_000),
 ) -> dict[str, Any]:
     """Retrieve the turn history for a conversation."""
     convo, turns = show_conversation.execute(
@@ -74,7 +74,7 @@ def conversation_history(
 
 
 class ConversationAskRequest(BaseModel):
-    prompt: str
+    prompt: str = Field(min_length=1, max_length=200_000)
     moe: bool = False
 
 
@@ -108,8 +108,8 @@ def context_recent(
     conversation_id: str,
     container: ContainerDep,
     query: str | None = None,
-    turn_limit: int = 5,
-    memory_limit: int = 5,
+    turn_limit: int = Query(default=5, ge=1, le=1000),
+    memory_limit: int = Query(default=5, ge=1, le=1000),
 ) -> dict[str, Any]:
     """Get recent context: conversation turns + relevant memories."""
     result: dict[str, Any] = {}

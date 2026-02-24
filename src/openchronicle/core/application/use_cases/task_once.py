@@ -7,6 +7,7 @@ from openchronicle.core.application.config.settings import PrivacyOutboundSettin
 from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.use_cases import ask_conversation
 from openchronicle.core.domain.errors.error_codes import INTERNAL_ERROR, INVALID_ARGUMENT
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.project import Event, Task, TaskStatus
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
 from openchronicle.core.domain.ports.interaction_router_port import InteractionRouterPort
@@ -59,7 +60,7 @@ async def _execute_task(
 
     try:
         if not isinstance(conversation_id, str) or not isinstance(prompt_text, str):
-            raise ValueError("Task payload missing conversation_id or prompt")
+            raise DomainValidationError("Task payload missing conversation_id or prompt")
 
         turn = await ask_conversation.execute(
             convo_store=convo_store,
@@ -239,11 +240,11 @@ async def execute_many(
     max_seconds: float = 0.0,
 ) -> dict[str, object]:
     if limit < 1:
-        raise ValueError("Limit must be at least 1")
+        raise DomainValidationError("Limit must be at least 1")
     if limit > 200:
         limit = 200
     if max_seconds < 0:
-        raise ValueError("max_seconds must be non-negative")
+        raise DomainValidationError("max_seconds must be non-negative")
 
     tasks = _collect_tasks(storage)
     eligible = _eligible_tasks(tasks, task_type)

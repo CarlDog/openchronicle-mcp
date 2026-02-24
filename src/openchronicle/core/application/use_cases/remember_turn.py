@@ -3,6 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from openchronicle.core.application.use_cases import add_memory
+from openchronicle.core.domain.errors.error_codes import CONVERSATION_NOT_FOUND
+from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
@@ -25,18 +28,18 @@ def execute(
 ) -> MemoryItem:
     conversation = convo_store.get_conversation(conversation_id)
     if conversation is None:
-        raise ValueError(f"Conversation not found: {conversation_id}")
+        raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
 
     turn = convo_store.get_turn_by_index(conversation_id, turn_index)
     if turn is None:
-        raise ValueError(f"Turn not found: conversation={conversation_id} index={turn_index}")
+        raise NotFoundError(f"Turn not found: conversation={conversation_id} index={turn_index}")
 
     if which == "user":
         content = turn.user_text
     elif which == "assistant":
         content = turn.assistant_text
     else:
-        raise ValueError("which must be 'user' or 'assistant'")
+        raise DomainValidationError("which must be 'user' or 'assistant'")
 
     item = MemoryItem(
         content=content,

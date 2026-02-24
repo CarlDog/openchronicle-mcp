@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import logging
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from starlette.requests import Request
 
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.config import HTTPConfig
@@ -46,6 +49,43 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
     from openchronicle.interfaces.api.middleware import register_middleware
 
     register_middleware(app, config)
+
+    # Register global exception handlers
+    from openchronicle.core.domain.exceptions import (
+        NotFoundError,
+    )
+    from openchronicle.core.domain.exceptions import (
+        ValidationError as DomainValidationError,
+    )
+
+    @app.exception_handler(NotFoundError)
+    async def not_found_handler(_request: Request, exc: NotFoundError) -> JSONResponse:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": str(exc), "code": exc.code},
+        )
+
+    @app.exception_handler(DomainValidationError)
+    async def validation_error_handler(_request: Request, exc: DomainValidationError) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": str(exc), "code": exc.code},
+        )
+
+    @app.exception_handler(FileNotFoundError)
+    async def file_not_found_handler(_request: Request, exc: FileNotFoundError) -> JSONResponse:
+        return JSONResponse(
+            status_code=400,
+            content={"detail": str(exc), "code": "FILE_NOT_FOUND"},
+        )
+
+    @app.exception_handler(Exception)
+    async def unhandled_exception_handler(_request: Request, exc: Exception) -> JSONResponse:
+        logger.error("Unhandled exception: %s\n%s", exc, traceback.format_exc())
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal server error", "code": "INTERNAL_ERROR"},
+        )
 
     # Register route modules
     from openchronicle.interfaces.api.routes import (

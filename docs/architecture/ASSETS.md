@@ -161,7 +161,7 @@ assets                          asset_links
 ### Indexes
 
 | Index | Table | Columns | Purpose |
-|-------|-------|---------|---------|
+| ------- | ------- | --------- | --------- |
 | `ux_assets_project_hash` | assets | project\_id, content\_hash | Dedup enforcement (unique per project) |
 | `idx_assets_project_created` | assets | project\_id, created\_at, id | List by project |
 | `idx_asset_links_asset` | asset\_links | asset\_id, created\_at, id | "What's linked to this asset?" |
@@ -172,7 +172,7 @@ assets                          asset_links
 Every operation leaves an auditable event:
 
 | Action | Event type | Key payload |
-|--------|-----------|-------------|
+| -------- | ----------- | ------------- |
 | New upload | `asset.created` | asset\_id, filename, mime\_type, size\_bytes, content\_hash |
 | Link created | `asset.linked` | asset\_id, link\_id, target\_type, target\_id, role |
 | Dedup + link | `asset.linked` | same as above + `dedup: true` |
@@ -180,7 +180,7 @@ Every operation leaves an auditable event:
 ## Key Files
 
 | File | Layer | Purpose |
-|------|-------|---------|
+| ------ | ------- | --------- |
 | `core/domain/models/asset.py` | Domain | `Asset` and `AssetLink` dataclasses |
 | `core/domain/ports/asset_store_port.py` | Domain | `AssetStorePort` ABC (8 methods) |
 | `core/application/services/asset_storage.py` | Application | `AssetFileStorage` -- filesystem ops, hashing |
@@ -196,7 +196,7 @@ The `target_type` / `target_id` pair is polymorphic -- any entity in the
 system can be a link target:
 
 | target\_type | Example use |
-|-------------|-------------|
+| ------------- | ------------- |
 | `project` | Project avatar or branding asset |
 | `conversation` | Reference material for a conversation |
 | `turn` | Image attached to a specific message |
@@ -207,7 +207,7 @@ system can be a link target:
 The `role` field captures directional semantics:
 
 | Role | Meaning |
-|------|---------|
+| ------ | --------- |
 | `input` | User-provided (inbound) |
 | `output` | System-generated (outbound) |
 | `reference` | Context/background material |

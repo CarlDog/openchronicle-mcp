@@ -58,7 +58,7 @@ Persistent volumes: `/data` (SQLite DB), `/config`, `/plugins`, `/output`.
 ## Interfaces
 
 | Interface | Entry point | Use case |
-|-----------|-------------|----------|
+| ----------- | ------------- | ---------- |
 | **CLI** | `oc chat`, `oc convo ask` | Interactive and scripted use |
 | **STDIO RPC** | `oc serve` / `oc rpc` | Programmatic integration |
 | **HTTP API** | Auto-starts with `oc serve` | REST clients, webhooks, web UIs |
@@ -68,7 +68,7 @@ Persistent volumes: `/data` (SQLite DB), `/config`, `/plugins`, `/output`.
 ## Supported Providers
 
 | Provider | Extra | Streaming | Tool Use |
-|----------|-------|-----------|----------|
+| ---------- | ------- | ----------- | ---------- |
 | OpenAI | `.[openai]` | Yes | Yes |
 | Anthropic | `.[anthropic]` | Yes | Yes |
 | Groq | `.[groq]` | Yes | Yes |
@@ -79,7 +79,7 @@ Persistent volumes: `/data` (SQLite DB), `/config`, `/plugins`, `/output`.
 ## Documentation
 
 | Document | Description |
-|----------|-------------|
+| ---------- | ------------- |
 | [Architecture](docs/architecture/ARCHITECTURE.md) | Hexagonal layers, event model, directory tree |
 | [CLI Commands](docs/cli/commands.md) | Full `oc` command reference |
 | [Environment Variables](docs/configuration/env_vars.md) | All ~60 configuration knobs |

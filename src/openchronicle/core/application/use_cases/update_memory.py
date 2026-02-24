@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
@@ -17,7 +18,7 @@ def execute(
     tags: list[str] | None = None,
 ) -> MemoryItem:
     if content is None and tags is None:
-        raise ValueError("At least one of content or tags must be provided")
+        raise DomainValidationError("At least one of content or tags must be provided")
 
     updated = store.update_memory(memory_id, content=content, tags=tags)
 

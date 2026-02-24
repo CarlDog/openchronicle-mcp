@@ -13,6 +13,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from openchronicle.core.domain.errors.error_codes import (
+    CONVERSATION_NOT_FOUND,
+    MEMORY_NOT_FOUND,
+    TASK_NOT_FOUND,
+)
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.asset import Asset, AssetLink
 from openchronicle.core.domain.models.conversation import Conversation, Turn
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -232,6 +238,8 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
             "UPDATE tasks SET status=?, updated_at=? WHERE id=?",
             (status, updated_at, task_id),
         )
+        if cur.rowcount == 0:
+            raise NotFoundError(f"Task not found: {task_id}", code=TASK_NOT_FOUND)
         self._commit_if_needed()
 
     def update_task_result(self, task_id: str, result_json: str, status: str) -> None:
@@ -241,6 +249,8 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
             "UPDATE tasks SET result_json=?, status=?, updated_at=? WHERE id=?",
             (result_json, status, updated_at, task_id),
         )
+        if cur.rowcount == 0:
+            raise NotFoundError(f"Task not found: {task_id}", code=TASK_NOT_FOUND)
         self._commit_if_needed()
 
     def update_task_error(self, task_id: str, error_json: str, status: str) -> None:
@@ -250,6 +260,8 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
             "UPDATE tasks SET error_json=?, status=?, updated_at=? WHERE id=?",
             (error_json, status, updated_at, task_id),
         )
+        if cur.rowcount == 0:
+            raise NotFoundError(f"Task not found: {task_id}", code=TASK_NOT_FOUND)
         self._commit_if_needed()
 
     def get_task(self, task_id: str) -> Task | None:
@@ -494,7 +506,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         cur = self._conn.cursor()
         row = cur.execute("SELECT mode FROM conversations WHERE id=?", (conversation_id,)).fetchone()
         if row is None:
-            raise ValueError(f"Conversation not found: {conversation_id}")
+            raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
         try:
             mode = row["mode"]
         except KeyError:
@@ -505,7 +517,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         cur = self._conn.cursor()
         cur.execute("UPDATE conversations SET mode=? WHERE id=?", (mode, conversation_id))
         if cur.rowcount == 0:
-            raise ValueError(f"Conversation not found: {conversation_id}")
+            raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
         self._commit_if_needed()
 
     def add_turn(self, turn: Turn) -> None:
@@ -589,7 +601,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
             cur = self._conn.cursor()
             row = cur.execute("SELECT memory_written_ids FROM turns WHERE id=?", (turn_id,)).fetchone()
             if row is None:
-                raise ValueError(f"Turn not found: {turn_id}")
+                raise NotFoundError(f"Turn not found: {turn_id}")
             raw_ids = row["memory_written_ids"] or "[]"
             try:
                 memory_ids = json.loads(raw_ids)
@@ -725,7 +737,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
             (1 if pinned else 0, memory_id),
         )
         if cur.rowcount == 0:
-            raise ValueError(f"Memory not found: {memory_id}")
+            raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
         self._commit_if_needed()
 
     def update_memory(
@@ -734,10 +746,6 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         content: str | None = None,
         tags: list[str] | None = None,
     ) -> MemoryItem:
-        existing = self.get_memory(memory_id)
-        if existing is None:
-            raise ValueError(f"Memory not found: {memory_id}")
-
         now_iso = datetime.now(UTC).isoformat()
         cur = self._conn.cursor()
         set_clauses: list[str] = ["updated_at = ?"]
@@ -753,9 +761,11 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         params.append(memory_id)
         sql = f"UPDATE memory_items SET {', '.join(set_clauses)} WHERE id = ?"
         cur.execute(sql, params)
+        if cur.rowcount == 0:
+            raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
         self._commit_if_needed()
 
-        return self.get_memory(memory_id)  # type: ignore[return-value]
+        return self.get_memory(memory_id)  # type: ignore[return-value]  # type: ignore[return-value]
 
     def _fetch_pinned_items(
         self,

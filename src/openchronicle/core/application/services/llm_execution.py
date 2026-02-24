@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
 
 from openchronicle.core.application.routing.router_policy import RouteDecision
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMResponse, StreamChunk, ToolDefinition
 
 if TYPE_CHECKING:
@@ -64,13 +65,13 @@ async def execute_with_route(
         Always use this function to ensure routing discipline.
     """
     if not route_decision:
-        raise ValueError("route_decision is required - routing must happen before LLM execution")
+        raise DomainValidationError("route_decision is required - routing must happen before LLM execution")
 
     if not route_decision.provider:
-        raise ValueError("route_decision.provider is required - provider must be explicitly selected")
+        raise DomainValidationError("route_decision.provider is required - provider must be explicitly selected")
 
     if not route_decision.model:
-        raise ValueError("route_decision.model is required - model must be explicitly selected")
+        raise DomainValidationError("route_decision.model is required - model must be explicitly selected")
 
     # Check budget before attempting LLM call
     if budget_gate is not None and budget_policy is not None and project_id is not None:
@@ -105,11 +106,11 @@ async def stream_with_route(
     Same routing discipline as execute_with_route, but yields StreamChunks.
     """
     if not route_decision:
-        raise ValueError("route_decision is required - routing must happen before LLM execution")
+        raise DomainValidationError("route_decision is required - routing must happen before LLM execution")
     if not route_decision.provider:
-        raise ValueError("route_decision.provider is required")
+        raise DomainValidationError("route_decision.provider is required")
     if not route_decision.model:
-        raise ValueError("route_decision.model is required")
+        raise DomainValidationError("route_decision.model is required")
 
     if budget_gate is not None and budget_policy is not None and project_id is not None:
         budget_gate.check(project_id, budget_policy, max_output_tokens)
@@ -172,10 +173,10 @@ async def execute_with_explicit_provider(
         Application code should derive these from RouteDecision.
     """
     if not provider:
-        raise ValueError("provider is required and must be explicitly specified")
+        raise DomainValidationError("provider is required and must be explicitly specified")
 
     if not model:
-        raise ValueError("model is required and must be explicitly specified")
+        raise DomainValidationError("model is required and must be explicitly specified")
 
     # Check budget before attempting LLM call
     if budget_gate is not None and budget_policy is not None and project_id is not None:

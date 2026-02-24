@@ -44,6 +44,8 @@ from openchronicle.core.domain.errors.error_codes import (
     UNKNOWN_HANDLER,
     UNKNOWN_TASK_TYPE,
 )
+from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.project import Event, Task, TaskStatus
 from openchronicle.core.domain.ports.llm_port import LLMProviderError
 from openchronicle.core.domain.ports.privacy_gate_port import PrivacyGatePort
@@ -290,7 +292,7 @@ def handle_convo_show(container: CoreContainer, command: str, args: dict[str, ob
                     conversation_id=conversation_id,
                     turn_id=turn.id,
                 )
-            except ValueError:
+            except (ValueError, NotFoundError, DomainValidationError):
                 explain_payload = None
         turns_payload.append(
             {
@@ -353,7 +355,7 @@ def handle_convo_ask(container: CoreContainer, command: str, args: dict[str, obj
                     conversation_id=conversation_id,
                     turn_id=turn.id,
                 )
-            except ValueError:
+            except (ValueError, NotFoundError, DomainValidationError):
                 explain_payload = None
         return {
             "conversation_id": turn.conversation_id,
@@ -397,6 +399,13 @@ def handle_convo_ask(container: CoreContainer, command: str, args: dict[str, obj
                 error=None,
             )
         raise
+    except (NotFoundError, DomainValidationError) as exc:
+        return json_envelope(
+            command=command,
+            ok=False,
+            result=None,
+            error=json_error_payload(error_code=getattr(exc, "code", INVALID_ARGUMENT), message=str(exc), hint=None),
+        )
 
 
 def handle_convo_ask_async(container: CoreContainer, command: str, args: dict[str, object]) -> dict[str, object]:
@@ -621,7 +630,7 @@ def handle_task_submit(container: CoreContainer, command: str, args: dict[str, o
             result=None,
             error=json_error_payload(error_code=UNKNOWN_HANDLER, message=str(exc), hint=None),
         )
-    except ValueError as exc:
+    except (ValueError, NotFoundError, DomainValidationError) as exc:
         return json_envelope(
             command=command,
             ok=False,

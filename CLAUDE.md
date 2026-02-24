@@ -18,8 +18,9 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Memory System Phase 2 (standalone context assembly, external turn recording),
-media generation port, security scanner plugin, or webhooks.
+**Next action:** Enterprise tightening Passes B + C, then Memory System Phase 2
+(standalone context assembly, external turn recording), media generation port,
+security scanner plugin, or webhooks.
 Capability-aware routing is done (`ModelConfigLoader` parses capabilities,
 `RouterPolicy` filters by `required_capabilities`, `NO_CAPABLE_MODEL` error, 12 tests).
 HTTP API is done (`interfaces/api/`, FastAPI, 22 REST endpoints mirroring MCP tools,
@@ -48,6 +49,10 @@ Config externalization is done (conversation defaults + Discord operational
 settings wired through three-layer precedence, hygiene test prevents drift).
 Docker CI is done (GitHub Actions multi-arch build to `ghcr.io/openchronicle/core`,
 `latest` + SHA tags, GHA cache, `.gitattributes` for LF shell scripts).
+Enterprise Tightening Pass A is done (domain exceptions `NotFoundError`/`ValidationError`,
+global FastAPI exception handlers, Pydantic `Field()`/`Query()` input validation,
+sqlite_store rowcount checks, file path validation, ~30 use-case migration sites,
+32 new tests, 1128 total).
 
 ## Build and Development
 
@@ -133,6 +138,10 @@ for the full directory tree and layer descriptions.
 - Strict typing enforced by mypy
 - Domain models use `@dataclass`
 - Tests use pytest fixtures; integration tests marked with `@pytest.mark.integration`
+- Not-found conditions raise `NotFoundError` (from `domain/exceptions.py`), caught globally → HTTP 404
+- Validation failures raise `ValidationError` (aliased `DomainValidationError` to avoid Pydantic collision), caught globally → HTTP 422
+- Global exception handlers in `interfaces/api/app.py` eliminate per-route try/except
+- Pydantic `Field()` constraints on request bodies; `Query()` constraints on query parameters
 
 **Secrets:**
 
@@ -145,7 +154,7 @@ for the full directory tree and layer descriptions.
 Most-used variables for quick reference:
 
 | Variable | Purpose | Default |
-|----------|---------|---------|
+| ---------- | --------- | --------- |
 | `OC_LLM_PROVIDER` | Provider selection (`stub`, `openai`, `ollama`, `anthropic`, `groq`, `gemini`) | `stub` |
 | `OPENAI_API_KEY` | OpenAI authentication | - |
 | `ANTHROPIC_API_KEY` | Anthropic authentication | - |
@@ -225,7 +234,7 @@ Call `memory_save` when any of these happen during a session:
 **Tagging convention:**
 
 | Tag | When |
-|-----|------|
+| ----- | ------ |
 | `decision` | Architectural or design decisions |
 | `rejected` | Approaches tried and abandoned |
 | `milestone` | Completed work summaries |
@@ -254,7 +263,7 @@ Call `memory_search` at these points:
 ### Tools to Use / Avoid
 
 | Tool | Use | Notes |
-|------|-----|-------|
+| ------ | ----- | ------- |
 | `memory_save` | **Yes** | Primary persistence mechanism |
 | `memory_search` | **Yes** | Primary retrieval mechanism |
 | `memory_list` | Occasionally | Browse recent memories when search terms are unclear |

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from openchronicle.core.domain.errors.error_codes import ASSET_NOT_FOUND
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.asset import AssetLink
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.asset_store_port import AssetStorePort
@@ -20,11 +22,11 @@ def execute(
 ) -> AssetLink:
     """Create an AssetLink between an existing asset and any entity.
 
-    Raises ValueError if the asset does not exist.
+    Raises NotFoundError if the asset does not exist.
     """
     asset = store.get_asset(asset_id)
     if asset is None:
-        raise ValueError(f"Asset not found: {asset_id}")
+        raise NotFoundError(f"Asset not found: {asset_id}", code=ASSET_NOT_FOUND)
 
     link = AssetLink(
         asset_id=asset_id,

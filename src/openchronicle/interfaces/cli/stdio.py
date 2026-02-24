@@ -451,6 +451,18 @@ def _normalize_error(exc: Exception) -> dict[str, object]:
             details=details or None,
         )
 
+    # Domain exceptions carry a .code attribute with a specific error code
+    from openchronicle.core.domain.exceptions import NotFoundError
+    from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+
+    if isinstance(exc, NotFoundError | DomainValidationError):
+        return json_error_payload(
+            error_code=exc.code,
+            message=str(exc),
+            hint=None,
+            details=None,
+        )
+
     if isinstance(exc, ValueError):
         return json_error_payload(
             error_code=INVALID_ARGUMENT,

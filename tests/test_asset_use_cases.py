@@ -6,6 +6,7 @@ from pathlib import Path
 
 from openchronicle.core.application.services.asset_storage import AssetFileStorage
 from openchronicle.core.application.use_cases import link_asset, upload_asset
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.project import Event, Project
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
@@ -181,7 +182,7 @@ class TestLinkAsset:
 
         store, _, events = _setup(tmp_path)
 
-        with pytest.raises(ValueError, match="Asset not found"):
+        with pytest.raises(NotFoundError, match="Asset not found"):
             link_asset.execute(
                 store=store,
                 emit_event=events.append,

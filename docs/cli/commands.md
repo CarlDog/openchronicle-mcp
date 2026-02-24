@@ -17,7 +17,7 @@ oc version [--json]
 ```
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `--json` | Emit JSON envelope with `package_version`, `python_version`, `protocol_version` |
 
 ### `oc init`
@@ -112,7 +112,7 @@ oc db backup <path> [--force]
 ```
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `--force` | Overwrite if destination file already exists |
 
 ### `oc db stats`
@@ -192,7 +192,7 @@ oc events <project_id> [--task-id ID] [--type TYPE] [--limit N] [--json]
 ```
 
 | Flag | Default | Description |
-|------|---------|-------------|
+| ------ | --------- | ------------- |
 | `--task-id` | | Filter events by task ID |
 | `--type` | | Filter by event type (e.g. `llm.requested`, `task.completed`) |
 | `--limit` | 50 | Show only the N most recent matching events |
@@ -426,7 +426,7 @@ oc asset upload <project_id> <source_path> [--filename NAME] [--mime-type TYPE]
 ```
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `--filename` | Override original filename |
 | `--mime-type` | Override auto-detected MIME type |
 | `--link-to-type` | Entity type to link to (`project`, `conversation`, `turn`, `memory_item`, `event`, `agent`) |
@@ -458,7 +458,7 @@ oc asset link <asset_id> <target_type> <target_id> [--role ROLE]
 ```
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `--role` | Link role (default: `reference`) |
 
 ---
@@ -474,7 +474,7 @@ oc chat [--conversation-id ID] [--resume] [--title TITLE] [--no-stream]
 ```
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `--resume` | Resume the most recent conversation |
 | `--no-stream` | Disable streaming (wait for complete response) |
 
@@ -496,7 +496,7 @@ The HTTP API is configured via environment variables or the `api` section in
 `core.json`:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| ---------- | --------- | ------------- |
 | `OC_API_HOST` | `127.0.0.1` | Bind address |
 | `OC_API_PORT` | `8000` | Port number |
 | `OC_API_KEY` | - | API key for authentication (disabled if unset) |
@@ -527,7 +527,7 @@ oc mcp serve [--transport {stdio,sse}] [--host HOST] [--port PORT]
 ```
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `--transport` | Transport protocol: `stdio` (default) or `sse` |
 | `--host` | Bind address for SSE transport (default: `127.0.0.1`) |
 | `--port` | Port for SSE transport (default: `8080`) |
@@ -556,7 +556,7 @@ oc onboard git --project-id <id> [--repo-path .] [--max-commits 500]
 ```
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `--project-id` | **Required.** Project to associate memories with |
 | `--repo-path` | Path to git repository (default: `.`) |
 | `--max-commits` | Max commits to analyze (default: `500`) |

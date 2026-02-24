@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.storage_port import StoragePort
 
@@ -24,7 +25,7 @@ def execute(
             completed_event = event
 
     if completed_event is None:
-        raise ValueError(f"Turn completion event not found for turn_id: {turn_id}")
+        raise NotFoundError(f"Turn completion event not found for turn_id: {turn_id}")
 
     cutoff = completed_event.created_at
 

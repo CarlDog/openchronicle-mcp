@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-23
 **Branch:** `main`
-**Revision:** 29 (HTTP API always-on core, shared serializers, review fixes)
+**Revision:** 30 (Pass A — domain exceptions, global error handlers, input validation)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (1,113 unit/functional, 22 real-world integration, 14 Discord
+Tests are strong (1,128 unit/functional, 22 real-world integration, 14 Discord
 integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
 daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
@@ -80,7 +80,15 @@ rate limiting (thread-safe sliding window), optional CORS, and proper HTTP error
 codes. Shared serializers (`interfaces/serializers.py`) eliminate duplication
 between MCP tools and API routes.
 
-**What's next:** Capability-aware routing and media generation (Decision #7).
+**Enterprise tightening — Pass A (Error Handling + Validation) is complete.**
+Domain exception taxonomy (`NotFoundError`, `ValidationError`) with global
+FastAPI exception handlers (404, 422, 400, 500). ~30 use-case sites migrated
+from bare `ValueError`. Pydantic `Field()` constraints on all request models,
+`Query()` constraints on all query parameters. Rowcount checks in sqlite_store
+(3 update methods + TOCTOU fix). File path validation in `upload_asset`.
+32 new tests, 1128 total passing.
+
+**What's next:** Enterprise tightening Passes B + C, then media generation (Decision #7).
 Media generation introduces a new port (`MediaGenerationPort`) with Ollama and
 OpenAI adapters, flowing through the existing asset system. Capability-aware
 routing wires the `capabilities` field in model configs into provider selection.
@@ -92,7 +100,7 @@ Code integration, and any MCP-compatible client. MCP tool usage tracking and MoE
 usage tracking provide operational observability — dedicated tables, aggregate
 stats queries, `tool_stats` and `moe_stats` MCP tools.
 
-**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system enhanced with `memory_update`, tag-filtered search, full CRUD parity (get/delete/stats across all interfaces), pagination, and observability events (`memory.search_completed`, `context.assembly_breakdown`). Streaming telemetry fixed. Capability-aware routing and media generation are next (Decision #7).**
+**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system enhanced with `memory_update`, tag-filtered search, full CRUD parity (get/delete/stats across all interfaces), pagination, and observability events (`memory.search_completed`, `context.assembly_breakdown`). Streaming telemetry fixed. Enterprise tightening Pass A complete (domain exceptions, global error handlers, input validation, rowcount checks). Passes B + C and media generation are next.**
 
 ---
 
@@ -170,7 +178,7 @@ validates against live providers (OpenAI, Anthropic).
 ### Infrastructure Inventory
 
 | Subsystem | Status | Evidence |
-|-----------|--------|----------|
+| ----------- | -------- | ---------- |
 | **5 LLM providers** (OpenAI, Anthropic, Groq, Gemini, Ollama) | Working | Async-native adapters, contract tests |
 | **Provider routing** (pools, fallback, NSFW, budget-aware) | Working | 1,278-line test suite |
 | **SQLite persistence** (13 tables, 58 methods, WAL mode) | Working | Handles tasks, conversations, memory, events, scheduled jobs, delete + cascade, MCP/MoE usage tracking |
@@ -222,7 +230,7 @@ been closed. Kept here for architectural context — see Definition of Done and
 Refactoring Priorities sections for implementation details.
 
 | # | Gap | Resolution |
-|---|-----|------------|
+| --- | ----- | ------------ |
 | 1 | No interactive chat experience | `oc chat` REPL with auto-create, `--resume`, streaming (e368db4) |
 | 2 | No streaming responses | `stream_async()` on LLMPort + all 6 adapters (6416c76) |
 | 3 | God Functions in interface layer | Dispatch tables in `cli/commands/` + `rpc_handlers.py` (e368db4) |
@@ -238,7 +246,7 @@ single-connection access. A concurrency audit identified 4 race conditions, all
 proven exploitable by `test_stress.py`. All four have been fixed.
 
 | # | Issue | Fix | Status |
-|---|-------|-----|--------|
+| --- | ------- | ----- | -------- |
 | 1 | **Hash chain fork** — `EventLogger.append()` read-compute-write race | Wrapped in `BEGIN IMMEDIATE` transaction + timestamp refresh under lock | **Fixed** |
 | 2 | **Duplicate turn index** — `next_turn_index()` reads MAX in deferred BEGIN | `BEGIN IMMEDIATE` serializes all write transactions | **Fixed** |
 | 3 | **Lost memory link** — `link_memory_to_turn()` JSON read-modify-write race | Wrapped in `BEGIN IMMEDIATE` transaction | **Fixed** |
@@ -269,7 +277,7 @@ surface. No backwards compatibility concerns. No production deployment yet.
 ### Must Have (Blocking for "Core Done")
 
 | # | Item | Status | Why It's Blocking |
-|---|------|--------|-------------------|
+| --- | ------ | -------- | ------------------- |
 | 1 | **Interactive chat REPL** (`oc chat`) | Done (e368db4) | Can't "interact like a chatbot" without it |
 | 2 | **Streaming responses** (LLMPort + adapters + CLI, with `--no-stream` toggle) | Done (6416c76) | Chatbot UX with 10s wait for response is broken |
 | 3 | **Interface layer refactoring** (God Functions → dispatch tables) | Done (e368db4) | Untestable interface layer is a stability risk |
@@ -278,7 +286,7 @@ surface. No backwards compatibility concerns. No production deployment yet.
 ### Should Have (Quality, Not Functionality)
 
 | # | Item | Status | Impact |
-|---|------|--------|--------|
+| --- | ------ | -------- | -------- |
 | 5 | **Decompose `ask_conversation.execute()`** | Done | Testability, readability |
 | 6 | **Decompose orchestrator manager/worker methods** | Done | Phase-separated into 6 private helpers + dataclass |
 | 7 | **SqliteStore row mapper extraction** | Done | Cognitive load reduction |
@@ -286,7 +294,7 @@ surface. No backwards compatibility concerns. No production deployment yet.
 ### Defer to Plugin Phase
 
 | Item | Reason |
-|------|--------|
+| ------ | -------- |
 | ~~HTTP API~~ | ✅ Core interface (`interfaces/api/`, FastAPI, always-on daemon) |
 | ONNX router assist | Linear model works; ONNX is a performance optimization |
 | Embeddings / vector memory search | Keyword search works for v0; embeddings are a plugin concern |
@@ -403,7 +411,7 @@ business logic. This is correct architecture — not everything needs to be comp
 **Heavyweights:**
 
 | File | Lines | Complexity |
-|------|-------|------------|
+| ------ | ------- | ------------ |
 | `ask_conversation.py` | 936 | Full conversation turn orchestration |
 | `smoke_live.py` | 360 | End-to-end provider testing |
 | `task_once.py` | 333 | Task execution with error handling |
@@ -484,7 +492,7 @@ multi-process access). Each thread gets its own `sqlite3.Connection` with
 independent locks and WAL snapshots. Results:
 
 | Test | Target | Outcome |
-|------|--------|---------|
+| ------ | -------- | --------- |
 | T1: Hash chain fork | `EventLogger.append()` read-compute-write race | **pass** — 300 events, chain intact, no collisions |
 | T2: Duplicate turn index | `next_turn_index()` + deferred BEGIN | **pass** — 10 turns, distinct indices |
 | T3: Lost update | `link_memory_to_turn()` JSON read-modify-write | **pass** — all 10 memory IDs survive |
@@ -504,7 +512,7 @@ command-level testing.
 ## V1 → V2: What Changed and Why
 
 | V1 Feature | V2 Status | Notes |
-|------------|-----------|-------|
+| ------------ | ----------- | ------- |
 | 13+ orchestrators | 1 orchestrator + use cases | Intentional simplification |
 | 15+ LLM providers | 5 providers (async-native) | OpenAI, Anthropic, Groq, Gemini, Ollama |
 | Character AI | Not ported | Plugin territory |
@@ -631,7 +639,7 @@ is an optional bolt-on — they need the same level of access as core services.
 **Taxonomy:**
 
 | Feature needs... | Lives in... | Examples |
-|------------------|-------------|----------|
+| ------------------ | ------------- | ---------- |
 | Persistent state, lifecycle, service access, or LLM orchestration | Core (`application/` or `interfaces/`) | Scheduler, Discord, MCP server, HTTP API, Dev Agent Runner, MoE Mode |
 | Stateless input→output processing | Plugin (`plugins/`) | Story generation, analysis, formatting, security scan |
 | External process composing via MCP or RPC | External client | Goose, VS Code, Claude Desktop, CI integrations |
@@ -651,7 +659,7 @@ Desktop) rather than requiring each to implement a custom STDIO RPC client.
 **Rationale:** Three tools compose naturally:
 
 | Tool | Role | Persistence |
-|------|------|-------------|
+| ------ | ------ | ------------- |
 | **Serena** (MCP server) | Code understanding — what the code **is** | Stateless |
 | **OpenChronicle** (MCP server) | Persistent memory — what was **decided** and **why** | Persistent |
 | **Goose** (MCP client) | Agent execution — edit files, run commands, iterate | Ephemeral |
@@ -780,7 +788,7 @@ model configs, `RouterPolicy` filters by `required_capabilities` opt-in param,
 ## Files to Know
 
 | File | Lines | Role | Status |
-|------|-------|------|--------|
+| ------ | ------- | ------ | -------- |
 | `interfaces/cli/main.py` | ~400 | CLI entry point | Clean (dispatch tables) |
 | `interfaces/cli/commands/db.py` | ~170 | DB maintenance CLI | New (info, vacuum, backup, stats) |
 | `interfaces/cli/stdio.py` | ~200 | RPC dispatch | Clean (handlers extracted) |
@@ -796,7 +804,7 @@ model configs, `RouterPolicy` filters by `required_capabilities` opt-in param,
 | `interfaces/discord/bot.py` | ~130 | Discord bot | Clean (commands.Bot, on_message, streaming pipeline) |
 | `interfaces/discord/pid_file.py` | ~60 | PID file guard | New (atomic write, cross-platform alive check) |
 | `interfaces/discord/commands.py` | ~170 | Slash commands | New (6 commands, Cog pattern) |
-| `interfaces/api/app.py` | ~68 | HTTP API app factory | New (FastAPI, lifespan, middleware, route registration) |
+| `interfaces/api/app.py` | ~105 | HTTP API app factory | New (FastAPI, lifespan, middleware, route registration, global exception handlers) |
 | `interfaces/api/middleware/auth.py` | ~65 | API key auth | New (timing-safe, Bearer + X-API-Key, configurable exemptions) |
 | `interfaces/api/middleware/rate_limit.py` | ~70 | Rate limiting | New (thread-safe sliding window, memory-leak-safe) |
 | `interfaces/serializers.py` | ~90 | Shared model serializers | New (6 functions, used by MCP tools + API routes) |

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from openchronicle.core.application.use_cases import explain_turn
+from openchronicle.core.domain.errors.error_codes import CONVERSATION_NOT_FOUND
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.services.verification import VerificationService
@@ -16,7 +18,7 @@ def execute(
 ) -> dict[str, object]:
     conversation = convo_store.get_conversation(conversation_id)
     if conversation is None:
-        raise ValueError(f"Conversation not found: {conversation_id}")
+        raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
 
     turns = convo_store.list_turns(conversation_id)
 
@@ -77,7 +79,7 @@ def execute(
                     conversation_id=conversation_id,
                     turn_id=turn.id,
                 )
-            except ValueError:
+            except (ValueError, NotFoundError):
                 turn_entry["explain"] = {"unavailable": True}
 
         exported_turns.append(turn_entry)

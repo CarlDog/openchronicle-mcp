@@ -9,6 +9,8 @@ import ast
 from pathlib import Path
 from typing import Any
 
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+
 
 def test_application_layer_must_not_call_llm_port_directly() -> None:
     """
@@ -128,8 +130,8 @@ def test_llm_execution_boundary_validates_provider() -> None:
                 messages=[{"role": "user", "content": "test"}],
             )
         )
-        raise AssertionError("Expected ValueError for empty provider")
-    except ValueError as e:
+        raise AssertionError("Expected DomainValidationError for empty provider")
+    except DomainValidationError as e:
         assert "provider is required" in str(e).lower()
 
     # Test 2: Empty model should be rejected
@@ -144,6 +146,6 @@ def test_llm_execution_boundary_validates_provider() -> None:
                 messages=[{"role": "user", "content": "test"}],
             )
         )
-        raise AssertionError("Expected ValueError for empty model")
-    except ValueError as e:
+        raise AssertionError("Expected DomainValidationError for empty model")
+    except DomainValidationError as e:
         assert "model is required" in str(e).lower()

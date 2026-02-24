@@ -31,6 +31,9 @@ def execute(
     the existing asset (with a new link if requested) instead of
     re-uploading. ``is_new`` is False in the dedup case.
     """
+    if not os.path.isfile(source_path):
+        raise FileNotFoundError(f"Source file not found: {source_path}")
+
     resolved_filename = filename or os.path.basename(source_path)
     resolved_mime_type = mime_type or _guess_mime_type(resolved_filename)
     content_hash = file_storage.compute_hash_from_path(source_path)

@@ -13,6 +13,8 @@ from openchronicle.core.application.use_cases import (
     show_memory,
     update_memory,
 )
+from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
@@ -82,7 +84,7 @@ def cmd_memory_list(args: argparse.Namespace, container: CoreContainer) -> int:
 def cmd_memory_show(args: argparse.Namespace, container: CoreContainer) -> int:
     try:
         item = show_memory.execute(container.storage, args.memory_id)
-    except ValueError as exc:
+    except (ValueError, NotFoundError, DomainValidationError) as exc:
         print(str(exc))
         return 1
 
@@ -138,7 +140,7 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
             emit_event=container.event_logger.append,
             memory_id=args.memory_id,
         )
-    except ValueError:
+    except (ValueError, NotFoundError, DomainValidationError):
         if args.json:
             payload = json_envelope(
                 command="memory.delete",
@@ -187,7 +189,7 @@ def cmd_memory_update(args: argparse.Namespace, container: CoreContainer) -> int
             content=content,
             tags=tags,
         )
-    except ValueError as exc:
+    except (ValueError, NotFoundError, DomainValidationError) as exc:
         print(str(exc))
         return 1
 

@@ -7,6 +7,8 @@ from typing import Any, cast
 from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.use_cases import link_asset, upload_asset
+from openchronicle.core.domain.errors.error_codes import ASSET_NOT_FOUND
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.mcp.tracking import track_tool
 from openchronicle.interfaces.serializers import asset_link_to_dict, asset_to_dict
@@ -93,7 +95,7 @@ def register(mcp: FastMCP) -> None:
         container = _get_container(ctx)
         asset = container.storage.get_asset(asset_id)
         if asset is None:
-            raise ValueError(f"Asset not found: {asset_id}")
+            raise NotFoundError(f"Asset not found: {asset_id}", code=ASSET_NOT_FOUND)
         result = asset_to_dict(asset)
         links = container.storage.list_asset_links(asset_id=asset_id)
         result["links"] = [asset_link_to_dict(link) for link in links]

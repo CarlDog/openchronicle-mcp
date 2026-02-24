@@ -8,6 +8,7 @@ from openchronicle.core.application.use_cases import (
     convo_mode,
     create_conversation,
 )
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
@@ -51,5 +52,5 @@ def test_conversation_mode_rejects_invalid(tmp_path: Path) -> None:
         title="Modes",
     )
 
-    with pytest.raises(ValueError, match="Invalid conversation mode"):
+    with pytest.raises(DomainValidationError, match="Invalid conversation mode"):
         convo_mode.set_mode(storage, conversation.id, mode="invalid")

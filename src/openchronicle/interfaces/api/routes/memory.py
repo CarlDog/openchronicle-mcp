@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from openchronicle.core.application.use_cases import (
     add_memory,
@@ -30,11 +30,11 @@ ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 def memory_search(
     container: ContainerDep,
     query: str,
-    top_k: int = 8,
+    top_k: int = Query(default=8, ge=1, le=1000),
     conversation_id: str | None = None,
     project_id: str | None = None,
     tags: str | None = None,
-    offset: int = 0,
+    offset: int = Query(default=0, ge=0),
 ) -> list[dict[str, Any]]:
     """Search memory items by keyword.
 
@@ -81,11 +81,11 @@ def memory_stats(
 
 
 class MemorySaveRequest(BaseModel):
-    content: str
-    tags: list[str] | None = None
+    content: str = Field(min_length=1, max_length=100_000)
+    tags: list[str] | None = Field(default=None, max_length=50)
     pinned: bool = False
-    conversation_id: str | None = None
-    project_id: str | None = None
+    conversation_id: str | None = Field(default=None, max_length=200)
+    project_id: str | None = Field(default=None, max_length=200)
     created_at: str | None = None
 
 
@@ -131,9 +131,9 @@ def memory_save(
 @router.get("")
 def memory_list(
     container: ContainerDep,
-    limit: int | None = None,
+    limit: int | None = Query(default=None, ge=1, le=10_000),
     pinned_only: bool = False,
-    offset: int = 0,
+    offset: int = Query(default=0, ge=0),
 ) -> list[dict[str, Any]]:
     """List memory items."""
     results = list_memory.execute(
@@ -163,14 +163,11 @@ def memory_delete(
     container: ContainerDep,
 ) -> dict[str, str]:
     """Delete a memory item permanently."""
-    try:
-        delete_memory.execute(
-            store=container.storage,
-            emit_event=container.event_logger.append,
-            memory_id=memory_id,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    delete_memory.execute(
+        store=container.storage,
+        emit_event=container.event_logger.append,
+        memory_id=memory_id,
+    )
     return {"status": "ok", "memory_id": memory_id}
 
 
@@ -195,8 +192,8 @@ def memory_pin(
 
 
 class MemoryUpdateRequest(BaseModel):
-    content: str | None = None
-    tags: list[str] | None = None
+    content: str | None = Field(default=None, min_length=1, max_length=100_000)
+    tags: list[str] | None = Field(default=None, max_length=50)
 
 
 @router.put("/{memory_id}")
@@ -206,14 +203,11 @@ def memory_update(
     container: ContainerDep,
 ) -> dict[str, Any]:
     """Update an existing memory item's content and/or tags."""
-    try:
-        updated = update_memory.execute(
-            store=container.storage,
-            emit_event=container.event_logger.append,
-            memory_id=memory_id,
-            content=body.content,
-            tags=body.tags,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    updated = update_memory.execute(
+        store=container.storage,
+        emit_event=container.event_logger.append,
+        memory_id=memory_id,
+        content=body.content,
+        tags=body.tags,
+    )
     return memory_to_dict(updated)

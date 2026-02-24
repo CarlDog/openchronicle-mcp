@@ -15,6 +15,8 @@ from openchronicle.core.application.use_cases import (
     remember_turn,
     show_conversation,
 )
+from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.ports.llm_port import LLMProviderError
 from openchronicle.core.domain.services.verification import VerificationResult, VerificationService
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -91,7 +93,7 @@ def cmd_convo_show(args: argparse.Namespace, container: CoreContainer) -> int:
             conversation_id=args.conversation_id,
             limit=args.limit,
         )
-    except ValueError as exc:
+    except (ValueError, NotFoundError, DomainValidationError) as exc:
         if args.json:
             payload = json_envelope(
                 command="convo.show",
@@ -115,7 +117,7 @@ def cmd_convo_show(args: argparse.Namespace, container: CoreContainer) -> int:
                         conversation_id=args.conversation_id,
                         turn_id=turn.id,
                     )
-                except ValueError:
+                except (ValueError, NotFoundError, DomainValidationError):
                     explain_payload = None
             turns_payload.append(
                 {
@@ -155,7 +157,7 @@ def cmd_convo_show(args: argparse.Namespace, container: CoreContainer) -> int:
                 conversation_id=args.conversation_id,
                 turn_id=turn.id,
             )
-        except ValueError:
+        except (ValueError, NotFoundError, DomainValidationError):
             print("EXPLAIN")
             print("unavailable: missing events")
             continue
@@ -177,7 +179,7 @@ def cmd_convo_export(args: argparse.Namespace, container: CoreContainer) -> int:
             include_explain=args.explain,
             include_verify=args.verify,
         )
-    except ValueError as exc:
+    except (ValueError, NotFoundError, DomainValidationError) as exc:
         if args.json:
             payload = json_envelope(
                 command="convo.export",
@@ -291,7 +293,7 @@ def cmd_convo_mode(args: argparse.Namespace, container: CoreContainer) -> int:
                 conversation_id=args.conversation_id,
                 mode=args.mode,
             )
-    except ValueError as exc:
+    except (ValueError, NotFoundError, DomainValidationError) as exc:
         if args.json:
             payload = json_envelope(
                 command="convo.mode",
@@ -506,7 +508,7 @@ def cmd_convo_ask(args: argparse.Namespace, container: CoreContainer) -> int:
                         conversation_id=args.conversation_id,
                         turn_id=turn.id,
                     )
-                except ValueError:
+                except (ValueError, NotFoundError, DomainValidationError):
                     explain_payload = None
             payload = json_envelope(
                 command="convo.ask",

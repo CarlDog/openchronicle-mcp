@@ -641,3 +641,229 @@ class TestSharedSerializers:
         d = conversation_to_dict(_make_conversation())
         assert d["title"] == "test convo"
         assert d["mode"] == "general"
+
+
+# ---------------------------------------------------------------------------
+# Global exception handlers
+# ---------------------------------------------------------------------------
+
+
+class TestGlobalExceptionHandlers:
+    """Global handlers turn domain exceptions into correct HTTP codes."""
+
+    def test_not_found_error_returns_404(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.show_conversation.execute",
+            side_effect=NotFoundError("Conversation not found: x", code="CONVERSATION_NOT_FOUND"),
+        ):
+            resp = client.get("/api/v1/conversation/x/history")
+        assert resp.status_code == 404
+        body = resp.json()
+        assert body["code"] == "CONVERSATION_NOT_FOUND"
+        assert "Conversation not found" in body["detail"]
+
+    def test_validation_error_returns_422(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import (
+            ValidationError as DomainValidationError,
+        )
+
+        with patch(
+            "openchronicle.interfaces.api.routes.memory.update_memory.execute",
+            side_effect=DomainValidationError("At least one of content or tags must be provided"),
+        ):
+            resp = client.put("/api/v1/memory/m1", json={"content": None, "tags": None})
+        assert resp.status_code == 422
+        body = resp.json()
+        assert body["code"] == "INVALID_ARGUMENT"
+        assert "At least one" in body["detail"]
+
+    def test_unhandled_exception_returns_500_sanitized(self, client: TestClient) -> None:
+        # Must disable raise_server_exceptions so the global handler can run
+        app = client.app
+        no_raise_client = TestClient(app, raise_server_exceptions=False)
+        with patch(
+            "openchronicle.interfaces.api.routes.project.list_projects.execute",
+            side_effect=RuntimeError("secret internal detail"),
+        ):
+            resp = no_raise_client.get("/api/v1/project")
+        assert resp.status_code == 500
+        body = resp.json()
+        assert body["code"] == "INTERNAL_ERROR"
+        assert body["detail"] == "Internal server error"
+        assert "secret" not in body["detail"]
+
+    def test_file_not_found_error_returns_400(self, client: TestClient) -> None:
+        with patch(
+            "openchronicle.interfaces.api.routes.asset.upload_asset.execute",
+            side_effect=FileNotFoundError("Source file not found: /bad/path"),
+        ):
+            resp = client.post(
+                "/api/v1/asset",
+                json={"project_id": "p1", "source_path": "/bad/path"},
+            )
+        assert resp.status_code == 400
+        body = resp.json()
+        assert body["code"] == "FILE_NOT_FOUND"
+
+
+# ---------------------------------------------------------------------------
+# Conversation error paths
+# ---------------------------------------------------------------------------
+
+
+class TestConversationErrors:
+    """Conversation routes return 404 for nonexistent conversations."""
+
+    def test_history_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.show_conversation.execute",
+            side_effect=NotFoundError("Conversation not found: missing"),
+        ):
+            resp = client.get("/api/v1/conversation/missing/history")
+        assert resp.status_code == 404
+
+    def test_ask_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.ask_conversation.execute",
+            side_effect=NotFoundError("Conversation not found: missing"),
+        ):
+            resp = client.post(
+                "/api/v1/conversation/missing/ask",
+                json={"prompt": "hello"},
+            )
+        assert resp.status_code == 404
+
+    def test_context_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.show_conversation.execute",
+            side_effect=NotFoundError("Conversation not found: missing"),
+        ):
+            resp = client.get("/api/v1/conversation/missing/context")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Memory error paths
+# ---------------------------------------------------------------------------
+
+
+class TestMemoryErrors:
+    """Memory routes return 404 for nonexistent memory."""
+
+    def test_pin_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.memory.pin_memory.execute",
+            side_effect=NotFoundError("Memory not found: nope"),
+        ):
+            resp = client.put("/api/v1/memory/nope/pin", json={"pinned": True})
+        assert resp.status_code == 404
+
+    def test_delete_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.memory.delete_memory.execute",
+            side_effect=NotFoundError("Memory not found: nope"),
+        ):
+            resp = client.delete("/api/v1/memory/nope")
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Asset error paths
+# ---------------------------------------------------------------------------
+
+
+class TestAssetErrors:
+    """Asset routes return correct errors."""
+
+    def test_upload_bad_file_returns_400(self, client: TestClient) -> None:
+        with patch(
+            "openchronicle.interfaces.api.routes.asset.upload_asset.execute",
+            side_effect=FileNotFoundError("Source file not found: /nope"),
+        ):
+            resp = client.post(
+                "/api/v1/asset",
+                json={"project_id": "p1", "source_path": "/nope"},
+            )
+        assert resp.status_code == 400
+
+    def test_link_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.asset.link_asset.execute",
+            side_effect=NotFoundError("Asset not found: nope"),
+        ):
+            resp = client.post(
+                "/api/v1/asset/nope/link",
+                json={"target_type": "conversation", "target_id": "c1"},
+            )
+        assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Input validation (Pydantic Field constraints)
+# ---------------------------------------------------------------------------
+
+
+class TestInputValidation:
+    """Pydantic Field constraints reject bad input at the API boundary."""
+
+    def test_empty_content_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/memory",
+            json={"content": "", "project_id": "p1"},
+        )
+        assert resp.status_code == 422
+
+    def test_content_too_long_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/memory",
+            json={"content": "x" * 100_001, "project_id": "p1"},
+        )
+        assert resp.status_code == 422
+
+    def test_empty_project_name_rejected(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/project", json={"name": ""})
+        assert resp.status_code == 422
+
+    def test_negative_offset_rejected(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "offset": -1})
+        assert resp.status_code == 422
+
+    def test_negative_top_k_rejected(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "top_k": 0})
+        assert resp.status_code == 422
+
+    def test_empty_prompt_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/conversation/c1/ask",
+            json={"prompt": ""},
+        )
+        assert resp.status_code == 422
+
+    def test_empty_source_path_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/asset",
+            json={"project_id": "p1", "source_path": ""},
+        )
+        assert resp.status_code == 422
+
+    def test_zero_limit_rejected(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/conversation", params={"limit": 0})
+        assert resp.status_code == 422
+
+    def test_limit_over_max_rejected(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/conversation", params={"limit": 10_001})
+        assert resp.status_code == 422

@@ -10,6 +10,7 @@ import pytest
 
 mcp_mod = pytest.importorskip("mcp")  # noqa: F841
 
+from openchronicle.core.domain.exceptions import NotFoundError  # noqa: E402
 from openchronicle.core.domain.models.asset import Asset, AssetLink  # noqa: E402
 
 _NOW = datetime(2026, 2, 21, 12, 0, 0, tzinfo=UTC)
@@ -144,7 +145,7 @@ class TestAssetGet:
         register(mcp)
 
         tool_fn = mcp._tool_manager._tools["asset_get"].fn
-        with pytest.raises(ValueError, match="Asset not found"):
+        with pytest.raises(NotFoundError, match="Asset not found"):
             tool_fn(asset_id="nope", ctx=ctx)
 
 

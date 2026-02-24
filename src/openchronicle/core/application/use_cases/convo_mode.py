@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
 
 ALLOWED_CONVERSATION_MODES = ("general", "persona", "story")
@@ -14,7 +15,7 @@ def set_mode(convo_store: ConversationStorePort, conversation_id: str, mode: str
     normalized = (mode or "").strip().lower()
     if normalized not in ALLOWED_CONVERSATION_MODES:
         allowed = ", ".join(ALLOWED_CONVERSATION_MODES)
-        raise ValueError(f"Invalid conversation mode: {mode}. Allowed: {allowed}.")
+        raise DomainValidationError(f"Invalid conversation mode: {mode}. Allowed: {allowed}.")
 
     convo_store.set_conversation_mode(conversation_id, normalized)
     return normalized

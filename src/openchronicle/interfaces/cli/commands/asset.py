@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from openchronicle.core.application.use_cases import link_asset, upload_asset
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 
@@ -79,7 +80,7 @@ def cmd_asset_link(args: argparse.Namespace, container: CoreContainer) -> int:
             target_id=args.target_id,
             role=args.role,
         )
-    except ValueError as exc:
+    except (ValueError, NotFoundError) as exc:
         print(str(exc))
         return 1
     print(link.id)

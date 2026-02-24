@@ -18,11 +18,13 @@ from openchronicle.core.application.services.orchestrator import OrchestratorSer
 from openchronicle.core.application.use_cases import run_task
 from openchronicle.core.domain.errors.error_codes import (
     CONNECTION_ERROR,
+    CONVERSATION_NOT_FOUND,
     NSFW_POOL_NOT_CONFIGURED,
     OUTBOUND_PII_BLOCKED,
     SELF_REPORT_INVALID,
     TIMEOUT,
 )
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.conversation import Conversation, Turn
 from openchronicle.core.domain.models.project import Event, Task
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
@@ -192,7 +194,7 @@ async def prepare_ask(
 
     conversation = convo_store.get_conversation(conversation_id)
     if conversation is None:
-        raise ValueError(f"Conversation not found: {conversation_id}")
+        raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
 
     effective_mode = (conversation.mode or "general").strip().lower()
     if effective_mode not in {"general", "persona", "story"}:
@@ -859,7 +861,7 @@ def enqueue(
 ) -> Task:
     conversation = convo_store.get_conversation(conversation_id)
     if conversation is None:
-        raise ValueError(f"Conversation not found: {conversation_id}")
+        raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
 
     recent_turns = convo_store.list_turns(conversation_id, limit=10)
     effective_mode = (conversation.mode or "general").strip().lower()

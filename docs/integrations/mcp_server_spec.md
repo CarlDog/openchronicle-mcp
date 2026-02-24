@@ -20,7 +20,7 @@ One build, multiple integrations unblocked.
 The natural synergy between three tools:
 
 | Tool | Role | What it knows | Persistence |
-|------|------|---------------|-------------|
+| ------ | ------ | --------------- | ------------- |
 | **Serena** | Eyes | What the code **is** — symbols, references, structure | Stateless (LSP on demand) |
 | **OpenChronicle** | Long-term memory | What was **decided** and **why** — memory, history, audit | Persistent (core purpose) |
 | **Goose** | Hands | How to **act** — edit files, run commands, iterate | Ephemeral (session-scoped) |
@@ -48,14 +48,14 @@ and CLI before it.
 ### Project Tools
 
 | Tool | Description | Maps to |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `project_create` | Create a new project (top-level organizer for conversations and memories) | `create_project.execute()` |
 | `project_list` | List all projects | `list_projects.execute()` |
 
 ### Memory Tools
 
 | Tool | Description | Maps to |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `memory_search` | Keyword search across memory items | `MemoryStorePort.search()` |
 | `memory_save` | Store a memory item (tagged, optionally pinned) | `MemoryStorePort.save()` |
 | `memory_list` | List memories (by conversation, project, or all) | `MemoryStorePort.list()` |
@@ -65,7 +65,7 @@ and CLI before it.
 ### Conversation Tools
 
 | Tool | Description | Maps to |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `conversation_ask` | Send a message through OC's full pipeline (routing, memory, privacy, telemetry) | `AskConversation.execute()` |
 | `conversation_history` | Retrieve recent turns for a conversation | `ConversationStorePort.get_turns()` |
 | `conversation_list` | List conversations (with optional filters) | `ConversationStorePort.list()` |
@@ -74,13 +74,13 @@ and CLI before it.
 ### Context Tools
 
 | Tool | Description | Maps to |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `context_recent` | Summary of recent activity on a topic/conversation — "what happened last session" | Conversation turns + memory search composite |
 
 ### System Tools
 
 | Tool | Description | Maps to |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `health` | Health check (storage reachable, config valid) | `system.health` RPC |
 | `tool_stats` | Per-tool MCP call statistics (count, latency, errors) | `SqliteStore.get_mcp_tool_stats()` |
 | `moe_stats` | MoE consensus run statistics (per provider/model) | `SqliteStore.get_moe_stats()` |
@@ -89,13 +89,13 @@ and CLI before it.
 ### Onboarding Tools
 
 | Tool | Description | Maps to |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `onboard_git` | Analyze git history, return commit clusters for host LLM synthesis | `git_onboard` service |
 
 ### Asset Tools
 
 | Tool | Description | Maps to |
-|------|-------------|---------|
+| ------ | ------------- | --------- |
 | `asset_upload` | Upload a file as an asset (SHA-256 dedup) | `upload_asset.execute()` |
 | `asset_list` | List assets in a project | `AssetStorePort.list_assets()` |
 | `asset_get` | Get asset metadata and links | `AssetStorePort.get_asset()` |
@@ -114,7 +114,7 @@ Resources provide read-only structured data that clients can subscribe to.
 Lower priority than tools — tools alone are sufficient for the triangle.
 
 | Resource URI | Description |
-|---|---|
+| --- | --- |
 | `openchronicle://memory/{id}` | Individual memory item |
 | `openchronicle://conversation/{id}/turns` | Conversation turn history |
 | `openchronicle://events/recent` | Recent event chain entries |

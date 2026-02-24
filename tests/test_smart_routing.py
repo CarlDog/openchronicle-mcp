@@ -23,6 +23,7 @@ import pytest
 from openchronicle.core.application.config.model_config import ModelConfigLoader
 from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.services.orchestrator import OrchestratorService
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.project import Agent
 from openchronicle.core.domain.ports.llm_port import LLMResponse, LLMUsage
 
@@ -1108,8 +1109,8 @@ class TestDynamicMix:
             {"text": "test", "worker_modes": ["fast"], "worker_count": 2},  # Mismatch!
         )
 
-        # Should fail with ValueError
-        with pytest.raises(ValueError) as exc_info:
+        # Should fail with DomainValidationError
+        with pytest.raises(DomainValidationError) as exc_info:
             await orch.execute_task(task.id, agent_id=supervisor.id)
 
         assert "worker_modes length" in str(exc_info.value)

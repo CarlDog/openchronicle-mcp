@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from openchronicle.core.application.use_cases import delete_memory
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Event
 
@@ -52,7 +53,7 @@ class TestDeleteMemoryUseCase:
         store = MagicMock()
         store.get_memory.return_value = None
 
-        with pytest.raises(ValueError, match="Memory not found"):
+        with pytest.raises(NotFoundError, match="Memory not found"):
             delete_memory.execute(store=store, emit_event=MagicMock(), memory_id="no-such-id")
 
         store.delete_memory.assert_not_called()
@@ -117,7 +118,7 @@ class TestMCPMemoryGet:
         register(mcp)
         tool_fn = mcp._tool_manager._tools["memory_get"].fn
 
-        with pytest.raises(ValueError, match="Memory not found"):
+        with pytest.raises(NotFoundError, match="Memory not found"):
             tool_fn(memory_id="no-such", ctx=ctx)
 
 

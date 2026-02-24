@@ -21,7 +21,9 @@ from openchronicle.core.application.routing.fallback_executor import FallbackExe
 from openchronicle.core.application.routing.router_policy import RouteDecision, RouterPolicy
 from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
 from openchronicle.core.application.services.llm_execution import execute_with_explicit_provider
-from openchronicle.core.domain.exceptions import BudgetExceededError
+from openchronicle.core.domain.errors.error_codes import TASK_NOT_FOUND
+from openchronicle.core.domain.exceptions import BudgetExceededError, NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.execution_record import LLMExecutionRecord
 from openchronicle.core.domain.models.project import Agent, Event, Project, Span, SpanStatus, Task, TaskStatus
 from openchronicle.core.domain.models.retry_policy import TaskRetryPolicy
@@ -180,7 +182,7 @@ class OrchestratorService:
     async def execute_task(self, task_id: str, agent_id: str | None = None) -> Any:
         task = self.storage.get_task(task_id)
         if task is None:
-            raise ValueError(f"Task not found: {task_id}")
+            raise NotFoundError(f"Task not found: {task_id}", code=TASK_NOT_FOUND)
 
         # Generate attempt_id for this execution attempt
         attempt_id = uuid4().hex
@@ -330,7 +332,7 @@ class OrchestratorService:
         agents = self.storage.list_agents(project_id)
         workers = [a for a in agents if a.role == "worker"]
         if len(workers) < count:
-            raise ValueError("Not enough worker agents registered")
+            raise DomainValidationError("Not enough worker agents registered")
         return workers[:count]
 
     def _resolve_worker_modes(
@@ -348,15 +350,15 @@ class OrchestratorService:
 
         if mix_strategy and not worker_modes_raw:
             if worker_count != 2:
-                raise ValueError("mix_strategy requires worker_count=2")
+                raise DomainValidationError("mix_strategy requires worker_count=2")
             if mix_strategy == "fast_then_quality":
                 return ["fast", "quality"], "mix_strategy"
             if mix_strategy == "quality_then_fast":
                 return ["quality", "fast"], "mix_strategy"
-            raise ValueError(f"Invalid mix_strategy: {mix_strategy}")
+            raise DomainValidationError(f"Invalid mix_strategy: {mix_strategy}")
         if worker_modes_raw:
             if len(worker_modes_raw) != worker_count:
-                raise ValueError(
+                raise DomainValidationError(
                     f"worker_modes length ({len(worker_modes_raw)}) must match worker_count ({worker_count})"
                 )
             return worker_modes_raw, "explicit_worker_modes"
@@ -894,13 +896,13 @@ class OrchestratorService:
             handler_name = payload.get("handler")
             input_payload = payload.get("input")
             if not isinstance(handler_name, str) or not handler_name:
-                raise ValueError("Missing or invalid payload.handler for plugin.invoke")
+                raise DomainValidationError("Missing or invalid payload.handler for plugin.invoke")
             if not isinstance(input_payload, dict):
-                raise ValueError("Missing or invalid payload.input for plugin.invoke")
+                raise DomainValidationError("Missing or invalid payload.input for plugin.invoke")
 
             registry_handler = self.handler_registry.get(handler_name)
             if registry_handler is None:
-                raise ValueError(f"Unknown handler: {handler_name}")
+                raise NotFoundError(f"Unknown handler: {handler_name}")
 
             invoke_task = Task(
                 id=task.id,
@@ -925,7 +927,7 @@ class OrchestratorService:
             )
 
         # No handler registered for this task type
-        raise ValueError(f"No handler registered for task type: {task.type}")
+        raise NotFoundError(f"No handler registered for task type: {task.type}")
 
     def _merge_summaries(self, summaries: list[str]) -> str:
         if not summaries:

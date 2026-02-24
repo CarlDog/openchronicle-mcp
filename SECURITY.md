@@ -15,7 +15,7 @@ OpenChronicle v2 is pre-release software. Security fixes are applied to the
 `main` branch only.
 
 | Version | Supported |
-|---------|-----------|
+| --------- | ----------- |
 | main (v2 dev) | Yes |
 | v1 (archived) | No |
 

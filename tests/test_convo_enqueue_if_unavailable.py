@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from openchronicle.core.application.use_cases import create_conversation
-from openchronicle.core.domain.errors.error_codes import INVALID_ARGUMENT, MISSING_API_KEY, TIMEOUT
+from openchronicle.core.domain.errors.error_codes import CONVERSATION_NOT_FOUND, MISSING_API_KEY, TIMEOUT
 from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 from tests.helpers.subprocess_env import build_env, run_oc_module
@@ -122,7 +122,7 @@ def test_rpc_convo_ask_enqueue_if_unavailable_invalid_argument(tmp_path: Path) -
 
     assert payload["ok"] is False
     error = cast(dict[str, Any], payload["error"])
-    assert error["error_code"] == INVALID_ARGUMENT
+    assert error["error_code"] == CONVERSATION_NOT_FOUND
 
 
 def test_rpc_convo_ask_enqueue_if_unavailable_permanent_error(tmp_path: Path) -> None:
