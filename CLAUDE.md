@@ -74,6 +74,11 @@ Webhook Service (Phase 4) is done (`application/services/webhook_service.py`,
 dispatcher thread with queue + exponential backoff retry, composite `emit_event`
 pattern, `fnmatch` glob event filtering, 3 MCP tools, 5 API endpoints, 4 CLI
 commands, 74 new tests, 1365 total).
+Data directory centralization is done (`application/config/paths.py`, `RuntimePaths`
+frozen dataclass with 7 fields, four-layer precedence: constructor > per-path env >
+`OC_DATA_DIR`-derived > default, `SqliteStore`/`AssetFileStorage` defaults removed,
+`CoreContainer`/CLI/Discord all wired through `RuntimePaths.resolve()`, Docker
+entrypoint expanded, 12 new tests).
 
 ## Build and Development
 
@@ -185,6 +190,7 @@ Most-used variables for quick reference:
 | `ANTHROPIC_API_KEY` | Anthropic authentication | - |
 | `GROQ_API_KEY` | Groq authentication | - |
 | `GEMINI_API_KEY` | Gemini authentication (also accepts `GOOGLE_API_KEY`) | - |
+| `OC_DATA_DIR` | Root data directory (derives all data paths when set) | *(unset)* |
 | `OC_DB_PATH` | SQLite database location | `data/openchronicle.db` |
 | `OC_EMBEDDING_PROVIDER` | Embedding provider (`none`, `stub`, `openai`, `ollama`) | `none` |
 | `OC_EMBEDDING_MODEL` | Embedding model name (provider-specific default) | *(provider default)* |

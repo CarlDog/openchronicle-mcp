@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -35,7 +36,7 @@ def test_config_show_custom_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
     assert rc == 0
     output = "\n".join(str(c.args[0]) if c.args else "" for c in mock_print.call_args_list)
     assert "openai" in output
-    assert "/custom/db.sqlite" in output
+    assert str(Path("/custom/db.sqlite")) in output
 
 
 def test_config_show_json_output() -> None:

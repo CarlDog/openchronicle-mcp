@@ -1,31 +1,15 @@
 from __future__ import annotations
 
 import json
-import os
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-
-@dataclass(frozen=True)
-class RuntimePaths:
-    db_path: Path
-    config_dir: Path
-    plugin_dir: Path
-    output_dir: Path
+from openchronicle.core.application.config.paths import RuntimePaths
 
 
 def resolve_runtime_paths() -> RuntimePaths:
-    db_path = Path(os.getenv("OC_DB_PATH", "data/openchronicle.db"))
-    config_dir = Path(os.getenv("OC_CONFIG_DIR", "config"))
-    plugin_dir = Path(os.getenv("OC_PLUGIN_DIR", "plugins"))
-    output_dir = Path(os.getenv("OC_OUTPUT_DIR", "output"))
-    return RuntimePaths(
-        db_path=db_path,
-        config_dir=config_dir,
-        plugin_dir=plugin_dir,
-        output_dir=output_dir,
-    )
+    """Convenience wrapper — delegates to RuntimePaths.resolve()."""
+    return RuntimePaths.resolve()
 
 
 def execute(
@@ -39,6 +23,7 @@ def execute(
         "config_dir": _ensure_dir(paths.config_dir),
         "plugin_dir": _ensure_dir(paths.plugin_dir),
         "output_dir": _ensure_dir(paths.output_dir),
+        "assets_dir": _ensure_dir(paths.assets_dir),
     }
 
     templates_result = {

@@ -82,7 +82,7 @@ def _fts5_available(conn: sqlite3.Connection) -> bool:
 
 
 class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStorePort, WebhookStorePort):
-    def __init__(self, db_path: str = "data/openchronicle.db") -> None:
+    def __init__(self, db_path: str) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False, isolation_level=None)

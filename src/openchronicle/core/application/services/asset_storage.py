@@ -15,7 +15,7 @@ class AssetFileStorage:
     File layout: ``{base_dir}/{project_id}/{asset_id}.{ext}``
     """
 
-    def __init__(self, base_dir: str = "data/assets") -> None:
+    def __init__(self, base_dir: str) -> None:
         self.base_dir = Path(base_dir)
 
     def store_file(self, source_path: str, asset: Asset) -> str:

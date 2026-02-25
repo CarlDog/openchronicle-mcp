@@ -91,6 +91,9 @@ def cmd_config_show(args: argparse.Namespace) -> int:
     from pathlib import Path
 
     from openchronicle.core.application.config.budget_config import load_budget_policy
+
+    # Resolved paths (canonical four-layer precedence)
+    from openchronicle.core.application.config.paths import RuntimePaths
     from openchronicle.core.application.config.settings import (
         load_privacy_outbound_settings,
         load_router_assist_settings,
@@ -99,13 +102,16 @@ def cmd_config_show(args: argparse.Namespace) -> int:
     from openchronicle.core.application.routing.pool_config import load_pool_config
     from openchronicle.core.infrastructure.config.config_loader import load_config_files
 
-    # Resolved paths
-    config_dir = os.getenv("OC_CONFIG_DIR", "config")
+    rt = RuntimePaths.resolve()
+    config_dir = str(rt.config_dir)
     paths = {
-        "db_path": os.getenv("OC_DB_PATH", "data/openchronicle.db"),
+        "db_path": str(rt.db_path),
         "config_dir": config_dir,
-        "plugin_dir": os.getenv("OC_PLUGIN_DIR", "plugins"),
-        "output_dir": os.getenv("OC_OUTPUT_DIR", "output"),
+        "plugin_dir": str(rt.plugin_dir),
+        "output_dir": str(rt.output_dir),
+        "assets_dir": str(rt.assets_dir),
+        "discord_session_path": str(rt.discord_session_path),
+        "discord_pid_path": str(rt.discord_pid_path),
     }
 
     # Load core.json (silent empty dict if dir doesn't exist or file missing)
@@ -249,6 +255,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     _print_status("config_dir", result["paths"]["config_dir"])
     _print_status("plugin_dir", result["paths"]["plugin_dir"])
     _print_status("output_dir", result["paths"]["output_dir"])
+    _print_status("assets_dir", result["paths"]["assets_dir"])
 
     print("Templates:")
     _print_status("model_config", result["templates"]["model_config"])

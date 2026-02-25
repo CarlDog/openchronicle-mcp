@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-25
 **Branch:** `main`
-**Revision:** 35 (Phase 4 — Webhook Service with HMAC signing, background dispatcher, composite emit_event)
+**Revision:** 36 (Data directory centralization — RuntimePaths four-layer precedence, OC_DATA_DIR)
 
 ---
 
@@ -580,7 +580,7 @@ Core Done
   ✓ Docker CI (ghcr.io/openchronicle/core, multi-arch, GitHub Actions)
   ✓ MoE Mode (core — application/services/moe_execution.py, uses LLMPort + routing)
   ✓ HTTP API (core — interfaces/api, always-on daemon, Decision #6)
-  → Capability-Aware Routing (core — wire model config capabilities into routing)
+  ✓ Capability-Aware Routing (core — wire model config capabilities into routing)
   → Media Generation (core — new port + adapters, Decision #7)
   → Multimodal Conversation Input (core — vision input via asset system)
   ✓ Webhooks (core — webhook_service.py + webhook_dispatcher.py, HMAC signing, background dispatch)

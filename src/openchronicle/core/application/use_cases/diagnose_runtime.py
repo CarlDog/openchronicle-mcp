@@ -8,6 +8,7 @@ import os
 from datetime import UTC, datetime
 from pathlib import Path
 
+from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
 
 _logger = logging.getLogger(__name__)
@@ -15,15 +16,16 @@ _logger = logging.getLogger(__name__)
 
 def execute() -> DiagnosticsReport:
     """Collect runtime diagnostics without requiring orchestrator or container."""
-    # 1. Resolve paths from environment (same source as CoreContainer)
-    db_path = os.getenv("OC_DB_PATH", "data/openchronicle.db")
-    config_dir = os.getenv("OC_CONFIG_DIR", "config")
-    plugin_dir = os.getenv("OC_PLUGIN_DIR", "plugins")
+    # 1. Resolve paths from canonical RuntimePaths (four-layer precedence)
+    paths = RuntimePaths.resolve()
+    db_path = str(paths.db_path)
+    config_dir = str(paths.config_dir)
+    plugin_dir = str(paths.plugin_dir)
 
     # 2. Filesystem checks
-    db_path_obj = Path(db_path)
-    config_dir_obj = Path(config_dir)
-    plugin_dir_obj = Path(plugin_dir)
+    db_path_obj = paths.db_path
+    config_dir_obj = paths.config_dir
+    plugin_dir_obj = paths.plugin_dir
 
     db_exists = db_path_obj.exists()
     db_size_bytes: int | None = None
@@ -94,7 +96,9 @@ def _detect_container() -> bool:
 
 def _infer_persistence_hint(db_path: str, running_in_container_hint: bool) -> str:
     """Infer persistence mode from path and container hint."""
-    if running_in_container_hint and db_path.startswith("/data"):
+    # Normalize to forward slashes for cross-platform pattern matching
+    db_posix = db_path.replace("\\", "/")
+    if running_in_container_hint and db_posix.startswith("/data"):
         return "DB configured for container volume at /data. If you expect a host file, ensure a bind-mount overlay is used."
     if "\\" in db_path or db_path[1:3] == ":\\" or (len(db_path) > 2 and db_path[1] == ":"):
         # Windows path detection (C:\\ or C:/)

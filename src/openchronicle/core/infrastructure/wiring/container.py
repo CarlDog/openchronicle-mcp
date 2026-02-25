@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Any
 
 from openchronicle.core.application.config.budget_config import load_budget_policy
 from openchronicle.core.application.config.env_helpers import env_override, parse_int
 from openchronicle.core.application.config.model_config import ModelConfigLoader
+from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.config.settings import (
     load_conversation_settings,
     load_moe_settings,
@@ -49,16 +49,24 @@ class CoreContainer:
         plugin_dir: str | None = None,
         output_dir: str | None = None,
         llm: LLMPort | None = None,
+        *,
+        paths: RuntimePaths | None = None,
     ) -> None:
-        db_path_str = db_path if db_path is not None else os.getenv("OC_DB_PATH", "data/openchronicle.db")
-        config_dir_str = config_dir if config_dir is not None else os.getenv("OC_CONFIG_DIR", "config")
-        plugin_dir_str = plugin_dir if plugin_dir is not None else os.getenv("OC_PLUGIN_DIR", "plugins")
-        output_dir_str = output_dir if output_dir is not None else os.getenv("OC_OUTPUT_DIR", "output")
+        # Resolve all data paths through RuntimePaths (four-layer precedence).
+        # Individual string params feed into RuntimePaths.resolve() when paths is None.
+        if paths is None:
+            paths = RuntimePaths.resolve(
+                db_path=db_path,
+                config_dir=config_dir,
+                plugin_dir=plugin_dir,
+                output_dir=output_dir,
+            )
+        self.paths = paths
 
-        db_path_resolved = Path(db_path_str)
-        config_dir_resolved = Path(config_dir_str)
-        plugin_dir_resolved = Path(plugin_dir_str)
-        output_dir_resolved = Path(output_dir_str)
+        db_path_resolved = paths.db_path
+        config_dir_resolved = paths.config_dir
+        plugin_dir_resolved = paths.plugin_dir
+        output_dir_resolved = paths.output_dir
 
         db_path_resolved.parent.mkdir(parents=True, exist_ok=True)
         if not config_dir_resolved.exists():
@@ -91,12 +99,12 @@ class CoreContainer:
             )
 
             # Shared model config loader (used by LLM facade and router policy)
-            self.model_config_loader = ModelConfigLoader(config_dir_str)
+            self.model_config_loader = ModelConfigLoader(str(config_dir_resolved))
 
             # Use provider-aware facade if no explicit LLM provided
             if llm is None:
                 llm = create_provider_aware_llm(
-                    config_dir=config_dir_str,
+                    config_dir=str(config_dir_resolved),
                     model_config_loader=self.model_config_loader,
                 )
 
@@ -186,8 +194,7 @@ class CoreContainer:
                 emit_event=self.event_logger.append,
             )
 
-            assets_dir = os.getenv("OC_ASSETS_DIR", "data/assets")
-            self.asset_file_storage = AssetFileStorage(base_dir=assets_dir)
+            self.asset_file_storage = AssetFileStorage(base_dir=str(self.paths.assets_dir))
 
             # Embedding service (optional — hybrid memory search)
             self.embedding_port: EmbeddingPort | None = self._build_embedding_port()
@@ -205,7 +212,7 @@ class CoreContainer:
 
             # Store for config show and diagnostics
             self.file_configs = file_configs
-            self.config_dir = str(config_dir_resolved)
+            self.config_dir = str(self.paths.config_dir)
         except BaseException:
             self.storage.close()
             raise

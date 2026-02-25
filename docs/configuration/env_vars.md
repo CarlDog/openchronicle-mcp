@@ -9,13 +9,26 @@ code default**. Boolean values accept `1`/`true`/`yes`/`on` (case-insensitive).
 
 ## Core Paths
 
+All data-directory paths support four-layer precedence:
+
+1. **Constructor param** (programmatic override) — wins unconditionally.
+2. **Per-path env var** (e.g., `OC_DB_PATH`) — checked next.
+3. **`OC_DATA_DIR`** + suffix — if `OC_DATA_DIR` is set, all paths derive from it.
+4. **Hardcoded default** — last resort.
+
+`OC_DATA_DIR` is opt-in. When unset, behavior is identical to previous versions.
+When set, all data-directory paths are derived from it unless individually overridden.
+
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
+| `OC_DATA_DIR` | *(unset)* | Root data directory. When set, derives all paths below (unless individually overridden). |
 | `OC_DB_PATH` | `data/openchronicle.db` | SQLite database location |
 | `OC_CONFIG_DIR` | `config` | Configuration directory (model configs, `core.json`) |
 | `OC_PLUGIN_DIR` | `plugins` | Plugin directory |
 | `OC_OUTPUT_DIR` | `output` | Output/artifacts directory |
 | `OC_ASSETS_DIR` | `data/assets` | Asset storage directory (SHA-256 dedup, file-based) |
+| `OC_DISCORD_SESSION_STORE_PATH` | `data/discord_sessions.json` | Discord session mapping file |
+| `OC_DISCORD_PID_PATH` | `data/discord_bot.pid` | Discord bot PID file |
 
 ## Provider Selection and Authentication
 
