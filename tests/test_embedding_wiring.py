@@ -117,3 +117,98 @@ def test_search_memory_falls_back_to_fts5_without_service() -> None:
 
     results = search_memory.execute(store, "python", embedding_service=None)
     assert any(r.id == "m1" for r in results)
+
+
+# ── Backfill resilience ────────────────────────────────────────────
+
+
+def test_generate_missing_skips_failures_and_continues() -> None:
+    """Individual embedding failures should not abort the entire backfill."""
+    store, service = _make_store_and_service()
+    for i in range(3):
+        store.add_memory(_make_item(memory_id=f"m{i}", content=f"content {i}"))
+
+    # Make the port fail on the second call only
+    original_embed = service.port.embed
+    call_count = 0
+
+    def flaky_embed(text: str) -> list[float]:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 2:
+            raise RuntimeError("simulated API timeout")
+        return original_embed(text)
+
+    service._port.embed = flaky_embed  # type: ignore[method-assign]
+
+    count = service.generate_missing()
+    assert count == 2  # 2 succeeded, 1 failed
+    # Verify the ones that succeeded are stored
+    assert store.get_embedding("m0") is not None
+    assert store.get_embedding("m1") is None  # this one failed
+    assert store.get_embedding("m2") is not None
+
+
+def test_generate_missing_returns_zero_when_all_embedded() -> None:
+    """No-op backfill when all memories already have embeddings."""
+    store, service = _make_store_and_service()
+    item = _make_item()
+    store.add_memory(item)
+    service.generate_for_memory("m1", "test content")
+
+    count = service.generate_missing()
+    assert count == 0
+
+
+# ── Container embedding_status_dict ────────────────────────────────
+
+
+def test_embedding_status_dict_disabled() -> None:
+    """Status dict when provider is 'none'."""
+    from openchronicle.core.application.config.settings import EmbeddingSettings
+    from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
+    container = MagicMock(spec=CoreContainer)
+    container.embedding_settings = EmbeddingSettings(provider="none")
+    container.embedding_service = None
+
+    result = CoreContainer.embedding_status_dict(container)
+    assert result["status"] == "disabled"
+    assert result["provider"] == "none"
+
+
+def test_embedding_status_dict_failed() -> None:
+    """Status dict when adapter failed to initialize."""
+    from openchronicle.core.application.config.settings import EmbeddingSettings
+    from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
+    container = MagicMock(spec=CoreContainer)
+    container.embedding_settings = EmbeddingSettings(provider="openai")
+    container.embedding_service = None
+
+    result = CoreContainer.embedding_status_dict(container)
+    assert result["status"] == "failed"
+    assert result["provider"] == "openai"
+
+
+def test_embedding_status_dict_active() -> None:
+    """Status dict when adapter is active and working."""
+    from openchronicle.core.application.config.settings import EmbeddingSettings
+    from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
+    store, service = _make_store_and_service()
+    store.add_memory(_make_item())
+    service.generate_for_memory("m1", "test content")
+
+    container = MagicMock(spec=CoreContainer)
+    container.embedding_settings = EmbeddingSettings(provider="stub")
+    container.embedding_service = service
+
+    result = CoreContainer.embedding_status_dict(container)
+    assert result["status"] == "active"
+    assert result["provider"] == "stub"
+    assert result["model"] == "stub"
+    assert result["dimensions"] == 32
+    assert result["total_memories"] == 1
+    assert result["embedded"] == 1
+    assert result["missing"] == 0

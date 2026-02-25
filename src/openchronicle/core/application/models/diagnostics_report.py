@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 
 @dataclass
@@ -28,3 +29,5 @@ class DiagnosticsReport:
     model_config_files_count: int
     model_config_provider_summary: dict[str, dict[str, int]]
     model_config_load_errors: dict[str, str]
+    # Embedding status (populated by interfaces that have access to CoreContainer)
+    embedding_status: dict[str, Any] | None = field(default=None)

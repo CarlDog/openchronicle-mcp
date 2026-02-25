@@ -245,6 +245,28 @@ class CoreContainer:
     def __exit__(self, exc_type: type | None, exc_val: BaseException | None, exc_tb: object) -> None:
         self.close()
 
+    def embedding_status_dict(self) -> dict[str, Any]:
+        """Return embedding subsystem status for health/diagnostics."""
+        settings = self.embedding_settings
+        if settings.provider == "none":
+            return {"status": "disabled", "provider": "none"}
+        if self.embedding_service is None:
+            return {
+                "status": "failed",
+                "provider": settings.provider,
+                "message": "Adapter failed to initialize — FTS5-only fallback active",
+            }
+        port = self.embedding_service.port
+        coverage = self.embedding_service.embedding_status()
+        return {
+            "status": "active",
+            "provider": settings.provider,
+            "model": port.model_name(),
+            "dimensions": port.dimensions(),
+            "timeout_seconds": settings.timeout,
+            **coverage,
+        }
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "storage": self.storage,
@@ -271,10 +293,19 @@ class CoreContainer:
         _log = logging.getLogger(__name__)
         settings: EmbeddingSettings = self.embedding_settings
         if settings.provider == "none":
+            _log.info("Embedding provider: none (disabled, FTS5-only search)")
             return None
 
         try:
-            return self._create_embedding_adapter(settings)
+            port = self._create_embedding_adapter(settings)
+            _log.info(
+                "Embedding adapter initialized: provider=%s, model=%s, dimensions=%d, timeout=%.1fs",
+                settings.provider,
+                port.model_name(),
+                port.dimensions(),
+                settings.timeout,
+            )
+            return port
         except Exception as exc:
             _log.warning(
                 "Embedding adapter (%s) failed to initialize: %s — falling back to FTS5-only", settings.provider, exc
@@ -298,6 +329,7 @@ class CoreContainer:
                 kwargs["dimensions"] = settings.dimensions
             if settings.api_key:
                 kwargs["api_key"] = settings.api_key
+            kwargs["timeout_seconds"] = settings.timeout
             return OpenAIEmbeddingAdapter(**kwargs)  # type: ignore[arg-type]
 
         if settings.provider == "ollama":
@@ -308,6 +340,7 @@ class CoreContainer:
                 kwargs_o["model"] = settings.model
             if settings.dimensions:
                 kwargs_o["dimensions"] = settings.dimensions
+            kwargs_o["timeout_seconds"] = settings.timeout
             return OllamaEmbeddingAdapter(**kwargs_o)  # type: ignore[arg-type]
 
         raise LLMProviderError(

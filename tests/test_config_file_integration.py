@@ -198,6 +198,26 @@ class TestEmbeddingFilePrecedence:
         with pytest.raises(ValueError, match="embedding dimensions"):
             load_embedding_settings({"provider": "stub", "dimensions": -1})
 
+    def test_timeout_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_TIMEOUT", raising=False)
+        settings = load_embedding_settings()
+        assert settings.timeout == 30.0
+
+    def test_file_sets_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_TIMEOUT", raising=False)
+        settings = load_embedding_settings({"timeout": 60})
+        assert settings.timeout == 60.0
+
+    def test_env_overrides_file_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OC_EMBEDDING_TIMEOUT", "15")
+        settings = load_embedding_settings({"timeout": 60})
+        assert settings.timeout == 15.0
+
+    def test_invalid_timeout_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_TIMEOUT", raising=False)
+        with pytest.raises(ValueError, match="embedding timeout"):
+            load_embedding_settings({"timeout": 0})
+
 
 class TestRouterAssistFilePrecedence:
     def test_file_enables_assist(self, monkeypatch: pytest.MonkeyPatch) -> None:

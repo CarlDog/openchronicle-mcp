@@ -163,6 +163,7 @@ for local development; env vars are useful for Docker/CI overrides.
 | `OC_EMBEDDING_MODEL` | `embedding.model` | *(provider default)* | Embedding model name. Defaults: OpenAI=`text-embedding-3-small`, Ollama=`nomic-embed-text`, Stub=`stub`. |
 | `OC_EMBEDDING_DIMENSIONS` | `embedding.dimensions` | *(provider default)* | Override embedding dimensions. Defaults: OpenAI=1536, Ollama=768, Stub=384. |
 | `OC_EMBEDDING_API_KEY` | `embedding.api_key` | - | API key for embedding provider. If unset, adapter falls back to provider-specific env var (e.g., `OPENAI_API_KEY`). |
+| `OC_EMBEDDING_TIMEOUT` | `embedding.timeout` | `30` | Per-request timeout in seconds for embedding API calls. Applies to both OpenAI and Ollama adapters. |
 
 ## Search
 

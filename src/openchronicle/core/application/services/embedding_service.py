@@ -57,25 +57,58 @@ class EmbeddingService:
         """Backfill embeddings for memories that don't have one.
 
         If *force* is True, regenerate all embeddings (model change scenario).
-        Returns the count of embeddings generated.
+        Returns the count of embeddings successfully generated.  Individual
+        failures are logged and skipped so the backfill always completes.
         """
+        import time
+
         items = self._store.list_memory(limit=None, pinned_only=False)
         if project_id:
             items = [i for i in items if i.project_id == project_id]
-        count = 0
+
+        candidates = []
         for item in items:
             if not force:
                 existing_model = self._store.get_embedding_model(item.id)
                 if existing_model == self._port.model_name():
                     continue
-            vec = self._port.embed(item.content)
-            self._store.save_embedding(
-                item.id,
-                vec,
-                model=self._port.model_name(),
-                dimensions=self._port.dimensions(),
-            )
-            count += 1
+            candidates.append(item)
+
+        if not candidates:
+            logger.info("Embedding backfill: 0 candidates, nothing to do")
+            return 0
+
+        logger.info(
+            "Embedding backfill started: %d candidates (model=%s, force=%s)",
+            len(candidates),
+            self._port.model_name(),
+            force,
+        )
+
+        t0 = time.monotonic()
+        count = 0
+        failed = 0
+        for item in candidates:
+            try:
+                vec = self._port.embed(item.content)
+                self._store.save_embedding(
+                    item.id,
+                    vec,
+                    model=self._port.model_name(),
+                    dimensions=self._port.dimensions(),
+                )
+                count += 1
+            except Exception:
+                failed += 1
+                logger.warning("Embedding generation failed for memory %s", item.id, exc_info=True)
+
+        elapsed_ms = (time.monotonic() - t0) * 1000
+        logger.info(
+            "Embedding backfill completed: %d generated, %d failed, %.0fms elapsed",
+            count,
+            failed,
+            elapsed_ms,
+        )
         return count
 
     def embedding_status(self) -> dict[str, int]:

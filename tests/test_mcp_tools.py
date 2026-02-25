@@ -601,6 +601,10 @@ class TestHealth:
         mcp = FastMCP("test")
         register(mcp)
 
+        container = _make_container()
+        container.embedding_status_dict.return_value = {"status": "disabled", "provider": "none"}
+        ctx = _make_context(container)
+
         # Mock diagnose_runtime.execute to avoid needing real filesystem
         from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
 
@@ -629,12 +633,14 @@ class TestHealth:
             return_value=mock_report,
         ):
             tool_fn = mcp._tool_manager._tools["health"].fn
-            result = tool_fn()
+            result = tool_fn(ctx=ctx)
 
         assert result["db_exists"] is True
         assert result["config_dir"] == "config"
         # Datetime should be serialized
         assert "2026-02-20" in result["timestamp_utc"]
+        # Embedding status should be present
+        assert result["embedding_status"]["status"] == "disabled"
 
 
 class TestSearchTurns:

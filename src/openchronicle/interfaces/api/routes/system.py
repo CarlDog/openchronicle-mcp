@@ -17,9 +17,10 @@ ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 
 
 @router.get("/health")
-def health() -> dict[str, Any]:
+def health(container: ContainerDep) -> dict[str, Any]:
     """Health check: database status, configuration, and provider summary."""
     report = diagnose_runtime.execute()
+    report.embedding_status = container.embedding_status_dict()
     data = asdict(report)
     if data.get("timestamp_utc"):
         data["timestamp_utc"] = data["timestamp_utc"].isoformat()
