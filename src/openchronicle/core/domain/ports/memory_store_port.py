@@ -51,3 +51,8 @@ class MemoryStorePort(ABC):
         Returns True if deleted, False if not found.
         """
         ...
+
+    @abstractmethod
+    def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
+        """List memory items filtered by source field."""
+        ...

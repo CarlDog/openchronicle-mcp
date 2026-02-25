@@ -420,6 +420,7 @@ class TestMCPOnboardGit:
         # Set up container mock
         container = MagicMock()
         container.storage.get_project.return_value = MagicMock()
+        # No existing memories, no watermark → fresh run
         container.storage.list_memory_by_source.return_value = []
         container.event_logger.append = MagicMock()
 
@@ -440,6 +441,8 @@ class TestMCPOnboardGit:
         assert result["cluster_count"] > 0
         assert result["commit_count"] > 0
         assert "instructions" in result
+        # Watermark should have been saved
+        container.storage.delete_memory.assert_not_called()  # no old watermark to delete
 
     def test_onboard_git_idempotency(self) -> None:
         from openchronicle.interfaces.mcp.tools.onboard import register
@@ -451,7 +454,10 @@ class TestMCPOnboardGit:
 
         container = MagicMock()
         container.storage.get_project.return_value = MagicMock()
-        container.storage.list_memory_by_source.return_value = [MagicMock()]  # existing memories
+        # Existing memories but no watermark → pre-incremental state
+        container.storage.list_memory_by_source.side_effect = lambda source, pid: (
+            [MagicMock()] if source == "git-onboard" else []
+        )
 
         ctx = MagicMock()
         ctx.request_context.lifespan_context = {"container": container}
@@ -462,3 +468,158 @@ class TestMCPOnboardGit:
         )
         assert "error" in result
         assert result["existing_count"] == 1
+
+
+class TestIncrementalOnboard:
+    """Tests for incremental onboard_git with watermark tracking."""
+
+    def test_extract_with_since_commit(self) -> None:
+        """extract_commits_from_git with since_commit uses git range syntax."""
+        with patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            extract_commits_from_git("/tmp/repo", max_commits=100, since_commit="abc123")
+
+        cmd = mock_run.call_args[0][0]
+        assert "abc123..HEAD" in cmd
+
+    def test_extract_without_since_commit(self) -> None:
+        """extract_commits_from_git without since_commit has no range."""
+        with patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            extract_commits_from_git("/tmp/repo", max_commits=100)
+
+        cmd = mock_run.call_args[0][0]
+        assert not any("..HEAD" in str(arg) for arg in cmd)
+
+    def test_save_watermark(self, tmp_path: Path) -> None:
+        """save_watermark creates a memory with the latest commit hash."""
+        from openchronicle.core.application.services.git_onboard import save_watermark
+        from openchronicle.core.domain.models.project import Project
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        db_path = tmp_path / "test.db"
+        store = SqliteStore(str(db_path))
+        store.init_schema()
+        store.add_project(Project(id="proj-1", name="test"))
+
+        save_watermark(store, "proj-1", "abc123def")
+
+        wms = store.list_memory_by_source("git-onboard-watermark", "proj-1")
+        assert len(wms) == 1
+        assert wms[0].content == "abc123def"
+
+    def test_save_watermark_replaces_existing(self, tmp_path: Path) -> None:
+        """save_watermark replaces old watermark."""
+        from openchronicle.core.application.services.git_onboard import save_watermark
+        from openchronicle.core.domain.models.project import Project
+        from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+        db_path = tmp_path / "test.db"
+        store = SqliteStore(str(db_path))
+        store.init_schema()
+        store.add_project(Project(id="proj-1", name="test"))
+
+        save_watermark(store, "proj-1", "first_hash")
+        save_watermark(store, "proj-1", "second_hash")
+
+        wms = store.list_memory_by_source("git-onboard-watermark", "proj-1")
+        assert len(wms) == 1
+        assert wms[0].content == "second_hash"
+
+    def test_mcp_incremental_uses_watermark(self) -> None:
+        """MCP onboard_git passes watermark hash to extract_commits."""
+        from openchronicle.interfaces.mcp.tools.onboard import register
+
+        mcp_server = MagicMock()
+        registered: dict[str, Any] = {}
+        mcp_server.tool.return_value = lambda fn: registered.update({fn.__name__: fn}) or fn
+        register(mcp_server)
+
+        wm_item = MagicMock()
+        wm_item.content = "abc123"
+
+        container = MagicMock()
+        container.storage.get_project.return_value = MagicMock()
+        container.storage.list_memory_by_source.side_effect = lambda source, pid: (
+            [] if source == "git-onboard" else [wm_item]
+        )
+        container.event_logger.append = MagicMock()
+
+        ctx = MagicMock()
+        ctx.request_context.lifespan_context = {"container": container}
+
+        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_git") as mock_extract:
+            mock_extract.return_value = [
+                _commit("feat: new stuff", files=["src/new.py"]),
+            ]
+            result = registered["onboard_git"](project_id="proj-1", ctx=ctx)
+
+        mock_extract.assert_called_once_with(".", 500, since_commit="abc123")
+        assert result["incremental"] is True
+
+    def test_mcp_no_new_commits_returns_up_to_date(self) -> None:
+        """When watermark exists but no new commits, return up_to_date."""
+        from openchronicle.interfaces.mcp.tools.onboard import register
+
+        mcp_server = MagicMock()
+        registered: dict[str, Any] = {}
+        mcp_server.tool.return_value = lambda fn: registered.update({fn.__name__: fn}) or fn
+        register(mcp_server)
+
+        wm_item = MagicMock()
+        wm_item.content = "abc123"
+
+        container = MagicMock()
+        container.storage.get_project.return_value = MagicMock()
+        container.storage.list_memory_by_source.side_effect = lambda source, pid: (
+            [] if source == "git-onboard" else [wm_item]
+        )
+
+        ctx = MagicMock()
+        ctx.request_context.lifespan_context = {"container": container}
+
+        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_git") as mock_extract:
+            mock_extract.return_value = []
+            result = registered["onboard_git"](project_id="proj-1", ctx=ctx)
+
+        assert result["status"] == "up_to_date"
+        assert result["watermark"] == "abc123"
+
+    def test_mcp_force_deletes_watermark_and_memories(self) -> None:
+        """force=True deletes existing memories and watermark."""
+        from openchronicle.interfaces.mcp.tools.onboard import register
+
+        mcp_server = MagicMock()
+        registered: dict[str, Any] = {}
+        mcp_server.tool.return_value = lambda fn: registered.update({fn.__name__: fn}) or fn
+        register(mcp_server)
+
+        mem_item = MagicMock()
+        mem_item.id = "mem-1"
+        wm_item = MagicMock()
+        wm_item.id = "wm-1"
+        wm_item.content = "old_hash"
+
+        container = MagicMock()
+        container.storage.get_project.return_value = MagicMock()
+        container.storage.list_memory_by_source.side_effect = lambda source, pid: (
+            [mem_item] if source == "git-onboard" else [wm_item]
+        )
+        container.event_logger.append = MagicMock()
+
+        ctx = MagicMock()
+        ctx.request_context.lifespan_context = {"container": container}
+
+        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_git") as mock_extract:
+            mock_extract.return_value = [
+                _commit("feat: fresh", files=["src/fresh.py"]),
+            ]
+            result = registered["onboard_git"](project_id="proj-1", ctx=ctx, force=True)
+
+        # Both memory and watermark should have been deleted
+        delete_calls = [c[0][0] for c in container.storage.delete_memory.call_args_list]
+        assert "mem-1" in delete_calls
+        assert "wm-1" in delete_calls
+        # Fresh run (no watermark after force)
+        mock_extract.assert_called_once_with(".", 500, since_commit=None)
+        assert result["incremental"] is False

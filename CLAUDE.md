@@ -18,15 +18,14 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Memory System Phase 2 (standalone context assembly, external turn recording), media generation port,
-security scanner plugin, or webhooks.
+**Next action:** Media generation port, security scanner plugin, or webhooks.
 Capability-aware routing is done (`ModelConfigLoader` parses capabilities,
 `RouterPolicy` filters by `required_capabilities`, `NO_CAPABLE_MODEL` error, 12 tests).
-HTTP API is done (`interfaces/api/`, FastAPI, 23 REST endpoints mirroring MCP tools,
+HTTP API is done (`interfaces/api/`, FastAPI, 25 REST endpoints mirroring MCP tools,
 API key auth, rate limiting, shared serializers, 51+ tests, auto-starts with `oc serve`).
 MoE execution strategy is done (`application/services/moe_execution.py`, Jaccard
 consensus, `--moe` CLI/MCP, 32 tests).
-MCP server is done (`interfaces/mcp/`, 24 tools, 37 tests + 7 posture, `oc mcp serve`
+MCP server is done (`interfaces/mcp/`, 26 tools, 37 tests + 7 posture, `oc mcp serve`
 CLI, stdio + SSE transports, lazy import guard).
 Asset management is done (`domain/models/asset.py`, `application/services/asset_storage.py`,
 `application/use_cases/upload_asset.py`, `application/use_cases/link_asset.py`,
@@ -61,6 +60,10 @@ Enterprise Tightening Pass C is done (API/MCP parity `search_turns` endpoint,
 `Path()` validation on all API path params, `Query()` constraints on system routes,
 MCP tool input validation/clamping across 7 tools, Gemini error code classification,
 `OLLAMA_HOST` documented, 21 new tests, 1198 total).
+Memory System Phase 2 is done (external turn recording `turn_record` MCP + API,
+standalone context assembly `context_assemble` MCP + API with shared `context_builder`
+service refactored from `prepare_ask`, incremental `onboard_git` with watermark tracking,
+`list_memory_by_source` promoted to `MemoryStorePort`, 39 new tests, 1237 total).
 
 ## Build and Development
 
@@ -126,8 +129,8 @@ for the full directory tree and layer descriptions.
 - **Routing**: Provider/model selection via pools (fast, quality, nsfw) with fallback support
 - **Scheduler**: Core service in `application/services/scheduler.py` (not a plugin)
 - **Discord**: Interfaces driver in `interfaces/discord/` (optional extra, not a plugin)
-- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 24 tools, FastMCP)
-- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 23 REST endpoints, auto-starts with `oc serve`)
+- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 26 tools, FastMCP)
+- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 25 REST endpoints, auto-starts with `oc serve`)
 - **MoE Execution**: `application/services/moe_execution.py` — Mixture-of-Experts consensus strategy (`--moe` flag)
 - **Asset Management**: `domain/models/asset.py` + `application/services/asset_storage.py` — filesystem storage, SHA-256 dedup, generic entity linking
 

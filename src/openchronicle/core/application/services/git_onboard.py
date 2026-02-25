@@ -243,25 +243,31 @@ async def synthesize_cluster(
 # --- Git Extraction ---
 
 
-def extract_commits_from_git(repo_path: str, max_commits: int = 500) -> list[GitCommit]:
+def extract_commits_from_git(
+    repo_path: str, max_commits: int = 500, since_commit: str | None = None
+) -> list[GitCommit]:
     """Extract commits from a git repository via subprocess."""
     separator = "---GIT_ONBOARD_SEP---"
     field_sep = "---GIT_ONBOARD_FIELD---"
 
     git_format = field_sep.join(["%H", "%an", "%aI", "%s", "%b"])
 
+    cmd = [
+        "git",
+        "-C",
+        repo_path,
+        "log",
+        f"--max-count={max_commits}",
+        "--no-merges",
+        f"--format={separator}{git_format}",
+        "--numstat",
+    ]
+    if since_commit:
+        cmd.insert(4, f"{since_commit}..HEAD")
+
     try:
         result = subprocess.run(
-            [
-                "git",
-                "-C",
-                repo_path,
-                "log",
-                f"--max-count={max_commits}",
-                "--no-merges",
-                f"--format={separator}{git_format}",
-                "--numstat",
-            ],
+            cmd,
             capture_output=True,
             text=True,
             timeout=60,
@@ -436,3 +442,23 @@ async def run_git_onboard(
     )
 
     return memories
+
+
+def save_watermark(
+    store: MemoryStorePort,
+    project_id: str,
+    latest_hash: str,
+) -> None:
+    """Save or update the git-onboard watermark for incremental runs."""
+    existing = store.list_memory_by_source("git-onboard-watermark", project_id)
+    for wm in existing:
+        store.delete_memory(wm.id)
+    store.add_memory(
+        MemoryItem(
+            content=latest_hash,
+            tags=["git-onboard-watermark"],
+            pinned=False,
+            project_id=project_id,
+            source="git-onboard-watermark",
+        )
+    )

@@ -124,7 +124,9 @@ class TestServerCreation:
             "conversation_list",
             "conversation_history",
             "conversation_ask",
+            "turn_record",
             "context_recent",
+            "context_assemble",
             "tool_stats",
             "moe_stats",
             "search_turns",
@@ -414,6 +416,74 @@ class TestConversationAsk:
         assert result["user_text"] == "Hello"
 
 
+class TestTurnRecord:
+    def test_turn_record_happy_path(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.conversation import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.conversation.external_turn.execute",
+            return_value=_sample_turn(provider="external", model="", routing_reasons=["external"]),
+        ):
+            tool_fn = mcp._tool_manager._tools["turn_record"].fn
+            result = tool_fn(
+                conversation_id="convo-1",
+                user_text="hello",
+                assistant_text="hi",
+                ctx=ctx,
+            )
+
+        assert result["provider"] == "external"
+        assert result["routing_reasons"] == ["external"]
+
+    def test_turn_record_rejects_empty_user_text(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.conversation import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        tool_fn = mcp._tool_manager._tools["turn_record"].fn
+        with pytest.raises(DomainValidationError, match="user_text"):
+            tool_fn(
+                conversation_id="convo-1",
+                user_text="",
+                assistant_text="hi",
+                ctx=ctx,
+            )
+
+    def test_turn_record_rejects_empty_assistant_text(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.conversation import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        tool_fn = mcp._tool_manager._tools["turn_record"].fn
+        with pytest.raises(DomainValidationError, match="assistant_text"):
+            tool_fn(
+                conversation_id="convo-1",
+                user_text="hello",
+                assistant_text="",
+                ctx=ctx,
+            )
+
+
 # ── Context tools ─────────────────────────────────────────────────
 
 
@@ -461,6 +531,58 @@ class TestContextRecent:
         result = tool_fn(ctx=ctx)
 
         assert "message" in result
+
+
+class TestContextAssemble:
+    def test_context_assemble_happy_path(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.context import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        from openchronicle.core.application.use_cases.assemble_context import AssembledContext
+
+        mock_result = AssembledContext(
+            conversation_id="convo-1",
+            conversation_title="Test",
+            conversation_mode="general",
+            messages=[{"role": "system", "content": "You are a helpful assistant."}],
+            retrieved_memories=[],
+            prior_turn_count=0,
+            last_interaction_at=_NOW.isoformat(),
+            seconds_since_last_interaction=0,
+        )
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.context.assemble_context.execute",
+            return_value=mock_result,
+        ):
+            tool_fn = mcp._tool_manager._tools["context_assemble"].fn
+            result = tool_fn(conversation_id="convo-1", prompt="hello", ctx=ctx)
+
+        assert result["conversation_id"] == "convo-1"
+        assert result["conversation_title"] == "Test"
+        assert len(result["messages"]) == 1
+
+    def test_context_assemble_rejects_empty_prompt(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.context import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        tool_fn = mcp._tool_manager._tools["context_assemble"].fn
+        with pytest.raises(DomainValidationError, match="prompt"):
+            tool_fn(conversation_id="convo-1", prompt="", ctx=ctx)
 
 
 # ── System tools ──────────────────────────────────────────────────

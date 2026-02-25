@@ -61,6 +61,29 @@ def turn_to_dict(t: Turn) -> dict[str, Any]:
     }
 
 
+def assembled_context_to_dict(ctx: Any) -> dict[str, Any]:
+    """Serialize an AssembledContext to a JSON-safe dict."""
+    return {
+        "conversation_id": ctx.conversation_id,
+        "conversation_title": ctx.conversation_title,
+        "conversation_mode": ctx.conversation_mode,
+        "messages": ctx.messages,
+        "retrieved_memories": [
+            {
+                "id": m.id,
+                "content": m.content,
+                "tags": m.tags,
+                "pinned": m.pinned,
+                "source": m.source,
+            }
+            for m in ctx.retrieved_memories
+        ],
+        "prior_turn_count": ctx.prior_turn_count,
+        "last_interaction_at": ctx.last_interaction_at,
+        "seconds_since_last_interaction": ctx.seconds_since_last_interaction,
+    }
+
+
 def asset_to_dict(a: Asset) -> dict[str, Any]:
     return {
         "id": a.id,

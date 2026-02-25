@@ -520,6 +520,93 @@ class TestConversationRoutes:
         assert len(data["memories"]) == 1
 
 
+class TestTurnRecordRoutes:
+    def test_turn_record_happy_path(self, client: TestClient) -> None:
+        turn = _make_turn()
+        turn.provider = "external"
+        turn.routing_reasons = ["external"]
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.external_turn.execute",
+            return_value=turn,
+        ):
+            resp = client.post(
+                "/api/v1/conversation/conv-1/turns",
+                json={"user_text": "hello", "assistant_text": "hi"},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["provider"] == "external"
+        assert data["routing_reasons"] == ["external"]
+
+    def test_turn_record_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.external_turn.execute",
+            side_effect=NotFoundError("Conversation nonexistent not found"),
+        ):
+            resp = client.post(
+                "/api/v1/conversation/nonexistent/turns",
+                json={"user_text": "hello", "assistant_text": "hi"},
+            )
+        assert resp.status_code == 404
+
+    def test_turn_record_empty_fields_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/conversation/conv-1/turns",
+            json={"user_text": "", "assistant_text": "hi"},
+        )
+        assert resp.status_code == 422
+
+
+class TestAssembleContextRoutes:
+    def test_assemble_context_happy_path(self, client: TestClient) -> None:
+        from openchronicle.core.application.use_cases.assemble_context import AssembledContext
+
+        mock_result = AssembledContext(
+            conversation_id="conv-1",
+            conversation_title="Test",
+            conversation_mode="general",
+            messages=[{"role": "system", "content": "You are a helpful assistant."}],
+            retrieved_memories=[],
+            prior_turn_count=0,
+            last_interaction_at="2026-02-24T12:00:00+00:00",
+            seconds_since_last_interaction=0,
+        )
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.assemble_context.execute",
+            return_value=mock_result,
+        ):
+            resp = client.post(
+                "/api/v1/conversation/conv-1/assemble-context",
+                json={"prompt": "hello"},
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["conversation_id"] == "conv-1"
+        assert data["messages"][0]["role"] == "system"
+
+    def test_assemble_context_not_found(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.assemble_context.execute",
+            side_effect=NotFoundError("Conversation nonexistent not found"),
+        ):
+            resp = client.post(
+                "/api/v1/conversation/nonexistent/assemble-context",
+                json={"prompt": "hello"},
+            )
+        assert resp.status_code == 404
+
+    def test_assemble_context_empty_prompt_rejected(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/conversation/conv-1/assemble-context",
+            json={"prompt": ""},
+        )
+        assert resp.status_code == 422
+
+
 # ---------------------------------------------------------------------------
 # Routes: asset
 # ---------------------------------------------------------------------------

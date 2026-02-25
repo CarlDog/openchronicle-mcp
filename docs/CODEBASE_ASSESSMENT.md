@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-24
 **Branch:** `main`
-**Revision:** 32 (Pass C — interface hardening, API/MCP parity, parameter validation)
+**Revision:** 33 (Memory Phase 2 — external turn recording, standalone context assembly, incremental onboard_git)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (1,198 unit/functional, 22 real-world integration, 14 Discord
+Tests are strong (1,237 unit/functional, 22 real-world integration, 14 Discord
 integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
 daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
@@ -74,7 +74,7 @@ an error. `--force` overrides the check. Cross-platform: uses `PermissionError`
 vs generic `OSError` distinction since Windows doesn't raise `ProcessLookupError`.
 
 **HTTP API** (Decision #6) is implemented — FastAPI/uvicorn are core dependencies,
-23 REST endpoints mirroring the MCP tool surface, starts automatically with
+25 REST endpoints mirroring the MCP tool surface, starts automatically with
 `oc serve` in a daemon thread. Includes API key auth (timing-safe), per-client
 rate limiting (thread-safe sliding window), optional CORS, and proper HTTP error
 codes. Shared serializers (`interfaces/serializers.py`) eliminate duplication
@@ -228,9 +228,9 @@ validates against live providers (OpenAI, Anthropic).
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
 | **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, PID file guard, config from `core.json`, 71 tests |
-| **MCP server interface** (24 tools, FastMCP, stdio + SSE) | Working | Memory (save/search/list/pin/update/get/delete/stats), conversation, context, system, onboard, asset tools; `@track_tool` decorator; lazy import guard; posture-enforced isolation |
+| **MCP server interface** (26 tools, FastMCP, stdio + SSE) | Working | Memory (save/search/list/pin/update/get/delete/stats), conversation, context, system, onboard, asset tools; `@track_tool` decorator; lazy import guard; posture-enforced isolation |
 | **Asset management** (filesystem storage, SHA-256 dedup, generic linking) | Working | Asset/AssetLink models, AssetStorePort, AssetFileStorage, upload/link use cases, 4 MCP tools, 4 CLI commands, 48 tests |
-| **HTTP API interface** (FastAPI, always-on daemon, 23 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51+ tests |
+| **HTTP API interface** (FastAPI, always-on daemon, 25 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51+ tests |
 | **Test suite** (1198 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 14 test categories + Discord + MCP + Assets + HTTP API, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
 
 ### Architecture (Enforced and Clean)
@@ -334,7 +334,7 @@ surface. No backwards compatibility concerns. No production deployment yet.
 | ~~Docker hardening~~ | ✅ CI builds multi-arch image to `ghcr.io/openchronicle/core` on push to main |
 | ~~Scheduler~~ | ✅ Core service (`application/services/scheduler.py`, 53 tests) |
 | ~~Discord driver~~ | ✅ Interfaces driver (`interfaces/discord/`, 85 tests, optional extra) |
-| ~~OC MCP Server~~ | ✅ Interfaces driver (`interfaces/mcp/`, 24 tools, 40+7 tests, optional extra) |
+| ~~OC MCP Server~~ | ✅ Interfaces driver (`interfaces/mcp/`, 26 tools, 40+7 tests, optional extra) |
 
 ---
 

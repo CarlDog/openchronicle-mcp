@@ -13,6 +13,11 @@ from openchronicle.core.application.config.env_helpers import parse_bool, parse_
 from openchronicle.core.application.config.settings import PrivacyOutboundSettings
 from openchronicle.core.application.policies.provider_policy import is_external_provider
 from openchronicle.core.application.routing.router_policy import RouteDecision, RouterPolicy
+from openchronicle.core.application.services.context_builder import (
+    build_turn_messages,
+    format_memory_messages,
+    format_time_context,
+)
 from openchronicle.core.application.services.llm_execution import execute_with_route
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.use_cases import run_task
@@ -245,39 +250,15 @@ async def prepare_ask(
         )
     )
 
-    if pinned_memory or relevant_memory:
-        memory_lines: list[str] = []
-        if include_pinned_memory:
-            memory_lines.append("Pinned memory:")
-            for item in pinned_memory:
-                content_snippet = item.content if len(item.content) <= 300 else item.content[:300] + "..."
-                tags_str = ",".join(item.tags)
-                memory_lines.append(f"- {item.id} | tags=[{tags_str}] | {content_snippet}")
-            memory_lines.append("")
-
-        memory_lines.append("Relevant memory:")
-        for item in relevant_memory:
-            content_snippet = item.content if len(item.content) <= 300 else item.content[:300] + "..."
-            tags_str = ",".join(item.tags)
-            memory_lines.append(f"- {item.id} | tags=[{tags_str}] | {content_snippet}")
-
-        messages.append({"role": "system", "content": "\n".join(memory_lines)})
+    memory_text = format_memory_messages(pinned_memory, relevant_memory, include_pinned_memory)
+    if memory_text is not None:
+        messages.append({"role": "system", "content": memory_text})
 
     # Time context — raw temporal data for bot awareness
-    now = datetime.now(UTC)
-    ref_time = prior_turns[-1].created_at if prior_turns else conversation.created_at
-    delta_seconds = int((now - ref_time).total_seconds())
-    time_ctx_msg = (
-        f"Current time: {now.isoformat()}. "
-        f"Last interaction: {ref_time.isoformat()}. "
-        f"Seconds since last interaction: {delta_seconds}."
-    )
+    time_ctx_msg, ref_time, delta_seconds = format_time_context(prior_turns, conversation)
     messages.append({"role": "system", "content": time_ctx_msg})
 
-    for turn in prior_turns:
-        messages.append({"role": "user", "content": turn.user_text})
-        messages.append({"role": "assistant", "content": turn.assistant_text})
-    messages.append({"role": "user", "content": prompt_text})
+    messages.extend(build_turn_messages(prior_turns, prompt_text))
 
     retrieved_ids = [item.id for item in pinned_memory] + [item.id for item in relevant_memory]
     pinned_ids = [item.id for item in pinned_memory]

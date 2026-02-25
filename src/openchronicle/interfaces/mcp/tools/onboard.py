@@ -11,6 +11,7 @@ from openchronicle.core.application.services.git_onboard import (
     extract_commits_from_git,
     filter_commits,
     format_cluster_for_synthesis,
+    save_watermark,
 )
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
@@ -57,22 +58,30 @@ def register(mcp: FastMCP) -> None:
         if project is None:
             raise NotFoundError(f"Project not found: {project_id}", code=PROJECT_NOT_FOUND)
 
-        # Idempotency check
         store = container.storage
-        if hasattr(store, "list_memory_by_source"):
-            existing = store.list_memory_by_source("git-onboard", project_id)
-            if existing and not force:
-                return {
-                    "error": f"{len(existing)} git-onboard memories already exist. Use force=True to re-run.",
-                    "existing_count": len(existing),
-                }
-            if existing and force:
-                for m in existing:
-                    store.delete_memory(m.id)
+        existing = store.list_memory_by_source("git-onboard", project_id)
+        watermark_items = store.list_memory_by_source("git-onboard-watermark", project_id)
+        watermark_hash = watermark_items[0].content if watermark_items else None
 
-        # Extract and process
-        commits = extract_commits_from_git(repo_path, max_commits)
+        if force:
+            # Delete all git-onboard memories AND watermark
+            for m in existing:
+                store.delete_memory(m.id)
+            for wm in watermark_items:
+                store.delete_memory(wm.id)
+            watermark_hash = None
+        elif existing and not watermark_hash:
+            # Existing memories but no watermark (pre-incremental run) — require force
+            return {
+                "error": f"{len(existing)} git-onboard memories already exist. Use force=True to re-run.",
+                "existing_count": len(existing),
+            }
+
+        # Extract commits — incremental if watermark exists
+        commits = extract_commits_from_git(repo_path, max_commits, since_commit=watermark_hash)
         if not commits:
+            if watermark_hash:
+                return {"status": "up_to_date", "watermark": watermark_hash}
             return {"project_id": project_id, "commit_count": 0, "cluster_count": 0, "clusters": []}
 
         filtered = filter_commits(commits)
@@ -87,6 +96,7 @@ def register(mcp: FastMCP) -> None:
                     "project_id": project_id,
                     "commit_count": len(filtered),
                     "cluster_count": len(clusters),
+                    "incremental": watermark_hash is not None,
                 },
             )
         )
@@ -95,7 +105,6 @@ def register(mcp: FastMCP) -> None:
         cluster_data = []
         for cluster in clusters:
             sorted_commits = sorted(cluster.commits, key=lambda c: c.date)
-            latest_date = sorted_commits[-1].date
             date_start = sorted_commits[0].date.date().isoformat()
             date_end = sorted_commits[-1].date.date().isoformat()
 
@@ -110,7 +119,6 @@ def register(mcp: FastMCP) -> None:
 
             # Suggested tags
             suggested_tags = ["git-derived"]
-            # Add path-based tag if a dominant path exists
             path_parts = []
             for f in key_files[:5]:
                 parts = f.replace("\\", "/").split("/")
@@ -127,18 +135,24 @@ def register(mcp: FastMCP) -> None:
                     "label": cluster.label,
                     "commit_count": len(cluster.commits),
                     "date_range": f"{date_start} to {date_end}",
-                    "created_at": latest_date.isoformat(),
+                    "created_at": sorted_commits[-1].date.isoformat(),
                     "key_files": key_files,
                     "commits_summary": format_cluster_for_synthesis(cluster),
                     "suggested_tags": suggested_tags,
                 }
             )
 
+        # Save watermark with latest commit hash
+        if filtered:
+            latest_hash = max(filtered, key=lambda c: c.date).hash
+            save_watermark(store, project_id, latest_hash)
+
         return {
             "project_id": project_id,
             "commit_count": len(filtered),
             "cluster_count": len(clusters),
             "clusters": cluster_data,
+            "incremental": watermark_hash is not None,
             "instructions": (
                 "For each cluster above, synthesize a memory capturing WHY the changes "
                 "were made (decisions, rejected approaches, architectural shifts). Write "

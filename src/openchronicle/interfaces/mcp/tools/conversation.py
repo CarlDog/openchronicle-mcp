@@ -9,6 +9,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from openchronicle.core.application.use_cases import (
     ask_conversation,
     create_conversation,
+    external_turn,
     list_conversations,
     show_conversation,
 )
@@ -124,5 +125,49 @@ def register(mcp: FastMCP) -> None:
             privacy_gate=container.privacy_gate,
             privacy_settings=container.privacy_settings,
             moe=moe,
+        )
+        return turn_to_dict(turn)
+
+    @mcp.tool()
+    @track_tool
+    def turn_record(
+        conversation_id: str,
+        user_text: str,
+        assistant_text: str,
+        ctx: Context,
+        provider: str = "external",
+        model: str = "",
+    ) -> dict[str, Any]:
+        """Record a conversation turn from an external agent.
+
+        Lets MCP callers record turns that didn't go through OC's LLM
+        pipeline. More data flowing in → better memory retrieval → better
+        context in future interactions.
+
+        Args:
+            conversation_id: The conversation to add the turn to.
+            user_text: The user message text.
+            assistant_text: The assistant response text.
+            provider: Provider name (default: "external").
+            model: Model name (default: empty).
+        """
+        if not user_text or not user_text.strip():
+            raise DomainValidationError("user_text must be non-empty")
+        if len(user_text) > 200_000:
+            raise DomainValidationError("user_text exceeds maximum length of 200,000 characters")
+        if not assistant_text or not assistant_text.strip():
+            raise DomainValidationError("assistant_text must be non-empty")
+        if len(assistant_text) > 200_000:
+            raise DomainValidationError("assistant_text exceeds maximum length of 200,000 characters")
+        container = _get_container(ctx)
+        turn = external_turn.execute(
+            convo_store=container.storage,
+            storage=container.storage,
+            emit_event=container.event_logger.append,
+            conversation_id=conversation_id,
+            user_text=user_text,
+            assistant_text=assistant_text,
+            provider=provider,
+            model=model,
         )
         return turn_to_dict(turn)

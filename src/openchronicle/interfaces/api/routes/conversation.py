@@ -9,14 +9,21 @@ from pydantic import BaseModel, Field
 
 from openchronicle.core.application.use_cases import (
     ask_conversation,
+    assemble_context,
     create_conversation,
+    external_turn,
     list_conversations,
     search_memory,
     show_conversation,
 )
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.deps import get_container
-from openchronicle.interfaces.serializers import conversation_to_dict, memory_to_dict, turn_to_dict
+from openchronicle.interfaces.serializers import (
+    assembled_context_to_dict,
+    conversation_to_dict,
+    memory_to_dict,
+    turn_to_dict,
+)
 
 router = APIRouter(prefix="/conversation")
 
@@ -101,6 +108,59 @@ async def conversation_ask(
         moe=body.moe,
     )
     return turn_to_dict(turn)
+
+
+class TurnRecordRequest(BaseModel):
+    user_text: str = Field(min_length=1, max_length=200_000)
+    assistant_text: str = Field(min_length=1, max_length=200_000)
+    provider: str = Field(default="external", max_length=200)
+    model: str = Field(default="", max_length=200)
+
+
+@router.post("/{conversation_id}/turns")
+def turn_record(
+    conversation_id: Annotated[str, Path(min_length=1, max_length=200)],
+    body: TurnRecordRequest,
+    container: ContainerDep,
+) -> dict[str, Any]:
+    """Record a conversation turn from an external agent."""
+    turn = external_turn.execute(
+        convo_store=container.storage,
+        storage=container.storage,
+        emit_event=container.event_logger.append,
+        conversation_id=conversation_id,
+        user_text=body.user_text,
+        assistant_text=body.assistant_text,
+        provider=body.provider,
+        model=body.model,
+    )
+    return turn_to_dict(turn)
+
+
+class AssembleContextRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=200_000)
+    last_n: int = Field(default=10, ge=1, le=1000)
+    top_k_memory: int = Field(default=8, ge=1, le=1000)
+    include_pinned_memory: bool = True
+
+
+@router.post("/{conversation_id}/assemble-context")
+def assemble_context_route(
+    conversation_id: Annotated[str, Path(min_length=1, max_length=200)],
+    body: AssembleContextRequest,
+    container: ContainerDep,
+) -> dict[str, Any]:
+    """Assemble context for an external agent without an LLM call."""
+    result = assemble_context.execute(
+        convo_store=container.storage,
+        memory_store=container.storage,
+        conversation_id=conversation_id,
+        prompt_text=body.prompt,
+        last_n=body.last_n,
+        top_k_memory=body.top_k_memory,
+        include_pinned_memory=body.include_pinned_memory,
+    )
+    return assembled_context_to_dict(result)
 
 
 @router.get("/{conversation_id}/context")

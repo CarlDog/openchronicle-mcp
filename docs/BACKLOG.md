@@ -371,7 +371,7 @@ Memory improvements are tracked in two dimensions:
 
 - **Search technology:** v0 (keyword/FTS5) → v1 (embeddings/semantic)
 - **Improvement phases:** Phase 1 (update + tag filter) → Phase 2 (context
-  assembly + turn recording) → Phase 3 (incremental onboard)
+  assembly + turn recording + incremental onboard)
 
 ### 8.0 Memory Phase 1 (Update + Tag-Filtered Search)
 
@@ -398,26 +398,20 @@ Memory improvements are tracked in two dimensions:
 - [x] Fixed `MetricsTracker` protocol conformance (`Sequence` → `Iterable` for input params)
 - [x] 27 new tests across 4 files
 
-### 8.0.1 Memory Phase 2 (Context Assembly + Turn Recording)
+### 8.0.1 Memory Phase 2 (Context Assembly + Turn Recording + Incremental Onboard)
 
-**Status:** 🔴 Not Started
-**Effort:** Medium
-**Classification:** Core enhancement
+**Status:** ✅ Implemented
 
-- [ ] **Standalone context assembly** — expose OC's internal context assembly
-      logic (`prepare_ask()` retrieval) as a standalone capability. MCP clients
-      and API callers get retrieval intelligence without forcing an LLM call.
-- [ ] **External turn recording** — allow MCP clients and API callers to record
-      their conversation turns in OC. More data → better retrieval → better
-      context in future interactions.
-
-### 8.0.2 Memory Phase 3 (Incremental Git Onboard)
-
-**Status:** 🔴 Not Started
-**Effort:** Small-Medium
-
-- [ ] Add watermark tracking so `onboard_git` processes only new commits since
-      last run, enabling continuous narrative capture.
+- [x] **External turn recording** — `turn_record` MCP tool + `POST /{id}/turns` API
+      endpoint. Records turns from external agents (Claude Code, Goose, IDE plugins).
+      Use case: `application/use_cases/external_turn.py`.
+- [x] **Standalone context assembly** — `context_assemble` MCP tool + `POST /{id}/assemble-context`
+      API endpoint. Shared `context_builder` service extracted from `prepare_ask()`.
+      Use case: `application/use_cases/assemble_context.py`.
+- [x] **Incremental `onboard_git`** — watermark tracking via `MemoryItem` with
+      `source="git-onboard-watermark"`. `since_commit` parameter on `extract_commits_from_git()`.
+      `list_memory_by_source` promoted to `MemoryStorePort` (was duck-typed).
+- [x] 39 new tests (1,237 total)
 
 ### 8.1 Memory v1 (Embeddings / Semantic Search)
 

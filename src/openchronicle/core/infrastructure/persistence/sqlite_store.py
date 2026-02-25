@@ -724,7 +724,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         return [row_to_memory_item(r) for r in rows]
 
     def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
-        """List memory items filtered by source (duck-typed, not on port)."""
+        """List memory items filtered by source field."""
         cur = self._conn.cursor()
         if project_id is not None:
             sql = "SELECT * FROM memory_items WHERE source = ? AND project_id = ? ORDER BY created_at DESC"
