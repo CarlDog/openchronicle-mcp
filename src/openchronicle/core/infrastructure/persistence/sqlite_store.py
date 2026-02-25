@@ -86,6 +86,10 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         self._fts5_user_enabled = os.getenv("OC_SEARCH_FTS5_ENABLED", "1").lower() in {"1", "true", "yes", "on"}
         self._fts5_active: bool = False
 
+    def close(self) -> None:
+        """Close the underlying SQLite connection."""
+        self._conn.close()
+
     def init_schema(self) -> None:
         cur = self._conn.cursor()
         for stmt in schema.ALL_TABLES:

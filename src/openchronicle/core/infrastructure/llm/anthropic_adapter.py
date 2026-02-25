@@ -31,10 +31,12 @@ class AnthropicAdapter(LLMPort):
         api_key: str | None = None,
         model: str | None = None,
         base_url: str | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.model = model or os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-4-20250514"
         self.base_url = base_url or os.getenv("ANTHROPIC_BASE_URL")
+        self.timeout_seconds = timeout_seconds
         self._client = self._build_client()
 
     def _build_client(self) -> Any:
@@ -45,6 +47,8 @@ class AnthropicAdapter(LLMPort):
         kwargs: dict[str, Any] = {"api_key": self.api_key}
         if self.base_url:
             kwargs["base_url"] = self.base_url
+        if self.timeout_seconds is not None:
+            kwargs["timeout"] = self.timeout_seconds
         return anthropic.AsyncAnthropic(**kwargs)
 
     def _ensure_ready(self) -> None:

@@ -3,14 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from openchronicle.core.domain.models.failure_category import FailureCategory
-
-
-def _utc_now() -> datetime:
-    return datetime.now(UTC)
+from openchronicle.core.domain.time_utils import utc_now
 
 
 @dataclass
@@ -38,7 +35,7 @@ class SmokeResult:
     completion_tokens: int | None = None  # Output tokens
     total_tokens: int | None = None  # Total tokens
     latency_ms: int | None = None  # LLM call latency
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for JSON output."""

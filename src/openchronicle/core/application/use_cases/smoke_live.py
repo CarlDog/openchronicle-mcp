@@ -14,6 +14,7 @@ It does NOT:
 
 from __future__ import annotations
 
+import logging
 from uuid import uuid4
 
 from openchronicle.core.application.routing.router_policy import RouterPolicy
@@ -25,6 +26,9 @@ from openchronicle.core.domain.models.failure_category import classify_failure_c
 from openchronicle.core.domain.models.project import Event, TaskStatus
 from openchronicle.core.domain.models.smoke_result import SmokeResult
 from openchronicle.core.domain.ports.llm_port import LLMProviderError
+
+_logger = logging.getLogger(__name__)
+
 
 DEFAULT_SMOKE_PROMPT = "Summarize this test: The sky is blue. Water is wet. Summarize in one sentence."
 

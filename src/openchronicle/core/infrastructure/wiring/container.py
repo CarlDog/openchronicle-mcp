@@ -71,121 +71,135 @@ class CoreContainer:
 
         self.storage = SqliteStore(db_path=str(db_path_resolved))
         self.storage.init_schema()
-        self.event_logger = EventLogger(self.storage)
-        self.privacy_gate = RulePrivacyGate()
-        self.privacy_settings = load_privacy_outbound_settings(file_configs.get("privacy"))
-        self.telemetry_settings = load_telemetry_settings(file_configs.get("telemetry"))
-        self.conversation_settings = load_conversation_settings(file_configs.get("conversation"))
-        self.moe_settings = load_moe_settings(file_configs.get("moe"))
-        self.budget_policy = load_budget_policy(file_configs.get("budget"))
+        try:
+            self.event_logger = EventLogger(self.storage)
+            self.privacy_gate = RulePrivacyGate()
+            self.privacy_settings = load_privacy_outbound_settings(file_configs.get("privacy"))
+            self.telemetry_settings = load_telemetry_settings(file_configs.get("telemetry"))
+            self.conversation_settings = load_conversation_settings(file_configs.get("conversation"))
+            self.moe_settings = load_moe_settings(file_configs.get("moe"))
+            self.budget_policy = load_budget_policy(file_configs.get("budget"))
 
-        router_fc = file_configs.get("router")
-        router_assist_settings = load_router_assist_settings(
-            router_fc.get("assist") if isinstance(router_fc, dict) else None
-        )
-
-        # Shared model config loader (used by LLM facade and router policy)
-        self.model_config_loader = ModelConfigLoader(config_dir_str)
-
-        # Use provider-aware facade if no explicit LLM provided
-        if llm is None:
-            llm = create_provider_aware_llm(
-                config_dir=config_dir_str,
-                model_config_loader=self.model_config_loader,
+            router_fc = file_configs.get("router")
+            router_assist_settings = load_router_assist_settings(
+                router_fc.get("assist") if isinstance(router_fc, dict) else None
             )
 
-        self.llm = llm
+            # Shared model config loader (used by LLM facade and router policy)
+            self.model_config_loader = ModelConfigLoader(config_dir_str)
 
-        assist: RouterAssistPort | None = None
-        if router_assist_settings.enabled:
-            if not router_assist_settings.model_path:
-                raise LLMProviderError(
-                    "Router assist model path not configured",
-                    error_code=CONFIG_ERROR,
-                    hint="Set OC_ROUTER_ASSIST_MODEL_PATH to a model JSON file.",
-                )
-            backend = router_assist_settings.backend.lower()
-            if backend == "linear":
-                assist = LinearRouterAssist(
-                    model_path=router_assist_settings.model_path,
-                    timeout_ms=router_assist_settings.timeout_ms,
-                )
-            elif backend == "onnx":
-                assist = OnnxRouterAssist(
-                    model_path=router_assist_settings.model_path,
-                    timeout_ms=router_assist_settings.timeout_ms,
-                )
-            else:
-                raise LLMProviderError(
-                    f"Unsupported router assist backend: {router_assist_settings.backend}",
-                    error_code=CONFIG_ERROR,
-                    hint="Set OC_ROUTER_ASSIST_BACKEND to 'linear' or 'onnx'.",
+            # Use provider-aware facade if no explicit LLM provided
+            if llm is None:
+                llm = create_provider_aware_llm(
+                    config_dir=config_dir_str,
+                    model_config_loader=self.model_config_loader,
                 )
 
-        self.interaction_router = HybridInteractionRouter(
-            base_router=RuleInteractionRouter(file_config=router_fc),
-            assist=assist,
-        )
+            self.llm = llm
 
-        # Build pool config + router policy from core.json (top-level keys)
-        pool_config = load_pool_config(file_configs)
-        router_policy = RouterPolicy(
-            file_config=file_configs,
-            pool_config=pool_config,
-            model_config_loader=self.model_config_loader,
-        )
-        self.router_policy = router_policy
+            assist: RouterAssistPort | None = None
+            if router_assist_settings.enabled:
+                if not router_assist_settings.model_path:
+                    raise LLMProviderError(
+                        "Router assist model path not configured",
+                        error_code=CONFIG_ERROR,
+                        hint="Set OC_ROUTER_ASSIST_MODEL_PATH to a model JSON file.",
+                    )
+                backend = router_assist_settings.backend.lower()
+                if backend == "linear":
+                    assist = LinearRouterAssist(
+                        model_path=router_assist_settings.model_path,
+                        timeout_ms=router_assist_settings.timeout_ms,
+                    )
+                elif backend == "onnx":
+                    assist = OnnxRouterAssist(
+                        model_path=router_assist_settings.model_path,
+                        timeout_ms=router_assist_settings.timeout_ms,
+                    )
+                else:
+                    raise LLMProviderError(
+                        f"Unsupported router assist backend: {router_assist_settings.backend}",
+                        error_code=CONFIG_ERROR,
+                        hint="Set OC_ROUTER_ASSIST_BACKEND to 'linear' or 'onnx'.",
+                    )
 
-        # Build rate limiter — per-model rate limits live in model configs.
-        # Global rate limiter only respects env var overrides as system-wide ceiling.
-        retry_fc = file_configs.get("retry", {}) if isinstance(file_configs.get("retry"), dict) else {}
-        max_wait_raw = env_override("OC_LLM_MAX_WAIT_MS", retry_fc.get("rate_limit_max_wait_ms"))
+            self.interaction_router = HybridInteractionRouter(
+                base_router=RuleInteractionRouter(file_config=router_fc),
+                assist=assist,
+            )
 
-        rate_config = RateLimitConfig(
-            rpm_limit=parse_int(os.getenv("OC_LLM_RPM_LIMIT"), default=0) or None,
-            tpm_limit=parse_int(os.getenv("OC_LLM_TPM_LIMIT"), default=0) or None,
-            max_wait_ms=parse_int(max_wait_raw, default=5000),
-        )
-        rate_limiter = RateLimiter(rate_config)
+            # Build pool config + router policy from core.json (top-level keys)
+            pool_config = load_pool_config(file_configs)
+            router_policy = RouterPolicy(
+                file_config=file_configs,
+                pool_config=pool_config,
+                model_config_loader=self.model_config_loader,
+            )
+            self.router_policy = router_policy
 
-        max_retries_raw = env_override("OC_LLM_MAX_RETRIES", retry_fc.get("max_retries"))
-        max_retry_sleep_raw = env_override("OC_LLM_MAX_RETRY_SLEEP_MS", retry_fc.get("max_retry_sleep_ms"))
+            # Build rate limiter — per-model rate limits live in model configs.
+            # Global rate limiter only respects env var overrides as system-wide ceiling.
+            retry_fc = file_configs.get("retry", {}) if isinstance(file_configs.get("retry"), dict) else {}
+            max_wait_raw = env_override("OC_LLM_MAX_WAIT_MS", retry_fc.get("rate_limit_max_wait_ms"))
 
-        retry_config = RetryConfig(
-            max_retries=parse_int(max_retries_raw, default=2),
-            max_retry_sleep_ms=parse_int(max_retry_sleep_raw, default=2000),
-        )
-        retry_policy = RetryPolicy(retry_config)
+            rate_config = RateLimitConfig(
+                rpm_limit=parse_int(os.getenv("OC_LLM_RPM_LIMIT"), default=0) or None,
+                tpm_limit=parse_int(os.getenv("OC_LLM_TPM_LIMIT"), default=0) or None,
+                max_wait_ms=parse_int(max_wait_raw, default=5000),
+            )
+            rate_limiter = RateLimiter(rate_config)
 
-        self.handler_registry = TaskHandlerRegistry()
-        self.plugin_loader = PluginLoader(
-            plugins_dir=str(plugin_dir_resolved),
-            handler_registry=self.handler_registry,
-            config_loader=load_plugin_config,
-        )
-        self.plugin_loader.load_plugins()
-        self.orchestrator = OrchestratorService(
-            storage=self.storage,
-            llm=self.llm,
-            plugins=self.plugin_loader.registry_instance(),
-            handler_registry=self.plugin_loader.handler_registry_instance(),
-            emit_event=self.event_logger.append,
-            rate_limiter=rate_limiter,
-            retry_policy=retry_policy,
-            router=router_policy,
-        )
-        self.scheduler = SchedulerService(
-            storage=self.storage,
-            submit_task=self.orchestrator.submit_task,
-            emit_event=self.event_logger.append,
-        )
+            max_retries_raw = env_override("OC_LLM_MAX_RETRIES", retry_fc.get("max_retries"))
+            max_retry_sleep_raw = env_override("OC_LLM_MAX_RETRY_SLEEP_MS", retry_fc.get("max_retry_sleep_ms"))
 
-        assets_dir = os.getenv("OC_ASSETS_DIR", "data/assets")
-        self.asset_file_storage = AssetFileStorage(base_dir=assets_dir)
+            retry_config = RetryConfig(
+                max_retries=parse_int(max_retries_raw, default=2),
+                max_retry_sleep_ms=parse_int(max_retry_sleep_raw, default=2000),
+            )
+            retry_policy = RetryPolicy(retry_config)
 
-        # Store for config show and diagnostics
-        self.file_configs = file_configs
-        self.config_dir = str(config_dir_resolved)
+            self.handler_registry = TaskHandlerRegistry()
+            self.plugin_loader = PluginLoader(
+                plugins_dir=str(plugin_dir_resolved),
+                handler_registry=self.handler_registry,
+                config_loader=load_plugin_config,
+            )
+            self.plugin_loader.load_plugins()
+            self.orchestrator = OrchestratorService(
+                storage=self.storage,
+                llm=self.llm,
+                plugins=self.plugin_loader.registry_instance(),
+                handler_registry=self.plugin_loader.handler_registry_instance(),
+                emit_event=self.event_logger.append,
+                rate_limiter=rate_limiter,
+                retry_policy=retry_policy,
+                router=router_policy,
+            )
+            self.scheduler = SchedulerService(
+                storage=self.storage,
+                submit_task=self.orchestrator.submit_task,
+                emit_event=self.event_logger.append,
+            )
+
+            assets_dir = os.getenv("OC_ASSETS_DIR", "data/assets")
+            self.asset_file_storage = AssetFileStorage(base_dir=assets_dir)
+
+            # Store for config show and diagnostics
+            self.file_configs = file_configs
+            self.config_dir = str(config_dir_resolved)
+        except BaseException:
+            self.storage.close()
+            raise
+
+    def close(self) -> None:
+        """Close managed resources (storage connection)."""
+        self.storage.close()
+
+    def __enter__(self) -> CoreContainer:
+        return self
+
+    def __exit__(self, exc_type: type | None, exc_val: BaseException | None, exc_tb: object) -> None:
+        self.close()
 
     def as_dict(self) -> dict[str, Any]:
         return {

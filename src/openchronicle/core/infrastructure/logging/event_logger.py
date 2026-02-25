@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from openchronicle.core.domain.models.project import Event, _utc_now
+from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.storage_port import StoragePort
+from openchronicle.core.domain.time_utils import utc_now
 
 
 class EventLogger:
@@ -16,6 +17,6 @@ class EventLogger:
             # Refresh timestamp under lock so created_at ordering matches
             # the serialization order (prevents out-of-order chain links
             # when events are constructed before the lock is acquired).
-            event.created_at = _utc_now()
+            event.created_at = utc_now()
             event.compute_hash()
             self.storage.append_event(event)

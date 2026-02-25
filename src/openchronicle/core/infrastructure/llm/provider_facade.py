@@ -203,6 +203,15 @@ def create_provider_aware_llm(
     static_adapters: dict[str, LLMPort] = {"stub": StubLLMAdapter()}
     adapter_factories: dict[str, Callable[[ResolvedModelConfig], LLMPort]] = {}
 
+    # Global LLM timeout fallback (seconds) — per-model config takes precedence
+    _global_timeout_raw = os.getenv("OC_LLM_TIMEOUT", "").strip()
+    _global_timeout: float | None = float(_global_timeout_raw) if _global_timeout_raw else None
+
+    def _resolve_timeout(cfg: ResolvedModelConfig) -> float | None:
+        if cfg.timeout is not None:
+            return float(cfg.timeout)
+        return _global_timeout
+
     # Determine which providers to wire
     if providers is None:
         providers = sorted(extract_providers_from_routing_config())
@@ -219,27 +228,33 @@ def create_provider_aware_llm(
     def _make_openai_adapter(cfg: ResolvedModelConfig) -> LLMPort:
         from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
 
-        return OpenAIAdapter(api_key=cfg.api_key, model=cfg.model, base_url=cfg.base_url)
+        return OpenAIAdapter(
+            api_key=cfg.api_key, model=cfg.model, base_url=cfg.base_url, timeout_seconds=_resolve_timeout(cfg)
+        )
 
     def _make_ollama_adapter(cfg: ResolvedModelConfig) -> LLMPort:
         from openchronicle.core.infrastructure.llm.ollama_adapter import OllamaAdapter
 
-        return OllamaAdapter(model=cfg.model, base_url=cfg.base_url or cfg.endpoint)
+        return OllamaAdapter(
+            model=cfg.model, base_url=cfg.base_url or cfg.endpoint, timeout_seconds=_resolve_timeout(cfg)
+        )
 
     def _make_anthropic_adapter(cfg: ResolvedModelConfig) -> LLMPort:
         from openchronicle.core.infrastructure.llm.anthropic_adapter import AnthropicAdapter
 
-        return AnthropicAdapter(api_key=cfg.api_key, model=cfg.model, base_url=cfg.base_url)
+        return AnthropicAdapter(
+            api_key=cfg.api_key, model=cfg.model, base_url=cfg.base_url, timeout_seconds=_resolve_timeout(cfg)
+        )
 
     def _make_groq_adapter(cfg: ResolvedModelConfig) -> LLMPort:
         from openchronicle.core.infrastructure.llm.groq_adapter import GroqAdapter
 
-        return GroqAdapter(api_key=cfg.api_key, model=cfg.model)
+        return GroqAdapter(api_key=cfg.api_key, model=cfg.model, timeout_seconds=_resolve_timeout(cfg))
 
     def _make_gemini_adapter(cfg: ResolvedModelConfig) -> LLMPort:
         from openchronicle.core.infrastructure.llm.gemini_adapter import GeminiAdapter
 
-        return GeminiAdapter(api_key=cfg.api_key, model=cfg.model)
+        return GeminiAdapter(api_key=cfg.api_key, model=cfg.model, timeout_seconds=_resolve_timeout(cfg))
 
     # Configure factories for providers found in configs
     providers_with_configs = sorted(loader.providers())

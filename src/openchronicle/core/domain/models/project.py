@@ -4,13 +4,11 @@ import hashlib
 import json
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-
-def _utc_now() -> datetime:
-    return datetime.now(UTC)
+from openchronicle.core.domain.time_utils import utc_now
 
 
 class TaskStatus(StrEnum):
@@ -31,7 +29,7 @@ class Project:
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     name: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
 
 
 @dataclass
@@ -43,7 +41,7 @@ class Agent:
     provider: str = ""
     model: str = ""
     tags: list[str] = field(default_factory=list)
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
 
 
 @dataclass
@@ -57,8 +55,8 @@ class Task:
     status: TaskStatus = TaskStatus.PENDING
     result_json: str | None = None  # JSON serialized final result
     error_json: str | None = None  # JSON serialized error details
-    created_at: datetime = field(default_factory=_utc_now)
-    updated_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)
 
 
 @dataclass
@@ -69,7 +67,7 @@ class Event:
     agent_id: str | None = None
     type: str = ""
     payload: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
     prev_hash: str | None = None
     hash: str | None = None
 
@@ -105,7 +103,7 @@ class Span:
     start_event_id: str | None = None
     end_event_id: str | None = None
     status: SpanStatus = SpanStatus.STARTED
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
     ended_at: datetime | None = None
 
 
@@ -114,7 +112,7 @@ class LLMUsage:
     """Records LLM API call usage metrics for token accounting and budgets."""
 
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    created_at: datetime | str = field(default_factory=_utc_now)
+    created_at: datetime | str = field(default_factory=utc_now)
     project_id: str = ""
     task_id: str = ""
     agent_id: str | None = None

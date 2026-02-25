@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 from collections.abc import Iterator
@@ -17,6 +18,8 @@ from openchronicle.core.application.use_cases import (
     run_task,
 )
 from openchronicle.core.domain.services.verification import VerificationService
+
+_logger = logging.getLogger(__name__)
 
 
 class SelftestContainerFactory(Protocol):

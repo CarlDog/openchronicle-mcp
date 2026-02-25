@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,
@@ -40,7 +41,7 @@ def cmd_memory(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_memory_add(args: argparse.Namespace, container: CoreContainer) -> int:
-    tags = [tag.strip() for tag in args.tags.split(",") if tag.strip()]
+    tags = parse_csv_tags(args.tags) or []
     project_id = args.project_id
     if project_id is None and args.conversation_id:
         maybe_conversation = container.storage.get_conversation(args.conversation_id)
@@ -102,17 +103,21 @@ def cmd_memory_show(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_memory_pin(args: argparse.Namespace, container: CoreContainer) -> int:
-    pin_memory.execute(
-        store=container.storage,
-        emit_event=container.event_logger.append,
-        memory_id=args.memory_id,
-        pinned=args.pin_on,
-    )
+    try:
+        pin_memory.execute(
+            store=container.storage,
+            emit_event=container.event_logger.append,
+            memory_id=args.memory_id,
+            pinned=args.pin_on,
+        )
+    except (NotFoundError, DomainValidationError) as exc:
+        print(str(exc))
+        return 1
     return 0
 
 
 def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int:
-    tag_list = [tag.strip() for tag in args.tags.split(",") if tag.strip()] if args.tags else None
+    tag_list = parse_csv_tags(args.tags)
     items = search_memory.execute(
         store=container.storage,
         query=args.query,
@@ -168,13 +173,10 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
     print(f"Deleted memory item {args.memory_id}")
     return 0
 
-    print(f"Deleted memory item {args.memory_id}")
-    return 0
-
 
 def cmd_memory_update(args: argparse.Namespace, container: CoreContainer) -> int:
     """Update an existing memory item's content and/or tags."""
-    tags = [tag.strip() for tag in args.tags.split(",") if tag.strip()] if args.tags else None
+    tags = parse_csv_tags(args.tags)
     content = args.content if args.content else None
 
     if content is None and tags is None:

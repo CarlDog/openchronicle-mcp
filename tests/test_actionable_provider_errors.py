@@ -36,7 +36,7 @@ class TestActionableProviderErrors:
             )
 
         error = exc_info.value
-        assert error.error_code == "provider_required"
+        assert error.error_code == "PROVIDER_REQUIRED"
         assert error.configured_providers == ["stub", "openai"]
         assert error.hint is not None
         assert "OC_LLM_PROVIDER" in error.hint
@@ -61,7 +61,7 @@ class TestActionableProviderErrors:
             )
 
         error = exc_info.value
-        assert error.error_code == "provider_not_configured"
+        assert error.error_code == "PROVIDER_NOT_CONFIGURED"
         assert error.provider == "openai"
         assert error.configured_providers == ["stub"]
         assert error.hint is not None
@@ -83,7 +83,7 @@ class TestActionableProviderErrors:
             )
 
         error = exc_info.value
-        assert error.error_code == "provider_not_configured"
+        assert error.error_code == "PROVIDER_NOT_CONFIGURED"
         assert error.provider == "ollama"
         assert error.configured_providers == ["stub"]
         assert error.hint is not None
@@ -106,7 +106,7 @@ class TestActionableProviderErrors:
             )
 
         error = exc_info.value
-        assert error.error_code == "provider_not_configured"
+        assert error.error_code == "PROVIDER_NOT_CONFIGURED"
         assert error.provider == "unknown_provider"
         assert error.configured_providers == ["stub"]
         assert error.hint is not None
@@ -132,13 +132,13 @@ class TestActionableProviderErrors:
         # With all new fields
         error3 = LLMProviderError(
             "Full error",
-            error_code="provider_not_configured",
+            error_code="PROVIDER_NOT_CONFIGURED",
             provider="openai",
             configured_providers=["stub", "ollama"],
             hint="Set OPENAI_API_KEY",
             details={"attempted_model": "gpt-4"},
         )
-        assert error3.error_code == "provider_not_configured"
+        assert error3.error_code == "PROVIDER_NOT_CONFIGURED"
         assert error3.provider == "openai"
         assert error3.configured_providers == ["stub", "ollama"]
         assert error3.hint == "Set OPENAI_API_KEY"
@@ -172,8 +172,8 @@ class TestActionableProviderErrors:
             )
 
         error = exc_info.value
-        # Config-first: could be "config_error" if loader tries to resolve, or "provider_not_configured" if not wired
-        assert error.error_code in ("provider_not_configured", "config_error")
+        # Config-first: could be "CONFIG_ERROR" if loader tries to resolve, or "PROVIDER_NOT_CONFIGURED" if not wired
+        assert error.error_code in ("PROVIDER_NOT_CONFIGURED", "CONFIG_ERROR")
         # When config_error, provider may be None, but error message clarifies the issue
         if error.hint is not None:
             # Hint should mention config directory or API key
@@ -215,7 +215,7 @@ class TestErrorHintPropagationInEvents:
         # Create a provider error with hint
         error = LLMProviderError(
             "Provider 'openai' not configured",
-            error_code="provider_not_configured",
+            error_code="PROVIDER_NOT_CONFIGURED",
             provider="openai",
             configured_providers=["stub"],
             hint="Set OPENAI_API_KEY environment variable to use OpenAI provider.",
@@ -237,7 +237,7 @@ class TestErrorHintPropagationInEvents:
         assert len(events_emitted) == 1
         event = events_emitted[0]
         assert event.type == "llm.failed"
-        assert event.payload["error_code"] == "provider_not_configured"
+        assert event.payload["error_code"] == "PROVIDER_NOT_CONFIGURED"
         assert event.payload["hint"] == "Set OPENAI_API_KEY environment variable to use OpenAI provider."
         assert event.payload["provider_requested"] == "openai"
         assert event.payload["configured_providers"] == ["stub"]
@@ -269,7 +269,7 @@ class TestErrorHintPropagationInEvents:
 
         error = LLMProviderError(
             "Provider 'ollama' not configured",
-            error_code="provider_not_configured",
+            error_code="PROVIDER_NOT_CONFIGURED",
             provider="ollama",
             configured_providers=["stub", "openai"],
             hint="Ollama provider must be included in OC_LLM_FAST_POOL or OC_LLM_QUALITY_POOL.",
@@ -288,7 +288,7 @@ class TestErrorHintPropagationInEvents:
         assert len(events_emitted) == 1
         event = events_emitted[0]
         assert event.type == "llm.attempt_failed"
-        assert event.payload["error_code"] == "provider_not_configured"
+        assert event.payload["error_code"] == "PROVIDER_NOT_CONFIGURED"
         assert event.payload["hint"] is not None
         assert "pool" in event.payload["hint"].lower() or "wiring" in event.payload["hint"].lower()
         assert event.payload["provider_requested"] == "ollama"

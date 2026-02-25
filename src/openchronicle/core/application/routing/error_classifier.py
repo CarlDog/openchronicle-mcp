@@ -37,7 +37,7 @@ def classify_error(exc: Exception) -> ErrorClass:
         error_code = exc.error_code or ""
 
         # Transient: rate limits, server errors, timeouts
-        if status_code in (429, 500, 502, 503, 504) or error_code in ("timeout", "connection_error"):
+        if status_code in (429, 500, 502, 503, 504) or error_code in ("TIMEOUT", "CONNECTION_ERROR"):
             return "transient"
 
         # Refusal: content policy violations

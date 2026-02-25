@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 
+from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
     ask_conversation,
     convo_mode,
@@ -387,7 +388,7 @@ def cmd_convo_delete(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_convo_remember(args: argparse.Namespace, container: CoreContainer) -> int:
-    tags = [tag.strip() for tag in args.tags.split(",") if tag.strip()]
+    tags = parse_csv_tags(args.tags) or []
     item = remember_turn.execute(
         storage=container.storage,
         convo_store=container.storage,

@@ -29,9 +29,11 @@ class GroqAdapter(LLMPort):
         *,
         api_key: str | None = None,
         model: str | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
         self.api_key = api_key or os.getenv("GROQ_API_KEY")
         self.model = model or os.getenv("GROQ_MODEL") or "llama-3.3-70b-versatile"
+        self.timeout_seconds = timeout_seconds
         self._client = self._build_client()
 
     def _build_client(self) -> Any:
@@ -39,7 +41,10 @@ class GroqAdapter(LLMPort):
             return None
         if groq is None:
             return None
-        return groq.AsyncGroq(api_key=self.api_key)
+        kwargs: dict[str, Any] = {"api_key": self.api_key}
+        if self.timeout_seconds is not None:
+            kwargs["timeout"] = self.timeout_seconds
+        return groq.AsyncGroq(**kwargs)
 
     def _ensure_ready(self) -> None:
         if not self.api_key:

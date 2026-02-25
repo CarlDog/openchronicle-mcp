@@ -1,8 +1,8 @@
 # OpenChronicle v2 — Senior Developer Codebase Assessment
 
-**Date:** 2026-02-23
+**Date:** 2026-02-24
 **Branch:** `main`
-**Revision:** 30 (Pass A — domain exceptions, global error handlers, input validation)
+**Revision:** 31 (Pass B — operational hardening, DRY extraction, timeouts, config validation)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (1,128 unit/functional, 22 real-world integration, 14 Discord
+Tests are strong (1,177 unit/functional, 22 real-world integration, 14 Discord
 integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
 daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
@@ -86,9 +86,26 @@ FastAPI exception handlers (404, 422, 400, 500). ~30 use-case sites migrated
 from bare `ValueError`. Pydantic `Field()` constraints on all request models,
 `Query()` constraints on all query parameters. Rowcount checks in sqlite_store
 (3 update methods + TOCTOU fix). File path validation in `upload_asset`.
-32 new tests, 1128 total passing.
+32 new tests.
 
-**What's next:** Enterprise tightening Passes B + C, then media generation (Decision #7).
+**Enterprise tightening — Pass B (Operational Hardening + DRY Extraction) is complete.**
+DRY extraction: `utc_now()` in `domain/time_utils.py` (replaced 6 duplicate
+`_utc_now()` functions + 2 cross-file imports), `parse_csv_tags()` in
+`env_helpers.py` (replaced 5 inline tag-parsing sites). LLM adapter timeouts:
+`timeout_seconds` parameter on all 5 adapters, wired from `ResolvedModelConfig.timeout`
+via `OC_LLM_TIMEOUT` env var fallback. Container lifecycle: `SqliteStore.close()`,
+`CoreContainer.close()`, context manager protocol, partial-init cleanup.
+Config validation: `__post_init__` on `ConversationSettings`, `MoESettings`,
+`TelemetrySettings`, `HTTPConfig` (boundary value enforcement). CORS tightened
+from `allow_methods=["*"]` to explicit list. Logging added to 12 use cases + 2
+services; silent exception handlers in `continue_project` and `export_convo` now
+log with `_logger.exception()`. Ollama adapter: specific `json.JSONDecodeError`
+catch, `PROVIDER_ERROR` code for HTTP errors. Error codes normalized: all 13
+lower_snake values changed to SCREAMING_SNAKE_CASE. CLI bug: removed unreachable
+code in `cmd_memory_delete`, added error handling to `cmd_memory_pin`.
+49 new tests, 1177 total passing.
+
+**What's next:** Enterprise tightening Pass C, then media generation (Decision #7).
 Media generation introduces a new port (`MediaGenerationPort`) with Ollama and
 OpenAI adapters, flowing through the existing asset system. Capability-aware
 routing wires the `capabilities` field in model configs into provider selection.
@@ -100,7 +117,7 @@ Code integration, and any MCP-compatible client. MCP tool usage tracking and MoE
 usage tracking provide operational observability — dedicated tables, aggregate
 stats queries, `tool_stats` and `moe_stats` MCP tools.
 
-**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system enhanced with `memory_update`, tag-filtered search, full CRUD parity (get/delete/stats across all interfaces), pagination, and observability events (`memory.search_completed`, `context.assembly_breakdown`). Streaming telemetry fixed. Enterprise tightening Pass A complete (domain exceptions, global error handlers, input validation, rowcount checks). Passes B + C and media generation are next.**
+**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system enhanced with `memory_update`, tag-filtered search, full CRUD parity (get/delete/stats across all interfaces), pagination, and observability events (`memory.search_completed`, `context.assembly_breakdown`). Streaming telemetry fixed. Enterprise tightening Pass A complete (domain exceptions, global error handlers, input validation, rowcount checks). Pass B complete (DRY extraction, adapter timeouts, container lifecycle, config validation, CORS tightening, logging, error code normalization). Pass C and media generation are next.**
 
 ---
 

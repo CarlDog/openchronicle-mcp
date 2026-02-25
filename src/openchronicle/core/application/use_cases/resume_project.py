@@ -6,11 +6,14 @@ of truth. The task table is a projection that may be stale after a crash.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.use_cases.replay_project import ReplayService
 from openchronicle.core.domain.models.project import Event, TaskStatus
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass

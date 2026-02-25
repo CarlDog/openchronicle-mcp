@@ -33,9 +33,11 @@ class GeminiAdapter(LLMPort):
         *,
         api_key: str | None = None,
         model: str | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
         self.api_key = api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         self.model = model or os.getenv("GEMINI_MODEL") or "gemini-2.0-flash"
+        self.timeout_seconds = timeout_seconds
         self._client = self._build_client()
 
     def _build_client(self) -> Any:
@@ -43,7 +45,10 @@ class GeminiAdapter(LLMPort):
             return None
         if genai is None:
             return None
-        return genai.Client(api_key=self.api_key)
+        kwargs: dict[str, Any] = {"api_key": self.api_key}
+        if self.timeout_seconds is not None:
+            kwargs["http_options"] = {"timeout": self.timeout_seconds}
+        return genai.Client(**kwargs)
 
     def _ensure_ready(self) -> None:
         if not self.api_key:

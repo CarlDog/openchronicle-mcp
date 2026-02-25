@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.use_cases import run_task
 from openchronicle.core.domain.models.project import TaskStatus
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -58,7 +61,7 @@ async def execute(orchestrator: OrchestratorService, project_id: str) -> Continu
             await run_task.execute(orchestrator, task.id, agent_id=task.agent_id)
             succeeded += 1
         except Exception:
-            # Task execution failed - count it but continue with others
+            _logger.exception("Task %s failed", task.id)
             failed += 1
 
     return ContinueSummary(

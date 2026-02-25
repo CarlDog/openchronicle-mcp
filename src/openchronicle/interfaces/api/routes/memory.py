@@ -8,6 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,
@@ -40,7 +41,7 @@ def memory_search(
 
     Tags parameter accepts comma-separated tag names for AND filtering.
     """
-    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+    tag_list = parse_csv_tags(tags)
     results = search_memory.execute(
         store=container.storage,
         query=query,

@@ -253,7 +253,7 @@ class TestFailureClassification:
                 model=None,
             )
 
-            if result.outcome == "blocked" and result.error_code == "budget_exceeded":
+            if result.outcome == "blocked" and result.error_code == "BUDGET_EXCEEDED":
                 assert result.failure_category == "BUDGET_BLOCKED"
         finally:
             # Reset TPM limit
@@ -283,11 +283,11 @@ class TestFailureClassification:
     def test_classify_failure_category_direct(self) -> None:
         """Test failure category classification function directly."""
         # Test budget exceeded
-        category = classify_failure_category("budget_exceeded", None)
+        category = classify_failure_category("BUDGET_EXCEEDED", None)
         assert category == "BUDGET_BLOCKED"
 
         # Test timeout
-        category = classify_failure_category("timeout", None)
+        category = classify_failure_category("TIMEOUT", None)
         assert category == "TIMEOUT"
 
         # Test credential error
@@ -299,11 +299,11 @@ class TestFailureClassification:
         assert category == "CONFIG_ERROR"
 
         # Test provider error (fallback)
-        category = classify_failure_category("provider_error", "permanent")
+        category = classify_failure_category("PROVIDER_ERROR", "permanent")
         assert category == "PROVIDER_ERROR"
 
         # Test unknown
-        category = classify_failure_category("unknown", None)
+        category = classify_failure_category("UNKNOWN_ERROR", None)
         assert category == "UNKNOWN"
 
     def test_failure_category_description(self) -> None:

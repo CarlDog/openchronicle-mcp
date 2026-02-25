@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from openchronicle.core.domain.models.project import _utc_now
+from openchronicle.core.domain.time_utils import utc_now
 
 
 @dataclass
@@ -27,7 +27,7 @@ class LLMExecutionRecord:
     total_tokens: int | None = None
     outcome: str = ""  # "completed" | "failed" | "refused"
     error_code: str | None = None
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
 
     def to_payload(self) -> dict[str, Any]:
         """Serialize to event payload dict for consistent emission."""

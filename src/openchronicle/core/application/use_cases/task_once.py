@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable
 
@@ -15,6 +16,8 @@ from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.privacy_gate_port import PrivacyGatePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
+
+_logger = logging.getLogger(__name__)
 
 
 def _eligible_tasks(tasks: list[Task], task_type: str) -> list[Task]:

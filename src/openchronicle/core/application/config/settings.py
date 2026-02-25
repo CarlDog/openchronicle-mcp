@@ -37,6 +37,10 @@ class TelemetrySettings:
     mcp_tracking_enabled: bool = True
     moe_tracking_enabled: bool = True
 
+    def __post_init__(self) -> None:
+        if self.memory_self_report_max_ids < 1:
+            raise ValueError(f"memory_self_report_max_ids must be >= 1, got {self.memory_self_report_max_ids}")
+
 
 @dataclass(frozen=True)
 class RouterAssistSettings:
@@ -155,6 +159,16 @@ class ConversationSettings:
     last_n: int = 10
     include_pinned_memory: bool = True
 
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.temperature <= 2.0:
+            raise ValueError(f"temperature must be in [0.0, 2.0], got {self.temperature}")
+        if self.max_output_tokens <= 0:
+            raise ValueError(f"max_output_tokens must be > 0, got {self.max_output_tokens}")
+        if self.top_k_memory < 0:
+            raise ValueError(f"top_k_memory must be >= 0, got {self.top_k_memory}")
+        if self.last_n < 1:
+            raise ValueError(f"last_n must be >= 1, got {self.last_n}")
+
 
 def load_conversation_settings(
     file_config: dict[str, Any] | None = None,
@@ -210,6 +224,10 @@ class MoESettings:
     enabled: bool = False
     min_experts: int = 2
     temperature: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.min_experts < 2:
+            raise ValueError(f"min_experts must be >= 2, got {self.min_experts}")
 
 
 def load_moe_settings(

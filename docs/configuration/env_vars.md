@@ -74,6 +74,7 @@ code default**. Boolean values accept `1`/`true`/`yes`/`on` (case-insensitive).
 | `OC_LLM_MAX_WAIT_MS` | `5000` | Maximum rate limit wait time (ms) |
 | `OC_LLM_MAX_RETRIES` | `2` | Maximum retry attempts |
 | `OC_LLM_MAX_RETRY_SLEEP_MS` | `2000` | Maximum sleep between retries (ms) |
+| `OC_LLM_TIMEOUT` | - | Global LLM request timeout (seconds). Per-model config takes precedence. |
 
 ## Routing and Pools
 

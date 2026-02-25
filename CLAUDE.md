@@ -18,7 +18,7 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Enterprise tightening Passes B + C, then Memory System Phase 2
+**Next action:** Enterprise tightening Pass C, then Memory System Phase 2
 (standalone context assembly, external turn recording), media generation port,
 security scanner plugin, or webhooks.
 Capability-aware routing is done (`ModelConfigLoader` parses capabilities,
@@ -53,6 +53,11 @@ Enterprise Tightening Pass A is done (domain exceptions `NotFoundError`/`Validat
 global FastAPI exception handlers, Pydantic `Field()`/`Query()` input validation,
 sqlite_store rowcount checks, file path validation, ~30 use-case migration sites,
 32 new tests, 1128 total).
+Enterprise Tightening Pass B is done (DRY extraction `utc_now()`/`parse_csv_tags()`,
+LLM adapter timeouts with `OC_LLM_TIMEOUT` env var, container lifecycle `close()`/
+context manager, config `__post_init__` validation, CORS tightening, logging in 12
+use cases + 2 services, error code normalization to SCREAMING_SNAKE_CASE, CLI bug
+fixes, 49 new tests, 1177 total).
 
 ## Build and Development
 
@@ -142,6 +147,9 @@ for the full directory tree and layer descriptions.
 - Validation failures raise `ValidationError` (aliased `DomainValidationError` to avoid Pydantic collision), caught globally → HTTP 422
 - Global exception handlers in `interfaces/api/app.py` eliminate per-route try/except
 - Pydantic `Field()` constraints on request bodies; `Query()` constraints on query parameters
+- Use `utc_now()` from `domain/time_utils.py` for current UTC time (not inline `datetime.now(UTC)`)
+- Use `parse_csv_tags()` from `application/config/env_helpers.py` for comma-separated tag parsing
+- Error code string values are `SCREAMING_SNAKE_CASE` (e.g., `"TIMEOUT"`, `"PROVIDER_ERROR"`)
 
 **Secrets:**
 

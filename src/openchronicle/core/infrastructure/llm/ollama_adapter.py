@@ -9,6 +9,7 @@ import httpx
 
 from openchronicle.core.domain.errors.error_codes import (
     CONNECTION_ERROR,
+    PROVIDER_ERROR,
     TIMEOUT,
     UNKNOWN_ERROR,
 )
@@ -32,9 +33,15 @@ class OllamaAdapter(LLMPort):
     - OLLAMA_MODEL: Default model to use if not specified
     """
 
-    def __init__(self, model: str | None = None, base_url: str | None = None) -> None:
+    def __init__(
+        self,
+        model: str | None = None,
+        base_url: str | None = None,
+        timeout_seconds: float | None = None,
+    ) -> None:
         self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         self.default_model = model or os.getenv("OLLAMA_MODEL", "llama3.1")
+        self.timeout_seconds = timeout_seconds or 60.0
 
     async def complete_async(
         self,
@@ -77,7 +84,7 @@ class OllamaAdapter(LLMPort):
             payload["options"] = options
 
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
+            async with httpx.AsyncClient(timeout=self.timeout_seconds) as client:
                 response = await client.post(f"{self.base_url}/api/chat", json=payload)
                 response.raise_for_status()
                 data = response.json()
@@ -202,7 +209,7 @@ class OllamaAdapter(LLMPort):
 
         try:
             async with (
-                httpx.AsyncClient(timeout=60.0) as client,
+                httpx.AsyncClient(timeout=self.timeout_seconds) as client,
                 client.stream("POST", f"{self.base_url}/api/chat", json=payload) as response,
             ):
                 if response.status_code >= 400:
@@ -210,7 +217,7 @@ class OllamaAdapter(LLMPort):
                     raise LLMProviderError(
                         f"Ollama HTTP error {response.status_code}: {response.text}",
                         status_code=response.status_code,
-                        error_code=f"http_{response.status_code}",
+                        error_code=PROVIDER_ERROR,
                     )
                 async for line in response.aiter_lines():
                     if not line.strip():
@@ -252,9 +259,15 @@ class OllamaAdapter(LLMPort):
             ) from exc
         except LLMProviderError:
             raise
+        except json_mod.JSONDecodeError as exc:
+            raise LLMProviderError(
+                f"Ollama streaming JSON decode error: {exc}",
+                status_code=None,
+                error_code=PROVIDER_ERROR,
+            ) from exc
         except Exception as exc:
             raise LLMProviderError(
                 f"Ollama streaming error: {exc}",
                 status_code=None,
-                error_code=None,
+                error_code=UNKNOWN_ERROR,
             ) from exc

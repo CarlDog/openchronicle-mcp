@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import time
 from collections.abc import Callable
@@ -31,6 +32,8 @@ from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError, 
 from openchronicle.core.domain.ports.plugin_port import PluginRegistry
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.services.usage_tracker import UsageTracker
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass

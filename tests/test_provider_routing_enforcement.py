@@ -250,7 +250,7 @@ async def test_facade_requires_provider_when_no_default() -> None:
         )
 
     # Verify error code and message
-    assert exc_info.value.error_code == "provider_required"
+    assert exc_info.value.error_code == "PROVIDER_REQUIRED"
     assert "provider parameter is required" in str(exc_info.value).lower()
     assert "available" in str(exc_info.value).lower()
 

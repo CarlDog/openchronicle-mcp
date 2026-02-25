@@ -22,6 +22,10 @@ class HTTPConfig:
     port: int = 8000
     api_key: str | None = None
 
+    def __post_init__(self) -> None:
+        if not 1 <= self.port <= 65535:
+            raise ValueError(f"port must be in [1, 65535], got {self.port}")
+
     @classmethod
     def from_env(cls, file_config: dict[str, object] | None = None) -> HTTPConfig:
         """Load config from environment variables with file_config fallback."""

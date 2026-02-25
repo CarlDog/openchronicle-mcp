@@ -33,10 +33,12 @@ class OpenAIAdapter(LLMPort):
         api_key: str | None = None,
         model: str | None = None,
         base_url: str | None = None,
+        timeout_seconds: float | None = None,
     ) -> None:
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
         self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
+        self.timeout_seconds = timeout_seconds
         self._client = self._build_client()
 
     def _build_client(self) -> Any:
@@ -44,7 +46,10 @@ class OpenAIAdapter(LLMPort):
             return None
         if openai is None:
             return None
-        return openai.AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        kwargs: dict[str, Any] = {"api_key": self.api_key, "base_url": self.base_url}
+        if self.timeout_seconds is not None:
+            kwargs["timeout"] = self.timeout_seconds
+        return openai.AsyncOpenAI(**kwargs)
 
     def _ensure_ready(self) -> None:
         if not self.api_key:

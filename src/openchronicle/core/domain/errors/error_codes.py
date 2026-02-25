@@ -38,22 +38,22 @@ MOE_INSUFFICIENT_EXPERTS = "MOE_INSUFFICIENT_EXPERTS"
 # Capability-aware routing
 NO_CAPABLE_MODEL = "NO_CAPABLE_MODEL"
 
-# Provider selection / configuration (existing provider error codes)
-PROVIDER_REQUIRED = "provider_required"
-PROVIDER_NOT_CONFIGURED = "provider_not_configured"
-INVALID_PROVIDER = "invalid_provider"
-MISSING_API_KEY = "missing_api_key"
-MISSING_PACKAGE = "missing_package"
-CLIENT_MISSING = "client_missing"
-CONFIG_ERROR = "config_error"
-PROVIDER_ERROR = "provider_error"
-UNEXPECTED_ERROR = "unexpected_error"
-BUDGET_EXCEEDED = "budget_exceeded"
+# Provider selection / configuration
+PROVIDER_REQUIRED = "PROVIDER_REQUIRED"
+PROVIDER_NOT_CONFIGURED = "PROVIDER_NOT_CONFIGURED"
+INVALID_PROVIDER = "INVALID_PROVIDER"
+MISSING_API_KEY = "MISSING_API_KEY"
+MISSING_PACKAGE = "MISSING_PACKAGE"
+CLIENT_MISSING = "CLIENT_MISSING"
+CONFIG_ERROR = "CONFIG_ERROR"
+PROVIDER_ERROR = "PROVIDER_ERROR"
+UNEXPECTED_ERROR = "UNEXPECTED_ERROR"
+BUDGET_EXCEEDED = "BUDGET_EXCEEDED"
 
-# Transport/runtime (existing provider error codes)
-TIMEOUT = "timeout"
-CONNECTION_ERROR = "connection_error"
-UNKNOWN_ERROR = "unknown"
+# Transport/runtime
+TIMEOUT = "TIMEOUT"
+CONNECTION_ERROR = "CONNECTION_ERROR"
+UNKNOWN_ERROR = "UNKNOWN_ERROR"
 
 __all__ = [
     "INVALID_ARGUMENT",

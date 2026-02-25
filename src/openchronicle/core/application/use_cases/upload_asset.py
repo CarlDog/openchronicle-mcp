@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable
 
@@ -9,6 +10,8 @@ from openchronicle.core.application.services.asset_storage import AssetFileStora
 from openchronicle.core.domain.models.asset import Asset, AssetLink
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.asset_store_port import AssetStorePort
+
+_logger = logging.getLogger(__name__)
 
 
 def execute(

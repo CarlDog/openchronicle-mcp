@@ -259,22 +259,22 @@ class TestEnqueueAllowlist:
         return is_enqueueable_provider_failure
 
     def test_connection_error_is_enqueueable(self, _fn: _EnqueueCheckFn) -> None:
-        assert _fn("connection_error") is True
+        assert _fn("CONNECTION_ERROR") is True
 
     def test_timeout_is_enqueueable(self, _fn: _EnqueueCheckFn) -> None:
-        assert _fn("timeout") is True
+        assert _fn("TIMEOUT") is True
 
     def test_provider_error_is_not_enqueueable(self, _fn: _EnqueueCheckFn) -> None:
-        assert _fn("provider_error") is False
+        assert _fn("PROVIDER_ERROR") is False
 
     def test_budget_exceeded_is_not_enqueueable(self, _fn: _EnqueueCheckFn) -> None:
-        assert _fn("budget_exceeded") is False
+        assert _fn("BUDGET_EXCEEDED") is False
 
     def test_auth_error_is_not_enqueueable(self, _fn: _EnqueueCheckFn) -> None:
-        assert _fn("missing_api_key") is False
+        assert _fn("MISSING_API_KEY") is False
 
     def test_config_error_is_not_enqueueable(self, _fn: _EnqueueCheckFn) -> None:
-        assert _fn("config_error") is False
+        assert _fn("CONFIG_ERROR") is False
 
     def test_none_is_not_enqueueable(self, _fn: _EnqueueCheckFn) -> None:
         assert _fn(None) is False
@@ -291,6 +291,6 @@ class TestEnqueueAllowlist:
         ]
         passing = [code for code in all_codes if _fn(code)]
         assert sorted(passing) == [
-            "connection_error",
-            "timeout",
+            "CONNECTION_ERROR",
+            "TIMEOUT",
         ], f"Allowlist has drifted — expected exactly connection_error + timeout, got {passing}"

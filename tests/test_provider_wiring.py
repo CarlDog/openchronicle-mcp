@@ -201,7 +201,7 @@ class TestCreateProviderAwareLLM:
                     model="test-model",
                     provider=None,
                 )
-            assert exc_info.value.error_code == "provider_required"
+            assert exc_info.value.error_code == "PROVIDER_REQUIRED"
 
     @pytest.mark.asyncio
     async def test_uses_default_provider_when_set(self) -> None:
@@ -295,5 +295,5 @@ class TestProviderWiringConsistency:
                     model="gpt-4",
                     provider="openai",
                 )
-            assert exc_info.value.error_code == "provider_not_configured"
+            assert exc_info.value.error_code == "PROVIDER_NOT_CONFIGURED"
             assert "openai" in str(exc_info.value)

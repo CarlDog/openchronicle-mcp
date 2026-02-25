@@ -22,6 +22,11 @@ if TYPE_CHECKING:
     from openchronicle.core.domain.models.budget_policy import BudgetPolicy
 
 
+import logging
+
+_logger = logging.getLogger(__name__)
+
+
 async def execute_with_route(
     llm: LLMPort,
     route_decision: RouteDecision,

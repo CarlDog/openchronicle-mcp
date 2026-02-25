@@ -2,13 +2,11 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-
-def _utc_now() -> datetime:
-    return datetime.now(UTC)
+from openchronicle.core.domain.time_utils import utc_now
 
 
 class JobStatus(StrEnum):
@@ -26,7 +24,7 @@ class ScheduledJob:
     task_type: str = ""
     task_payload: dict[str, Any] = field(default_factory=dict)
     status: JobStatus = JobStatus.ACTIVE
-    next_due_at: datetime = field(default_factory=_utc_now)
+    next_due_at: datetime = field(default_factory=utc_now)
     interval_seconds: int | None = None
     cron_expr: str | None = None
     fire_count: int = 0
@@ -34,5 +32,5 @@ class ScheduledJob:
     max_failures: int = 0
     last_fired_at: datetime | None = None
     last_task_id: str | None = None
-    created_at: datetime = field(default_factory=_utc_now)
-    updated_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
+    updated_at: datetime = field(default_factory=utc_now)

@@ -138,7 +138,7 @@ def _make_mock_llm(responses: dict[str, str]) -> AsyncMock:
     ) -> LLMResponse:
         key = f"{provider}:{model}"
         if key not in responses:
-            raise LLMProviderError(f"Provider {key} unavailable", error_code="provider_error")
+            raise LLMProviderError(f"Provider {key} unavailable", error_code="PROVIDER_ERROR")
         return LLMResponse(
             content=responses[key],
             provider=provider,

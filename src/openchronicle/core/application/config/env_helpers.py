@@ -104,3 +104,14 @@ def env_override(env_name: str, file_value: object) -> object:
     if env_val is not None:
         return env_val
     return file_value
+
+
+def parse_csv_tags(value: str | None) -> list[str] | None:
+    """Parse a comma-separated string into a list of stripped, non-empty tags.
+
+    Returns None if the input is None or empty, which signals "no filter"
+    in search contexts.
+    """
+    if not value:
+        return None
+    return [t.strip() for t in value.split(",") if t.strip()]

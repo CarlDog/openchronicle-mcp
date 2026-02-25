@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.storage_port import StoragePort
+
+_logger = logging.getLogger(__name__)
 
 
 def execute(

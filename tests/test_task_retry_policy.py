@@ -370,7 +370,7 @@ async def test_retry_event_includes_policy_metadata(container: CoreContainer, pr
     # Create task with specific retry policy
     retry_policy_config = {
         "max_attempts": 3,
-        "retry_on_errors": ["timeout", "rate_limit_exceeded"],
+        "retry_on_errors": ["TIMEOUT", "rate_limit_exceeded"],
         "backoff_seconds": 5,
     }
     task = orchestrator.submit_task(
@@ -381,7 +381,7 @@ async def test_retry_event_includes_policy_metadata(container: CoreContainer, pr
 
     # Mock handler to fail with matching error
     async def failing_handler(t: Any, context: Any) -> None:
-        error = LLMProviderError("Timeout", error_code="timeout")
+        error = LLMProviderError("Timeout", error_code="TIMEOUT")
         raise error
 
     orchestrator.handler_registry.register("test_handler", failing_handler)
@@ -401,7 +401,7 @@ async def test_retry_event_includes_policy_metadata(container: CoreContainer, pr
     assert retry_event.payload["failed_attempt_id"]
     assert retry_event.payload["prior_attempts"] == 1
     assert retry_event.payload["max_attempts"] == 3
-    assert retry_event.payload["error_code"] == "timeout"
+    assert retry_event.payload["error_code"] == "TIMEOUT"
     assert retry_event.payload["backoff_seconds"] == 5
     assert retry_event.payload["reason"] == "policy"
 

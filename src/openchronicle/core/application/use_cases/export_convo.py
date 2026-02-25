@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
+
 from openchronicle.core.application.use_cases import explain_turn
 from openchronicle.core.domain.errors.error_codes import CONVERSATION_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.ports.conversation_store_port import ConversationStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.services.verification import VerificationService
+
+_logger = logging.getLogger(__name__)
 
 
 def execute(
@@ -51,6 +55,7 @@ def execute(
                 "actual_hash": actual_hash,
             }
         except Exception:
+            _logger.exception("Verification failed for conversation %s", conversation_id)
             export["verification"] = {
                 "ok": False,
                 "failure_event_id": None,

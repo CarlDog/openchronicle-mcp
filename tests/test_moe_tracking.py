@@ -157,7 +157,7 @@ class TestRecordMoeUsage:
         store = _store(tmp_path)
         experts = [
             _make_expert("openai", "gpt-4", consensus_score=0.9),
-            _make_expert("anthropic", "claude", error="timeout"),
+            _make_expert("anthropic", "claude", error="TIMEOUT"),
         ]
         moe_result = _make_moe_result(experts=experts, agreement_ratio=0.0)
         _record_moe_usage(store, moe_result, "convo-1")

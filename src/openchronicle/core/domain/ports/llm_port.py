@@ -77,7 +77,7 @@ class LLMProviderError(Exception):
         Args:
             message: Human-readable error message
             status_code: HTTP status code (if applicable)
-            error_code: Machine-readable error code (e.g., "provider_not_configured")
+            error_code: Machine-readable error code (e.g., "PROVIDER_NOT_CONFIGURED")
             provider: Provider that was requested
             configured_providers: List of available providers
             hint: Actionable hint for resolving the error

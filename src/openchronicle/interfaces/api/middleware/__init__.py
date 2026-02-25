@@ -37,8 +37,8 @@ def register_middleware(app: FastAPI, config: HTTPConfig) -> None:
         app.add_middleware(
             CORSMiddleware,
             allow_origins=[o.strip() for o in cors_origins.split(",")],
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization", "X-Request-ID", "X-API-Key"],
         )
 
     # Rate limiting — simple per-client sliding window

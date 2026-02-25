@@ -431,7 +431,7 @@ class TestReplayServiceTaskStatusCounting:
             project_id=project.id,
             task_id=task2.id,
             type="task.failed",
-            payload={"error": "timeout", "attempt_id": "attempt_2"},
+            payload={"error": "TIMEOUT", "attempt_id": "attempt_2"},
             created_at=fixed_time(4),
         )
         e4.prev_hash = e3_5.hash

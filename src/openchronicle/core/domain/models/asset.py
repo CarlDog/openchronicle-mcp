@@ -2,12 +2,10 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
-
-def _utc_now() -> datetime:
-    return datetime.now(UTC)
+from openchronicle.core.domain.time_utils import utc_now
 
 
 @dataclass
@@ -20,7 +18,7 @@ class Asset:
     size_bytes: int = 0
     content_hash: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)
 
 
 @dataclass
@@ -30,4 +28,4 @@ class AssetLink:
     target_type: str = ""
     target_id: str = ""
     role: str = ""
-    created_at: datetime = field(default_factory=_utc_now)
+    created_at: datetime = field(default_factory=utc_now)

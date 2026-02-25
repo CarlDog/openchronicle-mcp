@@ -8,6 +8,8 @@ Enables future crash-safe resume but this batch only provides the view derivatio
 
 from __future__ import annotations
 
+import logging
+
 from openchronicle.core.application.observability.execution_index import (
     LLMExecutionIndex,
 )
@@ -17,6 +19,8 @@ from openchronicle.core.application.replay.project_state import (
 )
 from openchronicle.core.domain.models.verification_status import VerificationStatus
 from openchronicle.core.domain.ports.storage_port import StoragePort
+
+_logger = logging.getLogger(__name__)
 
 
 class ReplayService:
