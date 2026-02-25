@@ -54,9 +54,10 @@ def test_container_builds_stub_embedding() -> None:
     with patch.dict("os.environ", {"OC_EMBEDDING_PROVIDER": "stub"}, clear=False):
         from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
+        settings = load_embedding_settings()
         container = MagicMock(spec=CoreContainer)
-        container.embedding_settings = load_embedding_settings()
-        result = CoreContainer._build_embedding_port(container)
+        container.embedding_settings = settings
+        result = CoreContainer._create_embedding_adapter(container, settings)
         assert result is not None
         assert result.model_name() == "stub"
 

@@ -260,11 +260,29 @@ class CoreContainer:
         }
 
     def _build_embedding_port(self) -> EmbeddingPort | None:
-        """Build embedding port from EmbeddingSettings (three-layer precedence)."""
+        """Build embedding port from EmbeddingSettings (three-layer precedence).
+
+        Returns None (graceful degradation) if the adapter fails to initialize
+        — e.g. missing API key, missing package. The server starts without
+        embeddings and falls back to FTS5-only search.
+        """
+        import logging
+
+        _log = logging.getLogger(__name__)
         settings: EmbeddingSettings = self.embedding_settings
         if settings.provider == "none":
             return None
 
+        try:
+            return self._create_embedding_adapter(settings)
+        except Exception as exc:
+            _log.warning(
+                "Embedding adapter (%s) failed to initialize: %s — falling back to FTS5-only", settings.provider, exc
+            )
+            return None
+
+    def _create_embedding_adapter(self, settings: EmbeddingSettings) -> EmbeddingPort:
+        """Create the embedding adapter. Raises on failure."""
         if settings.provider == "stub":
             from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
 
@@ -278,6 +296,8 @@ class CoreContainer:
                 kwargs["model"] = settings.model
             if settings.dimensions:
                 kwargs["dimensions"] = settings.dimensions
+            if settings.api_key:
+                kwargs["api_key"] = settings.api_key
             return OpenAIEmbeddingAdapter(**kwargs)  # type: ignore[arg-type]
 
         if settings.provider == "ollama":

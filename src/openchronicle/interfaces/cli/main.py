@@ -12,6 +12,11 @@ from openchronicle.interfaces.cli.commands._helpers import json_envelope, json_e
 
 def _build_container(args: argparse.Namespace) -> CoreContainer | None:
     """Build CoreContainer with acceptance-provider-override logic."""
+    # CLI --config-dir overrides env/default for any subcommand that accepts it
+    cli_config_dir = getattr(args, "config_dir", None)
+    if cli_config_dir:
+        os.environ["OC_CONFIG_DIR"] = cli_config_dir
+
     provider_override = os.getenv("OC_ACCEPTANCE_PROVIDER", "stub").strip()
     original_provider = None
     if args.command == "acceptance" and provider_override:
@@ -359,6 +364,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     mcp_serve.add_argument("--host", default=None, help="Bind address for SSE transport (default: 127.0.0.1)")
     mcp_serve.add_argument("--port", type=int, default=None, help="Port for SSE transport (default: 8080)")
+    mcp_serve.add_argument(
+        "--config-dir",
+        default=None,
+        help="Configuration directory (default: OC_CONFIG_DIR env var or 'config')",
+    )
 
     # --- System commands ---
     init_config_cmd = sub.add_parser("init-config", help="Initialize model configuration with examples")

@@ -237,6 +237,7 @@ class EmbeddingSettings:
     provider: str = "none"
     model: str = ""
     dimensions: int | None = None
+    api_key: str = ""
 
     def __post_init__(self) -> None:
         valid = {"none", "stub", "openai", "ollama"}
@@ -262,6 +263,10 @@ def load_embedding_settings(
             default="",
         ),
         dimensions=dims if dims != 0 else None,
+        api_key=parse_str(
+            env_override("OC_EMBEDDING_API_KEY", fc.get("api_key")),
+            default="",
+        ),
     )
 
 
