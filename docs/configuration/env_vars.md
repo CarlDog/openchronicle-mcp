@@ -153,11 +153,15 @@ When set, all data-directory paths are derived from it unless individually overr
 
 ## Embedding
 
-| Variable | Default | Description |
-| -------- | ------- | ----------- |
-| `OC_EMBEDDING_PROVIDER` | `none` | Embedding provider (`none`, `stub`, `openai`, `ollama`). `none` disables semantic search (FTS5 keyword only). |
-| `OC_EMBEDDING_MODEL` | *(provider default)* | Embedding model name. Defaults: OpenAI=`text-embedding-3-small`, Ollama=`nomic-embed-text`, Stub=`stub`. |
-| `OC_EMBEDDING_DIMENSIONS` | *(provider default)* | Override embedding dimensions. Defaults: OpenAI=1536, Ollama=768, Stub=384. |
+All embedding settings follow three-layer precedence: env var > `core.json`
+`"embedding"` section > dataclass default. The `core.json` approach is preferred
+for local development; env vars are useful for Docker/CI overrides.
+
+| Variable | `core.json` key | Default | Description |
+| -------- | --------------- | ------- | ----------- |
+| `OC_EMBEDDING_PROVIDER` | `embedding.provider` | `none` | Embedding provider (`none`, `stub`, `openai`, `ollama`). `none` disables semantic search (FTS5 keyword only). |
+| `OC_EMBEDDING_MODEL` | `embedding.model` | *(provider default)* | Embedding model name. Defaults: OpenAI=`text-embedding-3-small`, Ollama=`nomic-embed-text`, Stub=`stub`. |
+| `OC_EMBEDDING_DIMENSIONS` | `embedding.dimensions` | *(provider default)* | Override embedding dimensions. Defaults: OpenAI=1536, Ollama=768, Stub=384. |
 
 ## Search
 

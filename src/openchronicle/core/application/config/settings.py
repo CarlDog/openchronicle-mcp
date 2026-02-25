@@ -230,6 +230,41 @@ class MoESettings:
             raise ValueError(f"min_experts must be >= 2, got {self.min_experts}")
 
 
+@dataclass(frozen=True)
+class EmbeddingSettings:
+    """Embedding provider configuration."""
+
+    provider: str = "none"
+    model: str = ""
+    dimensions: int | None = None
+
+    def __post_init__(self) -> None:
+        valid = {"none", "stub", "openai", "ollama"}
+        if self.provider not in valid:
+            raise ValueError(f"embedding provider must be one of {valid}, got {self.provider!r}")
+        if self.dimensions is not None and self.dimensions < 1:
+            raise ValueError(f"embedding dimensions must be >= 1, got {self.dimensions}")
+
+
+def load_embedding_settings(
+    file_config: dict[str, Any] | None = None,
+) -> EmbeddingSettings:
+    fc = file_config or {}
+    dims_raw = env_override("OC_EMBEDDING_DIMENSIONS", fc.get("dimensions"))
+    dims = parse_int(dims_raw, default=0) if dims_raw is not None else 0
+    return EmbeddingSettings(
+        provider=parse_str(
+            env_override("OC_EMBEDDING_PROVIDER", fc.get("provider")),
+            default="none",
+        ).lower(),
+        model=parse_str(
+            env_override("OC_EMBEDDING_MODEL", fc.get("model")),
+            default="",
+        ),
+        dimensions=dims if dims != 0 else None,
+    )
+
+
 def load_moe_settings(
     file_config: dict[str, Any] | None = None,
 ) -> MoESettings:

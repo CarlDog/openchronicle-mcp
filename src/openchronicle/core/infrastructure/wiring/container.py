@@ -8,7 +8,9 @@ from openchronicle.core.application.config.env_helpers import env_override, pars
 from openchronicle.core.application.config.model_config import ModelConfigLoader
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.config.settings import (
+    EmbeddingSettings,
     load_conversation_settings,
+    load_embedding_settings,
     load_moe_settings,
     load_privacy_outbound_settings,
     load_router_assist_settings,
@@ -91,6 +93,7 @@ class CoreContainer:
             self.telemetry_settings = load_telemetry_settings(file_configs.get("telemetry"))
             self.conversation_settings = load_conversation_settings(file_configs.get("conversation"))
             self.moe_settings = load_moe_settings(file_configs.get("moe"))
+            self.embedding_settings = load_embedding_settings(file_configs.get("embedding"))
             self.budget_policy = load_budget_policy(file_configs.get("budget"))
 
             router_fc = file_configs.get("router")
@@ -257,42 +260,38 @@ class CoreContainer:
         }
 
     def _build_embedding_port(self) -> EmbeddingPort | None:
-        """Build embedding port based on OC_EMBEDDING_PROVIDER env var."""
-        provider = os.getenv("OC_EMBEDDING_PROVIDER", "none").lower()
-        if provider == "none":
+        """Build embedding port from EmbeddingSettings (three-layer precedence)."""
+        settings: EmbeddingSettings = self.embedding_settings
+        if settings.provider == "none":
             return None
 
-        model = os.getenv("OC_EMBEDDING_MODEL")
-        dims_raw = os.getenv("OC_EMBEDDING_DIMENSIONS")
-        dims = int(dims_raw) if dims_raw else None
-
-        if provider == "stub":
+        if settings.provider == "stub":
             from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
 
-            return StubEmbeddingAdapter(dims=dims or 384)
+            return StubEmbeddingAdapter(dims=settings.dimensions or 384)
 
-        if provider == "openai":
+        if settings.provider == "openai":
             from openchronicle.core.infrastructure.embedding.openai_adapter import OpenAIEmbeddingAdapter
 
             kwargs: dict[str, object] = {}
-            if model:
-                kwargs["model"] = model
-            if dims:
-                kwargs["dimensions"] = dims
+            if settings.model:
+                kwargs["model"] = settings.model
+            if settings.dimensions:
+                kwargs["dimensions"] = settings.dimensions
             return OpenAIEmbeddingAdapter(**kwargs)  # type: ignore[arg-type]
 
-        if provider == "ollama":
+        if settings.provider == "ollama":
             from openchronicle.core.infrastructure.embedding.ollama_adapter import OllamaEmbeddingAdapter
 
             kwargs_o: dict[str, object] = {}
-            if model:
-                kwargs_o["model"] = model
-            if dims:
-                kwargs_o["dimensions"] = dims
+            if settings.model:
+                kwargs_o["model"] = settings.model
+            if settings.dimensions:
+                kwargs_o["dimensions"] = settings.dimensions
             return OllamaEmbeddingAdapter(**kwargs_o)  # type: ignore[arg-type]
 
         raise LLMProviderError(
-            f"Unknown embedding provider: {provider}",
+            f"Unknown embedding provider: {settings.provider}",
             error_code=CONFIG_ERROR,
             hint="Set OC_EMBEDDING_PROVIDER to 'none', 'stub', 'openai', or 'ollama'.",
         )

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
+from openchronicle.core.application.config.settings import load_embedding_settings
 from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.application.use_cases import add_memory, search_memory, update_memory
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -42,8 +43,8 @@ def test_container_embedding_service_none_when_provider_none() -> None:
     with patch.dict("os.environ", {"OC_EMBEDDING_PROVIDER": "none"}, clear=False):
         from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
-        # Just test _build_embedding_port directly
         container = MagicMock(spec=CoreContainer)
+        container.embedding_settings = load_embedding_settings()
         result = CoreContainer._build_embedding_port(container)
         assert result is None
 
@@ -54,6 +55,7 @@ def test_container_builds_stub_embedding() -> None:
         from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
         container = MagicMock(spec=CoreContainer)
+        container.embedding_settings = load_embedding_settings()
         result = CoreContainer._build_embedding_port(container)
         assert result is not None
         assert result.model_name() == "stub"

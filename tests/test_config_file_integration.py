@@ -14,6 +14,7 @@ import pytest
 
 from openchronicle.core.application.config.budget_config import load_budget_policy
 from openchronicle.core.application.config.settings import (
+    load_embedding_settings,
     load_privacy_outbound_settings,
     load_router_assist_settings,
     load_telemetry_settings,
@@ -144,6 +145,58 @@ class TestPoolConfigFilePrecedence:
         # Ollama should have higher weight
         assert config.fast_pool[0].weight == 20  # openai
         assert config.fast_pool[1].weight == 100  # ollama
+
+
+class TestEmbeddingFilePrecedence:
+    def test_defaults_when_no_file_no_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_PROVIDER", raising=False)
+        monkeypatch.delenv("OC_EMBEDDING_MODEL", raising=False)
+        monkeypatch.delenv("OC_EMBEDDING_DIMENSIONS", raising=False)
+        settings = load_embedding_settings()
+        assert settings.provider == "none"
+        assert settings.model == ""
+        assert settings.dimensions is None
+
+    def test_file_sets_provider(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_PROVIDER", raising=False)
+        settings = load_embedding_settings({"provider": "openai"})
+        assert settings.provider == "openai"
+
+    def test_file_sets_model_and_dimensions(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_PROVIDER", raising=False)
+        monkeypatch.delenv("OC_EMBEDDING_MODEL", raising=False)
+        monkeypatch.delenv("OC_EMBEDDING_DIMENSIONS", raising=False)
+        settings = load_embedding_settings(
+            {"provider": "openai", "model": "text-embedding-3-large", "dimensions": 1536}
+        )
+        assert settings.provider == "openai"
+        assert settings.model == "text-embedding-3-large"
+        assert settings.dimensions == 1536
+
+    def test_env_overrides_file(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OC_EMBEDDING_PROVIDER", "ollama")
+        settings = load_embedding_settings({"provider": "openai"})
+        assert settings.provider == "ollama"
+
+    def test_env_overrides_file_model(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OC_EMBEDDING_MODEL", "nomic-embed-text")
+        settings = load_embedding_settings({"model": "text-embedding-3-small"})
+        assert settings.model == "nomic-embed-text"
+
+    def test_provider_normalized_to_lowercase(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_PROVIDER", raising=False)
+        settings = load_embedding_settings({"provider": "OpenAI"})
+        assert settings.provider == "openai"
+
+    def test_invalid_provider_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_PROVIDER", raising=False)
+        with pytest.raises(ValueError, match="embedding provider"):
+            load_embedding_settings({"provider": "banana"})
+
+    def test_invalid_dimensions_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_EMBEDDING_DIMENSIONS", raising=False)
+        with pytest.raises(ValueError, match="embedding dimensions"):
+            load_embedding_settings({"provider": "stub", "dimensions": -1})
 
 
 class TestRouterAssistFilePrecedence:
