@@ -243,6 +243,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_update_cmd.add_argument("--content", default=None, help="New content (replaces existing)")
     memory_update_cmd.add_argument("--tags", default=None, help="New tags, comma-separated (replaces existing)")
 
+    memory_embed_cmd = memory_sub.add_parser("embed", help="Generate embeddings for memory items")
+    memory_embed_cmd.add_argument("--force", action="store_true", help="Regenerate all embeddings (model change)")
+    memory_embed_cmd.add_argument("--status", action="store_true", help="Show embedding coverage stats")
+    memory_embed_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
     # --- Provider commands ---
     provider_cmd = sub.add_parser("provider", help="Provider setup and management")
     provider_sub = provider_cmd.add_subparsers(dest="provider_command")

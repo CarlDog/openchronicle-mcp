@@ -159,6 +159,7 @@ def assemble_context_route(
         last_n=body.last_n,
         top_k_memory=body.top_k_memory,
         include_pinned_memory=body.include_pinned_memory,
+        embedding_service=container.embedding_service,
     )
     return assembled_context_to_dict(result)
 
@@ -200,6 +201,7 @@ def context_recent(
             query=query,
             top_k=memory_limit,
             conversation_id=conversation_id,
+            embedding_service=container.embedding_service,
         )
         result["memories"] = [memory_to_dict(m) for m in memories]
 

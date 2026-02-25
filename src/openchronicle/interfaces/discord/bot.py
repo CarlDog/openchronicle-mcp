@@ -108,6 +108,7 @@ class DiscordBot(commands.Bot):
             temperature=cs.temperature,
             privacy_gate=getattr(self.container, "privacy_gate", None),
             privacy_settings=getattr(self.container, "privacy_settings", None),
+            embedding_service=self.container.embedding_service,
         )
 
         collected: list[str] = []

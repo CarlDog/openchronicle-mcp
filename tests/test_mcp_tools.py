@@ -120,6 +120,7 @@ class TestServerCreation:
             "memory_get",
             "memory_delete",
             "memory_stats",
+            "memory_embed",
             "conversation_create",
             "conversation_list",
             "conversation_history",

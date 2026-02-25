@@ -1,0 +1,224 @@
+"""Embedding service — generates embeddings and performs hybrid search."""
+
+from __future__ import annotations
+
+import logging
+from typing import TYPE_CHECKING
+
+from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+
+if TYPE_CHECKING:
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+logger = logging.getLogger(__name__)
+
+# RRF constant — standard value from the original RRF paper
+_RRF_K = 60
+
+
+class EmbeddingService:
+    """Coordinates embedding generation and hybrid (FTS5 + semantic) search."""
+
+    def __init__(self, port: EmbeddingPort, store: SqliteStore) -> None:
+        self._port = port
+        self._store = store
+
+    @property
+    def port(self) -> EmbeddingPort:
+        return self._port
+
+    def generate_for_memory(
+        self,
+        memory_id: str,
+        content: str,
+        *,
+        force: bool = False,
+    ) -> None:
+        """Generate and store embedding for a single memory item.
+
+        Skips generation if an embedding already exists with the same model,
+        unless ``force`` is True (used when content changes).
+        """
+        if not force:
+            existing_model = self._store.get_embedding_model(memory_id)
+            if existing_model == self._port.model_name():
+                return
+
+        vec = self._port.embed(content)
+        self._store.save_embedding(
+            memory_id,
+            vec,
+            model=self._port.model_name(),
+            dimensions=self._port.dimensions(),
+        )
+
+    def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> int:
+        """Backfill embeddings for memories that don't have one.
+
+        If *force* is True, regenerate all embeddings (model change scenario).
+        Returns the count of embeddings generated.
+        """
+        items = self._store.list_memory(limit=None, pinned_only=False)
+        if project_id:
+            items = [i for i in items if i.project_id == project_id]
+        count = 0
+        for item in items:
+            if not force:
+                existing_model = self._store.get_embedding_model(item.id)
+                if existing_model == self._port.model_name():
+                    continue
+            vec = self._port.embed(item.content)
+            self._store.save_embedding(
+                item.id,
+                vec,
+                model=self._port.model_name(),
+                dimensions=self._port.dimensions(),
+            )
+            count += 1
+        return count
+
+    def embedding_status(self) -> dict[str, int]:
+        """Return embedding coverage stats."""
+        all_items = self._store.list_memory(limit=None, pinned_only=False)
+        total_memories = len(all_items)
+        embedded = self._store.count_embeddings()
+        stale = self._store.count_stale_embeddings(self._port.model_name())
+        return {
+            "total_memories": total_memories,
+            "embedded": embedded,
+            "missing": total_memories - embedded,
+            "stale": stale,
+        }
+
+    def search_hybrid(
+        self,
+        query: str,
+        *,
+        top_k: int = 8,
+        conversation_id: str | None = None,
+        project_id: str | None = None,
+        include_pinned: bool = True,
+        tags: list[str] | None = None,
+        offset: int = 0,
+    ) -> list[MemoryItem]:
+        """Hybrid search: FTS5 keyword + embedding similarity via RRF.
+
+        1. Run keyword search (FTS5) for ranked list A
+        2. Embed query → cosine similarity → ranked list B
+        3. Combine via Reciprocal Rank Fusion
+        4. Return top_k results
+        """
+        effective_top_k = top_k + offset
+
+        # ── Pinned items (always included) ──────────────────────────────
+        pinned_items: list[MemoryItem] = []
+        if include_pinned:
+            pinned_items = self._store._fetch_pinned_items(conversation_id, project_id)
+            if tags:
+                pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
+
+        remaining = max(effective_top_k - len(pinned_items), 0)
+        if remaining == 0:
+            return pinned_items[offset : offset + top_k]
+
+        pinned_ids = {i.id for i in pinned_items}
+
+        # ── Keyword search (list A) ─────────────────────────────────────
+        keyword_results = self._store.search_memory(
+            query,
+            top_k=remaining * 2,  # over-fetch for RRF merge
+            conversation_id=conversation_id,
+            project_id=project_id,
+            include_pinned=False,
+            tags=tags,
+        )
+        keyword_results = [i for i in keyword_results if i.id not in pinned_ids]
+
+        # ── Semantic search (list B) ─────────────────────────────────────
+        semantic_ranked = self._semantic_search(
+            query,
+            conversation_id=conversation_id,
+            project_id=project_id,
+            tags=tags,
+            exclude_ids=pinned_ids,
+            limit=remaining * 2,
+        )
+
+        # ── RRF merge ──────────────────────────────────────────────────
+        keyword_rank: dict[str, int] = {item.id: rank for rank, item in enumerate(keyword_results, start=1)}
+        semantic_rank: dict[str, int] = {mid: rank for rank, mid in enumerate(semantic_ranked, start=1)}
+
+        all_ids = set(keyword_rank) | set(semantic_rank)
+        # Build lookup for MemoryItem objects
+        item_map: dict[str, MemoryItem] = {i.id: i for i in keyword_results}
+
+        # For semantic-only results, fetch MemoryItem from store
+        for mid in semantic_rank:
+            if mid not in item_map:
+                mem = self._store.get_memory(mid)
+                if mem:
+                    item_map[mid] = mem
+
+        rrf_scores: list[tuple[str, float]] = []
+        for mid in all_ids:
+            if mid not in item_map:
+                continue
+            # Apply tag filter to semantic-only results
+            if tags and not all(t in item_map[mid].tags for t in tags):
+                continue
+            # Apply conversation/project filter to semantic-only results
+            if conversation_id and item_map[mid].conversation_id != conversation_id:
+                continue
+            if project_id and item_map[mid].project_id != project_id:
+                continue
+
+            kr = keyword_rank.get(mid)
+            sr = semantic_rank.get(mid)
+            score = 0.0
+            if kr is not None:
+                score += 1.0 / (_RRF_K + kr)
+            if sr is not None:
+                score += 1.0 / (_RRF_K + sr)
+            rrf_scores.append((mid, score))
+
+        rrf_scores.sort(key=lambda x: x[1], reverse=True)
+
+        merged = [item_map[mid] for mid, _ in rrf_scores[:remaining]]
+
+        results: list[MemoryItem] = list(pinned_items)
+        results.extend(merged)
+        return results[offset : offset + top_k]
+
+    def _semantic_search(
+        self,
+        query: str,
+        *,
+        conversation_id: str | None = None,
+        project_id: str | None = None,
+        tags: list[str] | None = None,
+        exclude_ids: set[str] | None = None,
+        limit: int = 16,
+    ) -> list[str]:
+        """Return memory IDs ranked by cosine similarity to query embedding."""
+        query_vec = self._port.embed(query)
+        all_embeddings = self._store.list_embeddings()
+
+        if not all_embeddings:
+            return []
+
+        # Score all embeddings
+        scores: list[tuple[str, float]] = []
+        for mid, vec in all_embeddings.items():
+            if exclude_ids and mid in exclude_ids:
+                continue
+            sim = _cosine_similarity(query_vec, vec)
+            scores.append((mid, sim))
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+        return [mid for mid, _ in scores[:limit]]
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Dot product of unit vectors = cosine similarity."""
+    return sum(x * y for x, y in zip(a, b, strict=False))

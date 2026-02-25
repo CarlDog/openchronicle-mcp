@@ -124,6 +124,9 @@ def _make_mock_container() -> MagicMock:
     container.storage.list_memory.return_value = []
     container.orchestrator.list_projects.return_value = []
 
+    # Embedding service defaults to None (FTS5-only) unless test overrides
+    container.embedding_service = None
+
     return container
 
 

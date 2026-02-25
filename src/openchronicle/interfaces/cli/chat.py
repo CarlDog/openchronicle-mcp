@@ -41,6 +41,7 @@ async def _stream_turn(
         privacy_gate=getattr(container, "privacy_gate", None),
         privacy_settings=getattr(container, "privacy_settings", None),
         telemetry=telemetry,
+        embedding_service=container.embedding_service,
     )
 
     collected: list[str] = []

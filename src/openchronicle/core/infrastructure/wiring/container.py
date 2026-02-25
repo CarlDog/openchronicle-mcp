@@ -21,9 +21,11 @@ from openchronicle.core.application.routing.router_policy import RouterPolicy
 from openchronicle.core.application.runtime.plugin_loader import PluginLoader
 from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
 from openchronicle.core.application.services.asset_storage import AssetFileStorage
+from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.application.services.scheduler import SchedulerService
 from openchronicle.core.domain.errors.error_codes import CONFIG_ERROR
+from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
 from openchronicle.core.domain.ports.router_assist_port import RouterAssistPort
 from openchronicle.core.infrastructure.config.config_loader import load_config_files, load_plugin_config
@@ -184,6 +186,12 @@ class CoreContainer:
             assets_dir = os.getenv("OC_ASSETS_DIR", "data/assets")
             self.asset_file_storage = AssetFileStorage(base_dir=assets_dir)
 
+            # Embedding service (optional — hybrid memory search)
+            self.embedding_port: EmbeddingPort | None = self._build_embedding_port()
+            self.embedding_service: EmbeddingService | None = (
+                EmbeddingService(self.embedding_port, self.storage) if self.embedding_port is not None else None
+            )
+
             # Store for config show and diagnostics
             self.file_configs = file_configs
             self.config_dir = str(config_dir_resolved)
@@ -214,3 +222,44 @@ class CoreContainer:
             "orchestrator": self.orchestrator,
             "scheduler": self.scheduler,
         }
+
+    def _build_embedding_port(self) -> EmbeddingPort | None:
+        """Build embedding port based on OC_EMBEDDING_PROVIDER env var."""
+        provider = os.getenv("OC_EMBEDDING_PROVIDER", "none").lower()
+        if provider == "none":
+            return None
+
+        model = os.getenv("OC_EMBEDDING_MODEL")
+        dims_raw = os.getenv("OC_EMBEDDING_DIMENSIONS")
+        dims = int(dims_raw) if dims_raw else None
+
+        if provider == "stub":
+            from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
+
+            return StubEmbeddingAdapter(dims=dims or 384)
+
+        if provider == "openai":
+            from openchronicle.core.infrastructure.embedding.openai_adapter import OpenAIEmbeddingAdapter
+
+            kwargs: dict[str, object] = {}
+            if model:
+                kwargs["model"] = model
+            if dims:
+                kwargs["dimensions"] = dims
+            return OpenAIEmbeddingAdapter(**kwargs)  # type: ignore[arg-type]
+
+        if provider == "ollama":
+            from openchronicle.core.infrastructure.embedding.ollama_adapter import OllamaEmbeddingAdapter
+
+            kwargs_o: dict[str, object] = {}
+            if model:
+                kwargs_o["model"] = model
+            if dims:
+                kwargs_o["dimensions"] = dims
+            return OllamaEmbeddingAdapter(**kwargs_o)  # type: ignore[arg-type]
+
+        raise LLMProviderError(
+            f"Unknown embedding provider: {provider}",
+            error_code=CONFIG_ERROR,
+            hint="Set OC_EMBEDDING_PROVIDER to 'none', 'stub', 'openai', or 'ollama'.",
+        )

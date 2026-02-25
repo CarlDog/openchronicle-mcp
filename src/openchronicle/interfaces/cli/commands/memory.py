@@ -32,6 +32,7 @@ def cmd_memory(args: argparse.Namespace, container: CoreContainer) -> int:
         "search": cmd_memory_search,
         "delete": cmd_memory_delete,
         "update": cmd_memory_update,
+        "embed": cmd_memory_embed,
     }
     handler = memory_dispatch.get(args.memory_command)
     if handler is None:
@@ -63,6 +64,7 @@ def cmd_memory_add(args: argparse.Namespace, container: CoreContainer) -> int:
             project_id=project_id,
             source=args.source,
         ),
+        embedding_service=container.embedding_service,
     )
     print(item.id)
     return 0
@@ -127,6 +129,7 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
         include_pinned=args.include_pinned,
         tags=tag_list,
         offset=args.offset,
+        embedding_service=container.embedding_service,
     )
     for item in items:
         tags_str = ",".join(item.tags)
@@ -190,10 +193,41 @@ def cmd_memory_update(args: argparse.Namespace, container: CoreContainer) -> int
             memory_id=args.memory_id,
             content=content,
             tags=tags,
+            embedding_service=container.embedding_service,
         )
     except (ValueError, NotFoundError, DomainValidationError) as exc:
         print(str(exc))
         return 1
 
     print(updated.id)
+    return 0
+
+
+def cmd_memory_embed(args: argparse.Namespace, container: CoreContainer) -> int:
+    """Generate embeddings for memory items."""
+    import json as _json
+
+    service = container.embedding_service
+    if service is None:
+        print("Embedding service not configured. Set OC_EMBEDDING_PROVIDER (stub, openai, ollama).")
+        return 1
+
+    if getattr(args, "status", False):
+        status = service.embedding_status()
+        if getattr(args, "json", False):
+            print(_json.dumps(status))
+        else:
+            print(f"Total memories: {status['total_memories']}")
+            print(f"Embedded:       {status['embedded']}")
+            print(f"Missing:        {status['missing']}")
+            print(f"Stale:          {status['stale']}")
+            print(f"Model:          {service.port.model_name()}")
+        return 0
+
+    force = getattr(args, "force", False)
+    count = service.generate_missing(force=force)
+    if getattr(args, "json", False):
+        print(_json.dumps({"generated": count, "force": force}))
+    else:
+        print(f"Generated {count} embedding(s).")
     return 0

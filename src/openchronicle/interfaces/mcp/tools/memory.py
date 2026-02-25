@@ -64,6 +64,7 @@ def register(mcp: FastMCP) -> None:
             project_id=project_id,
             tags=tags,
             offset=offset,
+            embedding_service=container.embedding_service,
         )
         return [memory_to_dict(m) for m in results]
 
@@ -123,6 +124,7 @@ def register(mcp: FastMCP) -> None:
             store=container.storage,
             emit_event=container.event_logger.append,
             item=item,
+            embedding_service=container.embedding_service,
         )
         return memory_to_dict(saved)
 
@@ -204,6 +206,7 @@ def register(mcp: FastMCP) -> None:
             memory_id=memory_id,
             content=content,
             tags=tags,
+            embedding_service=container.embedding_service,
         )
         return memory_to_dict(updated)
 
@@ -275,4 +278,32 @@ def register(mcp: FastMCP) -> None:
             "pinned": pinned_count,
             "by_tag": by_tag,
             "by_source": by_source,
+        }
+
+    @mcp.tool()
+    @track_tool
+    def memory_embed(
+        ctx: Context,
+        force: bool = False,
+    ) -> dict[str, Any]:
+        """Generate embeddings for memories that don't have them.
+
+        Requires OC_EMBEDDING_PROVIDER to be configured (stub, openai, ollama).
+
+        Args:
+            force: If True, regenerate all embeddings (e.g. after model change).
+        """
+        container = _get_container(ctx)
+        if container.embedding_service is None:
+            return {
+                "status": "not_configured",
+                "message": "Set OC_EMBEDDING_PROVIDER to enable embeddings.",
+            }
+        count = container.embedding_service.generate_missing(force=force)
+        status = container.embedding_service.embedding_status()
+        return {
+            "status": "ok",
+            "generated": count,
+            "force": force,
+            **status,
         }

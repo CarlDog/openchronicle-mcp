@@ -42,6 +42,7 @@ from openchronicle.core.domain.ports.storage_port import StoragePort
 _logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from openchronicle.core.application.services.embedding_service import EmbeddingService
     from openchronicle.core.domain.models.moe_result import MoEResult
 
 
@@ -186,6 +187,7 @@ async def prepare_ask(
     privacy_gate: PrivacyGatePort | None = None,
     privacy_settings: PrivacyOutboundSettings | None = None,
     telemetry: TelemetryRecorder | None = None,
+    embedding_service: EmbeddingService | None = None,
 ) -> PreparedContext:
     """Prepare context for a conversation turn (phases 1-5).
 
@@ -211,12 +213,20 @@ async def prepare_ask(
 
     memory_search_start = time.perf_counter() if perf_enabled else 0.0
     pinned_memory = memory_store.list_memory(limit=top_k_memory, pinned_only=True) if include_pinned_memory else []
-    relevant_memory = memory_store.search_memory(
-        prompt_text,
-        top_k=top_k_memory,
-        conversation_id=conversation_id,
-        include_pinned=False,
-    )
+    if embedding_service is not None:
+        relevant_memory = embedding_service.search_hybrid(
+            prompt_text,
+            top_k=top_k_memory,
+            conversation_id=conversation_id,
+            include_pinned=False,
+        )
+    else:
+        relevant_memory = memory_store.search_memory(
+            prompt_text,
+            top_k=top_k_memory,
+            conversation_id=conversation_id,
+            include_pinned=False,
+        )
     memory_retrieval_ms = (time.perf_counter() - memory_search_start) * 1000 if perf_enabled else 0.0
 
     emit_event(
@@ -721,6 +731,7 @@ async def execute(
     privacy_settings: PrivacyOutboundSettings | None = None,
     telemetry: TelemetryRecorder | None = None,
     moe: bool = False,
+    embedding_service: EmbeddingService | None = None,
 ) -> Turn:
     ctx = await prepare_ask(
         convo_store=convo_store,
@@ -739,6 +750,7 @@ async def execute(
         privacy_gate=privacy_gate,
         privacy_settings=privacy_settings,
         telemetry=telemetry,
+        embedding_service=embedding_service,
     )
 
     perf_enabled = ctx.started_at > 0.0

@@ -226,6 +226,17 @@ CREATE TABLE IF NOT EXISTS asset_links (
 );
 """
 
+MEMORY_EMBEDDINGS_TABLE = """
+CREATE TABLE IF NOT EXISTS memory_embeddings (
+    memory_id TEXT PRIMARY KEY,
+    embedding BLOB NOT NULL,
+    model TEXT NOT NULL,
+    dimensions INTEGER NOT NULL,
+    generated_at TEXT NOT NULL,
+    FOREIGN KEY(memory_id) REFERENCES memory_items(id) ON DELETE CASCADE
+);
+"""
+
 INDEXES = [
     # Tasks: optimize project queries with ordering
     "CREATE INDEX IF NOT EXISTS idx_tasks_project_created ON tasks(project_id, created_at, id)",
@@ -303,6 +314,7 @@ ALL_TABLES = [
     MOE_USAGE_TABLE,
     ASSETS_TABLE,
     ASSET_LINKS_TABLE,
+    MEMORY_EMBEDDINGS_TABLE,
 ]
 
 # ── FTS5 virtual tables & triggers ──────────────────────────────────────

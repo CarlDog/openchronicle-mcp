@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
 from openchronicle.core.application.config.env_helpers import parse_csv_tags
@@ -50,6 +50,7 @@ def memory_search(
         project_id=project_id,
         tags=tag_list,
         offset=offset,
+        embedding_service=container.embedding_service,
     )
     return [memory_to_dict(m) for m in results]
 
@@ -125,6 +126,7 @@ def memory_save(
         store=container.storage,
         emit_event=container.event_logger.append,
         item=item,
+        embedding_service=container.embedding_service,
     )
     return memory_to_dict(saved)
 
@@ -210,5 +212,31 @@ def memory_update(
         memory_id=memory_id,
         content=body.content,
         tags=body.tags,
+        embedding_service=container.embedding_service,
     )
     return memory_to_dict(updated)
+
+
+class MemoryEmbedRequest(BaseModel):
+    force: bool = Field(default=False, description="Regenerate all embeddings")
+
+
+@router.post("/embed")
+def memory_embed(
+    container: ContainerDep,
+    body: MemoryEmbedRequest = Body(default=MemoryEmbedRequest()),  # noqa: B008
+) -> dict[str, Any]:
+    """Generate embeddings for memories that don't have them."""
+    if container.embedding_service is None:
+        return {
+            "status": "not_configured",
+            "message": "Set OC_EMBEDDING_PROVIDER to enable embeddings.",
+        }
+    count = container.embedding_service.generate_missing(force=body.force)
+    status = container.embedding_service.embedding_status()
+    return {
+        "status": "ok",
+        "generated": count,
+        "force": body.force,
+        **status,
+    }

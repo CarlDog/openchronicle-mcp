@@ -18,14 +18,14 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Media generation port, security scanner plugin, or webhooks.
+**Next action:** Media generation port, webhooks, or Phase 5 IDE automation hooks.
 Capability-aware routing is done (`ModelConfigLoader` parses capabilities,
 `RouterPolicy` filters by `required_capabilities`, `NO_CAPABLE_MODEL` error, 12 tests).
 HTTP API is done (`interfaces/api/`, FastAPI, 25 REST endpoints mirroring MCP tools,
 API key auth, rate limiting, shared serializers, 51+ tests, auto-starts with `oc serve`).
 MoE execution strategy is done (`application/services/moe_execution.py`, Jaccard
 consensus, `--moe` CLI/MCP, 32 tests).
-MCP server is done (`interfaces/mcp/`, 26 tools, 37 tests + 7 posture, `oc mcp serve`
+MCP server is done (`interfaces/mcp/`, 27 tools, 37 tests + 7 posture, `oc mcp serve`
 CLI, stdio + SSE transports, lazy import guard).
 Asset management is done (`domain/models/asset.py`, `application/services/asset_storage.py`,
 `application/use_cases/upload_asset.py`, `application/use_cases/link_asset.py`,
@@ -64,6 +64,11 @@ Memory System Phase 2 is done (external turn recording `turn_record` MCP + API,
 standalone context assembly `context_assemble` MCP + API with shared `context_builder`
 service refactored from `prepare_ask`, incremental `onboard_git` with watermark tracking,
 `list_memory_by_source` promoted to `MemoryStorePort`, 39 new tests, 1237 total).
+Memory v1 (Phase 3) is done (embedding-based semantic search via `EmbeddingPort` ABC
+with stub/OpenAI/Ollama adapters, `EmbeddingService` hybrid FTS5+cosine retrieval via
+Reciprocal Rank Fusion, `memory_embeddings` table with BLOB storage and CASCADE cleanup,
+backfill CLI/MCP/API, backwards-compatible default `OC_EMBEDDING_PROVIDER=none`,
+54 new tests, 1291 total).
 
 ## Build and Development
 
@@ -129,10 +134,11 @@ for the full directory tree and layer descriptions.
 - **Routing**: Provider/model selection via pools (fast, quality, nsfw) with fallback support
 - **Scheduler**: Core service in `application/services/scheduler.py` (not a plugin)
 - **Discord**: Interfaces driver in `interfaces/discord/` (optional extra, not a plugin)
-- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 26 tools, FastMCP)
-- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 25 REST endpoints, auto-starts with `oc serve`)
+- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 27 tools, FastMCP)
+- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 26 REST endpoints, auto-starts with `oc serve`)
 - **MoE Execution**: `application/services/moe_execution.py` — Mixture-of-Experts consensus strategy (`--moe` flag)
 - **Asset Management**: `domain/models/asset.py` + `application/services/asset_storage.py` — filesystem storage, SHA-256 dedup, generic entity linking
+- **Embedding Service**: `application/services/embedding_service.py` — hybrid FTS5+cosine search via RRF, `EmbeddingPort` (stub/OpenAI/Ollama adapters), `OC_EMBEDDING_PROVIDER` env var
 
 ## Conventions
 
@@ -175,9 +181,12 @@ Most-used variables for quick reference:
 | `GROQ_API_KEY` | Groq authentication | - |
 | `GEMINI_API_KEY` | Gemini authentication (also accepts `GOOGLE_API_KEY`) | - |
 | `OC_DB_PATH` | SQLite database location | `data/openchronicle.db` |
+| `OC_EMBEDDING_PROVIDER` | Embedding provider (`none`, `stub`, `openai`, `ollama`) | `none` |
+| `OC_EMBEDDING_MODEL` | Embedding model name (provider-specific default) | *(provider default)* |
+| `OC_EMBEDDING_DIMENSIONS` | Override embedding dimensions | *(provider default)* |
 
-Full reference (~60 variables covering budget, rate limiting, routing, privacy,
-telemetry, and more): [docs/configuration/env_vars.md](docs/configuration/env_vars.md)
+Full reference (~63 variables covering budget, rate limiting, routing, privacy,
+telemetry, embedding, and more): [docs/configuration/env_vars.md](docs/configuration/env_vars.md)
 
 ## OpenChronicle Memory Integration
 
@@ -292,11 +301,10 @@ Call `memory_search` at these points:
 
 - **No compression hook.** We can't detect when compression is about to
   happen. Mitigation: save-as-you-go discipline.
-- **Search is keyword-based.** Quality depends on good content and tags.
-  Write memories as if future-you is searching for them with obvious
-  keywords.
-- **Search is approximate.** Keyword search with no stemming or
-  fuzzy matching. Memories must use obvious keywords to be findable.
+- **Search is keyword-based by default.** Set `OC_EMBEDDING_PROVIDER`
+  to enable hybrid semantic+keyword search. Without it, quality depends
+  on good content and tags. Write memories as if future-you is searching
+  for them with obvious keywords.
 
 ## Key Files
 

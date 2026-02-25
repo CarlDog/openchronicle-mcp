@@ -82,7 +82,7 @@ for reference — see `docs/CODEBASE_ASSESSMENT.md` for full details.
 - **STDIO RPC** — 24 commands, async, daemon mode (`oc serve`)
 - **Discord Interface** — 6 slash commands, session mapping, 85 tests,
   optional `[discord]` extra (`interfaces/discord/`)
-- **MCP Server** — 26 tools, stdio + SSE transports, 44 tests, optional
+- **MCP Server** — 27 tools, stdio + SSE transports, 44 tests, optional
   `[mcp]` extra (`interfaces/mcp/`)
 - **HTTP API** — FastAPI, 25 REST endpoints, API key auth, rate limiting,
   CORS, 54+ tests (`interfaces/api/`)
@@ -100,10 +100,14 @@ for reference — see `docs/CODEBASE_ASSESSMENT.md` for full details.
 - **Phase 2** — External turn recording, standalone context assembly,
   incremental `onboard_git` with watermark tracking, `context_builder`
   service extracted from `prepare_ask()`, 39 tests
+- **Phase 3 (Memory v1)** — Embedding-based semantic search, `EmbeddingPort`
+  ABC (stub/OpenAI/Ollama adapters), `EmbeddingService` with hybrid FTS5+cosine
+  retrieval via RRF, `memory_embeddings` table, backfill CLI/MCP/API,
+  backwards-compatible default, 54 new tests
 
 </details>
 
-**Totals:** 1,237 tests, 26 MCP tools, 25 REST endpoints, 9 ports, 7
+**Totals:** 1,291 tests, 27 MCP tools, 26 REST endpoints, 10 ports, 8
 services, 35 use cases, 5 interfaces.
 
 ---
@@ -214,34 +218,34 @@ Highest daily impact — every OC session touches memory.
 
 ### Memory v1: Embeddings / Semantic Search
 
-**Status:** 🔴 Not Started
+**Status:** ✅ Implemented
 **Effort:** Medium-Large
-**Category:** Core (enhances `MemoryStorePort`)
+**Category:** Core (new `EmbeddingPort`, enhances memory search pipeline)
 
-Memory v0 uses FTS5 keyword search — functional but limited to exact term
-matches. Memory v1 introduces embedding-based semantic search for higher
-recall and relevance. This affects every conversation turn.
+Provider-agnostic embedding-based semantic search behind the existing
+`search_memory()` interface. Hybrid FTS5 keyword + cosine similarity combined
+via Reciprocal Rank Fusion (RRF). No new heavy dependencies.
 
-**Requirements:**
+**Implemented:**
 
-- [ ] `EmbeddingPort` ABC — provider abstraction for embedding generation
-- [ ] Embedding generation on memory save (and re-embed on update)
-- [ ] Vector similarity search (cosine or dot product)
-- [ ] Hybrid retrieval: semantic score + keyword score → combined ranking
-- [ ] Embedding storage (new table or SQLite vector extension)
-- [ ] Stub embedding adapter for testing (deterministic)
-- [ ] At least one real adapter (local sentence-transformers or OpenAI)
+- [x] `EmbeddingPort` ABC — provider abstraction (`embed`, `embed_batch`, `dimensions`, `model_name`)
+- [x] Stub adapter (deterministic hash-based vectors for testing)
+- [x] OpenAI adapter (`text-embedding-3-small`, 1536 dims)
+- [x] Ollama adapter (`nomic-embed-text`, `/api/embed` endpoint)
+- [x] `EmbeddingService` — generation, backfill, hybrid search orchestration
+- [x] Hybrid search: FTS5 (list A) + cosine similarity (list B) → RRF merge (k=60)
+- [x] `memory_embeddings` table (BLOB storage, FK CASCADE to `memory_items`)
+- [x] Auto-generate on memory save, force-regenerate on content update
+- [x] Backfill CLI (`oc memory embed`), MCP tool (`memory_embed`), API endpoint
+- [x] Backwards-compatible: `OC_EMBEDDING_PROVIDER=none` (default) = FTS5-only
+- [x] 54 new tests (port, adapters, storage, service, backfill, wiring)
 
-**Open questions (decide at implementation time):**
+**Decisions made:**
 
-- Embedding provider: local (`sentence-transformers`) vs API (OpenAI)?
-- Storage: SQLite with `sqlite-vec` extension vs separate store?
-- Retrieval: semantic-only, keyword-only, or hybrid scoring?
-- Embedding dimensions and model selection?
-
-**Context:** Decision #3 in `docs/CODEBASE_ASSESSMENT.md` established memory
-self-report as v0 baseline. Self-report data collected now informs retrieval
-quality when embeddings are added.
+- Embedding provider: API-based (OpenAI + Ollama), not local `sentence-transformers`
+- Storage: BLOB in SQLite (`struct.pack`), no `sqlite-vec` extension needed
+- Retrieval: Hybrid scoring (keyword + semantic via RRF), not either/or
+- Cosine similarity via dot product of pre-normalized unit vectors (pure Python)
 
 ---
 
@@ -487,6 +491,7 @@ independent plugin — no cross-plugin dependencies.
 - [ ] **Narrative engines** — consistency checker, emotional analyzer
 - [ ] **Game mechanics** — dice engine, narrative branching
 - [ ] **Bookmark system** — scene bookmarking, chapters
+- [ ] **Persona extractor** — see dedicated section below
 
 **Data value:** Storytelling plugins generate rich, structured events
 (character interactions, scene transitions, narrative decisions) that
@@ -498,6 +503,88 @@ storage. Options: (a) serialize state in task payloads (stateless), (b) use
 OC memory system via the conversation pipeline, (c) if the plugin API proves
 insufficient, promote storage-heavy features to core services. Evaluate at
 implementation time — don't over-engineer the plugin API preemptively.
+
+### Persona Extractor (Storytelling Extension)
+
+**Status:** 🔴 Not Started
+**Effort:** Large
+**Category:** Plugin (stateless extraction pipeline)
+**Depends On:** Storytelling Plugin Suite (character management), Multimodal
+Input (Phase 6)
+
+Extract personality models from performance content (video, audio,
+transcripts). Target use case: analyzing actors' live interpretations of
+characters — speech patterns, decision-making tendencies, emotional
+responses, humor style, conflict resolution approach — and producing
+structured persona templates for use in OC's character management system.
+
+**Pipeline:**
+
+```text
+Video/Audio source
+  → Transcription (Whisper or equivalent)
+  → Behavioral analysis (LLM-driven extraction)
+  → Persona schema (structured JSON: traits, speech patterns, values, quirks)
+  → Character template (feeds into storytelling character management)
+```
+
+**Key insight: volume is the feature, not the problem.** Thousands of
+hours of source material (e.g., Critical Role's full catalog) makes this
+an ideal long-running background workload. The extraction job runs for
+hours, days, or weeks via the scheduler — progressively building a
+persona model with increasing confidence. This is the single best
+stress test for sustained scheduler operation, event pipeline throughput,
+memory accumulation, and embedding search at scale. Nothing else in the
+backlog exercises these systems at this sustained load.
+
+**Progressive confidence model:** The extractor doesn't process
+everything — it processes *enough*. Early passes build a rough persona
+from sampled scenes. Subsequent passes refine, confirm, or revise trait
+assessments. A confidence score tracks convergence per trait. When the
+delta between iterations drops below a threshold, extraction stops for
+that trait (or the whole persona). This means a well-defined character
+might converge in hours; a nuanced one might take longer. The system
+decides, not the operator.
+
+**Requirements:**
+
+- [ ] Persona schema definition (structured JSON for personality traits,
+      speech patterns, behavioral tendencies, values, quirks, each with
+      confidence scores)
+- [ ] Transcription ingestion (accept pre-transcribed text, or invoke
+      transcription service for audio/video)
+- [ ] Scene sampling strategy (smart selection of character-defining
+      moments, not exhaustive sequential processing)
+- [ ] Multi-pass LLM extraction (behavioral analysis, speech pattern
+      identification, trait synthesis)
+- [ ] Confidence tracking and convergence detection (per-trait confidence
+      scores, iteration delta threshold, automatic completion)
+- [ ] Actor/character separation (context-aware extraction — distinguish
+      performer from role, especially for DMs voicing multiple NPCs)
+- [ ] Persona validation (consistency checks, completeness scoring)
+- [ ] Export as character template (compatible with character management
+      plugin)
+- [ ] Long-running job support (scheduler integration, progress
+      tracking, resumable after interruption)
+
+**Licensing considerations:** Source material (e.g., Critical Role,
+actual-play content) is copyrighted. The extraction tool itself is
+general-purpose, but character models derived from specific IP require
+licensing agreements. Strategy: build the tool as a general-purpose
+persona extractor, demonstrate with a proof-of-concept on licensed
+content, then pursue licensing for distribution of derived character
+models. The demo proves technical viability; the license enables
+sharing.
+
+**Scope honesty:** This is a large, ambitious idea. The effort estimate
+above is likely an understatement. Capturing it now to preserve the
+concept; feasibility assessment happens when dependencies are met.
+
+**Why this is interesting beyond storytelling:** A general-purpose persona
+extractor has applications beyond fictional characters — interview
+analysis, communication style profiling, user preference modeling. The
+storytelling use case is the most compelling demo, but the underlying
+capability is broadly useful.
 
 ### Future Plugin Candidates
 
@@ -725,8 +812,8 @@ CORE INFRA GAPS (small, enable downstream)  │
 ├── Output Manager ◄───────────────────── (no deps)
 └── Shell Execution ◄──────────────────── (no deps)
 
-PHASE 3: Smarter Memory                    │
-└── Memory Embeddings ◄────────────────── (no deps)
+PHASE 3: Smarter Memory ✅                  │
+└── Memory Embeddings ✅ ◄─────────────── (no deps)
 
 PHASE 4: Reactive Eventing                 │
 └── Webhooks ◄─────────────────────────── HTTP API ✅
@@ -771,7 +858,7 @@ Gaps being filled first.
 ```text
  1. Quick Wins: Goose + VS Code MCP config          [Trivial] ✅
  2. Core Infra: Output Manager + Shell Execution     [Small]
- 3. Phase 3: Memory Embeddings                       [Medium-Large]
+ 3. Phase 3: Memory Embeddings                       [Medium-Large] ✅
  4. Phase 4: Webhooks                                [Medium]
  5. Phase 5: IDE Event-Triggered Memory              [Medium]
  6. Plugins: Storytelling suite (pipeline exercise)   [Medium]

@@ -74,6 +74,7 @@ def register(mcp: FastMCP) -> None:
                 query=query,
                 top_k=memory_limit,
                 conversation_id=conversation_id,
+                embedding_service=container.embedding_service,
             )
             result["memories"] = [
                 {
@@ -129,5 +130,6 @@ def register(mcp: FastMCP) -> None:
             last_n=last_n,
             top_k_memory=top_k_memory,
             include_pinned_memory=include_pinned_memory,
+            embedding_service=container.embedding_service,
         )
         return assembled_context_to_dict(result)

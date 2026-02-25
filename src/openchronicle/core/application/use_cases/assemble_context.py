@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from openchronicle.core.application.services.embedding_service import EmbeddingService
 
 from openchronicle.core.application.services.context_builder import (
     build_turn_messages,
@@ -60,6 +64,7 @@ def execute(
     last_n: int = 10,
     top_k_memory: int = 8,
     include_pinned_memory: bool = True,
+    embedding_service: EmbeddingService | None = None,
 ) -> AssembledContext:
     """Assemble context for an external agent without routing or LLM calls.
 
@@ -79,12 +84,20 @@ def execute(
     messages: list[dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
 
     pinned_memory = memory_store.list_memory(limit=top_k_memory, pinned_only=True) if include_pinned_memory else []
-    relevant_memory = memory_store.search_memory(
-        prompt_text,
-        top_k=top_k_memory,
-        conversation_id=conversation_id,
-        include_pinned=False,
-    )
+    if embedding_service is not None:
+        relevant_memory = embedding_service.search_hybrid(
+            prompt_text,
+            top_k=top_k_memory,
+            conversation_id=conversation_id,
+            include_pinned=False,
+        )
+    else:
+        relevant_memory = memory_store.search_memory(
+            prompt_text,
+            top_k=top_k_memory,
+            conversation_id=conversation_id,
+            include_pinned=False,
+        )
 
     memory_text = format_memory_messages(pinned_memory, relevant_memory, include_pinned_memory)
     if memory_text is not None:

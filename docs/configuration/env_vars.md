@@ -138,6 +138,14 @@ code default**. Boolean values accept `1`/`true`/`yes`/`on` (case-insensitive).
 | `OC_MOE_MIN_EXPERTS` | `2` | Minimum number of experts for consensus |
 | `OC_MOE_TEMPERATURE` | - | Temperature override for MoE runs (optional) |
 
+## Embedding
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_EMBEDDING_PROVIDER` | `none` | Embedding provider (`none`, `stub`, `openai`, `ollama`). `none` disables semantic search (FTS5 keyword only). |
+| `OC_EMBEDDING_MODEL` | *(provider default)* | Embedding model name. Defaults: OpenAI=`text-embedding-3-small`, Ollama=`nomic-embed-text`, Stub=`stub`. |
+| `OC_EMBEDDING_DIMENSIONS` | *(provider default)* | Override embedding dimensions. Defaults: OpenAI=1536, Ollama=768, Stub=384. |
+
 ## Search
 
 | Variable | Default | Description |

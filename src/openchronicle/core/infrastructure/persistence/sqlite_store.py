@@ -6,6 +6,7 @@ import os
 import random
 import sqlite3
 import string
+import struct
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -102,6 +103,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         self._ensure_updated_at_column()
         self._ensure_indexes()
         self._ensure_fts5()
+        self._ensure_memory_embeddings_table()
         # Ensure crash recovery runs even for reused databases
         self.recover_stale_tasks()
 
@@ -673,6 +675,92 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
             cur.execute("DELETE FROM memory_items WHERE id = ?", (memory_id,))
             return True
 
+    # ── Embedding storage ───────────────────────────────────────────────
+
+    def save_embedding(
+        self,
+        memory_id: str,
+        embedding: list[float],
+        model: str,
+        dimensions: int,
+    ) -> None:
+        """Store (or overwrite) an embedding for a memory item."""
+        blob = struct.pack(f"{len(embedding)}f", *embedding)
+        cur = self._conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO memory_embeddings (memory_id, embedding, model, dimensions, generated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(memory_id) DO UPDATE SET
+                embedding = excluded.embedding,
+                model = excluded.model,
+                dimensions = excluded.dimensions,
+                generated_at = excluded.generated_at
+            """,
+            (memory_id, blob, model, dimensions, datetime.now(UTC).isoformat()),
+        )
+        self._commit_if_needed()
+
+    def get_embedding(self, memory_id: str) -> list[float] | None:
+        """Retrieve a stored embedding, or None if missing."""
+        cur = self._conn.cursor()
+        row = cur.execute(
+            "SELECT embedding, dimensions FROM memory_embeddings WHERE memory_id = ?",
+            (memory_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return list(struct.unpack(f"{row['dimensions']}f", row["embedding"]))
+
+    def list_embeddings(
+        self,
+        memory_ids: list[str] | None = None,
+    ) -> dict[str, list[float]]:
+        """Return {memory_id: vector} for requested IDs (or all)."""
+        cur = self._conn.cursor()
+        if memory_ids is not None:
+            placeholders = ",".join("?" for _ in memory_ids)
+            rows = cur.execute(
+                f"SELECT memory_id, embedding, dimensions FROM memory_embeddings WHERE memory_id IN ({placeholders})",
+                memory_ids,
+            ).fetchall()
+        else:
+            rows = cur.execute("SELECT memory_id, embedding, dimensions FROM memory_embeddings").fetchall()
+        result: dict[str, list[float]] = {}
+        for row in rows:
+            result[row["memory_id"]] = list(struct.unpack(f"{row['dimensions']}f", row["embedding"]))
+        return result
+
+    def delete_embedding(self, memory_id: str) -> None:
+        """Remove embedding for a memory item."""
+        cur = self._conn.cursor()
+        cur.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (memory_id,))
+        self._commit_if_needed()
+
+    def count_embeddings(self) -> int:
+        """Return total number of stored embeddings."""
+        cur = self._conn.cursor()
+        row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings").fetchone()
+        return row["cnt"] if row else 0
+
+    def count_stale_embeddings(self, current_model: str) -> int:
+        """Return count of embeddings generated with a different model."""
+        cur = self._conn.cursor()
+        row = cur.execute(
+            "SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE model != ?",
+            (current_model,),
+        ).fetchone()
+        return row["cnt"] if row else 0
+
+    def get_embedding_model(self, memory_id: str) -> str | None:
+        """Return the model name used for a stored embedding, or None."""
+        cur = self._conn.cursor()
+        row = cur.execute(
+            "SELECT model FROM memory_embeddings WHERE memory_id = ?",
+            (memory_id,),
+        ).fetchone()
+        return row["model"] if row else None
+
     # Memory
     def add_memory(self, item: MemoryItem) -> None:
         cur = self._conn.cursor()
@@ -1045,6 +1133,14 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         if "updated_at" not in columns:
             cur.execute("ALTER TABLE memory_items ADD COLUMN updated_at TEXT")
             self._commit_if_needed()
+
+    def _ensure_memory_embeddings_table(self) -> None:
+        """Create memory_embeddings table + enable FK cascade if missing."""
+        cur = self._conn.cursor()
+        cur.execute(schema.MEMORY_EMBEDDINGS_TABLE)
+        # Ensure PRAGMA foreign_keys is on so CASCADE works
+        cur.execute("PRAGMA foreign_keys = ON")
+        self._commit_if_needed()
 
     def _ensure_indexes(self) -> None:
         """Create indexes for query performance optimization."""
