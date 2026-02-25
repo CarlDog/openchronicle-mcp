@@ -131,7 +131,7 @@ is added to core first.
 
 ### Goose MCP Integration
 
-**Status:** 🔴 Not Started
+**Status:** ✅ Implemented
 **Effort:** Trivial (config only)
 **Category:** External
 
@@ -146,12 +146,12 @@ Goose (orchestrating agent)
 
 **MVP:**
 
-- [ ] Goose profile config pointing to both OC and Serena MCP servers
+- [x] Goose profile config pointing to both OC and Serena MCP servers
 - [ ] Manual validation: save memory → exit → new session retrieves it
 
 ### VS Code MCP Integration
 
-**Status:** 🔴 Not Started
+**Status:** ✅ Implemented
 **Effort:** Trivial (config only)
 **Category:** External
 
@@ -159,7 +159,7 @@ VS Code supports MCP servers natively. Primary integration is `oc mcp serve`
 in VS Code's MCP config. Custom Copilot SDK integration is secondary — only
 if deeper IDE features are needed later.
 
-- [ ] VS Code MCP config pointing to `oc mcp serve`
+- [x] VS Code MCP config pointing to `oc mcp serve`
 - [ ] Manual validation: memory save/search works from VS Code
 
 ---
@@ -717,9 +717,9 @@ COMPLETED (all ✅)
 ├── Memory Phase 1 / 1.1 / 2 ──────────────│
 └── Enterprise Tightening A/B/C ────────────┘
 
-QUICK WINS (unblocked now)                  │
-├── Goose MCP config ◄──────────────────── MCP Server ✅
-└── VS Code MCP config ◄───────────────── MCP Server ✅
+QUICK WINS (done)                           │
+├── Goose MCP config ✅ ◄──────────────── MCP Server ✅
+└── VS Code MCP config ✅ ◄────────────── MCP Server ✅
 
 CORE INFRA GAPS (small, enable downstream)  │
 ├── Output Manager ◄───────────────────── (no deps)
@@ -769,7 +769,7 @@ Gaps being filled first.
 ## Implementation Sequence (Recommended)
 
 ```text
- 1. Quick Wins: Goose + VS Code MCP config          [Trivial]
+ 1. Quick Wins: Goose + VS Code MCP config          [Trivial] ✅
  2. Core Infra: Output Manager + Shell Execution     [Small]
  3. Phase 3: Memory Embeddings                       [Medium-Large]
  4. Phase 4: Webhooks                                [Medium]
