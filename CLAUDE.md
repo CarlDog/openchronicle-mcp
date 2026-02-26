@@ -18,7 +18,10 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Media generation port. Phase 5 IDE hooks prototyped (see below).
+**Next action:** Multimodal conversation input (vision via asset system) or Phase 5
+IDE automation hooks. Media generation is done (`MediaGenerationPort` with 4 adapters:
+stub, Ollama, OpenAI gpt-image-1, Gemini Imagen 3; unified model config with
+`image_generation` capability tag; `OC_MEDIA_MODEL` derives provider; 62 tests).
 Capability-aware routing is done (`ModelConfigLoader` parses capabilities,
 `RouterPolicy` filters by `required_capabilities`, `NO_CAPABLE_MODEL` error, 12 tests).
 HTTP API is done (`interfaces/api/`, FastAPI, 31 REST endpoints mirroring MCP tools,

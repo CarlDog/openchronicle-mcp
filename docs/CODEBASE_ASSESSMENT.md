@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-25
 **Branch:** `main`
-**Revision:** 37 (Embedding observability, plugin repo separation, Phase 5 IDE hooks prototype)
+**Revision:** 38 (Media generation — 4 adapters, unified model config, capability tags)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (1,438 unit/functional, 22 real-world integration, 14 Discord
+Tests are strong (1,456 unit/functional, 22 real-world integration, 14 Discord
 integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
 daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
@@ -120,11 +120,12 @@ Gemini adapter error codes: `_classify_gemini_error()` maps exceptions to
 `OLLAMA_HOST` documented in env vars reference.
 21 new tests, 1198 total passing.
 
-**What's next:** Media generation (Decision #7). Phase 5 IDE automation hooks
-have a working prototype (see below). Media generation introduces a new port
-(`MediaGenerationPort`) with Ollama and OpenAI adapters, flowing through the
-existing asset system. Capability-aware routing wires the `capabilities` field
-in model configs into provider selection.
+**What's next:** Multimodal conversation input (vision input via asset system),
+or Phase 5 IDE automation hooks (prototype exists). Media generation is done
+(Decision #7) — `MediaGenerationPort` with 4 adapters (stub, Ollama, OpenAI
+gpt-image-1, Gemini Imagen 3). Unified model config: media models live in
+`config/models/` with `image_generation` capability tag, provider derived
+automatically. `OC_MEDIA_MODEL` is the single config knob.
 
 MoE (Mixture-of-Experts) execution strategy is implemented — Jaccard-based
 consensus scoring, `--moe` CLI/MCP flag, quality pool parallel execution, 32 tests.
@@ -133,7 +134,7 @@ Code integration, and any MCP-compatible client. MCP tool usage tracking and MoE
 usage tracking provide operational observability — dedicated tables, aggregate
 stats queries, `tool_stats` and `moe_stats` MCP tools.
 
-**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system Phase 3 complete: embedding-based semantic search via provider-agnostic `EmbeddingPort` (stub, OpenAI, Ollama adapters), hybrid FTS5+cosine retrieval combined via Reciprocal Rank Fusion (RRF), embeddings stored as BLOB in SQLite with CASCADE cleanup, backfill CLI/MCP/API, backwards-compatible default (keyword-only when `OC_EMBEDDING_PROVIDER=none`). Embedding observability added: health endpoint reports embedding status (active/disabled/failed with coverage stats), startup logging on adapter init, per-item backfill resilience with error isolation, configurable timeout via `OC_EMBEDDING_TIMEOUT`. Phase 4 Webhook Service complete: outbound webhooks with HMAC-SHA256 signing, background dispatcher thread with queue + exponential backoff retry, composite `emit_event` pattern (zero call-site changes), fnmatch glob event filtering, recursion prevention. Phase 5 IDE automation hooks prototyped: Claude Code `PreCompact` and `SessionStart(compact)` hooks inject OC memories around context compression via `oc memory search --full`. Plugins separated to [openchronicle/plugins](https://github.com/OpenChronicle/plugins) repo. 30 MCP tools, 31 REST endpoints, 1,438 tests. Enterprise tightening Passes A/B/C complete. Media generation is next.**
+**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system Phase 3 complete: embedding-based semantic search via provider-agnostic `EmbeddingPort` (stub, OpenAI, Ollama adapters), hybrid FTS5+cosine retrieval combined via Reciprocal Rank Fusion (RRF), embeddings stored as BLOB in SQLite with CASCADE cleanup, backfill CLI/MCP/API, backwards-compatible default (keyword-only when `OC_EMBEDDING_PROVIDER=none`). Embedding observability added: health endpoint reports embedding status (active/disabled/failed with coverage stats), startup logging on adapter init, per-item backfill resilience with error isolation, configurable timeout via `OC_EMBEDDING_TIMEOUT`. Phase 4 Webhook Service complete: outbound webhooks with HMAC-SHA256 signing, background dispatcher thread with queue + exponential backoff retry, composite `emit_event` pattern (zero call-site changes), fnmatch glob event filtering, recursion prevention. Phase 5 IDE automation hooks prototyped: Claude Code `PreCompact` and `SessionStart(compact)` hooks inject OC memories around context compression via `oc memory search --full`. Media generation complete: `MediaGenerationPort` with 4 adapters (stub, Ollama, OpenAI gpt-image-1, Gemini Imagen 3), unified model config with `image_generation` capability tag (no separate `OC_MEDIA_PROVIDER`), asset storage with SHA-256 dedup, CLI/MCP/API interfaces. Model config system extended with `type` and `description` fields, `find_media_model()`/`list_by_capability()` lookup methods. Plugins separated to [openchronicle/plugins](https://github.com/OpenChronicle/plugins) repo. 31 MCP tools, 32 REST endpoints, 1,456 tests. Enterprise tightening Passes A/B/C complete.**
 
 ---
 
@@ -228,11 +229,12 @@ validates against live providers (OpenAI, Anthropic).
 | **Config-driven wiring** (JSON model configs, env vars) | Working | Per-(provider, model) resolution |
 | **Time context** (current time, last interaction, seconds delta) | Working | Injected in `prepare_ask()`, raw ISO + integer data, 5 tests |
 | **Discord interface** (bot, slash commands, session, formatting) | Working | `commands.Bot` subclass, 6 slash commands, session mapping, message splitting, PID file guard, config from `core.json`, 71 tests |
-| **MCP server interface** (30 tools, FastMCP, stdio + SSE) | Working | Memory (save/search/list/pin/update/get/delete/stats/embed), conversation, context, system, onboard, asset, webhook tools; `@track_tool` decorator; lazy import guard; posture-enforced isolation |
+| **MCP server interface** (31 tools, FastMCP, stdio + SSE) | Working | Memory (save/search/list/pin/update/get/delete/stats/embed), conversation, context, system, onboard, asset, webhook, media tools; `@track_tool` decorator; lazy import guard; posture-enforced isolation |
 | **Asset management** (filesystem storage, SHA-256 dedup, generic linking) | Working | Asset/AssetLink models, AssetStorePort, AssetFileStorage, upload/link use cases, 4 MCP tools, 4 CLI commands, 48 tests |
 | **Webhook service** (outbound HTTP POST, HMAC-SHA256, background dispatch) | Working | WebhookSubscription/DeliveryAttempt models, WebhookStorePort, WebhookService, WebhookDispatcher (daemon thread + queue), composite emit_event, fnmatch glob filtering, exponential backoff retry, 3 MCP tools, 5 REST endpoints, 4 CLI commands, 74 tests |
-| **HTTP API interface** (FastAPI, always-on daemon, 31 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51+ tests |
-| **Test suite** (1438 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 15 test categories + Discord + MCP + Assets + HTTP API + Embedding + Webhooks, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
+| **HTTP API interface** (FastAPI, always-on daemon, 32 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51+ tests |
+| **Media generation** (4 adapters, unified model config) | Working | `MediaGenerationPort` ABC, stub/Ollama/OpenAI/Gemini adapters, `image_generation` capability tag in `config/models/`, `OC_MEDIA_MODEL` derives provider from config, asset storage + SHA-256 dedup, CLI/MCP/API interfaces, 62 tests |
+| **Test suite** (1456 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 15 test categories + Discord + MCP + Assets + HTTP API + Embedding + Webhooks + Media, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
 
 ### Architecture (Enforced and Clean)
 
@@ -582,7 +584,7 @@ Core Done
   ✓ MoE Mode (core — application/services/moe_execution.py, uses LLMPort + routing)
   ✓ HTTP API (core — interfaces/api, always-on daemon, Decision #6)
   ✓ Capability-Aware Routing (core — wire model config capabilities into routing)
-  → Media Generation (core — new port + adapters, Decision #7)
+  ✓ Media Generation (core — MediaGenerationPort, 4 adapters, unified model config, Decision #7)
   → Multimodal Conversation Input (core — vision input via asset system)
   ✓ Webhooks (core — webhook_service.py + webhook_dispatcher.py, HMAC signing, background dispatch)
   ✓ Embedding Observability (health status, startup logging, backfill resilience, configurable timeout)
@@ -786,42 +788,46 @@ interfaces/api/
 **Posture:** Core dependency (not optional). Hexagonal boundary enforced — no
 `core.*` module imports from `interfaces/api/`.
 
-### 7. Media generation is a core capability (Decision: 2026-02-22)
+### 7. Media generation is a core capability (Decision: 2026-02-22, Implemented: 2026-02-25)
 
-**Decision:** Locally hosted media generation (image, video) is a core capability
-with its own port (`MediaGenerationPort`), adapters, and capability-aware routing.
-It is not a plugin.
+**Decision:** Media generation (image, video) is a core capability with its own
+port (`MediaGenerationPort`), adapters, and unified model config. Not a plugin.
 
 **Rationale:** Media generation needs:
 
 1. **Its own port.** Different input/output types from text completion (prompts →
    binary media), different cost model, different routing needs. Extending
    `LLMPort` would violate interface segregation.
-2. **Capability-aware routing.** The `capabilities` field in model configs is
-   currently dead data (declared, never read by routing). Media generation
-   requires routing to models with `image_generation: true` or
-   `video_generation: true`. Wiring capabilities into routing benefits text
-   routing too (vision-capable model selection).
+2. **Unified model config.** Media models live in `config/models/` alongside LLM
+   models with `"image_generation": true` capability tag. Provider is derived
+   from the model config — no separate `OC_MEDIA_PROVIDER` env var. Single knob:
+   `OC_MEDIA_MODEL`.
 3. **Asset integration.** Generated media flows through the existing asset system
    (SHA-256 dedup, generic linking). A use case orchestrates port + asset storage.
-4. **Provider adapters.** Ollama now supports open-source image/video generation
-   models. OpenAI has DALL-E. Each needs an adapter normalizing to `MediaResult`.
+4. **Provider adapters.** Ollama (Flux diffusion), OpenAI (gpt-image-1), Google
+   (Imagen 3). Each normalizes to `MediaResult`.
 
 **Architecture:**
 
 ```text
-core/domain/ports/media_generation_port.py    # MediaRequest, MediaResult, port ABC
+core/domain/models/media.py                   # MediaRequest, MediaResult
+core/domain/ports/media_generation_port.py    # Port ABC
 core/infrastructure/media/
-  ollama_media_adapter.py                      # Ollama image/video models
-  openai_media_adapter.py                      # DALL-E
-  stub_media_adapter.py                        # Testing
+  stub_adapter.py                              # Testing (deterministic PNG)
+  ollama_adapter.py                            # Ollama /api/generate (diffusion)
+  openai_adapter.py                            # OpenAI /v1/images/generations
+  gemini_adapter.py                            # Gemini /v1beta models/:predict
 core/application/use_cases/generate_media.py   # Orchestrates port + asset storage
+config/models/ollama_flux.json                 # image_generation capability
+config/models/openai_gpt_image_1.json          # image_generation capability
+config/models/gemini_imagen_3.json             # image_generation capability
 ```
 
-**Implementation:** Deferred to a future sprint. Capability-aware routing is
-now wired (P7.1 complete): `ModelConfigLoader` parses `capabilities` from
-model configs, `RouterPolicy` filters by `required_capabilities` opt-in param,
-`NO_CAPABLE_MODEL` error code on no match.
+**Model config extensions:** `ModelConfigEntry` gained `type` (default `"llm"`,
+media models use `"media"`) and `description` fields. `ModelConfigLoader` gained
+`find_media_model()`, `list_by_capability()`, and `find_by_model()` methods.
+
+**Implementation:** Complete. 4 adapters, CLI/MCP/API interfaces, 62 tests.
 
 ---
 
@@ -850,4 +856,5 @@ model configs, `RouterPolicy` filters by `required_capabilities` opt-in param,
 | `interfaces/serializers.py` | ~90 | Shared model serializers | New (6 functions, used by MCP tools + API routes) |
 | `services/webhook_service.py` | ~120 | Webhook CRUD + HMAC + delivery | New (httpx, fnmatch, secrets) |
 | `services/webhook_dispatcher.py` | ~110 | Background event dispatch | New (daemon thread, queue, retry) |
-| `infrastructure/wiring/container.py` | ~250 | DI container | Clean (file-based config, exposes router_policy, composite emit_event, embedding_status_dict) |
+| `infrastructure/media/` | ~450 | Media adapters | New (stub, Ollama, OpenAI, Gemini — 4 adapters, config-driven) |
+| `infrastructure/wiring/container.py` | ~465 | DI container | Clean (file-based config, exposes router_policy, composite emit_event, embedding_status_dict, media port via model config lookup) |
