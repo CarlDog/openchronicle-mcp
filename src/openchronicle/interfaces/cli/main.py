@@ -522,6 +522,27 @@ def main(argv: list[str] | None = None) -> int:
     webhook_deliv_cmd.add_argument("webhook_id", help="Webhook subscription ID")
     webhook_deliv_cmd.add_argument("--limit", type=int, default=20, help="Limit number of deliveries shown")
 
+    # --- Ollama commands ---
+    ollama_cmd = sub.add_parser("ollama", help="Ollama model management commands")
+    ollama_sub = ollama_cmd.add_subparsers(dest="ollama_command")
+
+    ollama_list_cmd = ollama_sub.add_parser("list", help="List installed Ollama models and config status")
+    ollama_list_cmd.add_argument("--json", dest="json_output", action="store_true", help="Output as JSON")
+
+    ollama_show_cmd = ollama_sub.add_parser("show", help="Show details for an installed Ollama model")
+    ollama_show_cmd.add_argument("model", help="Model name (e.g. mistral:instruct, llava:latest)")
+    ollama_show_cmd.add_argument("--config", dest="show_config", action="store_true", help="Show generated config")
+
+    ollama_add_cmd = ollama_sub.add_parser("add", help="Create a config file for an installed model")
+    ollama_add_cmd.add_argument("model", help="Model name (e.g. mistral:instruct)")
+    ollama_add_cmd.add_argument("--force", action="store_true", help="Overwrite existing config")
+
+    ollama_rm_cmd = ollama_sub.add_parser("remove", help="Remove a model's config file")
+    ollama_rm_cmd.add_argument("model", help="Model name (e.g. mistral:instruct)")
+
+    ollama_sync_cmd = ollama_sub.add_parser("sync", help="Create configs for all unconfigured installed models")
+    ollama_sync_cmd.add_argument("--prune", action="store_true", help="Remove stale configs for uninstalled models")
+
     # --- Chat ---
     chat_cmd = sub.add_parser("chat", help="Interactive chat session")
     chat_cmd.add_argument("--conversation-id", default=None, help="Resume specific conversation by ID")

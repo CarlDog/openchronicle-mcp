@@ -22,6 +22,7 @@ from . import (
     mcp_cmd,
     media,
     memory,
+    ollama,
     onboard,
     project,
     scheduler,
@@ -82,6 +83,8 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, CoreContainer], int]] = {
     "asset": asset.cmd_asset,
     # Media
     "media": media.cmd_media,
+    # Ollama
+    "ollama": ollama.cmd_ollama,
     # Webhook
     "webhook": webhook_cmd.cmd_webhook,
     # Chat

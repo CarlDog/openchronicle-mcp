@@ -1,8 +1,8 @@
 {
   "provider": "ollama",
-  "model": "mistral:7b",
+  "model": "mistral:instruct",
   "display_name": "Ollama - Mistral 7B",
-  "description": "Local Mistral 7B model via Ollama",
+  "description": "Local Mistral 7B model via Ollama (7.2B) [Q4_0]",
   "capabilities": {
     "text_generation": true,
     "streaming": true,
