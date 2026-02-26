@@ -242,6 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_group.add_argument("--no-include-pinned", dest="include_pinned", action="store_false")
     memory_search_cmd.set_defaults(include_pinned=True)
     memory_search_cmd.add_argument("--offset", type=int, default=0, help="Skip first N results")
+    memory_search_cmd.add_argument("--full", action="store_true", help="Print full content (for context injection)")
 
     memory_update_cmd = memory_sub.add_parser("update", help="Update a memory item")
     memory_update_cmd.add_argument("memory_id")

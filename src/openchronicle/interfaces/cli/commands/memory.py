@@ -131,10 +131,17 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
         offset=args.offset,
         embedding_service=container.embedding_service,
     )
+    full = getattr(args, "full", False)
     for item in items:
-        tags_str = ",".join(item.tags)
-        snippet = item.content if len(item.content) <= 120 else item.content[:120] + "..."
-        print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
+        if full:
+            tags_str = ",".join(item.tags)
+            print(f"--- [{tags_str}] (pinned={item.pinned}) ---")
+            print(item.content)
+            print()
+        else:
+            tags_str = ",".join(item.tags)
+            snippet = item.content if len(item.content) <= 120 else item.content[:120] + "..."
+            print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
     return 0
 
 
