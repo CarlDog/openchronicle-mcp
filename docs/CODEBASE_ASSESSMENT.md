@@ -2,7 +2,7 @@
 
 **Date:** 2026-02-25
 **Branch:** `main`
-**Revision:** 36 (Data directory centralization — RuntimePaths four-layer precedence, OC_DATA_DIR)
+**Revision:** 37 (Embedding observability, plugin repo separation, Phase 5 IDE hooks prototype)
 
 ---
 
@@ -20,7 +20,7 @@ pipeline works end-to-end: conversation → context assembly → memory retrieva
 provider routing → LLM call → streaming response → turn persistence → event
 logging. The CLI has an interactive chat REPL with streaming, conversation
 shortcuts (`--resume`, `--latest`), and a clean dispatch-table architecture.
-Tests are strong (1,365 unit/functional, 22 real-world integration, 14 Discord
+Tests are strong (1,438 unit/functional, 22 real-world integration, 14 Discord
 integration, 6 concurrency stress), architecture is enforced, and the STDIO RPC
 daemon mode exists. Integration
 tests auto-detect application configuration (config directory, provider, credentials
@@ -120,10 +120,11 @@ Gemini adapter error codes: `_classify_gemini_error()` maps exceptions to
 `OLLAMA_HOST` documented in env vars reference.
 21 new tests, 1198 total passing.
 
-**What's next:** Media generation (Decision #7) or Phase 5 IDE automation hooks.
-Media generation introduces a new port (`MediaGenerationPort`) with Ollama and
-OpenAI adapters, flowing through the existing asset system. Capability-aware
-routing wires the `capabilities` field in model configs into provider selection.
+**What's next:** Media generation (Decision #7). Phase 5 IDE automation hooks
+have a working prototype (see below). Media generation introduces a new port
+(`MediaGenerationPort`) with Ollama and OpenAI adapters, flowing through the
+existing asset system. Capability-aware routing wires the `capabilities` field
+in model configs into provider selection.
 
 MoE (Mixture-of-Experts) execution strategy is implemented — Jaccard-based
 consensus scoring, `--moe` CLI/MCP flag, quality pool parallel execution, 32 tests.
@@ -132,7 +133,7 @@ Code integration, and any MCP-compatible client. MCP tool usage tracking and MoE
 usage tracking provide operational observability — dedicated tables, aggregate
 stats queries, `tool_stats` and `moe_stats` MCP tools.
 
-**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system Phase 3 complete: embedding-based semantic search via provider-agnostic `EmbeddingPort` (stub, OpenAI, Ollama adapters), hybrid FTS5+cosine retrieval combined via Reciprocal Rank Fusion (RRF), embeddings stored as BLOB in SQLite with CASCADE cleanup, backfill CLI/MCP/API, backwards-compatible default (keyword-only when `OC_EMBEDDING_PROVIDER=none`). Phase 4 Webhook Service complete: outbound webhooks with HMAC-SHA256 signing, background dispatcher thread with queue + exponential backoff retry, composite `emit_event` pattern (zero call-site changes), fnmatch glob event filtering, recursion prevention. 30 MCP tools, 31 REST endpoints, 1,365 tests. Enterprise tightening Passes A/B/C complete. Media generation is next.**
+**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system Phase 3 complete: embedding-based semantic search via provider-agnostic `EmbeddingPort` (stub, OpenAI, Ollama adapters), hybrid FTS5+cosine retrieval combined via Reciprocal Rank Fusion (RRF), embeddings stored as BLOB in SQLite with CASCADE cleanup, backfill CLI/MCP/API, backwards-compatible default (keyword-only when `OC_EMBEDDING_PROVIDER=none`). Embedding observability added: health endpoint reports embedding status (active/disabled/failed with coverage stats), startup logging on adapter init, per-item backfill resilience with error isolation, configurable timeout via `OC_EMBEDDING_TIMEOUT`. Phase 4 Webhook Service complete: outbound webhooks with HMAC-SHA256 signing, background dispatcher thread with queue + exponential backoff retry, composite `emit_event` pattern (zero call-site changes), fnmatch glob event filtering, recursion prevention. Phase 5 IDE automation hooks prototyped: Claude Code `PreCompact` and `SessionStart(compact)` hooks inject OC memories around context compression via `oc memory search --full`. Plugins separated to [openchronicle/plugins](https://github.com/OpenChronicle/plugins) repo. 30 MCP tools, 31 REST endpoints, 1,438 tests. Enterprise tightening Passes A/B/C complete. Media generation is next.**
 
 ---
 
@@ -217,7 +218,7 @@ validates against live providers (OpenAI, Anthropic).
 | **Hash-chained events** (SHA256, prev_hash → hash) | Working | Verification + replay services |
 | **Privacy gate** (6 PII categories, Luhn validation) | Working | Rule-based, provider-aware |
 | **Interaction routing** (rule + hybrid ML assist) | Working | NSFW scoring, mode detection |
-| **Memory v1** (hybrid search: FTS5 keyword + embedding cosine via RRF) | Working | `EmbeddingPort` ABC, stub/OpenAI/Ollama adapters, `EmbeddingService` with hybrid `search_hybrid()`, embeddings stored as BLOB in `memory_embeddings` table, backfill CLI/MCP/API, backwards-compatible default (`OC_EMBEDDING_PROVIDER=none`), 54 new tests |
+| **Memory v1** (hybrid search: FTS5 keyword + embedding cosine via RRF) | Working | `EmbeddingPort` ABC, stub/OpenAI/Ollama adapters, `EmbeddingService` with hybrid `search_hybrid()`, embeddings stored as BLOB in `memory_embeddings` table, backfill CLI/MCP/API with per-item resilience, backwards-compatible default (`OC_EMBEDDING_PROVIDER=none`), embedding status in health endpoint, startup logging, configurable timeout (`OC_EMBEDDING_TIMEOUT`) |
 | **Budget/rate limiting** | Working | Token limits, call limits, rate gates |
 | **Plugin system** (discover, load, register, invoke) | Working | 2 example plugins, collision detection |
 | **Scheduler** (tick-driven, atomic claim, drift prevention) | Working | Core service, 6 CLI + 6 RPC commands, 53 tests |
@@ -231,7 +232,7 @@ validates against live providers (OpenAI, Anthropic).
 | **Asset management** (filesystem storage, SHA-256 dedup, generic linking) | Working | Asset/AssetLink models, AssetStorePort, AssetFileStorage, upload/link use cases, 4 MCP tools, 4 CLI commands, 48 tests |
 | **Webhook service** (outbound HTTP POST, HMAC-SHA256, background dispatch) | Working | WebhookSubscription/DeliveryAttempt models, WebhookStorePort, WebhookService, WebhookDispatcher (daemon thread + queue), composite emit_event, fnmatch glob filtering, exponential backoff retry, 3 MCP tools, 5 REST endpoints, 4 CLI commands, 74 tests |
 | **HTTP API interface** (FastAPI, always-on daemon, 31 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51+ tests |
-| **Test suite** (1365 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 15 test categories + Discord + MCP + Assets + HTTP API + Embedding + Webhooks, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
+| **Test suite** (1438 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 15 test categories + Discord + MCP + Assets + HTTP API + Embedding + Webhooks, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
 
 ### Architecture (Enforced and Clean)
 
@@ -488,7 +489,7 @@ limits, capabilities, cost tracking, and performance metadata; per-plugin JSON c
 
 **Stub only:** ONNX router assist (intentional placeholder).
 
-### Test Suite (148 files, 1365 unit/functional + 22 real-world integration + 14 Discord integration + 6 concurrency stress)
+### Test Suite (148 files, 1438 unit/functional + 22 real-world integration + 14 Discord integration + 6 concurrency stress)
 
 Well-organized into 12 categories: business logic (23), CLI/RPC (23), hygiene (11),
 infrastructure (11), contract (8), policy (5), memory (5), architecture guard (4),
@@ -584,6 +585,8 @@ Core Done
   → Media Generation (core — new port + adapters, Decision #7)
   → Multimodal Conversation Input (core — vision input via asset system)
   ✓ Webhooks (core — webhook_service.py + webhook_dispatcher.py, HMAC signing, background dispatch)
+  ✓ Embedding Observability (health status, startup logging, backfill resilience, configurable timeout)
+  ~ Phase 5 IDE Hooks (prototype — Claude Code PreCompact/SessionStart hooks, `oc memory search --full`)
   → Security Scanner (plugin — stateless handler)
   → Dev Agent Runner (core — needs LLM + sandbox)
   → Serena MCP (core — inside sandbox only)
@@ -847,4 +850,4 @@ model configs, `RouterPolicy` filters by `required_capabilities` opt-in param,
 | `interfaces/serializers.py` | ~90 | Shared model serializers | New (6 functions, used by MCP tools + API routes) |
 | `services/webhook_service.py` | ~120 | Webhook CRUD + HMAC + delivery | New (httpx, fnmatch, secrets) |
 | `services/webhook_dispatcher.py` | ~110 | Background event dispatch | New (daemon thread, queue, retry) |
-| `infrastructure/wiring/container.py` | ~220 | DI container | Clean (file-based config, exposes router_policy, composite emit_event) |
+| `infrastructure/wiring/container.py` | ~250 | DI container | Clean (file-based config, exposes router_policy, composite emit_event, embedding_status_dict) |

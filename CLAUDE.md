@@ -18,7 +18,7 @@
 scheduler and Discord are core features, not plugins (Decision #4 in assessment).
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
-**Next action:** Media generation port or Phase 5 IDE automation hooks.
+**Next action:** Media generation port. Phase 5 IDE hooks prototyped (see below).
 Capability-aware routing is done (`ModelConfigLoader` parses capabilities,
 `RouterPolicy` filters by `required_capabilities`, `NO_CAPABLE_MODEL` error, 12 tests).
 HTTP API is done (`interfaces/api/`, FastAPI, 31 REST endpoints mirroring MCP tools,
@@ -79,6 +79,17 @@ frozen dataclass with 7 fields, four-layer precedence: constructor > per-path en
 `OC_DATA_DIR`-derived > default, `SqliteStore`/`AssetFileStorage` defaults removed,
 `CoreContainer`/CLI/Discord all wired through `RuntimePaths.resolve()`, Docker
 entrypoint expanded, 12 new tests).
+Embedding observability is done (health endpoint reports embedding status
+active/disabled/failed with coverage stats, startup INFO logging on adapter init,
+per-item backfill resilience with error isolation, configurable timeout via
+`OC_EMBEDDING_TIMEOUT` env var / `embedding.timeout` core.json key, 1438 total).
+Plugin repo separation is done (plugins now at
+[openchronicle/plugins](https://github.com/OpenChronicle/plugins), 9 doc files
+updated, core's `plugins/` dir still works via `OC_PLUGIN_DIR`).
+Phase 5 IDE automation hooks prototype is done (Claude Code `PreCompact` hook
+injects OC context memories before compression, `SessionStart(compact)` hook
+reloads after compression, `--full` flag on `oc memory search` for
+machine-readable context injection, hooks in `.claude/hooks/` gitignored).
 
 ## Build and Development
 
