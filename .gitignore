@@ -38,6 +38,9 @@ env.bak/
 venv.bak/
 
 # OpenChronicle specific
+# Connector plugins — developed here, live in openchronicle-plugins repo
+plugins/plex_connector/
+plugins/plaid_connector/
 *.env
 .env.local
 .env.production
