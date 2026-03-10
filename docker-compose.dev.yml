@@ -1,0 +1,20 @@
+# Dev compose override — local source builds tagged :dev.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml build
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up serve
+#
+# See docs/runtime/docker_local_dev.md for the full workflow.
+
+services:
+  serve:
+    image: openchronicle-core:dev
+
+  openchronicle:
+    image: openchronicle-core:dev
+
+  discord:
+    image: openchronicle-core:dev
+
+  mcp:
+    image: openchronicle-core:dev

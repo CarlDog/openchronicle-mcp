@@ -63,6 +63,11 @@ pwsh tools/docker/acceptance.ps1
 
 Use `-Keep` to retain the runtime directory for debugging.
 
+## Multi-service local dev
+
+For a full Docker Compose workflow with build-from-source, see
+[Docker Local Development](docker_local_dev.md).
+
 ## Recommended post-build check
 
 After building the image, run the CLI acceptance workflow for a deterministic smoke pass:
