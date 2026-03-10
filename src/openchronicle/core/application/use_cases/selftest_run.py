@@ -180,7 +180,7 @@ def execute(
             conversation = create_conversation.execute(
                 storage=container.storage,
                 convo_store=container.storage,
-                emit_event=container.event_logger.append,
+                emit_event=container.emit_event,
                 title="Selftest",
             )
 
@@ -191,7 +191,7 @@ def execute(
                     storage=container.storage,
                     memory_store=container.storage,
                     llm=container.llm,
-                    emit_event=container.event_logger.append,
+                    emit_event=container.emit_event,
                     conversation_id=conversation.id,
                     prompt_text=prompt,
                     interaction_router=container.interaction_router,
@@ -211,7 +211,7 @@ def execute(
                 storage=container.storage,
                 convo_store=container.storage,
                 memory_store=container.storage,
-                emit_event=container.event_logger.append,
+                emit_event=container.emit_event,
                 conversation_id=conversation.id,
                 turn_index=turn.turn_index,
                 which="assistant",

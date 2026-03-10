@@ -52,7 +52,7 @@ class OpenChronicleCog(commands.Cog):
         try:
             item = add_memory.execute(
                 store=self.bot.container.storage,
-                emit_event=self.bot.container.event_logger.append,
+                emit_event=self.bot.container.emit_event,
                 item=MemoryItem(
                     content=text,
                     conversation_id=conversation_id,

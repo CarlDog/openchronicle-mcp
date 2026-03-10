@@ -27,7 +27,7 @@ mkdir -p "$(dirname "$OC_DB_PATH")" "$OC_CONFIG_DIR" "$OC_PLUGIN_DIR" "$OC_OUTPU
 mkdir -p "$(dirname "$OC_DISCORD_SESSION_STORE_PATH")" "$(dirname "$OC_DISCORD_PID_PATH")"
 
 if [ "$#" -eq 0 ]; then
-  exec oc serve --idle-timeout-seconds 0
+  exec oc serve --http-only
 fi
 
 exec oc "$@"

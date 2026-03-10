@@ -36,7 +36,7 @@ def asset_upload(
     asset, is_new = upload_asset.execute(
         store=container.storage,
         file_storage=container.asset_file_storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         project_id=body.project_id,
         source_path=body.source_path,
         filename=body.filename,
@@ -91,7 +91,7 @@ def asset_link(
     """Link an existing asset to any entity."""
     link = link_asset.execute(
         store=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         asset_id=asset_id,
         target_type=body.target_type,
         target_id=body.target_id,

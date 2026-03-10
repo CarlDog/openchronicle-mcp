@@ -488,6 +488,12 @@ def main(argv: list[str] | None = None) -> int:
         default=0,
         help="Exit after N seconds of stdin inactivity (default: 0 disables)",
     )
+    serve_cmd.add_argument(
+        "--http-only",
+        action="store_true",
+        default=False,
+        help="Run only the HTTP API server (no stdio). Use in Docker or headless deployments.",
+    )
 
     rpc_cmd = sub.add_parser("rpc", help="Run a single JSON RPC request")
     rpc_cmd.add_argument("--request", default=None, help="JSON request string")

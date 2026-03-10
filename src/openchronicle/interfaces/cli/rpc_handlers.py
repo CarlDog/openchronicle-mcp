@@ -334,7 +334,7 @@ def handle_convo_ask(container: CoreContainer, command: str, args: dict[str, obj
             memory_store=container.storage,
             llm=container.llm,
             interaction_router=container.interaction_router,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             conversation_id=conversation_id,
             prompt_text=prompt_text,
             router_policy=container.router_policy,
@@ -384,7 +384,7 @@ def handle_convo_ask(container: CoreContainer, command: str, args: dict[str, obj
                 allow_pii=allow_pii,
                 metadata=None,
                 interaction_router=container.interaction_router,
-                emit_event=container.event_logger.append,
+                emit_event=container.emit_event,
                 router_policy=container.router_policy,
             )
             return json_envelope(
@@ -424,7 +424,7 @@ def handle_convo_ask_async(container: CoreContainer, command: str, args: dict[st
         allow_pii=allow_pii,
         metadata=metadata,
         interaction_router=container.interaction_router,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         router_policy=container.router_policy,
     )
 
@@ -786,7 +786,7 @@ def handle_task_run_one(container: CoreContainer, command: str, args: dict[str, 
                 "message": f"Invalid task type: {task.type}",
             }
             container.storage.update_task_error(task.id, json.dumps(error_payload), TaskStatus.FAILED.value)
-            container.event_logger.append(
+            container.emit_event(
                 Event(
                     project_id=task.project_id,
                     task_id=task.id,
@@ -810,7 +810,7 @@ def handle_task_run_one(container: CoreContainer, command: str, args: dict[str, 
                     memory_store=container.storage,
                     llm=container.llm,
                     interaction_router=container.interaction_router,
-                    emit_event=container.event_logger.append,
+                    emit_event=container.emit_event,
                     privacy_gate=getattr(container, "privacy_gate", None),
                     privacy_settings=getattr(container, "privacy_settings", None),
                     task_id=task.id,
@@ -956,7 +956,7 @@ def handle_task_run_many(container: CoreContainer, command: str, args: dict[str,
                 "message": f"Invalid task type: {task.type}",
             }
             container.storage.update_task_error(task.id, json.dumps(error_payload), TaskStatus.FAILED.value)
-            container.event_logger.append(
+            container.emit_event(
                 Event(
                     project_id=task.project_id,
                     task_id=task.id,
@@ -980,7 +980,7 @@ def handle_task_run_many(container: CoreContainer, command: str, args: dict[str,
                     memory_store=container.storage,
                     llm=container.llm,
                     interaction_router=container.interaction_router,
-                    emit_event=container.event_logger.append,
+                    emit_event=container.emit_event,
                     privacy_gate=getattr(container, "privacy_gate", None),
                     privacy_settings=getattr(container, "privacy_settings", None),
                     task_id=task.id,

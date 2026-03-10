@@ -122,7 +122,7 @@ def register(mcp: FastMCP) -> None:
         item = MemoryItem(**kwargs)
         saved = add_memory.execute(
             store=container.storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             item=item,
             embedding_service=container.embedding_service,
         )
@@ -173,7 +173,7 @@ def register(mcp: FastMCP) -> None:
         container = _get_container(ctx)
         pin_memory.execute(
             store=container.storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             memory_id=memory_id,
             pinned=pinned,
         )
@@ -202,7 +202,7 @@ def register(mcp: FastMCP) -> None:
         container = _get_container(ctx)
         updated = update_memory.execute(
             store=container.storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             memory_id=memory_id,
             content=content,
             tags=tags,
@@ -241,7 +241,7 @@ def register(mcp: FastMCP) -> None:
         container = _get_container(ctx)
         delete_memory.execute(
             store=container.storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             memory_id=memory_id,
         )
         return {"status": "ok", "memory_id": memory_id}

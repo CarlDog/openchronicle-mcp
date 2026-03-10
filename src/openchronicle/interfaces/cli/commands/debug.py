@@ -256,7 +256,7 @@ def _run_acceptance(container: CoreContainer) -> dict[str, object]:
     conversation = create_conversation.execute(
         storage=container.storage,
         convo_store=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         title="Acceptance",
     )
 
@@ -268,7 +268,7 @@ def _run_acceptance(container: CoreContainer) -> dict[str, object]:
                 memory_store=container.storage,
                 llm=container.llm,
                 interaction_router=container.interaction_router,
-                emit_event=container.event_logger.append,
+                emit_event=container.emit_event,
                 conversation_id=conversation.id,
                 prompt_text="hello",
                 router_policy=container.router_policy,

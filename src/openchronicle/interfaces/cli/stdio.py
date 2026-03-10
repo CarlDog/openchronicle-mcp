@@ -557,7 +557,7 @@ def _execute_plugin_invoke_task(container: CoreContainer, task: Task) -> dict[st
         }
 
     container.storage.update_task_status(task.id, TaskStatus.RUNNING.value)
-    container.event_logger.append(
+    container.emit_event(
         Event(
             project_id=task.project_id,
             task_id=task.id,
@@ -578,7 +578,7 @@ def _execute_plugin_invoke_task(container: CoreContainer, task: Task) -> dict[st
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
-        return await handler(invoke_task, {"agent_id": None, "emit_event": container.event_logger.append})
+        return await handler(invoke_task, {"agent_id": None, "emit_event": container.emit_event})
 
     try:
         result = asyncio.run(_run_handler())
@@ -588,7 +588,7 @@ def _execute_plugin_invoke_task(container: CoreContainer, task: Task) -> dict[st
             "message": str(exc)[:500],
         }
         container.storage.update_task_error(task.id, json.dumps(error_payload), TaskStatus.FAILED.value)
-        container.event_logger.append(
+        container.emit_event(
             Event(
                 project_id=task.project_id,
                 task_id=task.id,
@@ -604,7 +604,7 @@ def _execute_plugin_invoke_task(container: CoreContainer, task: Task) -> dict[st
 
     result_json = json.dumps(result if isinstance(result, dict) else {"value": result})
     container.storage.update_task_result(task.id, result_json, TaskStatus.COMPLETED.value)
-    container.event_logger.append(
+    container.emit_event(
         Event(
             project_id=task.project_id,
             task_id=task.id,

@@ -51,7 +51,7 @@ def register(mcp: FastMCP) -> None:
         asset, is_new = upload_asset.execute(
             store=container.storage,
             file_storage=container.asset_file_storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             project_id=project_id,
             source_path=source_path,
             filename=filename,
@@ -121,7 +121,7 @@ def register(mcp: FastMCP) -> None:
         container = _get_container(ctx)
         link = link_asset.execute(
             store=container.storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             asset_id=asset_id,
             target_type=target_type,
             target_id=target_id,

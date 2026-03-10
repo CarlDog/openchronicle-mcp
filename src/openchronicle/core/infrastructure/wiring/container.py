@@ -198,7 +198,7 @@ class CoreContainer:
                 llm=self.llm,
                 plugins=self.plugin_loader.registry_instance(),
                 handler_registry=self.plugin_loader.handler_registry_instance(),
-                emit_event=self.event_logger.append,
+                emit_event=self.emit_event,
                 rate_limiter=rate_limiter,
                 retry_policy=retry_policy,
                 router=router_policy,
@@ -208,7 +208,7 @@ class CoreContainer:
             self.scheduler = SchedulerService(
                 storage=self.storage,
                 submit_task=self.orchestrator.submit_task,
-                emit_event=self.event_logger.append,
+                emit_event=self.emit_event,
             )
 
             # Media generation service (optional)

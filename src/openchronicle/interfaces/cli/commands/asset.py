@@ -30,7 +30,7 @@ def cmd_asset_upload(args: argparse.Namespace, container: CoreContainer) -> int:
     asset, is_new = upload_asset.execute(
         store=container.storage,
         file_storage=container.asset_file_storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         project_id=args.project_id,
         source_path=args.source_path,
         filename=args.filename,
@@ -74,7 +74,7 @@ def cmd_asset_link(args: argparse.Namespace, container: CoreContainer) -> int:
     try:
         link = link_asset.execute(
             store=container.storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             asset_id=args.asset_id,
             target_type=args.target_type,
             target_id=args.target_id,

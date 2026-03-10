@@ -43,7 +43,7 @@ def conversation_create(
     convo = create_conversation.execute(
         storage=container.storage,
         convo_store=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         title=body.title,
     )
     return conversation_to_dict(convo)
@@ -97,7 +97,7 @@ async def conversation_ask(
         storage=container.storage,
         memory_store=container.storage,
         llm=container.llm,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         conversation_id=conversation_id,
         prompt_text=body.prompt,
         interaction_router=container.interaction_router,
@@ -127,7 +127,7 @@ def turn_record(
     turn = external_turn.execute(
         convo_store=container.storage,
         storage=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         conversation_id=conversation_id,
         user_text=body.user_text,
         assistant_text=body.assistant_text,

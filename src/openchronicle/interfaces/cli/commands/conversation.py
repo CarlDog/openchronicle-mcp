@@ -76,7 +76,7 @@ def cmd_convo_new(args: argparse.Namespace, container: CoreContainer) -> int:
     conversation = create_conversation.execute(
         storage=container.storage,
         convo_store=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         title=args.title,
     )
     print(conversation.id)
@@ -393,7 +393,7 @@ def cmd_convo_remember(args: argparse.Namespace, container: CoreContainer) -> in
         storage=container.storage,
         convo_store=container.storage,
         memory_store=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         conversation_id=args.conversation_id,
         turn_index=args.turn_index,
         which=args.which,
@@ -434,7 +434,7 @@ def cmd_convo_ask(args: argparse.Namespace, container: CoreContainer) -> int:
                 memory_store=container.storage,
                 llm=container.llm,
                 interaction_router=container.interaction_router,
-                emit_event=container.event_logger.append,
+                emit_event=container.emit_event,
                 conversation_id=args.conversation_id,
                 prompt_text=args.prompt,
                 router_policy=container.router_policy,
@@ -462,7 +462,7 @@ def cmd_convo_ask(args: argparse.Namespace, container: CoreContainer) -> int:
                         allow_pii=args.allow_pii,
                         metadata=None,
                         interaction_router=container.interaction_router,
-                        emit_event=container.event_logger.append,
+                        emit_event=container.emit_event,
                         router_policy=container.router_policy,
                     )
                 except (ValueError, LLMProviderError) as enqueue_exc:

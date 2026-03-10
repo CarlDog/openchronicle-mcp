@@ -333,6 +333,9 @@ def cmd_list_handlers(args: argparse.Namespace, container: CoreContainer) -> int
 def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
     _configure_stdio_logging()
 
+    if getattr(args, "http_only", False):
+        return _run_http_api_foreground(container)
+
     # Start the HTTP API server in a daemon thread
     _start_http_api_background(container)
 
@@ -374,6 +377,43 @@ def _start_http_api_background(container: CoreContainer) -> None:
     thread = threading.Thread(target=_run_server, name="oc-http-api", daemon=True)
     thread.start()
     log.info("HTTP API thread started (binding to %s:%d)", config.host, config.port)
+
+
+def _run_http_api_foreground(container: CoreContainer) -> int:
+    """Run the HTTP API server in the foreground (blocking).
+
+    Used in Docker / headless deployments where there is no stdin.
+    """
+    import signal
+
+    import uvicorn
+
+    from openchronicle.interfaces.api.app import create_app
+    from openchronicle.interfaces.api.config import HTTPConfig
+
+    log = logging.getLogger(__name__)
+
+    config = HTTPConfig.from_env(file_config=container.file_configs.get("api"))
+    app = create_app(container, config)
+
+    uv_config = uvicorn.Config(
+        app,
+        host=config.host,
+        port=config.port,
+        log_level="info",
+    )
+    server = uvicorn.Server(uv_config)
+
+    def _handle_signal(signum: int, _frame: object) -> None:
+        log.info("Received signal %d, shutting down HTTP API", signum)
+        server.should_exit = True
+
+    signal.signal(signal.SIGTERM, _handle_signal)
+    signal.signal(signal.SIGINT, _handle_signal)
+
+    log.info("HTTP API server starting (binding to %s:%d)", config.host, config.port)
+    server.run()
+    return 0
 
 
 def cmd_rpc(args: argparse.Namespace, container: CoreContainer) -> int:

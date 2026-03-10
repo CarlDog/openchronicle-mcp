@@ -88,7 +88,7 @@ def register(mcp: FastMCP) -> None:
         clusters = cluster_commits(filtered, max_clusters=max_clusters)
 
         # Emit started event
-        container.event_logger.append(
+        container.emit_event(
             Event(
                 project_id=project_id,
                 type="onboard.git.started",

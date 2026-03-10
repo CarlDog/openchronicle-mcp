@@ -1,9 +1,17 @@
 # Local development overrides (example)
 # Not auto-loaded. Copy to docker-compose.local.yml and run with:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up serve -d
 #   docker compose -f docker-compose.yml -f docker-compose.local.yml run --rm openchronicle --help
 #   docker compose -f docker-compose.yml -f docker-compose.local.yml up discord
 
 services:
+  serve:
+    volumes:
+      - "C:/Docker/openchronicle/data:/data"
+      - "C:/Docker/openchronicle/config:/config"
+      - "C:/Docker/openchronicle/output:/output"
+      - "C:/Docker/openchronicle/assets:/assets"
+
   openchronicle:
     volumes:
       - "C:/Docker/openchronicle/data:/data"

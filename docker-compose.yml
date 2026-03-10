@@ -1,4 +1,25 @@
 services:
+  serve:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - OC_DB_PATH=/data/openchronicle.db
+      - OC_CONFIG_DIR=/config
+      - OC_OUTPUT_DIR=/output
+      - OC_ASSETS_DIR=/assets
+      - OC_API_HOST=0.0.0.0
+      - OC_LLM_PROVIDER=${OC_LLM_PROVIDER:-openai}
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - oc-data:/data
+      - oc-config:/config
+      - oc-output:/output
+      - oc-assets:/assets
+
   openchronicle:
     build: .
     entrypoint: ["oc"]

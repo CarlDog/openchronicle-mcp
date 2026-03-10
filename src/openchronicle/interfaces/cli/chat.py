@@ -28,7 +28,7 @@ async def _stream_turn(
     ctx = await ask_conversation.prepare_ask(
         convo_store=container.storage,
         memory_store=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         conversation_id=conversation_id,
         prompt_text=prompt,
         interaction_router=container.interaction_router,
@@ -63,7 +63,7 @@ async def _stream_turn(
         response=None,
         convo_store=container.storage,
         storage=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         telemetry=telemetry,
     )
 
@@ -105,7 +105,7 @@ async def chat_loop(container: CoreContainer, conversation_id: str, *, stream: b
                     memory_store=container.storage,
                     llm=container.llm,
                     interaction_router=container.interaction_router,
-                    emit_event=container.event_logger.append,
+                    emit_event=container.emit_event,
                     conversation_id=conversation_id,
                     prompt_text=stripped,
                     router_policy=container.router_policy,
@@ -144,7 +144,7 @@ def _resolve_conversation(args: argparse.Namespace, container: CoreContainer) ->
     conversation = create_conversation.execute(
         storage=container.storage,
         convo_store=container.storage,
-        emit_event=container.event_logger.append,
+        emit_event=container.emit_event,
         title=args.title or "Chat session",
     )
     return conversation.id

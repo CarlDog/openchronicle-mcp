@@ -103,7 +103,7 @@ def cmd_onboard_git(args: argparse.Namespace, container: CoreContainer) -> int:
             llm=llm,
             route_decision=route_decision,
             store=container.storage,
-            emit_event=container.event_logger.append,
+            emit_event=container.emit_event,
             project_id=project_id,
             max_clusters=max_memories,
             progress_callback=progress,

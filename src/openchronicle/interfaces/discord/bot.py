@@ -82,7 +82,7 @@ class DiscordBot(commands.Bot):
         conversation = create_conversation.execute(
             storage=self.container.storage,
             convo_store=self.container.storage,
-            emit_event=self.container.event_logger.append,
+            emit_event=self.container.emit_event,
             title=self.config.conversation_title,
         )
         self.sessions.set_conversation_id(discord_user_id, conversation.id)
@@ -96,7 +96,7 @@ class DiscordBot(commands.Bot):
         ctx = await ask_conversation.prepare_ask(
             convo_store=self.container.storage,
             memory_store=self.container.storage,
-            emit_event=self.container.event_logger.append,
+            emit_event=self.container.emit_event,
             conversation_id=conversation_id,
             prompt_text=prompt,
             interaction_router=self.container.interaction_router,
@@ -130,7 +130,7 @@ class DiscordBot(commands.Bot):
             response=None,
             convo_store=self.container.storage,
             storage=self.container.storage,
-            emit_event=self.container.event_logger.append,
+            emit_event=self.container.emit_event,
         )
 
         return assistant_text
