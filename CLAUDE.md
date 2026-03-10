@@ -19,17 +19,8 @@ scheduler and Discord are core features, not plugins (Decision #4 in assessment)
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
 **Next action:** Multimodal conversation input (vision via asset system) or Phase 5
-IDE automation hooks. Plugin development paused — resume Plaid live testing when
-sandbox credentials are available. Plaid connector plugin is done (`plaid.sync`/
-`plaid.categorize`/`plaid.query` handlers, httpx-based `PlaidClient`, `PlaidAuthFlow`
-with `--sandbox` shortcut, `oc plaid auth` CLI, per-institution cursor sync,
-append-only removed txn tagging, 32 new tests, 1623 total).
-Plex connector plugin is done (`plex.sync`/`plex.webhook`/`plex.query`
-handlers, httpx-based `PlexClient` with pagination, generic inbound hooks endpoint
-`POST /api/v1/hooks/{handler_name}` for external webhook dispatch, 19 new tests).
-Enriched plugin handler context is done (pre-bound `memory_save`,
-`memory_search`, `memory_update`, `llm_complete`, `plugin_config` closures in handler
-context dict; 4 files changed, 9 tests; Plex + Plaid connector design docs in plugins repo).
+IDE automation hooks. Plugin development lives in
+[openchronicle/plugins](https://github.com/OpenChronicle/plugins).
 Media generation is done (`MediaGenerationPort` with 5 adapters:
 stub, Ollama, OpenAI gpt-image-1, Gemini dual-surface, xAI Grok Imagine; unified model
 config with `image_generation` capability tag; `OC_MEDIA_MODEL` derives provider; 69 tests).

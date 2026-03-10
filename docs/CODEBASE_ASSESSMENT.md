@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-02
 **Branch:** `main`
-**Revision:** 43 (Plaid connector plugin)
+**Revision:** 44 (event wiring fix, plugin notes cleanup)
 
 ---
 
@@ -121,8 +121,8 @@ Gemini adapter error codes: `_classify_gemini_error()` maps exceptions to
 21 new tests, 1198 total passing.
 
 **What's next:** Multimodal conversation input (vision input via asset system),
-or Phase 5 IDE automation hooks (prototype exists), or Plaid connector live
-testing against sandbox when credentials are available. Media generation is done
+or Phase 5 IDE automation hooks (prototype exists). Plugin development lives in
+[openchronicle/plugins](https://github.com/OpenChronicle/plugins). Media generation is done
 (Decision #7) — `MediaGenerationPort` with 5 adapters (stub, Ollama, OpenAI
 gpt-image-1, Gemini dual-surface, xAI Grok Imagine). Ollama CLI model management
 is done — `oc ollama list|show|add|remove|sync` with capability inference from
@@ -135,7 +135,7 @@ Code integration, and any MCP-compatible client. MCP tool usage tracking and MoE
 usage tracking provide operational observability — dedicated tables, aggregate
 stats queries, `tool_stats` and `moe_stats` MCP tools.
 
-**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system Phase 3 complete: embedding-based semantic search via provider-agnostic `EmbeddingPort` (stub, OpenAI, Ollama adapters), hybrid FTS5+cosine retrieval combined via Reciprocal Rank Fusion (RRF), embeddings stored as BLOB in SQLite with CASCADE cleanup, backfill CLI/MCP/API, backwards-compatible default (keyword-only when `OC_EMBEDDING_PROVIDER=none`). Embedding observability added: health endpoint reports embedding status (active/disabled/failed with coverage stats), startup logging on adapter init, per-item backfill resilience with error isolation, configurable timeout via `OC_EMBEDDING_TIMEOUT`. Phase 4 Webhook Service complete: outbound webhooks with HMAC-SHA256 signing, background dispatcher thread with queue + exponential backoff retry, composite `emit_event` pattern (zero call-site changes), fnmatch glob event filtering, recursion prevention. Phase 5 IDE automation hooks prototyped: Claude Code `PreCompact` and `SessionStart(compact)` hooks inject OC memories around context compression via `oc memory search --full`. Media generation complete: `MediaGenerationPort` with 5 adapters (stub, Ollama, OpenAI gpt-image-1, Gemini dual-surface, xAI Grok Imagine), unified model config with `image_generation` capability tag (no separate `OC_MEDIA_PROVIDER`), asset storage with SHA-256 dedup, CLI/MCP/API interfaces. Model config system extended with `type` and `description` fields, `find_media_model()`/`list_by_capability()` lookup methods. Plugins separated to [openchronicle/plugins](https://github.com/OpenChronicle/plugins) repo. Ollama CLI model management: `oc ollama list|show|add|remove|sync` with capability inference from Ollama API metadata, operates against resolved config directory. Plaid connector plugin done: `plaid.sync` (incremental cursor-based transaction sync with per-institution cursors stored as JSON in pinned memory), `plaid.categorize` (LLM-assisted categorization), `plaid.query` (memory search with optional LLM summary); httpx-based `PlaidClient`, `PlaidAuthFlow` with sandbox shortcut (`--sandbox` for instant testing), `oc plaid auth` CLI command, removed transactions tagged not deleted (append-only financial data), 32 new tests. 31 MCP tools, 32 REST endpoints, 1,573 tests. Enterprise tightening Passes A/B/C complete.**
+**Overall: Core feature-complete, Discord + MCP + HTTP API interfaces operational, MoE consensus execution implemented, MCP/MoE usage tracking operational, config fully externalized, hex boundaries enforced, concurrency-safe for multi-process deployment. Memory system Phase 3 complete: embedding-based semantic search via provider-agnostic `EmbeddingPort` (stub, OpenAI, Ollama adapters), hybrid FTS5+cosine retrieval combined via Reciprocal Rank Fusion (RRF), embeddings stored as BLOB in SQLite with CASCADE cleanup, backfill CLI/MCP/API, backwards-compatible default (keyword-only when `OC_EMBEDDING_PROVIDER=none`). Embedding observability added: health endpoint reports embedding status (active/disabled/failed with coverage stats), startup logging on adapter init, per-item backfill resilience with error isolation, configurable timeout via `OC_EMBEDDING_TIMEOUT`. Phase 4 Webhook Service complete: outbound webhooks with HMAC-SHA256 signing, background dispatcher thread with queue + exponential backoff retry, composite `emit_event` pattern (zero call-site changes), fnmatch glob event filtering, recursion prevention. Phase 5 IDE automation hooks prototyped: Claude Code `PreCompact` and `SessionStart(compact)` hooks inject OC memories around context compression via `oc memory search --full`. Media generation complete: `MediaGenerationPort` with 5 adapters (stub, Ollama, OpenAI gpt-image-1, Gemini dual-surface, xAI Grok Imagine), unified model config with `image_generation` capability tag (no separate `OC_MEDIA_PROVIDER`), asset storage with SHA-256 dedup, CLI/MCP/API interfaces. Model config system extended with `type` and `description` fields, `find_media_model()`/`list_by_capability()` lookup methods. Plugins separated to [openchronicle/plugins](https://github.com/OpenChronicle/plugins) repo. Ollama CLI model management: `oc ollama list|show|add|remove|sync` with capability inference from Ollama API metadata, operates against resolved config directory. 31 MCP tools, 32 REST endpoints, 1,573 tests. Enterprise tightening Passes A/B/C complete.**
 
 ---
 
@@ -236,7 +236,7 @@ validates against live providers (OpenAI, Anthropic).
 | **HTTP API interface** (FastAPI, always-on daemon, 32 REST endpoints) | Working | App factory, API key auth (timing-safe), per-client rate limiting (thread-safe), CORS, middleware stack, shared serializers, 51+ tests |
 | **Media generation** (5 adapters, unified model config) | Working | `MediaGenerationPort` ABC, stub/Ollama/OpenAI/Gemini/xAI adapters, `image_generation` capability tag in `config/models/`, `OC_MEDIA_MODEL` derives provider from config, asset storage + SHA-256 dedup, CLI/MCP/API interfaces, 69 tests |
 | **Ollama CLI** (model discovery, config management) | Working | `oc ollama list\|show\|add\|remove\|sync`, `OllamaService` talks to Ollama HTTP API (`/api/tags`, `/api/show`), capability inference (vision/diffusion/tools), operates against resolved config dir (`RuntimePaths`), 32 tests |
-| **Test suite** (1573 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 15 test categories + Discord + MCP + Assets + HTTP API + Embedding + Webhooks + Media + Ollama + Plaid, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
+| **Test suite** (1573 unit/functional, 22 real-world integration, 14 Discord integration, 6 concurrency stress) | Passing | 15 test categories + Discord + MCP + Assets + HTTP API + Embedding + Webhooks + Media + Ollama, architecture guards, posture enforcement, live provider validation, concurrency race proofs, config drift detection, auto-detecting conftest, DB isolation fixture |
 
 ### Architecture (Enforced and Clean)
 
@@ -579,33 +579,16 @@ Enriched plugin handler context (2026-03-02) addresses the stateful gap for
 connector-style plugins: handlers now receive pre-bound `memory_save`,
 `memory_search`, `memory_update`, `llm_complete`, and `plugin_config` closures
 in their context dict. Plugins never import core internals — all capabilities
-are injected at invocation time. Design docs for Plex and Plaid connectors
-are in the plugins repo.
+are injected at invocation time.
 
 Generic inbound hooks endpoint (2026-03-02) adds `POST /api/v1/hooks/{handler_name}`
 to the HTTP API — a fire-and-forget webhook receiver that validates the handler
-exists, parses JSON or multipart form-data (Plex sends multipart with a `payload`
-field), submits a `plugin.invoke` task, and returns 202 with the task ID. Execution
-happens in a FastAPI `BackgroundTasks` callback. 5 tests.
+exists, parses JSON or multipart form-data, submits a `plugin.invoke` task, and
+returns 202 with the task ID. Execution happens in a FastAPI `BackgroundTasks`
+callback. 5 tests.
 
-Plex connector plugin (2026-03-02) is the first plugin to exercise the enriched
-handler context. Three handlers: `plex.sync` (poll-based library sync with
-watermark tracking), `plex.webhook` (real-time push from Plex webhooks via the
-inbound hooks endpoint), and `plex.query` (search Plex items in memory with
-optional LLM summary). Uses httpx-based `PlexClient` for the Plex REST API with
-pagination and MediaContainer normalization. 14 unit tests + 3 integration tests.
-
-Plaid connector plugin (2026-03-02) is the second enriched-context plugin.
-Three handlers: `plaid.sync` (incremental cursor-based transaction sync via
-Plaid `/transactions/sync`, per-institution cursors stored as JSON in pinned
-sync state memory), `plaid.categorize` (LLM-assisted categorization of
-uncategorized transactions), and `plaid.query` (search transactions in memory
-with optional LLM summary). Uses httpx-based `PlaidClient` for async API calls
-and `PlaidAuthFlow` for sync auth (link token, token exchange, sandbox shortcut
-via `/sandbox/public_token/create`). `oc plaid auth --sandbox` provides instant
-testing without a browser. Removed transactions are tagged `["plaid-txn", "removed"]`
-rather than deleted — append-only for financial data integrity.
-29 unit tests + 3 integration tests (skipped without sandbox credentials).
+Connector plugins (Plex, Plaid) are developed in the
+[openchronicle/plugins](https://github.com/OpenChronicle/plugins) repo.
 
 ```text
 Core Done
@@ -624,8 +607,6 @@ Core Done
   ✓ Embedding Observability (health status, startup logging, backfill resilience, configurable timeout)
   ✓ Inbound Hooks Endpoint (core — interfaces/api/routes/hooks.py, generic POST dispatch to plugin handlers)
   ~ Phase 5 IDE Hooks (prototype — Claude Code PreCompact/SessionStart hooks, `oc memory search --full`)
-  ✓ Plex Connector (plugin — plex.sync/plex.webhook/plex.query, httpx client, 19 tests)
-  ✓ Plaid Connector (plugin — plaid.sync/plaid.categorize/plaid.query, httpx client, 32 tests)
   → Security Scanner (plugin — stateless handler)
   → Dev Agent Runner (core — needs LLM + sandbox)
   → Serena MCP (core — inside sandbox only)
