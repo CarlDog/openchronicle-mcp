@@ -5,7 +5,7 @@ for OpenChronicle v2. Organized into phases based on dependencies, effort,
 and value. **This is a living document** — reviewed after each phase
 completion. See `docs/CODEBASE_ASSESSMENT.md` for current project status.
 
-**Last Updated:** 2026-02-25
+**Last Updated:** 2026-03-10
 
 ---
 
@@ -82,9 +82,9 @@ for reference — see `docs/CODEBASE_ASSESSMENT.md` for full details.
 - **STDIO RPC** — 24 commands, async, daemon mode (`oc serve`)
 - **Discord Interface** — 6 slash commands, session mapping, 85 tests,
   optional `[discord]` extra (`interfaces/discord/`)
-- **MCP Server** — 30 tools, stdio + SSE transports, 44 tests, optional
+- **MCP Server** — 31 tools, stdio + SSE transports, 44 tests, optional
   `[mcp]` extra (`interfaces/mcp/`)
-- **HTTP API** — FastAPI, 31 REST endpoints, API key auth, rate limiting,
+- **HTTP API** — FastAPI, 33 REST endpoints, API key auth, rate limiting,
   CORS, 54+ tests (`interfaces/api/`)
 - **Docker CI** — GitHub Actions multi-arch build, GHA cache
 
@@ -107,7 +107,7 @@ for reference — see `docs/CODEBASE_ASSESSMENT.md` for full details.
 
 </details>
 
-**Totals:** 1,365 tests, 30 MCP tools, 31 REST endpoints, 11 ports, 10
+**Totals:** 1,623 tests, 31 MCP tools, 33 REST endpoints, 11 ports, 10
 services, 38 use cases, 5 interfaces.
 
 ---

@@ -162,8 +162,8 @@ for the full directory tree and layer descriptions.
 - **Routing**: Provider/model selection via pools (fast, quality, nsfw) with fallback support
 - **Scheduler**: Core service in `application/services/scheduler.py` (not a plugin)
 - **Discord**: Interfaces driver in `interfaces/discord/` (optional extra, not a plugin)
-- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 27 tools, FastMCP)
-- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 26 REST endpoints, auto-starts with `oc serve`)
+- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 31 tools, FastMCP)
+- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 33 REST endpoints, auto-starts with `oc serve`)
 - **MoE Execution**: `application/services/moe_execution.py` — Mixture-of-Experts consensus strategy (`--moe` flag)
 - **Asset Management**: `domain/models/asset.py` + `application/services/asset_storage.py` — filesystem storage, SHA-256 dedup, generic entity linking
 - **Embedding Service**: `application/services/embedding_service.py` — hybrid FTS5+cosine search via RRF, `EmbeddingPort` (stub/OpenAI/Ollama adapters), `OC_EMBEDDING_PROVIDER` env var
