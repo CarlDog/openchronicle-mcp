@@ -938,6 +938,87 @@ polluted turns waste context window budget.
 - Don't record assistant responses to filtered messages either
 - Consider: should `_extract_last_user_message` skip these too?
 
+### WebUI System Prompt Identity Confusion
+
+**Status:** 🔴 Not Started
+**Effort:** Small
+**Category:** Core (openai_compat.py)
+**Discovered:** 2026-03-10
+
+The system prompt `_OC_WEBUI_SYSTEM_PROMPT` says "You are an OpenChronicle
+assistant." The LLM absorbs injected project development memories (two-tier
+memory philosophy, architecture decisions, backlog items) as its own
+identity and backstory. When a user asks "tell me about yourself," the LLM
+fabricates an origin story from development context — claiming to be
+"developed by OpenChronicle" with a memory retention philosophy based on
+two-tier default behavior.
+
+**Root cause:** The system prompt conflates "you are an assistant" with
+the project context injected via memories. There is no separation between
+the assistant's role and the user's stored data.
+
+**Fix:**
+
+- Rewrite `_OC_WEBUI_SYSTEM_PROMPT` to clearly separate identity from
+  data context: "You are a helpful assistant. The user has stored
+  memories and conversation history that are provided below for
+  reference."
+- Do NOT claim the assistant is "an OpenChronicle assistant" — the LLM
+  interprets this as a character prompt and role-plays accordingly.
+
+### Memory Injection Lacks Framing Instructions
+
+**Status:** 🔴 Not Started
+**Effort:** Small
+**Category:** Core (context_builder.py)
+**Discovered:** 2026-03-10
+
+`format_memory_messages()` injects memories as raw content with no
+behavioral instructions. The LLM treats injected memories as conversation
+topics rather than background context — proactively summarizing Docker
+workflow, Plex onboarding advice, and development decisions even when the
+user just says "hi there."
+
+**Symptoms observed:**
+
+- User says "hi there" → LLM responds with unsolicited summaries of
+  Docker setup, Plex plugin friction, and project decisions
+- LLM repeatedly regurgitates the same Plex onboarding advice across
+  multiple turns even after user says they've addressed it
+- Memories intended as operational context are treated as active topics
+
+**Fix:**
+
+- Add a preamble to the memory system message: "The following are stored
+  memories for reference. Use them to answer questions when relevant.
+  Do not volunteer this information unprompted or treat it as the current
+  conversation topic."
+- Consider: separate "operational memories" (sync state, config) from
+  "conversational memories" (user preferences, decisions) with different
+  framing
+
+### Plex Plugin Missing Individual Watch Memories
+
+**Status:** 🔴 Not Started
+**Effort:** Small-Medium
+**Category:** Plugin (openchronicle/plugins)
+**Discovered:** 2026-03-10
+
+The Plex connector saves aggregate sync state (`items: 6, watches: 158`)
+but not individual watch events. When a user asks "what is the last item
+I watched?" the system has no data to answer — only a count of total
+watches. The LLM confuses the sync state metadata with actual content
+and responds "The last item you watched is [Plex Sync State]."
+
+**Fix:**
+
+- Save individual watch events as separate memories (e.g., "Watched:
+  Breaking Bad S01E03 on 2026-03-10")
+- Tag with `plex-watch` for easy retrieval
+- Include timestamp in content for recency-aware queries
+- Consider: configurable granularity (per-item vs daily digest vs
+  aggregate only) to avoid memory bloat
+
 ---
 
 ## Documentation Gaps
