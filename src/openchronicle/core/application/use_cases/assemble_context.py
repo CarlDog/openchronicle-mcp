@@ -70,6 +70,10 @@ def execute(
 
     Returns messages ready to send to any LLM, plus metadata about the
     retrieved memories and conversation state.
+
+    Pinned memories have a separate budget and do not reduce the search
+    result count.  This prevents a large number of pinned items from
+    crowding out query-relevant results.
     """
     conversation = convo_store.get_conversation(conversation_id)
     if conversation is None:
@@ -83,7 +87,8 @@ def execute(
     # Build messages: system + memory + time + turns + prompt
     messages: list[dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
 
-    pinned_memory = memory_store.list_memory(limit=top_k_memory, pinned_only=True) if include_pinned_memory else []
+    # Pinned memories have their own budget (not counted against top_k)
+    pinned_memory = memory_store.list_memory(pinned_only=True) if include_pinned_memory else []
     if embedding_service is not None:
         relevant_memory = embedding_service.search_hybrid(
             prompt_text,

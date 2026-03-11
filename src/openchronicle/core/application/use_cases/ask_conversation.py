@@ -212,7 +212,8 @@ async def prepare_ask(
     messages: list[dict[str, str]] = [{"role": "system", "content": "You are a helpful assistant."}]
 
     memory_search_start = time.perf_counter() if perf_enabled else 0.0
-    pinned_memory = memory_store.list_memory(limit=top_k_memory, pinned_only=True) if include_pinned_memory else []
+    # Pinned memories have their own budget (not counted against top_k)
+    pinned_memory = memory_store.list_memory(pinned_only=True) if include_pinned_memory else []
     if embedding_service is not None:
         relevant_memory = embedding_service.search_hybrid(
             prompt_text,

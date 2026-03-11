@@ -450,13 +450,42 @@ async def chat_completions_conversation(
     return await _persistent_chat(container, conversation, body)
 
 
+async def _passthrough_without_recording(
+    container: CoreContainer,
+    body: ChatCompletionRequest,
+    prompt_text: str,
+) -> Any:
+    """Handle synthetic prompts (e.g., Open WebUI follow-up tasks) without memory or recording.
+
+    Routes through the LLM but skips context assembly and turn persistence,
+    preventing synthetic messages from polluting conversation history.
+    """
+    route = _resolve_route(container, body.model)
+    openai_messages = [{"role": m.role, "content": m.content} for m in body.messages]
+    model_label = f"{route.provider}/{route.model}"
+
+    if body.stream:
+        return _streaming_response(container, route, openai_messages, model_label, body)
+
+    return await _non_streaming_response(container, route, openai_messages, model_label, body)
+
+
 async def _persistent_chat(
     container: CoreContainer,
     conversation: Conversation,
     body: ChatCompletionRequest,
 ) -> Any:
-    """Core handler for persistent (V2) chat completions."""
+    """Core handler for persistent (V2) chat completions.
+
+    Filters out synthetic prompts injected by Open WebUI (e.g.,
+    follow-up suggestion tasks) to prevent turn pollution.
+    """
     prompt_text = _extract_last_user_message(body.messages)
+
+    # Skip synthetic Open WebUI prompts — don't record or process
+    if prompt_text.lstrip().startswith("### Task:"):
+        return await _passthrough_without_recording(container, body, prompt_text)
+
     messages = _build_oc_messages(container, conversation.id, prompt_text)
     route = _resolve_route(container, body.model)
     model_label = f"{route.provider}/{route.model}"

@@ -719,6 +719,27 @@ class TestAutoSessionChatCompletions:
         turn_args = container.storage.add_turn.call_args[0][0]
         assert turn_args.user_text == "second"
 
+    def test_synthetic_task_prompt_not_recorded(self) -> None:
+        """Open WebUI follow-up suggestion prompts should not pollute turns."""
+        container = _make_v2_container()
+        container.llm.complete_async = AsyncMock(return_value=_stub_response("suggestions"))
+        client = _make_client(container)
+
+        resp = client.post(
+            "/v1/p/proj-1/chat/completions",
+            json={
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "### Task:\nSuggest 3-5 relevant follow-up questions",
+                    }
+                ],
+            },
+        )
+        assert resp.status_code == 200
+        # Turn should NOT be recorded for synthetic prompts
+        container.storage.add_turn.assert_not_called()
+
 
 class TestExplicitConversationChatCompletions:
     """POST /v1/p/{project_id}/c/{conversation_id}/chat/completions."""

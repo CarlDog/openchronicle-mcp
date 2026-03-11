@@ -812,6 +812,105 @@ produce branches/patches. Manual human review gate before any upstream push.
 
 ---
 
+## Memory Tooling
+
+### Memory Validation Command (`oc memory validate`)
+
+**Status:** 🔴 Not Started
+**Effort:** Medium
+**Category:** Core (CLI + use case)
+**Depends On:** Memory System ✅
+
+Validate stored memories against actual system state. Memories created
+by AI agents (or humans) may contain claims about features, architecture,
+or capabilities that drift from reality over time. This command would
+cross-reference memory content against provable system artifacts.
+
+**Validation sources:**
+
+- CLI command registration (argparse subparsers) — verify claimed commands exist
+- MCP tool registry — verify claimed tool counts and names
+- Model config files — verify claimed provider/model support
+- Test suite (`pytest --collect-only`) — verify claimed test counts
+- Installed adapters — verify claimed adapter availability
+- Conversation logs — verify claims against recorded interactions
+- Plugin registry — verify claimed plugin capabilities
+
+**Requirements:**
+
+- [ ] `oc memory validate` CLI command
+- [ ] Scoring model: each memory gets a confidence/validity score
+- [ ] Report: validated claims, unverifiable claims, contradicted claims
+- [ ] Optional `--fix` flag to update or flag stale memories
+- [ ] MCP tool: `memory_validate`
+
+**Design questions (open):**
+
+- How to extract testable assertions from free-text memories?
+- Should validation be LLM-assisted (parse claims) or rule-based (pattern match)?
+- What's the right granularity — per-memory or per-claim?
+
+---
+
+## Memory Retrieval Improvements
+
+### Recency-Aware Memory Retrieval
+
+**Status:** 🔴 Not Started
+**Effort:** Medium
+**Category:** Core (EmbeddingService + search pipeline)
+**Discovered:** 2026-03-11 — Open WebUI testing revealed stale results
+
+Memory retrieval is purely relevance-based (keyword + semantic via RRF).
+When users ask about "recent" or "latest" entries, the system returns
+whatever matches the query terms best, regardless of age. A Plex entry
+from March 3 ranks the same as one from today if the content similarity
+is equal.
+
+**Root causes identified:**
+
+1. **No recency factor in RRF scoring.** The hybrid search combines
+   keyword rank + semantic rank but has no time-decay component.
+2. **Pinned memories crowd out search results.** With `top_k_memory=8`
+   and 7+ pinned memories, zero slots remain for actual query-relevant
+   results. Pinned items consume the entire budget.
+3. **No temporal query detection.** Words like "recent", "latest",
+   "today" are treated as search terms, not time filters.
+
+**Proposed investigation areas:**
+
+- Recency boost factor in RRF (time-decay weighting)
+- Separate budgets for pinned vs searched memories (e.g., pinned don't
+  count against `top_k`)
+- Temporal keyword detection and time-window pre-filtering
+- Configurable `top_k` per conversation mode (webui mode may need higher)
+- Research: how do RAG systems handle recency? (hybrid time+relevance
+  scoring, time-bucketed retrieval, etc.)
+
+### Open WebUI Turn Pollution
+
+**Status:** 🔴 Not Started
+**Effort:** Small
+**Category:** Core (openai_compat.py)
+**Discovered:** 2026-03-11
+
+Open WebUI sends auto-generated "Task" prompts as follow-up suggestion
+requests (e.g., `### Task: Suggest 3-5 relevant follow-up questions...`).
+These are recorded as conversation turns by `external_turn`, polluting
+the conversation history with synthetic messages that aren't real user
+queries. Prior turns are injected into context assembly, so these
+polluted turns waste context window budget.
+
+**Possible fixes:**
+
+- Filter out messages matching a pattern (e.g., starts with `### Task:`)
+  before recording via `external_turn`
+- Add a configurable turn filter in the V2 persistent handler
+- Don't record assistant responses to filtered messages either
+- Consider: should `_extract_last_user_message` skip these too?
+
+---
+
 ## Documentation Gaps
 
 - [ ] **Plugin development entry point** — consolidate plugin docs into a
