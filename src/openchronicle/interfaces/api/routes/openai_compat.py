@@ -79,7 +79,7 @@ def _resolve_route(container: CoreContainer, model_id: str) -> RouteDecision:
     ``"auto"`` delegates to the default pool router.
     ``"provider/model"`` targets a specific provider and model.
     """
-    if model_id == "auto":
+    if model_id in ("auto", "openchronicle"):
         return container.router_policy.route(
             task_type="openai_compat",
             agent_role="worker",
@@ -387,13 +387,31 @@ def _record_turn(
 # -- V2 models endpoints (Open WebUI base URL compat) --
 
 
+def _list_models_with_oc(container: CoreContainer) -> dict[str, Any]:
+    """List models with a synthetic ``openchronicle`` entry prepended.
+
+    The ``openchronicle`` model routes through OC's default routing policy,
+    giving Open WebUI a guaranteed model to select even when no provider
+    configs are present.
+    """
+    result = list_models(container)
+    oc_model = {
+        "id": "openchronicle",
+        "object": "model",
+        "created": _MODEL_EPOCH,
+        "owned_by": "openchronicle",
+    }
+    result["data"] = [oc_model, *result["data"]]
+    return result
+
+
 @router.get("/p/{project_id}/models")
 def list_models_project(
     container: ContainerDep,
     project_id: Annotated[str, Path(min_length=1, max_length=200)],
 ) -> dict[str, Any]:
-    """List models at project scope (same data, needed for base URL compat)."""
-    return list_models(container)
+    """List models at project scope with synthetic OC model prepended."""
+    return _list_models_with_oc(container)
 
 
 @router.get("/p/{project_id}/c/{conversation_id}/models")
@@ -402,8 +420,8 @@ def list_models_conversation(
     project_id: Annotated[str, Path(min_length=1, max_length=200)],
     conversation_id: Annotated[str, Path(min_length=1, max_length=200)],
 ) -> dict[str, Any]:
-    """List models at conversation scope (same data, needed for base URL compat)."""
-    return list_models(container)
+    """List models at conversation scope with synthetic OC model prepended."""
+    return _list_models_with_oc(container)
 
 
 # -- V2 chat completions endpoints --

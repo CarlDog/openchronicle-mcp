@@ -542,17 +542,30 @@ def _make_v2_container() -> MagicMock:
 class TestPersistentModelsEndpoints:
     """GET /v1/p/{project_id}/models and /v1/p/{pid}/c/{cid}/models."""
 
-    def test_project_models_returns_same_as_v1(self) -> None:
+    def test_project_models_includes_oc_synthetic_model(self) -> None:
         client = _make_client()
-        v1 = client.get("/v1/models").json()
-        v2 = client.get("/v1/p/any-project/models").json()
-        assert v1 == v2
+        resp = client.get("/v1/p/any-project/models")
+        data = resp.json()["data"]
+        assert data[0]["id"] == "openchronicle"
+        assert data[0]["owned_by"] == "openchronicle"
 
-    def test_conversation_models_returns_same_as_v1(self) -> None:
+    def test_project_models_includes_real_models_after_oc(self) -> None:
         client = _make_client()
-        v1 = client.get("/v1/models").json()
-        v2 = client.get("/v1/p/any-project/c/any-convo/models").json()
-        assert v1 == v2
+        v1_data = client.get("/v1/models").json()["data"]
+        v2_data = client.get("/v1/p/any-project/models").json()["data"]
+        assert v2_data[1:] == v1_data
+
+    def test_conversation_models_includes_oc_synthetic_model(self) -> None:
+        client = _make_client()
+        resp = client.get("/v1/p/any-project/c/any-convo/models")
+        data = resp.json()["data"]
+        assert data[0]["id"] == "openchronicle"
+
+    def test_v1_models_does_not_include_oc_synthetic(self) -> None:
+        client = _make_client()
+        data = client.get("/v1/models").json()["data"]
+        ids = [m["id"] for m in data]
+        assert "openchronicle" not in ids
 
     def test_project_models_returns_200(self) -> None:
         client = _make_client()
@@ -565,6 +578,18 @@ class TestPersistentModelsEndpoints:
         resp = client.get("/v1/p/some-project-id/c/some-convo-id/models")
         assert resp.status_code == 200
         assert resp.json()["object"] == "list"
+
+    def test_openchronicle_model_routes_like_auto(self) -> None:
+        container = _make_v2_container()
+        container.llm.complete_async = AsyncMock(return_value=_stub_response())
+        client = _make_client(container)
+
+        resp = client.post(
+            "/v1/p/proj-1/chat/completions",
+            json={"model": "openchronicle", "messages": [{"role": "user", "content": "hi"}]},
+        )
+        assert resp.status_code == 200
+        container.router_policy.route.assert_called_once()
 
 
 class TestAutoSessionChatCompletions:
