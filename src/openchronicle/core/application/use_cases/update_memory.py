@@ -31,7 +31,7 @@ def execute(
 
     updated = store.update_memory(memory_id, content=content, tags=tags)
 
-    updated_fields = [f for f in ("content", "tags") if locals()[f] is not None]
+    updated_fields = [name for name, val in (("content", content), ("tags", tags)) if val is not None]
     emit_event(
         Event(
             type="memory.updated",
