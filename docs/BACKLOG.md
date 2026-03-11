@@ -796,8 +796,13 @@ produce branches/patches. Manual human review gate before any upstream push.
 
 ### Performance Testing
 
-**Status:** 🔴 Not Started
+**Status:** 🟡 Partial
 
+- [x] OpenAI-compat API stress tests — 12 scenarios covering concurrent
+      requests, session races, turn recording, streaming, multi-project
+      isolation, event chain integrity, memory injection, V1/V2 isolation,
+      invalid input handling, and conversation growth
+      (`tests/integration/test_openai_stress.py`, gated by `OC_INTEGRATION_TESTS=1`)
 - [ ] Load testing for rate limiting / concurrency scenarios
 - [ ] Performance regression testing suite
 - [ ] Benchmark tracking over time
@@ -805,6 +810,30 @@ produce branches/patches. Manual human review gate before any upstream push.
 ### Plugin Integration Testing
 
 **Status:** 🟡 Partial
+
+**Testing standard (per plugin):**
+
+- [ ] **Smoke tests (required)** — handler loads cleanly, valid input
+      produces well-formed result, expected events emitted, error cases
+      return canonical error codes. Fast, cheap, catches the real failure
+      modes (broken imports, schema drift, bad output format).
+- [ ] **Integration smoke (required)** — one `plugin.invoke` test per
+      plugin through the real task lifecycle (orchestrator → handler →
+      event emission). Catches wiring issues that unit tests miss.
+- [ ] **Connector resilience tests (if applicable)** — plugins with
+      external I/O (Plex API, Google OAuth, etc.) get their own tests
+      for rate limit handling, timeouts, retry behavior, and error
+      classification. These are connector-specific, not generic.
+
+**Not required:** Per-plugin stress/concurrency tests. The pipeline
+plugins flow through (scheduler → task dispatch → handler → event
+emission → memory) is stress-tested at the core level
+(`tests/integration/test_stress.py`, `test_openai_stress.py`). Plugin
+handlers are pure functions — if they work once, they work under
+concurrency. Stress-testing a plugin N times would just re-test the
+orchestrator under load.
+
+**Infrastructure:**
 
 - [ ] Standardized plugin test harness
 - [ ] Mock core for plugin unit tests
@@ -929,8 +958,18 @@ polluted turns waste context window budget.
 
 | Issue                             | Location                                                    | Priority |
 | --------------------------------- | ----------------------------------------------------------- | -------- |
+| WebUI session race condition      | `interfaces/api/routes/openai_compat.py` `_get_or_create_webui_session` | Medium   |
 | FTS5 rebuild on every startup     | `infrastructure/persistence/sqlite_store.py _ensure_fts5()` | Low      |
 | Ollama token counts are estimates | `infrastructure/llm/ollama_adapter.py`                      | Low      |
+
+**WebUI session race (detail):** `_get_or_create_webui_session()` does a
+read-then-write (`list_conversations` → `add_conversation`) without transaction
+protection. Under multi-connection concurrency (multi-worker deployment, or
+multiple clients hitting the auto-session endpoint simultaneously for a new
+project), both connections see no existing webui conversation and both create
+one — resulting in duplicate webui sessions per project. Fix: wrap in
+`BEGIN IMMEDIATE` transaction, or use a UNIQUE constraint + INSERT-OR-IGNORE
+pattern. Discovered by stress test S1 in `tests/integration/test_openai_stress.py`.
 
 ### Code Quality Enforcement
 
