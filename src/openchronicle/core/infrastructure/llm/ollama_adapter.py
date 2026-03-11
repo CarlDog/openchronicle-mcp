@@ -32,7 +32,8 @@ class OllamaAdapter(LLMPort):
     Ollama LLM adapter for local model inference.
 
     Env vars:
-    - OLLAMA_BASE_URL: Base URL for Ollama API (default: http://localhost:11434)
+    - OLLAMA_HOST: Ollama's official host env var (default: http://localhost:11434)
+    - OLLAMA_BASE_URL: Alternative base URL (takes precedence over OLLAMA_HOST)
     - OLLAMA_MODEL: Default model to use if not specified
     """
 
@@ -42,7 +43,7 @@ class OllamaAdapter(LLMPort):
         base_url: str | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
-        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_HOST") or "http://localhost:11434"
         self.default_model = model or os.getenv("OLLAMA_MODEL", "llama3.1")
         self.timeout_seconds = timeout_seconds or 60.0
 

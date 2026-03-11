@@ -235,9 +235,9 @@ def create_provider_aware_llm(
     def _make_ollama_adapter(cfg: ResolvedModelConfig) -> LLMPort:
         from openchronicle.core.infrastructure.llm.ollama_adapter import OllamaAdapter
 
-        return OllamaAdapter(
-            model=cfg.model, base_url=cfg.base_url or cfg.endpoint, timeout_seconds=_resolve_timeout(cfg)
-        )
+        # Env vars override config-file defaults (OLLAMA_BASE_URL > OLLAMA_HOST > config)
+        base_url = os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_HOST") or cfg.base_url or cfg.endpoint
+        return OllamaAdapter(model=cfg.model, base_url=base_url, timeout_seconds=_resolve_timeout(cfg))
 
     def _make_anthropic_adapter(cfg: ResolvedModelConfig) -> LLMPort:
         from openchronicle.core.infrastructure.llm.anthropic_adapter import AnthropicAdapter
