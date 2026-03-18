@@ -1,0 +1,27 @@
+[TestProject – Style Guide v1.0]
+
+=============================
+CORE PRINCIPLES
+=============================
+- Stories should balance mystery with warmth.
+- Fear arrives slowly, never announced.
+- Every scene serves character or tension.
+
+=============================
+DIALOGUE RULES
+=============================
+- Characters speak with distinct voices.
+- Silence carries weight.
+- Subtext drives every conversation.
+
+=============================
+WEATHER CLAUSE
+=============================
+- Weather reflects mood but never telegraphs danger.
+- Fog is a character, not a backdrop.
+- Rain should feel personal.
+
+=============================
+VERSION CHANGELOG
+=============================
+**v1.0** – Initial style guide for test project.

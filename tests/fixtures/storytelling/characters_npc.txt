@@ -1,0 +1,15 @@
+[CORE FILE – DO NOT MODIFY WITHOUT USER APPROVAL]
+
+[MINOR CHARACTER PROFILE – RIVERDALE & REGION]
+
+Name: Martha Greenfield
+Occupation: Librarian
+Description: Mid-60s, silver hair in a bun. Knows every book by smell. Claims the restricted section reorganizes itself.
+
+Name: Deputy Cal Rourke
+Occupation: Local law enforcement
+Description: Late 40s, mustache, skeptic. Carries salt in his cruiser. Doesn't talk about the incident at the old mill.
+
+Name: Dr. Faye Ashton
+Occupation: Veterinarian
+Description: Early 30s, colorful scrubs, nervous laugh. Animals behave strangely around certain clients. She notices but says nothing.
