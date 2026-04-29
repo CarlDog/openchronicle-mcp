@@ -257,26 +257,35 @@ not conversational context. OC memory fills that gap.
 
 ### Setup
 
-Configure in `.claude/settings.json` (project-level):
+OC runs on the NAS as a Portainer stack (see `docker-compose.nas.yml`).
+The MCP server is registered at user scope in `~/.claude.json` as
+`openchronicle` pointing at `http://carldog-nas:18001/mcp` (HTTP
+streamable-http transport). No project-level setup required.
 
-```json
-{
-  "mcpServers": {
-    "openchronicle": {
-      "command": "oc",
-      "args": ["mcp", "serve"]
-    }
-  }
-}
+If you need to register it on a fresh machine:
+
+```bash
+claude mcp add --scope user --transport http openchronicle http://carldog-nas:18001/mcp
 ```
+
+For local dev (without the NAS), the alternative is project-scope
+`.claude/settings.json` pointing at `oc mcp serve` — but that uses the
+local OC store, which is a different memory pool than the NAS one.
 
 ### Project Identity
 
-Use `project_id: "0db2b2ff-f995-4f59-b059-0fae5c78909d"` in all `memory_save`
-calls. This is a FK to the projects table — freeform strings will fail.
+Use `project_id: "87de0f7d-d6ab-4b83-8613-b2b5ff60a57b"` in all `memory_save`
+calls on the NAS-hosted OC. This is a FK to the projects table — freeform
+strings will fail. (Project name on the NAS is currently
+`smoke-test-2026-04-29` — rename to a canonical name still TBD.)
 
-If the DB is recreated, create a new project with `project_create` and update
-this UUID.
+The old project_id `0db2b2ff-f995-4f59-b059-0fae5c78909d` was on the
+LOCAL OC instance (Windows machine, ~95 historical memories) and is no
+longer valid against the NAS DB. Local OC will be torn down once the
+NAS one has proven itself for a session or two.
+
+If the NAS DB is recreated, create a new project with `project_create`
+and update this UUID.
 
 ### Session Protocol Addition
 
