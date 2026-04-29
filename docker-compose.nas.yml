@@ -1,0 +1,116 @@
+# OpenChronicle MCP — NAS deployment (Portainer stack)
+#
+# Two long-lived services:
+#   serve  — HTTP API on :8000 (REST + auto-starts when container starts)
+#   mcp    — MCP server on :8080 via streamable-http transport (reachable
+#            from MCP clients over the network — Claude Code, Goose, etc.)
+#
+# Skipped intentionally: `discord` (not currently used), `openchronicle`
+# adhoc-CLI runner (use `docker exec` into one of the running services
+# instead).
+#
+# Stack-level env vars to set in Portainer (Stacks → this stack →
+# Environment variables) — none of these come from a .env in the repo
+# when deployed via Portainer "Stack from Git":
+#
+#   Required:
+#     OC_LLM_PROVIDER       — openai | anthropic | groq | gemini | ollama | stub
+#     OPENAI_API_KEY        — if OC_LLM_PROVIDER=openai
+#     ANTHROPIC_API_KEY     — if OC_LLM_PROVIDER=anthropic
+#     GROQ_API_KEY          — if OC_LLM_PROVIDER=groq
+#     GEMINI_API_KEY        — if OC_LLM_PROVIDER=gemini
+#
+#   Recommended:
+#     OC_API_KEY            — bearer token for HTTP API auth (otherwise the
+#                             API is open on whatever network reaches :8000)
+#     OC_EMBEDDING_PROVIDER — none (default) | openai | ollama
+#                             Set to enable hybrid FTS5+semantic search
+#     OC_EMBEDDING_MODEL    — provider-specific
+#
+#   Optional:
+#     OC_TAG                — image tag (default: latest). Pin to a SHA for
+#                             reproducible deploys
+#     HOST_HTTP_PORT        — host port for HTTP API (default 8000)
+#     HOST_MCP_PORT         — host port for MCP streamable-http (default 8080)
+#     OLLAMA_HOST           — http://host.docker.internal:11434 (if Ollama
+#                             runs on the NAS host)
+#
+# Image: ghcr.io/carldog/openchronicle-mcp (published by GitHub Actions
+# multi-arch CI on every push to main).
+
+services:
+  serve:
+    image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${HOST_HTTP_PORT:-8000}:8000"
+    environment:
+      - OC_DB_PATH=/data/openchronicle.db
+      - OC_CONFIG_DIR=/config
+      # OC_PLUGIN_DIR intentionally unset — defaults to /app/plugins
+      # (image-baked storytelling plugin). Override only if you want
+      # to layer additional plugins via a host bind-mount or volume.
+      - OC_OUTPUT_DIR=/output
+      - OC_ASSETS_DIR=/assets
+      - OC_API_HOST=0.0.0.0
+      - OC_LLM_PROVIDER
+      - OC_API_KEY
+      - OC_EMBEDDING_PROVIDER
+      - OC_EMBEDDING_MODEL
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
+      - GROQ_API_KEY
+      - GEMINI_API_KEY
+      - OLLAMA_HOST
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - oc-data:/data
+      - oc-config:/config
+      - oc-output:/output
+      - oc-assets:/assets
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health',timeout=3).status==200 else 1)\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  mcp:
+    image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
+    entrypoint: ["oc", "mcp", "serve", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8080"]
+    restart: unless-stopped
+    ports:
+      - "${HOST_MCP_PORT:-8080}:8080"
+    environment:
+      - OC_DB_PATH=/data/openchronicle.db
+      - OC_CONFIG_DIR=/config
+      # OC_PLUGIN_DIR intentionally unset — defaults to /app/plugins
+      # (image-baked storytelling plugin). Override only if you want
+      # to layer additional plugins via a host bind-mount or volume.
+      - OC_OUTPUT_DIR=/output
+      - OC_ASSETS_DIR=/assets
+      - OC_LLM_PROVIDER
+      - OC_EMBEDDING_PROVIDER
+      - OC_EMBEDDING_MODEL
+      - OPENAI_API_KEY
+      - ANTHROPIC_API_KEY
+      - GROQ_API_KEY
+      - GEMINI_API_KEY
+      - OLLAMA_HOST
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - oc-data:/data
+      - oc-config:/config
+      - oc-output:/output
+      - oc-assets:/assets
+    depends_on:
+      serve:
+        condition: service_healthy
+
+volumes:
+  oc-data:
+  oc-config:
+  oc-output:
+  oc-assets:
