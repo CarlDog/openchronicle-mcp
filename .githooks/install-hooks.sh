@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Installs all git hooks for openchronicle-mcp.
+# Installs git hooks for openchronicle-mcp.
 #
 # - pre-commit: managed by the 'pre-commit' Python framework
-# - post-commit: scrubbed zip export (from .githooks/post-commit)
 #
 # Usage: bash .githooks/install-hooks.sh
 
@@ -30,9 +29,4 @@ else
     echo "           Run: pip install pre-commit && pre-commit install"
 fi
 
-# Install post-commit hook
-echo "  Installing post-commit hook..."
-cp "$REPO_ROOT/.githooks/post-commit" "$REPO_ROOT/.git/hooks/post-commit"
-chmod +x "$REPO_ROOT/.git/hooks/post-commit"
-
-echo "Done. All hooks installed."
+echo "Done."
