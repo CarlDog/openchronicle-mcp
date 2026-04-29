@@ -94,7 +94,6 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
         hooks,
         media,
         memory,
-        openai_compat,
         project,
         system,
         webhook,
@@ -108,6 +107,5 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
     app.include_router(webhook.router, prefix="/api/v1", tags=["webhook"])
     app.include_router(hooks.router, prefix="/api/v1", tags=["hooks"])
     app.include_router(media.router, prefix="/api/v1", tags=["media"])
-    app.include_router(openai_compat.router, prefix="/v1", tags=["openai-compat"])
 
     return app

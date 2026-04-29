@@ -21,8 +21,7 @@ belong as their own MCP servers, composed by the client.
 See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
 
 **Next action:** Backlog reclassification (extension / external-MCP / core
-lens), Open WebUI compat decision (drop `openai_compat.py`?). The
-`storytelling` extension lives in this repo's `plugins/storytelling/`.
+lens). The `storytelling` extension lives in this repo's `plugins/storytelling/`.
 Media generation is done (`MediaGenerationPort` with 5 adapters:
 stub, Ollama, OpenAI gpt-image-1, Gemini dual-surface, xAI Grok Imagine; unified model
 config with `image_generation` capability tag; `OC_MEDIA_MODEL` derives provider; 69 tests).
@@ -30,13 +29,8 @@ Ollama CLI is done (`oc ollama list|show|add|remove|sync`, capability inference 
 Ollama API, operates against resolved config dir, 32 tests).
 Capability-aware routing is done (`ModelConfigLoader` parses capabilities,
 `RouterPolicy` filters by `required_capabilities`, `NO_CAPABLE_MODEL` error, 12 tests).
-HTTP API is done (`interfaces/api/`, FastAPI, 39 REST endpoints mirroring MCP tools,
+HTTP API is done (`interfaces/api/`, FastAPI, 41 REST endpoints mirroring MCP tools,
 API key auth, rate limiting, shared serializers, 51+ tests, auto-starts with `oc serve`).
-OpenAI-compatible API layer is done (`interfaces/api/routes/openai_compat.py`,
-`GET /v1/models` + `POST /v1/chat/completions` with streaming, model routing via
-`provider/model` format, 53 unit tests + 12 API stress tests).
-Known issue: `_get_or_create_webui_session` has a read-then-write race under
-multi-connection concurrency (tracked in BACKLOG.md).
 MoE execution strategy is done (`application/services/moe_execution.py`, Jaccard
 consensus, `--moe` CLI/MCP, 32 tests).
 MCP server is done (`interfaces/mcp/`, 32 tools, 47 tests + 7 posture, `oc mcp serve`
@@ -112,6 +106,11 @@ Storytelling Plugin Phases 4-7 are done (game mechanics engine with dice/resolut
 bookmark & timeline with auto-bookmark on scene save, narrative engines with LLM-based
 consistency checking and emotional arc analysis, persona extractor stub with text-only
 extraction; 13 new files, 12 new handlers, 11 new CLI commands, 208 new tests, 1975 total).
+OpenAI-compatible API layer dropped (2026-04-29) — `interfaces/api/routes/openai_compat.py`,
+`tests/test_openai_compat.py`, `tests/integration/test_openai_stress.py` deleted (645 + 844 + 894 LOC,
+56 tests). OC's brain now reaches MCP-aware clients (Claude Code, Goose, Open WebUI tool loop)
+via `conversation_*` MCP tools — chat-box-driven path through OC's pipeline retired alongside
+its `_get_or_create_webui_session` race condition.
 Conversation mode parity is done (`conversation_set_mode`/`conversation_get_mode`
 MCP tools, `POST`/`GET /api/v1/conversation/{id}/mode` endpoints, wraps existing
 `convo_mode` use case; closes the gap that left story/persona modes unreachable
@@ -192,8 +191,7 @@ for the full directory tree and layer descriptions.
 - **Scheduler**: Core service in `application/services/scheduler.py` (not a plugin)
 - **Discord**: Interfaces driver in `interfaces/discord/` (optional extra, not a plugin)
 - **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 32 tools, FastMCP)
-- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 39 REST endpoints, auto-starts with `oc serve`)
-- **OpenAI Compat**: `interfaces/api/routes/openai_compat.py` — `/v1/models` + `/v1/chat/completions` (streaming + non-streaming) for Open WebUI and other OpenAI-compatible clients
+- **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 41 REST endpoints, auto-starts with `oc serve`)
 - **MoE Execution**: `application/services/moe_execution.py` — Mixture-of-Experts consensus strategy (`--moe` flag)
 - **Asset Management**: `domain/models/asset.py` + `application/services/asset_storage.py` — filesystem storage, SHA-256 dedup, generic entity linking
 - **Embedding Service**: `application/services/embedding_service.py` — hybrid FTS5+cosine search via RRF, `EmbeddingPort` (stub/OpenAI/Ollama adapters), `OC_EMBEDDING_PROVIDER` env var
