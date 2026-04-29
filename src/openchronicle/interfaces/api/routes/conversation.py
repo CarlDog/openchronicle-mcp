@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from openchronicle.core.application.use_cases import (
     ask_conversation,
     assemble_context,
+    convo_mode,
     create_conversation,
     external_turn,
     list_conversations,
@@ -109,6 +110,31 @@ async def conversation_ask(
         mode_prompt_builders=container.plugin_loader.registry_instance().mode_prompt_builders(),
     )
     return turn_to_dict(turn)
+
+
+class ConversationModeRequest(BaseModel):
+    mode: str = Field(min_length=1, max_length=50)
+
+
+@router.get("/{conversation_id}/mode")
+def conversation_get_mode(
+    conversation_id: Annotated[str, Path(min_length=1, max_length=200)],
+    container: ContainerDep,
+) -> dict[str, Any]:
+    """Get the current conversation mode."""
+    mode = convo_mode.get_mode(container.storage, conversation_id)
+    return {"conversation_id": conversation_id, "mode": mode}
+
+
+@router.post("/{conversation_id}/mode")
+def conversation_set_mode(
+    conversation_id: Annotated[str, Path(min_length=1, max_length=200)],
+    body: ConversationModeRequest,
+    container: ContainerDep,
+) -> dict[str, Any]:
+    """Set the conversation mode (``general``, ``persona``, ``story``)."""
+    normalized = convo_mode.set_mode(container.storage, conversation_id, mode=body.mode)
+    return {"conversation_id": conversation_id, "mode": normalized}
 
 
 class TurnRecordRequest(BaseModel):

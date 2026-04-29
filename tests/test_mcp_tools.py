@@ -125,6 +125,8 @@ class TestServerCreation:
             "conversation_list",
             "conversation_history",
             "conversation_ask",
+            "conversation_set_mode",
+            "conversation_get_mode",
             "turn_record",
             "context_recent",
             "context_assemble",
@@ -419,6 +421,67 @@ class TestConversationAsk:
 
         assert result["assistant_text"] == "I can help!"
         assert result["user_text"] == "Hello"
+
+
+class TestConversationMode:
+    def test_set_mode_returns_normalized(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.conversation import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.conversation.convo_mode.set_mode",
+            return_value="story",
+        ):
+            tool_fn = mcp._tool_manager._tools["conversation_set_mode"].fn
+            result = tool_fn(conversation_id="convo-1", mode="story", ctx=ctx)
+
+        assert result == {"conversation_id": "convo-1", "mode": "story"}
+
+    def test_set_mode_rejects_invalid(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.conversation import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.conversation.convo_mode.set_mode",
+            side_effect=DomainValidationError("Invalid conversation mode: nope"),
+        ):
+            tool_fn = mcp._tool_manager._tools["conversation_set_mode"].fn
+            with pytest.raises(DomainValidationError, match="Invalid conversation mode"):
+                tool_fn(conversation_id="convo-1", mode="nope", ctx=ctx)
+
+    def test_get_mode_returns_current(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.conversation import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.conversation.convo_mode.get_mode",
+            return_value="general",
+        ):
+            tool_fn = mcp._tool_manager._tools["conversation_get_mode"].fn
+            result = tool_fn(conversation_id="convo-1", ctx=ctx)
+
+        assert result == {"conversation_id": "convo-1", "mode": "general"}
 
 
 class TestTurnRecord:

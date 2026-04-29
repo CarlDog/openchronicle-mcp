@@ -39,7 +39,7 @@ Known issue: `_get_or_create_webui_session` has a read-then-write race under
 multi-connection concurrency (tracked in BACKLOG.md).
 MoE execution strategy is done (`application/services/moe_execution.py`, Jaccard
 consensus, `--moe` CLI/MCP, 32 tests).
-MCP server is done (`interfaces/mcp/`, 30 tools, 44 tests + 7 posture, `oc mcp serve`
+MCP server is done (`interfaces/mcp/`, 32 tools, 47 tests + 7 posture, `oc mcp serve`
 CLI, stdio + SSE transports, lazy import guard).
 Asset management is done (`domain/models/asset.py`, `application/services/asset_storage.py`,
 `application/use_cases/upload_asset.py`, `application/use_cases/link_asset.py`,
@@ -112,6 +112,10 @@ Storytelling Plugin Phases 4-7 are done (game mechanics engine with dice/resolut
 bookmark & timeline with auto-bookmark on scene save, narrative engines with LLM-based
 consistency checking and emotional arc analysis, persona extractor stub with text-only
 extraction; 13 new files, 12 new handlers, 11 new CLI commands, 208 new tests, 1975 total).
+Conversation mode parity is done (`conversation_set_mode`/`conversation_get_mode`
+MCP tools, `POST`/`GET /api/v1/conversation/{id}/mode` endpoints, wraps existing
+`convo_mode` use case; closes the gap that left story/persona modes unreachable
+from MCP/API clients despite working in CLI + Discord, 6 new tests).
 2026-04-29 incident remediation + connector model retired (production DB
 `memory_embeddings` B-tree corruption recovered via Plan B rebuild —
 plex memory items stripped, 49 non-plex items preserved, integrity_check ok;
@@ -187,7 +191,7 @@ for the full directory tree and layer descriptions.
 - **Routing**: Provider/model selection via pools (fast, quality, nsfw) with fallback support
 - **Scheduler**: Core service in `application/services/scheduler.py` (not a plugin)
 - **Discord**: Interfaces driver in `interfaces/discord/` (optional extra, not a plugin)
-- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 30 tools, FastMCP)
+- **MCP Server**: Interfaces driver in `interfaces/mcp/` (optional extra, 32 tools, FastMCP)
 - **HTTP API**: Interfaces driver in `interfaces/api/` (FastAPI, 39 REST endpoints, auto-starts with `oc serve`)
 - **OpenAI Compat**: `interfaces/api/routes/openai_compat.py` — `/v1/models` + `/v1/chat/completions` (streaming + non-streaming) for Open WebUI and other OpenAI-compatible clients
 - **MoE Execution**: `application/services/moe_execution.py` — Mixture-of-Experts consensus strategy (`--moe` flag)

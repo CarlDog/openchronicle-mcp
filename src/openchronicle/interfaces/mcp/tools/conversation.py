@@ -8,6 +8,7 @@ from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.use_cases import (
     ask_conversation,
+    convo_mode,
     create_conversation,
     external_turn,
     list_conversations,
@@ -128,6 +129,43 @@ def register(mcp: FastMCP) -> None:
             mode_prompt_builders=container.plugin_loader.registry_instance().mode_prompt_builders(),
         )
         return turn_to_dict(turn)
+
+    @mcp.tool()
+    @track_tool
+    def conversation_set_mode(
+        conversation_id: str,
+        mode: str,
+        ctx: Context,
+    ) -> dict[str, Any]:
+        """Set the conversation mode.
+
+        Mode controls which plugin's mode prompt builder fires during
+        ``conversation_ask``. Valid modes: ``general`` (default, no plugin
+        builder), ``persona``, ``story`` (storytelling plugin assembles
+        characters/locations/style guides from project memory).
+
+        Args:
+            conversation_id: The conversation to update.
+            mode: One of ``general``, ``persona``, ``story``.
+        """
+        container = _get_container(ctx)
+        normalized = convo_mode.set_mode(container.storage, conversation_id, mode=mode)
+        return {"conversation_id": conversation_id, "mode": normalized}
+
+    @mcp.tool()
+    @track_tool
+    def conversation_get_mode(
+        conversation_id: str,
+        ctx: Context,
+    ) -> dict[str, Any]:
+        """Get the current conversation mode.
+
+        Args:
+            conversation_id: The conversation to inspect.
+        """
+        container = _get_container(ctx)
+        mode = convo_mode.get_mode(container.storage, conversation_id)
+        return {"conversation_id": conversation_id, "mode": mode}
 
     @mcp.tool()
     @track_tool

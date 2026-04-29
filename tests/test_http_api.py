@@ -527,6 +527,42 @@ class TestConversationRoutes:
         assert len(data["memories"]) == 1
 
 
+class TestConversationModeRoutes:
+    def test_set_mode_returns_normalized(self, client: TestClient) -> None:
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.convo_mode.set_mode",
+            return_value="story",
+        ):
+            resp = client.post(
+                "/api/v1/conversation/conv-1/mode",
+                json={"mode": "story"},
+            )
+        assert resp.status_code == 200
+        assert resp.json() == {"conversation_id": "conv-1", "mode": "story"}
+
+    def test_set_mode_rejects_invalid(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.convo_mode.set_mode",
+            side_effect=DomainValidationError("Invalid conversation mode: nope"),
+        ):
+            resp = client.post(
+                "/api/v1/conversation/conv-1/mode",
+                json={"mode": "nope"},
+            )
+        assert resp.status_code == 422
+
+    def test_get_mode_returns_current(self, client: TestClient) -> None:
+        with patch(
+            "openchronicle.interfaces.api.routes.conversation.convo_mode.get_mode",
+            return_value="general",
+        ):
+            resp = client.get("/api/v1/conversation/conv-1/mode")
+        assert resp.status_code == 200
+        assert resp.json() == {"conversation_id": "conv-1", "mode": "general"}
+
+
 class TestTurnRecordRoutes:
     def test_turn_record_happy_path(self, client: TestClient) -> None:
         turn = _make_turn()
