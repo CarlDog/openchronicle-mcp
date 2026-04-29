@@ -36,11 +36,11 @@ oc selftest --json
 ## Run in Docker
 
 ```bash
-docker build -t openchronicle-core:local .
+docker build -t openchronicle-mcp:local .
 ```
 
 ```bash
-docker run --rm openchronicle-core:local selftest --json
+docker run --rm openchronicle-mcp:local selftest --json
 ```
 
 ## Invoke the hello plugin

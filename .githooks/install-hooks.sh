@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs all git hooks for openchronicle-core.
+# Installs all git hooks for openchronicle-mcp.
 #
 # - pre-commit: managed by the 'pre-commit' Python framework
 # - post-commit: scrubbed zip export (from .githooks/post-commit)
@@ -10,7 +10,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-echo "Installing hooks for openchronicle-core..."
+echo "Installing hooks for openchronicle-mcp..."
 
 # Find pre-commit: check PATH first, then .venv
 PRE_COMMIT=""

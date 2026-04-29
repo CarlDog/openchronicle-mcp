@@ -3,7 +3,7 @@
 ## Build
 
 ```bash
-docker build -t openchronicle-core:local .
+docker build -t openchronicle-mcp:local .
 ```
 
 ## Run daemon (stdio JSON-RPC)
@@ -16,7 +16,7 @@ docker run --rm -it \
   -e OC_OUTPUT_DIR=/app/output \
   -v "$(pwd)/oc-data:/app/data" \
   -v "$(pwd)/oc-output:/app/output" \
-  openchronicle-core:local
+  openchronicle-mcp:local
 ```
 
 Before running commands that rely on runtime directories, bootstrap them explicitly:
@@ -29,7 +29,7 @@ docker run --rm \
   -e OC_OUTPUT_DIR=/app/output \
   -v "$(pwd)/oc-data:/app/data" \
   -v "$(pwd)/oc-output:/app/output" \
-  openchronicle-core:local init
+  openchronicle-mcp:local init
 ```
 
 ## Run selftest
@@ -42,7 +42,7 @@ docker run --rm \
   -e OC_OUTPUT_DIR=/app/output \
   -v "$(pwd)/oc-data:/app/data" \
   -v "$(pwd)/oc-output:/app/output" \
-  openchronicle-core:local selftest --json
+  openchronicle-mcp:local selftest --json
 ```
 
 ## Notes
@@ -79,5 +79,5 @@ docker run --rm \
   -e OC_PLUGIN_DIR=/app/runtime/plugins \
   -e OC_OUTPUT_DIR=/app/runtime/output \
   -v "$(pwd)/oc-runtime:/app/runtime" \
-  openchronicle-core:local acceptance --json
+  openchronicle-mcp:local acceptance --json
 ```
