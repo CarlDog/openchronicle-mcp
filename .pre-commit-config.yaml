@@ -47,6 +47,16 @@ repos:
       - id: gitleaks
         name: Detect secrets with Gitleaks
 
+  # Identity + PII safety (matches security.md global rules and the sibling
+  # MCP-repo pattern in plex-mcp/.githooks/pre-commit)
+  - repo: local
+    hooks:
+      - id: check-identity-and-pii
+        name: Check author identity and staged-content PII
+        entry: bash .githooks/check-identity-and-pii.sh
+        language: system
+        pass_filenames: false
+
   # General File Quality
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
