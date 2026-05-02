@@ -33,6 +33,28 @@
 #                           Set to enable hybrid FTS5+semantic search.
 #     OC_EMBEDDING_MODEL    Provider-specific embedding model name.
 #
+#   Optional — persistent storage (host bind mounts):
+#     The DB and internal runtime state ALWAYS live in the `oc-data`
+#     named volume — never operator-relocatable, never bind-mountable.
+#     The four content directories below default to named volumes too
+#     (so a fresh clone of the repo Just Works), but if you set them
+#     to host paths, docker-compose's smart short-syntax switches to
+#     bind-mount mode automatically.
+#       HOST_CONFIG_DIR     Host path for /config (model configs, core.json).
+#                           e.g. /volume1/docker/openchronicle/config
+#                           NOTE: on first start with an empty bind-mount,
+#                           the entrypoint copies the image's example
+#                           model configs into /config (creates a
+#                           .bootstrapped marker so it doesn't repeat).
+#                           Operator deletions are respected after that.
+#                           To re-populate later: delete the marker and
+#                           restart.
+#       HOST_OUTPUT_DIR     Host path for /output (generated media).
+#       HOST_ASSETS_DIR     Host path for /assets (uploaded asset storage).
+#       HOST_PLUGINS_DIR    Host path for /user-plugins (operator plugins;
+#                           additive — does NOT replace the image-baked
+#                           built-ins under /app/plugins).
+#
 #   Optional — deployment shape:
 #     OC_TAG                Image tag (default: latest). Pin to a SHA
 #                           for reproducible deploys.

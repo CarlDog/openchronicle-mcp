@@ -24,6 +24,12 @@ COPY src ./src
 COPY plugins ./plugins
 COPY tools/docker/entrypoint.sh /app/entrypoint.sh
 
+# Bake example config defaults into a non-mount path. The entrypoint
+# bootstraps these into $OC_CONFIG_DIR on first run (when bind-mounted
+# to a fresh host directory) so operators don't start with an empty
+# config/. Marker file prevents re-bootstrap on subsequent restarts.
+COPY config /config-defaults
+
 # Install with all provider extras and Discord
 RUN pip install --no-cache-dir ".[openai,ollama,anthropic,groq,gemini,discord,mcp]"
 
