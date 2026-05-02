@@ -286,9 +286,9 @@ def test_t3_link_memory_lost_update(db_path: str) -> None:
     surviving_ids: list[str] = json.loads(raw)
     survived = sum(1 for mid in memory_ids if mid in surviving_ids)
 
-    assert (
-        survived == n_threads
-    ), f"Lost update: only {survived}/{n_threads} memory IDs survived. Expected: {memory_ids}, Got: {surviving_ids}"
+    assert survived == n_threads, (
+        f"Lost update: only {survived}/{n_threads} memory IDs survived. Expected: {memory_ids}, Got: {surviving_ids}"
+    )
 
 
 # ---------------------------------------------------------------------------

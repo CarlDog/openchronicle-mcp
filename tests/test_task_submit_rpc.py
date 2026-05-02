@@ -139,9 +139,9 @@ def test_task_submit_and_execute_story_draft(tmp_path: Path) -> None:
 
         time.sleep(sleep_seconds)
 
-    assert (
-        status == "completed"
-    ), f"Task did not complete within timeout. task_id={task_id} last_response={last_response}"
+    assert status == "completed", (
+        f"Task did not complete within timeout. task_id={task_id} last_response={last_response}"
+    )
 
     # Validate deterministic result payload persisted to storage
     with sqlite3.connect(db_path) as conn:

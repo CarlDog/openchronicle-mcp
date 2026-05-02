@@ -266,9 +266,9 @@ async def test_td07_event_chain_intact(bot: DiscordBot) -> None:
 
     assert result.success is True, f"Hash chain verification failed: {result.error_message}"
     assert result.total_events > 0, "Should have events to verify"
-    assert (
-        result.verified_events == result.total_events
-    ), f"Verified {result.verified_events}/{result.total_events} events"
+    assert result.verified_events == result.total_events, (
+        f"Verified {result.verified_events}/{result.total_events} events"
+    )
 
     # Verify expected event types are present for a conversation with turns
     events = bot.container.storage.list_events(task_id=convo_id)
@@ -332,9 +332,9 @@ async def test_td10_context_retention_within_conversation(bot: DiscordBot) -> No
     # the prior turn context was present (France, Paris, or "capital").
     response_lower = response.lower()
     context_signals = ("france", "capital", "paris")
-    assert any(
-        s in response_lower for s in context_signals
-    ), f"Bot should recall the France/capital question, got: {response!r}"
+    assert any(s in response_lower for s in context_signals), (
+        f"Bot should recall the France/capital question, got: {response!r}"
+    )
 
 
 async def test_td11_new_conversation_clears_context(bot: DiscordBot) -> None:
@@ -371,9 +371,9 @@ async def test_td12_multi_turn_task(bot: DiscordBot) -> None:
     response2_lower = response2.lower()
 
     # Should respond with "cold" or similar opposite
-    assert (
-        "cold" in response2_lower or "cool" in response2_lower or "opposite" in response2_lower
-    ), f"Expected opposite of 'hot', got: {response2!r}"
+    assert "cold" in response2_lower or "cool" in response2_lower or "opposite" in response2_lower, (
+        f"Expected opposite of 'hot', got: {response2!r}"
+    )
 
 
 async def test_td13_concurrent_users_no_crosstalk(bot: DiscordBot) -> None:

@@ -171,9 +171,9 @@ class TestSmokeLiveIntegration:
         if result.outcome == "completed":
             assert "llm.execution_recorded" in event_types, f"Missing llm.execution_recorded. Got: {event_types}"
         else:
-            assert (
-                "task_failed" in event_types or "llm.budget_exceeded" in event_types
-            ), f"Missing failure event for outcome={result.outcome}. Got: {event_types}"
+            assert "task_failed" in event_types or "llm.budget_exceeded" in event_types, (
+                f"Missing failure event for outcome={result.outcome}. Got: {event_types}"
+            )
 
     @pytest.mark.integration
     async def test_smoke_live_result_serializeable(self) -> None:

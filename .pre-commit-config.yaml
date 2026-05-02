@@ -7,8 +7,11 @@
 
 repos:
   # Python Code Quality - Ruff (replaces black, isort, flake8)
+  # Pin must track the ruff version installed via [dev] extras (currently
+  # 0.14.10) — version skew between the framework hook and the CLI ruff
+  # produces different formatting and breaks both pre-commit and CI.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.14.10
     hooks:
       - id: ruff
         name: Lint with Ruff

@@ -287,9 +287,9 @@ async def test_t05_hash_chain_integrity(container: CoreContainer) -> None:
 
     assert result.success is True, f"Hash chain verification failed: {result.error_message}"
     assert result.total_events > 0, "Should have events to verify"
-    assert (
-        result.verified_events == result.total_events
-    ), f"Verified {result.verified_events}/{result.total_events} events"
+    assert result.verified_events == result.total_events, (
+        f"Verified {result.verified_events}/{result.total_events} events"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -311,18 +311,18 @@ async def test_t06_token_tracking_accuracy(container: CoreContainer) -> None:
     usage = payload.get("usage", {})
 
     # Real providers should report token counts
-    assert (
-        usage.get("input_tokens") is not None and usage["input_tokens"] > 0
-    ), f"Expected input_tokens > 0, got: {usage}"
-    assert (
-        usage.get("output_tokens") is not None and usage["output_tokens"] > 0
-    ), f"Expected output_tokens > 0, got: {usage}"
+    assert usage.get("input_tokens") is not None and usage["input_tokens"] > 0, (
+        f"Expected input_tokens > 0, got: {usage}"
+    )
+    assert usage.get("output_tokens") is not None and usage["output_tokens"] > 0, (
+        f"Expected output_tokens > 0, got: {usage}"
+    )
 
     total = usage.get("total_tokens")
     if total is not None:
-        assert (
-            total >= usage["input_tokens"] + usage["output_tokens"]
-        ), f"total_tokens should >= input + output: {usage}"
+        assert total >= usage["input_tokens"] + usage["output_tokens"], (
+            f"total_tokens should >= input + output: {usage}"
+        )
 
     # Latency should be present and positive
     latency = payload.get("latency_ms")
@@ -362,9 +362,9 @@ async def test_t07_event_chain_completeness(container: CoreContainer) -> None:
     # Verify prev_hash chain: first event has prev_hash=None or genesis,
     # subsequent events reference the prior event's hash
     for i in range(1, len(events)):
-        assert (
-            events[i].prev_hash == events[i - 1].hash
-        ), f"Event {i} prev_hash mismatch: expected {events[i - 1].hash!r}, got {events[i].prev_hash!r}"
+        assert events[i].prev_hash == events[i - 1].hash, (
+            f"Event {i} prev_hash mismatch: expected {events[i - 1].hash!r}, got {events[i].prev_hash!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -418,9 +418,9 @@ async def test_t08_privacy_gate_pii_detection(container: CoreContainer) -> None:
     # Local providers (ollama, stub) skip privacy checks — data stays local
     provider = turn.provider.strip().lower()
     if provider in ("ollama", "stub"):
-        assert (
-            len(privacy_events) == 0
-        ), f"Local provider '{turn.provider}' should skip privacy check, but got {len(privacy_events)} privacy events"
+        assert len(privacy_events) == 0, (
+            f"Local provider '{turn.provider}' should skip privacy check, but got {len(privacy_events)} privacy events"
+        )
         return
 
     # External providers should emit the privacy event
@@ -526,9 +526,9 @@ async def test_t10_export_with_verification_and_explain(container: CoreContainer
         assert isinstance(explain, dict)
         if not explain.get("unavailable"):
             # Explain should have routing, privacy, and llm sections
-            assert (
-                "routing_reasons" in explain or "routing" in explain or "llm" in explain
-            ), f"Explain data incomplete: {list(explain.keys())}"
+            assert "routing_reasons" in explain or "routing" in explain or "llm" in explain, (
+                f"Explain data incomplete: {list(explain.keys())}"
+            )
 
     # Conversation metadata
     convo_data = export["conversation"]

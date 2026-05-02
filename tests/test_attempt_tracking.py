@@ -151,12 +151,12 @@ class TestAttemptIdPropagation:
 
         # Check that all llm.execution_recorded events have the same attempt_id
         for llm_event in llm_recorded_events:
-            assert (
-                "attempt_id" in llm_event.payload
-            ), f"llm.execution_recorded should contain attempt_id: {llm_event.payload}"
-            assert (
-                llm_event.payload["attempt_id"] == started_attempt_id
-            ), "llm.execution_recorded should have same attempt_id as task.started"
+            assert "attempt_id" in llm_event.payload, (
+                f"llm.execution_recorded should contain attempt_id: {llm_event.payload}"
+            )
+            assert llm_event.payload["attempt_id"] == started_attempt_id, (
+                "llm.execution_recorded should have same attempt_id as task.started"
+            )
 
 
 class TestMultipleAttempts:
