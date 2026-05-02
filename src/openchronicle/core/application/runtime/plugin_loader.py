@@ -97,14 +97,35 @@ class PluginLoader:
         return self.plugins_dir.resolve().parent
 
     def load_plugins(self, context: dict[str, Any] | None = None) -> None:
-        """Load plugins from filesystem as packages (no sys.path manipulation)."""
+        """Load plugins from filesystem as packages (no sys.path manipulation).
+
+        Scans the built-in plugins directory (``self.plugins_dir`` resolved
+        against the repo root) AND, if ``OC_USER_PLUGINS_DIR`` is set and the
+        directory exists, also scans that. This lets containerized deployments
+        bind-mount a host directory of operator-supplied plugins without
+        overlaying the image-baked built-ins. Collisions across the two
+        roots raise ``PluginCollisionError`` the same way as collisions
+        within one root.
+        """
         repo_root = self._find_repo_root()
-        plugins_root = repo_root / self.plugins_dir
+        plugin_roots: list[Path] = [repo_root / self.plugins_dir]
 
-        if not plugins_root.exists():
-            return
+        # Optional second root for operator-supplied plugins. In the NAS
+        # deploy this is /user-plugins (bind-mounted from HOST_PLUGINS_DIR).
+        user_plugins_dir = os.getenv("OC_USER_PLUGINS_DIR")
+        if user_plugins_dir:
+            user_path = Path(user_plugins_dir)
+            if user_path.exists() and user_path != plugin_roots[0]:
+                plugin_roots.append(user_path)
 
-        # Discover plugin candidates: directories under plugins/ with plugin.py
+        for plugins_root in plugin_roots:
+            if not plugins_root.exists():
+                continue
+            self._scan_plugin_root(plugins_root, context)
+
+    def _scan_plugin_root(self, plugins_root: Path, context: dict[str, Any] | None) -> None:
+        """Scan a single plugin root directory and load each plugin under it."""
+        # Discover plugin candidates: directories under the root with plugin.py.
         # Sort for deterministic load order across OSes — Windows iterdir is
         # alphabetical but Linux/macOS use inode order, which broke
         # test_plugin_collision_error_message_includes_sources on CI when the

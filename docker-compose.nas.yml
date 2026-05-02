@@ -92,11 +92,19 @@
 # Shared env block — referenced by both `serve` and `mcp` via YAML
 # anchors. Container-internal paths stay literal; Portainer-sourced
 # values use ${VAR} (or ${VAR:-default}) substitution at deploy time.
-x-oc-env: &oc-env # Container-internal paths (hardcoded, deployment shape):
+x-oc-env: &oc-env
+  # Container-internal storage paths (hardcoded — operators tune the
+  # *host* side via HOST_*_DIR vars in the volumes section, not these).
+  # The DB is intentionally NOT operator-tunable: the named-volume mount
+  # at /data keeps the SQLite file safe from external interference.
   OC_ASSETS_DIR: /assets
   OC_CONFIG_DIR: /config
   OC_DB_PATH: /data/openchronicle.db
   OC_OUTPUT_DIR: /output
+  # Tells PluginLoader to ALSO scan this dir alongside the image-baked
+  # /app/plugins (where storytelling lives). The host content for this
+  # path comes from HOST_PLUGINS_DIR if set, else an empty named volume.
+  OC_USER_PLUGINS_DIR: /user-plugins
   # Portainer stack env (required):
   OC_LLM_PROVIDER: ${OC_LLM_PROVIDER}
   # Portainer stack env (provider keys — set whichever match the providers
@@ -138,10 +146,17 @@ x-oc-env: &oc-env # Container-internal paths (hardcoded, deployment shape):
   OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
 
 x-oc-volumes: &oc-volumes
+  # DB + internal runtime state — always named volume, never relocatable
+  # via env var. Protects the SQLite file from accidental host-side edits.
   - oc-data:/data
-  - oc-config:/config
-  - oc-output:/output
-  - oc-assets:/assets
+  # Content dirs use docker-compose's smart short-syntax fallback: if
+  # HOST_*_DIR is set to a path starting with /, ., or ~, it becomes a
+  # bind mount. Otherwise the named-volume fallback (current default)
+  # keeps everything self-contained for fresh repo clones.
+  - ${HOST_CONFIG_DIR:-oc-config}:/config
+  - ${HOST_OUTPUT_DIR:-oc-output}:/output
+  - ${HOST_ASSETS_DIR:-oc-assets}:/assets
+  - ${HOST_PLUGINS_DIR:-oc-user-plugins}:/user-plugins
 
 x-oc-extra-hosts: &oc-extra-hosts
   - host.docker.internal:host-gateway
@@ -235,3 +250,4 @@ volumes:
   oc-config:
   oc-output:
   oc-assets:
+  oc-user-plugins:

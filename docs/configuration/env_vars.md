@@ -229,9 +229,10 @@ Special value `"stub"` uses the deterministic test adapter (no config file neede
 
 ## Plugin System
 
-| Variable                     | Default | Description                   |
-| ---------------------------- | ------- | ----------------------------- |
-| `OC_PLUGIN_ALLOW_COLLISIONS` | `0`     | Allow handler name collisions |
+| Variable                     | Default     | Description                                                                                                                                                                                                                                                                                                |
+| ---------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OC_PLUGIN_ALLOW_COLLISIONS` | `0`         | Allow handler name collisions                                                                                                                                                                                                                                                                              |
+| `OC_USER_PLUGINS_DIR`        | _(unset)_   | Optional second plugin scan root. When set + the dir exists, `PluginLoader` scans it in addition to the built-in `OC_PLUGIN_DIR`. Used by the NAS deployment to bind-mount a host directory of operator plugins (set to `/user-plugins` in compose; host content comes from `HOST_PLUGINS_DIR`).             |
 
 ## Git Onboarding (`onboard_git` MCP tool)
 
@@ -274,6 +275,7 @@ Environment variables, then click "Update the stack"):
 | HTTP API            | `OC_API_KEY`, `OC_API_CORS_ORIGINS` (serve service only)                                                                                                                                                                                                                                   |
 | Discord bot         | `DISCORD_BOT_TOKEN` (gates the whole bot — unset = no-op exit), `OC_DISCORD_GUILD_IDS`, `OC_DISCORD_CHANNEL_ALLOWLIST`, `OC_DISCORD_CONVERSATION_TITLE`, `OC_DISCORD_HISTORY_LIMIT` (discord service only — `OC_DISCORD_SESSION_STORE_PATH` is hardcoded to `/data/discord_sessions.json`) |
 | Git onboarding      | `OC_GIT_TOKEN`                                                                                                                                                                                                                                                                             |
+| Host bind-mounts    | `HOST_CONFIG_DIR`, `HOST_OUTPUT_DIR`, `HOST_ASSETS_DIR`, `HOST_PLUGINS_DIR` — host paths bind-mounted into the container at `/config`, `/output`, `/assets`, `/user-plugins` respectively. Empty/unset = named-volume fallback. DB stays in `oc-data` named volume regardless (not relocatable). |
 
 Vars on this page **not** in the table above are either OC-internal (paths,
 limits with sane defaults) or specific to interfaces not currently deployed

@@ -263,3 +263,116 @@ def register(registry, handler_registry, context):
         assert loader.handler_registry.get("alpha.handler") is not None
         assert loader.handler_registry.get("beta.handler") is not None
         assert len(loader.handler_registry.list_task_types()) >= 2
+
+
+class TestUserPluginsDir:
+    """OC_USER_PLUGINS_DIR adds a second scan root for operator-supplied plugins."""
+
+    def test_user_plugins_dir_loads_additional_plugin(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When OC_USER_PLUGINS_DIR is set + dir has a plugin, it loads alongside built-ins."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Built-in plugins root (image-baked equivalent)
+            builtin_dir = Path(tmpdir) / "builtin"
+            builtin_dir.mkdir()
+            builtin_plugin = builtin_dir / "alpha"
+            builtin_plugin.mkdir()
+            (builtin_plugin / "__init__.py").write_text("")
+            (builtin_plugin / "plugin.py").write_text(
+                """
+async def handler_alpha(task, context):
+    return {"src": "builtin"}
+
+def register(registry, handler_registry, context):
+    handler_registry.register("alpha.handler", handler_alpha)
+"""
+            )
+
+            # User plugins root (operator-bind-mount equivalent)
+            user_dir = Path(tmpdir) / "user"
+            user_dir.mkdir()
+            user_plugin = user_dir / "beta"
+            user_plugin.mkdir()
+            (user_plugin / "__init__.py").write_text("")
+            (user_plugin / "plugin.py").write_text(
+                """
+async def handler_beta(task, context):
+    return {"src": "user"}
+
+def register(registry, handler_registry, context):
+    handler_registry.register("beta.handler", handler_beta)
+"""
+            )
+
+            monkeypatch.setenv("OC_USER_PLUGINS_DIR", str(user_dir))
+            loader = PluginLoader(plugins_dir=str(builtin_dir))
+            loader.load_plugins()
+
+            # Both plugins loaded — built-in first, user-supplied second
+            assert loader.handler_registry.get("alpha.handler") is not None
+            assert loader.handler_registry.get("beta.handler") is not None
+
+    def test_user_plugins_dir_unset_only_builtin_loaded(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When OC_USER_PLUGINS_DIR is unset, only the built-in dir is scanned."""
+        monkeypatch.delenv("OC_USER_PLUGINS_DIR", raising=False)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            builtin_dir = Path(tmpdir) / "builtin"
+            builtin_dir.mkdir()
+            plugin = builtin_dir / "only_one"
+            plugin.mkdir()
+            (plugin / "__init__.py").write_text("")
+            (plugin / "plugin.py").write_text(
+                """
+def register(registry, handler_registry, context):
+    pass
+"""
+            )
+
+            loader = PluginLoader(plugins_dir=str(builtin_dir))
+            loader.load_plugins()
+            # Just the one built-in source registered
+            assert "only_one" in loader._plugin_sources
+            assert len(loader._plugin_sources) == 1
+
+    def test_user_plugins_dir_set_but_nonexistent_no_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Setting OC_USER_PLUGINS_DIR to a nonexistent path is silently skipped."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            builtin_dir = Path(tmpdir) / "builtin"
+            builtin_dir.mkdir()
+            # Built-in is empty; that's fine
+            monkeypatch.setenv("OC_USER_PLUGINS_DIR", str(Path(tmpdir) / "does-not-exist"))
+            loader = PluginLoader(plugins_dir=str(builtin_dir))
+            # Should not raise
+            loader.load_plugins()
+            assert loader._plugin_sources == {}
+
+    def test_user_plugins_dir_collision_with_builtin_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A user plugin with the same dir-name as a built-in raises PluginCollisionError."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            builtin_dir = Path(tmpdir) / "builtin"
+            builtin_dir.mkdir()
+            (builtin_dir / "duplicate").mkdir()
+            (builtin_dir / "duplicate" / "__init__.py").write_text("")
+            (builtin_dir / "duplicate" / "plugin.py").write_text(
+                """
+def register(registry, handler_registry, context):
+    pass
+"""
+            )
+
+            user_dir = Path(tmpdir) / "user"
+            user_dir.mkdir()
+            (user_dir / "duplicate").mkdir()
+            (user_dir / "duplicate" / "__init__.py").write_text("")
+            (user_dir / "duplicate" / "plugin.py").write_text(
+                """
+def register(registry, handler_registry, context):
+    pass
+"""
+            )
+
+            monkeypatch.setenv("OC_USER_PLUGINS_DIR", str(user_dir))
+            loader = PluginLoader(plugins_dir=str(builtin_dir))
+            with pytest.raises(PluginCollisionError) as exc_info:
+                loader.load_plugins()
+            assert exc_info.value.collision_type == "plugin_id"
+            assert exc_info.value.key == "duplicate"
