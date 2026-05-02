@@ -12,6 +12,7 @@ import pytest
 from openchronicle.core.application.services.git_onboard import (
     cluster_commits,
     extract_commits_from_git,
+    extract_commits_from_url,
     filter_commits,
     format_cluster_as_raw_memory,
     format_cluster_for_synthesis,
@@ -282,6 +283,62 @@ class TestExtractCommits:
         assert commits == []
 
 
+class TestExtractCommitsFromUrl:
+    """extract_commits_from_url clones into a tmpdir then delegates to the path-based extractor."""
+
+    def test_clone_success_delegates_to_path_extractor(self) -> None:
+        # Mock the clone subprocess + the inner extract_commits_from_git that
+        # would otherwise re-shell git in the tmpdir.
+        with (
+            patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run,
+            patch("openchronicle.core.application.services.git_onboard.extract_commits_from_git") as mock_extract,
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            mock_extract.return_value = [_commit("feat: x")]
+
+            commits = extract_commits_from_url("https://example.com/repo.git", max_commits=42)
+
+        assert len(commits) == 1
+        # Inner extractor got the tmpdir path and the same max/since args
+        call_args = mock_extract.call_args
+        assert call_args.kwargs.get("max_commits") == 42 or call_args.args[1] == 42
+        assert call_args.kwargs.get("since_commit") is None
+        # Clone command included --depth (since no since_commit)
+        clone_argv = mock_run.call_args[0][0]
+        assert "git" in clone_argv[0]
+        assert "clone" in clone_argv
+        assert "--depth" in clone_argv
+
+    def test_clone_with_since_commit_does_full_clone(self) -> None:
+        with (
+            patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run,
+            patch("openchronicle.core.application.services.git_onboard.extract_commits_from_git") as mock_extract,
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            mock_extract.return_value = []
+            extract_commits_from_url("https://example.com/repo.git", max_commits=100, since_commit="abc123")
+
+        clone_argv = mock_run.call_args[0][0]
+        # since_commit means the SHA must be reachable, so no --depth
+        assert "--depth" not in clone_argv
+
+    def test_clone_failure_raises_runtime_error(self) -> None:
+        with patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=128,
+                stdout="",
+                stderr="fatal: repository 'https://example.com/repo.git/' not found",
+            )
+            with pytest.raises(RuntimeError, match="git clone failed"):
+                extract_commits_from_url("https://example.com/repo.git")
+
+    def test_git_not_installed_raises_runtime_error(self) -> None:
+        with patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run:
+            mock_run.side_effect = FileNotFoundError(2, "No such file or directory: 'git'")
+            with pytest.raises(RuntimeError, match="git is not installed"):
+                extract_commits_from_url("https://example.com/repo.git")
+
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
@@ -427,13 +484,14 @@ class TestMCPOnboardGit:
         ctx = MagicMock()
         ctx.request_context.lifespan_context = {"container": container}
 
-        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_git") as mock_extract:
+        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_url") as mock_extract:
             mock_extract.return_value = [
                 _commit("feat: add auth", files=["src/auth.py"]),
                 _commit("feat: add login", hours_offset=1, files=["src/auth.py"]),
             ]
             result = registered["onboard_git"](
                 project_id="proj-1",
+                repo_url="https://example.com/test/repo.git",
                 ctx=ctx,
             )
 
@@ -464,6 +522,7 @@ class TestMCPOnboardGit:
 
         result = registered["onboard_git"](
             project_id="proj-1",
+            repo_url="https://example.com/test/repo.git",
             ctx=ctx,
         )
         assert "error" in result
@@ -548,13 +607,17 @@ class TestIncrementalOnboard:
         ctx = MagicMock()
         ctx.request_context.lifespan_context = {"container": container}
 
-        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_git") as mock_extract:
+        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_url") as mock_extract:
             mock_extract.return_value = [
                 _commit("feat: new stuff", files=["src/new.py"]),
             ]
-            result = registered["onboard_git"](project_id="proj-1", ctx=ctx)
+            result = registered["onboard_git"](
+                project_id="proj-1",
+                repo_url="https://example.com/test/repo.git",
+                ctx=ctx,
+            )
 
-        mock_extract.assert_called_once_with(".", 500, since_commit="abc123")
+        mock_extract.assert_called_once_with("https://example.com/test/repo.git", 500, since_commit="abc123")
         assert result["incremental"] is True
 
     def test_mcp_no_new_commits_returns_up_to_date(self) -> None:
@@ -578,9 +641,13 @@ class TestIncrementalOnboard:
         ctx = MagicMock()
         ctx.request_context.lifespan_context = {"container": container}
 
-        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_git") as mock_extract:
+        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_url") as mock_extract:
             mock_extract.return_value = []
-            result = registered["onboard_git"](project_id="proj-1", ctx=ctx)
+            result = registered["onboard_git"](
+                project_id="proj-1",
+                repo_url="https://example.com/test/repo.git",
+                ctx=ctx,
+            )
 
         assert result["status"] == "up_to_date"
         assert result["watermark"] == "abc123"
@@ -610,16 +677,21 @@ class TestIncrementalOnboard:
         ctx = MagicMock()
         ctx.request_context.lifespan_context = {"container": container}
 
-        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_git") as mock_extract:
+        with patch("openchronicle.interfaces.mcp.tools.onboard.extract_commits_from_url") as mock_extract:
             mock_extract.return_value = [
                 _commit("feat: fresh", files=["src/fresh.py"]),
             ]
-            result = registered["onboard_git"](project_id="proj-1", ctx=ctx, force=True)
+            result = registered["onboard_git"](
+                project_id="proj-1",
+                repo_url="https://example.com/test/repo.git",
+                ctx=ctx,
+                force=True,
+            )
 
         # Both memory and watermark should have been deleted
         delete_calls = [c[0][0] for c in container.storage.delete_memory.call_args_list]
         assert "mem-1" in delete_calls
         assert "wm-1" in delete_calls
         # Fresh run (no watermark after force)
-        mock_extract.assert_called_once_with(".", 500, since_commit=None)
+        mock_extract.assert_called_once_with("https://example.com/test/repo.git", 500, since_commit=None)
         assert result["incremental"] is False

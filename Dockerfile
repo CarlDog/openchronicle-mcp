@@ -9,6 +9,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     OC_OUTPUT_DIR=/app/output \
     OC_ASSETS_DIR=/app/assets
 
+# git is required by onboard_git (clones repos shallow into a tmpdir to walk
+# their history). Without it, the tool fails with "git is not installed or
+# not in PATH" — which is what triggered this fix.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy project

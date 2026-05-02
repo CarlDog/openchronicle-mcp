@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import tempfile
 from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -347,6 +348,59 @@ def extract_commits_from_git(
         )
 
     return commits
+
+
+def extract_commits_from_url(
+    repo_url: str,
+    max_commits: int = 500,
+    since_commit: str | None = None,
+) -> list[GitCommit]:
+    """Extract commits by cloning a remote repo into a tmpdir.
+
+    Used by the MCP server (and any other server-side caller) which doesn't
+    have local repo paths available. Clones shallow when there's no watermark
+    (depth=max_commits) and full when ``since_commit`` is set (shallow clones
+    can't resolve arbitrary historical revisions).
+
+    Args:
+        repo_url: A git-cloneable URL (HTTPS or SSH). Public repos work
+            without auth; private repos require credentials configured at
+            the OS / git-config level.
+        max_commits: Cap on commits to extract.
+        since_commit: Optional commit hash; only commits after it are
+            returned. Forces a full clone since the hash must be reachable.
+
+    The clone tmpdir is deleted before this function returns.
+    """
+    # Pick clone depth: shallow is fine when we just want the most recent
+    # max_commits. With a watermark, the arbitrary `since_commit` SHA must be
+    # reachable, so do a full clone (--depth changes git's view of history).
+    clone_cmd: list[str] = ["git", "clone", "--quiet"]
+    if since_commit is None:
+        # +1 to ensure we don't truncate exactly at max_commits and miss a parent
+        clone_cmd.extend(["--depth", str(max_commits + 1)])
+    clone_cmd.append(repo_url)
+
+    with tempfile.TemporaryDirectory(prefix="oc-git-onboard-") as tmpdir:
+        clone_cmd.append(tmpdir)
+        try:
+            result = subprocess.run(
+                clone_cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+        except FileNotFoundError as err:
+            raise RuntimeError("git is not installed or not in PATH") from err
+        except subprocess.TimeoutExpired as err:
+            raise RuntimeError("git clone timed out after 300 seconds") from err
+
+        if result.returncode != 0:
+            stderr = result.stderr.strip()
+            raise RuntimeError(f"git clone failed for {repo_url}: {stderr}")
+
+        # Reuse the existing path-based extractor against the freshly cloned tree.
+        return extract_commits_from_git(tmpdir, max_commits=max_commits, since_commit=since_commit)
 
 
 # --- Orchestration ---

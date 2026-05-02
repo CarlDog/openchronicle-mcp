@@ -8,7 +8,7 @@ from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.services.git_onboard import (
     cluster_commits,
-    extract_commits_from_git,
+    extract_commits_from_url,
     filter_commits,
     format_cluster_for_synthesis,
     save_watermark,
@@ -31,8 +31,8 @@ def register(mcp: FastMCP) -> None:
     @track_tool
     def onboard_git(
         project_id: str,
+        repo_url: str,
         ctx: Context,
-        repo_path: str = ".",
         max_commits: int = 500,
         max_clusters: int = 15,
         force: bool = False,
@@ -44,9 +44,17 @@ def register(mcp: FastMCP) -> None:
         architectural shifts) and save it using memory_save with
         tags=["git-derived"] and the cluster's created_at timestamp.
 
+        The OC server clones ``repo_url`` shallow into a tmpdir, walks the
+        history, and discards the clone. This works in containerized
+        deployments where the server has no access to the caller's local
+        filesystem (e.g. the NAS-hosted OC). For local-only or unpushed
+        history, use the ``oc onboard git`` CLI instead.
+
         Args:
             project_id: Project to associate memories with.
-            repo_path: Path to git repository (default: current directory).
+            repo_url: Git-cloneable URL (HTTPS or SSH). Public repos work
+                without auth; private repos require credentials configured
+                on the OC server.
             max_commits: Maximum commits to analyze (default: 500).
             max_clusters: Maximum clusters/memories to produce (default: 15).
             force: Delete existing git-onboard memories before re-running.
@@ -77,8 +85,10 @@ def register(mcp: FastMCP) -> None:
                 "existing_count": len(existing),
             }
 
-        # Extract commits — incremental if watermark exists
-        commits = extract_commits_from_git(repo_path, max_commits, since_commit=watermark_hash)
+        # Extract commits — incremental if watermark exists. Clones the
+        # remote repo into a tmpdir inside the server's container/filesystem,
+        # walks its history, then discards the clone.
+        commits = extract_commits_from_url(repo_url, max_commits, since_commit=watermark_hash)
         if not commits:
             if watermark_hash:
                 return {"status": "up_to_date", "watermark": watermark_hash}
