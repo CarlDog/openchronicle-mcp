@@ -108,4 +108,13 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
     app.include_router(hooks.router, prefix="/api/v1", tags=["hooks"])
     app.include_router(media.router, prefix="/api/v1", tags=["media"])
 
+    # Top-level liveness probe at /health for Synology Container Manager,
+    # Docker HEALTHCHECK, k8s liveness, etc. that hit the conventional path
+    # (no /api/v1 prefix). Returns immediately without DB/diagnostic work,
+    # which would otherwise run on every prober tick. /api/v1/health remains
+    # the full readiness/diagnostics endpoint.
+    @app.get("/health", include_in_schema=False)
+    def liveness() -> dict[str, str]:
+        return {"status": "ok"}
+
     return app

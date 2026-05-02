@@ -322,6 +322,22 @@ class TestSystemRoutes:
         data = resp.json()
         assert "db_exists" in data
 
+    def test_liveness_probe_returns_minimal_ok(self, client: TestClient) -> None:
+        """Top-level /health is the liveness probe Synology/Docker/k8s hit.
+
+        Returns immediately with no DB or diagnostic work — the full readiness
+        endpoint stays at /api/v1/health. Regression guard for the noisy 404
+        spam observed on the NAS deployment when external probers hit /health
+        every ~5s.
+        """
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "ok"}
+
+    def test_liveness_probe_is_public_even_with_auth(self, authed_client: TestClient) -> None:
+        resp = authed_client.get("/health")
+        assert resp.status_code == 200
+
     def test_tool_stats(self, client: TestClient) -> None:
         resp = client.get("/api/v1/stats/tools")
         assert resp.status_code == 200

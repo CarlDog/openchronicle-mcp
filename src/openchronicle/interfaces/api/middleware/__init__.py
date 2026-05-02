@@ -12,7 +12,9 @@ from openchronicle.interfaces.api.middleware.rate_limit import RateLimitMiddlewa
 
 # Paths that are always exempt from authentication.
 # Kept in sync with the route prefix in app.py.
-_AUTH_EXEMPT_PATHS = ("/api/v1/health",)
+# /health is the top-level liveness probe (Synology/Docker/k8s convention);
+# /api/v1/health is the full diagnostics endpoint.
+_AUTH_EXEMPT_PATHS = ("/health", "/api/v1/health")
 
 
 def register_middleware(app: FastAPI, config: HTTPConfig) -> None:
