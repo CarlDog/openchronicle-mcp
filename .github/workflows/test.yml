@@ -31,7 +31,9 @@ jobs:
         # Integration tests require provider keys (OPENAI_API_KEY etc.) and
         # are skipped by the `not integration` marker. CI validates unit +
         # functional coverage; integration runs locally.
-        run: pytest -m "not integration"
+        # -v gives per-test names (no buffered dots) so a hang/SIGINT
+        # diagnostic surfaces the exact test that died.
+        run: pytest -m "not integration" -v
 
   quality:
     name: lint + format + types
