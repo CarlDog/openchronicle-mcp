@@ -253,6 +253,32 @@ When running in Docker, these paths are typically overridden:
 
 See `docker-compose.yml` and `.env.example` for reference.
 
+## NAS Deployment — Portainer-Tunable Vars
+
+The NAS-hosted OC stack (`docker-compose.nas.yml`) plumbs a curated subset of
+the env vars on this page through to the running containers. Setting a var on
+the Portainer stack only affects the container if it's listed in the compose
+file's `x-oc-env` block.
+
+Currently exposed (set via Portainer UI → Stacks → openchronicle-mcp →
+Environment variables, then click "Update the stack"):
+
+| Group | Variables |
+| ----- | --------- |
+| Provider keys | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY` |
+| Provider URLs | `OLLAMA_HOST`, `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL` |
+| Per-provider models | `OPENAI_MODEL`, `ANTHROPIC_MODEL`, `GROQ_MODEL`, `GEMINI_MODEL`, `OLLAMA_MODEL` |
+| Routing | `OC_LLM_PROVIDER`, `OC_LLM_DEFAULT_MODE`, `OC_LLM_MODEL_FAST`, `OC_LLM_MODEL_QUALITY`, `OC_LLM_FAST_POOL`, `OC_LLM_QUALITY_POOL`, `OC_LLM_POOL_NSFW`, `OC_LLM_PROVIDER_WEIGHTS` |
+| MoE | `OC_MOE_ENABLED`, `OC_MOE_MIN_EXPERTS`, `OC_MOE_TEMPERATURE` |
+| Embedding | `OC_EMBEDDING_PROVIDER`, `OC_EMBEDDING_MODEL` |
+| HTTP API | `OC_API_KEY` (serve service only) |
+| Git onboarding | `OC_GIT_TOKEN` |
+
+Vars on this page **not** in the table above are either OC-internal (paths,
+limits with sane defaults) or specific to interfaces not currently deployed
+on the NAS (Discord, MCP-stdio, etc.). To expose more, add them to the
+`x-oc-env` block in `docker-compose.nas.yml` and redeploy.
+
 ## See Also
 
 - [File-Based Configuration](config_files.md) — per-concern JSON config files

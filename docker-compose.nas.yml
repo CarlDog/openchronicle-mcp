@@ -28,7 +28,7 @@
 #                           Set to enable hybrid FTS5+semantic search.
 #     OC_EMBEDDING_MODEL    Provider-specific embedding model name.
 #
-#   Optional:
+#   Optional — deployment shape:
 #     OC_TAG                Image tag (default: latest). Pin to a SHA
 #                           for reproducible deploys.
 #     HOST_HTTP_PORT        Host port for HTTP API (default: 18000 — chosen
@@ -44,6 +44,32 @@
 #                           repos (fine-grained, contents:read scope).
 #                           Without it, only public github.com repos work.
 #
+#   Optional — multi-provider / Mixture-of-Experts (MoE):
+#     XAI_API_KEY           xAI Grok Imagine media generation.
+#     OC_MOE_ENABLED            "1"/"true" to enable MoE consensus mode.
+#                               Requires multiple providers in pools below.
+#     OC_MOE_MIN_EXPERTS        Quorum size for consensus (default 2).
+#     OC_MOE_TEMPERATURE        Override sampling temp for MoE runs.
+#     OC_LLM_FAST_POOL          CSV provider:model — fast-mode fallback chain
+#                               e.g. "openai:gpt-4o-mini,ollama:mistral:instruct"
+#     OC_LLM_QUALITY_POOL       CSV provider:model — quality-mode fallback chain
+#                               e.g. "anthropic:claude-sonnet-4-20250514,openai:gpt-4o"
+#     OC_LLM_POOL_NSFW          CSV provider:model — NSFW-routed pool.
+#     OC_LLM_PROVIDER_WEIGHTS   Provider preference scores
+#                               (default "ollama:100,openai:20")
+#     OC_LLM_DEFAULT_MODE       "fast" (default) | "quality"
+#     OC_LLM_MODEL_FAST         Model name when in fast mode (default gpt-4o-mini)
+#     OC_LLM_MODEL_QUALITY      Model name when in quality mode (default gpt-4o)
+#
+#   Optional — per-provider model + endpoint overrides:
+#     OPENAI_MODEL          e.g. "gpt-4o" or "gpt-4o-mini" (default).
+#     ANTHROPIC_MODEL       e.g. "claude-sonnet-4-20250514" (default).
+#     GROQ_MODEL            e.g. "llama-3.3-70b-versatile" (default).
+#     GEMINI_MODEL          e.g. "gemini-2.0-flash" (default).
+#     OLLAMA_MODEL          e.g. "llama3.1" (default).
+#     OPENAI_BASE_URL       Custom OpenAI endpoint (Azure OpenAI, proxies, etc.)
+#     ANTHROPIC_BASE_URL    Custom Anthropic endpoint.
+#
 # Image: ghcr.io/carldog/openchronicle-mcp (multi-arch, published by
 # GitHub Actions on every push to main).
 
@@ -58,15 +84,40 @@ x-oc-env: &oc-env
   OC_ASSETS_DIR: /assets
   # Portainer stack env (required):
   OC_LLM_PROVIDER: ${OC_LLM_PROVIDER}
-  # Portainer stack env (provider keys — set whichever matches OC_LLM_PROVIDER):
+  # Portainer stack env (provider keys — set whichever match the providers
+  # you actually use; multi-provider setups need all the keys you'll route to):
   OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   GROQ_API_KEY: ${GROQ_API_KEY:-}
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-  # Portainer stack env (optional):
+  XAI_API_KEY: ${XAI_API_KEY:-}
+  # Portainer stack env (embedding):
   OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
   OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
+  # Portainer stack env (provider connection overrides):
   OLLAMA_HOST: ${OLLAMA_HOST:-}
+  OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+  ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
+  # Portainer stack env (per-provider model overrides — what model to use
+  # when that provider is selected; defaults defined in each adapter):
+  OPENAI_MODEL: ${OPENAI_MODEL:-}
+  ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
+  GROQ_MODEL: ${GROQ_MODEL:-}
+  GEMINI_MODEL: ${GEMINI_MODEL:-}
+  OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+  # Portainer stack env (routing — mode + model defaults + multi-provider pools):
+  OC_LLM_DEFAULT_MODE: ${OC_LLM_DEFAULT_MODE:-}
+  OC_LLM_MODEL_FAST: ${OC_LLM_MODEL_FAST:-}
+  OC_LLM_MODEL_QUALITY: ${OC_LLM_MODEL_QUALITY:-}
+  OC_LLM_FAST_POOL: ${OC_LLM_FAST_POOL:-}
+  OC_LLM_QUALITY_POOL: ${OC_LLM_QUALITY_POOL:-}
+  OC_LLM_POOL_NSFW: ${OC_LLM_POOL_NSFW:-}
+  OC_LLM_PROVIDER_WEIGHTS: ${OC_LLM_PROVIDER_WEIGHTS:-}
+  # Portainer stack env (Mixture-of-Experts consensus mode):
+  OC_MOE_ENABLED: ${OC_MOE_ENABLED:-}
+  OC_MOE_MIN_EXPERTS: ${OC_MOE_MIN_EXPERTS:-}
+  OC_MOE_TEMPERATURE: ${OC_MOE_TEMPERATURE:-}
+  # Portainer stack env (git):
   OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
 
 x-oc-volumes: &oc-volumes
