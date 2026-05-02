@@ -6,6 +6,7 @@ and LLM synthesis are isolated and easily mockable.
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import tempfile
@@ -350,6 +351,33 @@ def extract_commits_from_git(
     return commits
 
 
+def _build_clone_env(repo_url: str) -> dict[str, str]:
+    """Build the subprocess env for ``git clone``, injecting auth when configured.
+
+    If ``OC_GIT_TOKEN`` is set in the process env AND ``repo_url`` is an
+    https://github.com/ URL, inject an ``Authorization: bearer <token>``
+    header for github.com requests via ``GIT_CONFIG_PARAMETERS``.
+
+    Why ``GIT_CONFIG_PARAMETERS`` instead of ``git -c http.extraheader=...``:
+    the env-var path keeps the secret entirely off argv, so it never appears
+    in process listings (``ps``) or in git's own error messages. Same effect
+    as ``-c`` from git's POV.
+
+    The header key is URL-scoped (``http.https://github.com/.extraheader``)
+    so the token is only sent on github.com requests, never to other hosts
+    that the clone might somehow follow. v1 supports github.com only;
+    GitLab/Bitbucket/etc. would need their own host-scoped tokens.
+    """
+    env = os.environ.copy()
+    token = os.environ.get("OC_GIT_TOKEN")
+    if token and repo_url.startswith("https://github.com/"):
+        # GIT_CONFIG_PARAMETERS format: space-separated single-quoted entries,
+        # each of the form 'key=value'. Inner single-quotes in the value would
+        # need shell escaping, but bearer tokens never contain them.
+        env["GIT_CONFIG_PARAMETERS"] = f"'http.https://github.com/.extraheader=AUTHORIZATION: bearer {token}'"
+    return env
+
+
 def extract_commits_from_url(
     repo_url: str,
     max_commits: int = 500,
@@ -362,10 +390,14 @@ def extract_commits_from_url(
     (depth=max_commits) and full when ``since_commit`` is set (shallow clones
     can't resolve arbitrary historical revisions).
 
+    Private repos: set ``OC_GIT_TOKEN`` on the OC server to a GitHub PAT
+    with ``contents:read`` scope. The token is injected as a bearer header
+    only on github.com requests (see ``_build_clone_env``). Currently
+    github.com only — other hosts would need their own scoping.
+
     Args:
         repo_url: A git-cloneable URL (HTTPS or SSH). Public repos work
-            without auth; private repos require credentials configured at
-            the OS / git-config level.
+            without auth; private github.com repos require ``OC_GIT_TOKEN``.
         max_commits: Cap on commits to extract.
         since_commit: Optional commit hash; only commits after it are
             returned. Forces a full clone since the hash must be reachable.
@@ -381,6 +413,8 @@ def extract_commits_from_url(
         clone_cmd.extend(["--depth", str(max_commits + 1)])
     clone_cmd.append(repo_url)
 
+    clone_env = _build_clone_env(repo_url)
+
     with tempfile.TemporaryDirectory(prefix="oc-git-onboard-") as tmpdir:
         clone_cmd.append(tmpdir)
         try:
@@ -389,6 +423,7 @@ def extract_commits_from_url(
                 capture_output=True,
                 text=True,
                 timeout=300,
+                env=clone_env,
             )
         except FileNotFoundError as err:
             raise RuntimeError("git is not installed or not in PATH") from err

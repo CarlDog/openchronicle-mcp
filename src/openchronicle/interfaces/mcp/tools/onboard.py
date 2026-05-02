@@ -50,11 +50,14 @@ def register(mcp: FastMCP) -> None:
         filesystem (e.g. the NAS-hosted OC). For local-only or unpushed
         history, use the ``oc onboard git`` CLI instead.
 
+        Private repos: set ``OC_GIT_TOKEN`` on the OC server to a GitHub
+        PAT with ``contents:read`` scope. github.com only in v1.
+
         Args:
             project_id: Project to associate memories with.
             repo_url: Git-cloneable URL (HTTPS or SSH). Public repos work
-                without auth; private repos require credentials configured
-                on the OC server.
+                without auth; private github.com repos require
+                ``OC_GIT_TOKEN`` set on the OC server.
             max_commits: Maximum commits to analyze (default: 500).
             max_clusters: Maximum clusters/memories to produce (default: 15).
             force: Delete existing git-onboard memories before re-running.

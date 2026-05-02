@@ -338,6 +338,55 @@ class TestExtractCommitsFromUrl:
             with pytest.raises(RuntimeError, match="git is not installed"):
                 extract_commits_from_url("https://example.com/repo.git")
 
+    def test_token_injects_auth_header_for_github(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """OC_GIT_TOKEN set + github.com URL → bearer header in subprocess env."""
+        monkeypatch.setenv("OC_GIT_TOKEN", "ghp_test_token_xyz")
+        with (
+            patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run,
+            patch("openchronicle.core.application.services.git_onboard.extract_commits_from_git") as mock_extract,
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            mock_extract.return_value = []
+            extract_commits_from_url("https://github.com/CarlDog/private-repo")
+
+        passed_env = mock_run.call_args.kwargs["env"]
+        assert "GIT_CONFIG_PARAMETERS" in passed_env
+        assert "ghp_test_token_xyz" in passed_env["GIT_CONFIG_PARAMETERS"]
+        assert "AUTHORIZATION: bearer" in passed_env["GIT_CONFIG_PARAMETERS"]
+        # URL-scoped to github.com, not a global header
+        assert "http.https://github.com/.extraheader" in passed_env["GIT_CONFIG_PARAMETERS"]
+        # Token must NOT appear in argv (the whole point of using env)
+        clone_argv = mock_run.call_args[0][0]
+        assert not any("ghp_test_token_xyz" in str(a) for a in clone_argv)
+
+    def test_no_token_no_auth_header(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No OC_GIT_TOKEN env → no GIT_CONFIG_PARAMETERS injection."""
+        monkeypatch.delenv("OC_GIT_TOKEN", raising=False)
+        with (
+            patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run,
+            patch("openchronicle.core.application.services.git_onboard.extract_commits_from_git") as mock_extract,
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            mock_extract.return_value = []
+            extract_commits_from_url("https://github.com/CarlDog/repo")
+
+        passed_env = mock_run.call_args.kwargs["env"]
+        assert "GIT_CONFIG_PARAMETERS" not in passed_env
+
+    def test_token_only_for_github_urls(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """OC_GIT_TOKEN set but non-github URL → no header (token isn't leaked elsewhere)."""
+        monkeypatch.setenv("OC_GIT_TOKEN", "ghp_test_token_xyz")
+        with (
+            patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run,
+            patch("openchronicle.core.application.services.git_onboard.extract_commits_from_git") as mock_extract,
+        ):
+            mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+            mock_extract.return_value = []
+            extract_commits_from_url("https://gitlab.com/foo/bar")
+
+        passed_env = mock_run.call_args.kwargs["env"]
+        assert "GIT_CONFIG_PARAMETERS" not in passed_env
+
 
 # ---------------------------------------------------------------------------
 # Orchestration

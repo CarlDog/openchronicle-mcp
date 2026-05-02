@@ -233,6 +233,12 @@ Special value `"stub"` uses the deterministic test adapter (no config file neede
 | -------- | ------- | ----------- |
 | `OC_PLUGIN_ALLOW_COLLISIONS` | `0` | Allow handler name collisions |
 
+## Git Onboarding (`onboard_git` MCP tool)
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `OC_GIT_TOKEN` | *(unset)* | GitHub PAT used by `onboard_git` to clone private repos. Fine-grained PAT with `contents:read` scope is sufficient. Injected as a bearer header via `GIT_CONFIG_PARAMETERS` (kept off argv). Scoped to `https://github.com/` requests only — won't be sent to other hosts. github.com only in v1; other hosts (GitLab, Bitbucket, etc.) would need their own host-scoped token vars. Without it, only public github.com repos work. |
+
 ## Docker Overrides
 
 When running in Docker, these paths are typically overridden:
