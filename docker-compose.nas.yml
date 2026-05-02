@@ -20,12 +20,15 @@
 #   Required:
 #     OC_LLM_PROVIDER       openai | anthropic | groq | gemini | ollama | stub
 #     One matching API key — OPENAI_API_KEY / ANTHROPIC_API_KEY /
-#                             GROQ_API_KEY / GEMINI_API_KEY (depending on
-#                             OC_LLM_PROVIDER above)
+#                             GROQ_API_KEY / GEMINI_API_KEY / GOOGLE_API_KEY
+#                             (depending on OC_LLM_PROVIDER above)
 #
 #   Recommended:
 #     OC_API_KEY            Bearer token for HTTP API auth. Without it,
 #                           anything on the NAS network can hit :8000.
+#     OC_API_CORS_ORIGINS   Comma-separated browser origins allowed for
+#                           cross-origin API calls (for Open WebUI, etc.).
+#     OC_EMBEDDING_API_KEY  Explicit embedding API key override.
 #     OC_EMBEDDING_PROVIDER none (default) | openai | ollama
 #                           Set to enable hybrid FTS5+semantic search.
 #     OC_EMBEDDING_MODEL    Provider-specific embedding model name.
@@ -89,43 +92,44 @@
 # Shared env block — referenced by both `serve` and `mcp` via YAML
 # anchors. Container-internal paths stay literal; Portainer-sourced
 # values use ${VAR} (or ${VAR:-default}) substitution at deploy time.
-x-oc-env: &oc-env
-  # Container-internal paths (hardcoded, deployment shape):
-  OC_DB_PATH: /data/openchronicle.db
-  OC_CONFIG_DIR: /config
-  OC_OUTPUT_DIR: /output
+x-oc-env: &oc-env # Container-internal paths (hardcoded, deployment shape):
   OC_ASSETS_DIR: /assets
+  OC_CONFIG_DIR: /config
+  OC_DB_PATH: /data/openchronicle.db
+  OC_OUTPUT_DIR: /output
   # Portainer stack env (required):
   OC_LLM_PROVIDER: ${OC_LLM_PROVIDER}
   # Portainer stack env (provider keys — set whichever match the providers
   # you actually use; multi-provider setups need all the keys you'll route to):
-  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-  GROQ_API_KEY: ${GROQ_API_KEY:-}
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+  GROQ_API_KEY: ${GROQ_API_KEY:-}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   XAI_API_KEY: ${XAI_API_KEY:-}
   # Portainer stack env (embedding):
-  OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
+  OC_EMBEDDING_API_KEY: ${OC_EMBEDDING_API_KEY:-}
   OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
+  OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
   # Portainer stack env (provider connection overrides):
+  ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
   OLLAMA_HOST: ${OLLAMA_HOST:-}
   OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-  ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
   # Portainer stack env (per-provider model overrides — what model to use
   # when that provider is selected; defaults defined in each adapter):
-  OPENAI_MODEL: ${OPENAI_MODEL:-}
   ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
-  GROQ_MODEL: ${GROQ_MODEL:-}
   GEMINI_MODEL: ${GEMINI_MODEL:-}
+  GROQ_MODEL: ${GROQ_MODEL:-}
   OLLAMA_MODEL: ${OLLAMA_MODEL:-}
+  OPENAI_MODEL: ${OPENAI_MODEL:-}
   # Portainer stack env (routing — mode + model defaults + multi-provider pools):
   OC_LLM_DEFAULT_MODE: ${OC_LLM_DEFAULT_MODE:-}
+  OC_LLM_FAST_POOL: ${OC_LLM_FAST_POOL:-}
   OC_LLM_MODEL_FAST: ${OC_LLM_MODEL_FAST:-}
   OC_LLM_MODEL_QUALITY: ${OC_LLM_MODEL_QUALITY:-}
-  OC_LLM_FAST_POOL: ${OC_LLM_FAST_POOL:-}
-  OC_LLM_QUALITY_POOL: ${OC_LLM_QUALITY_POOL:-}
   OC_LLM_POOL_NSFW: ${OC_LLM_POOL_NSFW:-}
   OC_LLM_PROVIDER_WEIGHTS: ${OC_LLM_PROVIDER_WEIGHTS:-}
+  OC_LLM_QUALITY_POOL: ${OC_LLM_QUALITY_POOL:-}
   # Portainer stack env (Mixture-of-Experts consensus mode):
   OC_MOE_ENABLED: ${OC_MOE_ENABLED:-}
   OC_MOE_MIN_EXPERTS: ${OC_MOE_MIN_EXPERTS:-}
@@ -153,10 +157,15 @@ services:
       # serve-only:
       OC_API_HOST: 0.0.0.0
       OC_API_KEY: ${OC_API_KEY:-}
+      OC_API_CORS_ORIGINS: ${OC_API_CORS_ORIGINS:-}
     extra_hosts: *oc-extra-hosts
     volumes: *oc-volumes
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health',timeout=3).status==200 else 1)\""]
+      test:
+        [
+          "CMD-SHELL",
+          'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(''http://127.0.0.1:8000/api/v1/health'',timeout=3).status==200 else 1)"',
+        ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -164,7 +173,18 @@ services:
 
   mcp:
     image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
-    entrypoint: ["oc", "mcp", "serve", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8080"]
+    entrypoint:
+      [
+        "oc",
+        "mcp",
+        "serve",
+        "--transport",
+        "streamable-http",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8080",
+      ]
     restart: unless-stopped
     ports:
       - "${HOST_MCP_PORT:-18001}:8080"
@@ -202,9 +222,9 @@ services:
       # hardcoded to live on the oc-data volume (default would resolve
       # relative to cwd which is wrong inside the container).
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
-      OC_DISCORD_GUILD_IDS: ${OC_DISCORD_GUILD_IDS:-}
       OC_DISCORD_CHANNEL_ALLOWLIST: ${OC_DISCORD_CHANNEL_ALLOWLIST:-}
       OC_DISCORD_CONVERSATION_TITLE: ${OC_DISCORD_CONVERSATION_TITLE:-}
+      OC_DISCORD_GUILD_IDS: ${OC_DISCORD_GUILD_IDS:-}
       OC_DISCORD_HISTORY_LIMIT: ${OC_DISCORD_HISTORY_LIMIT:-}
       OC_DISCORD_SESSION_STORE_PATH: /data/discord_sessions.json
     extra_hosts: *oc-extra-hosts
