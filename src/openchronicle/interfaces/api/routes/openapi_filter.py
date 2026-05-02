@@ -8,13 +8,7 @@ only need memory CRUD + project scoping.
 
 Mount as an OpenAPI tool server in Open WebUI:
 
-    http://<oc-host>:18000/memory-tools/openapi.json
-
-The ``/openapi.json`` suffix is required because Open WebUI does
-path-based spec discovery and only accepts URLs ending in that name. The
-``servers`` field is explicitly populated with the request's base URL so
-tool paths (e.g. ``/api/v1/memory``) resolve to OC's host root regardless
-of how Open WebUI computes the API base from the spec URL location.
+    http://<oc-host>:18000/api/v1/openapi-memory.json
 
 For the full surface (operators, MCP clients, etc.), use ``/openapi.json``.
 
@@ -50,7 +44,7 @@ _MEMORY_TOOL_PATHS: dict[str, set[str]] = {
 
 
 @router.get(
-    "/openapi.json",
+    "/openapi-memory.json",
     summary="Curated OpenAPI spec — memory tools only",
     description=(
         "Returns OpenChronicle's OpenAPI spec filtered down to memory + "
@@ -72,22 +66,12 @@ def openapi_memory(request: Request) -> dict[str, Any]:
         if kept:
             filtered_paths[path] = kept
 
-    # Explicit servers entry: tool paths in the spec are absolute (e.g.
-    # /api/v1/memory). Some OpenAPI clients (Open WebUI) compute their
-    # base URL by stripping /openapi.json from the spec URL — which would
-    # give them /memory-tools as the base, then prepend it to /api/v1/...
-    # producing the wrong URL. The servers field overrides that — clients
-    # spec-compliant enough to read it will hit OC's host root for all
-    # tool calls.
-    base_url = str(request.base_url).rstrip("/")
-
     # Preserve components (schemas, securitySchemes, etc.) so $ref's in the
     # kept paths resolve. Marginal bandwidth cost vs walking the refs to
     # narrow the schemas — cleanest path forward.
     return {
         **full,
         "paths": filtered_paths,
-        "servers": [{"url": base_url, "description": "OpenChronicle API root"}],
         "info": {
             **full.get("info", {}),
             "title": "OpenChronicle — Memory Tools (curated)",
