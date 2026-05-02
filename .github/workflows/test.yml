@@ -1,0 +1,59 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,discord,mcp]"
+
+      - name: Test (no integration)
+        # Integration tests require provider keys (OPENAI_API_KEY etc.) and
+        # are skipped by the `not integration` marker. CI validates unit +
+        # functional coverage; integration runs locally.
+        run: pytest -m "not integration"
+
+  quality:
+    name: lint + format + types
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev,discord,mcp]"
+
+      - name: Ruff lint
+        run: ruff check src tests plugins
+
+      - name: Ruff format check
+        run: ruff format --check src tests plugins
+
+      - name: Mypy
+        run: mypy src tests plugins --config-file=pyproject.toml
