@@ -1,13 +1,15 @@
 # OpenChronicle MCP — NAS deployment (Portainer stack)
 #
-# Two long-lived services:
-#   serve  — HTTP API on :8000 (REST + auto-starts when container starts)
-#   mcp    — MCP server on :8080 via streamable-http transport (reachable
-#            from MCP clients over the network — Claude Code, Goose, etc.)
+# Three services:
+#   serve    — HTTP API on :8000 (REST + auto-starts when container starts)
+#   mcp      — MCP server on :8080 via streamable-http transport (reachable
+#              from MCP clients over the network — Claude Code, Goose, etc.)
+#   discord  — Discord bot (no-op exits when DISCORD_BOT_TOKEN unset; runs
+#              the bot when token is present). Uses on-failure restart so
+#              clean exits don't loop.
 #
-# Skipped intentionally: `discord` (not currently used), `openchronicle`
-# adhoc-CLI runner (use `docker exec` into one of the running services
-# instead).
+# Skipped intentionally: `openchronicle` adhoc-CLI runner (use `docker exec`
+# into one of the running services instead).
 #
 # === Stack-level environment variables ===
 # Every value below using ${VAR} syntax is sourced from Portainer's
@@ -69,6 +71,17 @@
 #     OLLAMA_MODEL          e.g. "llama3.1" (default).
 #     OPENAI_BASE_URL       Custom OpenAI endpoint (Azure OpenAI, proxies, etc.)
 #     ANTHROPIC_BASE_URL    Custom Anthropic endpoint.
+#
+#   Optional — Discord bot (the discord service no-ops with exit 0
+#                            when DISCORD_BOT_TOKEN is unset, so the
+#                            entire feature is gated by the token alone):
+#     DISCORD_BOT_TOKEN          Bot token from Discord Developer Portal.
+#                                Set this to enable the bot. Container
+#                                exits 0 cleanly when unset.
+#     OC_DISCORD_GUILD_IDS       CSV guild IDs for slash command sync.
+#     OC_DISCORD_CHANNEL_ALLOWLIST CSV channel IDs (empty = all channels).
+#     OC_DISCORD_CONVERSATION_TITLE Default title for new conversations.
+#     OC_DISCORD_HISTORY_LIMIT   Default turn count for /history (default 5).
 #
 # Image: ghcr.io/carldog/openchronicle-mcp (multi-arch, published by
 # GitHub Actions on every push to main).
@@ -161,6 +174,41 @@ services:
     depends_on:
       serve:
         condition: service_healthy
+
+  # Discord bot. Token-gated: if DISCORD_BOT_TOKEN is unset, the
+  # entrypoint wrapper exits 0 immediately (clean no-op). With
+  # `restart: on-failure`, a clean exit doesn't loop — the container
+  # stays in "Exited (0)" state until the operator sets the token and
+  # redeploys. This keeps the discord capability "available" without
+  # requiring a separate compose-profiles toggle.
+  #
+  # Note on $$DISCORD_BOT_TOKEN: the doubled $$ escapes Compose
+  # interpolation so the literal $DISCORD_BOT_TOKEN reaches the shell.
+  discord:
+    image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ -z "$$DISCORD_BOT_TOKEN" ]; then
+          echo "discord: DISCORD_BOT_TOKEN unset, exiting 0 (no-op)"
+          exit 0
+        fi
+        exec oc discord start
+    restart: on-failure
+    environment:
+      <<: *oc-env
+      # Discord-specific. Container-internal session-store path is
+      # hardcoded to live on the oc-data volume (default would resolve
+      # relative to cwd which is wrong inside the container).
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      OC_DISCORD_GUILD_IDS: ${OC_DISCORD_GUILD_IDS:-}
+      OC_DISCORD_CHANNEL_ALLOWLIST: ${OC_DISCORD_CHANNEL_ALLOWLIST:-}
+      OC_DISCORD_CONVERSATION_TITLE: ${OC_DISCORD_CONVERSATION_TITLE:-}
+      OC_DISCORD_HISTORY_LIMIT: ${OC_DISCORD_HISTORY_LIMIT:-}
+      OC_DISCORD_SESSION_STORE_PATH: /data/discord_sessions.json
+    extra_hosts: *oc-extra-hosts
+    volumes: *oc-volumes
 
 volumes:
   oc-data:

@@ -272,12 +272,14 @@ Environment variables, then click "Update the stack"):
 | MoE | `OC_MOE_ENABLED`, `OC_MOE_MIN_EXPERTS`, `OC_MOE_TEMPERATURE` |
 | Embedding | `OC_EMBEDDING_PROVIDER`, `OC_EMBEDDING_MODEL` |
 | HTTP API | `OC_API_KEY` (serve service only) |
+| Discord bot | `DISCORD_BOT_TOKEN` (gates the whole bot — unset = no-op exit), `OC_DISCORD_GUILD_IDS`, `OC_DISCORD_CHANNEL_ALLOWLIST`, `OC_DISCORD_CONVERSATION_TITLE`, `OC_DISCORD_HISTORY_LIMIT` (discord service only — `OC_DISCORD_SESSION_STORE_PATH` is hardcoded to `/data/discord_sessions.json`) |
 | Git onboarding | `OC_GIT_TOKEN` |
 
 Vars on this page **not** in the table above are either OC-internal (paths,
 limits with sane defaults) or specific to interfaces not currently deployed
-on the NAS (Discord, MCP-stdio, etc.). To expose more, add them to the
-`x-oc-env` block in `docker-compose.nas.yml` and redeploy.
+on the NAS (MCP-stdio, etc.). To expose more, add them to the `x-oc-env`
+block (or a service-specific block like discord's) in `docker-compose.nas.yml`
+and redeploy.
 
 ## See Also
 
