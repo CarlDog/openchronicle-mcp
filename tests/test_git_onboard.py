@@ -339,7 +339,9 @@ class TestExtractCommitsFromUrl:
                 extract_commits_from_url("https://example.com/repo.git")
 
     def test_token_injects_auth_header_for_github(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """OC_GIT_TOKEN set + github.com URL → bearer header in subprocess env."""
+        """OC_GIT_TOKEN set + github.com URL → Basic auth header in subprocess env."""
+        import base64
+
         monkeypatch.setenv("OC_GIT_TOKEN", "ghp_test_token_xyz")
         with (
             patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run,
@@ -351,13 +353,19 @@ class TestExtractCommitsFromUrl:
 
         passed_env = mock_run.call_args.kwargs["env"]
         assert "GIT_CONFIG_PARAMETERS" in passed_env
-        assert "ghp_test_token_xyz" in passed_env["GIT_CONFIG_PARAMETERS"]
-        assert "AUTHORIZATION: bearer" in passed_env["GIT_CONFIG_PARAMETERS"]
+        assert "AUTHORIZATION: Basic" in passed_env["GIT_CONFIG_PARAMETERS"]
         # URL-scoped to github.com, not a global header
         assert "http.https://github.com/.extraheader" in passed_env["GIT_CONFIG_PARAMETERS"]
+
+        # The base64-encoded credential should match x-access-token:<token>
+        expected_b64 = base64.b64encode(b"x-access-token:ghp_test_token_xyz").decode()
+        assert expected_b64 in passed_env["GIT_CONFIG_PARAMETERS"]
+        # Raw token must NOT appear anywhere — it's only inside the b64 blob
+        assert "ghp_test_token_xyz" not in passed_env["GIT_CONFIG_PARAMETERS"]
         # Token must NOT appear in argv (the whole point of using env)
         clone_argv = mock_run.call_args[0][0]
         assert not any("ghp_test_token_xyz" in str(a) for a in clone_argv)
+        assert not any(expected_b64 in str(a) for a in clone_argv)
 
     def test_no_token_no_auth_header(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """No OC_GIT_TOKEN env → no GIT_CONFIG_PARAMETERS injection."""

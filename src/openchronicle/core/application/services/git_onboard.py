@@ -6,6 +6,7 @@ and LLM synthesis are isolated and easily mockable.
 
 from __future__ import annotations
 
+import base64
 import os
 import re
 import subprocess
@@ -355,8 +356,14 @@ def _build_clone_env(repo_url: str) -> dict[str, str]:
     """Build the subprocess env for ``git clone``, injecting auth when configured.
 
     If ``OC_GIT_TOKEN`` is set in the process env AND ``repo_url`` is an
-    https://github.com/ URL, inject an ``Authorization: bearer <token>``
-    header for github.com requests via ``GIT_CONFIG_PARAMETERS``.
+    https://github.com/ URL, inject an ``Authorization: Basic <b64>`` header
+    for github.com requests via ``GIT_CONFIG_PARAMETERS``.
+
+    Why Basic and not Bearer: GitHub's git-over-HTTPS server accepts Basic
+    auth with the PAT as the password (username is a literal placeholder
+    ``x-access-token`` that GitHub ignores for PATs). Bearer works for the
+    REST API but is unreliable for git operations. This matches the
+    actions/checkout pattern.
 
     Why ``GIT_CONFIG_PARAMETERS`` instead of ``git -c http.extraheader=...``:
     the env-var path keeps the secret entirely off argv, so it never appears
@@ -371,10 +378,14 @@ def _build_clone_env(repo_url: str) -> dict[str, str]:
     env = os.environ.copy()
     token = os.environ.get("OC_GIT_TOKEN")
     if token and repo_url.startswith("https://github.com/"):
+        # GitHub ignores the username for PATs, but the Basic-auth wire
+        # format requires *something* before the colon. ``x-access-token``
+        # is the GitHub-documented placeholder.
+        basic_b64 = base64.b64encode(f"x-access-token:{token}".encode()).decode()
         # GIT_CONFIG_PARAMETERS format: space-separated single-quoted entries,
-        # each of the form 'key=value'. Inner single-quotes in the value would
-        # need shell escaping, but bearer tokens never contain them.
-        env["GIT_CONFIG_PARAMETERS"] = f"'http.https://github.com/.extraheader=AUTHORIZATION: bearer {token}'"
+        # each of the form 'key=value'. The base64 alphabet contains no
+        # single-quotes so no escaping needed.
+        env["GIT_CONFIG_PARAMETERS"] = f"'http.https://github.com/.extraheader=AUTHORIZATION: Basic {basic_b64}'"
     return env
 
 
