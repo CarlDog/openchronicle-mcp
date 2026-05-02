@@ -11,6 +11,22 @@
 - **`main` is v2.** The v1 codebase is archived on `archive/openchronicle.v1`.
   The `refactor/new-core-from-scratch` branch no longer exists — all development
   happens on `main`.
+- **Post-CI redeploy convention.** When a push to `main` changes anything that
+  ships in the runtime image (`src/`, `plugins/`, `pyproject.toml`, `Dockerfile`,
+  `docker-compose.nas.yml`) and both GitHub Actions workflows go green
+  (`Test` + `Build and Push Docker Image`), redeploy the NAS-hosted stack via
+  `portainer-mcp`. Doc-only / hook-only / workflow-only pushes don't need a
+  redeploy — the user will trigger one manually if needed.
+
+  Lookup the stack id dynamically (don't hardcode it):
+
+  ```text
+  portainer_list_stacks → filter for name == "openchronicle-mcp" → use that .Id
+  portainer_redeploy_git_stack(stack_id=<id>, confirm=true, pull_image=true)
+  ```
+
+  Verify with `mcp__openchronicle__health` — a recent `db_modified_utc` confirms
+  the new container is alive.
 
 ## Current Sprint
 
