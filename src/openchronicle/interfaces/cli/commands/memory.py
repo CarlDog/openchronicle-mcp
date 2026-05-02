@@ -232,9 +232,19 @@ def cmd_memory_embed(args: argparse.Namespace, container: CoreContainer) -> int:
         return 0
 
     force = getattr(args, "force", False)
-    count = service.generate_missing(force=force)
+    result = service.generate_missing(force=force)
+    payload = {
+        "generated": result.generated,
+        "failed": result.failed,
+        "elapsed_ms": result.elapsed_ms,
+        "force": force,
+    }
     if getattr(args, "json", False):
-        print(_json.dumps({"generated": count, "force": force}))
+        print(_json.dumps(payload))
     else:
-        print(f"Generated {count} embedding(s).")
+        print(f"Generated {result.generated} embedding(s); {result.failed} failed in {result.elapsed_ms}ms.")
+    # Non-zero exit when nothing succeeded (catches misconfigs in scripts/CI).
+    if result.failed > 0 and result.generated == 0:
+        return 1
+    return 0
     return 0

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -15,6 +16,21 @@ logger = logging.getLogger(__name__)
 
 # RRF constant — standard value from the original RRF paper
 _RRF_K = 60
+
+
+@dataclass(frozen=True)
+class BackfillResult:
+    """Outcome of a backfill run.
+
+    The per-item resilience in ``generate_missing`` keeps a single bad item
+    from blocking the rest, but it must NOT hide total failure from callers.
+    Carrying ``failed`` alongside ``generated`` lets the MCP/API/CLI surfaces
+    return an honest status to clients.
+    """
+
+    generated: int
+    failed: int
+    elapsed_ms: int
 
 
 class EmbeddingService:
@@ -53,12 +69,13 @@ class EmbeddingService:
             dimensions=self._port.dimensions(),
         )
 
-    def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> int:
+    def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> BackfillResult:
         """Backfill embeddings for memories that don't have one.
 
         If *force* is True, regenerate all embeddings (model change scenario).
-        Returns the count of embeddings successfully generated.  Individual
-        failures are logged and skipped so the backfill always completes.
+        Individual failures are logged and skipped so the backfill always
+        completes — but the failure count is returned so callers can surface
+        a partial/total-failure status instead of falsely reporting "ok".
         """
         import time
 
@@ -76,7 +93,7 @@ class EmbeddingService:
 
         if not candidates:
             logger.info("Embedding backfill: 0 candidates, nothing to do")
-            return 0
+            return BackfillResult(generated=0, failed=0, elapsed_ms=0)
 
         logger.info(
             "Embedding backfill started: %d candidates (model=%s, force=%s)",
@@ -102,14 +119,14 @@ class EmbeddingService:
                 failed += 1
                 logger.warning("Embedding generation failed for memory %s", item.id, exc_info=True)
 
-        elapsed_ms = (time.monotonic() - t0) * 1000
+        elapsed_ms = int((time.monotonic() - t0) * 1000)
         logger.info(
-            "Embedding backfill completed: %d generated, %d failed, %.0fms elapsed",
+            "Embedding backfill completed: %d generated, %d failed, %dms elapsed",
             count,
             failed,
             elapsed_ms,
         )
-        return count
+        return BackfillResult(generated=count, failed=failed, elapsed_ms=elapsed_ms)
 
     def embedding_status(self) -> dict[str, int]:
         """Return embedding coverage stats."""

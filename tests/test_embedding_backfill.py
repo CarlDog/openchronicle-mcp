@@ -38,8 +38,9 @@ def test_backfill_generates_for_missing() -> None:
     service, store = _make_service()
     _add_memory(store, "m1", "hello")
     _add_memory(store, "m2", "world")
-    count = service.generate_missing()
-    assert count == 2
+    result = service.generate_missing()
+    assert result.generated == 2
+    assert result.failed == 0
     assert store.count_embeddings() == 2
 
 
@@ -48,16 +49,18 @@ def test_backfill_skips_existing() -> None:
     _add_memory(store, "m1", "hello")
     _add_memory(store, "m2", "world")
     service.generate_for_memory("m1", "hello")
-    count = service.generate_missing()
-    assert count == 1  # only m2
+    result = service.generate_missing()
+    assert result.generated == 1  # only m2
+    assert result.failed == 0
 
 
 def test_force_regenerates_all() -> None:
     service, store = _make_service()
     _add_memory(store, "m1", "hello")
     service.generate_for_memory("m1", "hello")
-    count = service.generate_missing(force=True)
-    assert count == 1  # regenerated m1
+    result = service.generate_missing(force=True)
+    assert result.generated == 1  # regenerated m1
+    assert result.failed == 0
 
 
 def test_status_returns_coverage() -> None:

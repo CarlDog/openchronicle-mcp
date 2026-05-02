@@ -232,11 +232,19 @@ def memory_embed(
             "status": "not_configured",
             "message": "Set OC_EMBEDDING_PROVIDER to enable embeddings.",
         }
-    count = container.embedding_service.generate_missing(force=body.force)
+    result = container.embedding_service.generate_missing(force=body.force)
     status = container.embedding_service.embedding_status()
+    if result.failed == 0:
+        outcome = "ok"
+    elif result.generated == 0:
+        outcome = "failed"
+    else:
+        outcome = "partial"
     return {
-        "status": "ok",
-        "generated": count,
+        "status": outcome,
+        "generated": result.generated,
+        "failed": result.failed,
+        "elapsed_ms": result.elapsed_ms,
         "force": body.force,
         **status,
     }

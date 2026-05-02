@@ -141,8 +141,9 @@ def test_generate_missing_skips_failures_and_continues() -> None:
 
     service._port.embed = flaky_embed  # type: ignore[method-assign]
 
-    count = service.generate_missing()
-    assert count == 2  # 2 succeeded, 1 failed
+    result = service.generate_missing()
+    assert result.generated == 2  # 2 succeeded
+    assert result.failed == 1  # 1 failed
     # Verify the ones that succeeded are stored
     assert store.get_embedding("m0") is not None
     assert store.get_embedding("m1") is None  # this one failed
@@ -156,8 +157,9 @@ def test_generate_missing_returns_zero_when_all_embedded() -> None:
     store.add_memory(item)
     service.generate_for_memory("m1", "test content")
 
-    count = service.generate_missing()
-    assert count == 0
+    result = service.generate_missing()
+    assert result.generated == 0
+    assert result.failed == 0
 
 
 # ── Container embedding_status_dict ────────────────────────────────

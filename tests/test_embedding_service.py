@@ -83,8 +83,9 @@ def test_generate_missing_backfills_all() -> None:
     service, store, _ = _make_service()
     for i in range(5):
         _add_memory(store, f"m{i}", f"content {i}")
-    count = service.generate_missing()
-    assert count == 5
+    result = service.generate_missing()
+    assert result.generated == 5
+    assert result.failed == 0
     assert store.count_embeddings() == 5
 
 
@@ -93,8 +94,43 @@ def test_generate_missing_returns_count() -> None:
     _add_memory(store, "m1", "hello")
     service.generate_for_memory("m1", "hello")
     _add_memory(store, "m2", "world")
-    count = service.generate_missing()
-    assert count == 1  # only m2 was missing
+    result = service.generate_missing()
+    assert result.generated == 1  # only m2 was missing
+    assert result.failed == 0
+
+
+def test_generate_missing_counts_failures() -> None:
+    """Per-item exceptions must be counted, not silently swallowed.
+
+    Regression guard for 2026-05-02: a broken embedding adapter caused all
+    23 NAS-deployment items to fail, but memory_embed returned status=ok with
+    generated=0 because the failure count wasn't propagated to callers.
+    """
+    from openchronicle.core.application.services.embedding_service import EmbeddingService
+    from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+
+    class BrokenAdapter(EmbeddingPort):
+        def embed(self, text: str) -> list[float]:
+            raise RuntimeError("simulated provider failure")
+
+        def embed_batch(self, texts: list[str]) -> list[list[float]]:
+            raise RuntimeError("simulated provider failure")
+
+        def model_name(self) -> str:
+            return "broken"
+
+        def dimensions(self) -> int:
+            return 32
+
+    _, store, _ = _make_service()
+    _add_memory(store, "m1", "hello")
+    _add_memory(store, "m2", "world")
+    broken_service = EmbeddingService(port=BrokenAdapter(), store=store)
+
+    result = broken_service.generate_missing()
+    assert result.generated == 0
+    assert result.failed == 2
+    assert result.elapsed_ms >= 0
 
 
 # ── search_hybrid ───────────────────────────────────────────────────
