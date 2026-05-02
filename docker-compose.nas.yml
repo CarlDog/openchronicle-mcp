@@ -40,6 +40,9 @@
 #                           :18080 by qbittorrent on carldog-nas).
 #     OLLAMA_HOST           e.g. http://host.docker.internal:11434
 #                           if Ollama runs on the NAS host.
+#     OC_GIT_TOKEN          GitHub PAT for `onboard_git` to clone private
+#                           repos (fine-grained, contents:read scope).
+#                           Without it, only public github.com repos work.
 #
 # Image: ghcr.io/carldog/openchronicle-mcp (multi-arch, published by
 # GitHub Actions on every push to main).
@@ -64,6 +67,7 @@ x-oc-env: &oc-env
   OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
   OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
   OLLAMA_HOST: ${OLLAMA_HOST:-}
+  OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
 
 x-oc-volumes: &oc-volumes
   - oc-data:/data
