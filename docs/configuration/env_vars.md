@@ -283,6 +283,36 @@ on the NAS (MCP-stdio, etc.). To expose more, add them to the `x-oc-env`
 block (or a service-specific block like discord's) in `docker-compose.nas.yml`
 and redeploy.
 
+## LLM Tool-Server Integration (Open WebUI etc.)
+
+OC's full HTTP API exposes ~41 endpoints, which is too many for an LLM to
+choose between reliably (choice fatigue, wrong tool selection). For LLM
+clients that import OpenAPI as a tool server, OC offers a curated subset
+endpoint:
+
+| URL pattern                                     | Endpoints | Use for           |
+| ----------------------------------------------- | --------- | ----------------- |
+| `http://<host>:18000/openapi.json`              | ~41       | Operators, Swagger UI, advanced clients |
+| `http://<host>:18000/memory-tools/openapi.json` | ~10       | LLM tool servers (chat-with-memory)     |
+
+The curated subset includes only memory CRUD + project scoping (the working
+set for "remember this" / "what do I know about X"). The spec includes an
+explicit `servers` field pointing at OC's host root so tool calls resolve
+correctly regardless of how the consuming client computes the API base.
+
+**Open WebUI gotcha**: paste the **base URL** (without `/openapi.json`) into
+Open WebUI's tool server config — Open WebUI appends `/openapi.json` itself
+during discovery. So:
+
+```text
+✓ http://192.168.1.2:18000/memory-tools           ← what to enter in Open WebUI
+✗ http://192.168.1.2:18000/memory-tools/openapi.json  ← gets rejected
+```
+
+CORS must be configured for the browser origin Open WebUI runs at. Set
+`OC_API_CORS_ORIGINS` on the OC stack (e.g.
+`http://localhost:3000,http://127.0.0.1:3000` for default Open WebUI).
+
 ## See Also
 
 - [File-Based Configuration](config_files.md) — per-concern JSON config files
