@@ -32,7 +32,7 @@ class StubMediaAdapter(MediaGenerationPort):
         self._model = model
 
     def generate(self, request: MediaRequest) -> MediaResult:
-        t0 = time.monotonic()
+        t0 = time.perf_counter()
         digest = hashlib.sha256(request.prompt.encode()).digest()
 
         # Derive a deterministic seed from the prompt if none provided
@@ -42,7 +42,7 @@ class StubMediaAdapter(MediaGenerationPort):
 
         # Build a tiny PNG with prompt-derived colour
         data = self._build_png(digest)
-        elapsed_ms = (time.monotonic() - t0) * 1000
+        elapsed_ms = (time.perf_counter() - t0) * 1000
 
         return MediaResult(
             data=data,

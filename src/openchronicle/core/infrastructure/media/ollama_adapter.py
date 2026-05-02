@@ -74,7 +74,7 @@ class OllamaMediaAdapter(MediaGenerationPort):
             model,
             request.prompt,
         )
-        t0 = time.monotonic()
+        t0 = time.perf_counter()
 
         try:
             response = httpx.post(url, json=payload, timeout=self._timeout)
@@ -99,7 +99,7 @@ class OllamaMediaAdapter(MediaGenerationPort):
                 details={"provider": "ollama", "model": model},
             ) from exc
 
-        elapsed_ms = (time.monotonic() - t0) * 1000
+        elapsed_ms = (time.perf_counter() - t0) * 1000
 
         # Extract image data — Ollama returns base64 in "images" array
         # or possibly in "response" depending on model/version

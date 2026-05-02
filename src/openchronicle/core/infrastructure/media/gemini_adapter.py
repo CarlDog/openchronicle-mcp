@@ -154,7 +154,7 @@ class GeminiMediaAdapter(MediaGenerationPort):
 
         Returns the response JSON with ``_elapsed_ms`` injected.
         """
-        t0 = time.monotonic()
+        t0 = time.perf_counter()
         try:
             response = httpx.post(
                 url,
@@ -186,7 +186,7 @@ class GeminiMediaAdapter(MediaGenerationPort):
                 details={"provider": "gemini", "model": model},
             ) from exc
 
-        data["_elapsed_ms"] = (time.monotonic() - t0) * 1000
+        data["_elapsed_ms"] = (time.perf_counter() - t0) * 1000
         return data
 
     # ── Response extraction ───────────────────────────────────────

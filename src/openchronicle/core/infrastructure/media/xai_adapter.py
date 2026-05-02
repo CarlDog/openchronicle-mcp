@@ -80,7 +80,7 @@ class XAIMediaAdapter(MediaGenerationPort):
             aspect_ratio,
             request.prompt,
         )
-        t0 = time.monotonic()
+        t0 = time.perf_counter()
 
         try:
             response = httpx.post(
@@ -113,7 +113,7 @@ class XAIMediaAdapter(MediaGenerationPort):
                 details={"provider": "xai", "model": model},
             ) from exc
 
-        elapsed_ms = (time.monotonic() - t0) * 1000
+        elapsed_ms = (time.perf_counter() - t0) * 1000
         # Reuse OpenAI extraction — same {"data": [{"b64_json": "..."}]} format
         image_data = OpenAIMediaAdapter._extract_image_data(data, model)
 

@@ -80,7 +80,7 @@ class OpenAIMediaAdapter(MediaGenerationPort):
             size,
             request.prompt,
         )
-        t0 = time.monotonic()
+        t0 = time.perf_counter()
 
         try:
             response = httpx.post(
@@ -113,7 +113,7 @@ class OpenAIMediaAdapter(MediaGenerationPort):
                 details={"provider": "openai", "model": model},
             ) from exc
 
-        elapsed_ms = (time.monotonic() - t0) * 1000
+        elapsed_ms = (time.perf_counter() - t0) * 1000
         image_data = self._extract_image_data(data, model)
 
         return MediaResult(
