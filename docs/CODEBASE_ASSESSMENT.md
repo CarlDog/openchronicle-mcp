@@ -2,7 +2,13 @@
 
 **Date:** 2026-05-02
 **Branch:** `main`
-**Revision:** 50 (deployment ergonomics: bind-mounts + multi-dir plugins + config bootstrap; CI multi-OS test matrix + 3 real bugfixes; private-repo onboarding; Discord re-enabled; Open WebUI tool-spec experiment tried + reverted same day)
+**Revision:** 51 (v3 memory-only rewrite proposed; bug-fix marathon: empty-base-URL adapter fix, memory_embed honest status, /health liveness probe; v2 feature-frozen pending sign-off)
+
+> **⚠ v3 in planning.** This document describes v2 (current state of `main`).
+> The next planned architectural shift drops everything except memory operations
+> and folds MCP+HTTP into a single ASGI process. See
+> [V3_PLAN.md](V3_PLAN.md) for scope, kill list, and migration plan.
+> v3 development has not started; main remains on v2.
 
 ---
 

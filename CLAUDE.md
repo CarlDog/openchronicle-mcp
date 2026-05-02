@@ -30,13 +30,25 @@
 
 ## Current Sprint
 
-**Status:** Core done. Connector plugin model retired (2026-04-29 incident).
-OpenChronicle is now positioned as an MCP server with narrow extension support
-for behavior-modifying plugins (storytelling). Domain integrations (Plex, etc.)
-belong as their own MCP servers, composed by the client.
-See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for full status.
+**Status:** v2 feature-complete. **v3 memory-only rewrite proposed (2026-05-02).**
+Smoke testing on the deployed NAS instance confirmed the conversation engine,
+webhooks, storytelling, assets, media, and Discord subsystems are all dormant
+(no active consumers). v3 strips OC down to memory + embeddings + projects +
+git-onboard, folds MCP and HTTP into a single ASGI process, and archives
+everything else on `archive/openchronicle.v2`. Plan documented in
+[docs/V3_PLAN.md](docs/V3_PLAN.md). **Awaiting user sign-off before any branch
+creation or code changes.**
 
-**Next action:** Backlog reclassification (extension / external-MCP / core
+**Next action:** Review [docs/V3_PLAN.md](docs/V3_PLAN.md), refine the kill list,
+answer the 10 open questions in the plan, then create `archive/openchronicle.v2`
+and `refactor/v3-memory-core` branches.
+
+While v2 is in maintenance mode, the deployed NAS stack 151 stays on the v2
+codebase running healthy (memory + embedding + search verified end-to-end as
+of 2026-05-02). See [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md)
+for v2 feature status.
+
+**Prior phase context:** Backlog reclassification (extension / external-MCP / core
 lens). The `storytelling` extension lives in this repo's `plugins/storytelling/`.
 Media generation is done (`MediaGenerationPort` with 5 adapters:
 stub, Ollama, OpenAI gpt-image-1, Gemini dual-surface, xAI Grok Imagine; unified model
