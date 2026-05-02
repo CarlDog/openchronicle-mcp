@@ -6,22 +6,15 @@ tools to choose from — choice fatigue, wrong tool selection, or refusing
 to call any tool. This endpoint is for chat-with-memory consumers that
 only need memory CRUD + project scoping.
 
-Mount as an OpenAPI tool server in Open WebUI. The URL pattern Open WebUI
-expects is the **base URL** — it appends ``/openapi.json`` itself for
-discovery. So in Open WebUI's tool server config, paste:
+Mount as an OpenAPI tool server in Open WebUI:
 
-    http://<oc-host>:18000/memory-tools
+    http://<oc-host>:18000/memory-tools/openapi.json
 
-NOT the literal ``/memory-tools/openapi.json`` URL — that gets rejected
-because Open WebUI strips ``/openapi.json`` to find the base, and an
-empty base after stripping won't validate. (Confirmed by user testing
-2026-05-02.)
-
-Behind the scenes Open WebUI fetches ``http://<oc-host>:18000/memory-tools/openapi.json``,
-which this route handles. The ``servers`` field in the response is
-explicitly populated with the request's base URL so tool paths
-(e.g. ``/api/v1/memory``) resolve to OC's host root regardless of how
-Open WebUI computes the API base from the spec URL location.
+The ``/openapi.json`` suffix is required because Open WebUI does
+path-based spec discovery and only accepts URLs ending in that name. The
+``servers`` field is explicitly populated with the request's base URL so
+tool paths (e.g. ``/api/v1/memory``) resolve to OC's host root regardless
+of how Open WebUI computes the API base from the spec URL location.
 
 For the full surface (operators, MCP clients, etc.), use ``/openapi.json``.
 
