@@ -23,6 +23,8 @@ from openchronicle.core.domain.ports.llm_port import (
     ToolDefinition,
 )
 
+DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com"
+
 
 class AnthropicAdapter(LLMPort):
     def __init__(
@@ -33,9 +35,13 @@ class AnthropicAdapter(LLMPort):
         base_url: str | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
-        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
+        # `or` chain coerces empty-string env to None then falls back to the
+        # SDK's documented default. An empty-string ANTHROPIC_BASE_URL env var
+        # defeats the SDK's own `is None` default-fallback check, so we must
+        # always pass an explicit base_url to bypass the SDK's env read.
+        self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY") or None
         self.model = model or os.getenv("ANTHROPIC_MODEL") or "claude-sonnet-4-20250514"
-        self.base_url = base_url or os.getenv("ANTHROPIC_BASE_URL")
+        self.base_url = base_url or os.getenv("ANTHROPIC_BASE_URL") or DEFAULT_ANTHROPIC_BASE_URL
         self.timeout_seconds = timeout_seconds
         self._client = self._build_client()
 
@@ -44,9 +50,7 @@ class AnthropicAdapter(LLMPort):
             return None
         if anthropic is None:
             return None
-        kwargs: dict[str, Any] = {"api_key": self.api_key}
-        if self.base_url:
-            kwargs["base_url"] = self.base_url
+        kwargs: dict[str, Any] = {"api_key": self.api_key, "base_url": self.base_url}
         if self.timeout_seconds is not None:
             kwargs["timeout"] = self.timeout_seconds
         return anthropic.AsyncAnthropic(**kwargs)

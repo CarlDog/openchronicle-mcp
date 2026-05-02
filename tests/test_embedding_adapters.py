@@ -73,6 +73,27 @@ class TestOpenAIEmbeddingAdapter:
         adapter = self._make_adapter()
         assert adapter.dimensions() == 3
 
+    def test_empty_base_url_env_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """OPENAI_BASE_URL='' (compose ${VAR:-} interpolation) must not break the adapter.
+
+        The OpenAI SDK uses ``is None`` for its default-fallback check, so an
+        empty-string env defeats the fallback. We coerce empty to the documented
+        default and always pass an explicit base_url to bypass the SDK env read.
+        """
+        monkeypatch.setenv("OPENAI_BASE_URL", "")
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=3)
+        assert adapter._base_url == "https://api.openai.com/v1"
+
+    def test_unset_base_url_env_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=3)
+        assert adapter._base_url == "https://api.openai.com/v1"
+
+    def test_explicit_base_url_env_is_honored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://example.test/v1")
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=3)
+        assert adapter._base_url == "https://example.test/v1"
+
 
 # ── Ollama adapter ──────────────────────────────────────────────────────
 

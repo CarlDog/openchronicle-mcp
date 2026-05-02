@@ -13,6 +13,8 @@ from openchronicle.core.domain.ports.llm_port import LLMProviderError
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+
 
 class OpenAIEmbeddingAdapter(EmbeddingPort):
     """Embedding adapter using OpenAI's embeddings API.
@@ -32,8 +34,12 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
     ) -> None:
         self._model = model
         self._dimensions = dimensions
-        self._api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self._base_url = base_url or os.getenv("OPENAI_BASE_URL")
+        # `or` chain coerces empty-string env values to None, then falls back to
+        # the SDK's documented default. Empty-string env defeats the SDK's
+        # `is None` default-fallback check, so we must always pass an explicit
+        # base_url to bypass the SDK's own env read.
+        self._api_key = api_key or os.getenv("OPENAI_API_KEY") or None
+        self._base_url = base_url or os.getenv("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL
         self._timeout_seconds = timeout_seconds
         self._client = self._build_client()
 
@@ -46,12 +52,9 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
                 error_code=MISSING_PACKAGE,
                 hint="Install with: pip install -e '.[openai]'",
             ) from exc
-        kwargs: dict[str, Any] = {}
+        kwargs: dict[str, Any] = {"base_url": self._base_url, "timeout": self._timeout_seconds}
         if self._api_key:
             kwargs["api_key"] = self._api_key
-        if self._base_url:
-            kwargs["base_url"] = self._base_url
-        kwargs["timeout"] = self._timeout_seconds
         return openai.OpenAI(**kwargs)
 
     def embed(self, text: str) -> list[float]:

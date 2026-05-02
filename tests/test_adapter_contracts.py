@@ -137,7 +137,7 @@ class TestOpenAIAdapter:
             adapter = OpenAIAdapter.__new__(OpenAIAdapter)
             adapter.api_key = "test-key"
             adapter.model = "gpt-4o-mini"
-            adapter.base_url = None
+            adapter.base_url = ""
             adapter._client = None
             with pytest.raises(LLMProviderError, match="openai package"):
                 adapter._ensure_ready()
@@ -170,6 +170,30 @@ class TestOpenAIAdapter:
         with pytest.raises(LLMProviderError, match="API error"):
             await adapter.complete_async(SAMPLE_MESSAGES, model="gpt-4o-mini")
 
+    def test_empty_base_url_env_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """OPENAI_BASE_URL='' (compose ${VAR:-} interpolation) must not break the adapter.
+
+        The OpenAI SDK uses ``is None`` for its default-fallback check, so an
+        empty-string env defeats the fallback. The adapter coerces empty to the
+        documented default and always passes an explicit base_url.
+        """
+        monkeypatch.setenv("OPENAI_BASE_URL", "")
+        with patch("openchronicle.core.infrastructure.llm.openai_adapter.openai") as mock_openai:
+            mock_openai.AsyncOpenAI.return_value = MagicMock()
+            from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
+
+            adapter = OpenAIAdapter(api_key="test-key", model="gpt-4o-mini")
+            assert adapter.base_url == "https://api.openai.com/v1"
+
+    def test_explicit_base_url_env_is_honored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://example.test/v1")
+        with patch("openchronicle.core.infrastructure.llm.openai_adapter.openai") as mock_openai:
+            mock_openai.AsyncOpenAI.return_value = MagicMock()
+            from openchronicle.core.infrastructure.llm.openai_adapter import OpenAIAdapter
+
+            adapter = OpenAIAdapter(api_key="test-key", model="gpt-4o-mini")
+            assert adapter.base_url == "https://example.test/v1"
+
 
 # ===================================================================
 # Anthropic Adapter
@@ -201,7 +225,7 @@ class TestAnthropicAdapter:
             adapter = AnthropicAdapter.__new__(AnthropicAdapter)
             adapter.api_key = "test-key"
             adapter.model = "claude-sonnet-4-20250514"
-            adapter.base_url = None
+            adapter.base_url = ""
             adapter._client = None
             with pytest.raises(LLMProviderError, match="anthropic package"):
                 adapter._ensure_ready()
@@ -259,6 +283,25 @@ class TestAnthropicAdapter:
 
         with pytest.raises(LLMProviderError, match="rate limited"):
             await adapter.complete_async(SAMPLE_MESSAGES, model="claude-sonnet-4-20250514")
+
+    def test_empty_base_url_env_uses_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """ANTHROPIC_BASE_URL='' (compose ${VAR:-} interpolation) must not break the adapter."""
+        monkeypatch.setenv("ANTHROPIC_BASE_URL", "")
+        with patch("openchronicle.core.infrastructure.llm.anthropic_adapter.anthropic") as mock_anthropic:
+            mock_anthropic.AsyncAnthropic.return_value = MagicMock()
+            from openchronicle.core.infrastructure.llm.anthropic_adapter import AnthropicAdapter
+
+            adapter = AnthropicAdapter(api_key="test-key", model="claude-sonnet-4-20250514")
+            assert adapter.base_url == "https://api.anthropic.com"
+
+    def test_explicit_base_url_env_is_honored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("ANTHROPIC_BASE_URL", "https://example.test")
+        with patch("openchronicle.core.infrastructure.llm.anthropic_adapter.anthropic") as mock_anthropic:
+            mock_anthropic.AsyncAnthropic.return_value = MagicMock()
+            from openchronicle.core.infrastructure.llm.anthropic_adapter import AnthropicAdapter
+
+            adapter = AnthropicAdapter(api_key="test-key", model="claude-sonnet-4-20250514")
+            assert adapter.base_url == "https://example.test"
 
 
 # ===================================================================

@@ -25,6 +25,8 @@ from openchronicle.core.domain.ports.llm_port import (
     ToolDefinition,
 )
 
+DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+
 
 class OpenAIAdapter(LLMPort):
     def __init__(
@@ -35,9 +37,13 @@ class OpenAIAdapter(LLMPort):
         base_url: str | None = None,
         timeout_seconds: float | None = None,
     ) -> None:
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+        # `or` chain coerces empty-string env to None then falls back to the
+        # SDK's documented default. An empty-string OPENAI_BASE_URL env var
+        # defeats the SDK's own `is None` default-fallback check, so we must
+        # always pass an explicit base_url to bypass the SDK's env read.
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY") or None
         self.model = model or os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL")
+        self.base_url = base_url or os.getenv("OPENAI_BASE_URL") or DEFAULT_OPENAI_BASE_URL
         self.timeout_seconds = timeout_seconds
         self._client = self._build_client()
 
