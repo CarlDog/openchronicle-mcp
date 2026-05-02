@@ -1073,11 +1073,11 @@ class TestSystemParamValidation:
 
 
 class TestOpenAPIMemoryFilter:
-    """The /api/v1/openapi-memory.json endpoint returns a curated subset
+    """The /memory-tools/openapi.json endpoint returns a curated subset
     of OC's OpenAPI spec for memory-focused LLM tool-call clients."""
 
     def test_returns_valid_openapi_spec(self, client: TestClient) -> None:
-        resp = client.get("/api/v1/openapi-memory.json")
+        resp = client.get("/memory-tools/openapi.json")
         assert resp.status_code == 200
         body = resp.json()
         assert body.get("openapi", "").startswith("3.")
@@ -1086,8 +1086,22 @@ class TestOpenAPIMemoryFilter:
         # Title rebranded to indicate it's the curated subset
         assert "Memory Tools" in body["info"]["title"]
 
+    def test_servers_field_points_at_api_root(self, client: TestClient) -> None:
+        """Open WebUI computes the API base by stripping /openapi.json from
+        the spec URL — which would yield /memory-tools, not /. The servers
+        field must override that so tool paths (/api/v1/memory) resolve to
+        the host root. The exact base URL depends on the test client's host
+        but it should NOT contain /memory-tools."""
+        body = client.get("/memory-tools/openapi.json").json()
+        assert "servers" in body
+        assert len(body["servers"]) >= 1
+        server_url = body["servers"][0]["url"]
+        assert "/memory-tools" not in server_url
+        # Should be just scheme://host[:port], no trailing slash
+        assert not server_url.endswith("/")
+
     def test_includes_memory_paths(self, client: TestClient) -> None:
-        body = client.get("/api/v1/openapi-memory.json").json()
+        body = client.get("/memory-tools/openapi.json").json()
         paths = set(body["paths"].keys())
         # Core memory CRUD must be present
         assert "/api/v1/memory" in paths
@@ -1098,7 +1112,7 @@ class TestOpenAPIMemoryFilter:
         assert "/api/v1/project" in paths
 
     def test_excludes_non_memory_paths(self, client: TestClient) -> None:
-        body = client.get("/api/v1/openapi-memory.json").json()
+        body = client.get("/memory-tools/openapi.json").json()
         paths = set(body["paths"].keys())
         # Webhook, asset, conversation, hook surfaces should NOT appear —
         # they're noise for the chat-with-memory use case.
@@ -1111,11 +1125,11 @@ class TestOpenAPIMemoryFilter:
         assert "/api/v1/health" not in paths
         # The filter endpoint itself isn't in its own output (we filter it out
         # via the whitelist not including it)
-        assert "/api/v1/openapi-memory.json" not in paths
+        assert "/memory-tools/openapi.json" not in paths
 
     def test_components_preserved(self, client: TestClient) -> None:
         """Components (schemas) must be preserved so $ref's in kept paths resolve."""
-        body = client.get("/api/v1/openapi-memory.json").json()
+        body = client.get("/memory-tools/openapi.json").json()
         # If the full spec has components, the filtered one should too.
         # (The full spec almost certainly has component schemas for request/response models.)
         full = client.get("/openapi.json").json()
@@ -1125,7 +1139,7 @@ class TestOpenAPIMemoryFilter:
 
     def test_kept_paths_only_have_whitelisted_methods(self, client: TestClient) -> None:
         """Methods on kept paths are filtered to the whitelisted set."""
-        body = client.get("/api/v1/openapi-memory.json").json()
+        body = client.get("/memory-tools/openapi.json").json()
         # /api/v1/memory should have get + post (not patch/delete/etc.)
         memory_methods = set(body["paths"]["/api/v1/memory"].keys())
         assert memory_methods <= {"get", "post"}
