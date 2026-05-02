@@ -94,7 +94,6 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
         hooks,
         media,
         memory,
-        openapi_filter,
         project,
         system,
         webhook,
@@ -108,8 +107,5 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
     app.include_router(webhook.router, prefix="/api/v1", tags=["webhook"])
     app.include_router(hooks.router, prefix="/api/v1", tags=["hooks"])
     app.include_router(media.router, prefix="/api/v1", tags=["media"])
-    # Filtered OpenAPI spec for LLM tool-call clients (Open WebUI, etc.)
-    # — surfaces only memory + project endpoints. See openapi_filter.py.
-    app.include_router(openapi_filter.router, prefix="/api/v1", tags=["system"])
 
     return app
