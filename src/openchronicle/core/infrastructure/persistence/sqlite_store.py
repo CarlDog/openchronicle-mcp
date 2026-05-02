@@ -282,8 +282,10 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
 
     def list_tasks_by_project(self, project_id: str) -> list[Task]:
         cur = self._conn.cursor()
+        # rowid (insertion order) tiebreaker, not id (random UUID). Same
+        # Windows-clock-resolution rationale as list_events.
         rows = cur.execute(
-            "SELECT * FROM tasks WHERE project_id=? ORDER BY created_at ASC, id ASC",
+            "SELECT * FROM tasks WHERE project_id=? ORDER BY created_at ASC, rowid ASC",
             (project_id,),
         ).fetchall()
         return [row_to_task(r) for r in rows]
@@ -313,7 +315,14 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
     def list_events(self, task_id: str | None = None, *, project_id: str | None = None) -> list[Event]:
         """List events filtered by project and/or task with deterministic ordering.
 
-        Ordering: created_at ASC, then id ASC.
+        Ordering: created_at ASC, then rowid ASC.
+
+        rowid (insertion order) is the tiebreaker, NOT id. UUIDs are random,
+        so on platforms where datetime resolution is coarse enough that two
+        rapid INSERTs share a created_at value (notably Windows, ~16ms), an
+        id ASC tiebreaker can flip insertion order. rowid is monotonically
+        increasing per INSERT and gives the natural "what happened next"
+        order that callers (e.g. ReplayService) actually depend on.
         """
         cur = self._conn.cursor()
         sql = "SELECT * FROM events"
@@ -330,7 +339,7 @@ class SqliteStore(StoragePort, ConversationStorePort, MemoryStorePort, AssetStor
         if conditions:
             sql += " WHERE " + " AND ".join(conditions)
 
-        sql += " ORDER BY created_at ASC, id ASC"
+        sql += " ORDER BY created_at ASC, rowid ASC"
         rows = cur.execute(sql, params).fetchall()
         return [row_to_event(r) for r in rows]
 

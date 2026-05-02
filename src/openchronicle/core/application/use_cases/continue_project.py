@@ -28,9 +28,9 @@ async def execute(orchestrator: OrchestratorService, project_id: str) -> Continu
     Continue project execution by running all pending tasks.
 
     This operation:
-    - Lists all tasks for the project
-    - Filters tasks with PENDING status
-    - Sorts deterministically by created_at, then id
+    - Lists all tasks for the project (storage returns them in
+      deterministic insertion order; see SqliteStore.list_tasks_by_project)
+    - Filters tasks with PENDING status, preserving that order
     - Executes each task using the run_task use case
     - Returns summary of execution results
 
@@ -44,18 +44,18 @@ async def execute(orchestrator: OrchestratorService, project_id: str) -> Continu
     storage = orchestrator.storage
     tasks = storage.list_tasks_by_project(project_id)
 
-    # Filter pending tasks
+    # Filter pending tasks. Storage already returns them in (created_at,
+    # rowid) order — re-sorting here by (created_at, id) would re-introduce
+    # the random-UUID tiebreaker that broke this on Windows where coarse
+    # clock resolution causes timestamp ties.
     pending_tasks = [t for t in tasks if t.status == TaskStatus.PENDING]
-
-    # Sort deterministically by created_at, then id
-    pending_sorted = sorted(pending_tasks, key=lambda t: (t.created_at, t.id))
 
     succeeded = 0
     failed = 0
     task_ids = []
 
     # Execute each pending task
-    for task in pending_sorted:
+    for task in pending_tasks:
         task_ids.append(task.id)
         try:
             await run_task.execute(orchestrator, task.id, agent_id=task.agent_id)
@@ -66,7 +66,7 @@ async def execute(orchestrator: OrchestratorService, project_id: str) -> Continu
 
     return ContinueSummary(
         project_id=project_id,
-        pending_tasks=len(pending_sorted),
+        pending_tasks=len(pending_tasks),
         succeeded=succeeded,
         failed=failed,
         task_ids=task_ids,

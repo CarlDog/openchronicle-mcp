@@ -105,7 +105,11 @@ class PluginLoader:
             return
 
         # Discover plugin candidates: directories under plugins/ with plugin.py
-        for plugin_dir in plugins_root.iterdir():
+        # Sort for deterministic load order across OSes — Windows iterdir is
+        # alphabetical but Linux/macOS use inode order, which broke
+        # test_plugin_collision_error_message_includes_sources on CI when the
+        # iteration order picked conflict_b before conflict_a.
+        for plugin_dir in sorted(plugins_root.iterdir()):
             if not plugin_dir.is_dir():
                 continue
 
