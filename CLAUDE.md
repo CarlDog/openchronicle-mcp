@@ -40,8 +40,32 @@ everything else on `archive/openchronicle.v2`. Plan documented in
 creation or code changes.**
 
 **Next action:** Review [docs/V3_PLAN.md](docs/V3_PLAN.md), refine the kill list,
-answer the 10 open questions in the plan, then create `archive/openchronicle.v2`
+answer the 19 open questions in the plan, then create `archive/openchronicle.v2`
 and `refactor/v3-memory-core` branches.
+
+**2026-05-02 plan deltas (two passes):**
+
+1. **Scheduler decision flipped** — v2 scheduler stays cut (orchestrator-coupled,
+   overkill), replaced by a minimal in-process maintenance loop as new Phase 6.5
+   handling DB hygiene, embedding backfill, optional git-onboard resync. ~150 LOC,
+   no DB-backed queue, configured via `core.json`.
+2. **Hardening pass** — six tier-1 items folded into the plan: schema migration
+   framework (versioned forward-compat, not just the v2→v3 one-shot),
+   backup-before-destructive-maintenance policy, SQLite online backup API
+   (replacing v2's likely file-copy bug), CI migration tests against fixture v2
+   DBs, explicit embedding-failure degradation policy (FTS5 fallback for search,
+   queued backfill for save), curated OpenAPI as the default surface (no more
+   `/memory-tools/openapi.json` hack). Tier-2 items added as open questions
+   13-18; tier-3 items appended as an explicit "Out of Scope" appendix so they
+   don't keep getting re-litigated.
+3. **Phase 7 docs sweep expanded** — every doc in the repo gets classified
+   (update / archive to `docs/archive/v2/` / delete), three new docs added
+   (`api/STABILITY.md`, `configuration/security_posture.md`,
+   `architecture/MAINTENANCE.md`), Serena memories audited for stale
+   v2 references. Phase 7 grew from "1 session" to "1.5-2 sessions" to reflect
+   the real scope.
+
+See [docs/V3_PLAN.md](docs/V3_PLAN.md) for full details.
 
 While v2 is in maintenance mode, the deployed NAS stack 151 stays on the v2
 codebase running healthy (memory + embedding + search verified end-to-end as
