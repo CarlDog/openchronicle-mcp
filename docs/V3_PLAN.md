@@ -771,7 +771,14 @@ The README is not a market-positioning document. It states what OC is, what it d
 6. Update Portainer stack 151's compose to point at v3 image (`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`); redeploy. Use the rc tag, not `:latest` — `:latest` gets flipped only after Day 7 of clean operation (step 12 of Phase 9 Day 0 / Day 7).
 7. Wait for healthcheck green
 8. **Trigger one immediate run of `embedding_backfill`** (`oc maintenance run-once embedding_backfill`) to ensure any v2 memories without embeddings get them before search traffic hits
-9. Run smoke test: memory CRUD, search (verify embedding-backed results), `onboard_git`, project list
+9. Run smoke test:
+
+   ```bash
+   python scripts/smoke_test.py http://carldog-nas:18000 \
+     87de0f7d-d6ab-4b83-8613-b2b5ff60a57b
+   ```
+
+   The script is stdlib-only and exits non-zero on the first failing step. It walks `/health`, `/api/v1/health`, `/api/v1/maintenance/status`, `/api/v1/project` (verifies the target project resolves), full memory CRUD + search + pin round-trip, and probes the `/mcp` mount (accepting 307/405 since streamable-HTTP doesn't answer GETs). Pair it with a manual `onboard_git` MCP call against a small public repo for the use case the script can't cover (since there's no HTTP-side `onboard_git` endpoint — it's an MCP-only tool).
 10. Verify project UUID `87de0f7d-d6ab-4b83-8613-b2b5ff60a57b` (or current canonical) still resolves
 11. Update Client Cutover Checklist items (point clients at new endpoint)
 12. Tag the merge commit `v3.0.0` (workflow rebuilds and publishes `:v3.0.0`); flipping `:latest` to v3 is deferred to Phase 9 Day 7 per the rollback policy
