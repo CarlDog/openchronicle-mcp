@@ -2,7 +2,72 @@
 
 **Date:** 2026-05-05
 **Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 58 (v3 development; phases 0-7 + repo polish; code-complete pending NAS cutover)
+**Revision:** 59 (v3 development; phases 0-7 + folder-by-folder audit; code-complete pending NAS cutover)
+
+> **Audit pass (post-Phase 7):** walked all 187 tracked files folder-by-folder
+> and resolved straggler v2 references that grep missed earlier. Stragglers
+> found and fixed:
+>
+> - `src/openchronicle/core/application/services/context_builder.py` —
+>   imported deleted `Conversation`/`Turn` models and had no consumers; deleted.
+> - `src/openchronicle/core/domain/services/` — empty package after Phase 4
+>   cuts; deleted entirely.
+> - `src/openchronicle/core/application/config/paths.py` — dropped
+>   `assets_dir`, `plugin_dir`, `discord_session_path`, `discord_pid_path`
+>   fields and their `DEFAULT_*` constants. `RuntimePaths` shrinks to 3
+>   fields (`db_path`, `config_dir`, `output_dir`). `plugin_dir` kwarg kept
+>   in the signature (silently ignored) for caller stability.
+> - `src/openchronicle/core/application/use_cases/init_runtime.py` —
+>   stopped writing v2 model template + router_assist template files. Now
+>   just ensures the 3 v3 dirs exist.
+> - `src/openchronicle/core/application/use_cases/diagnose_runtime.py` +
+>   `models/diagnostics_report.py` — dropped model-config discovery,
+>   `OC_LLM_*` env summary, plugin/models dir fields. Report shrinks to
+>   the v3 surface (db + config + container hint + persistence hint +
+>   embedding status).
+> - `src/openchronicle/core/domain/errors/error_codes.py` — pruned ~20
+>   dead codes (`INVALID_TASK_TYPE`, `TASK_NOT_FOUND`, `JOB_NOT_FOUND`,
+>   `CONVERSATION_NOT_FOUND`, `ASSET_NOT_FOUND`, `WEBHOOK_NOT_FOUND`,
+>   `UNSUPPORTED_PROTOCOL_VERSION`, `HANDLER_*`, `PLUGIN_*`,
+>   `OUTBOUND_PII_BLOCKED`, `NSFW_POOL_NOT_CONFIGURED`,
+>   `SELF_REPORT_INVALID`, `MOE_INSUFFICIENT_EXPERTS`, `NO_CAPABLE_MODEL`,
+>   `PROVIDER_REQUIRED`/`NOT_CONFIGURED`/`INVALID_PROVIDER`,
+>   `MISSING_API_KEY`, `CLIENT_MISSING`, `BUDGET_EXCEEDED`,
+>   `INVALID_STATE_TRANSITION`). Survivors are the 14 codes the v3
+>   surface actually uses. `errors/__init__.py` re-export list updated to match.
+> - `src/openchronicle/core/infrastructure/config/config_loader.py` —
+>   dropped `load_plugin_config()` (plugin system is gone).
+> - `tests/test_policies_purity.py` — applied to `application/policies/`
+>   which Phase 2 deleted. Test was vacuous; removed.
+> - `tests/helpers/subprocess_env.py` — was a subprocess-env builder for
+>   the deleted RPC/health/idle-timeout tests. Zero callers; removed.
+> - `tests/test_runtime_paths.py` — rewritten for the slim 3-field
+>   `RuntimePaths`. Adds an explicit test that the legacy `plugin_dir`
+>   kwarg is accepted but doesn't surface as an attribute.
+> - `tests/test_config_loader.py` — dropped the `TestLoadPluginConfig`
+>   class. `test_full_core_config` now exercises the v3 schema
+>   (`embedding`/`api`/`maintenance`).
+> - `tests/test_http_api.py` `_make_mock_container` — dropped dead mock
+>   wirings for `get_mcp_tool_stats`, `get_moe_stats`, `list_conversations`,
+>   `list_assets` (storage methods that no longer exist).
+> - `tests/test_mcp_tools.py::TestHealth` — `mock_report` fixture used
+>   the v2 `DiagnosticsReport` shape with `plugin_dir`, `models_dir`,
+>   `model_config_*` fields; updated to the slim v3 shape.
+> - `tests/test_memory_tag_search.py` — docstring on
+>   `test_tag_filter_composes_with_scoping` was "Tag filter composes with
+>   conversation_id/project_id scoping"; updated.
+> - `tests/test_cli_db.py` — dropped the `OC_LLM_PROVIDER=stub` fixture
+>   monkeypatch (no LLM in v3); container fixture now creates the
+>   config dir directly.
+> - `SECURITY.md` — supported-versions table flipped from
+>   `main (v2 dev) | Yes` / `v1 (archived) | No` to v3 active / v2 + v1
+>   archived. Scope list trimmed of "conversation content" leakage and
+>   refocused on the v3 surface (memory content, embedding API keys,
+>   `oc memory import` / `onboard_git` path traversal). Pointer added
+>   to `docs/configuration/security_posture.md`.
+>
+> Tests: 345 passing, 0 failed (was 349 with the deleted `tests/integration/`
+> directory; the policies-purity drop accounts for the further −1).
 
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active

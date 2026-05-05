@@ -12,7 +12,6 @@ from openchronicle.core.infrastructure.config.config_loader import (
     ConfigLoadError,
     load_config_files,
     load_json_config,
-    load_plugin_config,
 )
 
 
@@ -77,41 +76,17 @@ class TestLoadConfigFiles:
             load_config_files(tmp_path)
 
     def test_full_core_config(self, tmp_path: Path) -> None:
+        """Round-trip the v3 core.json shape (embedding + api + maintenance)."""
         data = {
-            "provider": "stub",
-            "default_mode": "fast",
-            "pools": {"fast": "openai:gpt-4o-mini"},
-            "budget": {"max_total_tokens": 5000},
-            "privacy": {"mode": "off"},
-            "telemetry": {"enabled": True},
-            "router": {"rules": {"enabled": True}},
+            "embedding": {"provider": "openai", "model": "text-embedding-3-small"},
+            "api": {"host": "0.0.0.0", "port": 8000, "api_key": "secret"},
+            "maintenance": {
+                "jobs": [{"name": "db_vacuum", "interval_seconds": 604800, "enabled": True}],
+            },
         }
         (tmp_path / CORE_CONFIG_NAME).write_text(json.dumps(data), encoding="utf-8")
 
         result = load_config_files(tmp_path)
-        assert result["provider"] == "stub"
-        assert result["pools"]["fast"] == "openai:gpt-4o-mini"
-        assert result["budget"]["max_total_tokens"] == 5000
-        assert result["privacy"]["mode"] == "off"
-        assert result["telemetry"]["enabled"] is True
-        assert result["router"]["rules"]["enabled"] is True
-
-
-class TestLoadPluginConfig:
-    def test_missing_plugin_file_returns_empty(self, tmp_path: Path) -> None:
-        result = load_plugin_config(tmp_path, "myplugin")
-        assert result == {}
-
-    def test_valid_plugin_config(self, tmp_path: Path) -> None:
-        plugin_dir = tmp_path / "myplugin"
-        plugin_dir.mkdir()
-        (plugin_dir / "config.json").write_text(json.dumps({"key": "val"}), encoding="utf-8")
-        result = load_plugin_config(tmp_path, "myplugin")
-        assert result == {"key": "val"}
-
-    def test_invalid_plugin_config_raises(self, tmp_path: Path) -> None:
-        plugin_dir = tmp_path / "bad"
-        plugin_dir.mkdir()
-        (plugin_dir / "config.json").write_text("{broken", encoding="utf-8")
-        with pytest.raises(ConfigLoadError):
-            load_plugin_config(tmp_path, "bad")
+        assert result["embedding"]["provider"] == "openai"
+        assert result["api"]["port"] == 8000
+        assert result["maintenance"]["jobs"][0]["name"] == "db_vacuum"

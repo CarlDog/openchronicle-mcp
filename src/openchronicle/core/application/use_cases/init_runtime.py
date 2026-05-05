@@ -1,6 +1,13 @@
+"""Bootstrap the runtime directory tree.
+
+Creates parent dirs for the SQLite DB, the config dir, and the output
+dir based on resolved ``RuntimePaths``. v2's model/router_assist
+templates are gone with the LLM stack — Phase 5's
+``config/core.json.example`` is the only template now.
+"""
+
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
@@ -8,71 +15,31 @@ from openchronicle.core.application.config.paths import RuntimePaths
 
 
 def resolve_runtime_paths() -> RuntimePaths:
-    """Convenience wrapper — delegates to RuntimePaths.resolve()."""
+    """Convenience wrapper — delegates to ``RuntimePaths.resolve()``."""
     return RuntimePaths.resolve()
 
 
 def execute(
     paths: RuntimePaths,
     *,
-    write_templates: bool = True,
-    force: bool = False,
+    write_templates: bool = True,  # noqa: ARG001 - kept for kwarg stability
+    force: bool = False,  # noqa: ARG001 - kept for kwarg stability
 ) -> dict[str, Any]:
+    """Ensure the v3 path tree exists. Returns a status dict.
+
+    ``write_templates`` and ``force`` are accepted for caller stability
+    but no longer write anything — v3 has no templates beyond the
+    `core.json.example` baked into the image.
+    """
     paths_result = {
         "db_path": _ensure_parent(paths.db_path),
         "config_dir": _ensure_dir(paths.config_dir),
-        "plugin_dir": _ensure_dir(paths.plugin_dir),
         "output_dir": _ensure_dir(paths.output_dir),
-        "assets_dir": _ensure_dir(paths.assets_dir),
     }
-
-    templates_result = {
-        "model_config": {"path": str(paths.config_dir / "models" / "example_disabled.json"), "status": "skipped"},
-        "router_assist_model": {
-            "path": str(paths.config_dir / "router_assist_linear_model.json"),
-            "status": "skipped",
-        },
-    }
-
-    if write_templates:
-        models_dir = paths.config_dir / "models"
-        _ensure_dir(models_dir)
-
-        model_payload = {
-            "provider": "openai",
-            "model": "gpt-4o-mini",
-            "enabled": False,
-            "display_name": "Example (disabled)",
-            "api_config": {
-                "endpoint": "https://api.openai.com/v1/chat/completions",
-                "default_base_url": "https://api.openai.com/v1",
-                "timeout": 30,
-                "auth_header": "Authorization",
-                "auth_format": "Bearer {api_key}",
-            },
-        }
-        templates_result["model_config"] = _write_template(
-            models_dir / "example_disabled.json",
-            json.dumps(model_payload, indent=2) + "\n",
-            force=force,
-        )
-
-        assist_payload = {
-            "version": "1",
-            "bias": -2.0,
-            "weights": {"nsfw": 3.0, "explicit": 2.5, "nude": 2.0, "adult": 1.5},
-            "token_limit": 32,
-        }
-        templates_result["router_assist_model"] = _write_template(
-            paths.config_dir / "router_assist_linear_model.json",
-            json.dumps(assist_payload, indent=2) + "\n",
-            force=force,
-        )
 
     return {
         "status": "ok",
         "paths": paths_result,
-        "templates": templates_result,
     }
 
 
@@ -90,14 +57,4 @@ def _ensure_parent(path: Path) -> dict[str, str]:
 def _ensure_dir(path: Path) -> dict[str, str]:
     status = "exists" if path.exists() else "created"
     path.mkdir(parents=True, exist_ok=True)
-    return {"path": str(path), "status": status}
-
-
-def _write_template(path: Path, content: str, *, force: bool) -> dict[str, str]:
-    if path.exists() and not force:
-        return {"path": str(path), "status": "exists"}
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    status = "overwritten" if path.exists() else "created"
-    path.write_text(content, encoding="utf-8")
     return {"path": str(path), "status": status}

@@ -114,10 +114,6 @@ def _make_mock_container() -> MagicMock:
 
     # Storage mock — default return values for list operations
     container.storage = MagicMock()
-    container.storage.get_mcp_tool_stats.return_value = []
-    container.storage.get_moe_stats.return_value = []
-    container.storage.list_conversations.return_value = []
-    container.storage.list_assets.return_value = []
     container.storage.search_memory.return_value = []
     container.storage.list_memory.return_value = []
     container.storage.list_projects.return_value = []

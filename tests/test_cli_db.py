@@ -14,15 +14,13 @@ from openchronicle.interfaces.cli.main import main
 
 
 @pytest.fixture()
-def _stub_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("OC_LLM_PROVIDER", "stub")
-
-
-@pytest.fixture()
-def container(tmp_path: Path, _stub_env: None) -> Iterator[CoreContainer]:
+def container(tmp_path: Path) -> Iterator[CoreContainer]:
     db_path = tmp_path / "test.db"
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setenv("OC_DB_PATH", str(db_path))
+    monkeypatch.setenv("OC_CONFIG_DIR", str(config_dir))
     c = CoreContainer()
     yield c
     monkeypatch.undo()

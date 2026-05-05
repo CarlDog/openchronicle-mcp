@@ -1,8 +1,10 @@
 """JSON configuration file loading.
 
-Loads the core config file (core.json) and per-plugin config files from the
-config directory. Missing files are silently treated as empty dicts (backward
-compatible). Invalid JSON raises ConfigLoadError with the file path.
+Loads ``${OC_CONFIG_DIR}/core.json``. Missing file is silently treated
+as an empty dict (backward compatible). Invalid JSON raises
+``ConfigLoadError`` with the file path. v2's per-plugin config files
+(``<plugins_dir>/<plugin>/config.json``) are gone with the plugin
+system.
 """
 
 from __future__ import annotations
@@ -28,7 +30,7 @@ def load_json_config(path: str | Path) -> dict:
     """Load a single JSON config file.
 
     Returns an empty dict if the file does not exist.
-    Raises ConfigLoadError if the file exists but is not valid JSON.
+    Raises ``ConfigLoadError`` if the file exists but is not valid JSON.
     """
     p = Path(path)
     if not p.exists():
@@ -46,23 +48,11 @@ def load_json_config(path: str | Path) -> dict:
 
 
 def load_config_files(config_dir: str | Path) -> dict[str, Any]:
-    """Load the core config file from a directory.
+    """Load ``core.json`` from the given directory.
 
-    Loads ``<config_dir>/core.json`` if it exists. Missing file produces
-    an empty dict.
-
-    Returns:
-        The parsed dict from core.json, e.g.
-        ``{"provider": "stub", "privacy": {...}, ...}``.
+    Returns the parsed dict (e.g.
+    ``{"embedding": {...}, "api": {...}, "maintenance": {...}}``) or
+    an empty dict if the file is missing.
     """
     config_path = Path(config_dir)
     return load_json_config(config_path / CORE_CONFIG_NAME)
-
-
-def load_plugin_config(plugins_dir: str | Path, plugin_name: str) -> dict:
-    """Load a per-plugin JSON config file.
-
-    Looks for ``<plugins_dir>/<plugin_name>/config.json`` inside the plugin
-    package directory.  Returns an empty dict if the file does not exist.
-    """
-    return load_json_config(Path(plugins_dir) / plugin_name / "config.json")

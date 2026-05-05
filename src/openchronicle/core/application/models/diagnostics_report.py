@@ -1,4 +1,10 @@
-"""Diagnostics report model for oc diagnose command."""
+"""Diagnostics report model.
+
+Returned by ``diagnose_runtime.execute()`` and surfaced by the v3
+health endpoints (``/health``, ``/api/v1/health``, MCP ``health`` tool).
+v2's plugin_dir / model config discovery / OC_LLM_* env summary fields
+are gone with the LLM stack.
+"""
 
 from __future__ import annotations
 
@@ -9,7 +15,7 @@ from typing import Any
 
 @dataclass
 class DiagnosticsReport:
-    """Runtime diagnostics report collected by the diagnose use case."""
+    """Runtime diagnostics report."""
 
     timestamp_utc: datetime
     db_path: str
@@ -18,16 +24,9 @@ class DiagnosticsReport:
     db_modified_utc: datetime | None
     config_dir: str
     config_dir_exists: bool
-    plugin_dir: str
-    plugin_dir_exists: bool
     running_in_container_hint: bool
     persistence_hint: str
-    provider_env_summary: dict[str, str]
-    # Model config discovery (v1-style configs from <OC_CONFIG_DIR>/models/*.json)
-    models_dir: str
-    models_dir_exists: bool
-    model_config_files_count: int
-    model_config_provider_summary: dict[str, dict[str, int]]
-    model_config_load_errors: dict[str, str]
-    # Embedding status (populated by interfaces that have access to CoreContainer)
+    # Embedding subsystem status — populated by interfaces with a
+    # CoreContainer in hand (the container injects its own
+    # `embedding_status_dict` here).
     embedding_status: dict[str, Any] | None = field(default=None)

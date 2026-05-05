@@ -322,16 +322,8 @@ class TestHealth:
             db_modified_utc=_NOW,
             config_dir="config",
             config_dir_exists=True,
-            plugin_dir="plugins",
-            plugin_dir_exists=True,
             running_in_container_hint=False,
             persistence_hint="sqlite",
-            provider_env_summary={"OC_LLM_PROVIDER": "stub"},
-            models_dir="config/models",
-            models_dir_exists=True,
-            model_config_files_count=2,
-            model_config_provider_summary={"openai": {"gpt-4o": 1}},
-            model_config_load_errors={},
         )
 
         with patch(

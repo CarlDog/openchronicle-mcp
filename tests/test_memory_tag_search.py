@@ -131,7 +131,7 @@ def test_empty_tag_list_same_as_none(tmp_path: Path) -> None:
 
 
 def test_tag_filter_composes_with_scoping(tmp_path: Path) -> None:
-    """Tag filter composes with conversation_id/project_id scoping."""
+    """Tag filter composes with project_id scoping."""
     db_path = tmp_path / "scope.db"
     storage = SqliteStore(str(db_path))
     storage.init_schema()
