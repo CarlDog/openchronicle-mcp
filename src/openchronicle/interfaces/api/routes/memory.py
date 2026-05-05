@@ -124,7 +124,6 @@ def memory_save(
     item = MemoryItem(**kwargs)
     saved = add_memory.execute(
         store=container.storage,
-        emit_event=container.emit_event,
         item=item,
         embedding_service=container.embedding_service,
     )
@@ -168,7 +167,6 @@ def memory_delete(
     """Delete a memory item permanently."""
     delete_memory.execute(
         store=container.storage,
-        emit_event=container.emit_event,
         memory_id=memory_id,
     )
     return {"status": "ok", "memory_id": memory_id}
@@ -187,7 +185,6 @@ def memory_pin(
     """Pin or unpin a memory item."""
     pin_memory.execute(
         store=container.storage,
-        emit_event=container.emit_event,
         memory_id=memory_id,
         pinned=body.pinned,
     )
@@ -208,7 +205,6 @@ def memory_update(
     """Update an existing memory item's content and/or tags."""
     updated = update_memory.execute(
         store=container.storage,
-        emit_event=container.emit_event,
         memory_id=memory_id,
         content=body.content,
         tags=body.tags,

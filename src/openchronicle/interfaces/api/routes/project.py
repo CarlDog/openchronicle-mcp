@@ -29,7 +29,7 @@ def project_create(
 ) -> dict[str, Any]:
     """Create a new project."""
     project = create_project.execute(
-        orchestrator=container.orchestrator,
+        store=container.storage,
         name=body.name,
         metadata=body.metadata,
     )
@@ -41,5 +41,5 @@ def project_list(
     container: ContainerDep,
 ) -> list[dict[str, Any]]:
     """List all projects."""
-    projects = list_projects.execute(orchestrator=container.orchestrator)
+    projects = list_projects.execute(store=container.storage)
     return [project_to_dict(p) for p in projects]

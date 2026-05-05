@@ -39,7 +39,7 @@ def register(mcp: FastMCP) -> None:
         """
         container = _get_container(ctx)
         project = create_project.execute(
-            orchestrator=container.orchestrator,
+            store=container.storage,
             name=name,
             metadata=metadata,
         )
@@ -57,5 +57,5 @@ def register(mcp: FastMCP) -> None:
         several, consolidate before saving — projects are not auto-merged.
         """
         container = _get_container(ctx)
-        projects = list_projects.execute(orchestrator=container.orchestrator)
+        projects = list_projects.execute(store=container.storage)
         return [project_to_dict(p) for p in projects]

@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
-from openchronicle.core.domain.models.project import Event
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
 if TYPE_CHECKING:
@@ -17,29 +15,13 @@ logger = logging.getLogger(__name__)
 
 def execute(
     store: MemoryStorePort,
-    emit_event: Callable[[Event], None],
     item: MemoryItem,
     *,
     embedding_service: EmbeddingService | None = None,
 ) -> MemoryItem:
     if item.project_id is None:
-        raise DomainValidationError("project_id is required for memory events")
+        raise DomainValidationError("project_id is required")
     store.add_memory(item)
-    emit_event(
-        Event(
-            project_id=item.project_id,
-            task_id=item.conversation_id,
-            type="memory.written",
-            payload={
-                "id": item.id,
-                "pinned": item.pinned,
-                "tags": item.tags,
-                "source": item.source,
-                "conversation_id": item.conversation_id,
-                "project_id": item.project_id,
-            },
-        )
-    )
     if embedding_service is not None:
         try:
             embedding_service.generate_for_memory(item.id, item.content)

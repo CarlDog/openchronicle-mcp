@@ -1,14 +1,35 @@
 # OpenChronicle v2 — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-02
-**Branch:** `main`
-**Revision:** 51 (v3 memory-only rewrite proposed; bug-fix marathon: empty-base-URL adapter fix, memory_embed honest status, /health liveness probe; v2 feature-frozen pending sign-off)
+**Date:** 2026-05-05
+**Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
+**Revision:** 52 (v3 development started; phases 0-2 complete on `v3/develop`)
 
-> **⚠ v3 in planning.** This document describes v2 (current state of `main`).
-> The next planned architectural shift drops everything except memory operations
-> and folds MCP+HTTP into a single ASGI process. See
-> [V3_PLAN.md](V3_PLAN.md) for scope, kill list, and migration plan.
-> v3 development has not started; main remains on v2.
+> **⚠ v3 in active development.** This document describes v2, which is now
+> frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
+> development happens on `v3/develop`. See [V3_PLAN.md](V3_PLAN.md) for the
+> living plan and phase tracker.
+>
+> **v3 phase progress:**
+> - **Phase 0** (branching) — done. `archive/openchronicle.v2` cut from `main`
+>   HEAD, `v3/develop` created.
+> - **Phase 1** (interfaces slimmed) — done. Discord, conversation/asset/
+>   webhook/media/hooks routes + tools + CLI commands deleted; chat/rpc/stdio
+>   modules removed; MCP tool descriptions rewritten as "when to call vs
+>   others". Test count 1921 → 570 passing.
+> - **Phase 2** (application slimmed) — done. Container reduced to memory +
+>   embedding + git-onboard wiring; orchestrator, scheduler, MoE, webhook
+>   service/dispatcher, asset storage, output manager, llm execution, ollama
+>   service, all `routing/` `runtime/` `replay/` `observability/` `policies/`
+>   directories deleted; ~30 use cases cut; events table contract dropped from
+>   memory use cases (no more `emit_event` parameter); plugins/ directory
+>   removed. Test count 570 → 345 passing.
+> - **Phase 3** (infrastructure slimmed) — pending.
+> - **Phase 4** (domain slimmed) — pending.
+> - **Phase 5** (schema migration + framework + online backup) — pending.
+> - **Phase 6** (ASGI unification) — pending.
+> - **Phase 6.5** (maintenance loop + degradation policy) — pending.
+> - **Phase 7** (docs sweep + repo polish) — pending. This document gets
+>   rewritten as v3 rev 1 in Phase 7.
 
 ---
 

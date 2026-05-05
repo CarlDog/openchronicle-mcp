@@ -11,7 +11,6 @@ import pytest
 from openchronicle.core.application.use_cases import delete_memory
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
-from openchronicle.core.domain.models.project import Event
 
 _NOW = datetime(2026, 2, 20, 12, 0, 0, tzinfo=UTC)
 
@@ -35,49 +34,23 @@ def _sample_memory(**overrides: Any) -> MemoryItem:
 
 
 class TestDeleteMemoryUseCase:
-    def test_emits_memory_deleted_event(self) -> None:
+    def test_deletes_memory(self) -> None:
         store = MagicMock()
         store.get_memory.return_value = _sample_memory()
         store.delete_memory.return_value = True
-        events: list[Event] = []
 
-        delete_memory.execute(store=store, emit_event=events.append, memory_id="mem-1")
+        delete_memory.execute(store=store, memory_id="mem-1")
 
         store.delete_memory.assert_called_once_with("mem-1")
-        assert len(events) == 1
-        assert events[0].type == "memory.deleted"
-        assert events[0].payload["memory_id"] == "mem-1"
-        assert events[0].project_id == "proj-1"
 
-    def test_raises_value_error_for_nonexistent(self) -> None:
+    def test_raises_not_found_for_nonexistent(self) -> None:
         store = MagicMock()
         store.get_memory.return_value = None
 
         with pytest.raises(NotFoundError, match="Memory not found"):
-            delete_memory.execute(store=store, emit_event=MagicMock(), memory_id="no-such-id")
+            delete_memory.execute(store=store, memory_id="no-such-id")
 
         store.delete_memory.assert_not_called()
-
-    def test_captures_project_id_before_delete(self) -> None:
-        """project_id is captured from memory before deletion."""
-        store = MagicMock()
-        store.get_memory.return_value = _sample_memory(project_id="proj-42")
-        store.delete_memory.return_value = True
-        events: list[Event] = []
-
-        delete_memory.execute(store=store, emit_event=events.append, memory_id="mem-1")
-
-        assert events[0].project_id == "proj-42"
-
-    def test_handles_none_project_id(self) -> None:
-        store = MagicMock()
-        store.get_memory.return_value = _sample_memory(project_id=None)
-        store.delete_memory.return_value = True
-        events: list[Event] = []
-
-        delete_memory.execute(store=store, emit_event=events.append, memory_id="mem-1")
-
-        assert events[0].project_id == ""
 
 
 # ── MCP memory_get ───────────────────────────────────────────────

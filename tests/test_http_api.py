@@ -122,7 +122,7 @@ def _make_mock_container() -> MagicMock:
     container.storage.list_assets.return_value = []
     container.storage.search_memory.return_value = []
     container.storage.list_memory.return_value = []
-    container.orchestrator.list_projects.return_value = []
+    container.storage.list_projects.return_value = []
 
     # Embedding service defaults to None (FTS5-only) unless test overrides
     container.embedding_service = None
@@ -346,19 +346,14 @@ class TestSystemRoutes:
 
 class TestProjectRoutes:
     def test_create_project(self, client: TestClient) -> None:
-        project = _make_project()
-        _get_container(client).orchestrator.create_project.return_value = project
-
         resp = client.post("/api/v1/project", json={"name": "test"})
         assert resp.status_code == 200
         data = resp.json()
-        assert data["id"] == "proj-1"
+        # The slim use case constructs a Project; storage.add_project is a no-op mock
         assert data["name"] == "test"
-        assert data["created_at"] == _FIXED_DT.isoformat()
 
     def test_list_projects(self, client: TestClient) -> None:
-        # list_projects use case calls orchestrator.storage.list_projects()
-        _get_container(client).orchestrator.storage.list_projects.return_value = [_make_project()]
+        _get_container(client).storage.list_projects.return_value = [_make_project()]
 
         resp = client.get("/api/v1/project")
         assert resp.status_code == 200

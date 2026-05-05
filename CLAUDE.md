@@ -6,6 +6,12 @@
 
 ## Project-Specific Notes
 
+- **Docs + memories before every commit.** Standing rule (2026-05-05). Before
+  any `git commit` on this repo, update the affected docs (at minimum
+  `docs/CODEBASE_ASSESSMENT.md`; for in-flight work also `docs/V3_PLAN.md`
+  status section and the CLAUDE.md "Current Sprint" section), and save a
+  milestone/decision/scope memory to OC if the MCP server is reachable. The
+  commit and the docs land together — never one without the other.
 - **No backwards compatibility.** Personal project, no public users, no production.
   Break whatever needs breaking.
 - **`main` is v2.** The v1 codebase is archived on `archive/openchronicle.v1`.
@@ -30,18 +36,37 @@
 
 ## Current Sprint
 
-**Status:** v2 feature-complete. **v3 memory-only rewrite proposed (2026-05-02).**
-Smoke testing on the deployed NAS instance confirmed the conversation engine,
-webhooks, storytelling, assets, media, and Discord subsystems are all dormant
-(no active consumers). v3 strips OC down to memory + embeddings + projects +
-git-onboard, folds MCP and HTTP into a single ASGI process, and archives
-everything else on `archive/openchronicle.v2`. Plan documented in
-[docs/V3_PLAN.md](docs/V3_PLAN.md). **Awaiting user sign-off before any branch
-creation or code changes.**
+**Status:** v3 active development on `v3/develop`. Phases 0-2 complete
+(2026-05-05). v2 frozen at `archive/openchronicle.v2`; the deployed NAS
+stack 151 still runs v2 until Phase 8 cutover.
 
-**Next action:** Review [docs/V3_PLAN.md](docs/V3_PLAN.md), refine the kill list,
-answer the 19 open questions in the plan, then create `archive/openchronicle.v2`
-and `refactor/v3-memory-core` branches.
+**Phase progress:**
+
+- ✅ **Phase 0** — `archive/openchronicle.v2` snapshot pushed, `v3/develop`
+  branch created
+- ✅ **Phase 1** (interfaces slimmed) — Discord/asset/conversation/webhook/
+  media/hooks deletion across API+MCP+CLI; chat/rpc/stdio modules removed;
+  MCP tool descriptions rewritten; 570 tests passing
+- ✅ **Phase 2** (application slimmed) — orchestrator/scheduler/MoE/webhook/
+  asset/output/llm services deleted, routing/runtime/replay/observability/
+  policies directories deleted, ~30 use cases cut, plugins/ removed,
+  container reduced to memory + embedding + git-onboard wiring,
+  `emit_event` removed from kept memory use cases (events table going
+  in Phase 4); 345 tests passing
+- ⏭ **Phase 3** (infrastructure slimmed) — next: cut `llm/`, `media/`,
+  `privacy/`, `router_assist/` adapter directories
+- pending: Phases 4 (domain), 5 (schema migration + backup), 6 (ASGI
+  unification), 6.5 (maintenance loop + degradation), 7 (docs sweep), 8
+  (NAS cutover), 9 (decommission)
+
+**Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
+`memory_items.conversation_id`; unified ASGI on port `:18000`; cut plugin
+system entirely; MCP tool description quality pass done; ship
+`oc memory export/import` day 1; `OC_LOG_FORMAT=human|json` default human.
+
+See [docs/V3_PLAN.md](docs/V3_PLAN.md) for the canonical phase tracker and
+[docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for the v2 → v3
+delta.
 
 **2026-05-02 plan deltas (two passes):**
 

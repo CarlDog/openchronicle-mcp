@@ -16,12 +16,8 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from openchronicle.core.application.routing.router_policy import RouteDecision
-from openchronicle.core.application.services.llm_execution import execute_with_route
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem
-from openchronicle.core.domain.models.project import Event
-from openchronicle.core.domain.ports.llm_port import LLMPort
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
 # --- Filtering ---
@@ -200,47 +196,6 @@ def format_cluster_as_raw_memory(cluster: CommitCluster) -> str:
             lines.append(f"  - {f}")
 
     return "\n".join(lines)
-
-
-# --- LLM Synthesis ---
-
-_SYNTHESIS_PROMPT = """\
-You are analyzing a cluster of related git commits from a software project.
-Your job is to synthesize a concise memory capturing WHY these changes were made.
-
-Focus on:
-- Decisions made and the reasoning behind them
-- Rejected alternatives or approaches that were tried and abandoned
-- Architectural shifts or design patterns introduced
-- Non-obvious gotchas or constraints that influenced the implementation
-
-Write 3-8 sentences as if explaining to a new developer joining the project.
-Do NOT list individual commits or include commit hashes.
-Do NOT describe WHAT the code does line by line — focus on the WHY.
-
-Commit data:
-{cluster_text}
-"""
-
-
-async def synthesize_cluster(
-    llm: LLMPort,
-    route_decision: RouteDecision,
-    cluster: CommitCluster,
-) -> str:
-    """Call the LLM to synthesize a memory from a commit cluster."""
-    cluster_text = format_cluster_for_synthesis(cluster)
-    prompt = _SYNTHESIS_PROMPT.format(cluster_text=cluster_text)
-
-    messages: list[dict[str, Any]] = [{"role": "user", "content": prompt}]
-    response = await execute_with_route(
-        llm=llm,
-        route_decision=route_decision,
-        messages=messages,
-        max_output_tokens=500,
-        temperature=0.3,
-    )
-    return response.content.strip()
 
 
 # --- Git Extraction ---
@@ -452,18 +407,20 @@ def extract_commits_from_url(
 # --- Orchestration ---
 
 
-async def run_git_onboard(
+def run_git_onboard_raw(
     commits: list[GitCommit],
     *,
-    llm: LLMPort | None = None,
-    route_decision: RouteDecision | None = None,
     store: MemoryStorePort,
-    emit_event: Callable[[Event], None],
     project_id: str,
     max_clusters: int = 15,
     progress_callback: Callable[[str], None] | None = None,
 ) -> list[MemoryItem]:
-    """Orchestrate: filter -> cluster -> synthesize each -> save each via add_memory."""
+    """Filter -> cluster -> save each cluster as a raw-format memory.
+
+    LLM synthesis happens client-side in v3 (the MCP tool returns clusters
+    and instructs the calling agent to synthesize). The CLI uses this
+    function directly to seed memories without an LLM round-trip.
+    """
     filtered = filter_commits(commits)
     if not filtered:
         if progress_callback:
@@ -472,36 +429,15 @@ async def run_git_onboard(
 
     clusters = cluster_commits(filtered, max_clusters=max_clusters)
 
-    emit_event(
-        Event(
-            project_id=project_id,
-            type="onboard.git.started",
-            payload={
-                "project_id": project_id,
-                "commit_count": len(filtered),
-                "cluster_count": len(clusters),
-            },
-        )
-    )
-
     if progress_callback:
         progress_callback(f"Filtered {len(commits)} -> {len(filtered)} commits, {len(clusters)} clusters")
 
     memories: list[MemoryItem] = []
-    use_llm = llm is not None and route_decision is not None
-
     for i, cluster in enumerate(clusters):
         if progress_callback:
             progress_callback(f"Processing cluster {i + 1}/{len(clusters)}: {cluster.label}")
 
-        if use_llm:
-            assert llm is not None
-            assert route_decision is not None
-            content = await synthesize_cluster(llm, route_decision, cluster)
-        else:
-            content = format_cluster_as_raw_memory(cluster)
-
-        # Use latest commit date as memory timestamp
+        content = format_cluster_as_raw_memory(cluster)
         latest_date = max(c.date for c in cluster.commits)
 
         item = MemoryItem(
@@ -513,33 +449,7 @@ async def run_git_onboard(
             created_at=latest_date,
         )
         store.add_memory(item)
-        emit_event(
-            Event(
-                project_id=project_id,
-                type="memory.written",
-                payload={
-                    "id": item.id,
-                    "pinned": item.pinned,
-                    "tags": item.tags,
-                    "source": item.source,
-                    "project_id": project_id,
-                },
-            )
-        )
         memories.append(item)
-
-    emit_event(
-        Event(
-            project_id=project_id,
-            type="onboard.git.completed",
-            payload={
-                "project_id": project_id,
-                "memory_count": len(memories),
-                "memory_ids": [m.id for m in memories],
-                "source": "cli",
-            },
-        )
-    )
 
     return memories
 

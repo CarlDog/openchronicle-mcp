@@ -42,7 +42,6 @@ def test_update_content_only(tmp_path: Path) -> None:
     storage, event_logger, _ = _setup(tmp_path)
     updated = update_memory.execute(
         store=storage,
-        emit_event=event_logger.append,
         memory_id="mem-1",
         content="new content",
     )
@@ -54,7 +53,6 @@ def test_update_tags_only(tmp_path: Path) -> None:
     storage, event_logger, _ = _setup(tmp_path)
     updated = update_memory.execute(
         store=storage,
-        emit_event=event_logger.append,
         memory_id="mem-1",
         tags=["milestone"],
     )
@@ -66,7 +64,6 @@ def test_update_both(tmp_path: Path) -> None:
     storage, event_logger, _ = _setup(tmp_path)
     updated = update_memory.execute(
         store=storage,
-        emit_event=event_logger.append,
         memory_id="mem-1",
         content="new content",
         tags=["context"],
@@ -85,7 +82,6 @@ def test_updated_at_set_on_update(tmp_path: Path) -> None:
 
     updated = update_memory.execute(
         store=storage,
-        emit_event=event_logger.append,
         memory_id="mem-1",
         content="changed",
     )
@@ -99,7 +95,6 @@ def test_created_at_unchanged_on_update(tmp_path: Path) -> None:
 
     updated = update_memory.execute(
         store=storage,
-        emit_event=event_logger.append,
         memory_id="mem-1",
         content="changed",
     )
@@ -111,7 +106,6 @@ def test_update_nonexistent_raises(tmp_path: Path) -> None:
     with pytest.raises(NotFoundError, match="Memory not found"):
         update_memory.execute(
             store=storage,
-            emit_event=event_logger.append,
             memory_id="nonexistent",
             content="whatever",
         )
@@ -122,25 +116,8 @@ def test_neither_content_nor_tags_raises(tmp_path: Path) -> None:
     with pytest.raises(DomainValidationError, match="At least one"):
         update_memory.execute(
             store=storage,
-            emit_event=event_logger.append,
             memory_id="mem-1",
         )
-
-
-def test_event_emitted(tmp_path: Path) -> None:
-    storage, event_logger, project_id = _setup(tmp_path)
-    update_memory.execute(
-        store=storage,
-        emit_event=event_logger.append,
-        memory_id="mem-1",
-        content="new",
-        tags=["changed"],
-    )
-    events = storage.list_events(project_id=project_id)
-    update_events = [e for e in events if e.type == "memory.updated"]
-    assert len(update_events) == 1
-    assert update_events[0].payload["memory_id"] == "mem-1"
-    assert sorted(update_events[0].payload["updated_fields"]) == ["content", "tags"]
 
 
 def test_fts5_reindexes_after_content_update(tmp_path: Path) -> None:
@@ -153,7 +130,6 @@ def test_fts5_reindexes_after_content_update(tmp_path: Path) -> None:
     # Update content
     update_memory.execute(
         store=storage,
-        emit_event=event_logger.append,
         memory_id="mem-1",
         content="completely different text",
     )
@@ -175,7 +151,6 @@ def test_serializer_includes_updated_at(tmp_path: Path) -> None:
     # After update
     updated = update_memory.execute(
         store=storage,
-        emit_event=event_logger.append,
         memory_id="mem-1",
         content="changed",
     )

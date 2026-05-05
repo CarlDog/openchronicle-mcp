@@ -1,64 +1,39 @@
 from __future__ import annotations
 
-import os
 from typing import Any
 
-from openchronicle.core.application.config.budget_config import load_budget_policy
-from openchronicle.core.application.config.env_helpers import env_override, parse_int
-from openchronicle.core.application.config.model_config import ModelConfigLoader
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.config.settings import (
     EmbeddingSettings,
-    load_conversation_settings,
     load_embedding_settings,
-    load_media_settings,
-    load_moe_settings,
-    load_privacy_outbound_settings,
-    load_router_assist_settings,
-    load_telemetry_settings,
 )
-from openchronicle.core.application.policies.rate_limiter import RateLimitConfig, RateLimiter
-from openchronicle.core.application.policies.retry_policy import RetryConfig, RetryPolicy
-from openchronicle.core.application.routing.pool_config import load_pool_config
-from openchronicle.core.application.routing.router_policy import RouterPolicy
-from openchronicle.core.application.runtime.plugin_loader import PluginLoader
-from openchronicle.core.application.runtime.task_registry import TaskHandlerRegistry
-from openchronicle.core.application.services.asset_storage import AssetFileStorage
 from openchronicle.core.application.services.embedding_service import EmbeddingService
-from openchronicle.core.application.services.orchestrator import OrchestratorService
-from openchronicle.core.application.services.output_manager import OutputManager
-from openchronicle.core.application.services.scheduler import SchedulerService
-from openchronicle.core.application.services.webhook_dispatcher import WebhookDispatcher
-from openchronicle.core.application.services.webhook_service import WebhookService
 from openchronicle.core.domain.errors.error_codes import CONFIG_ERROR
-from openchronicle.core.domain.models.project import Event
+from openchronicle.core.domain.exceptions import ConfigError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
-from openchronicle.core.domain.ports.llm_port import LLMPort, LLMProviderError
-from openchronicle.core.domain.ports.media_generation_port import MediaGenerationPort
-from openchronicle.core.domain.ports.router_assist_port import RouterAssistPort
-from openchronicle.core.infrastructure.config.config_loader import load_config_files, load_plugin_config
-from openchronicle.core.infrastructure.llm.provider_facade import create_provider_aware_llm
-from openchronicle.core.infrastructure.logging.event_logger import EventLogger
+from openchronicle.core.infrastructure.config.config_loader import load_config_files
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
-from openchronicle.core.infrastructure.privacy.rule_privacy import RulePrivacyGate
-from openchronicle.core.infrastructure.router_assist import LinearRouterAssist, OnnxRouterAssist
-from openchronicle.core.infrastructure.routing.hybrid_router import HybridInteractionRouter
-from openchronicle.core.infrastructure.routing.rule_router import RuleInteractionRouter
 
 
 class CoreContainer:
+    """Slim v3 DI container — memory storage + optional embeddings.
+
+    Wires only what the v3 surface needs: SQLite-backed memory storage,
+    optional embedding adapter for hybrid semantic + FTS5 search, and
+    runtime paths. The v2 orchestrator/scheduler/LLM/router/webhook/asset/
+    media/plugin/discord wiring is gone — those subsystems are archived
+    on archive/openchronicle.v2.
+    """
+
     def __init__(
         self,
         db_path: str | None = None,
         config_dir: str | None = None,
         plugin_dir: str | None = None,
         output_dir: str | None = None,
-        llm: LLMPort | None = None,
         *,
         paths: RuntimePaths | None = None,
     ) -> None:
-        # Resolve all data paths through RuntimePaths (four-layer precedence).
-        # Individual string params feed into RuntimePaths.resolve() when paths is None.
         if paths is None:
             paths = RuntimePaths.resolve(
                 db_path=db_path,
@@ -70,184 +45,36 @@ class CoreContainer:
 
         db_path_resolved = paths.db_path
         config_dir_resolved = paths.config_dir
-        plugin_dir_resolved = paths.plugin_dir
         output_dir_resolved = paths.output_dir
 
         db_path_resolved.parent.mkdir(parents=True, exist_ok=True)
         if not config_dir_resolved.exists():
-            raise LLMProviderError(
-                f"Config directory not found: {config_dir_resolved}",
-                error_code=CONFIG_ERROR,
-                hint="Run `oc init` or create the directory.",
-                details={"config_dir": str(config_dir_resolved)},
+            raise ConfigError(
+                f"Config directory not found: {config_dir_resolved}. "
+                "Run `oc init` or create the directory.",
+                code=CONFIG_ERROR,
             )
-        plugin_dir_resolved.mkdir(parents=True, exist_ok=True)
         output_dir_resolved.mkdir(parents=True, exist_ok=True)
 
-        # Load core.json config file
         file_configs = load_config_files(config_dir_resolved)
 
         self.storage = SqliteStore(db_path=str(db_path_resolved))
         self.storage.init_schema()
         try:
-            self.event_logger = EventLogger(self.storage)
-            self.privacy_gate = RulePrivacyGate()
-            self.privacy_settings = load_privacy_outbound_settings(file_configs.get("privacy"))
-            self.telemetry_settings = load_telemetry_settings(file_configs.get("telemetry"))
-            self.conversation_settings = load_conversation_settings(file_configs.get("conversation"))
-            self.moe_settings = load_moe_settings(file_configs.get("moe"))
             self.embedding_settings = load_embedding_settings(file_configs.get("embedding"))
-            self.media_settings = load_media_settings(file_configs.get("media"))
-            self.budget_policy = load_budget_policy(file_configs.get("budget"))
-
-            router_fc = file_configs.get("router")
-            router_assist_settings = load_router_assist_settings(
-                router_fc.get("assist") if isinstance(router_fc, dict) else None
-            )
-
-            # Shared model config loader (used by LLM facade and router policy)
-            self.model_config_loader = ModelConfigLoader(str(config_dir_resolved))
-
-            # Use provider-aware facade if no explicit LLM provided
-            if llm is None:
-                llm = create_provider_aware_llm(
-                    config_dir=str(config_dir_resolved),
-                    model_config_loader=self.model_config_loader,
-                )
-
-            self.llm = llm
-
-            assist: RouterAssistPort | None = None
-            if router_assist_settings.enabled:
-                if not router_assist_settings.model_path:
-                    raise LLMProviderError(
-                        "Router assist model path not configured",
-                        error_code=CONFIG_ERROR,
-                        hint="Set OC_ROUTER_ASSIST_MODEL_PATH to a model JSON file.",
-                    )
-                backend = router_assist_settings.backend.lower()
-                if backend == "linear":
-                    assist = LinearRouterAssist(
-                        model_path=router_assist_settings.model_path,
-                        timeout_ms=router_assist_settings.timeout_ms,
-                    )
-                elif backend == "onnx":
-                    assist = OnnxRouterAssist(
-                        model_path=router_assist_settings.model_path,
-                        timeout_ms=router_assist_settings.timeout_ms,
-                    )
-                else:
-                    raise LLMProviderError(
-                        f"Unsupported router assist backend: {router_assist_settings.backend}",
-                        error_code=CONFIG_ERROR,
-                        hint="Set OC_ROUTER_ASSIST_BACKEND to 'linear' or 'onnx'.",
-                    )
-
-            self.interaction_router = HybridInteractionRouter(
-                base_router=RuleInteractionRouter(file_config=router_fc),
-                assist=assist,
-            )
-
-            # Build pool config + router policy from core.json (top-level keys)
-            pool_config = load_pool_config(file_configs)
-            router_policy = RouterPolicy(
-                file_config=file_configs,
-                pool_config=pool_config,
-                model_config_loader=self.model_config_loader,
-            )
-            self.router_policy = router_policy
-
-            # Build rate limiter — per-model rate limits live in model configs.
-            # Global rate limiter only respects env var overrides as system-wide ceiling.
-            retry_fc = file_configs.get("retry", {}) if isinstance(file_configs.get("retry"), dict) else {}
-            max_wait_raw = env_override("OC_LLM_MAX_WAIT_MS", retry_fc.get("rate_limit_max_wait_ms"))
-
-            rate_config = RateLimitConfig(
-                rpm_limit=parse_int(os.getenv("OC_LLM_RPM_LIMIT"), default=0) or None,
-                tpm_limit=parse_int(os.getenv("OC_LLM_TPM_LIMIT"), default=0) or None,
-                max_wait_ms=parse_int(max_wait_raw, default=5000),
-            )
-            rate_limiter = RateLimiter(rate_config)
-
-            max_retries_raw = env_override("OC_LLM_MAX_RETRIES", retry_fc.get("max_retries"))
-            max_retry_sleep_raw = env_override("OC_LLM_MAX_RETRY_SLEEP_MS", retry_fc.get("max_retry_sleep_ms"))
-
-            retry_config = RetryConfig(
-                max_retries=parse_int(max_retries_raw, default=2),
-                max_retry_sleep_ms=parse_int(max_retry_sleep_raw, default=2000),
-            )
-            retry_policy = RetryPolicy(retry_config)
-
-            self.handler_registry = TaskHandlerRegistry()
-            self.plugin_loader = PluginLoader(
-                plugins_dir=str(plugin_dir_resolved),
-                handler_registry=self.handler_registry,
-                config_loader=load_plugin_config,
-            )
-            self.plugin_loader.load_plugins()
-            self.asset_file_storage = AssetFileStorage(base_dir=str(self.paths.assets_dir))
-            self.output_manager = OutputManager(base_dir=str(output_dir_resolved))
-
-            # Embedding service (optional — hybrid memory search)
-            # Constructed before orchestrator so it can be injected into handler context
             self.embedding_port: EmbeddingPort | None = self._build_embedding_port()
             self.embedding_service: EmbeddingService | None = (
                 EmbeddingService(self.embedding_port, self.storage) if self.embedding_port is not None else None
             )
 
-            self.orchestrator = OrchestratorService(
-                storage=self.storage,
-                llm=self.llm,
-                plugins=self.plugin_loader.registry_instance(),
-                handler_registry=self.plugin_loader.handler_registry_instance(),
-                emit_event=self.emit_event,
-                rate_limiter=rate_limiter,
-                retry_policy=retry_policy,
-                router=router_policy,
-                embedding_service=self.embedding_service,
-                plugin_configs=self.plugin_loader.plugin_configs(),
-            )
-            self.scheduler = SchedulerService(
-                storage=self.storage,
-                submit_task=self.orchestrator.submit_task,
-                emit_event=self.emit_event,
-            )
-
-            # Media generation service (optional)
-            self.media_port: MediaGenerationPort | None = self._build_media_port()
-
-            # Webhook service + dispatcher (composite emit_event)
-            self.webhook_service = WebhookService(store=self.storage)
-            self.webhook_dispatcher: WebhookDispatcher | None = None
-            # Check if any webhooks exist at startup; dispatcher starts lazily
-            if self.storage.list_subscriptions(active_only=True):
-                self.webhook_dispatcher = WebhookDispatcher(webhook_service=self.webhook_service, store=self.storage)
-                self.webhook_dispatcher.start()
-
-            # Store for config show and diagnostics
             self.file_configs = file_configs
             self.config_dir = str(self.paths.config_dir)
         except BaseException:
             self.storage.close()
             raise
 
-    def emit_event(self, event: Event) -> None:
-        """Composite event emitter: log + dispatch to webhooks."""
-        self.event_logger.append(event)
-        if self.webhook_dispatcher is not None:
-            self.webhook_dispatcher.enqueue(event)
-
-    def ensure_webhook_dispatcher(self) -> WebhookDispatcher:
-        """Lazily create and start the webhook dispatcher."""
-        if self.webhook_dispatcher is None:
-            self.webhook_dispatcher = WebhookDispatcher(webhook_service=self.webhook_service, store=self.storage)
-            self.webhook_dispatcher.start()
-        return self.webhook_dispatcher
-
     def close(self) -> None:
-        """Close managed resources (storage connection, webhook dispatcher)."""
-        if self.webhook_dispatcher is not None:
-            self.webhook_dispatcher.stop()
+        """Close managed resources."""
         self.storage.close()
 
     def __enter__(self) -> CoreContainer:
@@ -278,38 +105,18 @@ class CoreContainer:
             **coverage,
         }
 
-    def as_dict(self) -> dict[str, Any]:
-        return {
-            "storage": self.storage,
-            "event_logger": self.event_logger,
-            "privacy_gate": self.privacy_gate,
-            "privacy_settings": self.privacy_settings,
-            "llm": self.llm,
-            "interaction_router": self.interaction_router,
-            "plugins": self.plugin_loader.registry_instance(),
-            "handler_registry": self.plugin_loader.handler_registry_instance(),
-            "orchestrator": self.orchestrator,
-            "scheduler": self.scheduler,
-        }
-
     def _build_embedding_port(self) -> EmbeddingPort | None:
-        """Build embedding port from EmbeddingSettings (three-layer precedence).
-
-        Returns None (graceful degradation) if the adapter fails to initialize
-        — e.g. missing API key, missing package. The server starts without
-        embeddings and falls back to FTS5-only search.
-        """
         import logging
 
-        _log = logging.getLogger(__name__)
+        log = logging.getLogger(__name__)
         settings: EmbeddingSettings = self.embedding_settings
         if settings.provider == "none":
-            _log.info("Embedding provider: none (disabled, FTS5-only search)")
+            log.info("Embedding provider: none (disabled, FTS5-only search)")
             return None
 
         try:
             port = self._create_embedding_adapter(settings)
-            _log.info(
+            log.info(
                 "Embedding adapter initialized: provider=%s, model=%s, dimensions=%d, timeout=%.1fs",
                 settings.provider,
                 port.model_name(),
@@ -318,13 +125,14 @@ class CoreContainer:
             )
             return port
         except Exception as exc:
-            _log.warning(
-                "Embedding adapter (%s) failed to initialize: %s — falling back to FTS5-only", settings.provider, exc
+            log.warning(
+                "Embedding adapter (%s) failed to initialize: %s — falling back to FTS5-only",
+                settings.provider,
+                exc,
             )
             return None
 
     def _create_embedding_adapter(self, settings: EmbeddingSettings) -> EmbeddingPort:
-        """Create the embedding adapter. Raises on failure."""
         if settings.provider == "stub":
             from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
 
@@ -354,133 +162,8 @@ class CoreContainer:
             kwargs_o["timeout_seconds"] = settings.timeout
             return OllamaEmbeddingAdapter(**kwargs_o)  # type: ignore[arg-type]
 
-        raise LLMProviderError(
-            f"Unknown embedding provider: {settings.provider}",
-            error_code=CONFIG_ERROR,
-            hint="Set OC_EMBEDDING_PROVIDER to 'none', 'stub', 'openai', or 'ollama'.",
-        )
-
-    def _build_media_port(self) -> MediaGenerationPort | None:
-        """Build media generation port from MediaSettings + model configs.
-
-        The ``model`` field in MediaSettings drives adapter selection:
-        - Empty → disabled.
-        - ``"stub"`` → deterministic stub adapter.
-        - Anything else → looked up in model configs (``image_generation``
-          capability).  Provider is derived from the matching config.
-
-        Returns None if disabled or if initialization fails.
-        """
-        import logging
-
-        _log = logging.getLogger(__name__)
-        settings = self.media_settings
-        if not settings.enabled:
-            _log.info("Media generation: disabled (no model configured)")
-            return None
-
-        try:
-            port = self._create_media_adapter()
-            _log.info(
-                "Media generation adapter initialized: model=%s, timeout=%.1fs",
-                port.model_name(),
-                settings.timeout,
-            )
-            return port
-        except Exception as exc:
-            _log.warning(
-                "Media generation adapter (%s) failed to initialize: %s",
-                settings.model,
-                exc,
-            )
-            return None
-
-    def _create_media_adapter(self) -> MediaGenerationPort:
-        """Create the media generation adapter from model config. Raises on failure."""
-        settings = self.media_settings
-        model_name = settings.model
-
-        # Special case: stub adapter (no model config needed)
-        if model_name == "stub":
-            from openchronicle.core.infrastructure.media.stub_adapter import StubMediaAdapter
-
-            return StubMediaAdapter()
-
-        # Look up model config by name (must have image_generation capability)
-        cfg = self.model_config_loader.find_media_model(model_name)
-        if cfg is None:
-            raise LLMProviderError(
-                f"No model config with image_generation capability found for model '{model_name}'",
-                error_code=CONFIG_ERROR,
-                hint=(
-                    f"Create a config file in config/models/ for '{model_name}' "
-                    'with \'"capabilities": {{"image_generation": true}}\'.'
-                ),
-            )
-
-        # Resolve the config to get API key, endpoint, etc.
-        resolved = self.model_config_loader.resolve(cfg.provider, cfg.model)
-        provider = cfg.provider.lower()
-
-        if provider == "ollama":
-            from openchronicle.core.infrastructure.media.ollama_adapter import OllamaMediaAdapter
-
-            return OllamaMediaAdapter(
-                model=cfg.model,
-                host=resolved.base_url,
-                timeout_seconds=settings.timeout,
-            )
-
-        if provider == "openai":
-            from openchronicle.core.infrastructure.media.openai_adapter import OpenAIMediaAdapter
-
-            if not resolved.api_key:
-                raise LLMProviderError(
-                    "OpenAI media adapter requires an API key",
-                    error_code=CONFIG_ERROR,
-                    hint="Set OPENAI_API_KEY or configure api_config.api_key in the model config.",
-                )
-            return OpenAIMediaAdapter(
-                model=cfg.model,
-                api_key=resolved.api_key,
-                endpoint=resolved.endpoint,
-                timeout_seconds=settings.timeout,
-            )
-
-        if provider == "gemini":
-            from openchronicle.core.infrastructure.media.gemini_adapter import GeminiMediaAdapter
-
-            if not resolved.api_key:
-                raise LLMProviderError(
-                    "Gemini media adapter requires an API key",
-                    error_code=CONFIG_ERROR,
-                    hint="Set GEMINI_API_KEY or configure api_config.api_key in the model config.",
-                )
-            return GeminiMediaAdapter(
-                model=cfg.model,
-                api_key=resolved.api_key,
-                endpoint=resolved.endpoint or resolved.base_url,
-                timeout_seconds=settings.timeout,
-            )
-
-        if provider == "xai":
-            from openchronicle.core.infrastructure.media.xai_adapter import XAIMediaAdapter
-
-            if not resolved.api_key:
-                raise LLMProviderError(
-                    "xAI media adapter requires an API key",
-                    error_code=CONFIG_ERROR,
-                    hint="Set XAI_API_KEY or configure api_config.api_key in the model config.",
-                )
-            return XAIMediaAdapter(
-                model=cfg.model,
-                api_key=resolved.api_key,
-                endpoint=resolved.endpoint,
-                timeout_seconds=settings.timeout,
-            )
-
-        raise LLMProviderError(
-            f"No media adapter for provider '{provider}'",
-            error_code=CONFIG_ERROR,
-            hint=f"Provider '{provider}' does not support image generation.",
+        raise ConfigError(
+            f"Unknown embedding provider: {settings.provider}. "
+            "Set OC_EMBEDDING_PROVIDER to 'none', 'stub', 'openai', or 'ollama'.",
+            code=CONFIG_ERROR,
         )

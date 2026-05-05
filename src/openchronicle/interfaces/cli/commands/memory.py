@@ -55,7 +55,6 @@ def cmd_memory_add(args: argparse.Namespace, container: CoreContainer) -> int:
         return 1
     item = add_memory.execute(
         store=container.storage,
-        emit_event=container.emit_event,
         item=MemoryItem(
             content=args.content,
             tags=tags,
@@ -108,7 +107,6 @@ def cmd_memory_pin(args: argparse.Namespace, container: CoreContainer) -> int:
     try:
         pin_memory.execute(
             store=container.storage,
-            emit_event=container.emit_event,
             memory_id=args.memory_id,
             pinned=args.pin_on,
         )
@@ -152,7 +150,6 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
     try:
         delete_memory.execute(
             store=container.storage,
-            emit_event=container.emit_event,
             memory_id=args.memory_id,
         )
     except (ValueError, NotFoundError, DomainValidationError):
@@ -196,7 +193,6 @@ def cmd_memory_update(args: argparse.Namespace, container: CoreContainer) -> int
     try:
         updated = update_memory.execute(
             store=container.storage,
-            emit_event=container.emit_event,
             memory_id=args.memory_id,
             content=content,
             tags=tags,

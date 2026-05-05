@@ -69,7 +69,7 @@ def test_add_memory_generates_embedding_when_service_available() -> None:
     store, service = _make_store_and_service()
     emit = MagicMock()
     item = _make_item()
-    add_memory.execute(store, emit, item, embedding_service=service)
+    add_memory.execute(store, item, embedding_service=service)
     assert store.get_embedding("m1") is not None
 
 
@@ -77,10 +77,10 @@ def test_update_memory_regenerates_on_content_change() -> None:
     store, service = _make_store_and_service()
     emit = MagicMock()
     item = _make_item()
-    add_memory.execute(store, emit, item, embedding_service=service)
+    add_memory.execute(store, item, embedding_service=service)
 
     original_vec = store.get_embedding("m1")
-    update_memory.execute(store, emit, "m1", content="new content", embedding_service=service)
+    update_memory.execute(store, "m1", content="new content", embedding_service=service)
     new_vec = store.get_embedding("m1")
     # Embedding should change because content changed
     # (stub deterministically produces different vectors for different text)
@@ -91,10 +91,10 @@ def test_update_memory_skips_regeneration_tags_only() -> None:
     store, service = _make_store_and_service()
     emit = MagicMock()
     item = _make_item()
-    add_memory.execute(store, emit, item, embedding_service=service)
+    add_memory.execute(store, item, embedding_service=service)
 
     original_vec = store.get_embedding("m1")
-    update_memory.execute(store, emit, "m1", tags=["new-tag"], embedding_service=service)
+    update_memory.execute(store, "m1", tags=["new-tag"], embedding_service=service)
     new_vec = store.get_embedding("m1")
     # Tags-only change should NOT regenerate embedding
     assert new_vec == original_vec

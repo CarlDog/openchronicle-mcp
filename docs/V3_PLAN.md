@@ -1,8 +1,33 @@
 # OpenChronicle v3 — Memory-Only Rewrite Plan
 
-**Status:** Draft, 2026-05-02. Not started. Awaiting branch creation.
-**Author of this draft:** Claude (this session)
-**User sign-off required before any code changes.**
+**Status:** In progress. Plan signed off 2026-05-05; phases 0-2 complete.
+**Branch:** `v3/develop` (forked from `main` HEAD `bb217d9`).
+**v2 archive:** `archive/openchronicle.v2` (frozen).
+
+## Phase Tracker
+
+| Phase | Status | Notes |
+|---|---|---|
+| 0 — branch creation | ✅ done (2026-05-05) | `archive/openchronicle.v2` + `v3/develop` |
+| 1 — interfaces slimmed | ✅ done (2026-05-05) | 173 files, 264+/35,460-; 570 tests passing |
+| 2 — application slimmed | ✅ done (2026-05-05) | container/services/use_cases/dirs/plugins; 345 tests passing |
+| 3 — infrastructure slimmed | pending | LLM/media/privacy/router_assist adapters, slim wiring |
+| 4 — domain slimmed | pending | Cut models + ports; trim storage_port to memory-only |
+| 5 — schema migration + framework + online backup | pending | one-shot v2→v3 migrate, versioned migrator, sqlite3 .backup() |
+| 6 — ASGI unification | pending | mount FastMCP into FastAPI at `/mcp`; single port `:18000` |
+| 6.5 — maintenance loop + degradation | pending | asyncio loop; FTS5-only fallback for embedding-down |
+| 7 — docs sweep + repo polish | pending | full doc classification; new STABILITY/security/MAINTENANCE docs |
+| 8 — production cutover | pending | NAS stack 151 redeploy + smoke + client config updates |
+| 9 — decommission | pending | tag v3.0.0; delete v2 stack + orphan volumes after Day 7 |
+
+**Locked decisions** (questions 1, 4, 6, 13, 14, 19 from "Open Questions"):
+
+- ✅ Drop `memory_items.conversation_id` (Phase 5 schema work)
+- ✅ Unified ASGI on port `:18000` (Phase 6)
+- ✅ Cut plugin system entirely (done in Phase 2)
+- ✅ MCP tool description quality pass (done in Phase 1)
+- ✅ Ship `oc memory export/import` day 1 (Phase 5)
+- ✅ `OC_LOG_FORMAT=human|json`, default human (Phase 6)
 
 ---
 

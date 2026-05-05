@@ -15,7 +15,6 @@ from openchronicle.core.application.services.git_onboard import (
 )
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
-from openchronicle.core.domain.models.project import Event
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.mcp.tracking import track_tool
 
@@ -96,20 +95,6 @@ def register(mcp: FastMCP) -> None:
 
         filtered = filter_commits(commits)
         clusters = cluster_commits(filtered, max_clusters=max_clusters)
-
-        # Emit started event
-        container.emit_event(
-            Event(
-                project_id=project_id,
-                type="onboard.git.started",
-                payload={
-                    "project_id": project_id,
-                    "commit_count": len(filtered),
-                    "cluster_count": len(clusters),
-                    "incremental": watermark_hash is not None,
-                },
-            )
-        )
 
         # Build response
         cluster_data = []

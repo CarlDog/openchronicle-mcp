@@ -9,13 +9,13 @@ from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 
 def cmd_init_project(args: argparse.Namespace, container: CoreContainer) -> int:
-    project = create_project.execute(container.orchestrator, args.name)
+    project = create_project.execute(container.storage, args.name)
     print(project.id)
     return 0
 
 
 def cmd_list_projects(args: argparse.Namespace, container: CoreContainer) -> int:
-    projects = list_projects.execute(container.orchestrator)
+    projects = list_projects.execute(container.storage)
     for p in projects:
         print(f"{p.id}\t{p.name}")
     return 0

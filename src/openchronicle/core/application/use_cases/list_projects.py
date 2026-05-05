@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from openchronicle.core.application.services.orchestrator import OrchestratorService
 from openchronicle.core.domain.models.project import Project
+from openchronicle.core.domain.ports.storage_port import StoragePort
 
 
-def execute(orchestrator: OrchestratorService) -> list[Project]:
-    return orchestrator.storage.list_projects()
+def execute(store: StoragePort) -> list[Project]:
+    return store.list_projects()

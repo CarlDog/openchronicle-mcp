@@ -28,3 +28,11 @@ class ValidationError(Exception):
     def __init__(self, message: str, *, code: str = "INVALID_ARGUMENT") -> None:
         self.code = code
         super().__init__(message)
+
+
+class ConfigError(Exception):
+    """Raised when runtime configuration is missing or invalid."""
+
+    def __init__(self, message: str, *, code: str = "CONFIG_ERROR") -> None:
+        self.code = code
+        super().__init__(message)
