@@ -244,6 +244,26 @@ for the full layout.
 - Test placeholders: `changeme`, `replace_me`, `your_key_here`,
   `test-key`
 
+**GitHub Actions hygiene:**
+
+- "Node.js 20 actions are deprecated" warnings (and any future
+  Node-version deprecation) come from an action's *bundled
+  runtime*, not the workflow's `runs-on`. Fix by bumping the
+  action's major version to one that ships the newer Node runtime.
+  Example: `actions/setup-python@v5` → `@v6` was the bump that
+  silenced Node 20 warnings.
+- Verify the latest major before bumping —
+  `https://github.com/<owner>/<action>/releases/latest` (e.g.
+  `actions/checkout/releases/latest`,
+  `docker/build-push-action/releases/latest`).
+- Dependabot's `github-actions` ecosystem in
+  `.github/dependabot.yml` opens weekly grouped PRs for action
+  bumps automatically. If a deprecation warning fires before the
+  weekly run, do a manual bump and let Dependabot pick up from
+  there.
+- Runtime deprecation is a *warning*, not a build failure. Don't
+  treat it as a cutover blocker.
+
 ## Environment Variables
 
 Most-used variables for quick reference:
