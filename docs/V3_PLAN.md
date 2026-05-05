@@ -1,8 +1,8 @@
 # OpenChronicle v3 — Memory-Only Rewrite Plan
 
 **Status:** Code-complete on `v3/develop` (phases 0-7 done + folder-by-folder
-audit at `6a667db`); 345 tests passing. Phase 8 (NAS cutover) is the next
-user-driven step.
+audit at `6a667db`) + Phase 8 prep (CI triggers + rc tag flow); 345 tests
+passing. Phase 8 (NAS cutover) is the next user-driven step.
 **Branch:** `v3/develop` (forked from `main` HEAD `bb217d9`).
 **v2 archive:** `archive/openchronicle.v2` (frozen).
 
@@ -728,9 +728,24 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 **Pre-cutover checklist (must all be true before starting):**
 
-1. Last v2 image **retagged** as `ghcr.io/carldog/openchronicle-mcp:v2-final` and pushed (or pinned by SHA in a saved note) — `latest` will get overwritten by v3 builds and we need a known-good rollback target
+1. Last v2 image **retagged** as `ghcr.io/carldog/openchronicle-mcp:v2-final` and pushed — `latest` will get overwritten by v3 builds and we need a known-good rollback target. **Easy path:** run the `Retag GHCR Image` workflow from the GitHub Actions UI with `source_tag=latest`, `dest_tag=v2-final` — it uses `docker buildx imagetools create` so the multi-arch manifest copies cleanly without re-pulling. Manual fallback (if running off-CI):
+
+   ```bash
+   docker login ghcr.io -u <gh-user> -p $(gh auth token)
+   docker buildx imagetools create \
+     --tag ghcr.io/carldog/openchronicle-mcp:v2-final \
+     ghcr.io/carldog/openchronicle-mcp:latest
+   ```
+
 2. **Manual `oc db backup` taken** of the production DB and copied off the NAS (e.g. to local machine) — the migration is one-way without it
-3. v3 image built and tagged `:v3.0.0-rc1` (not `:latest` yet)
+3. v3 image built and tagged `:v3.0.0-rc1`. Workflow trigger: push a git tag matching `v*` to `v3/develop`. The `docker-publish.yml` workflow has `tags: ["v*"]` + `type=ref,event=tag` metadata, which produces `ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1` without flipping `:latest` (the `is_default_branch` guard holds it on v2 until the merge to main):
+
+   ```bash
+   git tag v3.0.0-rc1
+   git push origin v3.0.0-rc1
+   # wait for the "Build and Push Docker Image" workflow to go green
+   ```
+
 4. Client Cutover Checklist (see new section below) reviewed; have all client config changes ready to paste
 5. User has a 30-minute window where brief downtime is acceptable
 
@@ -747,14 +762,19 @@ The README is not a market-positioning document. It states what OC is, what it d
 2. **Take a fresh backup of the production DB** (in case the pre-flight backup is stale)
 3. Run `scripts/migrate_v2_to_v3.py` on the production DB
 4. Run `scripts/verify_v3_db.py` — abort if any check fails
-5. Update `docker-compose.nas.yml` in the repo with the v3 single-service shape; push
-6. Update Portainer stack 151's compose to point at v3 image (`:v3.0.0-rc1`); redeploy
+5. `docker-compose.nas.yml` is already in v3 single-service shape on `v3/develop`. Force-push `v3/develop` → `main` so future `:latest` builds carry v3 code:
+
+   ```bash
+   git push --force-with-lease origin v3/develop:main
+   ```
+
+6. Update Portainer stack 151's compose to point at v3 image (`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`); redeploy. Use the rc tag, not `:latest` — `:latest` gets flipped only after Day 7 of clean operation (step 12 of Phase 9 Day 0 / Day 7).
 7. Wait for healthcheck green
 8. **Trigger one immediate run of `embedding_backfill`** (`oc maintenance run-once embedding_backfill`) to ensure any v2 memories without embeddings get them before search traffic hits
 9. Run smoke test: memory CRUD, search (verify embedding-backed results), `onboard_git`, project list
 10. Verify project UUID `87de0f7d-d6ab-4b83-8613-b2b5ff60a57b` (or current canonical) still resolves
 11. Update Client Cutover Checklist items (point clients at new endpoint)
-12. Re-tag v3 image `:latest`
+12. Tag the merge commit `v3.0.0` (workflow rebuilds and publishes `:v3.0.0`); flipping `:latest` to v3 is deferred to Phase 9 Day 7 per the rollback policy
 
 **If cutover fails (rollback procedure):**
 
@@ -784,6 +804,14 @@ The README is not a market-positioning document. It states what OC is, what it d
 - Inside `oc-data` named volume: remove orphan dirs `/data/assets/`, `/data/output/` — these are dead bytes after v3 cuts those features
 - Delete the pre-migration backup ONLY if a fresh v3-shaped backup exists and integrity-checks ok
 - Confirm `latest` Docker tag is v3 (cuts the rollback path — only do this after Day 7 success)
+
+### Post-cutover follow-ups (tech debt)
+
+These didn't block code-completeness or cutover but should land in a v3.0.x release:
+
+- **Dependency audit.** `pyproject.toml` extras (`[dev]`, `[mcp]`, `[openai]`, `[ollama]`) were trimmed during Phase 7 but never re-resolved against actual import use. Walk `pip-licenses` (or `pipdeptree`) on a fresh `pip install -e ".[dev,mcp,openai,ollama]"` and prune anything not imported by `src/` or `tests/`. Likely candidates to drop or version-pin tighter: leftover transitive deps from the v2 cut. Also resolve any open Dependabot advisories (the `:latest` push on 2026-05-05 surfaced 1 moderate on `main`/v2; re-check after the v3 force-push to see whether it persists in the v3 set).
+- **Docker base image refresh.** Verify the Dockerfile base is on the latest patch of python:3.11-slim (or whichever pin is current); rebuild reveals any silently-broken transitive system libs.
+- **Lock file or constraints file.** v2 had no lock file. Consider adding `requirements-dev.txt` from `pip freeze` after a clean install on the v3 image, so reproducibility doesn't drift.
 
 ---
 

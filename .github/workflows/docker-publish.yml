@@ -2,7 +2,8 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: [main]
+    branches: [main, v3/develop]
+    tags: ["v*"]
 
 env:
   REGISTRY: ghcr.io
@@ -40,6 +41,7 @@ jobs:
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=,format=short
+            type=ref,event=tag
 
       - name: Build and push
         uses: docker/build-push-action@v7

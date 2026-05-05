@@ -89,14 +89,26 @@ NAS stack 151 still runs v2 until Phase 8 cutover.
   4 dead `RuntimePaths` fields, ~20 dead error codes, `load_plugin_config()`,
   v2 model + router_assist template writers, vacuous `tests/test_policies_purity.py`,
   unused `tests/helpers/subprocess_env.py`. 345 tests passing.
+- ✅ **Phase 8 prep** (CI + tag flow + runbook tightening) —
+  GHA workflows now trigger on `v3/develop` too (was main-only,
+  meaning 9 commits had no CI signal); `docker-publish.yml` gains a
+  `tags: ["v*"]` trigger + `type=ref,event=tag` metadata so
+  `git tag v3.0.0-rc1 && git push --tags` produces the matching
+  Docker tag without flipping `:latest`. Phase 8 runbook tightened
+  with the explicit `:v2-final` retag command, the rc tag flow,
+  and the force-push step.
 - ⏭ **Phase 8** (NAS cutover) — next user-driven step. Take
-  production backup, run `scripts/migrate_v2_to_v3.py` on a copy of
-  the live DB, deploy v3 image to NAS stack 151, run
+  production backup, retag `:latest` as `:v2-final` for rollback,
+  push `v3.0.0-rc1` git tag to build the rc image, force-push
+  `v3/develop` → `main`, run `scripts/migrate_v2_to_v3.py` on the
+  live DB, deploy v3 image to NAS stack 151, run
   `oc maintenance run-once embedding_backfill`, verify via smoke
   test, update each MCP client's `~/.claude.json` URL from
   `:18001/mcp` to `:18000/mcp`. Cutover-time runbook lives in
   `docs/V3_PLAN.md` Phase 8 section.
-- pending: Phase 9 (decommission, Day 7+ post-cutover)
+- pending: Phase 9 (decommission, Day 7+ post-cutover) — also
+  tracks **dependency audit** as a tech-debt follow-up
+  (`docs/V3_PLAN.md` "Post-cutover follow-ups").
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut
