@@ -1,4 +1,4 @@
-"""Tests for oc config show command."""
+"""Tests for oc config show command (v3 surface)."""
 
 from __future__ import annotations
 
@@ -11,25 +11,20 @@ import pytest
 from openchronicle.interfaces.cli.main import main
 
 
-def test_config_show_default_values(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Default config shows expected defaults (stub provider, budget off, privacy off)."""
+def test_config_show_human_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Human output prints paths and core.json status."""
     monkeypatch.delenv("OC_CONFIG_DIR", raising=False)
-    monkeypatch.delenv("OC_LLM_PROVIDER", raising=False)
     with patch("builtins.print") as mock_print:
         rc = main(["config", "show"])
 
     assert rc == 0
     output = "\n".join(str(c.args[0]) if c.args else "" for c in mock_print.call_args_list)
-    assert "stub" in output
     assert "Paths:" in output
-    assert "Provider:" in output
-    assert "Budget:" in output
-    assert "Privacy:" in output
+    assert "Config file:" in output
 
 
-def test_config_show_custom_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Custom env vars reflected in output."""
-    monkeypatch.setenv("OC_LLM_PROVIDER", "openai")
+def test_config_show_custom_db_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Custom OC_DB_PATH appears in output."""
     monkeypatch.setenv("OC_DB_PATH", "/custom/db.sqlite")
 
     with patch("builtins.print") as mock_print:
@@ -37,12 +32,11 @@ def test_config_show_custom_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert rc == 0
     output = "\n".join(str(c.args[0]) if c.args else "" for c in mock_print.call_args_list)
-    assert "openai" in output
     assert str(Path("/custom/db.sqlite")) in output
 
 
-def test_config_show_json_output() -> None:
-    """--json returns valid envelope with all sections."""
+def test_config_show_json_envelope() -> None:
+    """--json returns a valid envelope with paths and core_config sections."""
     with patch("builtins.print") as mock_print:
         rc = main(["config", "show", "--json"])
 
@@ -53,16 +47,13 @@ def test_config_show_json_output() -> None:
     assert payload["command"] == "config.show"
     result = payload["result"]
     assert "paths" in result
-    assert "provider" in result
-    assert "pools" in result
-    assert "budget" in result
-    assert "privacy" in result
-    assert "telemetry" in result
-    assert "router_assist" in result
+    assert "core_config_loaded" in result
+    assert "core_config" in result
+    assert "masked_secrets" in result
 
 
 def test_config_show_masks_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
-    """API keys are masked in output."""
+    """API key env vars are masked."""
     monkeypatch.setenv("OC_OPENAI_API_KEY", "test-key")
 
     with patch("builtins.print") as mock_print:
@@ -73,6 +64,5 @@ def test_config_show_masks_api_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = json.loads(raw)
     masked = payload["result"]["masked_secrets"]
     assert "OC_OPENAI_API_KEY" in masked
-    # Should be masked, not the full key
     assert masked["OC_OPENAI_API_KEY"] == "****"
     assert "test-key" not in masked["OC_OPENAI_API_KEY"]

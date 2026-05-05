@@ -37,30 +37,27 @@ def register(mcp: FastMCP) -> None:
         max_clusters: int = 15,
         force: bool = False,
     ) -> dict[str, Any]:
-        """Analyze git history and return commit clusters for memory creation.
+        """Bootstrap project memory from a remote git repo's commit clusters.
 
-        Returns clusters of related commits. For each cluster, synthesize a
-        memory capturing WHY changes were made (decisions, rejected approaches,
-        architectural shifts) and save it using memory_save with
-        tags=["git-derived"] and the cluster's created_at timestamp.
+        Use once per project to seed long-term memory with the WHY behind
+        existing code. The server clones `repo_url` shallow into a tmpdir,
+        clusters related commits, and returns suggestions ready for
+        `memory_save` — write 3-8 sentences per cluster capturing the
+        decision/rejected approach/architectural shift, then save with
+        the suggested tags and `created_at`. Re-running is incremental
+        (a watermark tracks the last processed commit); pass `force=true`
+        to wipe and start over.
 
-        The OC server clones ``repo_url`` shallow into a tmpdir, walks the
-        history, and discards the clone. This works in containerized
-        deployments where the server has no access to the caller's local
-        filesystem (e.g. the NAS-hosted OC). For local-only or unpushed
-        history, use the ``oc onboard git`` CLI instead.
-
-        Private repos: set ``OC_GIT_TOKEN`` on the OC server to a GitHub
-        PAT with ``contents:read`` scope. github.com only in v1.
+        Private github.com repos require `OC_GIT_TOKEN` set on the server
+        with `contents:read` scope. For unpushed local history use the
+        `oc onboard git` CLI instead.
 
         Args:
-            project_id: Project to associate memories with.
-            repo_url: Git-cloneable URL (HTTPS or SSH). Public repos work
-                without auth; private github.com repos require
-                ``OC_GIT_TOKEN`` set on the OC server.
-            max_commits: Maximum commits to analyze (default: 500).
-            max_clusters: Maximum clusters/memories to produce (default: 15).
-            force: Delete existing git-onboard memories before re-running.
+            project_id: Project to attach memories to.
+            repo_url: Cloneable URL (HTTPS or SSH).
+            max_commits: Cap on commits walked (default 500).
+            max_clusters: Cap on clusters/memories produced (default 15).
+            force: Wipe prior git-onboard memories and re-run from scratch.
         """
         container = _get_container(ctx)
 

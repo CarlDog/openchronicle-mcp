@@ -26,15 +26,16 @@ def register(mcp: FastMCP) -> None:
         ctx: Context,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create a new project.
+        """Create a new project namespace for memories.
 
-        Projects are the top-level organizing concept. Conversations and
-        memories belong to projects. You need a project_id before you can
-        save memories.
+        Projects partition the memory keyspace; every memory item belongs
+        to exactly one. Call once per logical workstream (a codebase,
+        client engagement, research thread). The returned `id` is the UUID
+        you pass as `project_id` to `memory_save` and `onboard_git`.
 
         Args:
-            name: Human-readable name for the project.
-            metadata: Optional key-value metadata.
+            name: Human-readable project name.
+            metadata: Arbitrary key-value annotations (optional).
         """
         container = _get_container(ctx)
         project = create_project.execute(
@@ -49,10 +50,11 @@ def register(mcp: FastMCP) -> None:
     def project_list(
         ctx: Context,
     ) -> list[dict[str, Any]]:
-        """List all projects.
+        """List every project, with id, name, and creation timestamp.
 
-        Returns all projects, most useful for finding an existing project_id
-        to use with memory_save.
+        Use to find the right `project_id` for `memory_save`. If only one
+        project should exist for your use case but `project_list` returns
+        several, consolidate before saving — projects are not auto-merged.
         """
         container = _get_container(ctx)
         projects = list_projects.execute(orchestrator=container.orchestrator)

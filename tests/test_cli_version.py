@@ -17,11 +17,10 @@ def test_version_human_output() -> None:
     output = " ".join(str(c.args[0]) for c in mock_print.call_args_list)
     assert "openchronicle" in output
     assert "Python" in output
-    assert "Protocol" in output
 
 
 def test_version_json_output() -> None:
-    """--json returns valid envelope with all three fields."""
+    """--json returns valid envelope with package + python versions."""
     with patch("builtins.print") as mock_print:
         rc = main(["version", "--json"])
 
@@ -33,7 +32,6 @@ def test_version_json_output() -> None:
     result = payload["result"]
     assert "package_version" in result
     assert "python_version" in result
-    assert "protocol_version" in result
 
 
 def test_version_with_mocked_package_version() -> None:

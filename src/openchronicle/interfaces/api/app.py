@@ -33,10 +33,10 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
     app = FastAPI(
         title="OpenChronicle",
         description=(
-            "Durable context engine for LLM interactions — persistent memory, "
-            "explainable routing, and auditable decision trails."
+            "Memory database for LLM agents — persistent semantic + keyword "
+            "memory, project namespacing, git-onboard, served over HTTP REST and MCP."
         ),
-        version="2.0.0",
+        version="3.0.0-dev",
         lifespan=lifespan,
     )
 
@@ -89,24 +89,14 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
 
     # Register route modules
     from openchronicle.interfaces.api.routes import (
-        asset,
-        conversation,
-        hooks,
-        media,
         memory,
         project,
         system,
-        webhook,
     )
 
     app.include_router(system.router, prefix="/api/v1", tags=["system"])
     app.include_router(project.router, prefix="/api/v1", tags=["project"])
     app.include_router(memory.router, prefix="/api/v1", tags=["memory"])
-    app.include_router(conversation.router, prefix="/api/v1", tags=["conversation"])
-    app.include_router(asset.router, prefix="/api/v1", tags=["asset"])
-    app.include_router(webhook.router, prefix="/api/v1", tags=["webhook"])
-    app.include_router(hooks.router, prefix="/api/v1", tags=["hooks"])
-    app.include_router(media.router, prefix="/api/v1", tags=["media"])
 
     # Top-level liveness probe at /health for Synology Container Manager,
     # Docker HEALTHCHECK, k8s liveness, etc. that hit the conventional path

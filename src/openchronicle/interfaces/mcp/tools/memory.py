@@ -1,4 +1,4 @@
-"""Memory tools — search, save, list, pin."""
+"""Memory tools — save, search, list, get, update, delete, pin, stats, embed."""
 
 from __future__ import annotations
 
@@ -42,14 +42,21 @@ def register(mcp: FastMCP) -> None:
         tags: list[str] | None = None,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        """Search memory items by keyword.
+        """Find memory items relevant to a query (hybrid semantic + keyword).
+
+        Use this to look up prior decisions, rejected approaches, or context
+        from earlier sessions before re-deriving from scratch. Pair `query`
+        with `tags` to narrow by topic. Prefer this over `memory_list` when
+        you have keywords; use `memory_list` for unfiltered pagination and
+        `context_recent` for project-scoped session catch-up.
 
         Args:
-            query: Keywords to search for in memory content.
-            top_k: Maximum number of results to return (default 8).
-            conversation_id: Optional — restrict search to a specific conversation.
-            project_id: Optional — restrict search to a specific project.
-            tags: Optional — filter results to items having ALL specified tags (AND logic).
+            query: Keywords or a natural-language question.
+            top_k: Maximum number of results (1-1000, default 8).
+            conversation_id: Restrict to a specific conversation (optional).
+            project_id: Restrict to a specific project (optional, recommended).
+            tags: Require ALL listed tags on each result (AND logic).
+            offset: Skip the first N results for pagination.
         """
         if not query or not query.strip():
             raise DomainValidationError("query must be non-empty")
@@ -79,18 +86,22 @@ def register(mcp: FastMCP) -> None:
         project_id: str | None = None,
         created_at: str | None = None,
     ) -> dict[str, Any]:
-        """Save a memory item for persistent retrieval across sessions.
+        """Persist a memory item that should outlive the current session.
 
-        Either project_id or conversation_id must be provided. If conversation_id
-        is given without project_id, the project is derived from the conversation.
+        Call when a decision is made, an approach is rejected, a milestone
+        is completed, or working state should survive context compression.
+        Use `pinned=true` for standing rules and conventions that must
+        always surface; use `tags` (decision/rejected/milestone/context/
+        convention/scope) for retrievability. `project_id` is required —
+        either directly or derived from `conversation_id`.
 
         Args:
-            content: The text content to remember.
-            tags: Optional list of tags for categorization.
-            pinned: If True, memory is always included in context retrieval.
-            conversation_id: Optional conversation to associate the memory with.
-            project_id: Project to store the memory under.
-            created_at: Optional ISO datetime to backdate the memory (e.g. "2026-01-15T12:00:00+00:00").
+            content: The text to remember (max 100,000 chars).
+            tags: Tags for categorization and `memory_search` filtering.
+            pinned: True for standing rules; pinned items always surface.
+            conversation_id: Associate with a conversation (optional).
+            project_id: Project to scope the memory to (required if no conversation).
+            created_at: ISO datetime to backdate (e.g. for git-onboard imports).
         """
         if not content or not content.strip():
             raise DomainValidationError("content must be non-empty")
@@ -98,7 +109,6 @@ def register(mcp: FastMCP) -> None:
             raise DomainValidationError("content exceeds maximum length of 100,000 characters")
         container = _get_container(ctx)
 
-        # Derive project_id from conversation if needed
         resolved_project_id = project_id
         if resolved_project_id is None and conversation_id:
             convo = container.storage.get_conversation(conversation_id)
@@ -136,11 +146,17 @@ def register(mcp: FastMCP) -> None:
         pinned_only: bool = False,
         offset: int = 0,
     ) -> list[dict[str, Any]]:
-        """List memory items.
+        """Browse memory items in reverse-chronological order.
+
+        Use this for unfiltered pagination through stored memories — for
+        example, "what did I save recently?" Prefer `memory_search` when
+        you have keywords. Set `pinned_only=true` to enumerate standing
+        rules.
 
         Args:
-            limit: Maximum number of items to return (None for all).
-            pinned_only: If True, only return pinned memories.
+            limit: Max items to return (1-10,000; None = no limit).
+            pinned_only: Only return pinned items.
+            offset: Skip the first N items for pagination.
         """
         if limit is not None:
             limit = min(max(limit, 1), 10_000)
@@ -161,13 +177,15 @@ def register(mcp: FastMCP) -> None:
         ctx: Context,
         pinned: bool = True,
     ) -> dict[str, str]:
-        """Pin or unpin a memory item.
+        """Mark a memory as pinned (or unpin it).
 
-        Pinned memories are always included in context retrieval, ensuring
-        important information persists across all future interactions.
+        Pinned memories always surface in `memory_search` and
+        `context_recent` results regardless of relevance ranking. Use for
+        standing rules, conventions, and project-wide invariants. Use
+        `memory_update` for content/tag edits — pin state is separate.
 
         Args:
-            memory_id: The ID of the memory to pin/unpin.
+            memory_id: The memory's ID.
             pinned: True to pin, False to unpin (default True).
         """
         container = _get_container(ctx)
@@ -187,13 +205,16 @@ def register(mcp: FastMCP) -> None:
         content: str | None = None,
         tags: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Update an existing memory item's content and/or tags.
+        """Edit an existing memory's content or tags in place.
 
-        Preserves identity (id, created_at). Sets updated_at automatically.
-        At least one of content or tags must be provided.
+        Use this to correct or refine a memory rather than `memory_delete` +
+        `memory_save`, which would create a new ID and lose the original
+        `created_at`. Identity (id, created_at) is preserved; `updated_at`
+        is bumped automatically. Use `memory_pin` to change pin state — this
+        tool does not touch it.
 
         Args:
-            memory_id: The ID of the memory to update.
+            memory_id: The memory's ID.
             content: New content (replaces existing). Omit to keep current.
             tags: New tags (replaces existing). Omit to keep current.
         """
@@ -216,10 +237,14 @@ def register(mcp: FastMCP) -> None:
         memory_id: str,
         ctx: Context,
     ) -> dict[str, Any]:
-        """Get a single memory item by ID.
+        """Fetch a single memory by ID.
+
+        Use after `memory_search` returns IDs of interest and you need full
+        content + metadata for one specific item. For bulk reads, prefer
+        `memory_list` or `memory_search`.
 
         Args:
-            memory_id: The ID of the memory to retrieve.
+            memory_id: The memory's ID.
         """
         container = _get_container(ctx)
         item = container.storage.get_memory(memory_id)
@@ -233,10 +258,13 @@ def register(mcp: FastMCP) -> None:
         memory_id: str,
         ctx: Context,
     ) -> dict[str, str]:
-        """Delete a memory item permanently.
+        """Permanently delete a memory item.
+
+        Hard delete — no soft-delete recovery. Backups are the recovery path.
+        Use `memory_update` instead if you want to revise rather than remove.
 
         Args:
-            memory_id: The ID of the memory to delete.
+            memory_id: The memory's ID.
         """
         container = _get_container(ctx)
         delete_memory.execute(
@@ -252,12 +280,14 @@ def register(mcp: FastMCP) -> None:
         ctx: Context,
         project_id: str | None = None,
     ) -> dict[str, Any]:
-        """Get memory usage statistics.
+        """Summarize memory contents: total/pinned counts, breakdowns by tag and source.
 
-        Returns counts of total, pinned, and per-tag/per-source breakdowns.
+        Use to inspect what's stored before a search session, or to verify
+        backfill/migration outcomes. Scope to a project for accurate counts
+        in multi-project deployments.
 
         Args:
-            project_id: Optional — restrict stats to a specific project.
+            project_id: Restrict stats to a specific project (optional).
         """
         container = _get_container(ctx)
         all_items = container.storage.list_memory(limit=None, pinned_only=False)
@@ -286,12 +316,16 @@ def register(mcp: FastMCP) -> None:
         ctx: Context,
         force: bool = False,
     ) -> dict[str, Any]:
-        """Generate embeddings for memories that don't have them.
+        """Generate embeddings for memories that lack them (or regenerate all).
 
-        Requires OC_EMBEDDING_PROVIDER to be configured (stub, openai, ollama).
+        Embeddings power the semantic half of `memory_search`'s hybrid
+        retrieval. Run after migrating from a config without embeddings,
+        or with `force=true` after switching embedding model. The
+        maintenance loop also backfills periodically — manual invocation
+        is for explicit control, not normal operation.
 
         Args:
-            force: If True, regenerate all embeddings (e.g. after model change).
+            force: Regenerate every embedding from scratch (default False).
         """
         container = _get_container(ctx)
         if container.embedding_service is None:

@@ -31,9 +31,11 @@ def create_server(container: CoreContainer, config: MCPConfig) -> FastMCP:
     mcp = FastMCP(
         config.server_name,
         instructions=(
-            "OpenChronicle provides durable memory and conversation capabilities "
-            "across sessions. Use memory tools to store and retrieve knowledge. "
-            "Use conversation tools to interact through OC's full LLM pipeline."
+            "OpenChronicle is a memory database for LLM agents. Use memory_save "
+            "to persist decisions, milestones, and context that should outlive "
+            "the current session; memory_search for hybrid semantic + keyword "
+            "retrieval scoped to a project; memory_pin for standing rules; "
+            "onboard_git to seed memory from a repo's commit history."
         ),
         lifespan=lifespan,
         host=config.host,
@@ -42,25 +44,17 @@ def create_server(container: CoreContainer, config: MCPConfig) -> FastMCP:
 
     # Register tool modules
     from openchronicle.interfaces.mcp.tools import (
-        asset,
         context,
-        conversation,
-        media,
         memory,
         onboard,
         project,
         system,
-        webhook,
     )
 
     system.register(mcp)
     project.register(mcp)
     memory.register(mcp)
-    conversation.register(mcp)
     context.register(mcp)
     onboard.register(mcp)
-    asset.register(mcp)
-    webhook.register(mcp)
-    media.register(mcp)
 
     return mcp
