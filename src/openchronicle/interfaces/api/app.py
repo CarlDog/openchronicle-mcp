@@ -49,16 +49,31 @@ def create_app(
         mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"))
         mcp_server = create_server(container, mcp_config)
 
+    # Build the maintenance loop unless explicitly disabled. The loop
+    # itself is started inside the lifespan so it shares the asyncio
+    # event loop with uvicorn and FastMCP.
+    from openchronicle.core.application.services import maintenance_loop
+    from openchronicle.core.infrastructure.maintenance import jobs as maintenance_jobs
+
+    maintenance: maintenance_loop.MaintenanceLoop | None = None
+    if not maintenance_loop.is_disabled():
+        loop_jobs = maintenance_loop.load_jobs(container.file_configs)
+        maintenance = maintenance_loop.MaintenanceLoop(
+            container=container,
+            jobs=loop_jobs,
+            handlers=maintenance_jobs.HANDLERS,
+        )
+
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("OpenChronicle ASGI starting on %s:%d", config.host, config.port)
         async with AsyncExitStack() as stack:
             if mcp_server is not None:
-                # FastMCP's session manager must run inside the host's
-                # lifespan so its anyio task group attaches and detaches
-                # cleanly with uvicorn shutdown.
                 await stack.enter_async_context(mcp_server.session_manager.run())
                 logger.info("MCP mounted at /mcp")
+            if maintenance is not None:
+                await maintenance.start()
+                stack.push_async_callback(maintenance.stop)
             yield
         logger.info("OpenChronicle ASGI shutting down")
 
@@ -74,6 +89,7 @@ def create_app(
 
     app.state.container = container
     app.state.http_config = config
+    app.state.maintenance = maintenance
 
     from openchronicle.interfaces.api.middleware import register_middleware
 

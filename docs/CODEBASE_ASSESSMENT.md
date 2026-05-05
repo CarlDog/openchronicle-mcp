@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 55 (v3 development; phases 0-6 complete on `v3/develop`)
+**Revision:** 56 (v3 development; phases 0-6.5 complete on `v3/develop`)
 
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
@@ -54,7 +54,23 @@
 >   embeddings) and the dead plugins/assets paths; entrypoint loses the
 >   `--http-only` fork. 8 new tests covering the unified app + log
 >   formatter. 331 tests passing.
-> - **Phase 6.5** (maintenance loop + embedding degradation policy) — pending.
+> - **Phase 6.5** (maintenance loop + embedding degradation policy) — done.
+>   New `application/services/maintenance_loop.py` (~210 LOC): asyncio
+>   loop dispatches due jobs as background tasks; per-job lock detects
+>   cross-tick overlap and skips; global mutex serializes within-process
+>   so vacuum + backfill never race. New `infrastructure/maintenance/
+>   jobs.py`: db_backup (atomic + 7-backup retention), db_vacuum (runs
+>   db_backup first per backup-before-destructive policy), db_integrity_check
+>   (sets `container.maintenance_degraded` on failure + emergency backup;
+>   clears on success), embedding_backfill, git_onboard_resync (placeholder).
+>   Wired into FastAPI lifespan via AsyncExitStack. New `/api/v1/maintenance/
+>   status` endpoint reports per-job last-run + outcome counters. New CLI
+>   `oc maintenance list/run-once`. `OC_MAINTENANCE_DISABLED` env opt-out.
+>   Embedding degradation: `EmbeddingService.search_hybrid` catches
+>   provider failures and falls back to FTS5-only; bumps a failure
+>   counter; container's `embedding_status_dict` reports `degraded` status
+>   with last-failure timestamp + count. Successful search clears the
+>   counter. 18 new tests. 349 tests passing.
 > - **Phase 7** (docs sweep + repo polish) — pending. This document gets
 >   rewritten as v3 rev 1 in Phase 7.
 

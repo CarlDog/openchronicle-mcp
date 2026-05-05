@@ -96,12 +96,20 @@ class CoreContainer:
             }
         port = self.embedding_service.port
         coverage = self.embedding_service.embedding_status()
+        # Search-time degradation: if the provider has been failing, the
+        # service flips to FTS5-only and tracks a counter. Surface the
+        # counter here so /api/v1/health can show it.
+        failure_count = self.embedding_service.search_failure_count
+        last_failure = self.embedding_service.last_failure_at
+        status = "degraded" if failure_count else "active"
         return {
-            "status": "active",
+            "status": status,
             "provider": settings.provider,
             "model": port.model_name(),
             "dimensions": port.dimensions(),
             "timeout_seconds": settings.timeout,
+            "search_failure_count": failure_count,
+            "last_search_failure_at": last_failure,
             **coverage,
         }
 

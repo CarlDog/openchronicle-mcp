@@ -153,6 +153,13 @@ def main(argv: list[str] | None = None) -> int:
     version_cmd = sub.add_parser("version", help="Show version information")
     version_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
+    maintenance_cmd = sub.add_parser("maintenance", help="Inspect or invoke the maintenance loop")
+    maintenance_sub = maintenance_cmd.add_subparsers(dest="maintenance_command")
+    maintenance_list = maintenance_sub.add_parser("list", help="Show configured jobs")
+    maintenance_list.add_argument("--json", action="store_true", help="Emit JSON output")
+    maintenance_run = maintenance_sub.add_parser("run-once", help="Run a single job and exit")
+    maintenance_run.add_argument("job_name", help="One of: db_backup, db_vacuum, db_integrity_check, embedding_backfill, git_onboard_resync")
+
     serve_cmd = sub.add_parser("serve", help="Run the unified HTTP + MCP ASGI server")
     serve_cmd.add_argument(
         "--host", default=None, help="Bind address (default: 0.0.0.0)"

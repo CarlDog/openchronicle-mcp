@@ -72,11 +72,22 @@ stack 151 still runs v2 until Phase 8 cutover.
   new `interfaces/logging_setup.py`; `docker-compose.nas.yml` collapsed
   from 3 services to 1; Dockerfile drops dead extras
   (anthropic/groq/gemini/discord) and dead paths; 331 tests passing
-- ⏭ **Phase 6.5** (maintenance loop + embedding degradation policy) —
-  next: asyncio loop for db_backup / db_vacuum / db_integrity_check /
-  embedding_backfill / git_onboard_resync; FTS5-only fallback when
-  embedding provider down
-- pending: Phases 7 (docs sweep), 8 (NAS cutover), 9 (decommission)
+- ✅ **Phase 6.5** (maintenance loop + embedding degradation policy) —
+  asyncio `MaintenanceLoop` with per-job + global locks (overlap-skip
+  observable across ticks, sequential within process), 5 job handlers
+  (db_backup with 7-backup retention, db_vacuum runs db_backup first,
+  db_integrity_check toggles `container.maintenance_degraded`,
+  embedding_backfill, git_onboard_resync placeholder), wired into
+  FastAPI lifespan; new `/api/v1/maintenance/status` endpoint;
+  `oc maintenance list/run-once` CLI; `OC_MAINTENANCE_DISABLED` opt-out;
+  `EmbeddingService.search_hybrid` falls back to FTS5-only on provider
+  failure and bumps failure counter; container `embedding_status_dict`
+  reports `degraded`/`active` with counts; 349 tests passing
+- ⏭ **Phase 7** (docs sweep + repo polish) — next: full doc
+  classification (update / archive to `docs/archive/v2/` / delete),
+  three new docs (api/STABILITY.md, configuration/security_posture.md,
+  architecture/MAINTENANCE.md), pyproject deps cleanup, README rewrite
+- pending: Phases 8 (NAS cutover), 9 (decommission)
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut plugin

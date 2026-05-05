@@ -39,10 +39,24 @@ class EmbeddingService:
     def __init__(self, port: EmbeddingPort, store: SqliteStore) -> None:
         self._port = port
         self._store = store
+        # Degraded-search bookkeeping — flips on when the embedding
+        # provider raises during a search, flips off the next time
+        # it succeeds. Surfaced via container.embedding_status_dict
+        # for /api/v1/health.
+        self._search_failure_count: int = 0
+        self._last_failure_at: str | None = None
 
     @property
     def port(self) -> EmbeddingPort:
         return self._port
+
+    @property
+    def search_failure_count(self) -> int:
+        return self._search_failure_count
+
+    @property
+    def last_failure_at(self) -> str | None:
+        return self._last_failure_at
 
     def generate_for_memory(
         self,
@@ -183,13 +197,39 @@ class EmbeddingService:
         keyword_results = [i for i in keyword_results if i.id not in pinned_ids]
 
         # ── Semantic search (list B) ─────────────────────────────────────
-        semantic_ranked = self._semantic_search(
-            query,
-            project_id=project_id,
-            tags=tags,
-            exclude_ids=pinned_ids,
-            limit=effective_top_k * 2,
-        )
+        # Embedding-failure degradation: if the provider raises, log it,
+        # mark the service degraded, and return FTS5-only results. The
+        # caller never sees the exception; /api/v1/health surfaces the
+        # degraded state via the failure counters on the service.
+        try:
+            semantic_ranked = self._semantic_search(
+                query,
+                project_id=project_id,
+                tags=tags,
+                exclude_ids=pinned_ids,
+                limit=effective_top_k * 2,
+            )
+            # Successful call clears any prior degraded marker.
+            if self._search_failure_count:
+                logger.info(
+                    "embedding search recovered after %d prior failures",
+                    self._search_failure_count,
+                )
+                self._search_failure_count = 0
+        except Exception as exc:
+            from datetime import UTC, datetime
+
+            self._search_failure_count += 1
+            self._last_failure_at = datetime.now(UTC).isoformat()
+            logger.warning(
+                "embedding search failed (%d total); degrading to FTS5-only: %s",
+                self._search_failure_count,
+                exc,
+            )
+            non_pinned_page = keyword_results[offset : offset + top_k]
+            if offset == 0:
+                return list(pinned_items) + non_pinned_page
+            return non_pinned_page
 
         # ── RRF merge ──────────────────────────────────────────────────
         keyword_rank: dict[str, int] = {item.id: rank for rank, item in enumerate(keyword_results, start=1)}

@@ -14,6 +14,7 @@ from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 from . import (
     db,
+    maintenance,
     memory,
     onboard,
     project,
@@ -40,6 +41,8 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, CoreContainer], int]] = {
     "db": db.cmd_db,
     # Onboard
     "onboard": onboard.cmd_onboard,
+    # Maintenance
+    "maintenance": maintenance.cmd_maintenance,
     # System
     "serve": system.cmd_serve,
 }
