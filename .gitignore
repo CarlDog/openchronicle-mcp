@@ -582,3 +582,6 @@ desktop.ini
 .docker/
 docker-compose.override.yml
 docker-compose.local.yml
+
+# Test artifacts (MagicMock paths leaking from container.paths.db_path mocks)
+MagicMock/
