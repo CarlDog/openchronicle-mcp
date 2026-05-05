@@ -25,8 +25,12 @@ COPY tools/docker/entrypoint.sh /app/entrypoint.sh
 # bootstraps these into $OC_CONFIG_DIR on first run.
 COPY config /config-defaults
 
-# v3 only needs MCP + the embedding providers (OpenAI / Ollama).
-RUN pip install --no-cache-dir ".[openai,ollama,mcp]"
+# Upgrade install tooling first to dodge CVEs that ship with the
+# python:3.11-slim base (pip 24.0, setuptools 68.1.2, wheel 0.42.0
+# all flagged by pip-audit). v3 only needs MCP + the embedding
+# providers (OpenAI / Ollama).
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir ".[openai,ollama,mcp]"
 
 RUN mkdir -p /app/data /app/config /app/output \
     && chmod +x /app/entrypoint.sh
