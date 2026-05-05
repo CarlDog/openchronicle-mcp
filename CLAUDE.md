@@ -58,10 +58,17 @@ stack 151 still runs v2 until Phase 8 cutover.
   services; `conversation_id` dropped from MemoryItem (Q1 locked); new
   `ProviderError`/`ConfigError` domain exceptions; git_onboard service drops
   LLM synthesis (caller-side now); 294 tests passing
-- ⏭ **Phase 5** (schema migration + framework + online backup +
-  export/import) — next
-- pending: Phases 6 (ASGI unification + `OC_LOG_FORMAT`), 6.5 (maintenance
-  loop + degradation), 7 (docs sweep), 8 (NAS cutover), 9 (decommission)
+- ✅ **Phase 5** (schema migration + framework + online backup +
+  export/import) — versioned `Migrator` with savepoint-atomic application
+  of `migrations/NNN_*.sql` files; `001_initial.sql` is the v3 baseline;
+  `infrastructure/persistence/backup.py` uses `sqlite3.Connection.backup()`
+  with atomic `.tmp`→rename; `oc memory export/import` (JSON envelope,
+  format_version=1, embeddings excluded); one-shot `scripts/migrate_v2_to_v3.py`
+  and `scripts/verify_v3_db.py`; 323 tests passing
+- ⏭ **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — next: mount FastMCP
+  into FastAPI at `/mcp`, single port `:18000`
+- pending: Phases 6.5 (maintenance loop + degradation), 7 (docs sweep),
+  8 (NAS cutover), 9 (decommission)
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut plugin

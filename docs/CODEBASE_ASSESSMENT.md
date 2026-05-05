@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 53 (v3 development; phases 0-4 complete on `v3/develop`)
+**Revision:** 54 (v3 development; phases 0-5 complete on `v3/develop`)
 
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
@@ -28,8 +28,19 @@
 >   `git_onboard` service drops LLM synthesis (caller-side now via MCP tool's
 >   cluster output); CLI db commands rewritten for the v3 table set. 294 tests
 >   passing, 0 failing.
-> - **Phase 5** (schema migration + framework + online backup +
->   export/import) — pending.
+> - **Phase 5** (schema migration framework + online backup + export/import +
+>   v2→v3 migration) — done. New modules: `infrastructure/persistence/
+>   migrator.py` (versioned migrator with savepoint atomicity, idempotent
+>   re-run); `migrations/001_initial.sql` (v3 baseline schema); `backup.py`
+>   (online `sqlite3.Connection.backup()` with atomic `.tmp` → rename);
+>   `application/use_cases/export_memory.py` + `import_memory.py` (JSON
+>   envelope, format_version=1, embeddings excluded as regenerable);
+>   `scripts/migrate_v2_to_v3.py` + `scripts/verify_v3_db.py` (one-shot
+>   cutover migration + invariant checker). `oc memory export/import` and
+>   `oc db backup` rewired through the new modules. SqliteStore.init_schema
+>   delegates to migrator. `interfaces/persistence/schema.py` removed.
+>   29 new tests covering migrator, backup, export/import, v2→v3 with a
+>   synthesized v2 fixture DB. 323 tests passing.
 > - **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — pending.
 > - **Phase 6.5** (maintenance loop + embedding degradation policy) — pending.
 > - **Phase 7** (docs sweep + repo polish) — pending. This document gets

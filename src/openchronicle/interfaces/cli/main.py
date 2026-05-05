@@ -84,6 +84,19 @@ def main(argv: list[str] | None = None) -> int:
     memory_embed_cmd.add_argument("--status", action="store_true", help="Show embedding coverage stats")
     memory_embed_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
+    memory_export_cmd = memory_sub.add_parser("export", help="Export memory + projects to JSON")
+    memory_export_cmd.add_argument("--out", default=None, help="Destination file (default: stdout)")
+    memory_export_cmd.add_argument("--project-id", default=None, help="Restrict to a single project")
+
+    memory_import_cmd = memory_sub.add_parser("import", help="Import memory + projects from JSON")
+    memory_import_cmd.add_argument("in_path", help="JSON file produced by `oc memory export`")
+    memory_import_cmd.add_argument(
+        "--mode",
+        choices=["merge", "replace"],
+        default="merge",
+        help="merge=skip on collision (default); replace=fail if dest non-empty",
+    )
+
     # --- Database commands ---
     db_cmd = sub.add_parser("db", help="Database maintenance commands")
     db_sub = db_cmd.add_subparsers(dest="db_command")

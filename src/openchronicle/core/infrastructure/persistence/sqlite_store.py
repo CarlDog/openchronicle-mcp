@@ -22,11 +22,33 @@ from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
-from openchronicle.core.infrastructure.persistence import schema
+from openchronicle.core.infrastructure.persistence import migrator
 from openchronicle.core.infrastructure.persistence.row_mappers import (
     row_to_memory_item,
     row_to_project,
 )
+
+_MEMORY_FTS_TABLE = """
+CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
+    content, tags,
+    content='memory_items', content_rowid='rowid'
+)
+"""
+
+_MEMORY_FTS_TRIGGERS = [
+    """CREATE TRIGGER IF NOT EXISTS memory_fts_ai AFTER INSERT ON memory_items BEGIN
+        INSERT INTO memory_fts(rowid, content, tags) VALUES (new.rowid, new.content, new.tags);
+    END""",
+    """CREATE TRIGGER IF NOT EXISTS memory_fts_ad AFTER DELETE ON memory_items BEGIN
+        INSERT INTO memory_fts(memory_fts, rowid, content, tags)
+            VALUES('delete', old.rowid, old.content, old.tags);
+    END""",
+    """CREATE TRIGGER IF NOT EXISTS memory_fts_au AFTER UPDATE ON memory_items BEGIN
+        INSERT INTO memory_fts(memory_fts, rowid, content, tags)
+            VALUES('delete', old.rowid, old.content, old.tags);
+        INSERT INTO memory_fts(rowid, content, tags) VALUES (new.rowid, new.content, new.tags);
+    END""",
+]
 
 _logger = logging.getLogger(__name__)
 _MEMORY_SEARCH_LIMIT = 200
@@ -61,14 +83,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._conn.close()
 
     def init_schema(self) -> None:
-        cur = self._conn.cursor()
-        for stmt in schema.ALL_TABLES:
-            cur.execute(stmt)
-        self._commit_if_needed()
-        self._ensure_updated_at_column()
-        self._ensure_indexes()
+        # Apply versioned migrations first — establishes projects,
+        # memory_items, memory_embeddings, schema_version (idempotent).
+        migrator.apply_pending(self._conn)
+        # FTS5 is runtime-detected (not all SQLite builds have it), so it
+        # lives outside the migrator and is set up conditionally here.
         self._ensure_fts5()
-        self._ensure_memory_embeddings_table()
 
     def _begin_immediate_with_retry(self) -> None:
         for attempt in range(_BEGIN_MAX_RETRIES + 1):
@@ -484,25 +504,6 @@ class SqliteStore(StoragePort, MemoryStorePort):
         if self._transaction_depth == 0:
             self._conn.commit()
 
-    def _ensure_updated_at_column(self) -> None:
-        cur = self._conn.cursor()
-        columns = [row[1] for row in cur.execute("PRAGMA table_info(memory_items)").fetchall()]
-        if "updated_at" not in columns:
-            cur.execute("ALTER TABLE memory_items ADD COLUMN updated_at TEXT")
-            self._commit_if_needed()
-
-    def _ensure_memory_embeddings_table(self) -> None:
-        cur = self._conn.cursor()
-        cur.execute(schema.MEMORY_EMBEDDINGS_TABLE)
-        cur.execute("PRAGMA foreign_keys = ON")
-        self._commit_if_needed()
-
-    def _ensure_indexes(self) -> None:
-        cur = self._conn.cursor()
-        for index_stmt in schema.INDEXES:
-            cur.execute(index_stmt)
-        self._commit_if_needed()
-
     def _ensure_fts5(self) -> None:
         if not self._fts5_user_enabled:
             _logger.info("FTS5 disabled by OC_SEARCH_FTS5_ENABLED")
@@ -514,9 +515,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
             return
 
         cur = self._conn.cursor()
-        for stmt in schema.FTS5_TABLES:
-            cur.execute(stmt)
-        for stmt in schema.FTS5_TRIGGERS:
+        cur.execute(_MEMORY_FTS_TABLE)
+        for stmt in _MEMORY_FTS_TRIGGERS:
             cur.execute(stmt)
         self._commit_if_needed()
 

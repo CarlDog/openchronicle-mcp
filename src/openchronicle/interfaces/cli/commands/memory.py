@@ -8,6 +8,8 @@ from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,
+    export_memory,
+    import_memory,
     list_memory,
     pin_memory,
     search_memory,
@@ -33,6 +35,8 @@ def cmd_memory(args: argparse.Namespace, container: CoreContainer) -> int:
         "delete": cmd_memory_delete,
         "update": cmd_memory_update,
         "embed": cmd_memory_embed,
+        "export": cmd_memory_export,
+        "import": cmd_memory_import,
     }
     handler = memory_dispatch.get(args.memory_command)
     if handler is None:
@@ -233,4 +237,70 @@ def cmd_memory_embed(args: argparse.Namespace, container: CoreContainer) -> int:
     if result.failed > 0 and result.generated == 0:
         return 1
     return 0
+
+
+def cmd_memory_export(args: argparse.Namespace, container: CoreContainer) -> int:
+    """Export memory + project state to a JSON file.
+
+    Cross-version-portable disaster recovery surface. Embeddings are
+    excluded (regenerable from content via ``oc memory embed``).
+    """
+    import json as _json
+
+    project_id = getattr(args, "project_id", None)
+    payload = export_memory.execute(
+        storage=container.storage,
+        memory_store=container.storage,
+        project_id=project_id,
+    )
+    raw = _json.dumps(payload, indent=2, sort_keys=True)
+    out_path = getattr(args, "out", None)
+    if out_path:
+        from pathlib import Path
+
+        Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(out_path).write_text(raw, encoding="utf-8")
+        print(
+            f"Exported {len(payload['projects'])} project(s), "
+            f"{len(payload['memory_items'])} memory item(s) to {out_path}"
+        )
+    else:
+        print(raw)
+    return 0
+
+
+def cmd_memory_import(args: argparse.Namespace, container: CoreContainer) -> int:
+    """Import a previously-exported memory JSON file."""
+    import json as _json
+    from pathlib import Path
+
+    from openchronicle.core.domain.exceptions import ValidationError
+
+    source = Path(args.in_path)
+    if not source.is_file():
+        print(f"Error: input file not found: {source}")
+        return 1
+
+    try:
+        payload = _json.loads(source.read_text(encoding="utf-8"))
+    except _json.JSONDecodeError as exc:
+        print(f"Error: invalid JSON in {source}: {exc}")
+        return 1
+
+    mode: str = getattr(args, "mode", "merge")
+    try:
+        result = import_memory.execute(
+            storage=container.storage,
+            memory_store=container.storage,
+            payload=payload,
+            mode=mode,
+        )
+    except ValidationError as exc:
+        print(f"Error: {exc}")
+        return 1
+
+    print(
+        f"Imported {result['projects_added']} project(s), "
+        f"{result['memory_added']} memory item(s) (mode={mode})"
+    )
     return 0
