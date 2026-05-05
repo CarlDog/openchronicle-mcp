@@ -16,16 +16,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host "`n🔧 Running Ruff auto-fixes..." -ForegroundColor Cyan
-& $pythonCmd -m ruff check --fix src tests plugins
+& $pythonCmd -m ruff check --fix src tests scripts
 if ($LASTEXITCODE -ne 0) {
     Write-Host "⚠️  Ruff found issues that couldn't be auto-fixed" -ForegroundColor Yellow
 }
 
 Write-Host "`n📝 Formatting code with Ruff..." -ForegroundColor Cyan
-& $pythonCmd -m ruff format src tests plugins
+& $pythonCmd -m ruff format src tests scripts
 
 Write-Host "`n🔍 Running mypy type checking..." -ForegroundColor Cyan
-& $pythonCmd -m mypy src tests plugins
+& $pythonCmd -m mypy src tests
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Mypy found type errors that need manual fixing" -ForegroundColor Red
     exit 1

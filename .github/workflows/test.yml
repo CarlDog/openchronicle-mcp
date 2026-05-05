@@ -25,14 +25,12 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -e ".[dev,discord,mcp]"
+        run: pip install -e ".[dev,mcp,openai,ollama]"
 
       - name: Test (no integration)
-        # Integration tests require provider keys (OPENAI_API_KEY etc.) and
-        # are skipped by the `not integration` marker. CI validates unit +
-        # functional coverage; integration runs locally.
-        # -v gives per-test names (no buffered dots) so a hang/SIGINT
-        # diagnostic surfaces the exact test that died.
+        # Integration tests require live provider keys and the
+        # `integration` marker; CI validates unit + functional only.
+        # -v gives per-test names so a hang surfaces which test died.
         run: pytest -m "not integration" -v
 
   quality:
@@ -49,13 +47,13 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -e ".[dev,discord,mcp]"
+        run: pip install -e ".[dev,mcp,openai,ollama]"
 
       - name: Ruff lint
-        run: ruff check src tests plugins
+        run: ruff check src tests scripts
 
       - name: Ruff format check
-        run: ruff format --check src tests plugins
+        run: ruff format --check src tests scripts
 
       - name: Mypy
-        run: mypy src tests plugins --config-file=pyproject.toml
+        run: mypy src tests --config-file=pyproject.toml

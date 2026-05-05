@@ -89,9 +89,10 @@ stack 151 still runs v2 until Phase 8 cutover.
   env_vars, config_files, mcp_client_setup, mcp_server_spec,
   docker_local_dev); three new docs (api/STABILITY.md,
   configuration/security_posture.md, architecture/MAINTENANCE.md);
-  README rewritten per V3_PLAN voice rules (lead with what OC does,
-  no competitor sections, honest scope); pyproject bumped to
-  v3.0.0.dev0 with dead extras dropped (anthropic/groq/gemini/discord);
+  README rewritten per V3_PLAN voice rules; pyproject bumped to
+  v3.0.0.dev0 with dead extras dropped. Repo polish swept additional
+  v2 cruft (model configs, fixtures, integration tests, PowerShell
+  scripts for cut commands, dead compose overlays, stale CI extras).
   349 tests passing
 - ⏭ **Phase 8** (NAS cutover) — next: take production backup, run
   `scripts/migrate_v2_to_v3.py` on a copy of the live DB, deploy v3

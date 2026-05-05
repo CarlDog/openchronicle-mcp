@@ -1,91 +1,50 @@
+# OpenChronicle v3 — local-development Compose file.
+#
+# Single service. The unified ASGI process serves the HTTP REST surface
+# at /api/v1/* and the MCP streamable-HTTP transport at /mcp on the same
+# port (default 8000 inside the container, mapped to 18000 on the host).
+#
+# For the NAS / Portainer deployment shape, use docker-compose.nas.yml
+# instead — it ships a healthcheck, named volumes, and the full operator
+# env-var surface.
+#
+# Quickstart:
+#   docker compose build
+#   docker compose up oc
+
 services:
-  serve:
+  oc:
     build: .
+    image: openchronicle-mcp:dev
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "18000:8000"
     environment:
-      - OC_DB_PATH=/data/openchronicle.db
-      - OC_CONFIG_DIR=/config
-      - OC_PLUGIN_DIR=/plugins
-      - OC_OUTPUT_DIR=/output
-      - OC_ASSETS_DIR=/assets
-      - OC_API_HOST=0.0.0.0
-      - OC_LLM_PROVIDER=${OC_LLM_PROVIDER:-openai}
+      OC_DB_PATH: /data/openchronicle.db
+      OC_CONFIG_DIR: /config
+      OC_OUTPUT_DIR: /output
+      OC_API_HOST: 0.0.0.0
+      OC_API_PORT: "8000"
+      # Set OC_API_KEY to require auth on /api/v1/* and /mcp.
+      OC_API_KEY: ${OC_API_KEY:-}
+      # Embeddings: set OC_EMBEDDING_PROVIDER to one of stub/openai/ollama
+      # to enable hybrid semantic + keyword search.
+      OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
+      OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-}
+      # Logging posture (Q19).
+      OC_LOG_FORMAT: ${OC_LOG_FORMAT:-human}
+      OC_LOG_LEVEL: ${OC_LOG_LEVEL:-INFO}
     env_file:
       - path: .env
         required: false
     volumes:
       - oc-data:/data
       - oc-config:/config
-      - ./plugins:/plugins
       - oc-output:/output
-      - oc-assets:/assets
-
-  openchronicle:
-    build: .
-    entrypoint: ["oc"]
-    environment:
-      - OC_DB_PATH=/data/openchronicle.db
-      - OC_CONFIG_DIR=/config
-      - OC_PLUGIN_DIR=/plugins
-      - OC_OUTPUT_DIR=/output
-      - OC_ASSETS_DIR=/assets
-    env_file:
-      - path: .env
-        required: false
-    volumes:
-      - oc-data:/data
-      - oc-config:/config
-      - ./plugins:/plugins
-      - oc-output:/output
-      - oc-assets:/assets
-
-  discord:
-    build: .
-    entrypoint: ["oc", "discord", "start"]
-    restart: unless-stopped
-    environment:
-      - OC_DB_PATH=/data/openchronicle.db
-      - OC_CONFIG_DIR=/config
-      - OC_PLUGIN_DIR=/plugins
-      - OC_OUTPUT_DIR=/output
-      - OC_ASSETS_DIR=/assets
-      - OC_LLM_PROVIDER=${OC_LLM_PROVIDER:-openai}
-      - OC_DISCORD_SESSION_STORE_PATH=/data/discord_sessions.json
-    env_file:
-      - path: .env
-        required: false
-    volumes:
-      - oc-data:/data
-      - oc-config:/config
-      - ./plugins:/plugins
-      - oc-output:/output
-      - oc-assets:/assets
-
-  mcp:
-    build: .
-    entrypoint: ["oc", "mcp", "serve"]
-    restart: unless-stopped
-    environment:
-      - OC_DB_PATH=/data/openchronicle.db
-      - OC_CONFIG_DIR=/config
-      - OC_PLUGIN_DIR=/plugins
-      - OC_OUTPUT_DIR=/output
-      - OC_ASSETS_DIR=/assets
-      - OC_LLM_PROVIDER=${OC_LLM_PROVIDER:-openai}
-    env_file:
-      - path: .env
-        required: false
-    volumes:
-      - oc-data:/data
-      - oc-config:/config
-      - ./plugins:/plugins
-      - oc-output:/output
-      - oc-assets:/assets
 
 volumes:
   oc-data:
   oc-config:
   oc-output:
-  oc-assets:

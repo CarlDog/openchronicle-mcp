@@ -1,9 +1,0 @@
-[CORE FILE – DO NOT MODIFY WITHOUT USER APPROVAL]
-
-Project Instructions for TestProject
-
-- Follow the style guide at all times
-- Characters must remain consistent with their profiles
-- Track all canon events in chronological order
-- Do not break the fourth wall
-- Maintain atmospheric tension throughout

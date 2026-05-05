@@ -17,11 +17,9 @@ repos:
         name: Lint with Ruff
         args: [--fix]
         types_or: [python, pyi]
-        exclude: ^v1\.reference/
       - id: ruff-format
         name: Format with Ruff
         types_or: [python, pyi]
-        exclude: ^v1\.reference/
 
   # Python Type Checking - Mypy
   - repo: https://github.com/pre-commit/mirrors-mypy
@@ -29,8 +27,8 @@ repos:
     hooks:
       - id: mypy
         name: Type check with Mypy
-        args: [src, tests, plugins, --config-file=pyproject.toml]
-        additional_dependencies: [pytest, "discord.py>=2.0", "fastapi>=0.110.0", "uvicorn[standard]>=0.27.0"]
+        args: [src, tests, --config-file=pyproject.toml]
+        additional_dependencies: [pytest, "fastapi>=0.110.0", "uvicorn[standard]>=0.27.0", "mcp>=1.0.0"]
         pass_filenames: false
 
   # Markdown Linting
@@ -41,7 +39,7 @@ repos:
         name: Lint Markdown with markdownlint-cli2
         args: [--fix]
         types: [markdown]
-        exclude: ^(node_modules|\.venv|v1\.reference|\.pytest_cache)/
+        exclude: ^(node_modules|\.venv|\.pytest_cache)/
 
   # Secret Scanning - Gitleaks
   - repo: https://github.com/gitleaks/gitleaks
@@ -66,21 +64,16 @@ repos:
     hooks:
       - id: check-yaml
         name: Check YAML syntax
-        exclude: ^v1\.reference/
       - id: check-json
         name: Check JSON syntax
-        exclude: ^v1\.reference/
       - id: check-toml
         name: Check TOML syntax
-        exclude: ^v1\.reference/
       - id: check-merge-conflict
         name: Check for merge conflicts
       - id: trailing-whitespace
         name: Trim trailing whitespace
-        exclude: ^v1\.reference/
       - id: end-of-file-fixer
         name: Fix end of files
-        exclude: ^v1\.reference/
       - id: check-added-large-files
         name: Check for large files
         args: [--maxkb=1000]

@@ -1,0 +1,26 @@
+{
+  "_comment": "Example v3 core.json. Copy to core.json and edit. Every section is optional; env vars override individual values. See docs/configuration/config_files.md for the full schema.",
+
+  "embedding": {
+    "provider": "none",
+    "model": "",
+    "dimensions": null,
+    "timeout": 30.0
+  },
+
+  "api": {
+    "host": "127.0.0.1",
+    "port": 8000,
+    "api_key": ""
+  },
+
+  "maintenance": {
+    "jobs": [
+      {"name": "db_vacuum",          "interval_seconds": 604800, "enabled": true},
+      {"name": "db_integrity_check", "interval_seconds": 604800, "enabled": true},
+      {"name": "embedding_backfill", "interval_seconds": 21600,  "enabled": true},
+      {"name": "db_backup",          "interval_seconds": 86400,  "enabled": true},
+      {"name": "git_onboard_resync", "interval_seconds": 3600,   "enabled": false}
+    ]
+  }
+}

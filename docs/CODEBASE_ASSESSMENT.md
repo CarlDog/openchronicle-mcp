@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 57 (v3 development; phases 0-7 complete on `v3/develop` — code-complete pending NAS cutover)
+**Revision:** 58 (v3 development; phases 0-7 + repo polish; code-complete pending NAS cutover)
 
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
