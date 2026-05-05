@@ -1,11 +1,16 @@
-"""FastAPI app factory — creates and configures the HTTP API server."""
+"""Unified ASGI app factory — FastAPI host with FastMCP mounted at /mcp.
+
+v3 fold: a single ASGI process serves both the HTTP REST surface
+(`/api/v1/*`) and the MCP protocol (`/mcp`). The v2 split (separate
+`oc serve` and `oc mcp serve` processes on different ports) is gone.
+"""
 
 from __future__ import annotations
 
 import logging
 import traceback
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -17,18 +22,45 @@ from openchronicle.interfaces.api.config import HTTPConfig
 logger = logging.getLogger(__name__)
 
 
-def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
-    """Build a fully-wired FastAPI application with all OC routes registered.
+def create_app(
+    container: CoreContainer,
+    config: HTTPConfig,
+    *,
+    mount_mcp: bool = True,
+) -> FastAPI:
+    """Build the unified ASGI app.
 
-    The container is stored eagerly in ``app.state`` so route handlers
-    can access it immediately via dependency injection.
+    The container is stored on ``app.state`` so route handlers reach it
+    via dependency injection. When ``mount_mcp`` is True (default), a
+    FastMCP server is wired up and its streamable-HTTP ASGI app is
+    mounted at ``/mcp``; the FastAPI lifespan drives the FastMCP
+    session manager so its background tasks join the host's startup/
+    shutdown cycle.
+
+    ``mount_mcp=False`` is for tests that exercise the HTTP surface in
+    isolation without the FastMCP session-manager overhead.
     """
 
+    mcp_server = None
+    if mount_mcp:
+        from openchronicle.interfaces.mcp.config import MCPConfig
+        from openchronicle.interfaces.mcp.server import create_server
+
+        mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"))
+        mcp_server = create_server(container, mcp_config)
+
     @asynccontextmanager
-    async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-        logger.info("OpenChronicle HTTP API starting on %s:%d", config.host, config.port)
-        yield
-        logger.info("OpenChronicle HTTP API shutting down")
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        logger.info("OpenChronicle ASGI starting on %s:%d", config.host, config.port)
+        async with AsyncExitStack() as stack:
+            if mcp_server is not None:
+                # FastMCP's session manager must run inside the host's
+                # lifespan so its anyio task group attaches and detaches
+                # cleanly with uvicorn shutdown.
+                await stack.enter_async_context(mcp_server.session_manager.run())
+                logger.info("MCP mounted at /mcp")
+            yield
+        logger.info("OpenChronicle ASGI shutting down")
 
     app = FastAPI(
         title="OpenChronicle",
@@ -40,17 +72,13 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Eagerly set container + config on app state so route handlers can
-    # access them immediately (works with both real server and TestClient).
     app.state.container = container
     app.state.http_config = config
 
-    # Register middleware
     from openchronicle.interfaces.api.middleware import register_middleware
 
     register_middleware(app, config)
 
-    # Register global exception handlers
     from openchronicle.core.domain.exceptions import (
         NotFoundError,
     )
@@ -87,7 +115,6 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
             content={"detail": "Internal server error", "code": "INTERNAL_ERROR"},
         )
 
-    # Register route modules
     from openchronicle.interfaces.api.routes import (
         memory,
         project,
@@ -98,11 +125,11 @@ def create_app(container: CoreContainer, config: HTTPConfig) -> FastAPI:
     app.include_router(project.router, prefix="/api/v1", tags=["project"])
     app.include_router(memory.router, prefix="/api/v1", tags=["memory"])
 
-    # Top-level liveness probe at /health for Synology Container Manager,
-    # Docker HEALTHCHECK, k8s liveness, etc. that hit the conventional path
-    # (no /api/v1 prefix). Returns immediately without DB/diagnostic work,
-    # which would otherwise run on every prober tick. /api/v1/health remains
-    # the full readiness/diagnostics endpoint.
+    if mcp_server is not None:
+        # FastMCP exposes a Starlette app for streamable-HTTP transport.
+        # Mount it under /mcp; the inner app's `/` becomes /mcp/ on the host.
+        app.mount("/mcp", mcp_server.streamable_http_app())
+
     @app.get("/health", include_in_schema=False)
     def liveness() -> dict[str, str]:
         return {"status": "ok"}

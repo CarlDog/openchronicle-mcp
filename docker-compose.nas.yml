@@ -1,275 +1,108 @@
-# OpenChronicle MCP — NAS deployment (Portainer stack)
+# OpenChronicle v3 — NAS deployment (Portainer stack)
 #
-# Three services:
-#   serve    — HTTP API on :8000 (REST + auto-starts when container starts)
-#   mcp      — MCP server on :8080 via streamable-http transport (reachable
-#              from MCP clients over the network — Claude Code, Goose, etc.)
-#   discord  — Discord bot (no-op exits when DISCORD_BOT_TOKEN unset; runs
-#              the bot when token is present). Uses on-failure restart so
-#              clean exits don't loop.
-#
-# Skipped intentionally: `openchronicle` adhoc-CLI runner (use `docker exec`
-# into one of the running services instead).
+# Single service. The unified ASGI process serves the HTTP REST surface
+# at /api/v1/* and the MCP streamable-HTTP transport at /mcp on the same
+# port. v2's three-service split (serve / mcp / discord) is gone with
+# the conversation/Discord/separate-MCP subsystems on
+# `archive/openchronicle.v2`.
 #
 # === Stack-level environment variables ===
-# Every value below using ${VAR} syntax is sourced from Portainer's
-# stack Environment variables section (Stacks → this stack →
-# Environment variables). Values *without* ${...} are container-internal
-# paths and the deployment shape — they don't change per environment.
-#
-#   Required:
-#     OC_LLM_PROVIDER       openai | anthropic | groq | gemini | ollama | stub
-#     One matching API key — OPENAI_API_KEY / ANTHROPIC_API_KEY /
-#                             GROQ_API_KEY / GEMINI_API_KEY / GOOGLE_API_KEY
-#                             (depending on OC_LLM_PROVIDER above)
+# Values using ${VAR} syntax come from Portainer's stack Environment
+# variables (Stacks → this stack → Environment variables). Hardcoded
+# values are container-internal paths and the deployment shape — they
+# don't change per environment.
 #
 #   Recommended:
 #     OC_API_KEY            Bearer token for HTTP API auth. Without it,
 #                           anything on the NAS network can hit :8000.
 #     OC_API_CORS_ORIGINS   Comma-separated browser origins allowed for
-#                           cross-origin API calls (for Open WebUI, etc.).
-#     OC_EMBEDDING_API_KEY  Explicit embedding API key override.
-#     OC_EMBEDDING_PROVIDER none (default) | openai | ollama
+#                           cross-origin API calls.
+#     OC_EMBEDDING_PROVIDER none (default) | stub | openai | ollama
 #                           Set to enable hybrid FTS5+semantic search.
 #     OC_EMBEDDING_MODEL    Provider-specific embedding model name.
+#     OC_EMBEDDING_API_KEY  Explicit embedding API key override.
 #
-#   Optional — persistent storage (host bind mounts):
-#     The DB and internal runtime state ALWAYS live in the `oc-data`
-#     named volume — never operator-relocatable, never bind-mountable.
-#     The four content directories below default to named volumes too
-#     (so a fresh clone of the repo Just Works), but if you set them
-#     to host paths, docker-compose's smart short-syntax switches to
-#     bind-mount mode automatically.
-#       HOST_CONFIG_DIR     Host path for /config (model configs, core.json).
-#                           e.g. /volume1/docker/openchronicle/config
-#                           NOTE: on first start with an empty bind-mount,
-#                           the entrypoint copies the image's example
-#                           model configs into /config (creates a
-#                           .bootstrapped marker so it doesn't repeat).
-#                           Operator deletions are respected after that.
-#                           To re-populate later: delete the marker and
-#                           restart.
-#       HOST_OUTPUT_DIR     Host path for /output (generated media).
-#       HOST_ASSETS_DIR     Host path for /assets (uploaded asset storage).
-#       HOST_PLUGINS_DIR    Host path for /user-plugins (operator plugins;
-#                           additive — does NOT replace the image-baked
-#                           built-ins under /app/plugins).
+#   Optional — persistent storage:
+#     The DB and internal runtime state live in the `oc-data` named
+#     volume (never operator-relocatable). The config dir defaults to
+#     a named volume too; set HOST_CONFIG_DIR to a host path to switch
+#     to bind-mount mode.
+#       HOST_CONFIG_DIR     Host path for /config (core.json + model
+#                           configs). On first start with an empty
+#                           bind-mount, the entrypoint copies example
+#                           configs (creates a .bootstrapped marker so
+#                           it doesn't repeat).
 #
 #   Optional — deployment shape:
 #     OC_TAG                Image tag (default: latest). Pin to a SHA
 #                           for reproducible deploys.
-#     HOST_HTTP_PORT        Host port for HTTP API (default: 18000 — chosen
-#                           because :8000 is taken by portainer-ce on
-#                           carldog-nas. Override only if you redeploy
-#                           somewhere else and want a different port).
-#     HOST_MCP_PORT         Host port for MCP streamable-http (default: 18001
-#                           — chosen because :8080 is taken by sabnzbd and
-#                           :18080 by qbittorrent on carldog-nas).
+#     HOST_HTTP_PORT        Host port for the unified app (default:
+#                           18000 — matches the v2 HTTP port; MCP is
+#                           reachable at the same port at /mcp now).
+#                           Override only if you redeploy somewhere
+#                           that already binds 18000.
+#     OC_LOG_FORMAT         "human" (default) or "json" for Loki/
+#                           OpenSearch/Datadog ingestion.
+#     OC_LOG_LEVEL          DEBUG | INFO (default) | WARNING | ERROR.
 #     OLLAMA_HOST           e.g. http://host.docker.internal:11434
-#                           if Ollama runs on the NAS host.
-#     OC_GIT_TOKEN          GitHub PAT for `onboard_git` to clone private
-#                           repos (fine-grained, contents:read scope).
-#                           Without it, only public github.com repos work.
-#
-#   Optional — multi-provider / Mixture-of-Experts (MoE):
-#     XAI_API_KEY           xAI Grok Imagine media generation.
-#     OC_MOE_ENABLED            "1"/"true" to enable MoE consensus mode.
-#                               Requires multiple providers in pools below.
-#     OC_MOE_MIN_EXPERTS        Quorum size for consensus (default 2).
-#     OC_MOE_TEMPERATURE        Override sampling temp for MoE runs.
-#     OC_LLM_FAST_POOL          CSV provider:model — fast-mode fallback chain
-#                               e.g. "openai:gpt-4o-mini,ollama:mistral:instruct"
-#     OC_LLM_QUALITY_POOL       CSV provider:model — quality-mode fallback chain
-#                               e.g. "anthropic:claude-sonnet-4-20250514,openai:gpt-4o"
-#     OC_LLM_POOL_NSFW          CSV provider:model — NSFW-routed pool.
-#     OC_LLM_PROVIDER_WEIGHTS   Provider preference scores
-#                               (default "ollama:100,openai:20")
-#     OC_LLM_DEFAULT_MODE       "fast" (default) | "quality"
-#     OC_LLM_MODEL_FAST         Model name when in fast mode (default gpt-4o-mini)
-#     OC_LLM_MODEL_QUALITY      Model name when in quality mode (default gpt-4o)
-#
-#   Optional — per-provider model + endpoint overrides:
-#     OPENAI_MODEL          e.g. "gpt-4o" or "gpt-4o-mini" (default).
-#     ANTHROPIC_MODEL       e.g. "claude-sonnet-4-20250514" (default).
-#     GROQ_MODEL            e.g. "llama-3.3-70b-versatile" (default).
-#     GEMINI_MODEL          e.g. "gemini-2.0-flash" (default).
-#     OLLAMA_MODEL          e.g. "llama3.1" (default).
-#     OPENAI_BASE_URL       Custom OpenAI endpoint (Azure OpenAI, proxies, etc.)
-#     ANTHROPIC_BASE_URL    Custom Anthropic endpoint.
-#
-#   Optional — Discord bot (the discord service no-ops with exit 0
-#                            when DISCORD_BOT_TOKEN is unset, so the
-#                            entire feature is gated by the token alone):
-#     DISCORD_BOT_TOKEN          Bot token from Discord Developer Portal.
-#                                Set this to enable the bot. Container
-#                                exits 0 cleanly when unset.
-#     OC_DISCORD_GUILD_IDS       CSV guild IDs for slash command sync.
-#     OC_DISCORD_CHANNEL_ALLOWLIST CSV channel IDs (empty = all channels).
-#     OC_DISCORD_CONVERSATION_TITLE Default title for new conversations.
-#     OC_DISCORD_HISTORY_LIMIT   Default turn count for /history (default 5).
+#                           if Ollama runs on the NAS host (used for
+#                           embeddings only — there's no LLM in v3).
+#     OC_GIT_TOKEN          GitHub PAT for `onboard_git` to clone
+#                           private repos (fine-grained, contents:read
+#                           scope). Public repos work without it.
 #
 # Image: ghcr.io/carldog/openchronicle-mcp (multi-arch, published by
 # GitHub Actions on every push to main).
 
-# Shared env block — referenced by both `serve` and `mcp` via YAML
-# anchors. Container-internal paths stay literal; Portainer-sourced
-# values use ${VAR} (or ${VAR:-default}) substitution at deploy time.
-x-oc-env: &oc-env
-  # Container-internal storage paths (hardcoded — operators tune the
-  # *host* side via HOST_*_DIR vars in the volumes section, not these).
-  # The DB is intentionally NOT operator-tunable: the named-volume mount
-  # at /data keeps the SQLite file safe from external interference.
-  OC_ASSETS_DIR: /assets
-  OC_CONFIG_DIR: /config
-  OC_DB_PATH: /data/openchronicle.db
-  OC_OUTPUT_DIR: /output
-  # Tells PluginLoader to ALSO scan this dir alongside the image-baked
-  # /app/plugins (where storytelling lives). The host content for this
-  # path comes from HOST_PLUGINS_DIR if set, else an empty named volume.
-  OC_USER_PLUGINS_DIR: /user-plugins
-  # Portainer stack env (required):
-  OC_LLM_PROVIDER: ${OC_LLM_PROVIDER}
-  # Portainer stack env (provider keys — set whichever match the providers
-  # you actually use; multi-provider setups need all the keys you'll route to):
-  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-  GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
-  GROQ_API_KEY: ${GROQ_API_KEY:-}
-  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  XAI_API_KEY: ${XAI_API_KEY:-}
-  # Portainer stack env (embedding):
-  OC_EMBEDDING_API_KEY: ${OC_EMBEDDING_API_KEY:-}
-  OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
-  OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
-  # Portainer stack env (provider connection overrides):
-  ANTHROPIC_BASE_URL: ${ANTHROPIC_BASE_URL:-}
-  OLLAMA_HOST: ${OLLAMA_HOST:-}
-  OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-  # Portainer stack env (per-provider model overrides — what model to use
-  # when that provider is selected; defaults defined in each adapter):
-  ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-}
-  GEMINI_MODEL: ${GEMINI_MODEL:-}
-  GROQ_MODEL: ${GROQ_MODEL:-}
-  OLLAMA_MODEL: ${OLLAMA_MODEL:-}
-  OPENAI_MODEL: ${OPENAI_MODEL:-}
-  # Portainer stack env (routing — mode + model defaults + multi-provider pools):
-  OC_LLM_DEFAULT_MODE: ${OC_LLM_DEFAULT_MODE:-}
-  OC_LLM_FAST_POOL: ${OC_LLM_FAST_POOL:-}
-  OC_LLM_MODEL_FAST: ${OC_LLM_MODEL_FAST:-}
-  OC_LLM_MODEL_QUALITY: ${OC_LLM_MODEL_QUALITY:-}
-  OC_LLM_POOL_NSFW: ${OC_LLM_POOL_NSFW:-}
-  OC_LLM_PROVIDER_WEIGHTS: ${OC_LLM_PROVIDER_WEIGHTS:-}
-  OC_LLM_QUALITY_POOL: ${OC_LLM_QUALITY_POOL:-}
-  # Portainer stack env (Mixture-of-Experts consensus mode):
-  OC_MOE_ENABLED: ${OC_MOE_ENABLED:-}
-  OC_MOE_MIN_EXPERTS: ${OC_MOE_MIN_EXPERTS:-}
-  OC_MOE_TEMPERATURE: ${OC_MOE_TEMPERATURE:-}
-  # Portainer stack env (git):
-  OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
-
-x-oc-volumes: &oc-volumes
-  # DB + internal runtime state — always named volume, never relocatable
-  # via env var. Protects the SQLite file from accidental host-side edits.
-  - oc-data:/data
-  # Content dirs use docker-compose's smart short-syntax fallback: if
-  # HOST_*_DIR is set to a path starting with /, ., or ~, it becomes a
-  # bind mount. Otherwise the named-volume fallback (current default)
-  # keeps everything self-contained for fresh repo clones.
-  - ${HOST_CONFIG_DIR:-oc-config}:/config
-  - ${HOST_OUTPUT_DIR:-oc-output}:/output
-  - ${HOST_ASSETS_DIR:-oc-assets}:/assets
-  - ${HOST_PLUGINS_DIR:-oc-user-plugins}:/user-plugins
-
-x-oc-extra-hosts: &oc-extra-hosts
-  - host.docker.internal:host-gateway
-
 services:
-  serve:
+  oc:
     image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
     restart: unless-stopped
     ports:
       - "${HOST_HTTP_PORT:-18000}:8000"
     environment:
-      <<: *oc-env
-      # serve-only:
+      # Container-internal storage paths (operators tune the *host* side
+      # via HOST_*_DIR vars in the volumes section, not these). The DB
+      # is intentionally NOT operator-tunable: the named-volume mount at
+      # /data keeps the SQLite file safe from external interference.
+      OC_CONFIG_DIR: /config
+      OC_DB_PATH: /data/openchronicle.db
+      OC_OUTPUT_DIR: /output
+      # Bind the unified ASGI to all interfaces inside the container.
       OC_API_HOST: 0.0.0.0
+      OC_API_PORT: "8000"
+      # Auth + CORS (Portainer stack env):
       OC_API_KEY: ${OC_API_KEY:-}
       OC_API_CORS_ORIGINS: ${OC_API_CORS_ORIGINS:-}
-    extra_hosts: *oc-extra-hosts
-    volumes: *oc-volumes
+      # Embeddings (Portainer stack env; default 'none' = FTS5-only):
+      OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
+      OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
+      OC_EMBEDDING_API_KEY: ${OC_EMBEDDING_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OLLAMA_HOST: ${OLLAMA_HOST:-}
+      # Git onboarding (Portainer stack env):
+      OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
+      # Logging posture (Q19 locked):
+      OC_LOG_FORMAT: ${OC_LOG_FORMAT:-human}
+      OC_LOG_LEVEL: ${OC_LOG_LEVEL:-INFO}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - oc-data:/data
+      - ${HOST_CONFIG_DIR:-oc-config}:/config
+      - oc-output:/output
     healthcheck:
       test:
         [
           "CMD-SHELL",
-          'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(''http://127.0.0.1:8000/api/v1/health'',timeout=3).status==200 else 1)"',
+          'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(''http://127.0.0.1:8000/health'',timeout=3).status==200 else 1)"',
         ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 30s
 
-  mcp:
-    image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
-    entrypoint:
-      [
-        "oc",
-        "mcp",
-        "serve",
-        "--transport",
-        "streamable-http",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "8080",
-      ]
-    restart: unless-stopped
-    ports:
-      - "${HOST_MCP_PORT:-18001}:8080"
-    environment: *oc-env
-    extra_hosts: *oc-extra-hosts
-    volumes: *oc-volumes
-    depends_on:
-      serve:
-        condition: service_healthy
-
-  # Discord bot. Token-gated: if DISCORD_BOT_TOKEN is unset, the
-  # entrypoint wrapper exits 0 immediately (clean no-op). With
-  # `restart: on-failure`, a clean exit doesn't loop — the container
-  # stays in "Exited (0)" state until the operator sets the token and
-  # redeploys. This keeps the discord capability "available" without
-  # requiring a separate compose-profiles toggle.
-  #
-  # Note on $$DISCORD_BOT_TOKEN: the doubled $$ escapes Compose
-  # interpolation so the literal $DISCORD_BOT_TOKEN reaches the shell.
-  discord:
-    image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
-    entrypoint:
-      - sh
-      - -c
-      - |
-        if [ -z "$$DISCORD_BOT_TOKEN" ]; then
-          echo "discord: DISCORD_BOT_TOKEN unset, exiting 0 (no-op)"
-          exit 0
-        fi
-        exec oc discord start
-    restart: on-failure
-    environment:
-      <<: *oc-env
-      # Discord-specific. Container-internal session-store path is
-      # hardcoded to live on the oc-data volume (default would resolve
-      # relative to cwd which is wrong inside the container).
-      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
-      OC_DISCORD_CHANNEL_ALLOWLIST: ${OC_DISCORD_CHANNEL_ALLOWLIST:-}
-      OC_DISCORD_CONVERSATION_TITLE: ${OC_DISCORD_CONVERSATION_TITLE:-}
-      OC_DISCORD_GUILD_IDS: ${OC_DISCORD_GUILD_IDS:-}
-      OC_DISCORD_HISTORY_LIMIT: ${OC_DISCORD_HISTORY_LIMIT:-}
-      OC_DISCORD_SESSION_STORE_PATH: /data/discord_sessions.json
-    extra_hosts: *oc-extra-hosts
-    volumes: *oc-volumes
-
 volumes:
   oc-data:
   oc-config:
   oc-output:
-  oc-assets:
-  oc-user-plugins:

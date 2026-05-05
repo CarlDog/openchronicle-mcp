@@ -1,40 +1,34 @@
-# CLI-first image for OpenChronicle MCP
+# OpenChronicle v3 — single-process ASGI image
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     OC_DB_PATH=/app/data/openchronicle.db \
     OC_CONFIG_DIR=/app/config \
-    OC_PLUGIN_DIR=/app/plugins \
-    OC_OUTPUT_DIR=/app/output \
-    OC_ASSETS_DIR=/app/assets
+    OC_OUTPUT_DIR=/app/output
 
-# git is required by onboard_git (clones repos shallow into a tmpdir to walk
-# their history). Without it, the tool fails with "git is not installed or
-# not in PATH" — which is what triggered this fix.
+# git is required by onboard_git (clones repos shallow into a tmpdir to
+# walk their history). Without it, the tool fails with "git is not
+# installed or not in PATH".
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy project
 COPY pyproject.toml README.md ./
 COPY src ./src
-COPY plugins ./plugins
+COPY scripts ./scripts
 COPY tools/docker/entrypoint.sh /app/entrypoint.sh
 
 # Bake example config defaults into a non-mount path. The entrypoint
-# bootstraps these into $OC_CONFIG_DIR on first run (when bind-mounted
-# to a fresh host directory) so operators don't start with an empty
-# config/. Marker file prevents re-bootstrap on subsequent restarts.
+# bootstraps these into $OC_CONFIG_DIR on first run.
 COPY config /config-defaults
 
-# Install with all provider extras and Discord
-RUN pip install --no-cache-dir ".[openai,ollama,anthropic,groq,gemini,discord,mcp]"
+# v3 only needs MCP + the embedding providers (OpenAI / Ollama).
+RUN pip install --no-cache-dir ".[openai,ollama,mcp]"
 
-# Prepare persistent mount points
-RUN mkdir -p /app/data /app/config /app/plugins /app/output /app/assets \
+RUN mkdir -p /app/data /app/config /app/output \
     && chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]

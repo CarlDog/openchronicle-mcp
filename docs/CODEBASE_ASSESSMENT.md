@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 54 (v3 development; phases 0-5 complete on `v3/develop`)
+**Revision:** 55 (v3 development; phases 0-6 complete on `v3/develop`)
 
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
@@ -41,7 +41,19 @@
 >   delegates to migrator. `interfaces/persistence/schema.py` removed.
 >   29 new tests covering migrator, backup, export/import, v2→v3 with a
 >   synthesized v2 fixture DB. 323 tests passing.
-> - **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — pending.
+> - **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — done. FastAPI host
+>   mounts FastMCP's streamable-HTTP app at `/mcp`; FastAPI's lifespan
+>   drives FastMCP's `session_manager` so anyio task groups attach/detach
+>   with uvicorn shutdown. Single uvicorn process serves both transports
+>   on the same port. `OC_LOG_FORMAT=human|json` (locked Q19 default
+>   `human`) via new `interfaces/logging_setup.py` with a stdlib JSON
+>   formatter for Loki/OpenSearch/Datadog ingestion. `oc serve` picks up
+>   the format env var. `docker-compose.nas.yml` collapsed from 3 services
+>   (serve / mcp / discord) to 1 (`oc`); Dockerfile drops the
+>   anthropic/groq/gemini/discord extras (only openai+ollama remain for
+>   embeddings) and the dead plugins/assets paths; entrypoint loses the
+>   `--http-only` fork. 8 new tests covering the unified app + log
+>   formatter. 331 tests passing.
 > - **Phase 6.5** (maintenance loop + embedding degradation policy) — pending.
 > - **Phase 7** (docs sweep + repo polish) — pending. This document gets
 >   rewritten as v3 rev 1 in Phase 7.

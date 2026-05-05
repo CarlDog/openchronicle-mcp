@@ -158,9 +158,10 @@ def cmd_init_config(args: argparse.Namespace) -> int:
 def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
     """Run the unified HTTP + MCP ASGI server in the foreground.
 
-    Phase 6 of the v3 cutover folds the FastMCP transport into the FastAPI
-    app at /mcp. For now this still hosts only the HTTP API; the MCP mount
-    lands in Phase 6.
+    Single uvicorn process hosts FastAPI at ``/api/v1/*`` and FastMCP at
+    ``/mcp``. Default port is 18000 (the v2 HTTP port — MCP collapses
+    onto the same port). Logging respects ``OC_LOG_FORMAT=human|json``
+    via ``configure_root_logger``.
     """
     import signal
 
@@ -168,10 +169,10 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
 
     from openchronicle.interfaces.api.app import create_app
     from openchronicle.interfaces.api.config import HTTPConfig
+    from openchronicle.interfaces.logging_setup import configure_root_logger
 
+    configure_root_logger()
     log = logging.getLogger(__name__)
-    if not logging.getLogger().handlers:
-        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     config = HTTPConfig.from_env(file_config=container.file_configs.get("api"))
     if getattr(args, "host", None):
@@ -180,7 +181,16 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
         config.port = args.port
 
     app = create_app(container, config)
-    uv_config = uvicorn.Config(app, host=config.host, port=config.port, log_level="info")
+    # uvicorn's `log_config=None` keeps our root-logger formatting; the
+    # default would replace it with uvicorn's coloured one and break
+    # OC_LOG_FORMAT=json output.
+    uv_config = uvicorn.Config(
+        app,
+        host=config.host,
+        port=config.port,
+        log_level=os.getenv("OC_LOG_LEVEL", "info").lower(),
+        log_config=None,
+    )
     server = uvicorn.Server(uv_config)
 
     def _handle_signal(signum: int, _frame: object) -> None:
@@ -190,6 +200,10 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
     signal.signal(signal.SIGTERM, _handle_signal)
     signal.signal(signal.SIGINT, _handle_signal)
 
-    log.info("OpenChronicle serving on %s:%d", config.host, config.port)
+    log.info(
+        "OpenChronicle serving on %s:%d (HTTP at /api/v1/*, MCP at /mcp)",
+        config.host,
+        config.port,
+    )
     server.run()
     return 0

@@ -13,7 +13,7 @@
 | 2 — application slimmed | ✅ done (2026-05-05) | container/services/use_cases/dirs/plugins; 345 tests passing |
 | 3+4 — infrastructure + domain slimmed | ✅ done (2026-05-05) | combined commit; sqlite_store 1882→470 LOC; schema 18→3 tables; `conversation_id` dropped from MemoryItem; `ProviderError` replaces `LLMProviderError`; 294 tests passing |
 | 5 — schema migration + framework + online backup + export/import | ✅ done (2026-05-05) | versioned migrator (savepoint atomicity, idempotent), 001_initial.sql, online backup module (atomic .tmp→rename), `oc memory export/import`, `scripts/migrate_v2_to_v3.py` + `verify_v3_db.py`; 323 tests passing |
-| 6 — ASGI unification | pending | mount FastMCP into FastAPI at `/mcp`; single port `:18000` |
+| 6 — ASGI unification + `OC_LOG_FORMAT` | ✅ done (2026-05-05) | FastMCP mounted at `/mcp`; single ASGI process; `OC_LOG_FORMAT=human|json` (Q19 locked); compose 3→1 service; 331 tests passing |
 | 6.5 — maintenance loop + degradation | pending | asyncio loop; FTS5-only fallback for embedding-down |
 | 7 — docs sweep + repo polish | pending | full doc classification; new STABILITY/security/MAINTENANCE docs |
 | 8 — production cutover | pending | NAS stack 151 redeploy + smoke + client config updates |

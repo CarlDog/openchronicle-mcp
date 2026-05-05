@@ -65,10 +65,18 @@ stack 151 still runs v2 until Phase 8 cutover.
   with atomic `.tmp`→rename; `oc memory export/import` (JSON envelope,
   format_version=1, embeddings excluded); one-shot `scripts/migrate_v2_to_v3.py`
   and `scripts/verify_v3_db.py`; 323 tests passing
-- ⏭ **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — next: mount FastMCP
-  into FastAPI at `/mcp`, single port `:18000`
-- pending: Phases 6.5 (maintenance loop + degradation), 7 (docs sweep),
-  8 (NAS cutover), 9 (decommission)
+- ✅ **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — FastAPI host mounts
+  FastMCP's streamable-HTTP app at `/mcp`; lifespan drives FastMCP's
+  session_manager so anyio task groups attach/detach with uvicorn
+  shutdown; `OC_LOG_FORMAT=human|json` (Q19 locked default `human`) via
+  new `interfaces/logging_setup.py`; `docker-compose.nas.yml` collapsed
+  from 3 services to 1; Dockerfile drops dead extras
+  (anthropic/groq/gemini/discord) and dead paths; 331 tests passing
+- ⏭ **Phase 6.5** (maintenance loop + embedding degradation policy) —
+  next: asyncio loop for db_backup / db_vacuum / db_integrity_check /
+  embedding_backfill / git_onboard_resync; FTS5-only fallback when
+  embedding provider down
+- pending: Phases 7 (docs sweep), 8 (NAS cutover), 9 (decommission)
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut plugin
