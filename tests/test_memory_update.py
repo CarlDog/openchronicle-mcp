@@ -11,17 +11,15 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
-from openchronicle.core.infrastructure.logging.event_logger import EventLogger
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 from openchronicle.interfaces.serializers import memory_to_dict
 
 
-def _setup(tmp_path: Path) -> tuple[SqliteStore, EventLogger, str]:
+def _setup(tmp_path: Path) -> tuple[SqliteStore, str]:
     """Create a store with a project and one memory item."""
     db_path = tmp_path / "test.db"
     storage = SqliteStore(str(db_path))
     storage.init_schema()
-    event_logger = EventLogger(storage)
 
     project = Project(name="test-project", metadata={})
     storage.add_project(project)
@@ -35,11 +33,11 @@ def _setup(tmp_path: Path) -> tuple[SqliteStore, EventLogger, str]:
         source="manual",
     )
     storage.add_memory(item)
-    return storage, event_logger, project.id
+    return storage, project.id
 
 
 def test_update_content_only(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
     updated = update_memory.execute(
         store=storage,
         memory_id="mem-1",
@@ -50,7 +48,7 @@ def test_update_content_only(tmp_path: Path) -> None:
 
 
 def test_update_tags_only(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
     updated = update_memory.execute(
         store=storage,
         memory_id="mem-1",
@@ -61,7 +59,7 @@ def test_update_tags_only(tmp_path: Path) -> None:
 
 
 def test_update_both(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
     updated = update_memory.execute(
         store=storage,
         memory_id="mem-1",
@@ -73,7 +71,7 @@ def test_update_both(tmp_path: Path) -> None:
 
 
 def test_updated_at_set_on_update(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
 
     # Fresh memory has no updated_at
     original = storage.get_memory("mem-1")
@@ -89,7 +87,7 @@ def test_updated_at_set_on_update(tmp_path: Path) -> None:
 
 
 def test_created_at_unchanged_on_update(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
     original = storage.get_memory("mem-1")
     assert original is not None
 
@@ -102,7 +100,7 @@ def test_created_at_unchanged_on_update(tmp_path: Path) -> None:
 
 
 def test_update_nonexistent_raises(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
     with pytest.raises(NotFoundError, match="Memory not found"):
         update_memory.execute(
             store=storage,
@@ -112,7 +110,7 @@ def test_update_nonexistent_raises(tmp_path: Path) -> None:
 
 
 def test_neither_content_nor_tags_raises(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
     with pytest.raises(DomainValidationError, match="At least one"):
         update_memory.execute(
             store=storage,
@@ -121,7 +119,7 @@ def test_neither_content_nor_tags_raises(tmp_path: Path) -> None:
 
 
 def test_fts5_reindexes_after_content_update(tmp_path: Path) -> None:
-    storage, event_logger, project_id = _setup(tmp_path)
+    storage, project_id = _setup(tmp_path)
 
     # Original content should match
     results = storage.search_memory("original", project_id=project_id)
@@ -140,7 +138,7 @@ def test_fts5_reindexes_after_content_update(tmp_path: Path) -> None:
 
 
 def test_serializer_includes_updated_at(tmp_path: Path) -> None:
-    storage, event_logger, _ = _setup(tmp_path)
+    storage, _ = _setup(tmp_path)
 
     # Before update
     original = storage.get_memory("mem-1")

@@ -50,14 +50,18 @@ stack 151 still runs v2 until Phase 8 cutover.
 - ✅ **Phase 2** (application slimmed) — orchestrator/scheduler/MoE/webhook/
   asset/output/llm services deleted, routing/runtime/replay/observability/
   policies directories deleted, ~30 use cases cut, plugins/ removed,
-  container reduced to memory + embedding + git-onboard wiring,
-  `emit_event` removed from kept memory use cases (events table going
-  in Phase 4); 345 tests passing
-- ⏭ **Phase 3** (infrastructure slimmed) — next: cut `llm/`, `media/`,
-  `privacy/`, `router_assist/` adapter directories
-- pending: Phases 4 (domain), 5 (schema migration + backup), 6 (ASGI
-  unification), 6.5 (maintenance loop + degradation), 7 (docs sweep), 8
-  (NAS cutover), 9 (decommission)
+  container reduced to memory + embedding + git-onboard wiring; 345 tests
+- ✅ **Phase 3+4** (infrastructure + domain slimmed) — combined commit:
+  llm/media/privacy/router_assist/routing/logging dirs deleted; sqlite_store
+  rewritten 1882→470 LOC; schema reduced 18→3 tables (projects, memory_items,
+  memory_embeddings) + memory FTS5; 15 cut domain models, 9 cut ports, 3 cut
+  services; `conversation_id` dropped from MemoryItem (Q1 locked); new
+  `ProviderError`/`ConfigError` domain exceptions; git_onboard service drops
+  LLM synthesis (caller-side now); 294 tests passing
+- ⏭ **Phase 5** (schema migration + framework + online backup +
+  export/import) — next
+- pending: Phases 6 (ASGI unification + `OC_LOG_FORMAT`), 6.5 (maintenance
+  loop + degradation), 7 (docs sweep), 8 (NAS cutover), 9 (decommission)
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut plugin

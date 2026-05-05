@@ -11,23 +11,14 @@ from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 from ._helpers import json_envelope, print_json
 
-# Table names matching schema.py creation order.
 _TABLE_NAMES = [
     "projects",
-    "agents",
-    "tasks",
-    "events",
-    "resources",
-    "spans",
-    "llm_usage",
-    "conversations",
-    "turns",
     "memory_items",
+    "memory_embeddings",
 ]
 
 
 def cmd_db(args: argparse.Namespace, container: CoreContainer) -> int:
-    """Dispatch to db subcommands."""
     db_dispatch: dict[str, Callable[[argparse.Namespace, CoreContainer], int]] = {
         "info": cmd_db_info,
         "vacuum": cmd_db_vacuum,
@@ -42,30 +33,24 @@ def cmd_db(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_db_info(args: argparse.Namespace, container: CoreContainer) -> int:
-    """Show database information: file sizes, row counts, pragma values, integrity."""
-    # Private access to connection and path is appropriate here — this is an
-    # infrastructure CLI command inspecting the store's internal state.
+    """Show database information: file sizes, row counts, pragmas, integrity."""
     conn = container.storage._conn  # noqa: SLF001
     db_path = container.storage.db_path
 
-    # File sizes
     db_size = db_path.stat().st_size if db_path.exists() else 0
     wal_path = Path(f"{db_path}-wal")
     wal_size = wal_path.stat().st_size if wal_path.exists() else 0
 
-    # Row counts
     row_counts: dict[str, int] = {}
     for table in _TABLE_NAMES:
         cur = conn.execute(f"SELECT COUNT(*) FROM {table}")  # noqa: S608
         row_counts[table] = cur.fetchone()[0]
 
-    # Pragmas
     pragmas: dict[str, str] = {}
     for pragma in ("journal_mode", "foreign_keys", "busy_timeout", "synchronous"):
         cur = conn.execute(f"PRAGMA {pragma}")
         pragmas[pragma] = str(cur.fetchone()[0])
 
-    # Integrity check
     cur = conn.execute("PRAGMA integrity_check")
     integrity = str(cur.fetchone()[0])
 
@@ -108,10 +93,8 @@ def cmd_db_vacuum(args: argparse.Namespace, container: CoreContainer) -> int:
     db_path = container.storage.db_path
 
     size_before = db_path.stat().st_size if db_path.exists() else 0
-
     conn.execute("VACUUM")
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-
     size_after = db_path.stat().st_size if db_path.exists() else 0
     saved = size_before - size_after
 
@@ -146,59 +129,35 @@ def cmd_db_backup(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_db_stats(args: argparse.Namespace, container: CoreContainer) -> int:
-    """Show global token usage statistics from llm_usage table."""
+    """Show memory/project counts plus pinned breakdown."""
     conn = container.storage._conn  # noqa: SLF001
 
-    # Global totals
-    cur = conn.execute(
-        "SELECT COUNT(*) as total_calls, "
-        "COALESCE(SUM(input_tokens), 0) as input_tokens, "
-        "COALESCE(SUM(output_tokens), 0) as output_tokens, "
-        "COALESCE(SUM(total_tokens), 0) as total_tokens "
-        "FROM llm_usage"
-    )
-    row = cur.fetchone()
-    total_calls = row[0]
-    input_tokens = row[1]
-    output_tokens = row[2]
-    total_tokens = row[3]
-
-    # Breakdown by provider/model
-    cur = conn.execute(
-        "SELECT provider, model, COUNT(*) as calls, "
-        "COALESCE(SUM(total_tokens), 0) as tokens "
-        "FROM llm_usage GROUP BY provider, model ORDER BY tokens DESC"
-    )
-    breakdown = [{"provider": r[0], "model": r[1], "calls": r[2], "tokens": r[3]} for r in cur.fetchall()]
+    cur = conn.execute("SELECT COUNT(*) FROM projects")
+    project_count = cur.fetchone()[0]
+    cur = conn.execute("SELECT COUNT(*) FROM memory_items")
+    memory_count = cur.fetchone()[0]
+    cur = conn.execute("SELECT COUNT(*) FROM memory_items WHERE pinned = 1")
+    pinned_count = cur.fetchone()[0]
+    cur = conn.execute("SELECT COUNT(*) FROM memory_embeddings")
+    embedding_count = cur.fetchone()[0]
 
     if args.json:
         payload = json_envelope(
             command="db.stats",
             ok=True,
             result={
-                "total_calls": total_calls,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
-                "total_tokens": total_tokens,
-                "breakdown": breakdown,
+                "projects": project_count,
+                "memory_items": memory_count,
+                "pinned": pinned_count,
+                "embeddings": embedding_count,
             },
             error=None,
         )
         print_json(payload)
         return 0
 
-    print("Global LLM Usage:")
-    print(f"  Total calls:    {total_calls:>10,}")
-    print(f"  Input tokens:   {input_tokens:>10,}")
-    print(f"  Output tokens:  {output_tokens:>10,}")
-    print(f"  Total tokens:   {total_tokens:>10,}")
-
-    if breakdown:
-        print()
-        print("By provider/model:")
-        for entry in breakdown:
-            print(
-                f"  {entry['provider']}/{entry['model']:<30} {entry['calls']:>6} calls  {entry['tokens']:>10,} tokens"
-            )
-
+    print(f"Projects:      {project_count:>8,}")
+    print(f"Memory items:  {memory_count:>8,}")
+    print(f"  pinned:      {pinned_count:>8,}")
+    print(f"Embeddings:    {embedding_count:>8,}")
     return 0

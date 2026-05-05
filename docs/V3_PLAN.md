@@ -11,8 +11,7 @@
 | 0 — branch creation | ✅ done (2026-05-05) | `archive/openchronicle.v2` + `v3/develop` |
 | 1 — interfaces slimmed | ✅ done (2026-05-05) | 173 files, 264+/35,460-; 570 tests passing |
 | 2 — application slimmed | ✅ done (2026-05-05) | container/services/use_cases/dirs/plugins; 345 tests passing |
-| 3 — infrastructure slimmed | pending | LLM/media/privacy/router_assist adapters, slim wiring |
-| 4 — domain slimmed | pending | Cut models + ports; trim storage_port to memory-only |
+| 3+4 — infrastructure + domain slimmed | ✅ done (2026-05-05) | combined commit; sqlite_store 1882→470 LOC; schema 18→3 tables; `conversation_id` dropped from MemoryItem; `ProviderError` replaces `LLMProviderError`; 294 tests passing |
 | 5 — schema migration + framework + online backup | pending | one-shot v2→v3 migrate, versioned migrator, sqlite3 .backup() |
 | 6 — ASGI unification | pending | mount FastMCP into FastAPI at `/mcp`; single port `:18000` |
 | 6.5 — maintenance loop + degradation | pending | asyncio loop; FTS5-only fallback for embedding-down |

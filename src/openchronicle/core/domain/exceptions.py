@@ -36,3 +36,26 @@ class ConfigError(Exception):
     def __init__(self, message: str, *, code: str = "CONFIG_ERROR") -> None:
         self.code = code
         super().__init__(message)
+
+
+class ProviderError(Exception):
+    """Raised when an external provider (embedding adapter, etc.) fails.
+
+    Carries an error_code (free-form, often a domain code like PROVIDER_ERROR
+    or MISSING_PACKAGE), an optional hint for the user, and optional details
+    for structured logging. Replaces v2's LLMProviderError now that the LLM
+    subsystem is gone.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str = "PROVIDER_ERROR",
+        hint: str | None = None,
+        details: dict[str, object] | None = None,
+    ) -> None:
+        self.error_code = error_code
+        self.hint = hint
+        self.details = details
+        super().__init__(message)

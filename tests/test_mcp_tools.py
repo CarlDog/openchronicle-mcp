@@ -11,7 +11,6 @@ import pytest
 mcp_mod = pytest.importorskip("mcp")  # noqa: F841
 
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError  # noqa: E402
-from openchronicle.core.domain.models.conversation import Conversation, Turn  # noqa: E402
 from openchronicle.core.domain.models.memory_item import MemoryItem  # noqa: E402
 from openchronicle.core.domain.models.project import Project  # noqa: E402
 from openchronicle.interfaces.mcp.config import MCPConfig  # noqa: E402
@@ -51,41 +50,12 @@ def _sample_memory(**overrides: Any) -> MemoryItem:
         "content": "User prefers Python",
         "tags": ["preference"],
         "pinned": False,
-        "conversation_id": None,
         "project_id": "proj-1",
         "source": "manual",
         "created_at": _NOW,
     }
     defaults.update(overrides)
     return MemoryItem(**defaults)
-
-
-def _sample_conversation(**overrides: Any) -> Conversation:
-    defaults: dict[str, Any] = {
-        "id": "convo-1",
-        "project_id": "proj-1",
-        "title": "Test convo",
-        "mode": "general",
-        "created_at": _NOW,
-    }
-    defaults.update(overrides)
-    return Conversation(**defaults)
-
-
-def _sample_turn(**overrides: Any) -> Turn:
-    defaults: dict[str, Any] = {
-        "id": "turn-1",
-        "conversation_id": "convo-1",
-        "turn_index": 0,
-        "user_text": "Hello",
-        "assistant_text": "Hi there!",
-        "provider": "stub",
-        "model": "stub-model",
-        "routing_reasons": ["default"],
-        "created_at": _NOW,
-    }
-    defaults.update(overrides)
-    return Turn(**defaults)
 
 
 def _sample_project(**overrides: Any) -> Project:
@@ -222,31 +192,6 @@ class TestMemorySave:
         assert result["content"] == "User prefers Python"
         assert result["source"] == "mcp"
 
-    def test_derives_project_from_conversation(self) -> None:
-        container = _make_container()
-        ctx = _make_context(container)
-        container.storage.get_conversation = MagicMock(return_value=_sample_conversation(project_id="proj-from-convo"))
-
-        from mcp.server.fastmcp import FastMCP
-
-        from openchronicle.interfaces.mcp.tools.memory import register
-
-        mcp = FastMCP("test")
-        register(mcp)
-
-        saved_mem = _sample_memory(project_id="proj-from-convo", source="mcp")
-        with patch(
-            "openchronicle.interfaces.mcp.tools.memory.add_memory.execute",
-            return_value=saved_mem,
-        ) as mock_add:
-            tool_fn = mcp._tool_manager._tools["memory_save"].fn
-            tool_fn(content="Remember this", conversation_id="convo-1", ctx=ctx)
-
-        # Verify project_id was derived
-        call_args = mock_add.call_args
-        item = call_args.kwargs["item"]
-        assert item.project_id == "proj-from-convo"
-
     def test_raises_without_project_id(self) -> None:
         container = _make_container()
         ctx = _make_context(container)
@@ -260,7 +205,7 @@ class TestMemorySave:
 
         tool_fn = mcp._tool_manager._tools["memory_save"].fn
         with pytest.raises(DomainValidationError, match="project_id is required"):
-            tool_fn(content="Remember this", ctx=ctx)
+            tool_fn(content="Remember this", project_id="", ctx=ctx)
 
 
 class TestMemoryList:
@@ -435,7 +380,7 @@ class TestMCPParameterValidation:
 
         tool_fn = mcp._tool_manager._tools["memory_save"].fn
         with pytest.raises(DomainValidationError, match="content must be non-empty"):
-            tool_fn(content="", ctx=ctx)
+            tool_fn(content="", project_id="proj-1", ctx=ctx)
 
     def test_memory_save_overlength_content_rejected(self) -> None:
         container = _make_container()
@@ -450,7 +395,7 @@ class TestMCPParameterValidation:
 
         tool_fn = mcp._tool_manager._tools["memory_save"].fn
         with pytest.raises(DomainValidationError, match="exceeds maximum length"):
-            tool_fn(content="x" * 100_001, ctx=ctx)
+            tool_fn(content="x" * 100_001, project_id="proj-1", ctx=ctx)
 
     def test_memory_search_top_k_clamped(self) -> None:
         container = _make_container()

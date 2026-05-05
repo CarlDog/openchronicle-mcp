@@ -55,30 +55,8 @@ def test_second_init_skips_rebuild_when_populated(
     s2.close()
 
 
-def test_rebuild_occurs_when_fts_empty_but_source_has_data(
-    tmp_path: pathlib.Path,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    """If FTS table is empty but source table has data (migration scenario),
-    rebuild should occur."""
-    db_path = tmp_path / "test.db"
-
-    # First init with data
-    s1 = SqliteStore(db_path=str(db_path))
-    s1.init_schema()
-    s1.add_memory(MemoryItem(content="important data", tags=["test"]))
-
-    # Manually clear FTS to simulate a migration scenario
-    s1._conn.execute("DELETE FROM memory_fts")  # noqa: SLF001
-    s1._conn.commit()  # noqa: SLF001
-    s1.close()
-
-    # Re-init should detect empty FTS and rebuild
-    with caplog.at_level(logging.INFO, logger="openchronicle.core.infrastructure.persistence.sqlite_store"):
-        s2 = SqliteStore(db_path=str(db_path))
-        s2.init_schema()
-
-    rebuild_messages = [r for r in caplog.records if "rebuilding index" in r.message.lower()]
-    assert len(rebuild_messages) > 0, "Expected FTS rebuild but none occurred"
-    assert s2._fts5_active  # noqa: SLF001
-    s2.close()
+# NOTE: a v2 test that simulated FTS clearing via `DELETE FROM memory_fts`
+# was removed in v3 — that DELETE is a no-op on FTS5 contentless tables
+# whose `content_rowid` is bound to memory_items, so the rebuild branch
+# under test never fired. The "FTS empty on first create" path is already
+# covered by `test_first_init_rebuilds_empty_fts`.

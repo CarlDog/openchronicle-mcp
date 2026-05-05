@@ -30,7 +30,6 @@ def _add_memory(
     tags: list[str] | None = None,
     pinned: bool = False,
     project_id: str = "proj-1",
-    conversation_id: str | None = None,
 ) -> MemoryItem:
     item = MemoryItem(
         id=memory_id,
@@ -40,7 +39,6 @@ def _add_memory(
         pinned=pinned,
         source="test",
         project_id=project_id,
-        conversation_id=conversation_id,
     )
     store.add_memory(item)
     return item
@@ -168,22 +166,6 @@ def test_search_hybrid_combines_via_rrf() -> None:
 
     results = service.search_hybrid("database optimization")
     assert len(results) >= 1
-
-
-def test_search_hybrid_respects_conversation_filter() -> None:
-    service, store, _ = _make_service()
-    from openchronicle.core.domain.models.conversation import Conversation
-
-    store.add_conversation(Conversation(id="c1", project_id="proj-1", title="test"))
-    store.add_conversation(Conversation(id="c2", project_id="proj-1", title="test2"))
-    _add_memory(store, "m1", "alpha beta gamma", conversation_id="c1")
-    _add_memory(store, "m2", "alpha beta gamma", conversation_id="c2")
-    service.generate_for_memory("m1", "alpha beta gamma")
-    service.generate_for_memory("m2", "alpha beta gamma")
-
-    results = service.search_hybrid("alpha", conversation_id="c1")
-    ids = [r.id for r in results if not r.pinned]
-    assert "m2" not in ids
 
 
 def test_search_hybrid_respects_tag_filter() -> None:

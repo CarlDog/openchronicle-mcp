@@ -43,15 +43,8 @@ def cmd_memory(args: argparse.Namespace, container: CoreContainer) -> int:
 
 def cmd_memory_add(args: argparse.Namespace, container: CoreContainer) -> int:
     tags = parse_csv_tags(args.tags) or []
-    project_id = args.project_id
-    if project_id is None and args.conversation_id:
-        maybe_conversation = container.storage.get_conversation(args.conversation_id)
-        if maybe_conversation is None:
-            print(f"Conversation not found: {args.conversation_id}")
-            return 1
-        project_id = maybe_conversation.project_id
-    if project_id is None:
-        print("project_id is required when adding memory")
+    if args.project_id is None:
+        print("--project-id is required when adding memory")
         return 1
     item = add_memory.execute(
         store=container.storage,
@@ -59,8 +52,7 @@ def cmd_memory_add(args: argparse.Namespace, container: CoreContainer) -> int:
             content=args.content,
             tags=tags,
             pinned=args.pin,
-            conversation_id=args.conversation_id,
-            project_id=project_id,
+            project_id=args.project_id,
             source=args.source,
         ),
         embedding_service=container.embedding_service,
@@ -96,7 +88,6 @@ def cmd_memory_show(args: argparse.Namespace, container: CoreContainer) -> int:
     print(f"updated_at: {item.updated_at.isoformat() if item.updated_at else ''}")
     print(f"tags: {','.join(item.tags)}")
     print(f"source: {item.source}")
-    print(f"conversation_id: {item.conversation_id or ''}")
     print(f"project_id: {item.project_id or ''}")
     print("content:")
     print(item.content)
@@ -122,7 +113,6 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
         store=container.storage,
         query=args.query,
         top_k=args.top_k,
-        conversation_id=args.conversation_id,
         project_id=args.project_id,
         include_pinned=args.include_pinned,
         tags=tag_list,

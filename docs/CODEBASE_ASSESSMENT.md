@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 52 (v3 development started; phases 0-2 complete on `v3/develop`)
+**Revision:** 53 (v3 development; phases 0-4 complete on `v3/develop`)
 
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
@@ -10,24 +10,28 @@
 > living plan and phase tracker.
 >
 > **v3 phase progress:**
-> - **Phase 0** (branching) — done. `archive/openchronicle.v2` cut from `main`
->   HEAD, `v3/develop` created.
-> - **Phase 1** (interfaces slimmed) — done. Discord, conversation/asset/
->   webhook/media/hooks routes + tools + CLI commands deleted; chat/rpc/stdio
->   modules removed; MCP tool descriptions rewritten as "when to call vs
->   others". Test count 1921 → 570 passing.
+> - **Phase 0** (branching) — done.
+> - **Phase 1** (interfaces slimmed) — done. 570 tests passing.
 > - **Phase 2** (application slimmed) — done. Container reduced to memory +
->   embedding + git-onboard wiring; orchestrator, scheduler, MoE, webhook
->   service/dispatcher, asset storage, output manager, llm execution, ollama
->   service, all `routing/` `runtime/` `replay/` `observability/` `policies/`
->   directories deleted; ~30 use cases cut; events table contract dropped from
->   memory use cases (no more `emit_event` parameter); plugins/ directory
->   removed. Test count 570 → 345 passing.
-> - **Phase 3** (infrastructure slimmed) — pending.
-> - **Phase 4** (domain slimmed) — pending.
-> - **Phase 5** (schema migration + framework + online backup) — pending.
-> - **Phase 6** (ASGI unification) — pending.
-> - **Phase 6.5** (maintenance loop + degradation policy) — pending.
+>   embedding + git-onboard wiring; orchestrator/scheduler/MoE/webhook/asset/
+>   media/llm services + routing/runtime/replay/observability/policies dirs
+>   + ~30 use cases + plugins/ deleted. 345 tests passing.
+> - **Phase 3+4** (infrastructure + domain slimmed) — done. Combined commit
+>   because the layers are intertwined: infrastructure adapter dirs (llm/,
+>   media/, privacy/, router_assist/, routing/, logging/) deleted; sqlite_store
+>   rewritten 1882 → ~470 LOC, schema reduced from 18 → 3 tables (projects,
+>   memory_items, memory_embeddings) plus memory FTS5; 15 cut domain models +
+>   9 cut domain ports + 3 cut domain services removed; `conversation_id` field
+>   dropped from `MemoryItem` (Q1 locked decision); `LLMProviderError` in cut
+>   `llm_port` replaced with new `ProviderError` in `domain.exceptions`;
+>   `ConfigError` added; serializers slimmed to project + memory only;
+>   `git_onboard` service drops LLM synthesis (caller-side now via MCP tool's
+>   cluster output); CLI db commands rewritten for the v3 table set. 294 tests
+>   passing, 0 failing.
+> - **Phase 5** (schema migration + framework + online backup +
+>   export/import) — pending.
+> - **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — pending.
+> - **Phase 6.5** (maintenance loop + embedding degradation policy) — pending.
 > - **Phase 7** (docs sweep + repo polish) — pending. This document gets
 >   rewritten as v3 rev 1 in Phase 7.
 

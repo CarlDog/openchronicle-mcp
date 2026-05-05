@@ -146,7 +146,6 @@ class EmbeddingService:
         query: str,
         *,
         top_k: int = 8,
-        conversation_id: str | None = None,
         project_id: str | None = None,
         include_pinned: bool = True,
         tags: list[str] | None = None,
@@ -164,7 +163,7 @@ class EmbeddingService:
         # ── Pinned items (always included) ──────────────────────────────
         pinned_items: list[MemoryItem] = []
         if include_pinned:
-            pinned_items = self._store._fetch_pinned_items(conversation_id, project_id)
+            pinned_items = self._store._fetch_pinned_items(project_id)
             if tags:
                 pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
 
@@ -177,7 +176,6 @@ class EmbeddingService:
         keyword_results = self._store.search_memory(
             query,
             top_k=effective_top_k * 2,  # over-fetch for RRF merge
-            conversation_id=conversation_id,
             project_id=project_id,
             include_pinned=False,
             tags=tags,
@@ -187,7 +185,6 @@ class EmbeddingService:
         # ── Semantic search (list B) ─────────────────────────────────────
         semantic_ranked = self._semantic_search(
             query,
-            conversation_id=conversation_id,
             project_id=project_id,
             tags=tags,
             exclude_ids=pinned_ids,
@@ -216,9 +213,7 @@ class EmbeddingService:
             # Apply tag filter to semantic-only results
             if tags and not all(t in item_map[mid].tags for t in tags):
                 continue
-            # Apply conversation/project filter to semantic-only results
-            if conversation_id and item_map[mid].conversation_id != conversation_id:
-                continue
+            # Apply project filter to semantic-only results
             if project_id and item_map[mid].project_id != project_id:
                 continue
 
@@ -245,7 +240,6 @@ class EmbeddingService:
         self,
         query: str,
         *,
-        conversation_id: str | None = None,
         project_id: str | None = None,
         tags: list[str] | None = None,
         exclude_ids: set[str] | None = None,

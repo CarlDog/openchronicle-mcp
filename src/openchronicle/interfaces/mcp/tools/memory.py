@@ -15,7 +15,7 @@ from openchronicle.core.application.use_cases import (
     search_memory,
     update_memory,
 )
-from openchronicle.core.domain.errors.error_codes import CONVERSATION_NOT_FOUND, MEMORY_NOT_FOUND
+from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -37,7 +37,6 @@ def register(mcp: FastMCP) -> None:
         query: str,
         ctx: Context,
         top_k: int = 8,
-        conversation_id: str | None = None,
         project_id: str | None = None,
         tags: list[str] | None = None,
         offset: int = 0,
@@ -53,7 +52,6 @@ def register(mcp: FastMCP) -> None:
         Args:
             query: Keywords or a natural-language question.
             top_k: Maximum number of results (1-1000, default 8).
-            conversation_id: Restrict to a specific conversation (optional).
             project_id: Restrict to a specific project (optional, recommended).
             tags: Require ALL listed tags on each result (AND logic).
             offset: Skip the first N results for pagination.
@@ -67,7 +65,6 @@ def register(mcp: FastMCP) -> None:
             store=container.storage,
             query=query,
             top_k=top_k,
-            conversation_id=conversation_id,
             project_id=project_id,
             tags=tags,
             offset=offset,
@@ -80,10 +77,9 @@ def register(mcp: FastMCP) -> None:
     def memory_save(
         content: str,
         ctx: Context,
+        project_id: str,
         tags: list[str] | None = None,
         pinned: bool = False,
-        conversation_id: str | None = None,
-        project_id: str | None = None,
         created_at: str | None = None,
     ) -> dict[str, Any]:
         """Persist a memory item that should outlive the current session.
@@ -92,39 +88,28 @@ def register(mcp: FastMCP) -> None:
         is completed, or working state should survive context compression.
         Use `pinned=true` for standing rules and conventions that must
         always surface; use `tags` (decision/rejected/milestone/context/
-        convention/scope) for retrievability. `project_id` is required —
-        either directly or derived from `conversation_id`.
+        convention/scope) for retrievability.
 
         Args:
             content: The text to remember (max 100,000 chars).
+            project_id: Project to scope the memory to (required).
             tags: Tags for categorization and `memory_search` filtering.
             pinned: True for standing rules; pinned items always surface.
-            conversation_id: Associate with a conversation (optional).
-            project_id: Project to scope the memory to (required if no conversation).
             created_at: ISO datetime to backdate (e.g. for git-onboard imports).
         """
         if not content or not content.strip():
             raise DomainValidationError("content must be non-empty")
         if len(content) > 100_000:
             raise DomainValidationError("content exceeds maximum length of 100,000 characters")
+        if not project_id:
+            raise DomainValidationError("project_id is required")
         container = _get_container(ctx)
-
-        resolved_project_id = project_id
-        if resolved_project_id is None and conversation_id:
-            convo = container.storage.get_conversation(conversation_id)
-            if convo is None:
-                raise NotFoundError(f"Conversation not found: {conversation_id}", code=CONVERSATION_NOT_FOUND)
-            resolved_project_id = convo.project_id
-
-        if not resolved_project_id:
-            raise DomainValidationError("project_id is required (provide directly or via conversation_id)")
 
         kwargs: dict[str, Any] = {
             "content": content,
             "tags": tags or [],
             "pinned": pinned,
-            "conversation_id": conversation_id,
-            "project_id": resolved_project_id,
+            "project_id": project_id,
             "source": "mcp",
         }
         if created_at is not None:

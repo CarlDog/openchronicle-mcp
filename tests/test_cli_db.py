@@ -129,7 +129,8 @@ class TestDbStats:
 
         assert rc == 0
         output = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
-        assert "Total calls:" in output
+        assert "Memory items:" in output
+        assert "Embeddings:" in output
 
     def test_stats_json_output(self, container: CoreContainer) -> None:
         with patch("builtins.print") as mock_print:
@@ -145,46 +146,7 @@ class TestDbStats:
         assert payload["ok"] is True
         assert payload["command"] == "db.stats"
         result = payload["result"]
-        assert result["total_calls"] == 0
-        assert result["total_tokens"] == 0
-
-    def test_stats_with_usage_data(self, container: CoreContainer) -> None:
-        """Insert usage rows and verify stats reflect them."""
-        conn = container.storage._conn  # noqa: SLF001
-        # Insert parent rows for FK constraints
-        conn.execute(
-            "INSERT INTO projects (id, name, metadata, created_at) VALUES (?, ?, ?, ?)",
-            ("p1", "test", "{}", "2026-01-01T00:00:00"),
-        )
-        conn.execute(
-            "INSERT INTO tasks (id, project_id, type, status, payload, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
-            ("t1", "p1", "test", "completed", "{}", "2026-01-01T00:00:00", "2026-01-01T00:00:00"),
-        )
-        conn.execute(
-            "INSERT INTO llm_usage (id, task_id, project_id, provider, model, "
-            "input_tokens, output_tokens, total_tokens, latency_ms, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            ("u1", "t1", "p1", "openai", "gpt-4o", 100, 50, 150, 500, "2026-01-01T00:00:00"),
-        )
-        conn.execute(
-            "INSERT INTO llm_usage (id, task_id, project_id, provider, model, "
-            "input_tokens, output_tokens, total_tokens, latency_ms, created_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            ("u2", "t1", "p1", "ollama", "llama3", 200, 100, 300, 1000, "2026-01-01T00:00:01"),
-        )
-
-        with patch("builtins.print") as mock_print:
-            with patch(
-                "openchronicle.interfaces.cli.main._build_container",
-                return_value=container,
-            ):
-                rc = main(["db", "stats", "--json"])
-
-        assert rc == 0
-        raw = mock_print.call_args_list[0].args[0]
-        payload = json.loads(raw)
-        result = payload["result"]
-        assert result["total_calls"] == 2
-        assert result["total_tokens"] == 450
-        assert len(result["breakdown"]) == 2
+        assert result["projects"] == 0
+        assert result["memory_items"] == 0
+        assert result["pinned"] == 0
+        assert result["embeddings"] == 0

@@ -21,7 +21,6 @@ def _sample_memory(**overrides: Any) -> MemoryItem:
         "content": "User prefers Python",
         "tags": ["preference"],
         "pinned": False,
-        "conversation_id": None,
         "project_id": "proj-1",
         "source": "manual",
         "created_at": _NOW,

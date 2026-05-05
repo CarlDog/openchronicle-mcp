@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from openchronicle.core.domain.ports.llm_port import LLMProviderError
+from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.infrastructure.embedding.ollama_adapter import OllamaEmbeddingAdapter
 from openchronicle.core.infrastructure.embedding.openai_adapter import OpenAIEmbeddingAdapter
 

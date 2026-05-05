@@ -14,8 +14,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.testclient import TestClient
 
-from openchronicle.core.domain.models.asset import Asset, AssetLink
-from openchronicle.core.domain.models.conversation import Conversation, Turn
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.interfaces.api.config import HTTPConfig
@@ -176,52 +174,8 @@ def _make_memory(content: str = "remember this") -> MemoryItem:
         content=content,
         tags=["test"],
         pinned=False,
-        conversation_id=None,
         project_id="proj-1",
         source="api",
-        created_at=_FIXED_DT,
-    )
-
-
-def _make_conversation(title: str = "test convo") -> Conversation:
-    return Conversation(id="conv-1", project_id="proj-1", title=title, mode="general", created_at=_FIXED_DT)
-
-
-def _make_turn(conversation_id: str = "conv-1") -> Turn:
-    return Turn(
-        id="turn-1",
-        conversation_id=conversation_id,
-        turn_index=0,
-        user_text="hello",
-        assistant_text="hi there",
-        provider="stub",
-        model="stub-model",
-        routing_reasons=["default"],
-        created_at=_FIXED_DT,
-    )
-
-
-def _make_asset() -> Asset:
-    return Asset(
-        id="asset-1",
-        project_id="proj-1",
-        filename="test.txt",
-        mime_type="text/plain",
-        file_path="/data/assets/abc123",
-        size_bytes=42,
-        content_hash="abc123",
-        metadata={},
-        created_at=_FIXED_DT,
-    )
-
-
-def _make_asset_link() -> AssetLink:
-    return AssetLink(
-        id="link-1",
-        asset_id="asset-1",
-        target_type="conversation",
-        target_id="conv-1",
-        role="reference",
         created_at=_FIXED_DT,
     )
 
@@ -403,35 +357,12 @@ class TestMemoryRoutes:
         assert resp.status_code == 200
         assert resp.json()["content"] == "remember this"
 
-    def test_memory_save_derives_project_from_conversation(self, client: TestClient) -> None:
-        convo = _make_conversation()
-        _get_container(client).storage.get_conversation.return_value = convo
-        saved = _make_memory()
-        _get_container(client).storage.upsert_memory.return_value = saved
-
-        resp = client.post(
-            "/api/v1/memory",
-            json={"content": "remember this", "conversation_id": "conv-1"},
-        )
-        assert resp.status_code == 200
-
-    def test_memory_save_404_bad_conversation(self, client: TestClient) -> None:
-        _get_container(client).storage.get_conversation.return_value = None
-
-        resp = client.post(
-            "/api/v1/memory",
-            json={"content": "remember this", "conversation_id": "nonexistent"},
-        )
-        assert resp.status_code == 404
-        assert "not found" in resp.json()["detail"].lower()
-
     def test_memory_save_400_no_project(self, client: TestClient) -> None:
         resp = client.post(
             "/api/v1/memory",
             json={"content": "remember this"},
         )
-        assert resp.status_code == 400
-        assert "project_id is required" in resp.json()["detail"]
+        assert resp.status_code == 422
 
     def test_memory_pin(self, client: TestClient) -> None:
         resp = client.put("/api/v1/memory/mem-1/pin", json={"pinned": True})
@@ -463,33 +394,6 @@ class TestSharedSerializers:
         assert d["tags"] == ["test"]
         assert d["source"] == "api"
 
-    def test_turn_to_dict(self) -> None:
-        from openchronicle.interfaces.serializers import turn_to_dict
-
-        d = turn_to_dict(_make_turn())
-        assert d["user_text"] == "hello"
-        assert d["routing_reasons"] == ["default"]
-
-    def test_asset_to_dict(self) -> None:
-        from openchronicle.interfaces.serializers import asset_to_dict
-
-        d = asset_to_dict(_make_asset())
-        assert d["filename"] == "test.txt"
-        assert d["size_bytes"] == 42
-
-    def test_asset_link_to_dict(self) -> None:
-        from openchronicle.interfaces.serializers import asset_link_to_dict
-
-        d = asset_link_to_dict(_make_asset_link())
-        assert d["target_type"] == "conversation"
-        assert d["role"] == "reference"
-
-    def test_conversation_to_dict(self) -> None:
-        from openchronicle.interfaces.serializers import conversation_to_dict
-
-        d = conversation_to_dict(_make_conversation())
-        assert d["title"] == "test convo"
-        assert d["mode"] == "general"
 
 
 # ---------------------------------------------------------------------------

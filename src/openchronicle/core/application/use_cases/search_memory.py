@@ -14,7 +14,6 @@ def execute(
     query: str,
     *,
     top_k: int = 8,
-    conversation_id: str | None = None,
     project_id: str | None = None,
     include_pinned: bool = True,
     tags: list[str] | None = None,
@@ -25,7 +24,6 @@ def execute(
         return embedding_service.search_hybrid(
             query,
             top_k=top_k,
-            conversation_id=conversation_id,
             project_id=project_id,
             include_pinned=include_pinned,
             tags=tags,
@@ -34,7 +32,6 @@ def execute(
     return store.search_memory(
         query,
         top_k=top_k,
-        conversation_id=conversation_id,
         project_id=project_id,
         include_pinned=include_pinned,
         tags=tags,

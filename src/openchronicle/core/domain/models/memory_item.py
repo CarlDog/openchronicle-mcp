@@ -14,7 +14,6 @@ class MemoryItem:
     tags: list[str] = field(default_factory=list)
     created_at: datetime = field(default_factory=utc_now)
     pinned: bool = False
-    conversation_id: str | None = None
     project_id: str | None = None
     source: str = "manual"
     updated_at: datetime | None = None

@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from pydantic import BaseModel, Field
 
-from openchronicle.core.application.config.env_helpers import parse_csv_tags
+from openchronicle.core.application.config.env_helpers import parse_csv_tags  # noqa: F401
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,
@@ -32,7 +32,6 @@ def memory_search(
     container: ContainerDep,
     query: str,
     top_k: int = Query(default=8, ge=1, le=1000),
-    conversation_id: str | None = None,
     project_id: str | None = None,
     tags: str | None = None,
     offset: int = Query(default=0, ge=0),
@@ -46,7 +45,6 @@ def memory_search(
         store=container.storage,
         query=query,
         top_k=top_k,
-        conversation_id=conversation_id,
         project_id=project_id,
         tags=tag_list,
         offset=offset,
@@ -84,10 +82,9 @@ def memory_stats(
 
 class MemorySaveRequest(BaseModel):
     content: str = Field(min_length=1, max_length=100_000)
+    project_id: str = Field(min_length=1, max_length=200)
     tags: list[str] | None = Field(default=None, max_length=50)
     pinned: bool = False
-    conversation_id: str | None = Field(default=None, max_length=200)
-    project_id: str | None = Field(default=None, max_length=200)
     created_at: str | None = None
 
 
@@ -97,26 +94,11 @@ def memory_save(
     container: ContainerDep,
 ) -> dict[str, Any]:
     """Save a memory item for persistent retrieval across sessions."""
-    # Derive project_id from conversation if needed
-    resolved_project_id = body.project_id
-    if resolved_project_id is None and body.conversation_id:
-        convo = container.storage.get_conversation(body.conversation_id)
-        if convo is None:
-            raise HTTPException(status_code=404, detail=f"Conversation not found: {body.conversation_id}")
-        resolved_project_id = convo.project_id
-
-    if not resolved_project_id:
-        raise HTTPException(
-            status_code=400,
-            detail="project_id is required (provide directly or via conversation_id)",
-        )
-
     kwargs: dict[str, Any] = {
         "content": body.content,
         "tags": body.tags or [],
         "pinned": body.pinned,
-        "conversation_id": body.conversation_id,
-        "project_id": resolved_project_id,
+        "project_id": body.project_id,
         "source": "api",
     }
     if body.created_at is not None:

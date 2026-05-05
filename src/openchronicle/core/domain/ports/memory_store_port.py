@@ -37,7 +37,6 @@ class MemoryStorePort(ABC):
         query: str,
         *,
         top_k: int = 8,
-        conversation_id: str | None = None,
         project_id: str | None = None,
         include_pinned: bool = True,
         tags: list[str] | None = None,
@@ -46,7 +45,7 @@ class MemoryStorePort(ABC):
 
     @abstractmethod
     def delete_memory(self, memory_id: str) -> bool:
-        """Delete a memory item and clean up turn references.
+        """Delete a memory item.
 
         Returns True if deleted, False if not found.
         """
