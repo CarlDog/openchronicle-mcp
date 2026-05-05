@@ -89,14 +89,19 @@ NAS stack 151 still runs v2 until Phase 8 cutover.
   4 dead `RuntimePaths` fields, ~20 dead error codes, `load_plugin_config()`,
   v2 model + router_assist template writers, vacuous `tests/test_policies_purity.py`,
   unused `tests/helpers/subprocess_env.py`. 345 tests passing.
-- ✅ **Phase 8 prep** (CI + tag flow + runbook tightening) —
-  GHA workflows now trigger on `v3/develop` too (was main-only,
-  meaning 9 commits had no CI signal); `docker-publish.yml` gains a
-  `tags: ["v*"]` trigger + `type=ref,event=tag` metadata so
+- ✅ **Phase 8 prep** (CI + tag flow + Dependabot + runbook
+  tightening) — GHA workflows now trigger on `v3/develop` too (was
+  main-only, meaning 9 commits had no CI signal); `docker-publish.yml`
+  gains a `tags: ["v*"]` trigger + `type=ref,event=tag` metadata so
   `git tag v3.0.0-rc1 && git push --tags` produces the matching
-  Docker tag without flipping `:latest`. Phase 8 runbook tightened
-  with the explicit `:v2-final` retag command, the rc tag flow,
-  and the force-push step.
+  Docker tag without flipping `:latest`. New `Retag GHCR Image`
+  workflow_dispatch utility for the `:v2-final` rollback target
+  (and future release-alias housekeeping). New
+  `.github/dependabot.yml` covering pip + github-actions + docker
+  (weekly Mondays, grouped minor/patch, currently target
+  `v3/develop` — flip to default branch post-cutover per the
+  Phase 9 Day 0 checklist). Phase 8 runbook tightened with the
+  retag command, the rc tag flow, and the force-push step.
 - ⏭ **Phase 8** (NAS cutover) — next user-driven step. Take
   production backup, retag `:latest` as `:v2-final` for rollback,
   push `v3.0.0-rc1` git tag to build the rc image, force-push

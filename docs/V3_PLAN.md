@@ -794,6 +794,7 @@ The README is not a market-positioning document. It states what OC is, what it d
 - Update README + GitHub repo description
 - Confirm `archive/openchronicle.v2` is preserved on origin
 - Confirm `ghcr.io/carldog/openchronicle-mcp:v2-final` is preserved (don't garbage-collect)
+- **Drop `target-branch: v3/develop` lines from `.github/dependabot.yml`** so updates flow to the default branch (now v3) automatically
 - Close out follow-up tasks from this session
 
 **Day 7 post-cutover (if v3 has run clean):**
@@ -809,7 +810,7 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
-- **Dependency audit.** `pyproject.toml` extras (`[dev]`, `[mcp]`, `[openai]`, `[ollama]`) were trimmed during Phase 7 but never re-resolved against actual import use. Walk `pip-licenses` (or `pipdeptree`) on a fresh `pip install -e ".[dev,mcp,openai,ollama]"` and prune anything not imported by `src/` or `tests/`. Likely candidates to drop or version-pin tighter: leftover transitive deps from the v2 cut. Also resolve any open Dependabot advisories (the `:latest` push on 2026-05-05 surfaced 1 moderate on `main`/v2; re-check after the v3 force-push to see whether it persists in the v3 set).
+- **Dependency audit.** `pyproject.toml` extras (`[dev]`, `[mcp]`, `[openai]`, `[ollama]`) were trimmed during Phase 7 but never re-resolved against actual import use. Walk `pipdeptree` on a fresh `pip install -e ".[dev,mcp,openai,ollama]"` and prune anything not imported by `src/` or `tests/`. Likely candidates to drop or version-pin tighter: leftover transitive deps from the v2 cut. Vulnerability tracking is handled by `.github/dependabot.yml` (pip + github-actions + docker, weekly), so this audit is about *unused* deps, not insecure ones — Dependabot will open PRs for the latter on its own.
 - **Docker base image refresh.** Verify the Dockerfile base is on the latest patch of python:3.11-slim (or whichever pin is current); rebuild reveals any silently-broken transitive system libs.
 - **Lock file or constraints file.** v2 had no lock file. Consider adding `requirements-dev.txt` from `pip freeze` after a clean install on the v3 image, so reproducibility doesn't drift.
 
