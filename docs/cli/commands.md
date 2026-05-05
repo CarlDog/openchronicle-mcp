@@ -1,723 +1,187 @@
-# CLI Command Reference
+# `oc` CLI reference
 
-All commands are invoked via the `oc` entry point. Commands are grouped by
-category. Most post-container commands require a running database; pre-container
-commands (marked below) work without one.
+All subcommands of the `oc` entry point. Run any with `--help` for the
+full argparse output.
 
----
+## Server
 
-## System / Setup
+### `oc serve`
 
-### `oc version`
+Launch the unified ASGI app. One uvicorn process serves the HTTP REST
+surface at `/api/v1/*` and the MCP streamable-HTTP transport at `/mcp`.
+The maintenance loop runs in the same process.
 
-**Pre-container.** Print version information.
-
-```text
-oc version [--json]
+```bash
+oc serve --host 0.0.0.0 --port 8000
 ```
 
-| Flag | Description |
-| ------ | ------------- |
-| `--json` | Emit JSON envelope with `package_version`, `python_version`, `protocol_version` |
-
-### `oc init`
-
-**Pre-container.** Initialize runtime directories (database parent, config,
-plugins, output) and optional template files.
-
-```text
-oc init [--json] [--force] [--no-templates]
-```
-
-### `oc init-config`
-
-**Pre-container.** Generate example model configuration files.
-
-```text
-oc init-config [--config-dir DIR]
-```
-
-### `oc provider`
-
-**Pre-container.** Provider setup and management.
-
-```text
-oc provider list              # List known providers and models
-oc provider setup [OPTIONS]   # Set up model configs (interactive or scripted)
-oc provider custom [OPTIONS]  # Create a custom provider config
-```
-
-### `oc config show`
-
-**Pre-container.** Show effective runtime configuration: resolved paths,
-provider, pools, budget, privacy, telemetry, and router assist settings. API
-keys in `OC_*` env vars are automatically masked.
-
-```text
-oc config show [--json]
-```
-
-### `oc list-models`
-
-List loaded model configurations from the config directory.
-
-```text
-oc list-models [--config-dir DIR]
-```
-
-### `oc list-handlers`
-
-List registered task handlers (built-in and plugin).
-
-```text
-oc list-handlers
-```
-
-### `oc diagnose`
-
-Run diagnostics: check runtime paths, persistence, provider config.
-
-```text
-oc diagnose [--json]
-```
-
----
-
-## Database Maintenance
-
-### `oc db info`
-
-Show database file size, WAL size, row counts per table, pragma values, and
-integrity check result.
-
-```text
-oc db info [--json]
-```
-
-### `oc db vacuum`
-
-Compact the database with `VACUUM` and truncate the WAL. Prints before/after
-file sizes.
-
-```text
-oc db vacuum
-```
-
-### `oc db backup`
-
-Hot-backup the database to a file using SQLite's online backup API.
-
-```text
-oc db backup <path> [--force]
-```
-
-| Flag | Description |
-| ------ | ------------- |
-| `--force` | Overwrite if destination file already exists |
-
-### `oc db stats`
-
-Show global token usage statistics: total calls, input/output/total tokens, and
-breakdown by provider/model.
-
-```text
-oc db stats [--json]
-```
-
----
-
-## Project Management
-
-### `oc init-project`
-
-Create a new project.
-
-```text
-oc init-project <name>
-```
-
-### `oc list-projects`
-
-List all projects.
-
-```text
-oc list-projects
-```
-
-### `oc show-project`
-
-Show aggregated project details: name, agents, task status breakdown, token
-usage, conversation count, and latest activity timestamp.
-
-```text
-oc show-project <project_id> [--json]
-```
-
-### `oc register-agent`
-
-Register an agent in a project.
-
-```text
-oc register-agent <project_id> <name> [--role ROLE] [--provider PROVIDER] [--model MODEL]
-```
-
-### `oc resume-project`
-
-Resume orphaned tasks (RUNNING -> PENDING) in a project.
-
-```text
-oc resume-project <project_id> [--continue]
-```
-
-### `oc replay-project`
-
-Derive project state from the event log.
-
-```text
-oc replay-project --project-id ID [--show-llm]
-```
-
----
-
-## Event Log
-
-### `oc events`
-
-View the raw event log for a project. Events are shown in chronological order
-(most recent last). Supports filtering by task ID, event type, and limiting
-output to the N most recent events.
-
-```text
-oc events <project_id> [--task-id ID] [--type TYPE] [--limit N] [--json]
-```
-
-| Flag | Default | Description |
-| ------ | --------- | ------------- |
-| `--task-id` | | Filter events by task ID |
-| `--type` | | Filter by event type (e.g. `llm.requested`, `task.completed`) |
-| `--limit` | 50 | Show only the N most recent matching events |
-| `--json` | | Emit JSON envelope with full event payloads |
-
----
-
-## Task Management
-
-### `oc run-task`
-
-Submit and execute a task.
-
-```text
-oc run-task <project_id> <task_type> <payload> [--agent-id ID]
-```
-
-### `oc show-task`
-
-Show a task's timeline.
-
-```text
-oc show-task <task_id> [--result]
-```
-
-### `oc list-tasks`
-
-List tasks in a project.
-
-```text
-oc list-tasks <project_id>
-```
-
-### `oc verify-task`
-
-Verify a task's event hash chain.
-
-```text
-oc verify-task <task_id>
-```
-
-### `oc verify-project`
-
-Verify all task chains in a project.
-
-```text
-oc verify-project <project_id>
-```
-
-### `oc replay-task`
-
-Replay task execution.
-
-```text
-oc replay-task <task_id> [--mode {verify|replay-events|dry-run}]
-```
-
-### `oc explain-task`
-
-Show detailed execution trace for a task.
-
-```text
-oc explain-task <task_id>
-```
-
-### `oc task-tree`
-
-Show task tree with routing and usage.
-
-```text
-oc task-tree <task_id> [--depth N] [--show-reasons]
-```
-
-### `oc usage`
-
-Show LLM usage statistics for a project.
-
-```text
-oc usage <project_id> [--limit N]
-```
-
----
-
-## Conversations
-
-### `oc convo new`
-
-Create a new conversation.
-
-```text
-oc convo new [--title TITLE]
-```
-
-### `oc convo list`
-
-List conversations.
-
-```text
-oc convo list [--limit N]
-```
-
-### `oc convo show`
-
-Show conversation transcript.
-
-```text
-oc convo show [<conversation_id>] [--latest] [--limit N] [--explain] [--json]
-```
-
-### `oc convo ask`
-
-Send a prompt in a conversation.
-
-```text
-oc convo ask [<conversation_id>] [<prompt>] [--latest] [--last-n N] [--top-k-memory N]
-             [--explain] [--allow-pii] [--enqueue-if-unavailable]
-             [--include-pinned-memory | --no-include-pinned-memory] [--json]
-```
-
-### `oc convo export`
-
-Export conversation as JSON.
-
-```text
-oc convo export [<conversation_id>] [--latest] [--explain] [--verify]
-                [--fail-on-verify] [--json]
-```
-
-### `oc convo verify`
-
-Verify conversation event hash chain.
-
-```text
-oc convo verify <conversation_id> [--json]
-```
-
-### `oc convo mode`
-
-Get or set conversation mode.
-
-```text
-oc convo mode <conversation_id> [--set {general|creative|...}] [--json]
-```
-
-### `oc convo remember`
-
-Save a turn as a memory item.
-
-```text
-oc convo remember <conversation_id> <turn_index> --which {user|assistant}
-                  [--tags TAGS] [--pin] [--source SOURCE]
-```
-
-### `oc convo delete`
-
-Delete a conversation and all related data (turns, memory items, events).
-Requires `--force` because the operation is destructive and removes hash-chained
-events.
-
-```text
-oc convo delete <conversation_id> --force [--json]
-```
-
----
+`OC_LOG_FORMAT=json` switches log output to one JSON object per line.
 
 ## Memory
 
-### `oc memory add`
+### `oc memory add CONTENT`
 
-Add a memory item.
+Save a memory item. `--project-id` is required. `--tags`, `--pin`,
+`--source` map to MemoryItem fields.
 
-```text
-oc memory add <content> [--tags TAGS] [--pin] [--source SOURCE]
-              [--conversation-id ID] [--project-id ID]
+```bash
+oc memory add "Decision: use SQLite for storage" \
+    --project-id $PROJECT_ID --tags decision,architecture --pin
 ```
 
 ### `oc memory list`
 
-List memory items.
+Browse memory items in reverse-chronological order. `--limit`,
+`--offset`, `--pinned-only` for filtering.
 
-```text
-oc memory list [--limit N] [--pinned-only]
-```
+### `oc memory show MEMORY_ID`
 
-### `oc memory show`
+Print a single memory item.
 
-Show a memory item's full details.
+### `oc memory pin MEMORY_ID --on|--off`
 
-```text
-oc memory show <memory_id>
-```
+Toggle pin state.
 
-### `oc memory pin`
+### `oc memory search QUERY`
 
-Toggle memory pin state.
+Hybrid FTS5 + semantic search via Reciprocal Rank Fusion. `--top-k`,
+`--project-id`, `--tags` (comma-separated, AND logic),
+`--include-pinned`/`--no-include-pinned`, `--offset`, `--full` (print
+full content for context injection).
 
-```text
-oc memory pin <memory_id> {--on | --off}
-```
+### `oc memory update MEMORY_ID`
 
-### `oc memory search`
+Edit content or tags in place. `--content NEW`, `--tags "a,b,c"`.
+Preserves identity (id, created_at), bumps `updated_at`.
 
-Search memory items by keyword.
+### `oc memory delete MEMORY_ID`
 
-```text
-oc memory search <query> [--top-k N] [--conversation-id ID] [--project-id ID]
-                 [--include-pinned | --no-include-pinned]
-```
+Hard delete. No soft-delete recovery; backups are the recovery path.
 
-### `oc memory delete`
+### `oc memory embed`
 
-Delete a memory item and clean up turn references
-(`memory_written_ids`).
+Generate embeddings for memories that lack them. `--force` regenerates
+all (use after switching `OC_EMBEDDING_MODEL`). `--status` reports
+coverage without doing work.
 
-```text
-oc memory delete <memory_id> [--json]
-```
+### `oc memory export [--out FILE] [--project-id ID]`
 
----
+Dump projects + memory items as a portable JSON envelope. Embeddings
+are excluded (regenerable). Cross-version-portable disaster recovery
+surface.
 
-## Assets
+### `oc memory import FILE [--mode merge|replace]`
 
-### `oc asset upload`
+Read an envelope produced by `oc memory export` and apply it.
 
-Upload a file as an asset. Computes SHA-256 hash for dedup — if the same
-content already exists in the project, returns the existing asset.
+- `merge` (default): inserts items whose IDs aren't already present
+- `replace`: refuses if the destination has any project or memory rows
 
-```text
-oc asset upload <project_id> <source_path> [--filename NAME] [--mime-type TYPE]
-                [--link-to-type TYPE] [--link-to-id ID] [--link-role ROLE]
-```
+## Project
 
-| Flag | Description |
-| ------ | ------------- |
-| `--filename` | Override original filename |
-| `--mime-type` | Override auto-detected MIME type |
-| `--link-to-type` | Entity type to link to (`project`, `conversation`, `turn`, `memory_item`, `event`, `agent`) |
-| `--link-to-id` | Entity ID to link to |
-| `--link-role` | Link role (default: `input`) |
+### `oc init-project NAME`
 
-### `oc asset list`
+Create a project; prints the new id (UUID).
 
-List assets in a project.
+### `oc list-projects`
 
-```text
-oc asset list <project_id> [--limit N] [--json]
-```
+Tab-separated `id\tname` per line.
 
-### `oc asset show`
+### `oc show-project PROJECT_ID`
 
-Show asset metadata and linked entities.
+Project metadata. `--json` for structured output.
 
-```text
-oc asset show <asset_id> [--json]
-```
+## Database
 
-### `oc asset link`
+### `oc db info`
 
-Link an existing asset to any entity.
+File sizes, row counts (projects / memory_items / memory_embeddings),
+SQLite pragmas, integrity check.
 
-```text
-oc asset link <asset_id> <target_type> <target_id> [--role ROLE]
-```
+### `oc db vacuum`
 
-| Flag | Description |
-| ------ | ------------- |
-| `--role` | Link role (default: `reference`) |
+`PRAGMA wal_checkpoint(TRUNCATE)` + `VACUUM`. Note: this command does
+NOT auto-backup; the maintenance loop's `db_vacuum` job DOES. Take a
+manual backup first if you're running this ad-hoc.
 
----
+### `oc db backup PATH [--force]`
 
-## Chat
+Online backup via the SQLite backup API; atomic `.tmp` → rename. Safe
+to run while writes are in flight.
 
-### `oc chat`
+### `oc db stats`
 
-Interactive chat session with streaming responses.
-
-```text
-oc chat [--conversation-id ID] [--resume] [--title TITLE] [--no-stream]
-```
-
-| Flag | Description |
-| ------ | ------------- |
-| `--resume` | Resume the most recent conversation |
-| `--no-stream` | Disable streaming (wait for complete response) |
-
----
-
-## Server / RPC
-
-### `oc serve`
-
-Run the STDIO JSON RPC server and HTTP API. The HTTP API starts in a background
-daemon thread and binds to `127.0.0.1:8000` by default. Both servers share the
-same `CoreContainer` instance.
-
-```text
-oc serve [--idle-timeout-seconds N]
-```
-
-The HTTP API is configured via environment variables or the `api` section in
-`core.json`:
-
-| Variable | Default | Description |
-| ---------- | --------- | ------------- |
-| `OC_API_HOST` | `127.0.0.1` | Bind address |
-| `OC_API_PORT` | `8000` | Port number |
-| `OC_API_KEY` | - | API key for authentication (disabled if unset) |
-| `OC_API_CORS_ORIGINS` | - | Comma-separated allowed origins (CORS disabled if unset) |
-
-The HTTP API mirrors the MCP tool surface as REST endpoints under `/api/v1/`.
-See `docs/architecture/ARCHITECTURE.md` for the full route listing.
-
-### `oc rpc`
-
-Run a single JSON RPC request (reads from stdin or `--request`).
-
-```text
-oc rpc [--request JSON]
-```
-
----
-
-## MCP Server
-
-### `oc mcp serve`
-
-Start the MCP server. Exposes OC's memory and conversation capabilities to any
-MCP-compatible client (Goose, Claude Desktop, VS Code).
-
-```text
-oc mcp serve [--transport {stdio,sse,streamable-http}] [--host HOST] [--port PORT]
-```
-
-| Flag | Description |
-| ------ | ------------- |
-| `--transport` | Transport protocol: `stdio` (default), `sse`, or `streamable-http` |
-| `--host` | Bind address for SSE/HTTP transport (default: `127.0.0.1`) |
-| `--port` | Port for SSE/HTTP transport (default: `8080`) |
-
-Requires the `[mcp]` extra: `pip install -e ".[mcp]"`.
-
-**MCP tools exposed:** `health`, `memory_search`, `memory_save`, `memory_list`,
-`memory_pin`, `conversation_ask`, `conversation_history`, `conversation_list`,
-`conversation_create`, `context_recent`, `tool_stats`, `moe_stats`,
-`search_turns`, `onboard_git`, `project_create`, `project_list`,
-`asset_upload`, `asset_list`, `asset_get`, `asset_link`.
-
----
+Project / memory / pinned / embedding counts. `--json` available.
 
 ## Onboarding
 
-### `oc onboard git`
+### `oc onboard git --project-id ID --repo-path .`
 
-Bootstrap OC memories from git history. Extracts commits, filters noise (merges,
-formatting, version bumps), clusters by temporal proximity and file overlap, then
-synthesizes each cluster into a memory via LLM (or raw format with `--no-llm`).
+Bootstrap memories from local git history. `--max-commits` (default
+500), `--max-memories` (clusters; default 15), `--force` (delete prior
+git-onboard memories and re-run), `--dry-run` (print clusters without
+saving).
 
-```text
-oc onboard git --project-id <id> [--repo-path .] [--max-commits 500]
-               [--max-memories 15] [--force] [--no-llm] [--dry-run]
-```
+For remote repos, use the `onboard_git` MCP tool — that path clones
+shallow into a tmpdir on the server side.
 
-| Flag | Description |
-| ------ | ------------- |
-| `--project-id` | **Required.** Project to associate memories with |
-| `--repo-path` | Path to git repository (default: `.`) |
-| `--max-commits` | Max commits to analyze (default: `500`) |
-| `--max-memories` | Max memories/clusters to create (default: `15`) |
-| `--force` | Delete existing git-onboard memories and re-run |
-| `--no-llm` | Skip LLM synthesis, use structured raw format |
-| `--dry-run` | Show clusters without saving any memories |
+## Maintenance
 
-**Idempotency:** If git-onboard memories already exist for the project, the command
-refuses to run unless `--force` is passed (which deletes existing memories first).
+### `oc maintenance list [--json]`
 
-**MCP equivalent:** The `onboard_git` MCP tool performs the same extraction and
-clustering but returns structured data for the host LLM to synthesize and save
-via `memory_save`.
+Show configured jobs and their schedules. Surfaces
+`OC_MAINTENANCE_DISABLED` state.
 
----
+### `oc maintenance run-once JOB_NAME`
 
-## Storytelling (Plugin)
+Manually invoke a single maintenance handler. Useful at cutover time
+(`oc maintenance run-once embedding_backfill` after migrating).
 
-Commands provided by the `storytelling` plugin (`oc story`). Requires the plugin
-to be installed in the plugin directory.
+Job names: `db_backup`, `db_vacuum`, `db_integrity_check`,
+`embedding_backfill`, `git_onboard_resync`.
 
-### `oc story import`
+## Operator
 
-Import a storytelling project from a directory of text files.
+### `oc init [--force] [--no-templates]`
 
-```text
-oc story import <path> --project-id <id> [--project-name NAME] [--dry-run]
-```
+Create the runtime directory tree and bootstrap config templates.
+`--force` overwrites existing templates. Idempotent.
 
-| Flag | Description |
-| ------ | ------------- |
-| `--project-id` | **Required.** OC project ID |
-| `--project-name` | Project name (default: directory name) |
-| `--dry-run` | Parse and classify without saving |
+### `oc init-config [--config-dir PATH]`
 
-### `oc story list`
+Scaffold `core.json` with v3 defaults at the resolved config dir.
 
-List imported storytelling content.
+### `oc config show [--json]`
 
-```text
-oc story list --project-id <id> [--type {character,location,style-guide,scene,instructions,worldbuilding,all}]
-```
+Print effective configuration: paths, `core.json` contents,
+masked-secret env vars (anything ending in KEY/SECRET/TOKEN/PASSWORD
+is masked in human output; full in JSON).
 
-### `oc story show`
+### `oc version [--json]`
 
-Show a single storytelling memory item.
+Package version + Python version.
 
-```text
-oc story show <memory_id>
-```
+## Removed in v3
 
-### `oc story scene`
+These v2 commands were dropped along with their subsystems:
 
-Generate a storytelling scene via the orchestrator.
+| Command | Replacement |
+|---|---|
+| `oc chat` / `oc convo` | OC has no LLM in v3. Use Claude Code, Goose, etc. via the MCP server. |
+| `oc story <subcmd>` | Storytelling plugin archived on `archive/openchronicle.v2`. |
+| `oc task` / `oc run-task` / `oc list-tasks` | Orchestrator gone. |
+| `oc scheduler add/list/...` | Replaced by the in-process maintenance loop. |
+| `oc discord start` | Discord interface archived. |
+| `oc mcp serve` | MCP is mounted into `oc serve` now. |
+| `oc asset` / `oc media` / `oc webhook` | Subsystems archived. |
+| `oc rpc` / stdio JSON-RPC | RPC layer archived. |
+| `oc selftest` / `oc smoke-live` / `oc demo-summary` / `oc acceptance` | Test entry points only. |
+| `oc ollama` / `oc openwebui` | Provider tooling archived. |
+| `oc provider list/setup/custom` | LLM providers gone. |
 
-```text
-oc story scene <prompt...> --project-id <id> [--mode {participant,director,audience}]
-               [--canon | --sandbox] [--character NAME] [--location NAME]
-               [--save] [--max-tokens N] [--temperature F]
-```
+## See also
 
-| Flag | Description |
-| ------ | ------------- |
-| `--project-id` | **Required.** OC project ID |
-| `--mode` | Engagement mode (default: `director`) |
-| `--sandbox` | Non-canon mode (default: canon) |
-| `--character` | Player character name (for participant mode) |
-| `--location` | Location hint for context retrieval |
-| `--save` | Save generated scene as a memory item |
-| `--max-tokens` | Max output tokens (default: `2048`) |
-| `--temperature` | LLM temperature (default: `0.8`) |
-
-### `oc story characters`
-
-List imported characters.
-
-```text
-oc story characters --project-id <id> [--primary-only]
-```
-
-### `oc story locations`
-
-List imported locations.
-
-```text
-oc story locations --project-id <id>
-```
-
-### `oc story search`
-
-Search storytelling content by query.
-
-```text
-oc story search <query...> --project-id <id>
-```
-
----
-
-## Testing / Debug
-
-### `oc selftest`
-
-Run deterministic CLI-only selftest.
-
-```text
-oc selftest [--dir DIR] [--json] [--keep-artifacts] [--no-plugins]
-            [--telemetry-self-report]
-```
-
-### `oc smoke-live`
-
-Smoke test with a real LLM provider.
-
-```text
-oc smoke-live [--provider NAME] [--model NAME] [--prompt TEXT] [--json]
-```
-
-### `oc acceptance`
-
-Run deterministic acceptance workflow.
-
-```text
-oc acceptance [--json]
-```
-
-### `oc demo-summary`
-
-Run supervisor+worker summary demo.
-
-```text
-oc demo-summary <project_id> <text> [--use-openai] [--mode {fast|quality}]
-                [--mix {fast_then_quality|quality_then_fast}]
-```
-
----
-
-## JSON Output
-
-Most commands support a `--json` flag that emits a standard envelope:
-
-```json
-{
-  "ok": true,
-  "command": "version",
-  "result": { ... },
-  "error": null
-}
-```
-
-On error:
-
-```json
-{
-  "ok": false,
-  "command": "version",
-  "result": null,
-  "error": {
-    "error_code": "...",
-    "message": "...",
-    "hint": "..."
-  }
-}
-```
+- `docs/architecture/ARCHITECTURE.md` — high-level layout
+- `docs/configuration/env_vars.md` — environment variables
+- `docs/integrations/mcp_client_setup.md` — register the MCP server
+  with Claude Code

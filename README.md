@@ -3,101 +3,137 @@
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ghcr.io%2Fcarldog%2Fopenchronicle-mcp-blue?logo=docker)](https://ghcr.io/carldog/openchronicle-mcp)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue?logo=python&logoColor=white)](https://python.org)
-[![CI](https://github.com/CarlDog/openchronicle-mcp/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/CarlDog/openchronicle-mcp/actions/workflows/docker-publish.yml)
 
-**Persistent memory and context for LLM conversations.**
+A memory database for LLM agents. Persistent semantic + keyword
+memory, project namespacing, git-onboard, served over HTTP REST and
+MCP from a single ASGI process. Runs on your hardware.
 
-Chat context dies between sessions. OpenChronicle fixes that — it's an
-orchestration core that gives any LLM durable memory, explainable routing,
-and auditable decision history across conversations, sessions, and tools.
+## What it does
 
-## Features
+- **Persistent memory across sessions.** Save decisions, milestones,
+  and rejected approaches that survive context compression and new
+  conversations. Retrieve them with hybrid full-text and semantic
+  search via Reciprocal Rank Fusion.
+- **Project namespacing.** Memory is scoped to projects, so context
+  for one workstream doesn't leak into another.
+- **Git onboarding.** Clone a repo, cluster commits by relatedness,
+  return summaries ready for memory ingestion. Seeds long-term memory
+  with the WHY behind existing code.
+- **One process, two transports.** FastAPI hosts both the REST surface
+  (`/api/v1/*`) and the MCP streamable-HTTP transport (`/mcp`) on the
+  same port. Single container, single port mapping, single
+  healthcheck.
+- **Embedding-failure degradation.** When the embedding provider goes
+  down, search degrades cleanly to FTS5-only and surfaces the
+  degraded state via `/health`. Backfill catches up when the provider
+  returns.
+- **Schema migration framework.** Versioned `.sql` migrations with
+  savepoint atomicity. Re-runs are idempotent. Future schema changes
+  drop in as `NNN_<slug>.sql` files.
+- **Atomic online backups.** Uses SQLite's online backup API.
+  Backup-before-destructive policy: vacuum runs a backup first as
+  part of the same job. Integrity-check failures trigger emergency
+  backups.
 
-- **Persistent memory** — full-text search (FTS5) with deterministic
-  fallback, pinning, tagging; conversations resume where you left off
-- **Multi-provider routing** — OpenAI, Anthropic, Groq, Gemini, Ollama with
-  pool-based selection and automatic fallback
-- **Mixture-of-Experts** — consensus answers from multiple models via
-  `--moe` flag
-- **Streaming responses** — token-by-token output with `--no-stream` opt-out
-- **Hash-chained event log** — tamper-evident audit trail for every decision
-- **MCP server** — 20 tools exposing memory, conversation, and context to
-  any MCP-compatible client (Claude Code, Goose, VS Code)
-- **HTTP API** — 20 REST endpoints mirroring MCP tools, API key auth, rate
-  limiting, auto-starts with `oc serve`
-- **Discord bot** — slash commands, session mapping, multi-user isolation
-- **Scheduler** — tick-driven job execution with atomic claim and drift
-  prevention
-- **Asset management** — file storage with SHA-256 dedup and generic linking
-- **Plugin system** — extend with stateless task handlers
-- **Privacy gate** — PII detection (6 categories, Luhn validation) before
-  data leaves your machine
-- **Hexagonal architecture** — enforced by tests, not convention
+## What it isn't
 
-## Quick Start
+- Not a conversation engine. v3 has no LLM. Use Claude Code, Goose,
+  Open WebUI, etc. via the MCP server.
+- Not multi-tenant. Single user, single API key.
+- Not a cloud sync layer. The DB lives on your hardware. Backups go
+  to a directory next to it. Cross-device sync isn't built in (see
+  V3_PLAN.md open question 12 for the design sketch).
+
+By design.
+
+## Install
+
+From source:
 
 ```bash
-pip install -e ".[openai]"
+pip install -e ".[mcp,openai]"
 oc init
-export OPENAI_API_KEY=your_key_here
-oc chat
+oc serve
 ```
 
-That's it. You're in a persistent conversation with memory, streaming, and
-full audit trail.
+The default `oc serve` binds `127.0.0.1:8000`. Override with
+`--host`/`--port` or `OC_API_HOST`/`OC_API_PORT`.
 
-## Quick Start (Docker)
+Docker (single container, NAS-friendly):
 
 ```bash
-docker pull ghcr.io/carldog/openchronicle-mcp:latest
-docker compose run --rm openchronicle chat
+docker run --rm \
+  -p 8000:8000 \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/config:/app/config \
+  ghcr.io/carldog/openchronicle-mcp:latest
 ```
 
-Persistent volumes: `/data` (SQLite DB), `/config`, `/plugins`, `/output`.
+For a Portainer stack on a NAS, use the `docker-compose.nas.yml` at
+the repo root.
 
-## Interfaces
+## Quickstart
 
-| Interface | Entry point | Use case |
-| ----------- | ------------- | ---------- |
-| **CLI** | `oc chat`, `oc convo ask` | Interactive and scripted use |
-| **STDIO RPC** | `oc serve` / `oc rpc` | Programmatic integration |
-| **HTTP API** | Auto-starts with `oc serve` | REST clients, webhooks, web UIs |
-| **MCP Server** | `oc mcp serve` | Agent interop (Goose, Claude Code) |
-| **Discord** | `oc discord start` | Chat bot with slash commands |
+```bash
+# Bootstrap the runtime tree
+oc init
+oc init-config
 
-## Supported Providers
+# Create a project
+PROJECT_ID=$(oc init-project "my-project")
 
-| Provider | Extra | Streaming | Tool Use |
-| ---------- | ------- | ----------- | ---------- |
-| OpenAI | `.[openai]` | Yes | Yes |
-| Anthropic | `.[anthropic]` | Yes | Yes |
-| Groq | `.[groq]` | Yes | Yes |
-| Gemini | `.[gemini]` | Yes | Yes |
-| Ollama | `.[ollama]` | Yes | Yes |
-| Stub | *(built-in)* | Yes | Yes |
+# Save your first memory
+oc memory add "Decision: SQLite for storage; AGPL for license" \
+    --project-id $PROJECT_ID --tags decision
+
+# Search it
+oc memory search "storage decision" --project-id $PROJECT_ID
+```
+
+Or do the same via MCP — register the server with Claude Code:
+
+```bash
+claude mcp add --scope user --transport http openchronicle \
+    http://127.0.0.1:8000/mcp
+```
+
+Then ask Claude to call `memory_save` and `memory_search`.
+
+## Architecture
+
+Hexagonal: `domain/` (pure types + ports) → `application/` (use cases,
+services) → `infrastructure/` (SQLite, embedding adapters, the
+maintenance loop). Driver-side adapters in `interfaces/` host the
+HTTP, MCP, and CLI surfaces.
+
+See `docs/architecture/ARCHITECTURE.md` for the full layout.
 
 ## Documentation
 
-| Document | Description |
-| ---------- | ------------- |
-| [Architecture](docs/architecture/ARCHITECTURE.md) | Hexagonal layers, event model, directory tree |
-| [CLI Commands](docs/cli/commands.md) | Full `oc` command reference |
-| [Environment Variables](docs/configuration/env_vars.md) | All ~60 configuration knobs |
-| [MCP Server Spec](docs/integrations/mcp_server_spec.md) | Tool list, transports, integration guide |
-| [Plugin Guide](docs/architecture/PLUGINS.md) | Build and register task handlers |
-| [Design Decisions](docs/design/design_decisions.md) | Rationale for core subsystems |
-| [RPC Protocol](docs/protocol/stdio_rpc_v1.md) | JSON-RPC stdio protocol spec |
-| [Backlog](docs/BACKLOG.md) | Roadmap and feature backlog |
+- [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md) — layout, schema, ASGI design
+- [`docs/architecture/MAINTENANCE.md`](docs/architecture/MAINTENANCE.md) — maintenance loop + degradation policy
+- [`docs/cli/commands.md`](docs/cli/commands.md) — `oc` subcommand reference
+- [`docs/configuration/env_vars.md`](docs/configuration/env_vars.md) — environment variables
+- [`docs/configuration/config_files.md`](docs/configuration/config_files.md) — `core.json` schema
+- [`docs/configuration/security_posture.md`](docs/configuration/security_posture.md) — security model
+- [`docs/integrations/mcp_client_setup.md`](docs/integrations/mcp_client_setup.md) — register the MCP server
+- [`docs/integrations/mcp_server_spec.md`](docs/integrations/mcp_server_spec.md) — MCP tool surface
+- [`docs/api/STABILITY.md`](docs/api/STABILITY.md) — versioning + deprecation policy
 
-## Contributing
+## Development
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+```bash
+pip install -e ".[dev,mcp,openai,ollama]"
+pre-commit install
+pytest
+```
 
-## Security
+The architecture is enforced by tests:
 
-See [SECURITY.md](SECURITY.md).
+- `tests/test_hexagonal_boundaries.py` — domain/application/infrastructure layering
+- `tests/test_architectural_posture.py` — core agnostic of MCP SDK
+- `tests/test_no_secrets_committed.py`, `tests/test_no_soft_deprecation.py` — repo hygiene
 
 ## License
 
-[AGPL-3.0](LICENSE) — free to use, modify, and share. Network service use
-requires publishing source under the same license.
+[AGPL-3.0](LICENSE).

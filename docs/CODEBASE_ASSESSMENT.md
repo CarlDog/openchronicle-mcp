@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-05
 **Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 56 (v3 development; phases 0-6.5 complete on `v3/develop`)
+**Revision:** 57 (v3 development; phases 0-7 complete on `v3/develop` — code-complete pending NAS cutover)
 
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
@@ -71,8 +71,25 @@
 >   counter; container's `embedding_status_dict` reports `degraded` status
 >   with last-failure timestamp + count. Successful search clears the
 >   counter. 18 new tests. 349 tests passing.
-> - **Phase 7** (docs sweep + repo polish) — pending. This document gets
->   rewritten as v3 rev 1 in Phase 7.
+> - **Phase 7** (docs sweep + repo polish) — done. Every file under
+>   `docs/` classified into update/archive/delete. v2-specific docs
+>   moved under `docs/archive/v2/` (BACKLOG, ARCHITECTURE_ASSETS,
+>   ARCHITECTURE_PLUGINS, DESIGN_DECISIONS, INTEGRATION_DISCORD,
+>   plugins/*, protocol/*, DESIGN_STORAGE, RUNTIME_DOCKER_MVP) with a
+>   `docs/archive/v2/README.md` index. Rewritten for v3:
+>   `docs/architecture/ARCHITECTURE.md`, `docs/cli/commands.md`,
+>   `docs/configuration/env_vars.md`, `docs/configuration/config_files.md`,
+>   `docs/integrations/mcp_client_setup.md`,
+>   `docs/integrations/mcp_server_spec.md`,
+>   `docs/runtime/docker_local_dev.md`. Three new docs:
+>   `docs/api/STABILITY.md` (semver promise + deprecation policy),
+>   `docs/configuration/security_posture.md` (threat model + secrets +
+>   network), `docs/architecture/MAINTENANCE.md` (loop config + jobs +
+>   degradation policy). `README.md` rewritten per V3_PLAN voice rules
+>   (lead with what OC does, no competitor sections, honest scope).
+>   `pyproject.toml` v3.0.0.dev0; dropped anthropic/groq/gemini/discord
+>   extras; description updated; classifier bumped to Beta. 349 tests
+>   passing.
 
 ---
 

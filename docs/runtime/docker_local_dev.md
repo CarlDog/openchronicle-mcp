@@ -1,95 +1,78 @@
-# Docker Local Development Workflow
+# Docker local development
 
-Build and run OpenChronicle from source using Docker Compose.
+Build and run OpenChronicle from source via Docker.
 
 ## Prerequisites
 
-- Docker and Docker Compose v2 installed
-- External config directory with model configs and API keys
-  (e.g., `C:\Docker\openchronicle\config\` on Windows)
+- Docker
+- An OC checkout
 
-## Quick Start
-
-```bash
-# Build from source, tagged :dev
-docker compose -f docker-compose.yml -f docker-compose.dev.yml build
-
-# Start the HTTP API server
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up serve
-```
-
-The API server listens on `http://localhost:8000`.
-
-## Services
-
-| Service | Command | Use |
-|---|---|---|
-| `serve` | `oc serve --http-only` | HTTP API + daemon (default) |
-| `openchronicle` | `oc <command>` | One-shot CLI commands |
-| `discord` | `oc discord start` | Discord bot (long-running) |
-| `mcp` | `oc mcp serve` | MCP server (stdio) |
-
-## External Config
-
-Mount your config directory (containing `core.json` and `models/*.json`)
-into the container:
+## Build
 
 ```bash
-# Override config volume with a bind mount
-docker compose -f docker-compose.yml -f docker-compose.dev.yml \
-  run -v /path/to/config:/config serve
+docker build -t openchronicle:dev .
 ```
 
-Or set `OC_CONFIG_DIR` in a `.env` file (git-ignored):
+## Run
 
-```env
-OC_LLM_PROVIDER=openai
-```
-
-## Running CLI Commands
+The image's default `ENTRYPOINT` is `oc serve` — single uvicorn
+process, HTTP REST at `/api/v1/*` and MCP at `/mcp`, both on `:8000`
+inside the container.
 
 ```bash
-# Run any oc command via the openchronicle service
-docker compose -f docker-compose.yml -f docker-compose.dev.yml \
-  run --rm openchronicle version
-
-docker compose -f docker-compose.yml -f docker-compose.dev.yml \
-  run --rm openchronicle selftest --json
+docker run --rm \
+  -p 8000:8000 \
+  -v "$(pwd)/data:/app/data" \
+  -v "$(pwd)/config:/app/config" \
+  -e OC_API_KEY=dev-key \
+  openchronicle:dev
 ```
 
-## Rebuild After Changes
+`http://127.0.0.1:8000/health` should return `{"status": "ok"}`.
+
+## Run a one-off command
 
 ```bash
-# Rebuild and restart
-docker compose -f docker-compose.yml -f docker-compose.dev.yml build
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d serve
+docker run --rm openchronicle:dev oc version
+docker run --rm openchronicle:dev oc memory search hello
 ```
 
-## Data Persistence
+The entrypoint passes positional args through to the `oc` CLI.
 
-Named volumes persist data across restarts:
+## Embeddings
 
-| Volume | Container path | Content |
-|---|---|---|
-| `oc-data` | `/data` | SQLite database |
-| `oc-config` | `/config` | Configuration files |
-| `oc-output` | `/output` | Report output files |
-| `oc-assets` | `/assets` | Asset file storage |
+To enable hybrid semantic search:
 
-The `plugins/` directory is bind-mounted from the repo.
+```bash
+docker run --rm \
+  -p 8000:8000 \
+  -e OC_EMBEDDING_PROVIDER=openai \
+  -e OC_EMBEDDING_MODEL=text-embedding-3-small \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
+  -v "$(pwd)/data:/app/data" \
+  openchronicle:dev
+```
 
-## Troubleshooting
+Or for Ollama running on the host:
 
-**Image not found:** Make sure you ran the build step with both
-compose files specified.
+```bash
+docker run --rm \
+  -p 8000:8000 \
+  --add-host host.docker.internal:host-gateway \
+  -e OC_EMBEDDING_PROVIDER=ollama \
+  -e OC_EMBEDDING_MODEL=nomic-embed-text \
+  -e OLLAMA_HOST=http://host.docker.internal:11434 \
+  -v "$(pwd)/data:/app/data" \
+  openchronicle:dev
+```
 
-**Config directory not found:** The container expects `/config` to
-exist. Either use the named volume or bind-mount your config directory.
+## NAS deployment
 
-**Database locked:** Only one service should write to the database at a
-time. Stop other services before running CLI commands that write.
+For Portainer / Synology Container Manager use
+`docker-compose.nas.yml` from the repo root. That file documents every
+operator-tunable env var inline.
 
-## Related
+## See also
 
-- [Docker MVP runtime](docker_mvp.md) — single-container quick start
-- [CLI command reference](../cli/commands.md) — all `oc` subcommands
+- `docs/configuration/env_vars.md` — full env var list
+- `docs/architecture/ARCHITECTURE.md` — what runs inside the container

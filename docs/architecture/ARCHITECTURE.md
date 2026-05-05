@@ -1,216 +1,194 @@
-# OpenChronicle v2 Architecture
+# OpenChronicle v3 Architecture
 
-## Goals
+A memory database for LLM agents. SQLite-backed, FTS5 + embeddings for
+hybrid search, project namespacing, served over HTTP REST and MCP
+streamable-http from a single ASGI process.
 
-- Manager/supervisor/worker-ready orchestration core
-- Strongly typed task/event/resource model with hash-chained events
-- Pluggable task handlers and agent templates via registry/loader
-- Multi-provider LLM support with routing, fallback, and rate limiting
-- Privacy-aware outbound request filtering
-- No runtime dependency on v1; v1 is preserved on the `archive/openchronicle.v1` branch
-
-## Layout
+## Layers (hexagonal, slimmed)
 
 ```text
-src/openchronicle/
-├── core/
-│   ├── domain/
-│   │   ├── errors/              # Error codes and exceptions
-│   │   ├── models/              # Core dataclasses (Project, Conversation, Memory, etc.)
-│   │   ├── ports/               # Abstract interfaces (LLMPort, StoragePort, etc.)
-│   │   └── services/            # Domain services (replay, usage tracking, verification)
-│   ├── application/
-│   │   ├── config/              # Model configuration loaders
-│   │   ├── models/              # Application-level models (diagnostics)
-│   │   ├── observability/       # Execution indexing and telemetry
-│   │   ├── policies/            # BudgetGate, RateLimiter, RetryController
-│   │   ├── replay/              # Project state replay and usage derivation
-│   │   ├── routing/             # Pool configuration, router policy, fallback execution
-│   │   ├── runtime/             # Container, PluginLoader, TaskHandlerRegistry
-│   │   ├── services/            # OrchestratorService, LLM execution
-│   │   └── use_cases/           # All business operations (ask, convo, memory, tasks, etc.)
-│   └── infrastructure/
-│       ├── config/              # Settings and budget configuration
-│       ├── llm/                 # Provider adapters (OpenAI, Ollama, Anthropic, Stub)
-│       ├── logging/             # EventLogger with hash chaining
-│       ├── persistence/         # SqliteStore and schema
-│       ├── privacy/             # Rule-based privacy gate
-│       ├── router_assist/       # ML-assisted routing (linear, ONNX backends)
-│       └── routing/             # Rule-based and hybrid routers
-└── interfaces/
-    ├── cli/                     # argparse CLI + STDIO RPC protocol
-    │   ├── commands/            # Dispatch tables + handler modules
-    │   ├── chat.py              # Interactive chat REPL (oc chat)
-    │   ├── main.py              # Argparse definitions + slim dispatch
-    │   ├── rpc_handlers.py      # 24 RPC handler functions
-    │   └── stdio.py             # STDIO server loop + utilities
-    ├── discord/                 # Discord bot driver (optional [discord] extra)
-    │   ├── bot.py               # commands.Bot subclass + message handling
-    │   ├── commands.py          # Slash command definitions
-    │   ├── config.py            # Three-layer config (env > core.json > default)
-    │   ├── formatting.py        # Message splitting for 2000-char limit
-    │   ├── session.py           # Session-to-conversation mapping
-    │   └── pid_file.py          # PID file management
-    ├── mcp/                     # MCP server (optional [mcp] extra, 21 tools)
-    │   ├── server.py            # FastMCP setup + tool registration
-    │   ├── config.py            # MCP server configuration
-    │   ├── tracking.py          # Tool call statistics
-    │   └── tools/               # Tool handler modules
-    │       ├── memory.py        # memory_* tools
-    │       ├── conversation.py  # conversation_* tools
-    │       ├── context.py       # context_recent tool
-    │       ├── system.py        # health, tool_stats, moe_stats tools
-    │       ├── project.py       # project_* tools
-    │       ├── onboard.py       # onboard_git tool
-    │       └── asset.py         # asset_* tools
-    ├── api/                     # HTTP API (FastAPI, auto-starts with oc serve)
-    │   ├── app.py               # FastAPI app factory (create_app)
-    │   ├── config.py            # HTTPConfig (host, port, api_key)
-    │   ├── deps.py              # Dependency injection helpers
-    │   ├── middleware/           # Auth, rate limiting, CORS
-    │   │   ├── auth.py          # API key middleware
-    │   │   └── rate_limit.py    # Sliding-window rate limiter
-    │   └── routes/              # REST endpoints mirroring MCP tools
-    │       ├── memory.py        # /api/v1/memory/*
-    │       ├── conversation.py  # /api/v1/conversation/*
-    │       ├── project.py       # /api/v1/project/*
-    │       ├── asset.py         # /api/v1/asset/*
-    │       └── system.py        # /api/v1/health, /api/v1/stats
-    └── serializers.py           # Shared dict serializers (MCP + API)
-
-plugins/                             # OC_PLUGIN_DIR — deploy plugins here (symlink or copy)
-└── storytelling/                # Bundled extension: mode prompt builder + story handlers
+interfaces/                 CLI + ASGI app (FastAPI host with /mcp mount)
+  ↓
+application/                use cases + embedding service + git-onboard +
+                            maintenance loop orchestration
+  ↓
+domain/                     MemoryItem, Project, ports
+  ↑
+infrastructure/             SQLite store + embedding adapters + persistence
+                            backup + migration framework + maintenance jobs
 ```
 
-## Key Components
+The v2 orchestrator/scheduler/router/MoE/webhook/asset/media/plugin
+stack is gone. Look in `archive/openchronicle.v2` if you need it.
 
-### Domain Layer
+## Layer responsibilities
 
-**Models:**
+### Domain (`src/openchronicle/core/domain/`)
 
-- `Project`: Container for conversations and resources
-- `Conversation`: Thread of turns with mode (standard/focus/creative/nsfw)
-- `MemoryItem`: Persistent memories with pinning and search
-- `ExecutionRecord`: LLM call results with usage metrics
-- `PrivacyReport`: PII detection results
-- `BudgetPolicy`, `RetryPolicy`: Configuration models
+Pure business types. No imports of `application/` or `infrastructure/`.
 
-**Ports (Interfaces):**
+- `models/`: `MemoryItem`, `Project`, `GitCommit` / `CommitCluster`
+- `ports/`: `MemoryStorePort`, `StoragePort`, `EmbeddingPort`
+- `exceptions.py`: `NotFoundError`, `ValidationError`, `ConfigError`,
+  `ProviderError`, `BudgetExceededError`
+- `errors/error_codes.py`: SCREAMING_SNAKE_CASE error codes
+- `time_utils.py`: `utc_now()`
 
-- `LLMPort`: Async LLM generation with usage tracking and function calling (tool use)
-- `StoragePort`: Project, task, event, conversation persistence
-- `ConversationStorePort`: Conversation and turn storage
-- `MemoryStorePort`: Memory CRUD operations
-- `PluginPort`: Handler registration interface
-- `PrivacyGatePort`: PII detection interface
-- `InteractionRouterPort`: Routing decisions
-- `RouterAssistPort`: ML-assisted routing
+### Application (`src/openchronicle/core/application/`)
 
-### Application Layer
+Use cases orchestrate domain operations against ports. No infrastructure
+imports — anything reaching outside the process goes through a port.
 
-**Policies:**
+- `services/embedding_service.py`: hybrid FTS5 + cosine-similarity
+  search via Reciprocal Rank Fusion. Falls back to FTS5-only on
+  embedding provider failure (the embedding-degradation policy).
+- `services/git_onboard.py`: clone-and-cluster a remote git repo into
+  memory candidates. No LLM call — synthesis is the caller's job.
+- `services/maintenance_loop.py`: in-process asyncio loop that runs
+  scheduled jobs (per-job lock for cross-tick overlap detection,
+  global lock so jobs never run concurrently in this process).
+- `services/context_builder.py`: helpers shared between use cases.
+- `use_cases/`: `add_memory`, `delete_memory`, `list_memory`,
+  `pin_memory`, `search_memory`, `update_memory`, `show_memory`,
+  `create_project`, `list_projects`, `init_runtime`, `init_config`,
+  `diagnose_runtime`, `export_memory`, `import_memory`
+- `config/`: runtime path resolution (`paths.py`), embedding settings,
+  env-var helpers
+- `models/diagnostics_report.py`: shape returned by `oc health` /
+  `/api/v1/health`
 
-- `BudgetGate`: Per-task token budget enforcement
-- `RateLimiter`: RPM/TPM rate limiting with token bucket algorithm
-- `RetryController`: Exponential backoff with jitter
+### Infrastructure (`src/openchronicle/core/infrastructure/`)
 
-**Routing:**
+Adapters that implement ports + cross-cutting infra (SQLite, embedding
+HTTP clients, the wiring container).
 
-- `PoolConfig`: Provider pools (fast, quality, NSFW)
-- `RouterPolicy`: Mode selection and budget-aware downgrade
-- `FallbackExecutor`: Automatic fallback on provider failures
+- `persistence/`:
+  - `sqlite_store.py`: SQLite-backed implementation of
+    `StoragePort` + `MemoryStorePort`.
+  - `migrator.py`: versioned schema migration runner. Reads
+    `migrations/NNN_*.sql`, applies pending versions in order with
+    savepoint atomicity, records `schema_version` rows.
+  - `migrations/001_initial.sql`: v3 baseline schema.
+  - `backup.py`: atomic online backup module via
+    `sqlite3.Connection.backup()` (writes to `.tmp` → `os.replace`).
+  - `row_mappers.py`: row → domain model conversion.
+- `embedding/`: stub, OpenAI, Ollama adapters implementing
+  `EmbeddingPort`. Adapters never crash startup —
+  `_build_embedding_port` catches and falls back to FTS5-only.
+- `maintenance/jobs.py`: handler implementations for the maintenance
+  loop's job registry (db_backup, db_vacuum, db_integrity_check,
+  embedding_backfill, git_onboard_resync).
+- `wiring/container.py`: composition root. Builds the SQLite store,
+  optional embedding service, runtime paths. The container lifecycle
+  (`__enter__`/`__exit__`/`close`) closes the DB connection cleanly.
+- `config/config_loader.py`: `core.json` reader.
 
-**Runtime:**
+### Interfaces (`src/openchronicle/interfaces/`)
 
-- `Container`: Dependency injection and component wiring
-- `PluginLoader`: Dynamic plugin discovery and loading
-- `TaskHandlerRegistry`: Task type to handler mapping
+Driver-side adapters: HTTP, MCP, CLI.
 
-**Use Cases:** Over 30 use cases including conversation management, memory operations, task execution, diagnostics, and selftest.
+- `api/`: FastAPI app with FastMCP mounted at `/mcp`. Lifespan starts
+  FastMCP's session manager and the maintenance loop together.
+  - Routes: `system` (health, maintenance/status), `project`, `memory`
+  - Middleware: API key auth, rate limit
+- `mcp/`: FastMCP server + tool modules
+  - Tools: `memory_save`, `memory_search`, `memory_list`, `memory_get`,
+    `memory_update`, `memory_delete`, `memory_pin`, `memory_stats`,
+    `memory_embed`, `project_create`, `project_list`, `context_recent`,
+    `health`, `onboard_git`
+- `cli/`: argparse-based command tree (`oc <command>`)
+  - `oc serve` runs the unified ASGI app
+  - `oc memory ...`, `oc project ...`, `oc db ...`, `oc onboard git`,
+    `oc maintenance ...`, `oc init`, `oc config show`, `oc version`
+- `serializers.py`: shared dict serializers (project, memory) used by
+  both API routes and MCP tools
+- `logging_setup.py`: `OC_LOG_FORMAT=human|json` configuration
 
-### Infrastructure Layer
+## Single-process ASGI
 
-**LLM Adapters:**
+`oc serve` launches one uvicorn process serving everything:
 
-- `OpenAIAdapter`: Full OpenAI API integration with usage tracking
-- `OllamaAdapter`: Local Ollama instance support
-- `AnthropicAdapter`: Mock implementation (placeholder)
-- `StubAdapter`: Deterministic responses for testing
+```text
+HTTP REST   →  /api/v1/{health,maintenance/status,project,memory,...}
+MCP         →  /mcp/* (streamable-http transport, mounted Starlette app)
+Liveness    →  /health  (no auth, no DB work)
+```
 
-**Persistence:**
+The lifespan inside `interfaces/api/app.py` drives both subsystems:
 
-- `SqliteStore`: SQLite backend with JSON payload storage
-- Schema includes projects, conversations, turns, memories, tasks, events, usage
+```python
+async with AsyncExitStack() as stack:
+    if mcp_server is not None:
+        await stack.enter_async_context(mcp_server.session_manager.run())
+    if maintenance is not None:
+        await maintenance.start()
+        stack.push_async_callback(maintenance.stop)
+    yield
+```
 
-**Privacy:**
+uvicorn shutdown drains both cleanly.
 
-- `RulePrivacyGate`: Pattern-based PII detection (emails, phones, SSNs, API keys)
-- Configurable modes: off, warn, block, redact
+## Schema
 
-**Router Assist:**
+Three tables (plus the FTS5 virtual table and `schema_version`):
 
-- `LinearAssist`: Logistic regression-based content classification
-- `OnnxAssist`: ONNX runtime for ML model inference
+```sql
+CREATE TABLE projects (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    metadata TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
 
-## Event Model
+CREATE TABLE memory_items (
+    id         TEXT PRIMARY KEY,
+    content    TEXT NOT NULL,
+    tags       TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    pinned     INTEGER NOT NULL,
+    project_id TEXT,
+    source     TEXT NOT NULL,
+    updated_at TEXT,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);
 
-Events link via `prev_hash` → `hash`, enabling tamper-evident timelines per task. `EventLogger.append` fetches the latest event for a task, sets `prev_hash`, computes the hash, and persists.
+CREATE TABLE memory_embeddings (
+    memory_id    TEXT PRIMARY KEY,
+    embedding    BLOB NOT NULL,
+    model        TEXT NOT NULL,
+    dimensions   INTEGER NOT NULL,
+    generated_at TEXT NOT NULL,
+    FOREIGN KEY (memory_id) REFERENCES memory_items(id) ON DELETE CASCADE
+);
+```
 
-## Routing System
+`memory_fts` is an FTS5 contentless virtual table mirroring
+`memory_items.content` and `tags`, kept in sync via triggers. FTS5
+support is runtime-detected; SqliteStore degrades to a
+keyword-fallback path if the SQLite build lacks FTS5.
 
-The routing system selects providers and models based on:
+`memory_items.conversation_id` from v2 is gone (locked Q1).
 
-1. **Mode**: fast, quality, or nsfw (affects model selection)
-2. **Pools**: Configurable provider:model lists per mode
-3. **Weights**: Provider preference weights for load distribution
-4. **Fallback**: Automatic retry with different providers on failure
-5. **Budget-aware**: Downgrade to cheaper models when budget is low
+## Storage path resolution
 
-## Privacy Gate
+`application/config/paths.py:RuntimePaths.resolve()` follows a
+four-layer precedence:
 
-Outbound LLM requests pass through a privacy gate that:
+1. constructor arg
+2. per-path env var (`OC_DB_PATH`, `OC_CONFIG_DIR`, `OC_OUTPUT_DIR`)
+3. `OC_DATA_DIR`-derived (`<dir>/openchronicle.db`, `<dir>/config`, …)
+4. defaults (`data/openchronicle.db`, `config`, `output`)
 
-- Detects PII patterns (emails, phone numbers, SSNs, API keys)
-- Configurable action: warn (log), block (reject), or redact (mask)
-- External-only option: skip for local/stub providers
-- Full event logging for audit trails
+The Docker entrypoint exports the per-path vars from `OC_DATA_DIR`
+when set so operators can move everything with a single env tweak.
 
-## Plugin System
+## See also
 
-Plugins live in this repo's `plugins/` directory (or wherever `OC_PLUGIN_DIR`
-points). The current extension is `storytelling`. Plugins are
-behavior-modifying extensions only (mode prompt builders, conversation
-hooks); domain integrations belong as their own MCP servers.
-
-1. Each plugin exports `register(registry)` function
-2. Handlers use `namespace.action` naming (e.g., `story.draft`)
-3. Task type `plugin.invoke` routes to handlers via `payload.handler`
-4. Plugins can define their own domain/application layers
-5. Plugins can register **mode prompt builders** (`ModePromptBuilder` protocol) to
-   customize the system prompt when a conversation is in their mode — e.g., the
-   storytelling plugin's `"story"` mode assembles characters, style guides,
-   locations, and worldbuilding from project memory
-
-## CLI and RPC
-
-The `oc` CLI provides:
-
-- Project and conversation management
-- Memory operations (add, pin, search)
-- Task submission and execution
-- STDIO RPC protocol (JSON-RPC over stdin/stdout)
-- Diagnostic and selftest commands
-
-## Backlog
-
-See `docs/BACKLOG.md` for planned features including:
-
-- Multimodal conversation input (vision via asset system)
-- Security scanner plugin
-- Dev agent runner (sandboxed)
-
-Already implemented as core capabilities (not plugins — see Decision #4):
-
-- HTTP API (`interfaces/api/`, 51 tests, FastAPI, auto-starts with `oc serve`)
-- Scheduler service (`application/services/scheduler.py`, 53 tests)
-- Discord interface (`interfaces/discord/`, 85 tests, optional `[discord]` extra)
+- `docs/cli/commands.md` — `oc` subcommand reference
+- `docs/configuration/env_vars.md` — environment variables
+- `docs/configuration/config_files.md` — `core.json` schema
+- `docs/integrations/mcp_client_setup.md` — registering the MCP server
+- `docs/integrations/mcp_server_spec.md` — full MCP tool surface
+- `docs/api/STABILITY.md` — API + MCP tool stability promise
+- `docs/architecture/MAINTENANCE.md` — maintenance loop reference
+- `docs/configuration/security_posture.md` — container hardening posture

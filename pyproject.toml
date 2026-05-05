@@ -4,16 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openchronicle-mcp"
-version = "2.0.0.dev0"
-description = "Durable context engine for LLM interactions — persistent memory, explainable routing, and auditable decision trails."
+version = "3.0.0.dev0"
+description = "Memory database for LLM agents — persistent semantic + keyword memory, project namespacing, served over HTTP REST and MCP."
 authors = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 maintainers = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 license = {text = "AGPL-3.0-only"}
 readme = "README.md"
 requires-python = ">=3.11"
-keywords = ["llm", "ai", "memory", "context", "mcp", "chatbot", "orchestration"]
+keywords = ["llm", "ai", "memory", "mcp", "embeddings", "fts5", "sqlite"]
 classifiers = [
-	"Development Status :: 3 - Alpha",
+	"Development Status :: 4 - Beta",
 	"Intended Audience :: Developers",
 	"License :: OSI Approved :: GNU Affero General Public License v3",
 	"Programming Language :: Python :: 3",
@@ -35,23 +35,14 @@ Issues = "https://github.com/CarlDog/openchronicle-mcp/issues"
 Documentation = "https://github.com/CarlDog/openchronicle-mcp/tree/main/docs"
 
 [project.optional-dependencies]
+# Embedding-provider extras. v2's anthropic/groq/gemini/discord
+# extras are gone — v3 has no LLM, no Discord. OpenAI and Ollama
+# survive solely as embedding providers.
 openai = [
 	"openai>=1.0.0",
 ]
 ollama = [
 	"httpx>=0.25.0",
-]
-anthropic = [
-	"anthropic>=0.39.0",
-]
-groq = [
-	"groq>=0.4.0",
-]
-gemini = [
-	"google-genai>=1.0.0",
-]
-discord = [
-	"discord.py>=2.0",
 ]
 mcp = [
 	"mcp>=1.0.0",
@@ -63,9 +54,7 @@ dev = [
 	"ruff>=0.1.0",
 	"openai>=1.0.0",
 	"httpx>=0.25.0",
-	"anthropic>=0.39.0",
-	"groq>=0.4.0",
-	"google-genai>=1.0.0",
+	"mcp>=1.0.0",
 ]
 
 [tool.pytest.ini_options]
@@ -140,24 +129,9 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = "httpx.*"
 ignore_missing_imports = true
+
 [[tool.mypy.overrides]]
 module = "tests.helpers"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "anthropic.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "groq.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "google.*"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "discord.*"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

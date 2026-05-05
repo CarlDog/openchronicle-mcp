@@ -83,11 +83,21 @@ stack 151 still runs v2 until Phase 8 cutover.
   `EmbeddingService.search_hybrid` falls back to FTS5-only on provider
   failure and bumps failure counter; container `embedding_status_dict`
   reports `degraded`/`active` with counts; 349 tests passing
-- ⏭ **Phase 7** (docs sweep + repo polish) — next: full doc
-  classification (update / archive to `docs/archive/v2/` / delete),
-  three new docs (api/STABILITY.md, configuration/security_posture.md,
-  architecture/MAINTENANCE.md), pyproject deps cleanup, README rewrite
-- pending: Phases 8 (NAS cutover), 9 (decommission)
+- ✅ **Phase 7** (docs sweep + repo polish) — every doc classified
+  into update/archive/delete; v2 docs moved under `docs/archive/v2/`
+  with an index README; v3 docs rewritten (ARCHITECTURE, cli/commands,
+  env_vars, config_files, mcp_client_setup, mcp_server_spec,
+  docker_local_dev); three new docs (api/STABILITY.md,
+  configuration/security_posture.md, architecture/MAINTENANCE.md);
+  README rewritten per V3_PLAN voice rules (lead with what OC does,
+  no competitor sections, honest scope); pyproject bumped to
+  v3.0.0.dev0 with dead extras dropped (anthropic/groq/gemini/discord);
+  349 tests passing
+- ⏭ **Phase 8** (NAS cutover) — next: take production backup, run
+  `scripts/migrate_v2_to_v3.py` on a copy of the live DB, deploy v3
+  image to NAS stack 151, run `oc maintenance run-once
+  embedding_backfill`, verify via smoke test, update client configs
+- pending: Phase 9 (decommission, Day 7+ post-cutover)
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut plugin
