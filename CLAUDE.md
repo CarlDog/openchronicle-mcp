@@ -82,7 +82,13 @@ NAS stack 151 still runs v2 until Phase 8 cutover.
   rewritten; three new docs (api/STABILITY.md,
   configuration/security_posture.md, architecture/MAINTENANCE.md);
   README rewritten per V3_PLAN voice rules; pyproject v3.0.0.dev0;
-  v2 cruft swept from configs/fixtures/CI/scripts; 349 tests passing
+  v2 cruft swept from configs/fixtures/CI/scripts
+- ✅ **Audit pass** (post-Phase 7, commit `6a667db`) — folder-by-folder
+  walk of all 187 tracked files. Dropped `application/services/context_builder.py`
+  (imported deleted Conversation/Turn, zero callers), empty `domain/services/`,
+  4 dead `RuntimePaths` fields, ~20 dead error codes, `load_plugin_config()`,
+  v2 model + router_assist template writers, vacuous `tests/test_policies_purity.py`,
+  unused `tests/helpers/subprocess_env.py`. 345 tests passing.
 - ⏭ **Phase 8** (NAS cutover) — next user-driven step. Take
   production backup, run `scripts/migrate_v2_to_v3.py` on a copy of
   the live DB, deploy v3 image to NAS stack 151, run

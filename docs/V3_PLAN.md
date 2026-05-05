@@ -1,6 +1,8 @@
 # OpenChronicle v3 — Memory-Only Rewrite Plan
 
-**Status:** In progress. Plan signed off 2026-05-05; phases 0-2 complete.
+**Status:** Code-complete on `v3/develop` (phases 0-7 done + folder-by-folder
+audit at `6a667db`); 345 tests passing. Phase 8 (NAS cutover) is the next
+user-driven step.
 **Branch:** `v3/develop` (forked from `main` HEAD `bb217d9`).
 **v2 archive:** `archive/openchronicle.v2` (frozen).
 
