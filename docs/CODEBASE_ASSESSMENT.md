@@ -3,25 +3,30 @@
 **Date:** 2026-05-06
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
-**Revision:** 61 (v3 SHIPPED to NAS 2026-05-06; turbulent cutover
-documented in [cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md);
-12-item punch list + 3 post-cutover MCP-transport items closed —
-remaining work is Phase 9 decommission, date-gated to 2026-05-13+)
+**Revision:** 62 (v3.0.0-rc3 live on NAS as of 2026-05-06 19:26 UTC;
+turbulent cutover documented in
+[cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md);
+12-item punch list + 3 post-cutover MCP-transport items all closed;
+senior-dev review batch shipped (numpy 265x speedup, API consistency,
+ruff backlog clear); remaining work is Phase 9 decommission,
+date-gated to 2026-05-13+)
 
 > **Cutover note (2026-05-06):** v3 went live on stack 151 with
-> `:v3.0.0-rc1` image, then upgraded to `:v3.0.0-rc2` the same evening
+> `:v3.0.0-rc1` image, upgraded to `:v3.0.0-rc2` the same evening
 > after MCP transport bugs (path doubling + Host-header allowlist) were
-> fixed. The migrated DB the prior session produced was corrupt by the
-> time v3 first opened it (root cause unconfirmed — likely orphan
-> WAL/SHM files at the destination path). Recovery: abandoned the
-> migration, restarted v3 against a fresh empty volume. v3 booted
-> cleanly; full pipeline verified (HTTP write → DB → embedding →
-> maintenance loop → backup). Cost: 36 v2 memories not preserved
-> through to live v3 (initial estimate 24; L3 investigation confirmed
-> the migration source was the laptop backup). v2 DB intact on disk for
-> forensic analysis. New canonical project_id:
-> `fe2ef898-0152-40a4-af97-ed97cc86ca45`. See triage doc for full
-> account; punch list now fully closed.
+> fixed, then to `:v3.0.0-rc3` later that day with the senior-dev
+> review batch (numpy 265x semantic-search speedup, API consistency
+> cleanups, ruff backlog clear). The migrated DB the prior session
+> produced was corrupt by the time v3 first opened it (root cause
+> unconfirmed — likely orphan WAL/SHM files at the destination path).
+> Recovery: abandoned the migration, restarted v3 against a fresh
+> empty volume. v3 booted cleanly; full pipeline verified (HTTP write
+> → DB → embedding → maintenance loop → backup). Cost: 36 v2 memories
+> not preserved through to live v3 (initial estimate 24; L3
+> investigation confirmed the migration source was the laptop
+> backup). v2 DB intact on disk for forensic analysis. New canonical
+> project_id: `fe2ef898-0152-40a4-af97-ed97cc86ca45`. See triage doc
+> for full account; punch list now fully closed.
 
 **Sections below describe v2 architecture as it was at freeze
 (`bb217d9`), preserved for historical reference and v2 archive

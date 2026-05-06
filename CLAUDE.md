@@ -38,12 +38,16 @@
 
 ## Current Sprint
 
-**Status:** v3 SHIPPED to NAS 2026-05-06 with significant turbulence (see
-[docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md) for
-the full account). v3 is live and healthy on stack 151, image
-`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`. Cost: ~24 v2 memories not
-preserved through to live v3 DB; v2 DB intact on disk for forensic
-analysis. New canonical project_id is `fe2ef898-0152-40a4-af97-ed97cc86ca45`.
+**Status:** v3 live on NAS 2026-05-06; current image
+`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc3` on stack 151 (rc1 →
+rc2 → rc3 within the cutover day, see
+[docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
+for the full account). rc3 added the senior-dev review batch (265x
+semantic-search speedup via numpy, API consistency cleanups, real
+MCP smoke handshake) and cleared the 12-error ruff backlog. Cost
+of cutover: 36 v2 memories not preserved through to live v3 DB; v2
+DB intact on disk for forensic analysis. Canonical project_id is
+`fe2ef898-0152-40a4-af97-ed97cc86ca45`.
 
 **Phase progress:**
 
