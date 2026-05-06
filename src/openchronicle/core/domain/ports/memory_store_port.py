@@ -16,6 +16,16 @@ class MemoryStorePort(ABC):
     def list_memory(self, limit: int | None = None, pinned_only: bool = False, offset: int = 0) -> list[MemoryItem]: ...
 
     @abstractmethod
+    def count_memory(self, project_id: str | None = None) -> int:
+        """Return the total number of memory items, optionally project-scoped.
+
+        Use this for health checks and stats — `list_memory(limit=None)` plus
+        `len(...)` pulls every row into Python and is O(N) memory + I/O for a
+        question that's O(1) at the SQL layer.
+        """
+        ...
+
+    @abstractmethod
     def set_pinned(self, memory_id: str, pinned: bool) -> None: ...
 
     @abstractmethod

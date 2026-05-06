@@ -35,6 +35,27 @@ def _add_items(store: SqliteStore, count: int, pinned: bool = False) -> list[Mem
     return items
 
 
+# ── count_memory ────────────────────────────────────────────────
+
+
+class TestCountMemory:
+    def test_empty_store_counts_zero(self, store: SqliteStore) -> None:
+        assert store.count_memory() == 0
+
+    def test_count_matches_after_inserts(self, store: SqliteStore) -> None:
+        _add_items(store, 7)
+        assert store.count_memory() == 7
+
+    def test_count_scoped_by_project(self, store: SqliteStore) -> None:
+        _add_items(store, 3)  # project_id="proj-1"
+        store.add_project(Project(id="proj-2", name="Other", metadata={}))
+        store.add_memory(MemoryItem(content="other", tags=[], pinned=False, project_id="proj-2", source="manual"))
+        assert store.count_memory() == 4
+        assert store.count_memory(project_id="proj-1") == 3
+        assert store.count_memory(project_id="proj-2") == 1
+        assert store.count_memory(project_id="missing") == 0
+
+
 # ── list_memory offset ──────────────────────────────────────────
 
 

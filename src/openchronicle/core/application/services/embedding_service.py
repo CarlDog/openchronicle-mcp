@@ -144,8 +144,7 @@ class EmbeddingService:
 
     def embedding_status(self) -> dict[str, int]:
         """Return embedding coverage stats."""
-        all_items = self._store.list_memory(limit=None, pinned_only=False)
-        total_memories = len(all_items)
+        total_memories = self._store.count_memory()
         embedded = self._store.count_embeddings()
         stale = self._store.count_stale_embeddings(self._port.model_name())
         return {

@@ -183,9 +183,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         row = cur.execute("SELECT * FROM memory_items WHERE id=?", (memory_id,)).fetchone()
         return row_to_memory_item(row) if row else None
 
-    def list_memory(
-        self, limit: int | None = None, pinned_only: bool = False, offset: int = 0
-    ) -> list[MemoryItem]:
+    def list_memory(self, limit: int | None = None, pinned_only: bool = False, offset: int = 0) -> list[MemoryItem]:
         cur = self._conn.cursor()
         sql = "SELECT * FROM memory_items"
         params: list[int] = []
@@ -202,6 +200,17 @@ class SqliteStore(StoragePort, MemoryStorePort):
             params.append(offset)
         rows = cur.execute(sql, params).fetchall()
         return [row_to_memory_item(r) for r in rows]
+
+    def count_memory(self, project_id: str | None = None) -> int:
+        cur = self._conn.cursor()
+        if project_id is not None:
+            row = cur.execute(
+                "SELECT COUNT(*) AS cnt FROM memory_items WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()
+        else:
+            row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_items").fetchone()
+        return row["cnt"] if row else 0
 
     def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
         cur = self._conn.cursor()
