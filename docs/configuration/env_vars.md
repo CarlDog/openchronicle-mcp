@@ -44,11 +44,17 @@ embeddings when the provider recovers.
 |---|---|---|
 | `OC_API_HOST` | Bind address | `127.0.0.1` |
 | `OC_API_PORT` | Listen port | `8000` |
-| `OC_API_KEY` | Bearer token for auth (auth is disabled if unset) | — |
+| `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `60` |
 
 `/health` and `/openapi.json` are exempt from auth even when
 `OC_API_KEY` is set.
+
+**Auth posture:** OC supports auth but does not require it. Whether to
+set `OC_API_KEY` is a deployment decision — see
+[security_posture.md](security_posture.md#authentication) for the
+when-to-enable / when-to-skip guidance and the steps for switching a
+running deployment.
 
 ## MCP
 

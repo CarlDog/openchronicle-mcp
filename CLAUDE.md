@@ -356,10 +356,14 @@ table — freeform strings will fail. (Project name on the NAS is
 If the NAS DB is recreated again in the future, create a new project
 with `project_create` and update this UUID.
 
-**Auth status (2026-05-06):** OC_API_KEY on stack 151 is set but
-appears to be empty in v3 (project create succeeded with no Authorization
-header). Worth verifying / reseting deliberately as part of post-cutover
-hardening — the runbook assumes auth is enforced.
+**Auth posture (decided 2026-05-06, post-cutover):** `OC_API_KEY` on
+stack 151 resolves to empty — auth is **intentionally disabled**.
+This is a single-user home-LAN deployment, the LAN is trusted, no MCP
+clients are configured to send a bearer header, and the cost/benefit
+of switching doesn't pay. If the trust boundary ever changes (public
+exposure, untrusted LAN segment, multi-user environment), follow the
+"How to enable auth on a running deployment" steps in
+[docs/configuration/security_posture.md](docs/configuration/security_posture.md#authentication).
 
 ### Session Protocol Addition
 

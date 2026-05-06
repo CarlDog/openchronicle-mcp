@@ -7,15 +7,70 @@ of secrets in logs, and DB corruption from operational mistakes.
 
 ## Authentication
 
-- HTTP REST: optional bearer token via `OC_API_KEY`. When unset, the
-  API is open to anything that can reach the port — fine for a
-  loopback-only deployment, but anyone exposing the port to a LAN
-  must set this.
+OC supports bearer-token auth via `OC_API_KEY` but does not require it.
+Whether to enable it is an operator decision, deliberately deferred to
+deployment context.
+
+**Defaults:**
+
+- HTTP REST: optional bearer token via `OC_API_KEY`. When unset (or
+  empty), the API is open to anything that can reach the port.
 - MCP: inherits the HTTP auth middleware. Clients must include
-  `Authorization: Bearer <key>` (or `X-API-Key: <key>`) when the
-  server is configured with a key.
+  `Authorization: Bearer <key>` (or `X-API-Key: <key>`) when the server
+  is configured with a key.
 - `/health` and `/openapi.json` are exempt from auth on purpose —
   liveness probes and tool discovery shouldn't require credentials.
+
+**When to leave auth disabled (`OC_API_KEY` empty):**
+
+- Loopback-only (`127.0.0.1`) deployments.
+- Single-user home-LAN deployments where the LAN is trusted (no guest
+  network with NAS visibility, no untrusted IoT VLAN with reachable
+  routes, no cohabitating users you don't want reading your memory).
+  This is the original target use case and is acceptable when the
+  trust boundary genuinely matches the network boundary.
+
+**When to enable auth (set `OC_API_KEY`):**
+
+- Any deployment reachable from beyond the trusted LAN — public
+  internet, reverse-proxied through a public hostname, exposed via a
+  port-forward.
+- Multi-user environments (even cohabitating-but-different-trust users
+  on the same LAN).
+- Anywhere "anyone who can reach the port can read/write all your
+  memories" is unacceptable.
+
+**How to enable auth on a running deployment:**
+
+1. Generate a key (don't reuse an existing secret):
+
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(32))"
+   ```
+
+2. Set it on the Portainer stack (this triggers a redeploy):
+
+   ```text
+   Stacks → openchronicle-mcp → Environment variables → OC_API_KEY
+   ```
+
+   Or programmatically via portainer-mcp:
+   `portainer_set_stack_env(stack_id=151, set=[{name:"OC_API_KEY", value:"<key>"}], confirm=true)`.
+
+3. Update every client to send the bearer header. For MCP clients
+   that don't natively support custom headers, prefer placing the OC
+   server behind a reverse proxy that injects the header on their
+   behalf, or accept that those clients won't work auth-enabled.
+
+4. Rotate by setting a new value and redeploying; old keys are
+   invalidated immediately on container restart (no in-DB key
+   storage; the env var is the source of truth).
+
+**Current stable deployment:** the NAS stack at `carldog-nas:18000`
+is configured with `OC_API_KEY` empty (auth disabled) — single-user
+home-LAN deployment, intentional, documented per the lessons from the
+2026-05-06 cutover. If that trust boundary changes, follow the steps
+above.
 
 ## Transport
 
