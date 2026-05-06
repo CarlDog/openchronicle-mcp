@@ -1,10 +1,15 @@
 # OpenChronicle v3 — Memory-Only Rewrite Plan
 
-**Status:** Code-complete on `v3/develop` (phases 0-7 done + folder-by-folder
-audit at `6a667db`) + Phase 8 prep (CI triggers + rc tag flow); 345 tests
-passing. Phase 8 (NAS cutover) is the next user-driven step.
-**Branch:** `v3/develop` (forked from `main` HEAD `bb217d9`).
-**v2 archive:** `archive/openchronicle.v2` (frozen).
+**Status:** **SHIPPED 2026-05-06.** v3 is live on the NAS at
+`http://carldog-nas:18000` (HTTP `/api/v1/*`, MCP `/mcp`). This document
+is now historical reference for the design decisions and phase plan;
+it is no longer the active runbook.
+**Branch:** `main` (force-pushed from `v3/develop` during Phase 8 cutover).
+**v2 archive:** `archive/openchronicle.v2` at `bb217d9` (frozen, immutable).
+**Cutover artifacts:** Docker image `:v3.0.0-rc1`; rollback target
+`:v2-final` (= `bb217d9`); cutover triage at
+[docs/cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md) for
+the actual lived experience vs. the planned sequence below.
 
 ## Phase Tracker
 
@@ -15,7 +20,7 @@ passing. Phase 8 (NAS cutover) is the next user-driven step.
 | 2 — application slimmed | ✅ done (2026-05-05) | container/services/use_cases/dirs/plugins; 345 tests passing |
 | 3+4 — infrastructure + domain slimmed | ✅ done (2026-05-05) | combined commit; sqlite_store 1882→470 LOC; schema 18→3 tables; `conversation_id` dropped from MemoryItem; `ProviderError` replaces `LLMProviderError`; 294 tests passing |
 | 5 — schema migration + framework + online backup + export/import | ✅ done (2026-05-05) | versioned migrator (savepoint atomicity, idempotent), 001_initial.sql, online backup module (atomic .tmp→rename), `oc memory export/import`, `scripts/migrate_v2_to_v3.py` + `verify_v3_db.py`; 323 tests passing |
-| 6 — ASGI unification + `OC_LOG_FORMAT` | ✅ done (2026-05-05) | FastMCP mounted at `/mcp`; single ASGI process; `OC_LOG_FORMAT=human|json` (Q19 locked); compose 3→1 service; 331 tests passing |
+| 6 — ASGI unification + `OC_LOG_FORMAT` | ✅ done (2026-05-05) | FastMCP mounted at `/mcp`; single ASGI process; `OC_LOG_FORMAT=human` or `json` (Q19 locked); compose 3→1 service; 331 tests passing |
 | 6.5 — maintenance loop + degradation | ✅ done (2026-05-05) | asyncio loop with per-job + global locks (skip-on-overlap, sequential within process), 5 job handlers (db_backup/db_vacuum/db_integrity_check/embedding_backfill/git_onboard_resync), `/api/v1/maintenance/status` endpoint, `oc maintenance` CLI, embedding-failure FTS5 fallback with `degraded` status surfacing; 349 tests passing |
 | 7 — docs sweep + repo polish | ✅ done (2026-05-05) | every doc classified (update/archive/delete); v2 docs moved under `docs/archive/v2/`; new STABILITY.md, security_posture.md, MAINTENANCE.md; README rewritten per voice rules; pyproject 3.0.0.dev0 with dead extras dropped; 349 tests passing |
 | 8 — production cutover | pending | NAS stack 151 redeploy + smoke + client config updates |

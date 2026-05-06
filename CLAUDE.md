@@ -38,8 +38,12 @@
 
 ## Current Sprint
 
-**Status:** v3 code-complete (phases 0-7 done) on `v3/develop`.
-NAS stack 151 still runs v2 until Phase 8 cutover.
+**Status:** v3 SHIPPED to NAS 2026-05-06 with significant turbulence (see
+[docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md) for
+the full account). v3 is live and healthy on stack 151, image
+`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`. Cost: ~24 v2 memories not
+preserved through to live v3 DB; v2 DB intact on disk for forensic
+analysis. New canonical project_id is `fe2ef898-0152-40a4-af97-ed97cc86ca45`.
 
 **Phase progress:**
 
@@ -102,18 +106,27 @@ NAS stack 151 still runs v2 until Phase 8 cutover.
   `v3/develop` — flip to default branch post-cutover per the
   Phase 9 Day 0 checklist). Phase 8 runbook tightened with the
   retag command, the rc tag flow, and the force-push step.
-- ⏭ **Phase 8** (NAS cutover) — next user-driven step. Take
-  production backup, retag `:latest` as `:v2-final` for rollback,
-  push `v3.0.0-rc1` git tag to build the rc image, force-push
-  `v3/develop` → `main`, run `scripts/migrate_v2_to_v3.py` on the
-  live DB, deploy v3 image to NAS stack 151, run
-  `oc maintenance run-once embedding_backfill`, verify via smoke
-  test, update each MCP client's `~/.claude.json` URL from
-  `:18001/mcp` to `:18000/mcp`. Cutover-time runbook lives in
-  `docs/V3_PLAN.md` Phase 8 section.
+- ✅ **Phase 8** (NAS cutover, 2026-05-06) — **shipped, with turbulence.**
+  Force-push `v3/develop` → `main` succeeded; `v3.0.0-rc1` Docker image
+  built and live; v3 stack deployed at `:18000/mcp`. Two unplanned
+  recoveries: (1) the prior session's migrated DB was corrupt by the
+  time v3 first opened it (root cause unconfirmed — likely orphan
+  `-wal`/`-shm` files at the destination path; possibly compounded by
+  `verify_v3_db.py` doing only superficial checks rather than
+  `PRAGMA integrity_check`). Recovery: abandoned migration, restarted
+  v3 against a fresh empty volume; v3 booted clean. (2) `:v2-final`
+  retag failed first attempt due to lowercase IMAGE_NAME bug in the
+  workflow; fixed in commit `6ae71812` and re-captured by tagging
+  the v2 build SHA `bb217d9` directly. Full triage at
+  [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
+  with a 12-item punch list.
 - pending: Phase 9 (decommission, Day 7+ post-cutover) — also
   tracks **dependency audit** as a tech-debt follow-up
   (`docs/V3_PLAN.md` "Post-cutover follow-ups").
+- pending: triage punch list cleanup (high-priority items: investigate
+  `tracking.py` dead code, fix migration script's WAL-cleanup gap,
+  strengthen `verify_v3_db.py` with `PRAGMA integrity_check`, settle
+  `OC_API_KEY` auth state, mypy debt cleanup — see triage doc).
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut
@@ -301,18 +314,15 @@ The MCP server is registered at user scope in `~/.claude.json` as
 `openchronicle` pointing at the NAS endpoint over HTTP streamable-http
 transport. No project-level setup required.
 
-**v2 → v3 endpoint change:** the deployed NAS still serves the v2
-shape (port `:18001/mcp` for the standalone MCP service) until the
-Phase 8 cutover. Post-cutover, MCP collapses onto port `:18000/mcp`
-on the same host. Update each machine's `~/.claude.json` at cutover
-time.
+**v3 endpoint:** MCP and HTTP REST are unified on port `:18000` since the
+2026-05-06 cutover. MCP at `/mcp`, REST at `/api/v1/*`, liveness at
+`/health`. Each machine's `~/.claude.json` should point at
+`http://carldog-nas:18000/mcp`. (Pre-cutover v2 was `:18001/mcp` for MCP
+and `:18000/api/v1` for REST as separate services — that shape is gone.)
 
 For a fresh registration:
 
 ```bash
-# Pre-cutover (v2):
-claude mcp add --scope user --transport http openchronicle http://carldog-nas:18001/mcp
-# Post-cutover (v3):
 claude mcp add --scope user --transport http openchronicle http://carldog-nas:18000/mcp
 ```
 
@@ -328,17 +338,28 @@ the NAS one.)
 
 ### Project Identity
 
-Use `project_id: "87de0f7d-d6ab-4b83-8613-b2b5ff60a57b"` in all
-`memory_save` calls on the NAS-hosted OC. This is a FK to the
-projects table — freeform strings will fail. (Project name on the
-NAS is currently `smoke-test-2026-04-29`; rename TBD.)
+Use `project_id: "fe2ef898-0152-40a4-af97-ed97cc86ca45"` in all
+`memory_save` calls on the NAS-hosted OC. This is a FK to the projects
+table — freeform strings will fail. (Project name on the NAS is
+`openchronicle-mcp`, created 2026-05-06 during the v3 cutover.)
 
-The old `project_id 0db2b2ff-f995-4f59-b059-0fae5c78909d` was on the
-LOCAL OC instance (Windows machine) and is no longer valid against
-the NAS DB.
+**Historical project_ids (no longer valid against the live DB):**
 
-If the NAS DB is recreated, create a new project with `project_create`
-and update this UUID.
+- `87de0f7d-d6ab-4b83-8613-b2b5ff60a57b` — v2 NAS project (lost 2026-05-06
+  when the v3 cutover migration produced a corrupt DB and we restarted
+  v3 against a fresh empty volume; ~24 memories from v2 are unrecoverable
+  from the live DB but preserved on disk for forensic analysis at
+  `/volume1/@docker/volumes/openchronicle-mcp_oc-data/_data/openchronicle.db.v2-rollback`)
+- `0db2b2ff-f995-4f59-b059-0fae5c78909d` — LOCAL OC (Windows machine),
+  separate memory pool, never valid against NAS
+
+If the NAS DB is recreated again in the future, create a new project
+with `project_create` and update this UUID.
+
+**Auth status (2026-05-06):** OC_API_KEY on stack 151 is set but
+appears to be empty in v3 (project create succeeded with no Authorization
+header). Worth verifying / reseting deliberately as part of post-cutover
+hardening — the runbook assumes auth is enforced.
 
 ### Session Protocol Addition
 

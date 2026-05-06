@@ -1,8 +1,28 @@
-# OpenChronicle v2 — Senior Developer Codebase Assessment
+# OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-05
-**Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 59 (v3 development; phases 0-7 + folder-by-folder audit; code-complete pending NAS cutover)
+**Date:** 2026-05-06
+**Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
+cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 60 (v3 SHIPPED to NAS 2026-05-06; turbulent cutover
+documented in [cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md);
+12-item punch list pending)
+
+> **Cutover note (2026-05-06):** v3 went live on stack 151 with
+> `:v3.0.0-rc1` image. The migrated DB the prior session produced was
+> corrupt by the time v3 first opened it (root cause unconfirmed —
+> likely orphan WAL/SHM files at the destination path). Recovery:
+> abandoned the migration, restarted v3 against a fresh empty volume.
+> v3 booted cleanly; full pipeline verified (HTTP write → DB →
+> embedding → maintenance loop → backup). Cost: ~24 v2 memories not
+> preserved through to live v3. v2 DB intact on disk for forensic
+> analysis. New canonical project_id: `fe2ef898-0152-40a4-af97-ed97cc86ca45`.
+> See triage doc for full account + 12-item punch list.
+
+**Sections below describe v2 architecture as it was at freeze
+(`bb217d9`), preserved for historical reference and v2 archive
+context. v3-specific architecture lives in
+[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) and the
+narrative of how we got here is in [V3_PLAN.md](V3_PLAN.md).**
 
 > **Audit pass (post-Phase 7):** walked all 187 tracked files folder-by-folder
 > and resolved straggler v2 references that grep missed earlier. Stragglers
@@ -68,19 +88,20 @@
 >
 > Tests: 345 passing, 0 failed (was 349 with the deleted `tests/integration/`
 > directory; the policies-purity drop accounts for the further −1).
-
+>
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
 > development happens on `v3/develop`. See [V3_PLAN.md](V3_PLAN.md) for the
 > living plan and phase tracker.
 >
 > **v3 phase progress:**
+>
 > - **Phase 0** (branching) — done.
 > - **Phase 1** (interfaces slimmed) — done. 570 tests passing.
 > - **Phase 2** (application slimmed) — done. Container reduced to memory +
 >   embedding + git-onboard wiring; orchestrator/scheduler/MoE/webhook/asset/
 >   media/llm services + routing/runtime/replay/observability/policies dirs
->   + ~30 use cases + plugins/ deleted. 345 tests passing.
+>   - ~30 use cases + plugins/ deleted. 345 tests passing.
 > - **Phase 3+4** (infrastructure + domain slimmed) — done. Combined commit
 >   because the layers are intertwined: infrastructure adapter dirs (llm/,
 >   media/, privacy/, router_assist/, routing/, logging/) deleted; sqlite_store
