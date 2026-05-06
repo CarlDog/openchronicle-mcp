@@ -82,7 +82,7 @@ async def db_integrity_check(container: CoreContainer) -> None:
     conn = container.storage._conn  # noqa: SLF001
 
     def _check() -> str:
-        return conn.execute("PRAGMA integrity_check").fetchone()[0]
+        return str(conn.execute("PRAGMA integrity_check").fetchone()[0])
 
     result = await asyncio.to_thread(_check)
     if result != "ok":

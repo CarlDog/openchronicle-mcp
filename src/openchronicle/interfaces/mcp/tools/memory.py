@@ -20,7 +20,6 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
-from openchronicle.interfaces.mcp.tracking import track_tool
 from openchronicle.interfaces.serializers import memory_to_dict
 
 
@@ -32,7 +31,6 @@ def register(mcp: FastMCP) -> None:
     """Register memory tools on the MCP server."""
 
     @mcp.tool()
-    @track_tool
     def memory_search(
         query: str,
         ctx: Context,
@@ -73,7 +71,6 @@ def register(mcp: FastMCP) -> None:
         return [memory_to_dict(m) for m in results]
 
     @mcp.tool()
-    @track_tool
     def memory_save(
         content: str,
         ctx: Context,
@@ -123,7 +120,6 @@ def register(mcp: FastMCP) -> None:
         return memory_to_dict(saved)
 
     @mcp.tool()
-    @track_tool
     def memory_list(
         ctx: Context,
         limit: int | None = None,
@@ -155,7 +151,6 @@ def register(mcp: FastMCP) -> None:
         return [memory_to_dict(m) for m in results]
 
     @mcp.tool()
-    @track_tool
     def memory_pin(
         memory_id: str,
         ctx: Context,
@@ -181,7 +176,6 @@ def register(mcp: FastMCP) -> None:
         return {"status": "ok", "memory_id": memory_id, "pinned": str(pinned)}
 
     @mcp.tool()
-    @track_tool
     def memory_update(
         memory_id: str,
         ctx: Context,
@@ -214,7 +208,6 @@ def register(mcp: FastMCP) -> None:
         return memory_to_dict(updated)
 
     @mcp.tool()
-    @track_tool
     def memory_get(
         memory_id: str,
         ctx: Context,
@@ -235,7 +228,6 @@ def register(mcp: FastMCP) -> None:
         return memory_to_dict(item)
 
     @mcp.tool()
-    @track_tool
     def memory_delete(
         memory_id: str,
         ctx: Context,
@@ -256,7 +248,6 @@ def register(mcp: FastMCP) -> None:
         return {"status": "ok", "memory_id": memory_id}
 
     @mcp.tool()
-    @track_tool
     def memory_stats(
         ctx: Context,
         project_id: str | None = None,
@@ -292,7 +283,6 @@ def register(mcp: FastMCP) -> None:
         }
 
     @mcp.tool()
-    @track_tool
     def memory_embed(
         ctx: Context,
         force: bool = False,

@@ -16,7 +16,6 @@ from openchronicle.core.application.services.git_onboard import (
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
-from openchronicle.interfaces.mcp.tracking import track_tool
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -27,7 +26,6 @@ def register(mcp: FastMCP) -> None:
     """Register onboarding tools on the MCP server."""
 
     @mcp.tool()
-    @track_tool
     def onboard_git(
         project_id: str,
         repo_url: str,

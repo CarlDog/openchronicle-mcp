@@ -8,7 +8,6 @@ from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.use_cases import search_memory
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
-from openchronicle.interfaces.mcp.tracking import track_tool
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -19,7 +18,6 @@ def register(mcp: FastMCP) -> None:
     """Register context tools on the MCP server."""
 
     @mcp.tool()
-    @track_tool
     def context_recent(
         ctx: Context,
         query: str | None = None,

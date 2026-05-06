@@ -6,6 +6,7 @@ import argparse
 import logging
 import os
 import sys
+from typing import Any
 
 from openchronicle.core.application.use_cases import init_config, init_runtime
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -175,10 +176,17 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
     log = logging.getLogger(__name__)
 
     config = HTTPConfig.from_env(file_config=container.file_configs.get("api"))
+    # HTTPConfig is frozen — use dataclasses.replace for the CLI overrides
+    # rather than mutating in place.
+    overrides: dict[str, Any] = {}
     if getattr(args, "host", None):
-        config.host = args.host
+        overrides["host"] = args.host
     if getattr(args, "port", None):
-        config.port = args.port
+        overrides["port"] = args.port
+    if overrides:
+        from dataclasses import replace
+
+        config = replace(config, **overrides)
 
     app = create_app(container, config)
     # uvicorn's `log_config=None` keeps our root-logger formatting; the
