@@ -763,30 +763,38 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 **Cutover sequence:**
 
+> **2026-05-06 cutover learnings folded in below.** The original sequence
+> ran into corruption that the original steps didn't defend against.
+> Step 4a (orphan WAL scrub at destination) and step 6 (capture v2 retag
+> BEFORE force-pushing) are NEW based on what bit us. See
+> `docs/cutover-2026-05-06-triage.md` for the full account.
+
 1. Stop the v2 stack 151 in Portainer
 2. **Take a fresh backup of the production DB** (in case the pre-flight backup is stale)
-3. Run `scripts/migrate_v2_to_v3.py` on the production DB
-4. Run `scripts/verify_v3_db.py` — abort if any check fails
-5. `docker-compose.nas.yml` is already in v3 single-service shape on `v3/develop`. Force-push `v3/develop` → `main` so future `:latest` builds carry v3 code:
+3. Run `scripts/migrate_v2_to_v3.py` on the production DB. **Note:** the script now refuses if `-wal`/`-shm` files exist at the destination path — pass `--force` if you trust they're orphans, otherwise scrub the destination dir first.
+4. Run `scripts/verify_v3_db.py` — abort if any check fails. Pay attention to the new `warnings[]` field too: orphan SQLite sidecars at the destination path don't fail validation but indicate trouble (a process holds the DB open OR leftover sidecars from a prior DB are about to corrupt the next opener).
+4a. **Verify the destination volume directory is clean.** Specifically: no `*-wal` or `*-shm` files matching the placed DB's path stem. SQLite associates sidecars by path; an orphan WAL from a prior process or DB will be applied on next open and produce `database disk image is malformed`. The 2026-05-06 cutover lost ~24 memories to this exact trap.
+5. **Capture the v2 retag BEFORE the force-push.** Trigger the `Retag GHCR Image` workflow with `source_tag=latest` (or the v2 build's SHA tag, e.g. `bb217d9`) and `dest_tag=v2-final`. Verify it lands. The 2026-05-06 cutover did this AFTER the force-push and lost the race — `docker-publish.yml` overwrites `:latest` with v3 in ~5-10 min, and the original retag workflow had a lowercase IMAGE_NAME bug (fixed in commit 6ae71812) that ate a chance to retag in the window. Always do this step before step 6.
+6. `docker-compose.nas.yml` is already in v3 single-service shape on `v3/develop`. Force-push `v3/develop` → `main` so future `:latest` builds carry v3 code:
 
    ```bash
    git push --force-with-lease origin v3/develop:main
    ```
 
-6. Update Portainer stack 151's compose to point at v3 image (`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`); redeploy. Use the rc tag, not `:latest` — `:latest` gets flipped only after Day 7 of clean operation (step 12 of Phase 9 Day 0 / Day 7).
-7. Wait for healthcheck green
-8. **Trigger one immediate run of `embedding_backfill`** (`oc maintenance run-once embedding_backfill`) to ensure any v2 memories without embeddings get them before search traffic hits
-9. Run smoke test:
+7. Update Portainer stack 151's compose to point at v3 image (`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`); redeploy. Use the rc tag, not `:latest` — `:latest` gets flipped only after Day 7 of clean operation (step 14 of Phase 9 Day 0 / Day 7).
+8. Wait for healthcheck green. **If you see `database disk image is malformed` in the container logs, STOP.** This is the WAL-orphan trap from the 2026-05-06 cutover. Do NOT let the container restart-loop against the corrupt DB — stop the container, check the volume directory for orphan `*-wal`/`*-shm` sidecars (very common cause), scrub them, then restart. See cutover-2026-05-06-triage.md for the full recovery procedure.
+9. **Verify auth state.** Hit `POST /api/v1/project` with no `Authorization` header. If it succeeds, `OC_API_KEY` is empty and auth is disabled — decide deliberately whether that matches your security posture. If it returns 401, set `$OC_API_KEY` for the smoke-test step below. The 2026-05-06 cutover discovered auth was silently disabled; document the decision in CLAUDE.md.
+10. **Trigger one immediate run of `embedding_backfill`** (`oc maintenance run-once embedding_backfill`) to ensure any v2 memories without embeddings get them before search traffic hits
+11. Run smoke test:
 
-   ```bash
-   python scripts/smoke_test.py http://carldog-nas:18000 \
-     87de0f7d-d6ab-4b83-8613-b2b5ff60a57b
-   ```
+    ```bash
+    python scripts/smoke_test.py http://carldog-nas:18000 <project-uuid>
+    ```
 
-   The script is stdlib-only and exits non-zero on the first failing step. It walks `/health`, `/api/v1/health`, `/api/v1/maintenance/status`, `/api/v1/project` (verifies the target project resolves), full memory CRUD + search + pin round-trip, and probes the `/mcp` mount (accepting 307/405 since streamable-HTTP doesn't answer GETs). Pair it with a manual `onboard_git` MCP call against a small public repo for the use case the script can't cover (since there's no HTTP-side `onboard_git` endpoint — it's an MCP-only tool).
-10. Verify project UUID `87de0f7d-d6ab-4b83-8613-b2b5ff60a57b` (or current canonical) still resolves
-11. Update Client Cutover Checklist items (point clients at new endpoint)
-12. Tag the merge commit `v3.0.0` (workflow rebuilds and publishes `:v3.0.0`); flipping `:latest` to v3 is deferred to Phase 9 Day 7 per the rollback policy
+    The script is stdlib-only and exits non-zero on the first failing step. It walks `/health`, `/api/v1/health`, `/api/v1/maintenance/status`, `/api/v1/project` (verifies the target project resolves), full memory CRUD + search + pin round-trip, and probes the `/mcp` mount (accepting 307/405 since streamable-HTTP doesn't answer GETs). Pair it with a manual `onboard_git` MCP call against a small public repo for the use case the script can't cover (since there's no HTTP-side `onboard_git` endpoint — it's an MCP-only tool).
+12. Verify project UUID (current canonical: `fe2ef898-0152-40a4-af97-ed97cc86ca45` per CLAUDE.md) still resolves
+13. Update Client Cutover Checklist items (point clients at new endpoint)
+14. Tag the merge commit `v3.0.0` (workflow rebuilds and publishes `:v3.0.0`); flipping `:latest` to v3 is deferred to Phase 9 Day 7 per the rollback policy
 
 **If cutover fails (rollback procedure):**
 
