@@ -65,3 +65,13 @@ class MemoryStorePort(ABC):
     def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
         """List memory items filtered by source field."""
         ...
+
+    @abstractmethod
+    def pinned_items(self, project_id: str | None = None) -> list[MemoryItem]:
+        """Return all pinned items, optionally project-scoped.
+
+        Pinned items always surface in search results regardless of relevance
+        ranking (standing rules / conventions). Cross-project pinned items
+        (project_id IS NULL) are included even when a project_id is supplied.
+        """
+        ...

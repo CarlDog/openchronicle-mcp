@@ -346,7 +346,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
 
     # ── Search ──────────────────────────────────────────────────────
 
-    def _fetch_pinned_items(
+    def pinned_items(
         self,
         project_id: str | None = None,
     ) -> list[MemoryItem]:
@@ -450,7 +450,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         effective_top_k = top_k + offset
         pinned_items: list[MemoryItem] = []
         if include_pinned:
-            pinned_items = self._fetch_pinned_items(project_id)
+            pinned_items = self.pinned_items(project_id)
             if tags:
                 pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
         if self._fts5_active:

@@ -176,7 +176,7 @@ class EmbeddingService:
         # ── Pinned items (always included) ──────────────────────────────
         pinned_items: list[MemoryItem] = []
         if include_pinned:
-            pinned_items = self._store._fetch_pinned_items(project_id)
+            pinned_items = self._store.pinned_items(project_id)
             if tags:
                 pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
 
