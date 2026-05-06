@@ -57,31 +57,6 @@ def request(
             return exc.code, str(exc)
 
 
-class _NoRedirect(urllib.request.HTTPRedirectHandler):
-    """HTTP handler that captures redirects instead of following them."""
-
-    def http_error_302(self, req, fp, code, msg, headers):  # noqa: ANN001, D102
-        raise urllib.error.HTTPError(req.full_url, code, msg, headers, fp)
-
-    http_error_301 = http_error_303 = http_error_307 = http_error_308 = http_error_302
-
-
-def _probe_no_redirect(url: str, api_key: str | None) -> tuple[int, str]:
-    """GET a URL but do not follow redirects. Return (status, body_or_msg)."""
-    headers = {"Accept": "*/*"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    req = urllib.request.Request(url, headers=headers, method="GET")
-    opener = urllib.request.build_opener(_NoRedirect())
-    try:
-        with opener.open(req, timeout=5) as resp:  # noqa: S310
-            return resp.status, ""
-    except urllib.error.HTTPError as exc:
-        return exc.code, str(exc.reason or "")
-    except Exception as exc:  # noqa: BLE001
-        return -1, f"error: {exc!r}"
-
-
 _failures = 0
 
 
@@ -171,16 +146,54 @@ def main() -> int:
     else:
         print(f"  [SKIP] DELETE — left memory {memory_id} in place (--keep)")
 
-    # 10. MCP transport reachable
-    # FastMCP's streamable_http_app is mounted at /mcp (no trailing slash).
-    # GET typically responds 307 (redirect to its inner transport handler)
-    # or 405. We just want to confirm the mount exists, not run a full
-    # MCP handshake. Pass through redirects raw — urllib follows them by
-    # default; we trap that and treat the redirect itself as success.
-    s, _ = _probe_no_redirect(f"{base}/mcp", api)
-    step("/mcp reachable", s in (200, 307, 308, 400, 405, 406), f"status={s}")
+    # 10. MCP transport — real protocol handshake.
+    # The 2026-05-06 cutover shipped a path-doubling bug because the prior
+    # smoke test only did GET /mcp; GET happily 307'd, so the probe passed
+    # while POST /mcp 404'd. This step now POSTs a real MCP `initialize`
+    # request body and accepts any non-404 response (streamable-HTTP returns
+    # SSE; we don't try to read the body). Mirrors
+    # tests/test_unified_asgi.py::test_mcp_post_initialize_hits_transport_at_slash_mcp.
+    s, _ = _post_mcp_initialize(f"{base}/mcp/", api)
+    step(
+        "POST /mcp/ (initialize handshake)",
+        s != -1 and s != 404,
+        f"status={s}",
+    )
 
     return _exit_summary()
+
+
+def _post_mcp_initialize(url: str, api_key: str | None) -> tuple[int, str]:
+    """POST a JSON-RPC `initialize` to FastMCP's streamable-HTTP transport.
+
+    Returns (status, msg). Never reads the SSE body; we only need the
+    status code to know the transport accepted the POST.
+    """
+    init_req = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {"name": "openchronicle-smoke-test", "version": "1"},
+        },
+    }
+    headers = {
+        "Accept": "application/json, text/event-stream",
+        "Content-Type": "application/json",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    data = json.dumps(init_req).encode()
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:  # noqa: S310
+            return resp.status, ""
+    except urllib.error.HTTPError as exc:
+        return exc.code, str(exc.reason or "")
+    except Exception as exc:  # noqa: BLE001
+        return -1, f"error: {exc!r}"
 
 
 def _exit_summary() -> int:
