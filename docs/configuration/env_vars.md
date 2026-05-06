@@ -63,9 +63,22 @@ running deployment.
 | `OC_MCP_TRANSPORT` | `stdio`, `sse`, `streamable-http` (host-mounted MCP uses streamable-http inside the unified ASGI) | `stdio` |
 | `OC_MCP_HOST` | Bind address for stdio-detached MCP server | `127.0.0.1` |
 | `OC_MCP_PORT` | Listen port for stdio-detached MCP server | `8080` |
+| `OC_MCP_ALLOWED_HOSTS` | CSV of allowed `Host:` header values for the streamable-HTTP transport (DNS-rebinding defense). Each entry may use `:*` as a port wildcard (e.g. `carldog-nas:*`). | `127.0.0.1:*,localhost:*,[::1]:*` |
 
 Within `oc serve`, the MCP transport is mounted on the same port as
 the HTTP API at `/mcp` — `OC_MCP_HOST`/`OC_MCP_PORT` are unused.
+
+**`OC_MCP_ALLOWED_HOSTS` gotcha:** FastMCP's transport-security layer
+rejects requests whose `Host:` header isn't on this allowlist with a
+421 `Invalid Host header`. The default covers loopback only —
+operators who bind to a LAN-reachable interface (e.g. via
+`OC_API_HOST=0.0.0.0` and access via a NAS hostname) **must** add
+their hostname here or every external client gets a 421. Discovered
+post-cutover 2026-05-06; see
+[`docs/cutover-2026-05-06-triage.md`](../cutover-2026-05-06-triage.md)
+for the bug history. The allowlist replaces the default entirely
+when set — include localhost variants in the CSV if you still want
+them.
 
 ## Logging
 

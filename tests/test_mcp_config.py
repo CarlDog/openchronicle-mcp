@@ -64,3 +64,69 @@ class TestMCPConfigValidation:
     def test_server_name_from_file_config(self) -> None:
         config = MCPConfig.from_env(file_config={"server_name": "my-oc"})
         assert config.server_name == "my-oc"
+
+
+class TestMCPConfigAllowedHosts:
+    """OC_MCP_ALLOWED_HOSTS controls FastMCP's Host-header allowlist.
+
+    Added 2026-05-06 after a post-cutover discovery: FastMCP's transport
+    security defaults reject any non-loopback Host header with a 421,
+    silently breaking every documented LAN client config. The new env
+    var lets operators extend the allowlist without source changes.
+    """
+
+    def _clean_env(self) -> dict[str, str]:
+        return {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
+
+    def test_default_allowed_hosts_is_localhost_only(self) -> None:
+        with patch.dict(os.environ, self._clean_env(), clear=True):
+            config = MCPConfig.from_env()
+        assert config.allowed_hosts == ("127.0.0.1:*", "localhost:*", "[::1]:*")
+
+    def test_env_var_csv_replaces_default(self) -> None:
+        env = self._clean_env()
+        env["OC_MCP_ALLOWED_HOSTS"] = "carldog-nas:*,carldog-nas.local:*"
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env()
+        # Caller-supplied list fully replaces the default — operator's job
+        # to include localhost variants if they want them.
+        assert config.allowed_hosts == ("carldog-nas:*", "carldog-nas.local:*")
+
+    def test_env_var_strips_whitespace_and_drops_empty(self) -> None:
+        env = self._clean_env()
+        env["OC_MCP_ALLOWED_HOSTS"] = "  carldog-nas:*  , , localhost:* "
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env()
+        assert config.allowed_hosts == ("carldog-nas:*", "localhost:*")
+
+    def test_empty_env_var_falls_back_to_default(self) -> None:
+        env = self._clean_env()
+        env["OC_MCP_ALLOWED_HOSTS"] = ""
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env()
+        assert config.allowed_hosts == ("127.0.0.1:*", "localhost:*", "[::1]:*")
+
+    def test_file_config_used_when_no_env(self) -> None:
+        env = self._clean_env()
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env(
+                file_config={"allowed_hosts": ["carldog-nas:*", "tailscale-host:*"]},
+            )
+        assert config.allowed_hosts == ("carldog-nas:*", "tailscale-host:*")
+
+    def test_env_var_overrides_file_config(self) -> None:
+        env = self._clean_env()
+        env["OC_MCP_ALLOWED_HOSTS"] = "from-env:*"
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env(
+                file_config={"allowed_hosts": ["from-file:*"]},
+            )
+        assert config.allowed_hosts == ("from-env:*",)
+
+    def test_file_config_invalid_shape_falls_back_to_default(self) -> None:
+        # If someone puts a string instead of a list in core.json, don't
+        # crash — fall through to the default.
+        env = self._clean_env()
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env(file_config={"allowed_hosts": "not-a-list"})
+        assert config.allowed_hosts == ("127.0.0.1:*", "localhost:*", "[::1]:*")

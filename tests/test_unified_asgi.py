@@ -48,9 +48,7 @@ def test_unified_app_mounts_mcp_under_slash_mcp() -> None:
     app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
     with TestClient(app) as client:
         resp = client.get("/mcp", follow_redirects=False)
-    assert resp.status_code == 307, (
-        f"expected redirect from /mcp → /mcp/ (mount sentinel), got {resp.status_code}"
-    )
+    assert resp.status_code == 307, f"expected redirect from /mcp → /mcp/ (mount sentinel), got {resp.status_code}"
     assert resp.headers.get("location", "").endswith("/mcp/")
 
 
@@ -60,6 +58,84 @@ def test_mount_mcp_false_skips_mcp_route() -> None:
         resp = client.get("/mcp")
     # Without the MCP mount, /mcp is a real 404 from FastAPI's router.
     assert resp.status_code == 404
+
+
+def test_mcp_post_initialize_hits_transport_at_slash_mcp() -> None:
+    """Regression test for the path-doubling bug discovered 2026-05-06.
+
+    FastMCP's streamable-HTTP app defaults to handling ``/mcp`` internally.
+    Mounting that at ``/mcp`` on the host without overriding
+    ``streamable_http_path`` causes the real endpoint to land at /mcp/mcp,
+    silently breaking every documented client config (which expects
+    ``/mcp``). The fix sets ``streamable_http_path="/"`` so the inner app
+    handles its own root; the host mount path becomes the full URL.
+
+    This test POSTs an MCP initialize request to /mcp/ and asserts the
+    response is something other than a FastAPI 404 — i.e. the request
+    actually reached the transport. We don't assert on a specific success
+    body because the SSE/streamable transport returns flow control that's
+    not trivial to assert on with a sync TestClient; the goal is "did we
+    hit FastMCP at all."
+    """
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    init_req = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {"name": "regression-test", "version": "1"},
+        },
+    }
+    with TestClient(app) as client:
+        resp = client.post(
+            "/mcp/",
+            json=init_req,
+            headers={
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json",
+            },
+        )
+    # If the path-doubling bug regresses, this returns 404 (FastAPI router
+    # rejects /mcp/ because nothing's mounted there at the inner app's
+    # root). Anything 2xx or even a transport-level 4xx like 406 means the
+    # request reached FastMCP — that's the regression signal we want.
+    assert resp.status_code != 404, (
+        "path-doubling regression: POST /mcp/ returned 404, indicating "
+        "FastMCP isn't handling its mount root. Check streamable_http_path."
+    )
+
+
+def test_mcp_post_at_doubled_path_does_not_work() -> None:
+    """Companion to the regression test above: /mcp/mcp/ should NOT be the
+    real endpoint. If a future change accidentally drops streamable_http_path,
+    the doubled path would start working and the single path would 404.
+    """
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    init_req = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-03-26",
+            "capabilities": {},
+            "clientInfo": {"name": "regression-test", "version": "1"},
+        },
+    }
+    with TestClient(app) as client:
+        resp = client.post(
+            "/mcp/mcp/",
+            json=init_req,
+            headers={
+                "Accept": "application/json, text/event-stream",
+                "Content-Type": "application/json",
+            },
+        )
+    # The doubled path should be a clean 404 (no transport at this URL).
+    assert resp.status_code == 404, (
+        f"unexpected response at /mcp/mcp/: {resp.status_code}. If non-404, the path-doubling bug may have re-emerged."
+    )
 
 
 def test_log_format_default_is_human(monkeypatch: pytest.MonkeyPatch) -> None:

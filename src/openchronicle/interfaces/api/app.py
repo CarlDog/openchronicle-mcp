@@ -143,7 +143,12 @@ def create_app(
 
     if mcp_server is not None:
         # FastMCP exposes a Starlette app for streamable-HTTP transport.
-        # Mount it under /mcp; the inner app's `/` becomes /mcp/ on the host.
+        # The server is constructed with streamable_http_path="/" (see
+        # mcp/server.py) so the inner app handles its own root; mounting
+        # at /mcp on the host makes the full external URL exactly /mcp.
+        # WITHOUT the "/" override, FastMCP would default to "/mcp" for
+        # its inner path and the mounted endpoint would silently land at
+        # /mcp/mcp — broken for every documented client config.
         app.mount("/mcp", mcp_server.streamable_http_app())
 
     @app.get("/health", include_in_schema=False)

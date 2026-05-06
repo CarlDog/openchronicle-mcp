@@ -321,6 +321,68 @@ and the architecture/maintenance docs as appropriate.
 
 ---
 
+## Discovered post-cutover (2026-05-06 evening)
+
+After the punch list was closed and v3 was confirmed running, an
+investigation into "why can't any HTTP MCP client connect to v3" turned
+up two stacked bugs in the MCP transport that the original cutover never
+exercised. Both shipped in the v3 codebase from the unified-ASGI work
+forward and were silent because no test or smoke check posted a real
+MCP `initialize` request — the existing tests only verified the
+GET-mount-redirect sentinel. Fixed in a follow-up commit; both regression
+tests added.
+
+### Bug A: path doubling — `/mcp/mcp` instead of `/mcp`
+
+`FastMCP(...)` was constructed without `streamable_http_path`. The default
+is `/mcp` for the inner Starlette app. The FastAPI host then mounted that
+app at `/mcp`. The result: the real MCP transport endpoint lived at
+`/mcp/mcp`, not `/mcp`. Every documented client config was wrong.
+
+`POST /mcp/` returned a clean 404 from the FastAPI router; `POST /mcp/mcp`
+actually reached the transport. Verified empirically.
+
+Fix: pass `streamable_http_path="/"` to `FastMCP(...)` so the inner app
+handles its own root; the host's mount path is the full external URL.
+The misleading comment in `interfaces/api/app.py:146` ("the inner app's
+`/` becomes /mcp/") was rewritten.
+
+### Bug B: Host-header allowlist rejects LAN hostnames with 421
+
+FastMCP's `TransportSecurity` defaults to
+`allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"]` — a defense
+against DNS rebinding. Any request whose `Host:` header doesn't match
+this allowlist gets a 421 `Invalid Host header`. Clients reaching the NAS
+via `Host: carldog-nas:18000` were rejected.
+
+Fix: added an `allowed_hosts` field to `MCPConfig`, configurable via the
+new `OC_MCP_ALLOWED_HOSTS` env var (CSV; `:*` port wildcard supported);
+defaults to localhost variants only. The `create_server` factory now
+passes a `TransportSecuritySettings` instance into `FastMCP(...)`. Stack
+151 deploys with `OC_MCP_ALLOWED_HOSTS=127.0.0.1:*,localhost:*,[::1]:*,carldog-nas:*,carldog-nas.local:*`
+to cover both DNS variants.
+
+### Why the smoke test missed it
+
+`scripts/smoke_test.py` only does `GET /mcp` and accepts 307/405 since
+streamable-HTTP doesn't answer GETs the same way as REST. It never POSTs
+an `initialize` request. Same gap as the existing
+`test_unified_app_mounts_mcp_under_slash_mcp` unit test. Both checks
+verify the *mount* exists, not that the *protocol* works against it.
+
+The new regression test
+`test_mcp_post_initialize_hits_transport_at_slash_mcp` POSTs the real
+initialize request body and asserts a non-404 response. With the path-
+doubling bug, that test 404s; with the fix, it succeeds.
+
+### Punch-list addition (post-original-12)
+
+| # | Item | Status |
+|---|---|---|
+| Post-cutover #1 | MCP path doubling at /mcp/mcp | ✅ fixed via `streamable_http_path="/"` |
+| Post-cutover #2 | FastMCP Host-header allowlist rejects LAN names | ✅ fixed via new `OC_MCP_ALLOWED_HOSTS` env var |
+| Post-cutover #3 | Smoke test doesn't exercise real MCP handshake | ✅ added unit-test regression coverage; smoke test still light, follow-up to extend if it's worth the dependency on a real MCP client |
+
 ## Lessons (distilled)
 
 - **"Validation passed" is only as strong as what the validation
