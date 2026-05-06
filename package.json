@@ -8,6 +8,6 @@
     "lint:md:fix": "markdownlint-cli2 --fix \"**/*.md\" \"!node_modules\" \"!.venv\" \"!.pytest_cache\""
   },
   "devDependencies": {
-    "markdownlint-cli2": "^0.12.0"
+    "markdownlint-cli2": "^0.22.1"
   }
 }

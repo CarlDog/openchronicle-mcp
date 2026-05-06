@@ -33,7 +33,7 @@ repos:
 
   # Markdown Linting
   - repo: https://github.com/DavidAnson/markdownlint-cli2
-    rev: v0.18.0
+    rev: v0.22.1
     hooks:
       - id: markdownlint-cli2
         name: Lint Markdown with markdownlint-cli2

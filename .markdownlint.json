@@ -13,6 +13,7 @@
   "MD036": false,
   "MD040": { "allowed_languages": [], "language_only": false },
   "MD041": false,
+  "MD060": false,
   "no-hard-tabs": true,
   "whitespace": true
 }
