@@ -29,6 +29,21 @@ _EXPECTED_TABLES = {
     "memory_embeddings",
 }
 
+
+def _orphan_sidecars(db_path: Path) -> list[Path]:
+    """Return any pre-existing SQLite sidecar files (-wal, -shm) at the
+    DB's path stem. Their presence on a freshly-placed DB indicates a
+    process is currently holding it open OR (more dangerously) that
+    leftover sidecars from a prior DB are about to corrupt the next
+    open. The 2026-05-06 v3 cutover hit exactly this trap.
+    """
+    candidates = [
+        db_path.with_name(db_path.name + "-wal"),
+        db_path.with_name(db_path.name + "-shm"),
+    ]
+    return [p for p in candidates if p.exists()]
+
+
 _FORBIDDEN_TABLES = {
     "agents",
     "tasks",
@@ -55,11 +70,24 @@ def verify(db_path: Path) -> dict[str, object]:
     conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     failures: list[str] = []
+    warnings: list[str] = []
+
+    # Orphan -wal/-shm sidecars at the path stem are not corruption per
+    # se, but they're a strong signal of trouble: either a process holds
+    # the DB open right now, or leftover sidecars from a prior DB are
+    # about to corrupt the next open. Surface as a warning, not a
+    # failure (the DB itself may still be valid).
+    sidecars = _orphan_sidecars(db_path)
+    if sidecars:
+        warnings.append(
+            f"orphan SQLite sidecars present at {db_path}: "
+            f"{[str(p) for p in sidecars]} — these may corrupt the next "
+            f"open if they belong to a different DB"
+        )
+
     try:
         # Tables present
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         present = {r["name"] for r in rows}
 
         missing = _EXPECTED_TABLES - present
@@ -114,6 +142,7 @@ def verify(db_path: Path) -> dict[str, object]:
         "schema_version": version if "schema_version" in present else None,
         "counts": counts,
         "failures": failures,
+        "warnings": warnings,
     }
 
 
@@ -137,6 +166,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  schema_version: {report['schema_version']}")
         for table, count in report["counts"].items():
             print(f"  {table:<22} {count:>8}")
+        for w in report.get("warnings", []):
+            print(f"  ⚠ {w}")
         for f in report["failures"]:
             print(f"  ! {f}")
 

@@ -1,14 +1,12 @@
 # Dependabot config for openchronicle-mcp (v3).
 #
-# `target-branch: v3/develop` is pre-cutover only. After Phase 8 force-pushes
-# v3/develop → main, remove the `target-branch` lines so PRs land on the
-# default branch automatically. (See docs/V3_PLAN.md Phase 9 Day 0.)
+# Targets default branch (main) — v3/develop targeting was removed
+# 2026-05-06 post-cutover (per V3_PLAN.md Phase 9 Day 0 checklist).
 
 version: 2
 updates:
   - package-ecosystem: pip
     directory: /
-    target-branch: v3/develop
     schedule:
       interval: weekly
       day: monday
@@ -29,7 +27,6 @@ updates:
 
   - package-ecosystem: github-actions
     directory: /
-    target-branch: v3/develop
     schedule:
       interval: weekly
       day: monday
@@ -48,7 +45,6 @@ updates:
 
   - package-ecosystem: docker
     directory: /
-    target-branch: v3/develop
     schedule:
       interval: weekly
       day: monday

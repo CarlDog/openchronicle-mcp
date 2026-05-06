@@ -52,9 +52,15 @@ def _retention_prune(directory: Path, keep: int) -> None:
 
 
 async def db_backup(container: CoreContainer) -> None:
-    """Take an online backup; prune to the last `_BACKUP_RETENTION`."""
+    """Take an online backup; prune to the last `_BACKUP_RETENTION`.
+
+    Filename uses microsecond-precision UTC timestamp so two backups in
+    the same second (e.g. db_vacuum's pre-backup followed immediately by
+    a standalone db_backup tick) don't overwrite each other. Triage
+    finding from the 2026-05-06 cutover.
+    """
     directory = _auto_backup_dir(container)
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
     dest = directory / f"openchronicle-{timestamp}.db"
 
     # The stdlib backup API blocks; run on a worker thread so the

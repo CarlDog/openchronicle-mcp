@@ -206,3 +206,53 @@ def test_migration_force_overwrites_dest(tmp_path: Path) -> None:
     dest.write_bytes(b"stale content")
     summary = migrate_v2_to_v3.migrate(src, dest, force=True)
     assert summary["projects"] == 2
+
+
+def test_migration_refuses_orphan_wal_at_destination(tmp_path: Path) -> None:
+    """Triage 2026-05-06: orphan -wal/-shm at the dest path can corrupt
+    the freshly-placed DB on first open. Migration script must refuse
+    rather than silently produce a borderline-broken result."""
+    src = tmp_path / "v2.db"
+    dest = tmp_path / "v3.db"
+    _make_v2_db(src)
+    # Simulate an orphan WAL left over from a prior process or a previous
+    # DB that lived at this path stem.
+    (tmp_path / "v3.db-wal").write_bytes(b"orphan wal content")
+
+    with pytest.raises(FileExistsError, match="Orphan SQLite sidecar"):
+        migrate_v2_to_v3.migrate(src, dest)
+    # Orphan untouched without --force.
+    assert (tmp_path / "v3.db-wal").exists()
+
+
+def test_migration_force_scrubs_orphan_sidecars(tmp_path: Path) -> None:
+    """With --force, the migration script removes orphan sidecars
+    instead of refusing."""
+    src = tmp_path / "v2.db"
+    dest = tmp_path / "v3.db"
+    _make_v2_db(src)
+    (tmp_path / "v3.db-wal").write_bytes(b"orphan wal content")
+    (tmp_path / "v3.db-shm").write_bytes(b"orphan shm content")
+
+    summary = migrate_v2_to_v3.migrate(src, dest, force=True)
+    assert summary["projects"] == 2
+    # Sidecars from the migration's own connection may exist post-write,
+    # but the orphan content we seeded is gone (size differs).
+    if (tmp_path / "v3.db-wal").exists():
+        assert (tmp_path / "v3.db-wal").read_bytes() != b"orphan wal content"
+
+
+def test_verify_warns_on_orphan_sidecars(tmp_path: Path) -> None:
+    """verify_v3_db should surface orphan sidecars as a warning."""
+    src = tmp_path / "v2.db"
+    dest = tmp_path / "v3.db"
+    _make_v2_db(src)
+    migrate_v2_to_v3.migrate(src, dest)
+    # Seed an orphan sidecar after migration completes.
+    (tmp_path / "v3.db-wal").write_bytes(b"unexpected wal")
+
+    report = verify_v3_db.verify(dest)
+    assert report["ok"], "DB itself is still valid; orphan is just a warning"
+    assert any("orphan" in w.lower() for w in report["warnings"]), (
+        f"expected orphan-sidecar warning in report['warnings'], got {report['warnings']!r}"
+    )

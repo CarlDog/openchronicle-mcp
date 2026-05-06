@@ -53,16 +53,21 @@ v3-running-on-migrated-data state.
 
 **Open questions** (genuine unknowns, not certainties):
 
-- Did the migration script produce a borderline-corrupt DB that
+- ~~Did the migration script produce a borderline-corrupt DB that
   passed superficial checks? `verify_v3_db.py` apparently checked
-  `schema_version` and row counts but **not** `PRAGMA integrity_check`.
-  If a SQLite write was torn or incomplete, those superficial checks
-  would still pass while integrity check would fail.
+  `schema_version` and row counts but **not** `PRAGMA integrity_check`.~~
+  **CORRECTED** — both `migrate_v2_to_v3.py` (line 118-120) and
+  `verify_v3_db.py` (line 82-84) already run `PRAGMA integrity_check`.
+  The migration script even refuses to complete if integrity_check
+  returns anything but `ok`. So the validation gates were strong; the
+  corruption must have happened AFTER validation, in the operational
+  flow between validate-time and v3-open-time.
 - Did orphan `-wal`/`-shm` files from earlier operations (v2 stop,
   prior session diagnostic sqlite3 calls) collide with v3's open of
   the freshly-placed `openchronicle.db`? When we cleared the volume
   and retried v3 against an empty directory, v3 booted clean — which
   is consistent with the WAL-orphan hypothesis but doesn't prove it.
+  **Most likely culprit given everything we know.**
 - Did v3's startup do something destructive on first open that
   corrupted the migrated DB? The fresh-empty-volume retry rules out
   anything inherent to v3 startup, but doesn't rule out a bug
@@ -225,16 +230,19 @@ and the architecture/maintenance docs as appropriate.
    the references. If anything imports it, this is a runtime bug
    waiting to happen.
 
-2. **Fix the migration script's WAL-cleanup gap**
-   `migrate_v2_to_v3.py` should ensure no `-wal`/`-shm` files exist
-   at the destination location before placing the migrated DB. Add
-   to the runbook step: "before placing the migrated DB, verify
-   destination dir is clean (no orphan WAL/SHM)."
+2. **DONE: Fix the migration script's WAL-cleanup gap**
+   `migrate_v2_to_v3.py` now refuses if orphan `-wal`/`-shm` files
+   exist at the destination path stem; with `--force` it scrubs them
+   before writing. `verify_v3_db.py` surfaces orphan sidecars as a
+   `warnings` field in its report. Tests added. Closed in this batch.
 
-3. **Strengthen `verify_v3_db.py`**
-   Currently checks `schema_version` and row counts. Should also run
-   `PRAGMA integrity_check` and fail loudly if not `ok`. The current
-   superficial check produced a false green on a borderline DB.
+3. **CORRECTED: `verify_v3_db.py` already runs `PRAGMA integrity_check`**
+   This item was based on a wrong assumption. Both the migration
+   script (line 118-120) and verify_v3_db.py (line 82-84) already
+   run integrity_check; the migration script refuses to complete on
+   anything but `ok`. The corruption mystery is genuinely about
+   destination-side handling between validate-time and v3-open-time
+   (see open question 1 in "What broke" §1).
 
 4. **Determine + enforce auth state on stack 151**
    `OC_API_KEY` either is genuinely empty (intentional?) or the v3
