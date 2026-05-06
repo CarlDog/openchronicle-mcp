@@ -48,9 +48,7 @@ def test_baseline_schema_creates_expected_tables(tmp_path: Path) -> None:
     conn = _new_conn(tmp_path)
     try:
         migrator.apply_pending(conn)
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-        ).fetchall()
+        rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall()
         names = {r["name"] for r in rows}
         assert {"projects", "memory_items", "memory_embeddings", "schema_version"} <= names
     finally:
@@ -73,19 +71,14 @@ def test_failure_rolls_back_via_savepoint(tmp_path: Path) -> None:
         assert migrator.current_version(conn) == 1
 
         # Now drop a broken migration in and re-run.
-        (bad_dir / "002_broken.sql").write_text(
-            "CREATE TABLE another (id INTEGER);"
-            "INTENTIONAL SYNTAX ERROR;"
-        )
+        (bad_dir / "002_broken.sql").write_text("CREATE TABLE another (id INTEGER);INTENTIONAL SYNTAX ERROR;")
 
         with pytest.raises(ConfigError, match="002_broken.sql failed"):
             migrator.apply_pending(conn, migrations_dir=bad_dir)
 
         # 002 must NOT be recorded; the savepoint rolled back.
         assert migrator.current_version(conn) == 1
-        rows = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='another'"
-        ).fetchall()
+        rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='another'").fetchall()
         assert rows == [], "partial migration leaked the 'another' table"
     finally:
         conn.close()

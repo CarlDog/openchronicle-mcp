@@ -14,7 +14,6 @@ import tempfile
 from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
 
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem

@@ -5,14 +5,12 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
 from openchronicle.core.application.services import maintenance_loop
 from openchronicle.core.infrastructure.maintenance import jobs as maintenance_jobs
-
 
 # ─── unit tests for MaintenanceLoop ──────────────────────────────────
 
@@ -64,9 +62,7 @@ def test_run_once_records_failure_without_crashing() -> None:
 
 
 def test_run_once_unknown_job_raises() -> None:
-    loop = maintenance_loop.MaintenanceLoop(
-        container=MagicMock(), jobs=[], handlers={}
-    )
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[], handlers={})
     with pytest.raises(KeyError, match="unknown maintenance job"):
         asyncio.run(loop.run_once("does-not-exist"))
 
@@ -137,9 +133,7 @@ def test_disabled_job_is_not_invoked() -> None:
 
 def test_status_payload_shape() -> None:
     job = maintenance_loop.JobState(name="probe", interval_seconds=300, enabled=True)
-    loop = maintenance_loop.MaintenanceLoop(
-        container=MagicMock(), jobs=[job], handlers={"probe": _async_noop}
-    )
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={"probe": _async_noop})
     snapshot = loop.status()
     assert len(snapshot) == 1
     entry = snapshot[0]
@@ -263,9 +257,7 @@ def test_embedding_backfill_no_op_when_service_missing(tmp_path: Path) -> None:
 def test_handlers_registry_complete() -> None:
     """Every default-config job must have a handler registered."""
     expected = {entry["name"] for entry in maintenance_loop._DEFAULT_JOBS}
-    assert expected == set(maintenance_jobs.HANDLERS), (
-        "default jobs and handler registry must agree"
-    )
+    assert expected == set(maintenance_jobs.HANDLERS), "default jobs and handler registry must agree"
 
 
 def test_retention_keeps_newest(tmp_path: Path) -> None:

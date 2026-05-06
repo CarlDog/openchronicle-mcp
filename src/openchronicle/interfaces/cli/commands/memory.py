@@ -299,8 +299,5 @@ def cmd_memory_import(args: argparse.Namespace, container: CoreContainer) -> int
         print(f"Error: {exc}")
         return 1
 
-    print(
-        f"Imported {result['projects_added']} project(s), "
-        f"{result['memory_added']} memory item(s) (mode={mode})"
-    )
+    print(f"Imported {result['projects_added']} project(s), {result['memory_added']} memory item(s) (mode={mode})")
     return 0

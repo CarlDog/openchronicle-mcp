@@ -158,15 +158,13 @@ def main(argv: list[str] | None = None) -> int:
     maintenance_list = maintenance_sub.add_parser("list", help="Show configured jobs")
     maintenance_list.add_argument("--json", action="store_true", help="Emit JSON output")
     maintenance_run = maintenance_sub.add_parser("run-once", help="Run a single job and exit")
-    maintenance_run.add_argument("job_name", help="One of: db_backup, db_vacuum, db_integrity_check, embedding_backfill, git_onboard_resync")
+    maintenance_run.add_argument(
+        "job_name", help="One of: db_backup, db_vacuum, db_integrity_check, embedding_backfill, git_onboard_resync"
+    )
 
     serve_cmd = sub.add_parser("serve", help="Run the unified HTTP + MCP ASGI server")
-    serve_cmd.add_argument(
-        "--host", default=None, help="Bind address (default: 0.0.0.0)"
-    )
-    serve_cmd.add_argument(
-        "--port", type=int, default=None, help="Port (default: 18000)"
-    )
+    serve_cmd.add_argument("--host", default=None, help="Bind address (default: 0.0.0.0)")
+    serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 18000)")
 
     # --- Parse ---
     args = parser.parse_args(argv)

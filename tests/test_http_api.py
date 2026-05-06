@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -391,7 +391,6 @@ class TestSharedSerializers:
         assert d["source"] == "api"
 
 
-
 # ---------------------------------------------------------------------------
 # Global exception handlers
 # ---------------------------------------------------------------------------
@@ -485,5 +484,3 @@ class TestPathParamValidation:
     def test_empty_memory_id_rejected(self, client: TestClient) -> None:
         resp = client.get(f"/api/v1/memory/{'x' * 201}")
         assert resp.status_code == 422
-
-

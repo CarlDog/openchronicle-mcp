@@ -22,9 +22,7 @@ def _seeded_store(tmp_path: Path) -> SqliteStore:
     project = Project(name="test")
     store.add_project(project)
     for i in range(5):
-        store.add_memory(
-            MemoryItem(content=f"row {i}", project_id=project.id, source="test")
-        )
+        store.add_memory(MemoryItem(content=f"row {i}", project_id=project.id, source="test"))
     return store
 
 

@@ -11,8 +11,6 @@ from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import patch
 
-import pytest
-
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore, _fts5_available
 
 
@@ -71,10 +69,7 @@ class TestFTS5Detection:
 
     def test_triggers_created(self, tmp_path: Any) -> None:
         store = _store(tmp_path)
-        triggers = [
-            r[0]
-            for r in store._conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'").fetchall()
-        ]
+        triggers = [r[0] for r in store._conn.execute("SELECT name FROM sqlite_master WHERE type='trigger'").fetchall()]
         assert "memory_fts_ai" in triggers
         assert "memory_fts_ad" in triggers
         assert "memory_fts_au" in triggers
@@ -146,7 +141,7 @@ class TestFTS5QueryEscaping:
         store = _store(tmp_path)
         _add_memory(store, content="Python is great")
         # Various FTS5-special tokens that would otherwise raise
-        for query in ('AND', 'OR', 'NOT', '*', '^', 'NEAR', ':', '"'):
+        for query in ("AND", "OR", "NOT", "*", "^", "NEAR", ":", '"'):
             store.search_memory(query, include_pinned=False)
 
     def test_fts5_operators_neutralized(self, tmp_path: Any) -> None:
