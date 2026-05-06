@@ -120,13 +120,14 @@ analysis. New canonical project_id is `fe2ef898-0152-40a4-af97-ed97cc86ca45`.
   the v2 build SHA `bb217d9` directly. Full triage at
   [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
   with a 12-item punch list.
-- pending: Phase 9 (decommission, Day 7+ post-cutover) — also
-  tracks **dependency audit** as a tech-debt follow-up
-  (`docs/V3_PLAN.md` "Post-cutover follow-ups").
-- pending: triage punch list cleanup (high-priority items: investigate
-  `tracking.py` dead code, fix migration script's WAL-cleanup gap,
-  strengthen `verify_v3_db.py` with `PRAGMA integrity_check`, settle
-  `OC_API_KEY` auth state, mypy debt cleanup — see triage doc).
+- ✅ **Triage punch list closed** (rolled up 2026-05-06). All 12 original
+  items + 3 post-cutover MCP-transport items are DONE, deferred to a
+  separate repo (portainer-mcp 400 bug), or date-gated to Phase 9. See
+  [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
+  punch list section for the per-item disposition with commit refs.
+- pending: Phase 9 (decommission, Day 7+ post-cutover, earliest
+  2026-05-13) — also tracks **dependency audit** as a tech-debt
+  follow-up (`docs/V3_PLAN.md` "Post-cutover follow-ups").
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut

@@ -5,8 +5,10 @@ port `:18000` (HTTP at `/api/v1/*`, MCP at `/mcp`). Image
 `ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`. New canonical
 `project_id = fe2ef898-0152-40a4-af97-ed97cc86ca45`.
 
-**Cost:** ~24 v2 memories were not preserved through to the live v3
-DB. The pre-migration v2 DB is intact and preserved on disk for
+**Cost:** 36 v2 memories were not preserved through to the live v3
+DB (initial estimate was 24; L3 investigation confirmed the migration
+source was the laptop backup, not the NAS rollback — see punch list
+low #3). The pre-migration v2 DB is intact and preserved on disk for
 forensic analysis (see "Forensic artifacts" below).
 
 This doc captures everything that bit us during the cutover, with
@@ -224,17 +226,23 @@ and the architecture/maintenance docs as appropriate.
 
 ### High priority
 
-1. **Investigate `tracking.py` dead code**
-   (`interfaces/mcp/tracking.py` references nonexistent attrs on
-   `CoreContainer` and `SqliteStore`). Either delete the file or fix
-   the references. If anything imports it, this is a runtime bug
-   waiting to happen.
+1. **DONE: `tracking.py` deleted (commit `a9c2145e`)**
+   Was not dead code — actively imported by 4 MCP tool modules
+   wrapping 14 tool functions with `@track_tool`. But the persist
+   path referenced `container.telemetry_settings` and
+   `container.storage.insert_mcp_tool_usage()`, neither of which
+   exist on v3. Broad `try/except Exception` swallowed the
+   `AttributeError` silently at debug level on every MCP tool call.
+   V3_PLAN.md open question 8 had already decided "telemetry events
+   drop entirely", so this was dead-on-arrival v2 code the audit
+   pass missed. Deleted the file outright; removed all 14
+   `@track_tool` usages and 4 imports.
 
-2. **DONE: Fix the migration script's WAL-cleanup gap**
+2. **DONE: Fix the migration script's WAL-cleanup gap (commit `6e424313`)**
    `migrate_v2_to_v3.py` now refuses if orphan `-wal`/`-shm` files
    exist at the destination path stem; with `--force` it scrubs them
    before writing. `verify_v3_db.py` surfaces orphan sidecars as a
-   `warnings` field in its report. Tests added. Closed in this batch.
+   `warnings` field in its report. Tests added.
 
 3. **CORRECTED: `verify_v3_db.py` already runs `PRAGMA integrity_check`**
    This item was based on a wrong assumption. Both the migration
@@ -244,47 +252,81 @@ and the architecture/maintenance docs as appropriate.
    destination-side handling between validate-time and v3-open-time
    (see open question 1 in "What broke" §1).
 
-4. **Determine + enforce auth state on stack 151**
-   `OC_API_KEY` either is genuinely empty (intentional?) or the v3
-   auth middleware isn't enforcing it. Set deliberately and verify.
+4. **DONE: Determine + enforce auth state on stack 151**
+   Two parts, both resolved:
+   - **Decision (2026-05-06):** `OC_API_KEY` intentionally empty
+     (single-user home-LAN, trusted, no MCP clients send a bearer
+     header). Documented in
+     `docs/configuration/security_posture.md`.
+   - **Code-path audit (2026-05-06):** verified that
+     `HTTPConfig.from_env` resolves empty env to `None`, and
+     `register_middleware` only attaches `APIKeyMiddleware` when
+     `config.api_key` is truthy. When attached, the middleware uses
+     `hmac.compare_digest` (timing-safe) and exempts `/docs`,
+     `/redoc`, `/openapi.json`, `/health`, `/api/v1/health`. Both
+     branches (key set / key unset) covered by `tests/test_http_api.py`:
+     `test_empty_api_key_is_none`,
+     `test_no_auth_middleware_when_key_unset`,
+     `test_authenticated_endpoint_requires_key`,
+     `test_bearer_auth_works`, `test_x_api_key_header_works`,
+     `test_wrong_key_returns_403`,
+     `test_health_is_public_even_with_auth`. If the trust boundary
+     changes, set `OC_API_KEY` and the existing tested code path
+     will enforce 401/403 correctly.
 
-5. **Mypy debt cleanup**
-   9 errors in 6 files (see "What broke" item 4). Dedicated commit;
-   un-skip mypy hook after.
+5. **DONE: Mypy debt cleanup (commit `a9c2145e`)**
+   9 errors in 6 files reduced to 0 across 132 source files.
+   `MaintenanceLoop.__init__` handlers param widened
+   `dict[str, JobHandler]` → `Mapping[str, JobHandler]` (covariance);
+   `async with job._lock:` / `async with self._global_lock:`
+   collapsed to one statement (ruff SIM117); explicit `str()` cast
+   on PRAGMA fetchone in jobs.py; `dataclasses.replace` for frozen
+   `HTTPConfig` in cli/commands/system.py. mypy hook un-skipped.
 
 ### Medium priority
 
-1. **Maintenance backup filename collision**
-   Two backups in the same second overwrite each other. Bump
-   precision or add job-name suffix.
+1. **DONE: Maintenance backup filename collision (commit `6e424313`)**
+   Bumped backup filename timestamp precision from second to
+   microsecond. Two backups in the same second no longer overwrite
+   each other.
 
-2. **Scrub v2 vestigial env vars from stack 151**
-   ~25 env vars including real API keys for services v3 doesn't use.
-   Use `portainer_set_stack_env(remove=[...])`.
+2. **DONE: Scrub v2 vestigial env vars from stack 151 (memory `beec86c4`)**
+   30 v2 env vars removed via `portainer_set_stack_env`: down from
+   39 to 9. Removed: `DISCORD_BOT_TOKEN` + 4 `OC_DISCORD_*`;
+   `ANTHROPIC_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`,
+   `XAI_API_KEY`, `OPENAI_API_KEY` (v2 LLM/media keys);
+   8 `OC_LLM_*`; 5 `*_MODEL`; 3 `OC_MOE_*`; 3 `HOST_*_DIR`. Verified
+   post-redeploy: embedding still active with
+   openai/text-embedding-3-small/1536 dims, 0 search failures.
+   Confirms `OPENAI_API_KEY` was dead env in v3 — embedding adapter
+   uses `OC_EMBEDDING_API_KEY`.
 
-3. **Dependabot vuln #5**
-   Triage `https://github.com/CarlDog/openchronicle-mcp/security/dependabot/5`.
+3. **DONE: Dependabot vuln #5 (commit `ea469339`)**
+   Picomatch method injection in POSIX character classes
+   (`GHSA-3v7f-55p6-f55p`). Closed by the markdownlint-cli2
+   0.12 → 0.22.1 bump in commit `ea469339`, which also closed
+   alert #4 (the picomatch ReDoS via extglob quantifiers,
+   `GHSA-c2c7-rcm5-vvqj`). All 5 dependabot alerts now state="fixed".
 
-4. **Phase 9 dependabot config update**
-   Drop `target-branch: v3/develop` lines from `.github/dependabot.yml`
-   (per Phase 9 Day 0 in V3_PLAN.md).
+4. **DONE: Phase 9 dependabot config update (commit `6e424313`)**
+   Dropped `target-branch: v3/develop` lines from
+   `.github/dependabot.yml`. All three ecosystems (pip,
+   github-actions, docker) now target the default branch (main).
 
 ### Low priority
 
-1. **`portainer_container_start` 400 bug**
+1. **OPEN (separate repo): `portainer_container_start` 400 bug**
    portainer-mcp's start handler sends a non-empty body to Docker's
    container-start endpoint, which has rejected non-empty bodies
    since API v1.24 (2016). Workaround: use `redeploy_git_stack`
-   instead. Spawned as separate task during this session for
-   portainer-mcp repo.
+   instead. Spawned as separate task in portainer-mcp repo.
 
-2. **Cutover runbook updates**
-   `docs/V3_PLAN.md` Phase 8 should call out:
-   - Verify destination dir is clean (no orphan WAL/SHM) before
+2. **DONE: Cutover runbook updates (commit `fca3ebb4`)**
+   `docs/V3_PLAN.md` Phase 8 cutover sequence now calls out:
+   - Verify destination dir clean (no orphan WAL/SHM) before
      placing migrated DB
    - Run `PRAGMA integrity_check` as part of validation
-   - Capture `:v2-final` retag BEFORE force-pushing to main (the
-     docker-publish race is real)
+   - Capture `:v2-final` retag BEFORE force-pushing to main
    - Confirm auth state explicitly post-cutover
 
 3. **DONE: 24-vs-36 memory count investigation (2026-05-06)**
