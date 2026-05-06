@@ -35,21 +35,19 @@ def _sample_memory(**overrides: Any) -> MemoryItem:
 class TestDeleteMemoryUseCase:
     def test_deletes_memory(self) -> None:
         store = MagicMock()
-        store.get_memory.return_value = _sample_memory()
-        store.delete_memory.return_value = True
 
         delete_memory.execute(store=store, memory_id="mem-1")
 
         store.delete_memory.assert_called_once_with("mem-1")
 
-    def test_raises_not_found_for_nonexistent(self) -> None:
+    def test_propagates_not_found_from_store(self) -> None:
         store = MagicMock()
-        store.get_memory.return_value = None
+        store.delete_memory.side_effect = NotFoundError("Memory not found: no-such-id", code="MEMORY_NOT_FOUND")
 
         with pytest.raises(NotFoundError, match="Memory not found"):
             delete_memory.execute(store=store, memory_id="no-such-id")
 
-        store.delete_memory.assert_not_called()
+        store.delete_memory.assert_called_once_with("no-such-id")
 
 
 # ── MCP memory_get ───────────────────────────────────────────────

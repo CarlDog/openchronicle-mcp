@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
@@ -54,6 +55,20 @@ class TestCountMemory:
         assert store.count_memory(project_id="proj-1") == 3
         assert store.count_memory(project_id="proj-2") == 1
         assert store.count_memory(project_id="missing") == 0
+
+
+# ── delete_memory contract ──────────────────────────────────────
+
+
+class TestDeleteMemoryContract:
+    def test_delete_existing_removes_row(self, store: SqliteStore) -> None:
+        items = _add_items(store, 1)
+        store.delete_memory(items[0].id)
+        assert store.get_memory(items[0].id) is None
+
+    def test_delete_missing_raises_not_found(self, store: SqliteStore) -> None:
+        with pytest.raises(NotFoundError, match="Memory not found"):
+            store.delete_memory("no-such-id")
 
 
 # ── list_memory offset ──────────────────────────────────────────

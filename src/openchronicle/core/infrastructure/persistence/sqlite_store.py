@@ -256,14 +256,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._commit_if_needed()
         return self.get_memory(memory_id)  # type: ignore[return-value]
 
-    def delete_memory(self, memory_id: str) -> bool:
+    def delete_memory(self, memory_id: str) -> None:
         with self.transaction():
             cur = self._conn.cursor()
-            row = cur.execute("SELECT id FROM memory_items WHERE id = ?", (memory_id,)).fetchone()
-            if row is None:
-                return False
             cur.execute("DELETE FROM memory_items WHERE id = ?", (memory_id,))
-            return True
+            if cur.rowcount == 0:
+                raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
 
     # ── Embedding storage ───────────────────────────────────────────
 

@@ -54,10 +54,12 @@ class MemoryStorePort(ABC):
     ) -> list[MemoryItem]: ...
 
     @abstractmethod
-    def delete_memory(self, memory_id: str) -> bool:
+    def delete_memory(self, memory_id: str) -> None:
         """Delete a memory item.
 
-        Returns True if deleted, False if not found.
+        Raises NotFoundError if the memory ID doesn't exist. Consistent with
+        set_pinned and update_memory; lets the global API exception handler
+        render 404 without per-route try/except.
         """
         ...
 
