@@ -80,6 +80,12 @@ services:
       OC_EMBEDDING_API_KEY: ${OC_EMBEDDING_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
+      # MCP transport security (Portainer stack env). Default of empty
+      # falls through to MCPConfig's localhost-only allowlist; operators
+      # binding to a LAN-reachable interface MUST set this in the
+      # Portainer stack to include their hostname or all non-loopback
+      # clients get 421 Invalid Host header. See env_vars.md.
+      OC_MCP_ALLOWED_HOSTS: ${OC_MCP_ALLOWED_HOSTS:-}
       # Git onboarding (Portainer stack env):
       OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
       # Logging posture (Q19 locked):
