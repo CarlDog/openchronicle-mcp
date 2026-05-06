@@ -287,11 +287,37 @@ and the architecture/maintenance docs as appropriate.
      docker-publish race is real)
    - Confirm auth state explicitly post-cutover
 
-3. **24-vs-36 memory count investigation**
-   Compare `~/backups/pre-v3-cutover.db` (laptop) vs
-   `openchronicle.db.v2-rollback` (NAS) to understand which
-   snapshot the prior session migrated from. Useful for future
-   runbook hygiene.
+3. **DONE: 24-vs-36 memory count investigation (2026-05-06)**
+   Resolved. Laptop backup `~/backups/pre-v3-cutover.db` has 36
+   memory items / 12 projects / 35 embeddings, integrity ok, latest
+   created_at `2026-05-05T04:09:49Z`. NAS rollback
+   `openchronicle.db.v2-rollback` has 24 memories — it represents
+   an EARLIER snapshot than the laptop backup. The handoff's "36
+   memories preserved" was correct; it was migrated from the laptop
+   snapshot, not the NAS one. Between the NAS snapshot and the
+   migration, 12 more memories were added to v2 (today's
+   standing-rule pin, hardening decisions, pre-cutover context).
+
+   **Practical implication:** the actual data loss in the cutover
+   was 36 memories (not 24). All of those memories remain intact in
+   the laptop backup file and could be merged back into live v3 via
+   the new safer migration script (commit 6e424313) + `oc memory
+   import --mode merge`. Recovery deliberately deferred — current
+   v3 starts fresh and we're moving forward, not back. The recovery
+   recipe is preserved in this doc for future reference if priorities
+   change:
+
+   ```text
+   1. Copy ~/backups/pre-v3-cutover.db to a workspace dir
+   2. python scripts/migrate_v2_to_v3.py source.db migrated-v3.db
+   3. python scripts/verify_v3_db.py migrated-v3.db    # expect ok + 36 memories
+   4. (Local) oc memory export --out recovered.json
+   5. scp recovered.json to NAS
+   6. docker exec openchronicle-mcp-oc-1 oc memory import --in /path/recovered.json
+      (default mode=merge: preserves all existing rows, only adds new IDs)
+   7. Verify via curl /api/v1/memory/stats — expect total = 38 (2 post-cutover + 36 recovered)
+   8. (Optional) trigger embedding_backfill to embed the new 36
+   ```
 
 ---
 
