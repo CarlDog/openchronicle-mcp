@@ -41,12 +41,16 @@ Documentation = "https://github.com/CarlDog/openchronicle-mcp/tree/main/docs"
 [project.optional-dependencies]
 # Embedding-provider extras. v2's anthropic/groq/gemini/discord
 # extras are gone — v3 has no LLM, no Discord. OpenAI and Ollama
-# survive solely as embedding providers.
+# survive solely as embedding providers. numpy is shared across the
+# embedding extras because EmbeddingService.search_hybrid uses it for
+# vectorized cosine similarity on the read path.
 openai = [
 	"openai>=1.0.0",
+	"numpy>=1.24",
 ]
 ollama = [
 	"httpx>=0.25.0",
+	"numpy>=1.24",
 ]
 mcp = [
 	"mcp>=1.0.0",
@@ -59,6 +63,7 @@ dev = [
 	"openai>=1.0.0",
 	"httpx>=0.25.0",
 	"mcp>=1.0.0",
+	"numpy>=1.24",
 ]
 
 [tool.pytest.ini_options]
@@ -140,4 +145,8 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "mcp.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "numpy.*"
 ignore_missing_imports = true

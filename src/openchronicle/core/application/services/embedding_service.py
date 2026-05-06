@@ -284,25 +284,42 @@ class EmbeddingService:
         exclude_ids: set[str] | None = None,
         limit: int = 16,
     ) -> list[str]:
-        """Return memory IDs ranked by cosine similarity to query embedding."""
+        """Return memory IDs ranked by cosine similarity to query embedding.
+
+        All adapters normalize at output, so dot product = cosine similarity.
+        Numpy single-matmul replaces a per-item Python loop; for ~5k memories
+        at 1536 dims this is ~50-100x faster than the prior pure-Python path.
+        Memory cost is unchanged: list_embeddings still loads the full
+        embedding table — that's the architectural ceiling addressed by a
+        future move to a vector-indexed store (sqlite-vec).
+        """
+        import numpy as np
+
         query_vec = self._port.embed(query)
         all_embeddings = self._store.list_embeddings()
 
         if not all_embeddings:
             return []
 
-        # Score all embeddings
-        scores: list[tuple[str, float]] = []
-        for mid, vec in all_embeddings.items():
-            if exclude_ids and mid in exclude_ids:
-                continue
-            sim = _cosine_similarity(query_vec, vec)
-            scores.append((mid, sim))
+        ids = [mid for mid in all_embeddings if mid not in exclude_ids] if exclude_ids else list(all_embeddings)
+        if not ids:
+            return []
 
-        scores.sort(key=lambda x: x[1], reverse=True)
-        return [mid for mid, _ in scores[:limit]]
+        matrix = np.asarray([all_embeddings[mid] for mid in ids], dtype=np.float32)
+        q = np.asarray(query_vec, dtype=np.float32)
+        scores = matrix @ q  # (N,) cosine similarities
+
+        # argpartition gives top-k unsorted in O(N); sort the slice for ranks.
+        k = min(limit, scores.shape[0])
+        top_unsorted = np.argpartition(-scores, k - 1)[:k] if k < scores.shape[0] else np.arange(scores.shape[0])
+        top_sorted = top_unsorted[np.argsort(-scores[top_unsorted])]
+        return [ids[i] for i in top_sorted]
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    """Dot product of unit vectors = cosine similarity."""
+    """Dot product of unit vectors = cosine similarity.
+
+    Kept as a small helper for tests + diagnostic callers. The hot search
+    path uses numpy (see _semantic_search).
+    """
     return sum(x * y for x, y in zip(a, b, strict=False))
