@@ -16,6 +16,7 @@ Atomicity guarantees:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import sqlite3
@@ -42,15 +43,21 @@ def backup_to(src_db_path: Path | str, dest_db_path: Path | str) -> Path:
 
     src_conn = sqlite3.connect(str(src))
     try:
-        with sqlite3.connect(str(tmp)) as dst_conn:
+        # NOTE: ``with sqlite3.connect(...) as conn`` only commits/rollbacks
+        # on exit — it does NOT close the connection. The file handle stays
+        # open. POSIX tolerates renaming an open file; Windows does not
+        # ([WinError 32]). Close the destination connection explicitly
+        # before ``os.replace``.
+        dst_conn = sqlite3.connect(str(tmp))
+        try:
             src_conn.backup(dst_conn)
+        finally:
+            dst_conn.close()
         os.replace(tmp, dest)
     except Exception:
         if tmp.exists():
-            try:
+            with contextlib.suppress(OSError):
                 tmp.unlink()
-            except OSError:
-                pass
         raise
     finally:
         src_conn.close()
@@ -74,15 +81,18 @@ def backup_from_connection(conn: sqlite3.Connection, dest_db_path: Path | str) -
         tmp.unlink()
 
     try:
-        with sqlite3.connect(str(tmp)) as dst_conn:
+        # See note in backup_to: explicit close required so Windows can
+        # rename the file via os.replace.
+        dst_conn = sqlite3.connect(str(tmp))
+        try:
             conn.backup(dst_conn)
+        finally:
+            dst_conn.close()
         os.replace(tmp, dest)
     except Exception:
         if tmp.exists():
-            try:
+            with contextlib.suppress(OSError):
                 tmp.unlink()
-            except OSError:
-                pass
         raise
 
     _logger.info("Online backup written: %s (%d bytes)", dest, dest.stat().st_size)
