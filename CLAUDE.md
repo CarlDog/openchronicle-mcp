@@ -137,6 +137,18 @@ DB intact on disk for forensic analysis. Canonical project_id is
   `memory_search` burst tripped the limit under integration-test
   loads. Closes one item from V3_PLAN.md "Post-cutover follow-ups".
   Bulk-search endpoint (option (b)) remains on the backlog.
+- ✅ **Project CRUD surface completed** (2026-05-11). Added
+  `project_get`, `project_update`, `project_delete` across the
+  StoragePort, use cases, REST routes, MCP tools, and CLI; brings
+  the project entity to full CRUD parity with memory. `project_delete`
+  has a `confirm: bool = False` preview/ok two-step shape; the
+  preview returns memory_count, and `confirm=True` cascades atomically
+  (project row + memory_items rows; memory_embeddings via existing FK).
+  In the same pass, `memory_delete` got the symmetric `confirm` flag —
+  breaking change to the previous one-shot semantic, acceptable per
+  the no-backwards-compat rule. v3 MCP surface is now 17 tools.
+  Closes the second post-cutover follow-up; rc4 will batch this with
+  the rate-limit bump.
 - pending: Phase 9 (decommission, Day 7+ post-cutover, earliest
   2026-05-13) — also tracks **dependency audit** as a tech-debt
   follow-up (`docs/V3_PLAN.md` "Post-cutover follow-ups").
@@ -213,7 +225,7 @@ for the full layout.
 - **Ports**: abstract interfaces in `domain/ports/` that
   infrastructure implements. v3 has three: `StoragePort`,
   `MemoryStorePort`, `EmbeddingPort`.
-- **MCP Server**: `interfaces/mcp/` — 14 tools registered via
+- **MCP Server**: `interfaces/mcp/` — 17 tools registered via
   FastMCP, mounted at `/mcp` inside the unified ASGI app.
 - **HTTP API**: `interfaces/api/` — FastAPI app factory
   (`create_app`), routes for memory + project + system, FastMCP
@@ -475,7 +487,7 @@ the LLM, so OC's role is memory/retrieval only.
 - `docs/configuration/env_vars.md` — environment variables
 - `docs/configuration/config_files.md` — `core.json` schema
 - `docs/configuration/security_posture.md` — threat model + secrets handling
-- `docs/integrations/mcp_server_spec.md` — MCP tool surface (14 tools)
+- `docs/integrations/mcp_server_spec.md` — MCP tool surface (17 tools)
 - `docs/integrations/mcp_client_setup.md` — registering Claude Code, Goose, Open WebUI
 - `docs/api/STABILITY.md` — semver + deprecation policy
 - `docs/V3_PLAN.md` — full v3 plan, kill list, open questions, phase tracker

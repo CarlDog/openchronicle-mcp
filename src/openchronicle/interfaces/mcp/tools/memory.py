@@ -231,21 +231,28 @@ def register(mcp: FastMCP) -> None:
     def memory_delete(
         memory_id: str,
         ctx: Context,
-    ) -> dict[str, str]:
-        """Permanently delete a memory item.
+        confirm: bool = False,
+    ) -> dict[str, Any]:
+        """Preview or hard-delete a memory item.
 
-        Hard delete — no soft-delete recovery. Backups are the recovery path.
-        Use `memory_update` instead if you want to revise rather than remove.
+        Two-step safety pattern (matches `project_delete`). Call once with
+        `confirm=false` (default) to see the memory you're about to drop —
+        the response has `status: "preview"` plus content, tags, project_id
+        and pinned state. Call again with `confirm=true` to actually
+        delete; the response is `status: "ok"`. There is no soft-delete
+        and no recovery path beyond `oc db backup` — use `memory_update`
+        if you want to revise rather than remove.
 
         Args:
             memory_id: The memory's ID.
+            confirm: Must be true to perform the delete (default false).
         """
         container = _get_container(ctx)
-        delete_memory.execute(
+        return delete_memory.execute(
             store=container.storage,
             memory_id=memory_id,
+            confirm=confirm,
         )
-        return {"status": "ok", "memory_id": memory_id}
 
     @mcp.tool()
     def memory_stats(

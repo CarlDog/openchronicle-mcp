@@ -138,13 +138,14 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
 
 
 def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int:
-    """Delete a memory item."""
+    """Preview (default) or delete a memory item."""
     from openchronicle.interfaces.cli.commands._helpers import json_envelope, json_error_payload, print_json
 
     try:
-        delete_memory.execute(
+        result = delete_memory.execute(
             store=container.storage,
             memory_id=args.memory_id,
+            confirm=args.confirm,
         )
     except (ValueError, NotFoundError, DomainValidationError):
         if args.json:
@@ -165,13 +166,17 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
         payload = json_envelope(
             command="memory.delete",
             ok=True,
-            result={"memory_id": args.memory_id},
+            result=result,
             error=None,
         )
         print_json(payload)
         return 0
 
-    print(f"Deleted memory item {args.memory_id}")
+    if result["status"] == "preview":
+        snippet = result["content"] if len(result["content"]) <= 80 else result["content"][:80] + "..."
+        print(f"Would delete memory {result['memory_id']}: {snippet!r}. Re-run with --confirm to proceed.")
+    else:
+        print(f"Deleted memory item {result['memory_id']}")
     return 0
 
 

@@ -3,14 +3,17 @@
 **Date:** 2026-05-06
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
-**Revision:** 63 (v3.0.0-rc3 live on NAS as of 2026-05-06 19:26 UTC;
+**Revision:** 64 (v3.0.0-rc3 live on NAS as of 2026-05-06 19:26 UTC;
 turbulent cutover documented in
 [cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md);
 12-item punch list + 3 post-cutover MCP-transport items all closed;
 senior-dev review batch shipped (numpy 265x speedup, API consistency,
-ruff backlog clear); rate-limit ceiling raised 120 → 600 RPM
-2026-05-11 from V3_PLAN.md "Post-cutover follow-ups"; remaining
-work is Phase 9 decommission, date-gated to 2026-05-13+)
+ruff backlog clear); rate-limit ceiling raised 120 → 600 RPM and
+project CRUD surface completed (project_get + project_update +
+project_delete, plus symmetric `confirm` flag on memory_delete) on
+2026-05-11 from V3_PLAN.md "Post-cutover follow-ups"; MCP surface
+is now 17 tools; remaining work is Phase 9 decommission, date-gated
+to 2026-05-13+)
 
 > **Cutover note (2026-05-06):** v3 went live on stack 151 with
 > `:v3.0.0-rc1` image, upgraded to `:v3.0.0-rc2` the same evening

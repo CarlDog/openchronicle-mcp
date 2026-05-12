@@ -81,7 +81,10 @@ class TestServerCreation:
         expected = [
             "health",
             "project_create",
+            "project_get",
             "project_list",
+            "project_update",
+            "project_delete",
             "memory_search",
             "memory_save",
             "memory_list",

@@ -314,6 +314,90 @@ class TestProjectRoutes:
         assert resp.status_code == 200
         assert resp.json() == []
 
+    def test_get_project(self, client: TestClient) -> None:
+        _get_container(client).storage.get_project.return_value = _make_project(name="alpha")
+        resp = client.get("/api/v1/project/proj-1")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == "proj-1"
+        assert data["name"] == "alpha"
+
+    def test_get_project_missing_returns_404(self, client: TestClient) -> None:
+        _get_container(client).storage.get_project.return_value = None
+        resp = client.get("/api/v1/project/nope")
+        assert resp.status_code == 404
+
+    def test_update_project_rename(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.update_project.return_value = _make_project(name="renamed")
+        resp = client.put("/api/v1/project/proj-1", json={"name": "renamed"})
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "renamed"
+        storage.update_project.assert_called_once_with("proj-1", name="renamed", metadata=None)
+
+    def test_update_project_metadata_only(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.update_project.return_value = _make_project()
+        resp = client.put("/api/v1/project/proj-1", json={"metadata": {"team": "ops"}})
+        assert resp.status_code == 200
+        storage.update_project.assert_called_once_with("proj-1", name=None, metadata={"team": "ops"})
+
+    def test_update_project_empty_body_rejected(self, client: TestClient) -> None:
+        """At least one of name or metadata must be set — Pydantic guards this."""
+        resp = client.put("/api/v1/project/proj-1", json={})
+        assert resp.status_code == 422
+
+    def test_update_project_missing_returns_404(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        _get_container(client).storage.update_project.side_effect = NotFoundError(
+            "Project not found: nope", code="PROJECT_NOT_FOUND"
+        )
+        resp = client.put("/api/v1/project/nope", json={"name": "x"})
+        assert resp.status_code == 404
+
+    def test_delete_project_preview_default(self, client: TestClient) -> None:
+        """Without `?confirm=true`, returns preview and never calls delete_project."""
+        storage = _get_container(client).storage
+        storage.get_project.return_value = _make_project(name="proj")
+        storage.count_memory.return_value = 7
+
+        resp = client.delete("/api/v1/project/proj-1")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {
+            "status": "preview",
+            "project_id": "proj-1",
+            "name": "proj",
+            "memory_count": 7,
+        }
+        storage.delete_project.assert_not_called()
+
+    def test_delete_project_confirm_calls_cascade(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.return_value = _make_project(name="proj")
+        storage.delete_project.return_value = 3
+
+        resp = client.delete("/api/v1/project/proj-1?confirm=true")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {
+            "status": "ok",
+            "project_id": "proj-1",
+            "name": "proj",
+            "deleted_memories": 3,
+        }
+        storage.delete_project.assert_called_once_with("proj-1")
+        storage.count_memory.assert_not_called()
+
+    def test_delete_project_missing_returns_404(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.return_value = None
+
+        resp = client.delete("/api/v1/project/nope?confirm=true")
+        assert resp.status_code == 404
+        storage.delete_project.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Routes: memory
@@ -364,6 +448,27 @@ class TestMemoryRoutes:
         resp = client.put("/api/v1/memory/mem-1/pin", json={"pinned": True})
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
+
+    def test_memory_delete_preview_default(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_memory.return_value = _make_memory()
+
+        resp = client.delete("/api/v1/memory/mem-1")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "preview"
+        assert data["memory_id"] == "mem-1"
+        assert data["content"] == "remember this"
+        storage.delete_memory.assert_not_called()
+
+    def test_memory_delete_confirm_calls_store(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+
+        resp = client.delete("/api/v1/memory/mem-1?confirm=true")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {"status": "ok", "memory_id": "mem-1"}
+        storage.delete_memory.assert_called_once_with("mem-1")
 
 
 # ---------------------------------------------------------------------------

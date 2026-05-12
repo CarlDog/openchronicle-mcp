@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
+from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
@@ -155,6 +155,48 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur = self._conn.cursor()
         row = cur.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
         return row_to_project(row) if row else None
+
+    def delete_project(self, project_id: str) -> int:
+        with self.transaction():
+            cur = self._conn.cursor()
+            proj_row = cur.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone()
+            if proj_row is None:
+                raise NotFoundError(f"Project not found: {project_id}", code=PROJECT_NOT_FOUND)
+            count_row = cur.execute(
+                "SELECT COUNT(*) AS cnt FROM memory_items WHERE project_id=?",
+                (project_id,),
+            ).fetchone()
+            deleted_memories = int(count_row["cnt"]) if count_row else 0
+            cur.execute("DELETE FROM memory_items WHERE project_id=?", (project_id,))
+            cur.execute("DELETE FROM projects WHERE id=?", (project_id,))
+            return deleted_memories
+
+    def update_project(
+        self,
+        project_id: str,
+        name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Project:
+        if name is None and metadata is None:
+            raise ValueError("update_project requires at least one of name or metadata")
+        cur = self._conn.cursor()
+        set_clauses: list[str] = []
+        params: list[Any] = []
+        if name is not None:
+            set_clauses.append("name = ?")
+            params.append(name)
+        if metadata is not None:
+            set_clauses.append("metadata = ?")
+            params.append(json.dumps(metadata))
+        params.append(project_id)
+        sql = f"UPDATE projects SET {', '.join(set_clauses)} WHERE id = ?"
+        cur.execute(sql, params)
+        if cur.rowcount == 0:
+            raise NotFoundError(f"Project not found: {project_id}", code=PROJECT_NOT_FOUND)
+        self._commit_if_needed()
+        updated = self.get_project(project_id)
+        assert updated is not None  # row exists — we just updated it
+        return updated
 
     # ── Memory ──────────────────────────────────────────────────────
 

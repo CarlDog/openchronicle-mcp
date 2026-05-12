@@ -35,6 +35,8 @@ COMMANDS: dict[str, Callable[[argparse.Namespace, CoreContainer], int]] = {
     "init-project": project.cmd_init_project,
     "list-projects": project.cmd_list_projects,
     "show-project": project.cmd_show_project,
+    "update-project": project.cmd_update_project,
+    "delete-project": project.cmd_delete_project,
     # Memory
     "memory": memory.cmd_memory,
     # Database

@@ -1,6 +1,6 @@
 # MCP server tool surface (v3)
 
-OpenChronicle's MCP server exposes 14 tools. They map 1:1 with the
+OpenChronicle's MCP server exposes 17 tools. They map 1:1 with the
 HTTP REST surface (same use cases under both transports). All tools
 return JSON-safe Python dicts; the FastMCP runtime handles
 serialization to MCP's wire format.
@@ -17,7 +17,7 @@ stability guarantees see `docs/api/STABILITY.md`.
 | `memory_list` | Browse memory items in reverse-chronological order (unfiltered pagination). |
 | `memory_get` | Fetch one memory by ID. |
 | `memory_update` | Edit content/tags in place; preserves identity. |
-| `memory_delete` | Hard delete. |
+| `memory_delete` | Preview (`confirm=false`, default) or hard-delete (`confirm=true`). Two-step safety; the preview returns content/tags/project_id/pinned without touching the DB. |
 | `memory_pin` | Toggle pin state. |
 | `memory_stats` | Counts + per-tag/per-source breakdown. |
 | `memory_embed` | Generate missing (or all, with `force=true`) embeddings. |
@@ -40,7 +40,10 @@ LLM need to write a memory" shape:
 | Tool | Purpose |
 |---|---|
 | `project_create` | Create a new project namespace. |
+| `project_get` | Fetch one project by ID. |
 | `project_list` | List every project. |
+| `project_update` | Rename or update metadata. At least one of `name` / `metadata` must be set; omitted fields are left untouched (pass `metadata: {}` to clear). |
+| `project_delete` | Preview (`confirm=false`, default) or hard-delete (`confirm=true`) a project and all its memories. The preview returns `memory_count`. No soft-delete; backups are the recovery path. |
 
 ## Context
 
@@ -77,6 +80,11 @@ dramatically when descriptions discriminate the choice. Concretely:
   original `created_at`.
 - `memory_pin`: changes pin state only; doesn't touch content/tags
   (use `memory_update` for those).
+- `memory_delete` and `project_delete` are **two-step**: the first call
+  (default `confirm=false`) returns a preview so the LLM can see the
+  blast radius and decide whether to re-call with `confirm=true`. Don't
+  treat the preview response as a delete confirmation — it's diagnostic
+  data.
 
 ## Cut from v2
 

@@ -33,19 +33,46 @@ def _sample_memory(**overrides: Any) -> MemoryItem:
 
 
 class TestDeleteMemoryUseCase:
-    def test_deletes_memory(self) -> None:
+    def test_preview_returns_metadata_without_deleting(self) -> None:
+        store = MagicMock()
+        store.get_memory.return_value = _sample_memory()
+
+        result = delete_memory.execute(store=store, memory_id="mem-1", confirm=False)
+
+        assert result["status"] == "preview"
+        assert result["memory_id"] == "mem-1"
+        assert result["content"] == "User prefers Python"
+        assert result["tags"] == ["preference"]
+        assert result["pinned"] is False
+        store.delete_memory.assert_not_called()
+
+    def test_preview_raises_not_found_for_missing(self) -> None:
+        store = MagicMock()
+        store.get_memory.return_value = None
+
+        with pytest.raises(NotFoundError, match="Memory not found"):
+            delete_memory.execute(store=store, memory_id="no-such-id", confirm=False)
+
+        store.delete_memory.assert_not_called()
+
+    def test_confirm_deletes(self) -> None:
         store = MagicMock()
 
-        delete_memory.execute(store=store, memory_id="mem-1")
+        result = delete_memory.execute(store=store, memory_id="mem-1", confirm=True)
 
+        assert result["status"] == "ok"
+        assert result["memory_id"] == "mem-1"
         store.delete_memory.assert_called_once_with("mem-1")
+        # The optimized confirm path skips the extra get to preserve the
+        # pre-refactor atomic-delete posture.
+        store.get_memory.assert_not_called()
 
-    def test_propagates_not_found_from_store(self) -> None:
+    def test_confirm_propagates_not_found_from_store(self) -> None:
         store = MagicMock()
         store.delete_memory.side_effect = NotFoundError("Memory not found: no-such-id", code="MEMORY_NOT_FOUND")
 
         with pytest.raises(NotFoundError, match="Memory not found"):
-            delete_memory.execute(store=store, memory_id="no-such-id")
+            delete_memory.execute(store=store, memory_id="no-such-id", confirm=True)
 
         store.delete_memory.assert_called_once_with("no-such-id")
 
@@ -96,10 +123,8 @@ class TestMCPMemoryGet:
 
 
 class TestMCPMemoryDelete:
-    def test_deletes_and_returns_ok(self) -> None:
-        mcp_mod = pytest.importorskip("mcp")  # noqa: F841
-        from unittest.mock import patch
-
+    def _build_tool(self) -> tuple[MagicMock, MagicMock, Any]:
+        pytest.importorskip("mcp")
         from mcp.server.fastmcp import FastMCP
 
         from openchronicle.interfaces.mcp.tools.memory import register
@@ -107,16 +132,28 @@ class TestMCPMemoryDelete:
         container = MagicMock()
         ctx = MagicMock()
         ctx.request_context.lifespan_context = {"container": container}
-
         mcp = FastMCP("test")
         register(mcp)
+        return container, ctx, mcp._tool_manager._tools["memory_delete"].fn
 
-        with patch("openchronicle.interfaces.mcp.tools.memory.delete_memory.execute"):
-            tool_fn = mcp._tool_manager._tools["memory_delete"].fn
-            result = tool_fn(memory_id="mem-1", ctx=ctx)
+    def test_default_returns_preview(self) -> None:
+        container, ctx, tool_fn = self._build_tool()
+        container.storage.get_memory.return_value = _sample_memory()
+
+        result = tool_fn(memory_id="mem-1", ctx=ctx)
+
+        assert result["status"] == "preview"
+        assert result["memory_id"] == "mem-1"
+        container.storage.delete_memory.assert_not_called()
+
+    def test_confirm_true_deletes(self) -> None:
+        container, ctx, tool_fn = self._build_tool()
+
+        result = tool_fn(memory_id="mem-1", ctx=ctx, confirm=True)
 
         assert result["status"] == "ok"
         assert result["memory_id"] == "mem-1"
+        container.storage.delete_memory.assert_called_once_with("mem-1")
 
 
 # ── MCP memory_stats ─────────────────────────────────────────────

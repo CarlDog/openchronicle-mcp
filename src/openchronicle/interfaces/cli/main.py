@@ -33,6 +33,31 @@ def main(argv: list[str] | None = None) -> int:
     show_project_cmd.add_argument("project_id")
     show_project_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
+    update_project_cmd = sub.add_parser(
+        "update-project",
+        help="Rename a project or update its metadata",
+    )
+    update_project_cmd.add_argument("project_id")
+    update_project_cmd.add_argument("--name", default=None, help="New project name")
+    update_project_cmd.add_argument(
+        "--metadata",
+        default=None,
+        help="Replacement metadata as a JSON object. Pass `{}` to clear.",
+    )
+    update_project_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    delete_project_cmd = sub.add_parser(
+        "delete-project",
+        help="Preview (default) or delete a project and all its memories",
+    )
+    delete_project_cmd.add_argument("project_id")
+    delete_project_cmd.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Actually delete (default is a no-op preview)",
+    )
+    delete_project_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
     # --- Memory commands ---
     memory_cmd = sub.add_parser("memory", help="Memory commands")
     memory_sub = memory_cmd.add_subparsers(dest="memory_command")
@@ -58,8 +83,16 @@ def main(argv: list[str] | None = None) -> int:
     pin_group.add_argument("--on", dest="pin_on", action="store_true")
     pin_group.add_argument("--off", dest="pin_on", action="store_false")
 
-    memory_delete_cmd = memory_sub.add_parser("delete", help="Delete a memory item")
+    memory_delete_cmd = memory_sub.add_parser(
+        "delete",
+        help="Preview (default) or delete a memory item",
+    )
     memory_delete_cmd.add_argument("memory_id")
+    memory_delete_cmd.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Actually delete (default is a no-op preview)",
+    )
     memory_delete_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     memory_search_cmd = memory_sub.add_parser("search", help="Search memory items")
