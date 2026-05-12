@@ -33,6 +33,8 @@ services:
       OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
+      # Git onboarding (Portainer stack env):
+      OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
       # Logging posture (Q19).
       OC_LOG_FORMAT: ${OC_LOG_FORMAT:-human}
       OC_LOG_LEVEL: ${OC_LOG_LEVEL:-INFO}
