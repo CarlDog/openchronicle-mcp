@@ -129,6 +129,14 @@ DB intact on disk for forensic analysis. Canonical project_id is
   separate repo (portainer-mcp 400 bug), or date-gated to Phase 9. See
   [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
   punch list section for the per-item disposition with commit refs.
+- ✅ **Rate-limiter ceiling raised** (2026-05-11). `_DEFAULT_RPM`
+  bumped 120 → 600 in `interfaces/api/middleware/rate_limit.py`;
+  `.env.example` and `docs/configuration/env_vars.md` reconciled
+  (both previously claimed `60`, a pre-existing drift). Discovered
+  during mnemosyne-mcp Phase C: `mnemo_continue`'s 7-sequential
+  `memory_search` burst tripped the limit under integration-test
+  loads. Closes one item from V3_PLAN.md "Post-cutover follow-ups".
+  Bulk-search endpoint (option (b)) remains on the backlog.
 - pending: Phase 9 (decommission, Day 7+ post-cutover, earliest
   2026-05-13) — also tracks **dependency audit** as a tech-debt
   follow-up (`docs/V3_PLAN.md` "Post-cutover follow-ups").

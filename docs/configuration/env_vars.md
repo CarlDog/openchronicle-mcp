@@ -45,7 +45,7 @@ embeddings when the provider recovers.
 | `OC_API_HOST` | Bind address | `127.0.0.1` |
 | `OC_API_PORT` | Listen port | `8000` |
 | `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
-| `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `60` |
+| `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
 
 `/health` and `/openapi.json` are exempt from auth even when
 `OC_API_KEY` is set.
