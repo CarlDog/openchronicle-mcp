@@ -51,7 +51,9 @@ PII_PATTERNS=(
   "$PERSONAL_EMAIL_PATTERN"
 )
 
-STAGED=$(git diff --cached --name-only --diff-filter=AM)
+# ACMR (not AM): renamed/copied files must be PII-scanned too. A `git mv` of a
+# file containing a home path / personal email would otherwise bypass this scan.
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
 if [ -z "$STAGED" ]; then
   exit 0
 fi
