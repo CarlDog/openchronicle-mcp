@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock
@@ -95,7 +96,7 @@ class TestMCPMemoryGet:
         mcp = FastMCP("test")
         register(mcp)
         tool_fn = mcp._tool_manager._tools["memory_get"].fn
-        result = tool_fn(memory_id="mem-1", ctx=ctx)
+        result = asyncio.run(tool_fn(memory_id="mem-1", ctx=ctx))
 
         assert result["id"] == "mem-1"
         assert result["content"] == "User prefers Python"
@@ -116,7 +117,7 @@ class TestMCPMemoryGet:
         tool_fn = mcp._tool_manager._tools["memory_get"].fn
 
         with pytest.raises(NotFoundError, match="Memory not found"):
-            tool_fn(memory_id="no-such", ctx=ctx)
+            asyncio.run(tool_fn(memory_id="no-such", ctx=ctx))
 
 
 # ── MCP memory_delete ────────────────────────────────────────────
@@ -140,7 +141,7 @@ class TestMCPMemoryDelete:
         container, ctx, tool_fn = self._build_tool()
         container.storage.get_memory.return_value = _sample_memory()
 
-        result = tool_fn(memory_id="mem-1", ctx=ctx)
+        result = asyncio.run(tool_fn(memory_id="mem-1", ctx=ctx))
 
         assert result["status"] == "preview"
         assert result["memory_id"] == "mem-1"
@@ -149,7 +150,7 @@ class TestMCPMemoryDelete:
     def test_confirm_true_deletes(self) -> None:
         container, ctx, tool_fn = self._build_tool()
 
-        result = tool_fn(memory_id="mem-1", ctx=ctx, confirm=True)
+        result = asyncio.run(tool_fn(memory_id="mem-1", ctx=ctx, confirm=True))
 
         assert result["status"] == "ok"
         assert result["memory_id"] == "mem-1"
@@ -178,7 +179,7 @@ class TestMCPMemoryStats:
         mcp = FastMCP("test")
         register(mcp)
         tool_fn = mcp._tool_manager._tools["memory_stats"].fn
-        result = tool_fn(ctx=ctx)
+        result = asyncio.run(tool_fn(ctx=ctx))
 
         assert result["total"] == 3
         assert result["pinned"] == 1
@@ -204,6 +205,6 @@ class TestMCPMemoryStats:
         mcp = FastMCP("test")
         register(mcp)
         tool_fn = mcp._tool_manager._tools["memory_stats"].fn
-        result = tool_fn(ctx=ctx, project_id="proj-1")
+        result = asyncio.run(tool_fn(ctx=ctx, project_id="proj-1"))
 
         assert result["total"] == 1

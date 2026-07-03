@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -116,7 +117,7 @@ class TestProjectCreate:
             registered: dict[str, Any] = {}
             mcp_server.tool.return_value = lambda fn: registered.update({fn.__name__: fn}) or fn
             register(mcp_server)
-            result = registered["project_create"](name="My Project", ctx=ctx)
+            result = asyncio.run(registered["project_create"](name="My Project", ctx=ctx))
         assert result["id"] == "proj-1"
         assert result["name"] == "Test Project"
 
@@ -134,7 +135,7 @@ class TestProjectList:
             registered: dict[str, Any] = {}
             mcp_server.tool.return_value = lambda fn: registered.update({fn.__name__: fn}) or fn
             register(mcp_server)
-            result = registered["project_list"](ctx=ctx)
+            result = asyncio.run(registered["project_list"](ctx=ctx))
         assert len(result) == 2
         assert result[0]["id"] == "proj-1"
         assert result[1]["id"] == "proj-2"
@@ -164,7 +165,7 @@ class TestMemorySearch:
         ) as mock_search:
             # Access the raw function
             tool_fn = mcp._tool_manager._tools["memory_search"].fn
-            result = tool_fn(query="Python", ctx=ctx)
+            result = asyncio.run(tool_fn(query="Python", ctx=ctx))
 
         assert len(result) == 1
         assert result[0]["content"] == "User prefers Python"
@@ -190,7 +191,7 @@ class TestMemorySave:
             return_value=saved_mem,
         ):
             tool_fn = mcp._tool_manager._tools["memory_save"].fn
-            result = tool_fn(content="Remember this", project_id="proj-1", ctx=ctx)
+            result = asyncio.run(tool_fn(content="Remember this", project_id="proj-1", ctx=ctx))
 
         assert result["content"] == "User prefers Python"
         assert result["source"] == "mcp"
@@ -208,7 +209,7 @@ class TestMemorySave:
 
         tool_fn = mcp._tool_manager._tools["memory_save"].fn
         with pytest.raises(DomainValidationError, match="project_id is required"):
-            tool_fn(content="Remember this", project_id="", ctx=ctx)
+            asyncio.run(tool_fn(content="Remember this", project_id="", ctx=ctx))
 
 
 class TestMemoryList:
@@ -228,7 +229,7 @@ class TestMemoryList:
             return_value=[_sample_memory(), _sample_memory(id="mem-2")],
         ):
             tool_fn = mcp._tool_manager._tools["memory_list"].fn
-            result = tool_fn(ctx=ctx)
+            result = asyncio.run(tool_fn(ctx=ctx))
 
         assert len(result) == 2
 
@@ -249,7 +250,7 @@ class TestMemoryPin:
             "openchronicle.interfaces.mcp.tools.memory.pin_memory.execute",
         ) as mock_pin:
             tool_fn = mcp._tool_manager._tools["memory_pin"].fn
-            result = tool_fn(memory_id="mem-1", ctx=ctx)
+            result = asyncio.run(tool_fn(memory_id="mem-1", ctx=ctx))
 
         assert result["status"] == "ok"
         assert result["pinned"] == "True"
@@ -276,7 +277,7 @@ class TestContextRecent:
             return_value=[_sample_memory()],
         ):
             tool_fn = mcp._tool_manager._tools["context_recent"].fn
-            result = tool_fn(ctx=ctx, query="Python")
+            result = asyncio.run(tool_fn(ctx=ctx, query="Python"))
 
         assert len(result["memories"]) == 1
 
@@ -296,7 +297,7 @@ class TestContextRecent:
             return_value=[],
         ):
             tool_fn = mcp._tool_manager._tools["context_recent"].fn
-            result = tool_fn(ctx=ctx)
+            result = asyncio.run(tool_fn(ctx=ctx))
 
         assert result["memories"] == []
 
@@ -334,7 +335,7 @@ class TestHealth:
             return_value=mock_report,
         ):
             tool_fn = mcp._tool_manager._tools["health"].fn
-            result = tool_fn(ctx=ctx)
+            result = asyncio.run(tool_fn(ctx=ctx))
 
         assert result["db_exists"] is True
         assert result["config_dir"] == "config"
@@ -360,7 +361,7 @@ class TestMCPParameterValidation:
 
         tool_fn = mcp._tool_manager._tools["memory_search"].fn
         with pytest.raises(DomainValidationError, match="query must be non-empty"):
-            tool_fn(query="", ctx=ctx)
+            asyncio.run(tool_fn(query="", ctx=ctx))
 
     def test_memory_save_empty_content_rejected(self) -> None:
         container = _make_container()
@@ -375,7 +376,7 @@ class TestMCPParameterValidation:
 
         tool_fn = mcp._tool_manager._tools["memory_save"].fn
         with pytest.raises(DomainValidationError, match="content must be non-empty"):
-            tool_fn(content="", project_id="proj-1", ctx=ctx)
+            asyncio.run(tool_fn(content="", project_id="proj-1", ctx=ctx))
 
     def test_memory_save_overlength_content_rejected(self) -> None:
         container = _make_container()
@@ -390,7 +391,7 @@ class TestMCPParameterValidation:
 
         tool_fn = mcp._tool_manager._tools["memory_save"].fn
         with pytest.raises(DomainValidationError, match="exceeds maximum length"):
-            tool_fn(content="x" * 100_001, project_id="proj-1", ctx=ctx)
+            asyncio.run(tool_fn(content="x" * 100_001, project_id="proj-1", ctx=ctx))
 
     def test_memory_search_top_k_clamped(self) -> None:
         container = _make_container()
@@ -408,7 +409,7 @@ class TestMCPParameterValidation:
             return_value=[],
         ) as mock_search:
             tool_fn = mcp._tool_manager._tools["memory_search"].fn
-            tool_fn(query="test", ctx=ctx, top_k=999_999)
+            asyncio.run(tool_fn(query="test", ctx=ctx, top_k=999_999))
 
         # top_k should be clamped to 1000
         call_kwargs = mock_search.call_args[1]
@@ -430,7 +431,7 @@ class TestMCPParameterValidation:
             return_value=[],
         ) as mock_search:
             tool_fn = mcp._tool_manager._tools["memory_search"].fn
-            tool_fn(query="test", ctx=ctx, offset=-5)
+            asyncio.run(tool_fn(query="test", ctx=ctx, offset=-5))
 
         call_kwargs = mock_search.call_args[1]
         assert call_kwargs["offset"] == 0

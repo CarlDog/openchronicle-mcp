@@ -1,7 +1,12 @@
-"""Project tools — create, get, list, update, delete projects."""
+"""Project tools — create, get, list, update, delete projects.
+
+Handlers are async and offload store work via asyncio.to_thread:
+FastMCP dispatches sync tools inline on the event loop.
+"""
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -26,7 +31,7 @@ def register(mcp: FastMCP) -> None:
     """Register project tools on the MCP server."""
 
     @mcp.tool()
-    def project_create(
+    async def project_create(
         name: str,
         ctx: Context,
         metadata: dict[str, Any] | None = None,
@@ -43,7 +48,8 @@ def register(mcp: FastMCP) -> None:
             metadata: Arbitrary key-value annotations (optional).
         """
         container = _get_container(ctx)
-        project = create_project.execute(
+        project = await asyncio.to_thread(
+            create_project.execute,
             store=container.storage,
             name=name,
             metadata=metadata,
@@ -51,7 +57,7 @@ def register(mcp: FastMCP) -> None:
         return project_to_dict(project)
 
     @mcp.tool()
-    def project_get(
+    async def project_get(
         project_id: str,
         ctx: Context,
     ) -> dict[str, Any]:
@@ -65,7 +71,7 @@ def register(mcp: FastMCP) -> None:
             project_id: Project UUID to fetch.
         """
         container = _get_container(ctx)
-        project = container.storage.get_project(project_id)
+        project = await asyncio.to_thread(container.storage.get_project, project_id)
         if project is None:
             raise NotFoundError(
                 f"Project not found: {project_id}",
@@ -74,7 +80,7 @@ def register(mcp: FastMCP) -> None:
         return project_to_dict(project)
 
     @mcp.tool()
-    def project_list(
+    async def project_list(
         ctx: Context,
     ) -> list[dict[str, Any]]:
         """List every project, with id, name, and creation timestamp.
@@ -84,11 +90,11 @@ def register(mcp: FastMCP) -> None:
         several, consolidate before saving — projects are not auto-merged.
         """
         container = _get_container(ctx)
-        projects = list_projects.execute(store=container.storage)
+        projects = await asyncio.to_thread(list_projects.execute, store=container.storage)
         return [project_to_dict(p) for p in projects]
 
     @mcp.tool()
-    def project_update(
+    async def project_update(
         project_id: str,
         ctx: Context,
         name: str | None = None,
@@ -107,7 +113,8 @@ def register(mcp: FastMCP) -> None:
                 metadata. Pass `{}` to clear all metadata keys.
         """
         container = _get_container(ctx)
-        project = update_project.execute(
+        project = await asyncio.to_thread(
+            update_project.execute,
             store=container.storage,
             project_id=project_id,
             name=name,
@@ -116,7 +123,7 @@ def register(mcp: FastMCP) -> None:
         return project_to_dict(project)
 
     @mcp.tool()
-    def project_delete(
+    async def project_delete(
         project_id: str,
         ctx: Context,
         confirm: bool = False,
@@ -136,7 +143,8 @@ def register(mcp: FastMCP) -> None:
             confirm: Must be true to perform the delete (default false).
         """
         container = _get_container(ctx)
-        return delete_project.execute(
+        return await asyncio.to_thread(
+            delete_project.execute,
             store=container.storage,
             memory_store=container.storage,
             project_id=project_id,

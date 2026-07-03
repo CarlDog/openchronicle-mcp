@@ -1,7 +1,12 @@
-"""System tools — health check."""
+"""System tools — health check.
+
+Handlers are async and offload store work via asyncio.to_thread:
+FastMCP dispatches sync tools inline on the event loop.
+"""
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import asdict
 from typing import Any, cast
 
@@ -19,7 +24,7 @@ def register(mcp: FastMCP) -> None:
     """Register system tools on the MCP server."""
 
     @mcp.tool()
-    def health(ctx: Context) -> dict[str, Any]:
+    async def health(ctx: Context) -> dict[str, Any]:
         """Probe the OC server: DB reachability, config status, embedding subsystem.
 
         Use to verify the server is responsive and configured before a
@@ -27,10 +32,14 @@ def register(mcp: FastMCP) -> None:
         down → search degrades to FTS5-only). Returns a snapshot of
         runtime state, not historical metrics.
         """
-        report = diagnose_runtime.execute()
         container = _get_container(ctx)
-        report.embedding_status = container.embedding_status_dict()
-        data = asdict(report)
+
+        def _run() -> dict[str, Any]:
+            report = diagnose_runtime.execute()
+            report.embedding_status = container.embedding_status_dict()
+            return asdict(report)
+
+        data = await asyncio.to_thread(_run)
         if data.get("timestamp_utc"):
             data["timestamp_utc"] = data["timestamp_utc"].isoformat()
         if data.get("db_modified_utc"):

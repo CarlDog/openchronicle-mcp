@@ -1,7 +1,12 @@
-"""Context tools — memory-scoped catch-up."""
+"""Context tools — memory-scoped catch-up.
+
+Handlers are async and offload store/embedding work via asyncio.to_thread:
+FastMCP dispatches sync tools inline on the event loop.
+"""
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 
 from mcp.server.fastmcp import Context, FastMCP
@@ -18,7 +23,7 @@ def register(mcp: FastMCP) -> None:
     """Register context tools on the MCP server."""
 
     @mcp.tool()
-    def context_recent(
+    async def context_recent(
         ctx: Context,
         query: str | None = None,
         project_id: str | None = None,
@@ -38,7 +43,8 @@ def register(mcp: FastMCP) -> None:
         memory_limit = min(max(memory_limit, 1), 1000)
         container = _get_container(ctx)
 
-        memories = search_memory.execute(
+        memories = await asyncio.to_thread(
+            search_memory.execute,
             store=container.storage,
             query=query or "",
             top_k=memory_limit,
