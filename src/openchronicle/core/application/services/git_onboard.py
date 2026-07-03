@@ -1,7 +1,9 @@
-"""Git onboarding service — extract, filter, cluster, and synthesize git history into memories.
+"""Git onboarding service — extract, filter, and cluster git history into memories.
 
-Pure functions for filtering and clustering. I/O functions for git extraction
-and LLM synthesis are isolated and easily mockable.
+Pure functions for filtering and clustering; git extraction is isolated behind
+subprocess boundaries and easily mockable. v3 has no LLM: the MCP tool returns
+clusters and the calling agent synthesizes the memory prose, while the CLI seeds
+raw-format memories directly.
 """
 
 from __future__ import annotations
@@ -199,6 +201,38 @@ def format_cluster_as_raw_memory(cluster: CommitCluster) -> str:
 
 # --- Git Extraction ---
 
+# Cloneable URL shapes we accept. Everything else — git's ext::/fd:: remote
+# helpers, file:// / local paths, and option-looking args (-…) — is rejected
+# before the URL ever reaches `git clone`.
+_HTTPS_URL = re.compile(r"^https://[^\s]+$", re.IGNORECASE)
+_SSH_URL = re.compile(r"^ssh://[^\s]+$", re.IGNORECASE)
+_SCP_URL = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:[^\s]+$")
+
+
+def _redact_url(repo_url: str) -> str:
+    """Strip ``user:secret@`` userinfo from a URL before it lands in an error.
+
+    A token embedded in an https URL (``https://x:token@github.com/...``)
+    would otherwise leak into the raised message and any log that captures it.
+    """
+    return re.sub(r"(https?://)[^/@\s]+@", r"\1", repo_url, flags=re.IGNORECASE)
+
+
+def _validate_repo_url(repo_url: str) -> None:
+    """Reject non-clone URL schemes and option-injection before `git clone`.
+
+    Allows only ``https://``, ``ssh://``, and scp-style ``user@host:path``.
+    Blocks git's ``ext::`` / ``fd::`` remote-helper transports (a code-exec
+    vector) and ``file://`` / local paths, and refuses a leading ``-`` so the
+    URL can't be parsed as an option. Belt-and-suspenders with the ``--``
+    end-of-options guard in the clone command.
+    """
+    if not repo_url or not (_HTTPS_URL.match(repo_url) or _SSH_URL.match(repo_url) or _SCP_URL.match(repo_url)):
+        raise RuntimeError(
+            "Unsupported repo URL. Use an https:// or ssh:// URL, or scp-style user@host:path "
+            "(ext::/fd::/file:// transports and local paths are not allowed)."
+        )
+
 
 def extract_commits_from_git(
     repo_path: str, max_commits: int = 500, since_commit: str | None = None
@@ -206,8 +240,14 @@ def extract_commits_from_git(
     """Extract commits from a git repository via subprocess."""
     separator = "---GIT_ONBOARD_SEP---"
     field_sep = "---GIT_ONBOARD_FIELD---"
+    # %b (body) is multi-line and comes last, so we need an explicit
+    # end-of-body sentinel: everything from the last field_sep up to the
+    # sentinel is the body (newlines and all); everything after it is the
+    # --numstat block. Without this, only the body's first line was kept
+    # and the rest was misparsed as numstat rows (and silently dropped).
+    body_end = "---GIT_ONBOARD_BODYEND---"
 
-    git_format = field_sep.join(["%H", "%an", "%aI", "%s", "%b"])
+    git_format = field_sep.join(["%H", "%an", "%aI", "%s", "%b"]) + body_end
 
     cmd = [
         "git",
@@ -252,10 +292,14 @@ def extract_commits_from_git(
         if not entry:
             continue
 
-        # Split header from numstat
-        lines = entry.split("\n")
-        header_line = lines[0]
-        fields = header_line.split(field_sep)
+        # Split the header (which contains the possibly-multi-line body) from
+        # the numstat block at the body sentinel.
+        header_part, sentinel_found, numstat_part = entry.partition(body_end)
+        if not sentinel_found:
+            continue
+        # maxsplit=4 so a field_sep that happens to appear inside the body
+        # doesn't spill into a phantom sixth field.
+        fields = header_part.split(field_sep, 4)
         if len(fields) < 4:
             continue
 
@@ -275,7 +319,7 @@ def extract_commits_from_git(
         files_changed = []
         insertions = 0
         deletions = 0
-        for line in lines[1:]:
+        for line in numstat_part.split("\n"):
             line = line.strip()
             if not line:
                 continue
@@ -369,6 +413,8 @@ def extract_commits_from_url(
 
     The clone tmpdir is deleted before this function returns.
     """
+    _validate_repo_url(repo_url)
+
     # Pick clone depth: shallow is fine when we just want the most recent
     # max_commits. With a watermark, the arbitrary `since_commit` SHA must be
     # reachable, so do a full clone (--depth changes git's view of history).
@@ -376,6 +422,8 @@ def extract_commits_from_url(
     if since_commit is None:
         # +1 to ensure we don't truncate exactly at max_commits and miss a parent
         clone_cmd.extend(["--depth", str(max_commits + 1)])
+    # `--` ends option parsing so repo_url/tmpdir can never be read as flags.
+    clone_cmd.append("--")
     clone_cmd.append(repo_url)
 
     clone_env = _build_clone_env(repo_url)
@@ -397,7 +445,7 @@ def extract_commits_from_url(
 
         if result.returncode != 0:
             stderr = result.stderr.strip()
-            raise RuntimeError(f"git clone failed for {repo_url}: {stderr}")
+            raise RuntimeError(f"git clone failed for {_redact_url(repo_url)}: {stderr}")
 
         # Reuse the existing path-based extractor against the freshly cloned tree.
         return extract_commits_from_git(tmpdir, max_commits=max_commits, since_commit=since_commit)
