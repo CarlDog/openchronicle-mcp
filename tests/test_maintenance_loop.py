@@ -247,6 +247,66 @@ def test_db_integrity_check_clears_degraded_on_success(tmp_path: Path) -> None:
     store.close()
 
 
+def test_db_integrity_check_failure_backs_up_flags_degraded_and_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The corrupt-DB branch (2026-05-06 cutover incident): a non-'ok'
+    integrity result must take an emergency backup, set the container's
+    maintenance_degraded flag, and raise so the loop counts the failure."""
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+    db_path = tmp_path / "data" / "test.db"
+    store = SqliteStore(str(db_path))
+    store.init_schema()
+
+    container = MagicMock()
+    container.storage = store
+    container.paths.db_path = db_path
+    container.maintenance_degraded = False
+
+    monkeypatch.setattr(store, "integrity_check", lambda: "*** in database main *** page 3: btree corruption")
+
+    with pytest.raises(RuntimeError, match="integrity_check failed"):
+        asyncio.run(maintenance_jobs.db_integrity_check(container))
+
+    assert getattr(container, "maintenance_degraded") is True
+    backups = list((tmp_path / "data" / "backups" / "auto").glob("*.db"))
+    assert len(backups) == 1, "failure branch must take an emergency backup"
+    assert backups[0].stat().st_size > 0
+    store.close()
+
+
+def test_db_integrity_check_failure_still_flags_when_emergency_backup_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A secondary backup failure must not mask the integrity error:
+    degraded is still set and the RuntimeError still carries the
+    integrity result, not the backup exception."""
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+    db_path = tmp_path / "data" / "test.db"
+    store = SqliteStore(str(db_path))
+    store.init_schema()
+
+    container = MagicMock()
+    container.storage = store
+    container.paths.db_path = db_path
+    container.maintenance_degraded = False
+
+    monkeypatch.setattr(store, "integrity_check", lambda: "not ok")
+
+    def _boom(dest: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(store, "backup_to", _boom)
+
+    with pytest.raises(RuntimeError, match="integrity_check failed: not ok"):
+        asyncio.run(maintenance_jobs.db_integrity_check(container))
+
+    assert getattr(container, "maintenance_degraded") is True
+    store.close()
+
+
 def test_embedding_backfill_no_op_when_service_missing(tmp_path: Path) -> None:
     """Loop should not crash when embeddings are disabled."""
     container = MagicMock()
