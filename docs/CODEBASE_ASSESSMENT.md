@@ -868,6 +868,27 @@ modifies OC's conversation behavior via mode prompt builders, not a connector).
 The plugin loader contract is unchanged — task handlers and mode builders are
 still the plugin extension surface. See "2026-04 Incident Remediation" below.
 
+**Scheduled git-refresh (proposed 2026-06-04).** Git-derived memories
+(`onboard_git`) go stale between sessions — commits pushed from a terminal or by
+other contributors are never picked up unless someone manually re-runs onboard.
+The fix belongs server-side, in the maintenance loop, NOT a client-side cron.
+(Surfaced while trying to wire exactly such a cron from a dev machine: the local
+`oc` CLI operates on its own local store — a *different backend* from the NAS
+deployment that actually serves memory — and the NAS is LAN-only, so any external
+scheduler either refreshes the wrong DB or can't reach the right one. OC owning
+its own freshness is the correct home.) Most of the machinery already exists:
+`git_onboard.py` clones by URL and onboards incrementally via a `since_commit`
+watermark (shallow clone with no watermark, full clone when one is set), so no
+local checkout is needed; `maintenance/jobs.py` already runs `async def
+<job>(container)` jobs (`db_backup`, `db_vacuum`) on the maintenance-loop cadence.
+The feature is the wiring: a new `git_refresh` maintenance job that iterates every
+project with `metadata.repo`, resolves each project's last-onboarded-commit
+watermark, runs the incremental URL-clone onboard, and advances the watermark —
+behind a cadence knob (default daily) and an LLM-synthesis budget so a busy repo
+can't run the onboard LLM unbounded. Open design points: where the per-project
+watermark persists (project metadata vs a dedicated column), and whether to fall
+back to `--no-llm` raw onboarding once the synthesis budget is spent.
+
 ```text
 Core Done
   ✓ LLMPort: function calling / tool use (done)
@@ -885,6 +906,7 @@ Core Done
   ✓ Embedding Observability (health status, startup logging, backfill resilience, configurable timeout)
   ✓ Inbound Hooks Endpoint (core — interfaces/api/routes/hooks.py, generic POST dispatch to plugin handlers)
   ~ Phase 5 IDE Hooks (prototype — Claude Code PreCompact/SessionStart hooks, `oc memory search --full`)
+  → Scheduled git-refresh (core — maintenance job re-onboards repo-bearing projects on a cadence; reuses git_onboard URL-clone + since_commit watermark)
   → Security Scanner (plugin — stateless handler)
   → Dev Agent Runner (core — needs LLM + sandbox)
   → Serena MCP (core — inside sandbox only)
