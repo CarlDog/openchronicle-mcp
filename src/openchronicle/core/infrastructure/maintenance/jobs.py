@@ -26,8 +26,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from openchronicle.core.infrastructure.persistence.backup import backup_from_connection
-
 if TYPE_CHECKING:
     from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
@@ -64,8 +62,9 @@ async def db_backup(container: CoreContainer) -> None:
     dest = directory / f"openchronicle-{timestamp}.db"
 
     # The stdlib backup API blocks; run on a worker thread so the
-    # asyncio loop stays responsive.
-    await asyncio.to_thread(backup_from_connection, container.storage._conn, dest)
+    # asyncio loop stays responsive. The store method holds the store
+    # lock, so the copy never interleaves an open transaction.
+    await asyncio.to_thread(container.storage.backup_to, dest)
     await asyncio.to_thread(_retention_prune, directory, _BACKUP_RETENTION)
     _logger.info("db_backup: wrote %s; retention pruned to last %d", dest, _BACKUP_RETENTION)
 
@@ -73,24 +72,15 @@ async def db_backup(container: CoreContainer) -> None:
 async def db_vacuum(container: CoreContainer) -> None:
     """Backup-before-destructive policy: backup, checkpoint, vacuum."""
     await db_backup(container)
-    conn = container.storage._conn  # noqa: SLF001
-
-    def _do_vacuum() -> None:
-        conn.execute("PRAGMA wal_checkpoint(FULL)")
-        conn.execute("VACUUM")
-
-    await asyncio.to_thread(_do_vacuum)
+    # Store method holds the store lock — VACUUM can never run inside
+    # another thread's open transaction on the shared connection.
+    await asyncio.to_thread(container.storage.vacuum)
     _logger.info("db_vacuum: WAL checkpointed + VACUUM complete")
 
 
 async def db_integrity_check(container: CoreContainer) -> None:
     """Run integrity_check; on failure, backup + flag degraded."""
-    conn = container.storage._conn  # noqa: SLF001
-
-    def _check() -> str:
-        return str(conn.execute("PRAGMA integrity_check").fetchone()[0])
-
-    result = await asyncio.to_thread(_check)
+    result = await asyncio.to_thread(container.storage.integrity_check)
     if result != "ok":
         # Snapshot before doing anything else, then flag degraded so
         # callers (health endpoint, MCP health tool) surface it.
