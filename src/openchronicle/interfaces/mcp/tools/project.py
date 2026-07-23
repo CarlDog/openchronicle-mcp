@@ -14,6 +14,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from openchronicle.core.application.use_cases import (
     create_project,
     delete_project,
+    delete_projects,
     list_projects,
     update_project,
 )
@@ -173,5 +174,40 @@ def register(mcp: FastMCP) -> None:
             store=container.storage,
             memory_store=container.storage,
             project_id=project_id,
+            confirm=confirm,
+        )
+
+    @mcp.tool()
+    async def project_delete_bulk(
+        project_ids: list[str],
+        ctx: Context,
+        confirm: bool,
+    ) -> dict[str, Any]:
+        """Preview or hard-delete several projects and all their memories.
+
+        Use when clearing more than a handful — cleaning up test-run
+        projects, for instance. For one project use `project_delete`.
+        Pair with `project_list(name_contains=...)` to build the id list.
+
+        Same two-step as `project_delete`, and `confirm` is likewise
+        required. The preview returns `found` (each with `name` and
+        `memory_count`) and `missing`; check the names before confirming,
+        because at this size a single wrong id is easy to miss.
+
+        Unknown ids do NOT abort the batch — they come back in `missing`
+        while the rest proceed. That differs from `project_delete`, which
+        raises: aborting a long list over one typo would defeat the point.
+        Deletion itself is all-or-nothing, running in a single transaction.
+
+        Args:
+            project_ids: Project UUIDs to delete. Duplicates are collapsed.
+            confirm: Required. True deletes; false returns a preview.
+        """
+        container = _get_container(ctx)
+        return await asyncio.to_thread(
+            delete_projects.execute,
+            store=container.storage,
+            memory_store=container.storage,
+            project_ids=project_ids,
             confirm=confirm,
         )

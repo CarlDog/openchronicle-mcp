@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 from openchronicle.core.application.use_cases import (
     create_project,
     delete_project,
+    delete_projects,
     list_projects,
     update_project,
 )
@@ -27,6 +28,11 @@ ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 class ProjectCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     metadata: dict[str, Any] | None = None
+
+
+class ProjectBulkDeleteRequest(BaseModel):
+    project_ids: list[str] = Field(min_length=1, max_length=500)
+    confirm: bool
 
 
 class ProjectUpdateRequest(BaseModel):
@@ -102,6 +108,27 @@ def project_update_route(
         metadata=body.metadata,
     )
     return project_to_dict(project)
+
+
+@router.post("/bulk-delete")
+def project_delete_bulk(
+    body: ProjectBulkDeleteRequest,
+    container: ContainerDep,
+) -> dict[str, Any]:
+    """Preview (confirm=false) or hard-delete (confirm=true) many projects.
+
+    POST rather than DELETE-with-body: proxies and HTTP clients routinely
+    strip bodies from DELETE requests, and this one is load-bearing.
+
+    Unknown ids come back in `missing` rather than aborting the batch —
+    see the use case for why. Deletion itself runs in one transaction.
+    """
+    return delete_projects.execute(
+        store=container.storage,
+        memory_store=container.storage,
+        project_ids=body.project_ids,
+        confirm=body.confirm,
+    )
 
 
 @router.delete("/{project_id}")

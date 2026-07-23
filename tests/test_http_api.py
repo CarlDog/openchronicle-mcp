@@ -609,3 +609,43 @@ class TestPathParamValidation:
     def test_empty_memory_id_rejected(self, client: TestClient) -> None:
         resp = client.get(f"/api/v1/memory/{'x' * 201}")
         assert resp.status_code == 422
+
+
+class TestProjectBulkDeleteRoute:
+    def test_preview_reports_found_and_missing(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.side_effect = [_make_project(name="proj"), None]
+        storage.count_memory.return_value = 4
+
+        resp = client.post(
+            "/api/v1/project/bulk-delete",
+            json={"project_ids": ["proj-1", "nope"], "confirm": False},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["deleted"] is False
+        assert data["missing"] == ["nope"]
+        assert data["found"][0]["name"] == "proj"
+        storage.delete_project.assert_not_called()
+
+    def test_confirm_deletes(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.return_value = _make_project(name="proj")
+        storage.delete_project.return_value = 2
+
+        resp = client.post(
+            "/api/v1/project/bulk-delete",
+            json={"project_ids": ["proj-1"], "confirm": True},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["deleted"] is True
+        assert data["total_deleted_memories"] == 2
+
+    def test_empty_list_is_rejected(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/project/bulk-delete", json={"project_ids": [], "confirm": True})
+        assert resp.status_code == 422
+
+    def test_missing_confirm_is_rejected(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/project/bulk-delete", json={"project_ids": ["proj-1"]})
+        assert resp.status_code == 422

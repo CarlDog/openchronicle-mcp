@@ -1,6 +1,6 @@
 # MCP server tool surface (v3)
 
-OpenChronicle's MCP server exposes 17 tools. They map 1:1 with the
+OpenChronicle's MCP server exposes 18 tools. They map 1:1 with the
 HTTP REST surface (same use cases under both transports). All tools
 return JSON-safe Python dicts; the FastMCP runtime handles
 serialization to MCP's wire format.
@@ -44,6 +44,7 @@ LLM need to write a memory" shape:
 | `project_list` | List projects, newest first. `name_contains` is a literal case-insensitive substring filter; `compact` returns metadata keys + size instead of the blob. |
 | `project_update` | Rename or update metadata. At least one of `name` / `metadata` must be set; omitted fields are left untouched (pass `metadata: {}` to clear). |
 | `project_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`) a project and all its memories. `confirm` is **required**. The preview returns `name` + `memory_count` plus `deleted: false` and a `next_step`. No soft-delete; backups are the recovery path. |
+| `project_delete_bulk` | Same two-step for many projects at once. Unknown ids come back in `missing` rather than aborting the batch; the delete itself runs in one transaction. Pair with `project_list(name_contains=...)` to build the id list. |
 
 ## Context
 

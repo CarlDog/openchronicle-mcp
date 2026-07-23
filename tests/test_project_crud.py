@@ -19,6 +19,7 @@ import pytest
 from openchronicle.core.application.use_cases import (
     create_project,
     delete_project,
+    delete_projects,
     update_project,
 )
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
@@ -225,3 +226,92 @@ class TestListProjectsNameFilter:
         create_project.execute(store=store, name="backslash")
         names = {p.name for p in store.list_projects(name_contains="\\")}
         assert names == {r"back\slash"}
+
+
+# ── bulk delete ──────────────────────────────────────────────────
+
+
+class TestBulkDelete:
+    def _seed(self, store: SqliteStore, name: str, memories: int = 0) -> str:
+        project = create_project.execute(store=store, name=name)
+        for i in range(memories):
+            store.add_memory(
+                MemoryItem(content=f"{name}-{i}", tags=[], pinned=False, project_id=project.id, source="manual")
+            )
+        return str(project.id)
+
+    def test_preview_lists_names_and_memory_counts(self, store: SqliteStore) -> None:
+        a = self._seed(store, "alpha", memories=2)
+        b = self._seed(store, "beta", memories=3)
+        result = delete_projects.execute(store=store, memory_store=store, project_ids=[a, b], confirm=False)
+        assert result["status"] == "preview"
+        assert result["deleted"] is False
+        assert {(e["name"], e["memory_count"]) for e in result["found"]} == {("alpha", 2), ("beta", 3)}
+        assert result["total_memory_count"] == 5
+
+    def test_preview_deletes_nothing(self, store: SqliteStore) -> None:
+        a = self._seed(store, "alpha", memories=2)
+        delete_projects.execute(store=store, memory_store=store, project_ids=[a], confirm=False)
+        assert store.get_project(a) is not None
+        assert store.count_memory(project_id=a) == 2
+
+    def test_missing_ids_are_reported_not_raised(self, store: SqliteStore) -> None:
+        a = self._seed(store, "alpha")
+        result = delete_projects.execute(
+            store=store, memory_store=store, project_ids=[a, "not-a-real-id"], confirm=False
+        )
+        assert result["missing"] == ["not-a-real-id"]
+        assert [e["name"] for e in result["found"]] == ["alpha"]
+
+    def test_missing_ids_do_not_abort_the_batch(self, store: SqliteStore) -> None:
+        a = self._seed(store, "alpha", memories=1)
+        result = delete_projects.execute(store=store, memory_store=store, project_ids=["nope", a], confirm=True)
+        assert result["missing"] == ["nope"]
+        assert store.get_project(a) is None
+
+    def test_confirm_deletes_all_and_reports_per_project(self, store: SqliteStore) -> None:
+        a = self._seed(store, "alpha", memories=2)
+        b = self._seed(store, "beta", memories=3)
+        result = delete_projects.execute(store=store, memory_store=store, project_ids=[a, b], confirm=True)
+        assert result["status"] == "ok"
+        assert result["deleted"] is True
+        assert result["total_deleted_memories"] == 5
+        assert {d["name"] for d in result["deleted_projects"]} == {"alpha", "beta"}
+        assert store.get_project(a) is None
+        assert store.get_project(b) is None
+
+    def test_duplicate_ids_are_collapsed(self, store: SqliteStore) -> None:
+        a = self._seed(store, "alpha")
+        result = delete_projects.execute(store=store, memory_store=store, project_ids=[a, a, a], confirm=True)
+        assert result["total_requested"] == 1
+        assert len(result["deleted_projects"]) == 1
+
+    def test_confirm_is_atomic_when_one_delete_fails(self, store: SqliteStore) -> None:
+        """A mid-batch failure must roll the whole batch back.
+
+        Reporting is per-item, but durability is not: a half-applied bulk
+        delete is worse than a rejected one, because the caller has no way
+        to tell which half landed.
+        """
+        a = self._seed(store, "alpha", memories=2)
+        b = self._seed(store, "beta", memories=2)
+
+        real_delete = store.delete_project
+        calls: list[str] = []
+
+        def exploding_delete(project_id: str) -> int:
+            calls.append(project_id)
+            if len(calls) == 2:
+                raise RuntimeError("disk gave up")
+            return real_delete(project_id)
+
+        store.delete_project = exploding_delete  # type: ignore[method-assign]
+        try:
+            with pytest.raises(RuntimeError, match="disk gave up"):
+                delete_projects.execute(store=store, memory_store=store, project_ids=[a, b], confirm=True)
+        finally:
+            store.delete_project = real_delete  # type: ignore[method-assign]
+
+        assert store.get_project(a) is not None
+        assert store.get_project(b) is not None
+        assert store.count_memory(project_id=a) == 2

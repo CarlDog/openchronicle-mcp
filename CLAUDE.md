@@ -73,6 +73,10 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   header; watermark now anchors to the newest commit *walked* rather than
   the newest kept, so a merge at HEAD no longer stalls the incremental
   path. `cluster_to_summary` moved into the service layer. 471 → 487.
+- **C5 — `project_delete_bulk`** — new tool + `POST /project/bulk-delete`
+  (surface now 18 tools). Per-item reporting (`missing` doesn't abort the
+  batch), all-or-nothing durability via one transaction. No CLI twin.
+  487 → 501 tests.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the
@@ -294,7 +298,7 @@ for the full layout.
 - **Ports**: abstract interfaces in `domain/ports/` that
   infrastructure implements. v3 has three: `StoragePort`,
   `MemoryStorePort`, `EmbeddingPort`.
-- **MCP Server**: `interfaces/mcp/` — 17 tools registered via
+- **MCP Server**: `interfaces/mcp/` — 18 tools registered via
   FastMCP, mounted at `/mcp` inside the unified ASGI app.
 - **HTTP API**: `interfaces/api/` — FastAPI app factory
   (`create_app`), routes for memory + project + system, FastMCP
@@ -556,7 +560,7 @@ the LLM, so OC's role is memory/retrieval only.
 - `docs/configuration/env_vars.md` — environment variables
 - `docs/configuration/config_files.md` — `core.json` schema
 - `docs/configuration/security_posture.md` — threat model + secrets handling
-- `docs/integrations/mcp_server_spec.md` — MCP tool surface (17 tools)
+- `docs/integrations/mcp_server_spec.md` — MCP tool surface (18 tools)
 - `docs/integrations/mcp_client_setup.md` — registering Claude Code, Goose, Open WebUI
 - `docs/api/STABILITY.md` — semver + deprecation policy
 - `docs/V3_PLAN.md` — full v3 plan, kill list, open questions, phase tracker

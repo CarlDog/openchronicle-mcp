@@ -86,6 +86,7 @@ class TestServerCreation:
             "project_list",
             "project_update",
             "project_delete",
+            "project_delete_bulk",
             "memory_search",
             "memory_save",
             "memory_list",

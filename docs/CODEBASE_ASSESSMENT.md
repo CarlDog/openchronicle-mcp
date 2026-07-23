@@ -57,6 +57,14 @@ paths. Landed so far:
   path never advanced. `key_files` / `suggested_tags` moved from the MCP
   tool into `git_onboard.cluster_to_summary()`, which is what finally
   made the response shape reachable from a unit test. 471 → 487 tests.
+- **C5 — `project_delete_bulk`.** New tool + `POST /project/bulk-delete`;
+  surface is now 18 tools. Reporting is per-item (unknown ids come back
+  in `missing` rather than aborting the batch) while durability is
+  all-or-nothing (the confirm loop runs in one `store.transaction()`, so
+  each cascade nests as a savepoint). Duplicate ids collapse; `name` is
+  preserved per project in both branches. No CLI twin, deliberately —
+  the 92-call cost that motivated this is an MCP round-trip problem, and
+  in a shell it is a `for` loop. 487 → 501 tests.
 
 **Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
 2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory

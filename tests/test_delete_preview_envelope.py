@@ -20,7 +20,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from openchronicle.core.application.use_cases import delete_memory, delete_project
+from openchronicle.core.application.use_cases import (
+    delete_memory,
+    delete_project,
+    delete_projects,
+)
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 
@@ -52,10 +56,30 @@ def _invoke_delete_project(confirm: bool) -> dict[str, Any]:
     )
 
 
+def _invoke_delete_projects(confirm: bool) -> dict[str, Any]:
+    store = MagicMock()
+    store.get_project.return_value = Project(id="proj-1", name="proj", metadata={})
+    store.count_memory.return_value = 3
+    store.delete_project.return_value = 3
+    return delete_projects.execute(
+        store=store,
+        memory_store=store,
+        project_ids=["proj-1"],
+        confirm=confirm,
+    )
+
+
 INVOKERS: list[tuple[str, Invoker]] = [
     ("delete_memory", _invoke_delete_memory),
     ("delete_project", _invoke_delete_project),
+    ("delete_projects", _invoke_delete_projects),
 ]
+
+_USE_CASES = {
+    "delete_memory": delete_memory,
+    "delete_project": delete_project,
+    "delete_projects": delete_projects,
+}
 
 
 @pytest.mark.parametrize(("name", "invoke"), INVOKERS, ids=[n for n, _ in INVOKERS])
@@ -80,6 +104,5 @@ class TestDeletePreviewEnvelope:
         """
         import inspect
 
-        target = delete_memory.execute if name == "delete_memory" else delete_project.execute
-        param = inspect.signature(target).parameters["confirm"]
+        param = inspect.signature(_USE_CASES[name].execute).parameters["confirm"]
         assert param.default is inspect.Parameter.empty

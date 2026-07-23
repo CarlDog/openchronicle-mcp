@@ -94,6 +94,11 @@ Tab-separated `id\tname` per line, newest first. `--name-contains` is a
 case-insensitive substring filter, matched literally — a project named
 `100%` matches only itself.
 
+There is no bulk-delete CLI command. The MCP `project_delete_bulk` tool
+exists because 46 projects cost 92 MCP round-trips; in a shell that is a
+`for` loop over `oc delete-project`, so a twin would add parsing and a new
+output format to relieve nothing.
+
 ### `oc show-project PROJECT_ID`
 
 Project metadata. `--json` for structured output.
