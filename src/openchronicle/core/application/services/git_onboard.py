@@ -16,6 +16,7 @@ import tempfile
 from collections import Counter
 from collections.abc import Callable
 from datetime import UTC, datetime
+from typing import Any
 
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -141,30 +142,107 @@ def _generate_label(commits: list[GitCommit]) -> str:
 # --- Formatting ---
 
 
-def format_cluster_for_synthesis(cluster: CommitCluster) -> str:
-    """Format a cluster's commits as structured text for LLM consumption."""
-    sorted_commits = sorted(cluster.commits, key=lambda c: c.insertions + c.deletions, reverse=True)
-    top_commits = sorted_commits[:20]
+def top_files(cluster: CommitCluster, limit: int = 10) -> list[str]:
+    """Files in the cluster ranked by how many of its commits touched them."""
+    counts: Counter[str] = Counter()
+    for c in cluster.commits:
+        for f in c.files_changed:
+            counts[f] += 1
+    return [f for f, _ in counts.most_common(limit)]
+
+
+def format_cluster_for_synthesis(
+    cluster: CommitCluster,
+    *,
+    max_commits: int = 10,
+    include_detail: bool = False,
+) -> str:
+    """Format a cluster's commits as structured text for LLM consumption.
+
+    Commits are *selected* by churn (largest diff first) because that is
+    the best available proxy for "which commits carry the story", but they
+    are *presented* chronologically. Presenting date-prefixed lines in size
+    order reads as a timeline that jumps around, which is worse than no
+    dates at all.
+
+    When the cluster has more commits than are shown, the header says so.
+    A silent cut under a `Total commits: 153` header invites the reader to
+    believe they are looking at all 153.
+
+    `include_detail` gates the body, the per-commit file list, and the
+    diffstat. Off by default because the body alone runs to 500 chars per
+    commit, and the synthesis task ("write 3-8 sentences on WHY") is
+    driven by subjects; cluster-level `key_files` already covers which
+    files matter, without per-commit attribution.
+    """
+    shown = sorted(cluster.commits, key=lambda c: c.insertions + c.deletions, reverse=True)[:max_commits]
+    shown = sorted(shown, key=lambda c: c.date)
+    total = len(cluster.commits)
 
     lines = [
         f"Cluster: {cluster.label}",
         f"Date range: {cluster.commits[0].date.date()} to {cluster.commits[-1].date.date()}",
-        f"Total commits: {len(cluster.commits)}",
-        "",
+        f"Total commits: {total}",
     ]
+    if len(shown) < total:
+        lines.append(f"Showing: {len(shown)} of {total} commits (largest-diff first, listed chronologically)")
+    lines.append("")
 
-    for c in top_commits:
-        body_snippet = c.body[:500].strip() if c.body else ""
-        files = ", ".join(c.files_changed[:10])
+    for c in shown:
         lines.append(f"  [{c.date.date()}] {c.subject}")
-        if body_snippet:
-            lines.append(f"    {body_snippet}")
-        if files:
-            lines.append(f"    Files: {files}")
-        lines.append(f"    +{c.insertions}/-{c.deletions}")
+        if include_detail:
+            body_snippet = c.body[:500].strip() if c.body else ""
+            if body_snippet:
+                lines.append(f"    {body_snippet}")
+            if c.files_changed:
+                files = ", ".join(c.files_changed[:10])
+                if len(c.files_changed) > 10:
+                    files += f" (+{len(c.files_changed) - 10} more)"
+                lines.append(f"    Files: {files}")
+            lines.append(f"    +{c.insertions}/-{c.deletions}")
         lines.append("")
 
     return "\n".join(lines)
+
+
+def cluster_to_summary(
+    cluster: CommitCluster,
+    *,
+    max_commits: int = 10,
+    include_detail: bool = False,
+) -> dict[str, Any]:
+    """Build the per-cluster response payload for the onboarding surface.
+
+    Lives here rather than in the MCP tool because it is clustering logic —
+    ranking files, deriving tags — not transport. Keeping it in the service
+    also makes the response shape reachable from a plain unit test.
+    """
+    by_date = sorted(cluster.commits, key=lambda c: c.date)
+    files = top_files(cluster)
+
+    suggested_tags = ["git-derived"]
+    path_parts = []
+    for f in files[:5]:
+        parts = f.replace("\\", "/").split("/")
+        if len(parts) >= 2:
+            path_parts.append(parts[1] if parts[0] in ("src", "tests", "plugins") else parts[0])
+    if path_parts:
+        suggested_tags.append(Counter(path_parts).most_common(1)[0][0])
+
+    return {
+        "label": cluster.label,
+        "commit_count": len(cluster.commits),
+        "shown_commit_count": min(max_commits, len(cluster.commits)),
+        "date_range": f"{by_date[0].date.date().isoformat()} to {by_date[-1].date.date().isoformat()}",
+        "created_at": by_date[-1].date.isoformat(),
+        "key_files": files,
+        "commits_summary": format_cluster_for_synthesis(
+            cluster,
+            max_commits=max_commits,
+            include_detail=include_detail,
+        ),
+        "suggested_tags": suggested_tags,
+    }
 
 
 def format_cluster_as_raw_memory(cluster: CommitCluster) -> str:
@@ -176,11 +254,7 @@ def format_cluster_as_raw_memory(cluster: CommitCluster) -> str:
     top_subjects = [c.subject for c in sorted(cluster.commits, key=lambda c: c.insertions + c.deletions, reverse=True)]
     top_subjects = top_subjects[:8]
 
-    all_files: Counter[str] = Counter()
-    for c in cluster.commits:
-        for f in c.files_changed:
-            all_files[f] += 1
-    top_files = [f for f, _ in all_files.most_common(10)]
+    primary_files = top_files(cluster)
 
     lines = [
         f"[{date_start} to {date_end}] {cluster.label}",
@@ -190,10 +264,10 @@ def format_cluster_as_raw_memory(cluster: CommitCluster) -> str:
     for s in top_subjects:
         lines.append(f"  - {s}")
 
-    if top_files:
+    if primary_files:
         lines.append("")
         lines.append("Primary files:")
-        for f in top_files:
+        for f in primary_files:
             lines.append(f"  - {f}")
 
     return "\n".join(lines)

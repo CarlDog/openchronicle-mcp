@@ -67,6 +67,12 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   `compact`, which *replaces* content/metadata with a preview + length
   rather than truncating in place. `context_recent` folded onto
   `memory_to_dict`. 448 → 471 tests.
+- **C4 — bounded `onboard_git`** — `max_commits_per_cluster` +
+  `include_commit_detail` replace a hardcoded `[:20]`; commits are
+  selected by churn but listed chronologically with a `Showing: n of N`
+  header; watermark now anchors to the newest commit *walked* rather than
+  the newest kept, so a merge at HEAD no longer stalls the incremental
+  path. `cluster_to_summary` moved into the service layer. 471 → 487.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the

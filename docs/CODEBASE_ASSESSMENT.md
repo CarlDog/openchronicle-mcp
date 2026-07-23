@@ -44,6 +44,19 @@ paths. Landed so far:
   growing two clamping conventions the way `limit`/`top_k` did.
   `context_recent` now shares `memory_to_dict`, retiring the third
   hand-rolled memory shape. 448 → 471 tests.
+- **C4 — bounded, honest `onboard_git` cluster detail.** Two knobs
+  (`max_commits_per_cluster`, `include_commit_detail`) replace a
+  hardcoded `[:20]`, and the formatter stopped lying: it had been
+  selecting the largest-diff commits and printing them in *size* order
+  despite date-prefixing every line, under a header reporting the full
+  count. Selection is still by churn; presentation is chronological, the
+  header adds `Showing: n of N`, clusters gain `shown_commit_count`, and
+  truncated file lists say `(+N more)`. The watermark bug is fixed too —
+  it anchored to `max(filtered)`, so anything newer than the last kept
+  commit was re-walked forever and a merge at HEAD meant the incremental
+  path never advanced. `key_files` / `suggested_tags` moved from the MCP
+  tool into `git_onboard.cluster_to_summary()`, which is what finally
+  made the response shape reachable from a unit test. 471 → 487 tests.
 
 **Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
 2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory

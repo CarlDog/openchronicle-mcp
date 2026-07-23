@@ -55,7 +55,7 @@ LLM need to write a memory" shape:
 
 | Tool | Purpose |
 |---|---|
-| `onboard_git` | Clone a remote git repo shallow into a server-side tmpdir, cluster commits, and return per-cluster summaries the caller synthesizes into memories. |
+| `onboard_git` | Clone a remote git repo shallow into a server-side tmpdir, cluster commits, and return per-cluster summaries the caller synthesizes into memories. `max_commits_per_cluster` (default 10) bounds each cluster's listing; `include_commit_detail` adds bodies, file lists and diffstats and can grow the response ~10x. |
 
 ## System
 
