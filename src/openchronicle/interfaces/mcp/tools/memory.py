@@ -45,14 +45,19 @@ def register(mcp: FastMCP) -> None:
         project_id: str | None = None,
         tags: list[str] | None = None,
         offset: int = 0,
+        compact: bool = False,
     ) -> list[dict[str, Any]]:
         """Find memory items relevant to a query (hybrid semantic + keyword).
 
         Use this to look up prior decisions, rejected approaches, or context
         from earlier sessions before re-deriving from scratch. Pair `query`
         with `tags` to narrow by topic. Prefer this over `memory_list` when
-        you have keywords; use `memory_list` for unfiltered pagination and
+        you have keywords; use `memory_list` to enumerate a project and
         `context_recent` for project-scoped session catch-up.
+
+        Scoping note: `project_id` here also surfaces cross-project pinned
+        items, because a standing rule that belongs to no single project
+        still applies while working inside one. `memory_list` is strict.
 
         Args:
             query: Keywords or a natural-language question.
@@ -60,6 +65,7 @@ def register(mcp: FastMCP) -> None:
             project_id: Restrict to a specific project (optional, recommended).
             tags: Require ALL listed tags on each result (AND logic).
             offset: Skip the first N results for pagination.
+            compact: Return a content preview instead of full content.
         """
         if not query or not query.strip():
             raise DomainValidationError("query must be non-empty")
@@ -77,7 +83,7 @@ def register(mcp: FastMCP) -> None:
                 offset=offset,
                 embedding_service=container.embedding_service,
             )
-            return [memory_to_dict(m) for m in results]
+            return [memory_to_dict(m, compact=compact) for m in results]
 
         return await asyncio.to_thread(_run)
 
@@ -140,18 +146,38 @@ def register(mcp: FastMCP) -> None:
         limit: int | None = None,
         pinned_only: bool = False,
         offset: int = 0,
+        project_id: str | None = None,
+        compact: bool = False,
     ) -> list[dict[str, Any]]:
-        """Browse memory items in reverse-chronological order.
+        """Browse memory items newest-first, with pinned items floated to the top.
 
-        Use this for unfiltered pagination through stored memories — for
-        example, "what did I save recently?" Prefer `memory_search` when
-        you have keywords. Set `pinned_only=true` to enumerate standing
-        rules.
+        Use this for pagination through stored memories — for example,
+        "what did I save recently?" or "what is in this project?" Prefer
+        `memory_search` when you have keywords. Set `pinned_only=true` to
+        enumerate standing rules.
+
+        Ordering note: pinned items sort ahead of everything else, so a
+        small `limit` can return only pinned rows. Ordering is also by
+        `created_at`, which `memory_save` lets callers backdate — items
+        imported from git history will not appear in a "recent" window.
+        Use `project_id` rather than a limit when you want completeness.
+
+        `project_id` is a strict filter: only items belonging to that
+        project, never global ones. That differs from `memory_search`,
+        where cross-project pinned items surface deliberately because a
+        standing rule still applies inside a project.
+
+        Set `compact=true` when browsing rather than reading. It swaps
+        `content` for `content_preview` + `content_length`, which is the
+        difference between a listing that fits in context and one that
+        does not.
 
         Args:
             limit: Max items to return (1-10,000; None = no limit).
             pinned_only: Only return pinned items.
             offset: Skip the first N items for pagination.
+            project_id: Restrict to a specific project (strict; excludes global items).
+            compact: Return a content preview instead of full content.
         """
         if limit is not None:
             limit = min(max(limit, 1), 10_000)
@@ -164,8 +190,9 @@ def register(mcp: FastMCP) -> None:
                 limit=limit,
                 pinned_only=pinned_only,
                 offset=offset,
+                project_id=project_id,
             )
-            return [memory_to_dict(m) for m in results]
+            return [memory_to_dict(m, compact=compact) for m in results]
 
         return await asyncio.to_thread(_run)
 

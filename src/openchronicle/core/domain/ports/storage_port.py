@@ -23,7 +23,15 @@ class StoragePort(ABC):
     def add_project(self, project: Project) -> None: ...
 
     @abstractmethod
-    def list_projects(self) -> list[Project]: ...
+    def list_projects(self, name_contains: str | None = None) -> list[Project]:
+        """List projects, newest first.
+
+        `name_contains` is a case-insensitive substring match. The value is
+        matched literally — LIKE metacharacters inside it are escaped, so a
+        project actually named "100%" matches only itself rather than
+        everything.
+        """
+        ...
 
     @abstractmethod
     def get_project(self, project_id: str) -> Project | None: ...

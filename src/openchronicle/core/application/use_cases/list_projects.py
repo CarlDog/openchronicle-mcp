@@ -4,5 +4,5 @@ from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.storage_port import StoragePort
 
 
-def execute(store: StoragePort) -> list[Project]:
-    return store.list_projects()
+def execute(store: StoragePort, name_contains: str | None = None) -> list[Project]:
+    return store.list_projects(name_contains=name_contains)

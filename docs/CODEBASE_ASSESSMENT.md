@@ -32,6 +32,18 @@ paths. Landed so far:
   "Before the v3.0.0 tag" section recording that pre-tag surface changes
   are design rather than breakage, so this doesn't get relitigated on the
   next one. 439 → 448 tests.
+- **C3 — filtering and projection on the read surface.** `project_list`
+  gains `name_contains` (literal substring; LIKE metacharacters in the
+  caller's value are escaped, so `100%` doesn't match everything), and
+  `memory_list` / `memory_search` / `context_recent` / `project_list` all
+  gain an opt-in `compact`. Compact replaces the expensive field instead
+  of shortening it — `content` → `content_preview` + `content_length`,
+  `metadata` → `metadata_keys` + `metadata_size` — so nothing can read a
+  truncated value out of a familiar key. Preview length is a module
+  constant rather than a parameter, which is what keeps MCP and REST from
+  growing two clamping conventions the way `limit`/`top_k` did.
+  `context_recent` now shares `memory_to_dict`, retiring the third
+  hand-rolled memory shape. 448 → 471 tests.
 
 **Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
 2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory

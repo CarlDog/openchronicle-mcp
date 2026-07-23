@@ -61,6 +61,12 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   `deleted: false` + `next_step`. CLI unchanged (its failure was never
   silent). STABILITY.md gained a "Before the v3.0.0 tag" section so
   pre-tag surface changes stop being relitigated. 439 → 448 tests.
+- **C3 — read-surface filtering + projection** — `project_list` gains
+  `name_contains` (LIKE metacharacters escaped); `memory_list`,
+  `memory_search`, `context_recent`, `project_list` gain opt-in
+  `compact`, which *replaces* content/metadata with a preview + length
+  rather than truncating in place. `context_recent` folded onto
+  `memory_to_dict`. 448 → 471 tests.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the

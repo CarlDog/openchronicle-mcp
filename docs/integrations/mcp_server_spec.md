@@ -13,8 +13,8 @@ stability guarantees see `docs/api/STABILITY.md`.
 | Tool | Purpose |
 |---|---|
 | `memory_save` | Persist a memory item that should outlive the current session. `project_id` required. |
-| `memory_search` | Hybrid FTS5 + semantic search via RRF, scoped optionally by `project_id` and `tags`. |
-| `memory_list` | Browse memory items in reverse-chronological order (unfiltered pagination). |
+| `memory_search` | Hybrid FTS5 + semantic search via RRF, scoped optionally by `project_id` and `tags`. `compact` returns a content preview. |
+| `memory_list` | Browse memory items newest-first (pinned float to the top). `project_id` filters strictly; `compact` returns a content preview. |
 | `memory_get` | Fetch one memory by ID. |
 | `memory_update` | Edit content/tags in place; preserves identity. |
 | `memory_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`). `confirm` is **required** — omitting it is an error, not a preview. Two-step safety; the preview returns content/tags/project_id/pinned plus `deleted: false` and a `next_step`, without touching the DB. |
@@ -41,7 +41,7 @@ LLM need to write a memory" shape:
 |---|---|
 | `project_create` | Create a new project namespace. |
 | `project_get` | Fetch one project by ID. |
-| `project_list` | List every project. |
+| `project_list` | List projects, newest first. `name_contains` is a literal case-insensitive substring filter; `compact` returns metadata keys + size instead of the blob. |
 | `project_update` | Rename or update metadata. At least one of `name` / `metadata` must be set; omitted fields are left untouched (pass `metadata: {}` to clear). |
 | `project_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`) a project and all its memories. `confirm` is **required**. The preview returns `name` + `memory_count` plus `deleted: false` and a `next_step`. No soft-delete; backups are the recovery path. |
 
@@ -49,7 +49,7 @@ LLM need to write a memory" shape:
 
 | Tool | Purpose |
 |---|---|
-| `context_recent` | Catch-up on prior context for a project. Returns recent memory items, optionally filtered by a `query` keyword. Use at session start (especially post-compression). |
+| `context_recent` | Catch-up on prior context for a project. Returns recent memory items, optionally filtered by a `query` keyword. Use at session start (especially post-compression). `compact` returns a content preview. |
 
 ## Onboarding
 
@@ -70,7 +70,7 @@ not "what does this do?" — the LLM's tool selection improves
 dramatically when descriptions discriminate the choice. Concretely:
 
 - `memory_search` vs `memory_list`: search when you have keywords;
-  list for unfiltered pagination.
+  list when you want to enumerate a project or page through everything.
 - `memory_search` vs `context_recent`: search for specific keywords;
   context_recent for "what was I working on last?"
 - `memory_save` vs `memory_update`: save creates a new ID + timestamp;
@@ -90,6 +90,38 @@ dramatically when descriptions discriminate the choice. Concretely:
   one means a caller that never asked for it sees what looks like a
   completed delete; that is a real bug this server shipped once, in a
   downstream client whose wrapper ignored the response body.
+
+## Project scoping
+
+Two rules are in play, and they answer different questions. They are not
+meant to agree.
+
+- **Strict** (`project_id = ?`) — enumeration and accounting. "What is in
+  project X?", "how many?", "delete them all." A row from outside X,
+  including a global one with no project, is a wrong answer.
+  `memory_list`, `memory_stats`, and the `project_delete` cascade.
+- **With global** (`project_id = ? OR project_id IS NULL`) — relevance
+  retrieval. "What should I know while working in X?" A standing rule
+  that belongs to no single project still applies inside one, so pinned
+  global items surface. `memory_search` and `context_recent`.
+
+The visible consequence: `memory_list(project_id=X, pinned_only=true)`
+returns a different set than the pinned items `memory_search` surfaces
+for X. That is intended. If you need "every standing rule that applies
+here", search; if you need "everything filed under here", list.
+
+## Projection
+
+`memory_list`, `memory_search`, `context_recent`, and `project_list` all
+take `compact: bool = false`. Set it when browsing rather than reading.
+
+Compact **replaces** the expensive field rather than shortening it:
+`content` becomes `content_preview` (120 chars) + `content_length`, and
+`metadata` becomes `metadata_keys` + `metadata_size`. The rename is the
+point — a caller reading `content` never silently receives a truncated
+string, and the length tells you whether a `memory_get` is worth it.
+
+`memory_get` has no `compact`; returning the whole item is its purpose.
 
 ## Cut from v2
 

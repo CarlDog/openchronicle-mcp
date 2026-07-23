@@ -31,8 +31,13 @@ oc memory add "Decision: use SQLite for storage" \
 
 ### `oc memory list`
 
-Browse memory items in reverse-chronological order. `--limit`,
-`--offset`, `--pinned-only` for filtering.
+Browse memory items newest-first, with pinned items floated to the top.
+`--limit`, `--offset`, `--pinned-only`, and `--project-id` for filtering.
+
+`--project-id` is strict: it excludes global (project-less) items. Note
+that ordering is by `created_at`, which `oc memory add` and the git
+onboarder can backdate, so a small `--limit` is not a reliable way to see
+"everything recent in this project" — pass `--project-id` and no limit.
 
 ### `oc memory show MEMORY_ID`
 
@@ -85,7 +90,9 @@ Create a project; prints the new id (UUID).
 
 ### `oc list-projects`
 
-Tab-separated `id\tname` per line.
+Tab-separated `id\tname` per line, newest first. `--name-contains` is a
+case-insensitive substring filter, matched literally — a project named
+`100%` matches only itself.
 
 ### `oc show-project PROJECT_ID`
 

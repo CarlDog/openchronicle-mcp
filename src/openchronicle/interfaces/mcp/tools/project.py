@@ -82,16 +82,36 @@ def register(mcp: FastMCP) -> None:
     @mcp.tool()
     async def project_list(
         ctx: Context,
+        name_contains: str | None = None,
+        compact: bool = False,
     ) -> list[dict[str, Any]]:
-        """List every project, with id, name, and creation timestamp.
+        """List projects, newest first, with id, name, and creation timestamp.
 
         Use to find the right `project_id` for `memory_save`. If only one
         project should exist for your use case but `project_list` returns
         several, consolidate before saving — projects are not auto-merged.
+
+        `name_contains` is a case-insensitive substring match, matched
+        literally (a project named "100%" matches only itself). Reach for
+        it before pulling the whole list; a project's `metadata` can be
+        several KB, so an unfiltered listing is expensive when all you
+        wanted was one id.
+
+        `compact=true` swaps `metadata` for `metadata_keys` +
+        `metadata_size`, which is usually enough to decide whether the
+        full blob is worth a `project_get`.
+
+        Args:
+            name_contains: Case-insensitive substring filter on the project name.
+            compact: Return metadata keys and size instead of the full metadata.
         """
         container = _get_container(ctx)
-        projects = await asyncio.to_thread(list_projects.execute, store=container.storage)
-        return [project_to_dict(p) for p in projects]
+        projects = await asyncio.to_thread(
+            list_projects.execute,
+            store=container.storage,
+            name_contains=name_contains,
+        )
+        return [project_to_dict(p, compact=compact) for p in projects]
 
     @mcp.tool()
     async def project_update(

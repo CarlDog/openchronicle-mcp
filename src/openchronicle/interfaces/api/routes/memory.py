@@ -35,10 +35,12 @@ def memory_search(
     project_id: str | None = None,
     tags: str | None = None,
     offset: int = Query(default=0, ge=0),
+    compact: bool = False,
 ) -> list[dict[str, Any]]:
     """Search memory items by keyword.
 
     Tags parameter accepts comma-separated tag names for AND filtering.
+    `compact` swaps content for a preview plus its length.
     """
     tag_list = parse_csv_tags(tags)
     results = search_memory.execute(
@@ -50,7 +52,7 @@ def memory_search(
         offset=offset,
         embedding_service=container.embedding_service,
     )
-    return [memory_to_dict(m) for m in results]
+    return [memory_to_dict(m, compact=compact) for m in results]
 
 
 @router.get("/stats")
@@ -118,15 +120,22 @@ def memory_list(
     limit: int | None = Query(default=None, ge=1, le=10_000),
     pinned_only: bool = False,
     offset: int = Query(default=0, ge=0),
+    project_id: str | None = None,
+    compact: bool = False,
 ) -> list[dict[str, Any]]:
-    """List memory items."""
+    """List memory items.
+
+    `project_id` is a strict filter — global (project-less) items are
+    excluded. `compact` swaps content for a preview plus its length.
+    """
     results = list_memory.execute(
         store=container.storage,
         limit=limit,
         pinned_only=pinned_only,
         offset=offset,
+        project_id=project_id,
     )
-    return [memory_to_dict(m) for m in results]
+    return [memory_to_dict(m, compact=compact) for m in results]
 
 
 @router.get("/{memory_id}")

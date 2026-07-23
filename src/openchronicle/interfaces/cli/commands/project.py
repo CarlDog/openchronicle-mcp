@@ -22,7 +22,7 @@ def cmd_init_project(args: argparse.Namespace, container: CoreContainer) -> int:
 
 
 def cmd_list_projects(args: argparse.Namespace, container: CoreContainer) -> int:
-    projects = list_projects.execute(container.storage)
+    projects = list_projects.execute(container.storage, name_contains=args.name_contains)
     for p in projects:
         print(f"{p.id}\t{p.name}")
     return 0

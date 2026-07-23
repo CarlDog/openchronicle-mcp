@@ -20,6 +20,7 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.serializers import content_preview
 
 
 def cmd_memory(args: argparse.Namespace, container: CoreContainer) -> int:
@@ -71,10 +72,11 @@ def cmd_memory_list(args: argparse.Namespace, container: CoreContainer) -> int:
         limit=args.limit,
         pinned_only=args.pinned_only,
         offset=args.offset,
+        project_id=args.project_id,
     )
     for item in items:
         tags_str = ",".join(item.tags)
-        snippet = item.content if len(item.content) <= 120 else item.content[:120] + "..."
+        snippet = content_preview(item.content)
         print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
     return 0
 
@@ -132,7 +134,7 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
             print()
         else:
             tags_str = ",".join(item.tags)
-            snippet = item.content if len(item.content) <= 120 else item.content[:120] + "..."
+            snippet = content_preview(item.content)
             print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
     return 0
 

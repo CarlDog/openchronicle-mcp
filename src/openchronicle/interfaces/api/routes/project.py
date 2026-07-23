@@ -57,10 +57,16 @@ def project_create(
 @router.get("")
 def project_list(
     container: ContainerDep,
+    name_contains: str | None = None,
+    compact: bool = False,
 ) -> list[dict[str, Any]]:
-    """List all projects."""
-    projects = list_projects.execute(store=container.storage)
-    return [project_to_dict(p) for p in projects]
+    """List projects, newest first.
+
+    `name_contains` is a case-insensitive substring match on the project
+    name, matched literally. `compact` swaps metadata for its keys and size.
+    """
+    projects = list_projects.execute(store=container.storage, name_contains=name_contains)
+    return [project_to_dict(p, compact=compact) for p in projects]
 
 
 @router.get("/{project_id}")

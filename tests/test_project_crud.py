@@ -181,3 +181,47 @@ class TestUpdateProject:
         project = create_project.execute(store=store, name="x")
         with pytest.raises(ValueError, match="at least one"):
             update_project.execute(store=store, project_id=project.id)
+
+
+# ── list_projects name filter ────────────────────────────────────
+
+
+class TestListProjectsNameFilter:
+    def test_substring_match_is_case_insensitive(self, store: SqliteStore) -> None:
+        create_project.execute(store=store, name="OpenChronicle")
+        create_project.execute(store=store, name="plex-mcp")
+        names = {p.name for p in store.list_projects(name_contains="chron")}
+        assert names == {"OpenChronicle"}
+
+    def test_no_filter_returns_everything(self, store: SqliteStore) -> None:
+        create_project.execute(store=store, name="a")
+        create_project.execute(store=store, name="b")
+        assert len(store.list_projects()) == 2
+
+    def test_no_match_returns_empty(self, store: SqliteStore) -> None:
+        create_project.execute(store=store, name="a")
+        assert store.list_projects(name_contains="zzz") == []
+
+    def test_percent_is_matched_literally(self, store: SqliteStore) -> None:
+        """A bare `%` in the filter must not act as a wildcard.
+
+        Without ESCAPE handling this returns every project, which is the
+        quiet kind of wrong: a caller filtering for "100%" would delete or
+        act on rows it never meant to touch.
+        """
+        create_project.execute(store=store, name="100% coverage")
+        create_project.execute(store=store, name="unrelated")
+        names = {p.name for p in store.list_projects(name_contains="100%")}
+        assert names == {"100% coverage"}
+
+    def test_underscore_is_matched_literally(self, store: SqliteStore) -> None:
+        create_project.execute(store=store, name="snake_case")
+        create_project.execute(store=store, name="snakeXcase")
+        names = {p.name for p in store.list_projects(name_contains="snake_")}
+        assert names == {"snake_case"}
+
+    def test_backslash_is_matched_literally(self, store: SqliteStore) -> None:
+        create_project.execute(store=store, name=r"back\slash")
+        create_project.execute(store=store, name="backslash")
+        names = {p.name for p in store.list_projects(name_contains="\\")}
+        assert names == {r"back\slash"}

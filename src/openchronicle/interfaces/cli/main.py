@@ -27,7 +27,12 @@ def main(argv: list[str] | None = None) -> int:
     init_project_cmd = sub.add_parser("init-project", help="Create a project")
     init_project_cmd.add_argument("name")
 
-    sub.add_parser("list-projects", help="List projects")
+    list_projects_cmd = sub.add_parser("list-projects", help="List projects")
+    list_projects_cmd.add_argument(
+        "--name-contains",
+        default=None,
+        help="Case-insensitive substring filter on the project name",
+    )
 
     show_project_cmd = sub.add_parser("show-project", help="Show project details")
     show_project_cmd.add_argument("project_id")
@@ -73,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_list_cmd.add_argument("--limit", type=int, default=None, help="Limit number of memories shown")
     memory_list_cmd.add_argument("--pinned-only", action="store_true", help="Show only pinned items")
     memory_list_cmd.add_argument("--offset", type=int, default=0, help="Skip first N items")
+    memory_list_cmd.add_argument(
+        "--project-id",
+        default=None,
+        help="Only items in this project (strict; excludes global items)",
+    )
 
     memory_show_cmd = memory_sub.add_parser("show", help="Show memory item")
     memory_show_cmd.add_argument("memory_id")

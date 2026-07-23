@@ -31,6 +31,21 @@ from openchronicle.core.infrastructure.persistence.row_mappers import (
     row_to_project,
 )
 
+_LIKE_ESCAPE = "\\"
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE metacharacters so a caller's string matches literally.
+
+    Without this a project named "100%" would match every row, and "_"
+    would match any single character. The escape character is substituted
+    first so it doesn't double-escape the ones added after it.
+    """
+    for ch in (_LIKE_ESCAPE, "%", "_"):
+        value = value.replace(ch, _LIKE_ESCAPE + ch)
+    return value
+
+
 _MEMORY_FTS_TABLE = """
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
     content, tags,
@@ -186,9 +201,15 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._commit_if_needed()
 
     @_locked
-    def list_projects(self) -> list[Project]:
+    def list_projects(self, name_contains: str | None = None) -> list[Project]:
         cur = self._conn.cursor()
-        rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+        if name_contains is not None:
+            rows = cur.execute(
+                "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC",
+                (f"%{_escape_like(name_contains)}%", _LIKE_ESCAPE),
+            ).fetchall()
+        else:
+            rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
         return [row_to_project(r) for r in rows]
 
     @_locked

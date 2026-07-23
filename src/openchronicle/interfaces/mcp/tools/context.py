@@ -13,6 +13,7 @@ from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.use_cases import search_memory
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.serializers import memory_to_dict
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -28,6 +29,7 @@ def register(mcp: FastMCP) -> None:
         query: str | None = None,
         project_id: str | None = None,
         memory_limit: int = 5,
+        compact: bool = False,
     ) -> dict[str, Any]:
         """Catch up on prior context for a project: returns recent memory items.
 
@@ -39,6 +41,7 @@ def register(mcp: FastMCP) -> None:
             query: Keywords to filter memories (optional; omitted = recent overall).
             project_id: Project to scope to (optional).
             memory_limit: Max memory items to return (default 5).
+            compact: Return a content preview instead of full content.
         """
         memory_limit = min(max(memory_limit, 1), 1000)
         container = _get_container(ctx)
@@ -51,16 +54,4 @@ def register(mcp: FastMCP) -> None:
             project_id=project_id,
             embedding_service=container.embedding_service,
         )
-        return {
-            "memories": [
-                {
-                    "id": m.id,
-                    "content": m.content,
-                    "tags": m.tags,
-                    "pinned": m.pinned,
-                    "project_id": m.project_id,
-                    "created_at": m.created_at.isoformat(),
-                }
-                for m in memories
-            ],
-        }
+        return {"memories": [memory_to_dict(m, compact=compact) for m in memories]}

@@ -140,6 +140,36 @@ class TestProjectList:
         assert result[0]["id"] == "proj-1"
         assert result[1]["id"] == "proj-2"
 
+    def test_name_contains_reaches_the_use_case(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+        with patch("openchronicle.interfaces.mcp.tools.project.list_projects") as mock_uc:
+            mock_uc.execute.return_value = []
+            from openchronicle.interfaces.mcp.tools.project import register
+
+            mcp_server = MagicMock()
+            registered: dict[str, Any] = {}
+            mcp_server.tool.return_value = lambda fn: registered.update({fn.__name__: fn}) or fn
+            register(mcp_server)
+            asyncio.run(registered["project_list"](ctx=ctx, name_contains="chron"))
+        assert mock_uc.execute.call_args.kwargs["name_contains"] == "chron"
+
+    def test_compact_swaps_metadata_for_keys_and_size(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+        with patch("openchronicle.interfaces.mcp.tools.project.list_projects") as mock_uc:
+            mock_uc.execute.return_value = [_sample_project()]
+            from openchronicle.interfaces.mcp.tools.project import register
+
+            mcp_server = MagicMock()
+            registered: dict[str, Any] = {}
+            mcp_server.tool.return_value = lambda fn: registered.update({fn.__name__: fn}) or fn
+            register(mcp_server)
+            result = asyncio.run(registered["project_list"](ctx=ctx, compact=True))
+        assert "metadata" not in result[0]
+        assert result[0]["metadata_keys"] == ["type"]
+        assert result[0]["metadata_size"] > 0
+
 
 # ── Memory tools ──────────────────────────────────────────────────
 
@@ -232,6 +262,48 @@ class TestMemoryList:
             result = asyncio.run(tool_fn(ctx=ctx))
 
         assert len(result) == 2
+
+    def test_project_id_reaches_the_use_case(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.memory import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.memory.list_memory.execute",
+            return_value=[],
+        ) as mock_execute:
+            tool_fn = mcp._tool_manager._tools["memory_list"].fn
+            asyncio.run(tool_fn(ctx=ctx, project_id="proj-1"))
+
+        assert mock_execute.call_args.kwargs["project_id"] == "proj-1"
+
+    def test_compact_swaps_content_for_a_preview(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.memory import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.memory.list_memory.execute",
+            return_value=[_sample_memory()],
+        ):
+            tool_fn = mcp._tool_manager._tools["memory_list"].fn
+            result = asyncio.run(tool_fn(ctx=ctx, compact=True))
+
+        assert "content" not in result[0]
+        assert "content_preview" in result[0]
+        assert "content_length" in result[0]
 
 
 class TestMemoryPin:
