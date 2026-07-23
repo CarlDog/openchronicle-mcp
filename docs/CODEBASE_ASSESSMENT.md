@@ -1,8 +1,23 @@
 # OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-06
+**Date:** 2026-05-06 (rev 65 addendum 2026-07-02)
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
+2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory
+"Repo improvement review — punch list (2026-07-01)" — produced a
+39-item punch list, of which the Tier-1/Tier-2 batch shipped this
+session: (#1) serialized the shared SQLite connection behind a
+threading.RLock so the request threadpool and maintenance workers can
+no longer collide on BEGIN IMMEDIATE / VACUUM; (#2) made all 17 MCP
+tools `async` with `asyncio.to_thread` so a blocking embed/clone no
+longer stalls the event loop; (#3/#4) fixed git-onboard multi-line
+body truncation and added a clone-URL transport allowlist; plus the
+first tests for git_onboard.py and the db_integrity_check failure
+branch. Test count 394 → 421. Remaining punch-list tiers (docs SSOT
+rewrite, API-consistency polish, CI/CD + Docker hardening, Phase 9
+decommission + v3.0.0 final tag) are still open.)
+
 **Revision:** 64 (v3.0.0-rc3 live on NAS as of 2026-05-06 19:26 UTC;
 turbulent cutover documented in
 [cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md);

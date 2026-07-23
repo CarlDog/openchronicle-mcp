@@ -38,9 +38,42 @@
 
 ## Current Sprint
 
+**2026-07-02 hardening batch (fresh-eyes review follow-up).** A
+multi-agent review produced a 39-item punch list (captured in the
+plan file + the OC backlog memory "Repo improvement review —
+punch list (2026-07-01)"; local mirror at
+`~/.claude/projects/.../memory/project_review_backlog_2026-07.md`
+since the NAS OC server is LAN-only). Tier-1 + Tier-2 shipped this
+session in five commits on `main`:
+
+- **SQLite connection thread-safety** — one shared `sqlite3.Connection`
+  was used from Starlette's sync-handler threadpool and maintenance
+  `to_thread` workers with an unguarded `_transaction_depth`. Added a
+  `threading.RLock` + `@_locked` decorator serializing every connection
+  method; `transaction()` holds the lock for its whole scope; new locked
+  `vacuum()`/`integrity_check()`/`backup_to()` replace the maintenance
+  jobs' and CLI's direct `_conn` pokes.
+- **MCP tools no longer block the event loop** — all 17 tools are now
+  `async def` and offload store/embedding/git work via
+  `asyncio.to_thread` (FastMCP runs sync tools inline on the loop).
+- **git-onboard** — fixed multi-line commit-body truncation (BODYEND
+  sentinel) and added a clone-URL transport allowlist + `--` guard +
+  credential redaction in errors.
+- **Tests** — new `test_sqlite_store_concurrency.py`,
+  `test_git_onboard.py` (incl. token host-scoping), and the
+  `db_integrity_check` failure branch. 394 → 421 tests.
+
+Still open on the punch list: docs SSOT rewrite (this file's status doc
+is still frozen v2 content), API-consistency polish, CI/CD + Docker
+hardening, Phase 9 decommission + `v3.0.0` final tag. NAS still runs
+rc4 — these `src/` changes need a redeploy (rc5/tag + `OC_TAG` bump)
+once both CI workflows go green; deferred until the operator is on the
+home LAN.
+
 **Status:** v3 live on NAS 2026-05-06; current image
-`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc3` on stack 151 (rc1 →
-rc2 → rc3 within the cutover day, see
+`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc4` on stack 151 (rc1 →
+rc2 → rc3 within the cutover day, rc4 on 2026-05-11 with the
+rate-limit + project-CRUD batch; see
 [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
 for the full account). rc3 added the senior-dev review batch (265x
 semantic-search speedup via numpy, API consistency cleanups, real
