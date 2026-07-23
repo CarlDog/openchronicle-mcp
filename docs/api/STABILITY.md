@@ -28,6 +28,22 @@ version via the `health` tool's `package_version` field.
 | MINOR | Additive features. New tools, new fields on existing responses, new optional parameters, new env vars with safe defaults. |
 | PATCH | Bug fixes, performance improvements, doc-only changes, internal refactors with no observable surface change. |
 
+## Before the v3.0.0 tag
+
+This promise is adopted **at** the `v3.0.0` tag, and that tag has not
+shipped yet — it's a Phase 9 deliverable (see `docs/V3_PLAN.md`). Until
+it does, the surface described here is still being designed. A change to
+it is a design decision, not a break of this policy.
+
+Concretely: tightening a parameter from optional to required, or
+reshaping a response object, is a MAJOR-bump event *after* the tag and
+simply "the v3.0.0 surface as designed" before it. The version stays
+`3.0.0.dev0` throughout — do not bump it to record a pre-tag change, and
+do not read one as a violation of the table above.
+
+Once `v3.0.0` is tagged, delete this section. Everything below binds from
+that point forward.
+
 ## Allowed-without-major-bump
 
 - Adding new fields to response objects (consumers must tolerate

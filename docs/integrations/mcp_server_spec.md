@@ -17,7 +17,7 @@ stability guarantees see `docs/api/STABILITY.md`.
 | `memory_list` | Browse memory items in reverse-chronological order (unfiltered pagination). |
 | `memory_get` | Fetch one memory by ID. |
 | `memory_update` | Edit content/tags in place; preserves identity. |
-| `memory_delete` | Preview (`confirm=false`, default) or hard-delete (`confirm=true`). Two-step safety; the preview returns content/tags/project_id/pinned without touching the DB. |
+| `memory_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`). `confirm` is **required** — omitting it is an error, not a preview. Two-step safety; the preview returns content/tags/project_id/pinned plus `deleted: false` and a `next_step`, without touching the DB. |
 | `memory_pin` | Toggle pin state. |
 | `memory_stats` | Counts + per-tag/per-source breakdown. |
 | `memory_embed` | Generate missing (or all, with `force=true`) embeddings. |
@@ -43,7 +43,7 @@ LLM need to write a memory" shape:
 | `project_get` | Fetch one project by ID. |
 | `project_list` | List every project. |
 | `project_update` | Rename or update metadata. At least one of `name` / `metadata` must be set; omitted fields are left untouched (pass `metadata: {}` to clear). |
-| `project_delete` | Preview (`confirm=false`, default) or hard-delete (`confirm=true`) a project and all its memories. The preview returns `memory_count`. No soft-delete; backups are the recovery path. |
+| `project_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`) a project and all its memories. `confirm` is **required**. The preview returns `name` + `memory_count` plus `deleted: false` and a `next_step`. No soft-delete; backups are the recovery path. |
 
 ## Context
 
@@ -80,11 +80,16 @@ dramatically when descriptions discriminate the choice. Concretely:
   original `created_at`.
 - `memory_pin`: changes pin state only; doesn't touch content/tags
   (use `memory_update` for those).
-- `memory_delete` and `project_delete` are **two-step**: the first call
-  (default `confirm=false`) returns a preview so the LLM can see the
-  blast radius and decide whether to re-call with `confirm=true`. Don't
-  treat the preview response as a delete confirmation — it's diagnostic
-  data.
+- `memory_delete` and `project_delete` are **two-step**: calling with
+  `confirm=false` returns a preview so the LLM can see the blast radius
+  and decide whether to re-call with `confirm=true`. Don't treat the
+  preview response as a delete confirmation — it's diagnostic data, and
+  it says so via `deleted: false` and `next_step`.
+- `confirm` on both delete tools has **no default**. Omitting it raises
+  rather than previewing. A preview is success-shaped, so defaulting to
+  one means a caller that never asked for it sees what looks like a
+  completed delete; that is a real bug this server shipped once, in a
+  downstream client whose wrapper ignored the response body.
 
 ## Cut from v2
 

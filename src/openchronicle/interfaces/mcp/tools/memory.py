@@ -255,21 +255,27 @@ def register(mcp: FastMCP) -> None:
     async def memory_delete(
         memory_id: str,
         ctx: Context,
-        confirm: bool = False,
+        confirm: bool,
     ) -> dict[str, Any]:
         """Preview or hard-delete a memory item.
 
-        Two-step safety pattern (matches `project_delete`). Call once with
-        `confirm=false` (default) to see the memory you're about to drop —
-        the response has `status: "preview"` plus content, tags, project_id
-        and pinned state. Call again with `confirm=true` to actually
-        delete; the response is `status: "ok"`. There is no soft-delete
-        and no recovery path beyond `oc db backup` — use `memory_update`
-        if you want to revise rather than remove.
+        Two-step safety pattern (matches `project_delete`). Call with
+        `confirm=false` to see the memory you're about to drop — the
+        response has `status: "preview"`, `deleted: false`, a `next_step`
+        telling you what to do, plus content, tags, project_id and pinned
+        state. Call with `confirm=true` to actually delete; the response is
+        `status: "ok"` with `deleted: true`. There is no soft-delete and no
+        recovery path beyond `oc db backup` — use `memory_update` if you
+        want to revise rather than remove.
+
+        `confirm` has no default: omitting it is an error, not a preview
+        request. A preview looks like success to code that doesn't read the
+        payload, so silently returning one to a caller who never asked
+        would hide a failed delete.
 
         Args:
             memory_id: The memory's ID.
-            confirm: Must be true to perform the delete (default false).
+            confirm: Required. True deletes; false returns a preview.
         """
         container = _get_container(ctx)
         return await asyncio.to_thread(

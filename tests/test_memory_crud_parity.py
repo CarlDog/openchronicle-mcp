@@ -137,14 +137,28 @@ class TestMCPMemoryDelete:
         register(mcp)
         return container, ctx, mcp._tool_manager._tools["memory_delete"].fn
 
-    def test_default_returns_preview(self) -> None:
+    def test_omitting_confirm_is_an_error_not_a_preview(self) -> None:
+        """A client that predates `confirm` must fail loudly.
+
+        This is the regression guard for the mnemosyne-mcp bug: when
+        omitting `confirm` returned a preview, a void-returning wrapper
+        reported success while the memory stayed put.
+        """
+        _container, ctx, tool_fn = self._build_tool()
+
+        with pytest.raises(TypeError, match="confirm"):
+            asyncio.run(tool_fn(memory_id="mem-1", ctx=ctx))
+
+    def test_explicit_false_returns_self_announcing_preview(self) -> None:
         container, ctx, tool_fn = self._build_tool()
         container.storage.get_memory.return_value = _sample_memory()
 
-        result = asyncio.run(tool_fn(memory_id="mem-1", ctx=ctx))
+        result = asyncio.run(tool_fn(memory_id="mem-1", ctx=ctx, confirm=False))
 
         assert result["status"] == "preview"
         assert result["memory_id"] == "mem-1"
+        assert result["deleted"] is False
+        assert result["next_step"]
         container.storage.delete_memory.assert_not_called()
 
     def test_confirm_true_deletes(self) -> None:
@@ -154,6 +168,7 @@ class TestMCPMemoryDelete:
 
         assert result["status"] == "ok"
         assert result["memory_id"] == "mem-1"
+        assert result["deleted"] is True
         container.storage.delete_memory.assert_called_once_with("mem-1")
 
 

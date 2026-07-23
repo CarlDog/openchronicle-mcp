@@ -145,13 +145,17 @@ def memory_get(
 def memory_delete(
     memory_id: Annotated[str, Path(min_length=1, max_length=200)],
     container: ContainerDep,
-    confirm: Annotated[bool, Query(description="Set true to actually delete; default returns a preview.")] = False,
+    confirm: Annotated[bool, Query(description="Required. True deletes; false returns a preview.")],
 ) -> dict[str, Any]:
     """Preview (confirm=false) or hard-delete (confirm=true) a memory.
 
     The preview returns content, tags, project_id, and pinned state
-    without touching the DB. There is no soft-delete and no recovery
-    path beyond `oc db backup`.
+    without touching the DB, alongside `deleted: false` and a `next_step`.
+    There is no soft-delete and no recovery path beyond `oc db backup`.
+
+    `confirm` is required — omitting it is a 422, not a preview. A
+    success-shaped preview handed to a caller who never asked for one
+    reads as a completed delete.
     """
     return delete_memory.execute(
         store=container.storage,

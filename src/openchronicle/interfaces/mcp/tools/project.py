@@ -126,21 +126,26 @@ def register(mcp: FastMCP) -> None:
     async def project_delete(
         project_id: str,
         ctx: Context,
-        confirm: bool = False,
+        confirm: bool,
     ) -> dict[str, Any]:
         """Preview or hard-delete a project and all its memories.
 
-        Two-step safety pattern. Call once with `confirm=false` (the
-        default) to see how many memories would be dropped — the response
-        contains `status: "preview"`, the project name, and `memory_count`.
-        Call again with `confirm=true` to actually delete; the response
-        then contains `status: "ok"` and `deleted_memories`. There is no
-        soft-delete and no recovery path beyond `oc db backup` — confirm
-        once you've checked the count.
+        Two-step safety pattern. Call with `confirm=false` to see how many
+        memories would be dropped — the response contains
+        `status: "preview"`, `deleted: false`, a `next_step`, the project
+        `name`, and `memory_count`. Check the name against the project you
+        meant before confirming; it is the guard against acting on a
+        mistyped UUID. Call with `confirm=true` to actually delete; the
+        response then contains `status: "ok"`, `deleted: true`, and
+        `deleted_memories`. There is no soft-delete and no recovery path
+        beyond `oc db backup`.
+
+        `confirm` has no default: omitting it is an error, not a preview
+        request. See `memory_delete` for why.
 
         Args:
             project_id: Project UUID to delete.
-            confirm: Must be true to perform the delete (default false).
+            confirm: Required. True deletes; false returns a preview.
         """
         container = _get_container(ctx)
         return await asyncio.to_thread(

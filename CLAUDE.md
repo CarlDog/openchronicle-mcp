@@ -55,6 +55,12 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   dead `Page` protocol removed; the store's two scoping rules named and
   contrasted in the `MemoryStorePort` docstring with a test pinning the
   `list_memory` vs `pinned_items` divergence. 433 → 439 tests.
+- **C2 — required `confirm` on delete** — omitting `confirm` on
+  `memory_delete` / `project_delete` now raises (MCP) or 422s (REST)
+  instead of returning a success-shaped preview; previews carry
+  `deleted: false` + `next_step`. CLI unchanged (its failure was never
+  silent). STABILITY.md gained a "Before the v3.0.0 tag" section so
+  pre-tag surface changes stop being relitigated. 439 → 448 tests.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the

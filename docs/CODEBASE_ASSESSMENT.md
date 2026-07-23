@@ -20,6 +20,18 @@ paths. Landed so far:
   deliberate `list_memory` vs `pinned_items` divergence so neither
   drifts toward the other. Dead `Page` protocol dropped from
   `storage_port` (zero references repo-wide). 433 → 439 tests.
+- **C2 — required `confirm` on both delete surfaces.** `confirm` no
+  longer defaults to False on `memory_delete` / `project_delete`; a call
+  that omits it raises (MCP) or 422s (REST) instead of returning a
+  success-shaped preview that a client can mistake for a completed
+  delete. Previews gained `deleted: false` + `next_step`; confirms gained
+  `deleted: true`. The envelope invariant is enforced by a parametrized
+  test rather than a shared constructor — three lines of dict literal
+  don't justify a helper, and the test also catches a surface that skips
+  the convention entirely. `docs/api/STABILITY.md` gained a
+  "Before the v3.0.0 tag" section recording that pre-tag surface changes
+  are design rather than breakage, so this doesn't get relitigated on the
+  next one. 439 → 448 tests.
 
 **Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
 2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory

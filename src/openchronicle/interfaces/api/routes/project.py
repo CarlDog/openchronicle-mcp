@@ -102,14 +102,17 @@ def project_update_route(
 def project_delete(
     project_id: Annotated[str, Path(min_length=1, max_length=200)],
     container: ContainerDep,
-    confirm: Annotated[bool, Query(description="Set true to actually delete; default returns a preview.")] = False,
+    confirm: Annotated[bool, Query(description="Required. True deletes; false returns a preview.")],
 ) -> dict[str, Any]:
     """Preview (confirm=false) or hard-delete (confirm=true) a project.
 
     The preview returns the project name and memory count without
-    touching the DB. The delete cascades all memories (and embeddings)
-    in one transaction. There is no soft-delete and no recovery path
-    beyond `oc db backup`.
+    touching the DB, alongside `deleted: false` and a `next_step`. The
+    delete cascades all memories (and embeddings) in one transaction.
+    There is no soft-delete and no recovery path beyond `oc db backup`.
+
+    `confirm` is required — omitting it is a 422, not a preview. See the
+    memory delete route for why.
     """
     return delete_project.execute(
         store=container.storage,

@@ -356,17 +356,26 @@ class TestProjectRoutes:
         resp = client.put("/api/v1/project/nope", json={"name": "x"})
         assert resp.status_code == 404
 
-    def test_delete_project_preview_default(self, client: TestClient) -> None:
-        """Without `?confirm=true`, returns preview and never calls delete_project."""
+    def test_delete_project_without_confirm_returns_422(self, client: TestClient) -> None:
+        """Omitting `confirm` is a validation error, not a preview."""
+        storage = _get_container(client).storage
+
+        resp = client.delete("/api/v1/project/proj-1")
+        assert resp.status_code == 422
+        storage.delete_project.assert_not_called()
+
+    def test_delete_project_confirm_false_returns_preview(self, client: TestClient) -> None:
         storage = _get_container(client).storage
         storage.get_project.return_value = _make_project(name="proj")
         storage.count_memory.return_value = 7
 
-        resp = client.delete("/api/v1/project/proj-1")
+        resp = client.delete("/api/v1/project/proj-1?confirm=false")
         assert resp.status_code == 200
         data = resp.json()
         assert data == {
             "status": "preview",
+            "deleted": False,
+            "next_step": ("Nothing was deleted. Call again with confirm=true to delete this project and its memories."),
             "project_id": "proj-1",
             "name": "proj",
             "memory_count": 7,
@@ -383,6 +392,7 @@ class TestProjectRoutes:
         data = resp.json()
         assert data == {
             "status": "ok",
+            "deleted": True,
             "project_id": "proj-1",
             "name": "proj",
             "deleted_memories": 3,
@@ -449,16 +459,26 @@ class TestMemoryRoutes:
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
 
-    def test_memory_delete_preview_default(self, client: TestClient) -> None:
+    def test_memory_delete_without_confirm_returns_422(self, client: TestClient) -> None:
+        """Omitting `confirm` is a validation error, not a preview."""
+        storage = _get_container(client).storage
+
+        resp = client.delete("/api/v1/memory/mem-1")
+        assert resp.status_code == 422
+        storage.delete_memory.assert_not_called()
+
+    def test_memory_delete_confirm_false_returns_preview(self, client: TestClient) -> None:
         storage = _get_container(client).storage
         storage.get_memory.return_value = _make_memory()
 
-        resp = client.delete("/api/v1/memory/mem-1")
+        resp = client.delete("/api/v1/memory/mem-1?confirm=false")
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "preview"
         assert data["memory_id"] == "mem-1"
         assert data["content"] == "remember this"
+        assert data["deleted"] is False
+        assert data["next_step"]
         storage.delete_memory.assert_not_called()
 
     def test_memory_delete_confirm_calls_store(self, client: TestClient) -> None:
@@ -467,7 +487,7 @@ class TestMemoryRoutes:
         resp = client.delete("/api/v1/memory/mem-1?confirm=true")
         assert resp.status_code == 200
         data = resp.json()
-        assert data == {"status": "ok", "memory_id": "mem-1"}
+        assert data == {"status": "ok", "deleted": True, "memory_id": "mem-1"}
         storage.delete_memory.assert_called_once_with("mem-1")
 
 
@@ -511,7 +531,7 @@ class TestGlobalExceptionHandlers:
             "openchronicle.interfaces.api.routes.memory.delete_memory.execute",
             side_effect=NotFoundError("Memory not found: x", code="MEMORY_NOT_FOUND"),
         ):
-            resp = client.delete("/api/v1/memory/x")
+            resp = client.delete("/api/v1/memory/x?confirm=false")
         assert resp.status_code == 404
         body = resp.json()
         assert body["code"] == "MEMORY_NOT_FOUND"
