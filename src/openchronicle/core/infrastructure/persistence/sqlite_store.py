@@ -271,12 +271,24 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return row_to_memory_item(row) if row else None
 
     @_locked
-    def list_memory(self, limit: int | None = None, pinned_only: bool = False, offset: int = 0) -> list[MemoryItem]:
+    def list_memory(
+        self,
+        limit: int | None = None,
+        pinned_only: bool = False,
+        offset: int = 0,
+        project_id: str | None = None,
+    ) -> list[MemoryItem]:
         cur = self._conn.cursor()
-        sql = "SELECT * FROM memory_items"
-        params: list[int] = []
+        where_clauses: list[str] = []
+        params: list[Any] = []
         if pinned_only:
-            sql += " WHERE pinned=1"
+            where_clauses.append("pinned = 1")
+        if project_id is not None:
+            where_clauses.append("project_id = ?")
+            params.append(project_id)
+        sql = "SELECT * FROM memory_items"
+        if where_clauses:
+            sql += f" WHERE {' AND '.join(where_clauses)}"
         sql += " ORDER BY pinned DESC, created_at DESC, id DESC"
         if limit is not None:
             sql += " LIMIT ?"

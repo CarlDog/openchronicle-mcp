@@ -38,6 +38,24 @@
 
 ## Current Sprint
 
+**2026-07-23 read-surface + delete-safety batch (in flight).** Three
+`mcp-feedback` OC memories (`837e85cc`, `a2cdfe56`, `ff7933df`) recorded
+friction found by dogfooding OC through its own client sessions: an
+unfilterable `memory_list`, an 86 KB `onboard_git` response, a
+zero-argument `project_list`, no bulk project delete, and a
+`memory_delete` whose `confirm` default silently turned a downstream
+call into a no-op (it cost a real bug in mnemosyne-mcp). This batch
+works all five plus the adjacent defects on the same code paths.
+Ratified up front: `confirm` becomes a **required** parameter rather
+than keeping a preview default, projection is an opt-in `compact` bool,
+and the scope is widest (filed items + adjacent bugs + refactors).
+
+- **C1 — project-scoped `list_memory`** — `project_id` threads port →
+  SQL → use case (scope-strict); two in-Python project filters deleted;
+  dead `Page` protocol removed; the store's two scoping rules named and
+  contrasted in the `MemoryStorePort` docstring with a test pinning the
+  `list_memory` vs `pinned_items` divergence. 433 → 439 tests.
+
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the
 plan file + the OC backlog memory "Repo improvement review —

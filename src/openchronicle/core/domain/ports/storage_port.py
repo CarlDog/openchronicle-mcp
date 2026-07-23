@@ -2,14 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from contextlib import AbstractContextManager
-from typing import Any, Protocol
+from typing import Any
 
 from openchronicle.core.domain.models.project import Project
-
-
-class Page(Protocol):
-    items: list[Any]
-    total: int
 
 
 class StoragePort(ABC):

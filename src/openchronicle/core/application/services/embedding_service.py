@@ -93,9 +93,7 @@ class EmbeddingService:
         """
         import time
 
-        items = self._store.list_memory(limit=None, pinned_only=False)
-        if project_id:
-            items = [i for i in items if i.project_id == project_id]
+        items = self._store.list_memory(limit=None, pinned_only=False, project_id=project_id)
 
         candidates = []
         for item in items:

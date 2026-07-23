@@ -1,8 +1,26 @@
 # OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-06 (rev 65 addendum 2026-07-02)
+**Date:** 2026-05-06 (rev 66 addendum 2026-07-23)
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 66 (in flight — the v3.0.x read-surface + delete-safety
+batch, 2026-07-23). Three `mcp-feedback` OC memories recorded friction
+found by dogfooding OC through its own client sessions; this batch works
+all five filed items plus the adjacent defects sitting on the same code
+paths. Landed so far:
+
+- **C1 — project-scoped `list_memory`.** `project_id` now threads port →
+  SQL → use case, reusing the `idx_memory_project_created` index that
+  already existed. The filter is scope-strict, which let two in-Python
+  project filters (`embedding_service.generate_missing`,
+  `export_memory.execute`) collapse into a passed-through argument. The
+  store's two scoping rules — scope-strict for enumeration/accounting,
+  scope-with-global for relevance retrieval — are now named and
+  contrasted in the `MemoryStorePort` docstring, with a test pinning the
+  deliberate `list_memory` vs `pinned_items` divergence so neither
+  drifts toward the other. Dead `Page` protocol dropped from
+  `storage_port` (zero references repo-wide). 433 → 439 tests.
+
 **Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
 2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory
 "Repo improvement review — punch list (2026-07-01)" — produced a

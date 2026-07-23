@@ -100,6 +100,62 @@ class TestListMemoryOffset:
         assert result[0].id == all_items[2].id
 
 
+# ── list_memory project scoping ─────────────────────────────────
+
+
+class TestListMemoryProjectScope:
+    """`list_memory(project_id=...)` is scope-strict.
+
+    See the MemoryStorePort docstring: enumeration answers "what is in
+    project X?", so a row from outside X — including a global row with a
+    NULL project_id — is a wrong answer. `pinned_items` deliberately uses
+    the other rule; these tests pin the difference so neither drifts toward
+    the other.
+    """
+
+    def _seed_two_projects_and_a_global(self, store: SqliteStore) -> None:
+        store.add_project(Project(id="proj-2", name="Other", metadata={}))
+        _add_items(store, 3)  # proj-1
+        store.add_memory(MemoryItem(content="other", tags=[], pinned=False, project_id="proj-2", source="manual"))
+        store.add_memory(MemoryItem(content="global rule", tags=[], pinned=True, project_id=None, source="manual"))
+
+    def test_project_filter_is_strict_and_excludes_null_project(self, store: SqliteStore) -> None:
+        self._seed_two_projects_and_a_global(store)
+        results = store.list_memory(project_id="proj-1")
+        assert len(results) == 3
+        assert {r.project_id for r in results} == {"proj-1"}
+
+    def test_project_filter_disagrees_with_pinned_items_by_design(self, store: SqliteStore) -> None:
+        self._seed_two_projects_and_a_global(store)
+        strict = store.list_memory(project_id="proj-1", pinned_only=True)
+        with_global = store.pinned_items(project_id="proj-1")
+        assert strict == []
+        assert [i.content for i in with_global] == ["global rule"]
+
+    def test_project_filter_composes_with_pinned_only(self, store: SqliteStore) -> None:
+        _add_items(store, 2, pinned=True)
+        _add_items(store, 3)
+        store.add_project(Project(id="proj-2", name="Other", metadata={}))
+        store.add_memory(MemoryItem(content="other", tags=[], pinned=True, project_id="proj-2", source="manual"))
+        results = store.list_memory(project_id="proj-1", pinned_only=True)
+        assert len(results) == 2
+        assert all(r.pinned and r.project_id == "proj-1" for r in results)
+
+    def test_project_filter_composes_with_limit_and_offset(self, store: SqliteStore) -> None:
+        self._seed_two_projects_and_a_global(store)
+        scoped = store.list_memory(project_id="proj-1")
+        page = store.list_memory(project_id="proj-1", limit=2, offset=1)
+        assert [p.id for p in page] == [s.id for s in scoped[1:3]]
+
+    def test_no_project_id_returns_every_project(self, store: SqliteStore) -> None:
+        self._seed_two_projects_and_a_global(store)
+        assert len(store.list_memory()) == 5
+
+    def test_unknown_project_returns_empty(self, store: SqliteStore) -> None:
+        _add_items(store, 3)
+        assert store.list_memory(project_id="no-such-project") == []
+
+
 # ── search_memory offset ────────────────────────────────────────
 
 
