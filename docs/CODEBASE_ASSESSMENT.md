@@ -7,10 +7,12 @@ cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
 2026-07-23; 433 → 510 tests). Three `mcp-feedback` OC memories recorded
 friction found by dogfooding OC through its own client sessions; this
 batch worked all five filed items plus the adjacent defects sitting on
-the same code paths. Not deployed yet — the NAS still runs rc4, and these
-`src/` changes need a redeploy. **Restart MCP clients after it lands:**
-clients cache tool schemas, so a session holding the old `memory_delete`
-signature will get validation errors until it reconnects. Eight commits:
+the same code paths. Shipped as `v3.0.0-rc5` on 2026-07-24 and verified
+live: `/api/v1/health` returns the four new fields (which rc4 cannot
+produce) and `DELETE /api/v1/memory/{id}` without `confirm` returns 422.
+**Restart MCP clients** — they cache tool schemas, so a session holding
+the old `memory_delete` signature errors until it reconnects. Eight
+commits:
 
 - **C1 — project-scoped `list_memory`.** `project_id` now threads port →
   SQL → use case, reusing the `idx_memory_project_created` index that

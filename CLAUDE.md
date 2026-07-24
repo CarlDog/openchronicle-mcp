@@ -38,8 +38,8 @@
 
 ## Current Sprint
 
-**2026-07-23 read-surface + delete-safety batch (code complete, not yet
-deployed).** Three
+**2026-07-23 read-surface + delete-safety batch (shipped, live as
+`v3.0.0-rc5`).** Three
 `mcp-feedback` OC memories (`837e85cc`, `a2cdfe56`, `ff7933df`) recorded
 friction found by dogfooding OC through its own client sessions: an
 unfilterable `memory_list`, an 86 KB `onboard_git` response, a
@@ -88,11 +88,21 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   from C1, and the body copied verbatim into the REST route is gone.
   507 → 510 tests.
 
-433 → 510 tests across the batch. **Deploy note:** MCP clients cache tool
-schemas, so restart them after the redeploy — a session holding the old
-`memory_delete` signature will get validation errors until it reconnects.
-mnemosyne-mcp was checked before shipping and already passes
-`confirm: true` on both delete wrappers, so nothing downstream breaks.
+433 → 510 tests across the batch. Deployed 2026-07-24 as `v3.0.0-rc5`;
+verified live via `/api/v1/health` (the four new fields are present, which
+rc4 could not produce) and a `DELETE /api/v1/memory/{id}` without `confirm`
+returning 422. **Restart MCP clients** — they cache tool schemas, so a
+session holding the old `memory_delete` signature will get validation
+errors until it reconnects. mnemosyne-mcp was checked before shipping and
+already passes `confirm: true` on both delete wrappers.
+
+**Deploy gotcha worth remembering:** the stack git-polls every 5 minutes,
+so it picked up the new compose file on its own — but `docker-compose.nas.yml`
+pins the image to `${OC_TAG}`, which still said `rc4`. The push alone
+therefore deployed *nothing*. Code only goes live when `OC_TAG` moves,
+which is the "three config stores" trap: repo compose, Portainer stack
+env, local `.env` are independent, and the stack env is the one that
+silently wins.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the
@@ -122,14 +132,14 @@ session in five commits on `main`:
 Still open on the punch list: docs SSOT rewrite (this file's status doc
 is still frozen v2 content), API-consistency polish, CI/CD + Docker
 hardening, Phase 9 decommission + `v3.0.0` final tag. NAS still runs
-rc4 — these `src/` changes need a redeploy (rc5/tag + `OC_TAG` bump)
-once both CI workflows go green; deferred until the operator is on the
-home LAN.
+rc4 at the time — those `src/` changes shipped in `v3.0.0-rc5` on
+2026-07-24, together with the read-surface batch above.
 
 **Status:** v3 live on NAS 2026-05-06; current image
-`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc4` on stack 151 (rc1 →
+`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc5` on stack 151 (rc1 →
 rc2 → rc3 within the cutover day, rc4 on 2026-05-11 with the
-rate-limit + project-CRUD batch; see
+rate-limit + project-CRUD batch, rc5 on 2026-07-24 with the 2026-07-02
+hardening batch + the read-surface/delete-safety batch; see
 [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
 for the full account). rc3 added the senior-dev review batch (265x
 semantic-search speedup via numpy, API consistency cleanups, real
