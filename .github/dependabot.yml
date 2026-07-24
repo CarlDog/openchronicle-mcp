@@ -5,6 +5,28 @@
 
 version: 2
 updates:
+  # ── npm (package.json present) ────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - npm
+    groups:
+      npm-dev:
+        dependency-type: development
+        update-types: [minor, patch]
+      npm-runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]
+
   - package-ecosystem: pip
     directory: /
     schedule:
