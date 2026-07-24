@@ -3,11 +3,14 @@
 **Date:** 2026-05-06 (rev 66 addendum 2026-07-23)
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
-**Revision:** 66 (in flight — the v3.0.x read-surface + delete-safety
-batch, 2026-07-23). Three `mcp-feedback` OC memories recorded friction
-found by dogfooding OC through its own client sessions; this batch works
-all five filed items plus the adjacent defects sitting on the same code
-paths. Landed so far:
+**Revision:** 66 (the v3.0.x read-surface + delete-safety batch, closed
+2026-07-23; 433 → 510 tests). Three `mcp-feedback` OC memories recorded
+friction found by dogfooding OC through its own client sessions; this
+batch worked all five filed items plus the adjacent defects sitting on
+the same code paths. Not deployed yet — the NAS still runs rc4, and these
+`src/` changes need a redeploy. **Restart MCP clients after it lands:**
+clients cache tool schemas, so a session holding the old `memory_delete`
+signature will get validation errors until it reconnects. Eight commits:
 
 - **C1 — project-scoped `list_memory`.** `project_id` now threads port →
   SQL → use case, reusing the `idx_memory_project_created` index that

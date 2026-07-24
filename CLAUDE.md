@@ -38,7 +38,8 @@
 
 ## Current Sprint
 
-**2026-07-23 read-surface + delete-safety batch (in flight).** Three
+**2026-07-23 read-surface + delete-safety batch (code complete, not yet
+deployed).** Three
 `mcp-feedback` OC memories (`837e85cc`, `a2cdfe56`, `ff7933df`) recorded
 friction found by dogfooding OC through its own client sessions: an
 unfilterable `memory_list`, an 86 KB `onboard_git` response, a
@@ -86,6 +87,12 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   instead of a full table load, histograms read the scoped `list_memory`
   from C1, and the body copied verbatim into the REST route is gone.
   507 → 510 tests.
+
+433 → 510 tests across the batch. **Deploy note:** MCP clients cache tool
+schemas, so restart them after the redeploy — a session holding the old
+`memory_delete` signature will get validation errors until it reconnects.
+mnemosyne-mcp was checked before shipping and already passes
+`confirm: true` on both delete wrappers, so nothing downstream breaks.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the
@@ -231,6 +238,18 @@ DB intact on disk for forensic analysis. Canonical project_id is
   the no-backwards-compat rule. v3 MCP surface is now 17 tools.
   Closes the second post-cutover follow-up; rc4 will batch this with
   the rate-limit bump.
+- ✅ **Read-surface + delete-safety batch** (2026-07-23). Eight commits
+  working the three `mcp-feedback` OC memories filed from dogfooding OC
+  through its own client sessions, plus the adjacent defects on the same
+  code paths. Closes five post-cutover follow-ups: project-scoped
+  `memory_list`, required `confirm` on both delete surfaces, filtering +
+  projection on the read tools, bounded `onboard_git` cluster detail, and
+  bulk project delete — plus a version/capability signal on `health` and
+  `memory_stats` routed through `count_memory`. Fixed in passing:
+  `onboard_git`'s watermark never advancing past a filtered-out HEAD,
+  `oc version` always printing "unknown", and a hardcoded version in
+  `api/app.py` that had drifted from pyproject. MCP surface 17 → 18 tools;
+  433 → 510 tests.
 - pending: Phase 9 (decommission, Day 7+ post-cutover, earliest
   2026-05-13) — also tracks **dependency audit** as a tech-debt
   follow-up (`docs/V3_PLAN.md` "Post-cutover follow-ups").

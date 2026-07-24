@@ -103,6 +103,18 @@ output format to relieve nothing.
 
 Project metadata. `--json` for structured output.
 
+### `oc update-project PROJECT_ID`
+
+Rename or replace metadata. Set at least one of `--name` / `--metadata`;
+whichever you omit is left untouched. Pass `--metadata '{}'` to clear.
+
+### `oc delete-project PROJECT_ID`
+
+Preview by default — prints the project name and how many memories would
+go with it. Add `--confirm` to actually delete. The cascade takes the
+project row, its memories, and their embeddings in one transaction. There
+is no soft-delete; `oc db backup` is the only recovery path.
+
 ## Database
 
 ### `oc db info`
