@@ -62,7 +62,7 @@ LLM need to write a memory" shape:
 
 | Tool | Purpose |
 |---|---|
-| `health` | Probe server state: DB reachability, config, embedding subsystem status, maintenance degraded flag, package version. |
+| `health` | Probe server state: DB reachability, config, embedding subsystem status, `maintenance_degraded`, `package_version`, `schema_version`, and `fts5_active`. Identical key set to `GET /api/v1/health`. |
 
 ## Tool design philosophy
 

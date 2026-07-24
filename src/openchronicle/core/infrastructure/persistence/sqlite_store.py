@@ -651,6 +651,21 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return str(self._conn.execute("PRAGMA integrity_check").fetchone()[0])
 
     @_locked
+    def schema_version(self) -> int:
+        """Highest applied migration version."""
+        return migrator.current_version(self._conn)
+
+    @property
+    def fts5_active(self) -> bool:
+        """Whether search is running on FTS5 rather than the Python fallback.
+
+        Worth surfacing on the health payload: search degrades silently, so
+        without this a caller can't tell "results are poor" from "the fast
+        path is unavailable".
+        """
+        return self._fts5_active
+
+    @_locked
     def backup_to(self, dest: Path | str) -> Path:
         """Online backup to `dest` (atomic .tmp → rename).
 

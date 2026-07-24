@@ -11,16 +11,11 @@ from typing import Any
 from openchronicle.core.application.use_cases import init_config, init_runtime
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.commands._helpers import json_envelope, print_json
+from openchronicle.version import package_version
 
 
 def cmd_version(args: argparse.Namespace) -> int:
-    import importlib.metadata
-
-    try:
-        pkg_version = importlib.metadata.version("openchronicle")
-    except importlib.metadata.PackageNotFoundError:
-        pkg_version = "unknown"
-
+    pkg_version = package_version()
     python_version = sys.version.split()[0]
 
     if args.json:

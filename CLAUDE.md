@@ -77,6 +77,11 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   (surface now 18 tools). Per-item reporting (`missing` doesn't abort the
   batch), all-or-nothing durability via one transaction. No CLI twin.
   487 → 501 tests.
+- **C6 — health signals** — `package_version`, `schema_version`,
+  `maintenance_degraded`, `fts5_active`; MCP/REST key sets now asserted
+  identical. Fixed `oc version` printing "unknown" (CLI looked up
+  `openchronicle`, distribution is `openchronicle-mcp`) and retired the
+  drifted hardcoded version in `api/app.py`. 501 → 507 tests.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the

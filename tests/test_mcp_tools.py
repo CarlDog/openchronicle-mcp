@@ -401,6 +401,7 @@ class TestHealth:
             config_dir_exists=True,
             running_in_container_hint=False,
             persistence_hint="sqlite",
+            package_version="3.0.0.dev0",
         )
 
         with patch(

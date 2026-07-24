@@ -65,6 +65,21 @@ paths. Landed so far:
   preserved per project in both branches. No CLI twin, deliberately —
   the 92-call cost that motivated this is an MCP round-trip problem, and
   in a shell it is a `for` loop. 487 → 501 tests.
+- **C6 — version + capability signal on `health`.** Adds
+  `package_version`, `schema_version`, `maintenance_degraded`, and
+  `fts5_active`. The first two were already promised by STABILITY.md and
+  the client-setup doc, so this reconciles code to published docs;
+  `fts5_active` is the new one, distinguishing degraded search from
+  broken search. `maintenance_degraded` closes a parity gap where REST
+  appended it post-hoc and the MCP tool simply lacked it — a key-set
+  parity test now prevents that recurring. Fixed a live bug in passing:
+  `oc version` always printed "unknown" because the CLI looked up the
+  distribution `openchronicle` while pyproject declares
+  `openchronicle-mcp`, and the test only asserted that substring, which
+  the failure string contained. Version now has one source
+  (`src/openchronicle/version.py`), which also retires the hardcoded
+  `"3.0.0-dev"` in `api/app.py` that had drifted from pyproject.
+  501 → 507 tests.
 
 **Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
 2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory

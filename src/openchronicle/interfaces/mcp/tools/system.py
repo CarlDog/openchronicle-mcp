@@ -31,12 +31,21 @@ def register(mcp: FastMCP) -> None:
         session, or to diagnose retrieval issues (e.g. embedding provider
         down → search degrades to FTS5-only). Returns a snapshot of
         runtime state, not historical metrics.
+
+        `package_version` and `schema_version` identify what you're
+        talking to, which is worth checking when a tool behaves unlike
+        its documentation. `fts5_active` distinguishes "search is
+        degraded" from "search is broken" — it falls back silently
+        otherwise.
         """
         container = _get_container(ctx)
 
         def _run() -> dict[str, Any]:
             report = diagnose_runtime.execute()
             report.embedding_status = container.embedding_status_dict()
+            report.schema_version = container.storage.schema_version()
+            report.maintenance_degraded = bool(getattr(container, "maintenance_degraded", False))
+            report.fts5_active = container.storage.fts5_active
             return asdict(report)
 
         data = await asyncio.to_thread(_run)

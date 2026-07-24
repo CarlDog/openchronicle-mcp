@@ -18,6 +18,7 @@ from starlette.requests import Request
 
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.config import HTTPConfig
+from openchronicle.version import package_version
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +84,7 @@ def create_app(
             "Memory database for LLM agents — persistent semantic + keyword "
             "memory, project namespacing, git-onboard, served over HTTP REST and MCP."
         ),
-        version="3.0.0-dev",
+        version=package_version(),
         lifespan=lifespan,
     )
 

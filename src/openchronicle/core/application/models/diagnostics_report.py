@@ -26,7 +26,12 @@ class DiagnosticsReport:
     config_dir_exists: bool
     running_in_container_hint: bool
     persistence_hint: str
-    # Embedding subsystem status — populated by interfaces with a
-    # CoreContainer in hand (the container injects its own
-    # `embedding_status_dict` here).
+    package_version: str
+    # Fields below are populated by interfaces with a CoreContainer in
+    # hand. They can't be filled by `diagnose_runtime.execute()`, which
+    # deliberately takes no container and (per the hexagonal boundary
+    # tests) can't import from infrastructure to reach the store.
     embedding_status: dict[str, Any] | None = field(default=None)
+    schema_version: int | None = field(default=None)
+    maintenance_degraded: bool | None = field(default=None)
+    fts5_active: bool | None = field(default=None)
