@@ -56,7 +56,12 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          # amd64 only. Every deployment target is x86-64 (the containers
+          # run as Portainer stacks on an amd64 host); nothing in the fleet
+          # runs on ARM, so a QEMU-emulated arm64 build is ~5x slower for an
+          # image no one pulls. Re-add linux/arm64 here if an ARM host ever
+          # joins the fleet. See lessons/docker-multiarch-only-what-you-deploy.
+          platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

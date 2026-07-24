@@ -412,6 +412,13 @@ for the full layout.
   there.
 - Runtime deprecation is a *warning*, not a build failure. Don't
   treat it as a cutover blocker.
+- **Docker image builds amd64 only.** `docker-publish.yml` pins
+  `platforms: linux/amd64`. The NAS deploy target is x86-64 and no
+  fleet host is ARM, so a QEMU-emulated arm64 build is wasted CI time
+  for an image nobody pulls. Re-add `linux/arm64` only if an ARM
+  deployment target appears. See claude-fleet-kit
+  `fleet/lessons/docker-multiarch-only-what-you-deploy` (dropped
+  fleet-wide 2026-07-24).
 
 ## Environment Variables
 
