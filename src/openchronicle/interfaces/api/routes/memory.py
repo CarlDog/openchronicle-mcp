@@ -15,6 +15,7 @@ from openchronicle.core.application.use_cases import (
     list_memory,
     pin_memory,
     search_memory,
+    stats_memory,
     update_memory,
 )
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -60,26 +61,8 @@ def memory_stats(
     container: ContainerDep,
     project_id: str | None = None,
 ) -> dict[str, Any]:
-    """Get memory usage statistics."""
-    all_items = list_memory.execute(store=container.storage, limit=None, pinned_only=False)
-    if project_id:
-        all_items = [i for i in all_items if i.project_id == project_id]
-
-    pinned_count = sum(1 for i in all_items if i.pinned)
-    by_tag: dict[str, int] = {}
-    by_source: dict[str, int] = {}
-    for item in all_items:
-        for tag in item.tags:
-            by_tag[tag] = by_tag.get(tag, 0) + 1
-        source = item.source or "unknown"
-        by_source[source] = by_source.get(source, 0) + 1
-
-    return {
-        "total": len(all_items),
-        "pinned": pinned_count,
-        "by_tag": by_tag,
-        "by_source": by_source,
-    }
+    """Get memory usage statistics. `project_id` is a strict filter."""
+    return stats_memory.execute(container.storage, project_id)
 
 
 class MemorySaveRequest(BaseModel):

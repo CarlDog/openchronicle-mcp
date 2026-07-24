@@ -20,6 +20,7 @@ from openchronicle.core.application.use_cases import (
     list_memory,
     pin_memory,
     search_memory,
+    stats_memory,
     update_memory,
 )
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
@@ -321,34 +322,18 @@ def register(mcp: FastMCP) -> None:
 
         Use to inspect what's stored before a search session, or to verify
         backfill/migration outcomes. Scope to a project for accurate counts
-        in multi-project deployments.
+        in multi-project deployments; `project_id` is a strict filter, the
+        same rule `memory_list` uses.
 
         Args:
             project_id: Restrict stats to a specific project (optional).
         """
         container = _get_container(ctx)
-
-        def _run() -> dict[str, Any]:
-            all_items = container.storage.list_memory(limit=None, pinned_only=False)
-            items = [i for i in all_items if i.project_id == project_id] if project_id else all_items
-
-            pinned_count = sum(1 for i in items if i.pinned)
-            by_tag: dict[str, int] = {}
-            by_source: dict[str, int] = {}
-            for item in items:
-                for tag in item.tags:
-                    by_tag[tag] = by_tag.get(tag, 0) + 1
-                source = item.source or "unknown"
-                by_source[source] = by_source.get(source, 0) + 1
-
-            return {
-                "total": len(items),
-                "pinned": pinned_count,
-                "by_tag": by_tag,
-                "by_source": by_source,
-            }
-
-        return await asyncio.to_thread(_run)
+        return await asyncio.to_thread(
+            stats_memory.execute,
+            container.storage,
+            project_id,
+        )
 
     @mcp.tool()
     async def memory_embed(

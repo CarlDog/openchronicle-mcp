@@ -80,6 +80,22 @@ paths. Landed so far:
   (`src/openchronicle/version.py`), which also retires the hardcoded
   `"3.0.0-dev"` in `api/app.py` that had drifted from pyproject.
   501 → 507 tests.
+- **C7 — `memory_stats` through `count_memory`.** The stats body existed
+  twice verbatim (MCP tool + REST route) and both violated the rule
+  `count_memory`'s docstring states outright, answering "how many?" with
+  a full table load. `total` is now a SQL COUNT(\*); the histograms still
+  read rows (tags are a JSON column) but read the project-scoped
+  `list_memory` from C1, so a scoped call stops loading other projects'
+  rows to discard them. New `use_cases/stats_memory.py`; the REST
+  duplicate is gone. 507 → 510 tests.
+
+**Deliberately left alone**, so nobody "fixes" them later:
+`export_memory.py` hand-rolls its own dicts rather than sharing
+`interfaces/serializers` — `test_hexagonal_boundaries.py` forbids core
+importing interfaces, and the export payload is a versioned wire format
+(`EXPORT_FORMAT_VERSION`) that has to be free to diverge from the API
+shape. The CLI's two `--confirm` branches stay duplicated: ~8 trivial
+lines each, no shared correctness rule.
 
 **Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
 2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory

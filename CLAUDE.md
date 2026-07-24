@@ -82,6 +82,10 @@ and the scope is widest (filed items + adjacent bugs + refactors).
   identical. Fixed `oc version` printing "unknown" (CLI looked up
   `openchronicle`, distribution is `openchronicle-mcp`) and retired the
   drifted hardcoded version in `api/app.py`. 501 → 507 tests.
+- **C7 — `memory_stats` via `count_memory`** — `total` is a SQL COUNT(\*)
+  instead of a full table load, histograms read the scoped `list_memory`
+  from C1, and the body copied verbatim into the REST route is gone.
+  507 → 510 tests.
 
 **2026-07-02 hardening batch (fresh-eyes review follow-up).** A
 multi-agent review produced a 39-item punch list (captured in the
