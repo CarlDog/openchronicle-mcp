@@ -460,13 +460,13 @@ transport. No project-level setup required.
 **v3 endpoint:** MCP and HTTP REST are unified on port `:18000` since the
 2026-05-06 cutover. MCP at `/mcp`, REST at `/api/v1/*`, liveness at
 `/health`. Each machine's `~/.claude.json` should point at
-`http://carldog-nas:18000/mcp`. (Pre-cutover v2 was `:18001/mcp` for MCP
+`http://your-nas:18000/mcp`. (Pre-cutover v2 was `:18001/mcp` for MCP
 and `:18000/api/v1` for REST as separate services — that shape is gone.)
 
 For a fresh registration:
 
 ```bash
-claude mcp add --scope user --transport http openchronicle http://carldog-nas:18000/mcp
+claude mcp add --scope user --transport http openchronicle http://your-nas:18000/mcp
 ```
 
 For local dev (without the NAS), run `oc serve` in a checkout — the

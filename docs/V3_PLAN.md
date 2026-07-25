@@ -1,7 +1,7 @@
 # OpenChronicle v3 — Memory-Only Rewrite Plan
 
 **Status:** **SHIPPED 2026-05-06.** v3 is live on the NAS at
-`http://carldog-nas:18000` (HTTP `/api/v1/*`, MCP `/mcp`). This document
+`http://your-nas:18000` (HTTP `/api/v1/*`, MCP `/mcp`). This document
 is now historical reference for the design decisions and phase plan;
 it is no longer the active runbook.
 **Branch:** `main` (force-pushed from `v3/develop` during Phase 8 cutover).
@@ -788,7 +788,7 @@ The README is not a market-positioning document. It states what OC is, what it d
 11. Run smoke test:
 
     ```bash
-    python scripts/smoke_test.py http://carldog-nas:18000 <project-uuid>
+    python scripts/smoke_test.py http://your-nas:18000 <project-uuid>
     ```
 
     The script is stdlib-only and exits non-zero on the first failing step. It walks `/health`, `/api/v1/health`, `/api/v1/maintenance/status`, `/api/v1/project` (verifies the target project resolves), full memory CRUD + search + pin round-trip, and probes the `/mcp` mount (accepting 307/405 since streamable-HTTP doesn't answer GETs). Pair it with a manual `onboard_git` MCP call against a small public repo for the use case the script can't cover (since there's no HTTP-side `onboard_git` endpoint — it's an MCP-only tool).
@@ -864,10 +864,10 @@ v3 consolidates two ports into one path. **Every MCP client breaks until reconfi
 
 | What | v2 | v3 |
 |---|---|---|
-| HTTP REST | `http://carldog-nas:18000/api/v1/*` | `http://carldog-nas:18000/api/v1/*` (unchanged) |
-| HTTP liveness | `http://carldog-nas:18000/health` | `http://carldog-nas:18000/health` (unchanged) |
-| HTTP OpenAPI | `http://carldog-nas:18000/openapi.json` | `http://carldog-nas:18000/openapi.json` (unchanged, but content now reflects curated v3 surface) |
-| MCP transport | `http://carldog-nas:18001/mcp` | `http://carldog-nas:18000/mcp` (port collapsed) |
+| HTTP REST | `http://your-nas:18000/api/v1/*` | `http://your-nas:18000/api/v1/*` (unchanged) |
+| HTTP liveness | `http://your-nas:18000/health` | `http://your-nas:18000/health` (unchanged) |
+| HTTP OpenAPI | `http://your-nas:18000/openapi.json` | `http://your-nas:18000/openapi.json` (unchanged, but content now reflects curated v3 surface) |
+| MCP transport | `http://your-nas:18001/mcp` | `http://your-nas:18000/mcp` (port collapsed) |
 | Discord bot | (separate `discord` service in stack) | (gone — bot no longer runs) |
 
 ### Known client configs to update
@@ -877,7 +877,7 @@ v3 consolidates two ports into one path. **Every MCP client breaks until reconfi
 | `~/.claude.json` on the user's primary machine | Edit `mcpServers.openchronicle.url` from `:18001/mcp` → `:18000/mcp` |
 | `~/.claude.json` on every other machine the user runs Claude Code from | Same edit. Enumerate machines beforehand. |
 | Goose config (if registered) | Update OC server URL to `:18000/mcp` |
-| Open WebUI tool server (if configured) | Update OpenAPI URL to `http://carldog-nas:18000` (still appends `/openapi.json` itself) |
+| Open WebUI tool server (if configured) | Update OpenAPI URL to `http://your-nas:18000` (still appends `/openapi.json` itself) |
 | Synology Container Manager healthcheck (if pointed at `:18001`) | Update to `:18000/health` |
 | Portainer stack 151 healthcheck | Should use `/health` (already correct, but verify) |
 | Any home-grown scripts hitting `:18001` | Search the user's repos for `:18001` references; update or delete |

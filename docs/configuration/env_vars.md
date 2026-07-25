@@ -63,7 +63,7 @@ running deployment.
 | `OC_MCP_TRANSPORT` | `stdio`, `sse`, `streamable-http` (host-mounted MCP uses streamable-http inside the unified ASGI) | `stdio` |
 | `OC_MCP_HOST` | Bind address for stdio-detached MCP server | `127.0.0.1` |
 | `OC_MCP_PORT` | Listen port for stdio-detached MCP server | `8080` |
-| `OC_MCP_ALLOWED_HOSTS` | CSV of allowed `Host:` header values for the streamable-HTTP transport (DNS-rebinding defense). Each entry may use `:*` as a port wildcard (e.g. `carldog-nas:*`). | `127.0.0.1:*,localhost:*,[::1]:*` |
+| `OC_MCP_ALLOWED_HOSTS` | CSV of allowed `Host:` header values for the streamable-HTTP transport (DNS-rebinding defense). Each entry may use `:*` as a port wildcard (e.g. `your-nas:*`). | `127.0.0.1:*,localhost:*,[::1]:*` |
 
 Within `oc serve`, the MCP transport is mounted on the same port as
 the HTTP API at `/mcp` — `OC_MCP_HOST`/`OC_MCP_PORT` are unused.

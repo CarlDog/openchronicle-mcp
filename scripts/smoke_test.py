@@ -9,7 +9,7 @@ Usage:
     python scripts/smoke_test.py BASE_URL PROJECT_ID [--api-key KEY]
 
 Example (cutover-day, against the NAS):
-    python scripts/smoke_test.py http://carldog-nas:18000 \\
+    python scripts/smoke_test.py http://your-nas:18000 \\
         87de0f7d-d6ab-4b83-8613-b2b5ff60a57b
 
 Exits 0 on full success. On the first failure, prints the failing step
@@ -72,7 +72,7 @@ def step(label: str, ok: bool, detail: str = "") -> None:
 
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("base_url", help="e.g. http://carldog-nas:18000")
+    p.add_argument("base_url", help="e.g. http://your-nas:18000")
     p.add_argument("project_id", help="Existing project UUID")
     p.add_argument("--api-key", default=None, help="OC_API_KEY bearer token")
     p.add_argument("--keep", action="store_true", help="Don't delete the test memory")

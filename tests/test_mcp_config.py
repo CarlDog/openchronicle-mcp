@@ -85,19 +85,19 @@ class TestMCPConfigAllowedHosts:
 
     def test_env_var_csv_replaces_default(self) -> None:
         env = self._clean_env()
-        env["OC_MCP_ALLOWED_HOSTS"] = "carldog-nas:*,carldog-nas.local:*"
+        env["OC_MCP_ALLOWED_HOSTS"] = "test-host:*,test-host.local:*"
         with patch.dict(os.environ, env, clear=True):
             config = MCPConfig.from_env()
         # Caller-supplied list fully replaces the default — operator's job
         # to include localhost variants if they want them.
-        assert config.allowed_hosts == ("carldog-nas:*", "carldog-nas.local:*")
+        assert config.allowed_hosts == ("test-host:*", "test-host.local:*")
 
     def test_env_var_strips_whitespace_and_drops_empty(self) -> None:
         env = self._clean_env()
-        env["OC_MCP_ALLOWED_HOSTS"] = "  carldog-nas:*  , , localhost:* "
+        env["OC_MCP_ALLOWED_HOSTS"] = "  test-host:*  , , localhost:* "
         with patch.dict(os.environ, env, clear=True):
             config = MCPConfig.from_env()
-        assert config.allowed_hosts == ("carldog-nas:*", "localhost:*")
+        assert config.allowed_hosts == ("test-host:*", "localhost:*")
 
     def test_empty_env_var_falls_back_to_default(self) -> None:
         env = self._clean_env()
@@ -110,9 +110,9 @@ class TestMCPConfigAllowedHosts:
         env = self._clean_env()
         with patch.dict(os.environ, env, clear=True):
             config = MCPConfig.from_env(
-                file_config={"allowed_hosts": ["carldog-nas:*", "tailscale-host:*"]},
+                file_config={"allowed_hosts": ["test-host:*", "tailscale-host:*"]},
             )
-        assert config.allowed_hosts == ("carldog-nas:*", "tailscale-host:*")
+        assert config.allowed_hosts == ("test-host:*", "tailscale-host:*")
 
     def test_env_var_overrides_file_config(self) -> None:
         env = self._clean_env()

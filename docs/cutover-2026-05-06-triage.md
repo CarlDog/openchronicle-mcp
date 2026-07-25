@@ -395,13 +395,13 @@ FastMCP's `TransportSecurity` defaults to
 `allowed_hosts=["127.0.0.1:*", "localhost:*", "[::1]:*"]` — a defense
 against DNS rebinding. Any request whose `Host:` header doesn't match
 this allowlist gets a 421 `Invalid Host header`. Clients reaching the NAS
-via `Host: carldog-nas:18000` were rejected.
+via `Host: your-nas:18000` were rejected.
 
 Fix: added an `allowed_hosts` field to `MCPConfig`, configurable via the
 new `OC_MCP_ALLOWED_HOSTS` env var (CSV; `:*` port wildcard supported);
 defaults to localhost variants only. The `create_server` factory now
 passes a `TransportSecuritySettings` instance into `FastMCP(...)`. Stack
-151 deploys with `OC_MCP_ALLOWED_HOSTS=127.0.0.1:*,localhost:*,[::1]:*,carldog-nas:*,carldog-nas.local:*`
+151 deploys with `OC_MCP_ALLOWED_HOSTS=127.0.0.1:*,localhost:*,[::1]:*,your-nas:*,your-nas.local:*`
 to cover both DNS variants.
 
 ### Why the smoke test missed it

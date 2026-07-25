@@ -29,7 +29,7 @@ class MCPConfig:
         OC_MCP_PORT — port for SSE/HTTP transport (default: 8080)
         OC_MCP_ALLOWED_HOSTS — CSV of allowed Host header values for the
             streamable-HTTP transport. Each entry may use ``:*`` as a port
-            wildcard (e.g. ``carldog-nas:*``). Default: localhost variants
+            wildcard (e.g. ``your-nas:*``). Default: localhost variants
             only — operators binding to a LAN-reachable interface MUST add
             their hostname here or all non-loopback requests will 421.
     """

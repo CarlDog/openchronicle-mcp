@@ -66,7 +66,7 @@ deployment context.
    invalidated immediately on container restart (no in-DB key
    storage; the env var is the source of truth).
 
-**Current stable deployment:** the NAS stack at `carldog-nas:18000`
+**Current stable deployment:** the NAS stack at `your-nas:18000`
 is configured with `OC_API_KEY` empty (auth disabled) — single-user
 home-LAN deployment, intentional, documented per the lessons from the
 2026-05-06 cutover. If that trust boundary changes, follow the steps
