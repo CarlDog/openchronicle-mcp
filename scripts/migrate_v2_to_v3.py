@@ -37,9 +37,7 @@ from pathlib import Path
 
 
 def _read_v2_projects(src: sqlite3.Connection) -> list[tuple]:
-    return src.execute(
-        "SELECT id, name, metadata, created_at FROM projects"
-    ).fetchall()
+    return src.execute("SELECT id, name, metadata, created_at FROM projects").fetchall()
 
 
 def _read_v2_memory_items(src: sqlite3.Connection) -> list[tuple]:
@@ -56,9 +54,7 @@ def _read_v2_memory_items(src: sqlite3.Connection) -> list[tuple]:
 
 
 def _read_v2_embeddings(src: sqlite3.Connection) -> list[tuple]:
-    return src.execute(
-        "SELECT memory_id, embedding, model, dimensions, generated_at FROM memory_embeddings"
-    ).fetchall()
+    return src.execute("SELECT memory_id, embedding, model, dimensions, generated_at FROM memory_embeddings").fetchall()
 
 
 def _build_v3_schema(dst: sqlite3.Connection) -> None:
@@ -70,15 +66,41 @@ def _build_v3_schema(dst: sqlite3.Connection) -> None:
     migrator.apply_pending(dst)
 
 
+def _orphan_sidecars(dest_path: Path) -> list[Path]:
+    """Return any pre-existing SQLite sidecar files (-wal, -shm) at the
+    destination's path stem. If the destination is being placed into a
+    location that already had these files, SQLite will try to apply the
+    leftover WAL on open — which causes ``database disk image is
+    malformed`` errors when the WAL belongs to a different DB. The
+    2026-05-06 v3 cutover hit exactly this trap.
+    """
+    candidates = [
+        dest_path.with_name(dest_path.name + "-wal"),
+        dest_path.with_name(dest_path.name + "-shm"),
+    ]
+    return [p for p in candidates if p.exists()]
+
+
 def migrate(src_path: Path, dest_path: Path, *, force: bool = False) -> dict[str, int]:
     if not src_path.is_file():
         raise FileNotFoundError(f"Source DB not found: {src_path}")
     if dest_path.exists():
         if not force:
-            raise FileExistsError(
-                f"Destination exists: {dest_path}. Use --force to overwrite."
-            )
+            raise FileExistsError(f"Destination exists: {dest_path}. Use --force to overwrite.")
         dest_path.unlink()
+
+    # Refuse / clean up orphan SQLite sidecars at the destination path.
+    # See _orphan_sidecars() docstring for why this matters.
+    orphans = _orphan_sidecars(dest_path)
+    if orphans:
+        if not force:
+            raise FileExistsError(
+                f"Orphan SQLite sidecar files at destination would corrupt the "
+                f"new DB on first open: {[str(p) for p in orphans]}. "
+                f"Pass --force to remove them, or scrub the destination dir."
+            )
+        for p in orphans:
+            p.unlink()
 
     src = sqlite3.connect(f"file:{src_path}?mode=ro", uri=True)
     src.row_factory = sqlite3.Row

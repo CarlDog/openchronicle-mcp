@@ -61,9 +61,7 @@ def _split_sql(script: str) -> list[str]:
 
 def _read_current_version(conn: sqlite3.Connection) -> int:
     """Return the highest applied schema version, or 0 if untracked."""
-    row = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'"
-    ).fetchone()
+    row = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'").fetchone()
     if row is None:
         return 0
     cur = conn.execute("SELECT MAX(version) FROM schema_version")

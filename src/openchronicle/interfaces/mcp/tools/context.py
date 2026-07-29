@@ -1,14 +1,19 @@
-"""Context tools — memory-scoped catch-up."""
+"""Context tools — memory-scoped catch-up.
+
+Handlers are async and offload store/embedding work via asyncio.to_thread:
+FastMCP dispatches sync tools inline on the event loop.
+"""
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, cast
 
 from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.use_cases import search_memory
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
-from openchronicle.interfaces.mcp.tracking import track_tool
+from openchronicle.interfaces.serializers import memory_to_dict
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -19,12 +24,12 @@ def register(mcp: FastMCP) -> None:
     """Register context tools on the MCP server."""
 
     @mcp.tool()
-    @track_tool
-    def context_recent(
+    async def context_recent(
         ctx: Context,
         query: str | None = None,
         project_id: str | None = None,
         memory_limit: int = 5,
+        compact: bool = False,
     ) -> dict[str, Any]:
         """Catch up on prior context for a project: returns recent memory items.
 
@@ -36,27 +41,17 @@ def register(mcp: FastMCP) -> None:
             query: Keywords to filter memories (optional; omitted = recent overall).
             project_id: Project to scope to (optional).
             memory_limit: Max memory items to return (default 5).
+            compact: Return a content preview instead of full content.
         """
         memory_limit = min(max(memory_limit, 1), 1000)
         container = _get_container(ctx)
 
-        memories = search_memory.execute(
+        memories = await asyncio.to_thread(
+            search_memory.execute,
             store=container.storage,
             query=query or "",
             top_k=memory_limit,
             project_id=project_id,
             embedding_service=container.embedding_service,
         )
-        return {
-            "memories": [
-                {
-                    "id": m.id,
-                    "content": m.content,
-                    "tags": m.tags,
-                    "pinned": m.pinned,
-                    "project_id": m.project_id,
-                    "created_at": m.created_at.isoformat(),
-                }
-                for m in memories
-            ],
-        }
+        return {"memories": [memory_to_dict(m, compact=compact) for m in memories]}

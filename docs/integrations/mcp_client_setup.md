@@ -12,10 +12,10 @@ User-scope (recommended, available in every session):
 
 ```bash
 claude mcp add --scope user --transport http openchronicle \
-    http://carldog-nas:18000/mcp
+    http://your-nas:18000/mcp
 ```
 
-Replace `carldog-nas` with the host where OC is reachable.
+Replace `your-nas` with the host where OC is reachable.
 `localhost:18000/mcp` for a same-machine deployment.
 
 The config ends up in `~/.claude.json` under `mcpServers`. To verify
@@ -29,7 +29,7 @@ runtime status that comes back.
 extensions:
   openchronicle:
     type: streamable-http
-    url: http://carldog-nas:18000/mcp
+    url: http://your-nas:18000/mcp
     timeout: 300
 ```
 
@@ -37,7 +37,7 @@ extensions:
 
 Open WebUI's tool-server integration speaks the OpenAI tool-server
 protocol over HTTP, not native MCP. Use the REST surface instead —
-register `http://carldog-nas:18000` as an OpenAPI-backed tool server
+register `http://your-nas:18000` as an OpenAPI-backed tool server
 and Open WebUI will pull the spec from `/openapi.json`.
 
 ## Authenticated deployments
@@ -47,7 +47,7 @@ When `OC_API_KEY` is set, MCP clients must include the bearer token:
 ```bash
 claude mcp add --scope user --transport http \
     --header "Authorization: Bearer $OC_API_KEY" \
-    openchronicle http://carldog-nas:18000/mcp
+    openchronicle http://your-nas:18000/mcp
 ```
 
 Goose:
@@ -56,7 +56,7 @@ Goose:
 extensions:
   openchronicle:
     type: streamable-http
-    url: http://carldog-nas:18000/mcp
+    url: http://your-nas:18000/mcp
     headers:
       Authorization: Bearer ${OC_API_KEY}
 ```
@@ -101,8 +101,8 @@ v2 clients pointed at `:18001/mcp` (the separate MCP service). v3
 collapses MCP onto the HTTP port. Update each client's config:
 
 ```diff
-- url: http://carldog-nas:18001/mcp
-+ url: http://carldog-nas:18000/mcp
+- url: http://your-nas:18001/mcp
++ url: http://your-nas:18000/mcp
 ```
 
 After updating, restart the client (Claude Code caches tool

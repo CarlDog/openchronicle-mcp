@@ -20,6 +20,7 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.serializers import content_preview
 
 
 def cmd_memory(args: argparse.Namespace, container: CoreContainer) -> int:
@@ -71,10 +72,11 @@ def cmd_memory_list(args: argparse.Namespace, container: CoreContainer) -> int:
         limit=args.limit,
         pinned_only=args.pinned_only,
         offset=args.offset,
+        project_id=args.project_id,
     )
     for item in items:
         tags_str = ",".join(item.tags)
-        snippet = item.content if len(item.content) <= 120 else item.content[:120] + "..."
+        snippet = content_preview(item.content)
         print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
     return 0
 
@@ -132,19 +134,20 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
             print()
         else:
             tags_str = ",".join(item.tags)
-            snippet = item.content if len(item.content) <= 120 else item.content[:120] + "..."
+            snippet = content_preview(item.content)
             print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
     return 0
 
 
 def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int:
-    """Delete a memory item."""
+    """Preview (default) or delete a memory item."""
     from openchronicle.interfaces.cli.commands._helpers import json_envelope, json_error_payload, print_json
 
     try:
-        delete_memory.execute(
+        result = delete_memory.execute(
             store=container.storage,
             memory_id=args.memory_id,
+            confirm=args.confirm,
         )
     except (ValueError, NotFoundError, DomainValidationError):
         if args.json:
@@ -165,13 +168,17 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
         payload = json_envelope(
             command="memory.delete",
             ok=True,
-            result={"memory_id": args.memory_id},
+            result=result,
             error=None,
         )
         print_json(payload)
         return 0
 
-    print(f"Deleted memory item {args.memory_id}")
+    if result["status"] == "preview":
+        snippet = result["content"] if len(result["content"]) <= 80 else result["content"][:80] + "..."
+        print(f"Would delete memory {result['memory_id']}: {snippet!r}. Re-run with --confirm to proceed.")
+    else:
+        print(f"Deleted memory item {result['memory_id']}")
     return 0
 
 
@@ -299,8 +306,5 @@ def cmd_memory_import(args: argparse.Namespace, container: CoreContainer) -> int
         print(f"Error: {exc}")
         return 1
 
-    print(
-        f"Imported {result['projects_added']} project(s), "
-        f"{result['memory_added']} memory item(s) (mode={mode})"
-    )
+    print(f"Imported {result['projects_added']} project(s), {result['memory_added']} memory item(s) (mode={mode})")
     return 0

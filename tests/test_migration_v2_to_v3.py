@@ -7,19 +7,18 @@ then asserts the v3 invariants the production cutover will rely on.
 from __future__ import annotations
 
 import sqlite3
+import sys
 from pathlib import Path
 
 import pytest
 
 # Add scripts/ to sys.path so we can import the migrate module by name.
 _SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
-import sys
-
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-import migrate_v2_to_v3  # noqa: E402  type: ignore
-import verify_v3_db  # noqa: E402  type: ignore
+import migrate_v2_to_v3  # type: ignore[import-not-found]  # noqa: E402
+import verify_v3_db  # type: ignore[import-not-found]  # noqa: E402
 
 # --- v2 schema fixture -------------------------------------------------------
 
@@ -88,15 +87,14 @@ def _make_v2_db(path: Path) -> dict[str, int]:
         )
 
         conn.execute(
-            "INSERT INTO conversations (id, project_id, title, mode, created_at) "
-            "VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO conversations (id, project_id, title, mode, created_at) VALUES (?, ?, ?, ?, ?)",
             ("c1", "p1", "test", "general", "2026-02-01T00:00:00+00:00"),
         )
 
         rows = [
             ("m1", "alpha", '["tag-a"]', "2026-02-10T00:00:00+00:00", 1, "c1", "p1", "mcp", None),
             ("m2", "beta", '["tag-b"]', "2026-02-11T00:00:00+00:00", 0, None, "p1", "manual", None),
-            ("m3", "gamma", '[]', "2025-08-01T00:00:00+00:00", 0, None, "p2", "manual", None),
+            ("m3", "gamma", "[]", "2025-08-01T00:00:00+00:00", 0, None, "p2", "manual", None),
             ("m4", "delta", '["tag-c"]', "2026-03-01T00:00:00+00:00", 0, None, None, "manual", None),
         ]
         conn.executemany(
@@ -144,10 +142,7 @@ def test_migration_drops_v2_tables(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(str(dest))
     try:
-        names = {
-            r[0]
-            for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
-        }
+        names = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
     finally:
         conn.close()
 
@@ -211,3 +206,53 @@ def test_migration_force_overwrites_dest(tmp_path: Path) -> None:
     dest.write_bytes(b"stale content")
     summary = migrate_v2_to_v3.migrate(src, dest, force=True)
     assert summary["projects"] == 2
+
+
+def test_migration_refuses_orphan_wal_at_destination(tmp_path: Path) -> None:
+    """Triage 2026-05-06: orphan -wal/-shm at the dest path can corrupt
+    the freshly-placed DB on first open. Migration script must refuse
+    rather than silently produce a borderline-broken result."""
+    src = tmp_path / "v2.db"
+    dest = tmp_path / "v3.db"
+    _make_v2_db(src)
+    # Simulate an orphan WAL left over from a prior process or a previous
+    # DB that lived at this path stem.
+    (tmp_path / "v3.db-wal").write_bytes(b"orphan wal content")
+
+    with pytest.raises(FileExistsError, match="Orphan SQLite sidecar"):
+        migrate_v2_to_v3.migrate(src, dest)
+    # Orphan untouched without --force.
+    assert (tmp_path / "v3.db-wal").exists()
+
+
+def test_migration_force_scrubs_orphan_sidecars(tmp_path: Path) -> None:
+    """With --force, the migration script removes orphan sidecars
+    instead of refusing."""
+    src = tmp_path / "v2.db"
+    dest = tmp_path / "v3.db"
+    _make_v2_db(src)
+    (tmp_path / "v3.db-wal").write_bytes(b"orphan wal content")
+    (tmp_path / "v3.db-shm").write_bytes(b"orphan shm content")
+
+    summary = migrate_v2_to_v3.migrate(src, dest, force=True)
+    assert summary["projects"] == 2
+    # Sidecars from the migration's own connection may exist post-write,
+    # but the orphan content we seeded is gone (size differs).
+    if (tmp_path / "v3.db-wal").exists():
+        assert (tmp_path / "v3.db-wal").read_bytes() != b"orphan wal content"
+
+
+def test_verify_warns_on_orphan_sidecars(tmp_path: Path) -> None:
+    """verify_v3_db should surface orphan sidecars as a warning."""
+    src = tmp_path / "v2.db"
+    dest = tmp_path / "v3.db"
+    _make_v2_db(src)
+    migrate_v2_to_v3.migrate(src, dest)
+    # Seed an orphan sidecar after migration completes.
+    (tmp_path / "v3.db-wal").write_bytes(b"unexpected wal")
+
+    report = verify_v3_db.verify(dest)
+    assert report["ok"], "DB itself is still valid; orphan is just a warning"
+    assert any("orphan" in w.lower() for w in report["warnings"]), (
+        f"expected orphan-sidecar warning in report['warnings'], got {report['warnings']!r}"
+    )

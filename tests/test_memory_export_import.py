@@ -46,9 +46,7 @@ def test_export_returns_format_version_and_payload(tmp_path: Path) -> None:
 
 def test_export_filters_by_project(tmp_path: Path) -> None:
     store = _seeded(tmp_path, project_count=2, items_per_project=2)
-    payload = export_memory.execute(
-        storage=store, memory_store=store, project_id="proj-0"
-    )
+    payload = export_memory.execute(storage=store, memory_store=store, project_id="proj-0")
     store.close()
 
     assert len(payload["projects"]) == 1
@@ -107,9 +105,7 @@ def test_import_replace_refuses_non_empty_destination(tmp_path: Path) -> None:
     dest.add_project(Project(id="dest-proj", name="Dest"))
     dest.add_memory(MemoryItem(content="existing", project_id="dest-proj"))
     with pytest.raises(ValidationError, match="non-empty"):
-        import_memory.execute(
-            storage=dest, memory_store=dest, payload=payload, mode="replace"
-        )
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload, mode="replace")
     dest.close()
 
 
@@ -120,9 +116,7 @@ def test_import_replace_into_empty_store_succeeds(tmp_path: Path) -> None:
 
     dest = SqliteStore(str(tmp_path / "dest.db"))
     dest.init_schema()
-    result = import_memory.execute(
-        storage=dest, memory_store=dest, payload=payload, mode="replace"
-    )
+    result = import_memory.execute(storage=dest, memory_store=dest, payload=payload, mode="replace")
     dest.close()
     assert result["memory_added"] == 3
 
@@ -144,9 +138,7 @@ def test_import_rejects_payload_without_format_version(tmp_path: Path) -> None:
     dest = SqliteStore(str(tmp_path / "dest.db"))
     dest.init_schema()
     with pytest.raises(ValidationError, match="format_version"):
-        import_memory.execute(
-            storage=dest, memory_store=dest, payload={"projects": [], "memory_items": []}
-        )
+        import_memory.execute(storage=dest, memory_store=dest, payload={"projects": [], "memory_items": []})
     dest.close()
 
 

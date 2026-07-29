@@ -191,6 +191,33 @@ def test_search_hybrid_respects_top_k() -> None:
     assert len(results) <= 3
 
 
+def test_semantic_search_numpy_path_matches_python_dot_product() -> None:
+    """The numpy-vectorized _semantic_search must produce the same ranking
+    as a manual cosine-by-_cosine_similarity loop on every adapter that
+    normalizes embeddings (which all of ours do)."""
+    service, store, _ = _make_service()
+    # 20 memories — enough that argpartition's k<N branch fires.
+    for i in range(20):
+        _add_memory(store, f"m{i}", f"unique content body number {i}")
+        service.generate_for_memory(f"m{i}", f"unique content body number {i}")
+
+    # Manual reference computation via _cosine_similarity loop.
+    query = "content body"
+    query_vec = service.port.embed(query)
+    all_emb = store.list_embeddings()
+    expected_ranking = [
+        mid
+        for mid, _ in sorted(
+            ((mid, _cosine_similarity(query_vec, vec)) for mid, vec in all_emb.items()),
+            key=lambda x: x[1],
+            reverse=True,
+        )[:8]
+    ]
+
+    actual = service._semantic_search(query, limit=8)
+    assert actual == expected_ranking
+
+
 # ── cosine_similarity ───────────────────────────────────────────────
 
 

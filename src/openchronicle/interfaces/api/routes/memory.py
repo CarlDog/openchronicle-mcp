@@ -15,6 +15,7 @@ from openchronicle.core.application.use_cases import (
     list_memory,
     pin_memory,
     search_memory,
+    stats_memory,
     update_memory,
 )
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -35,10 +36,12 @@ def memory_search(
     project_id: str | None = None,
     tags: str | None = None,
     offset: int = Query(default=0, ge=0),
+    compact: bool = False,
 ) -> list[dict[str, Any]]:
     """Search memory items by keyword.
 
     Tags parameter accepts comma-separated tag names for AND filtering.
+    `compact` swaps content for a preview plus its length.
     """
     tag_list = parse_csv_tags(tags)
     results = search_memory.execute(
@@ -50,7 +53,7 @@ def memory_search(
         offset=offset,
         embedding_service=container.embedding_service,
     )
-    return [memory_to_dict(m) for m in results]
+    return [memory_to_dict(m, compact=compact) for m in results]
 
 
 @router.get("/stats")
@@ -58,26 +61,8 @@ def memory_stats(
     container: ContainerDep,
     project_id: str | None = None,
 ) -> dict[str, Any]:
-    """Get memory usage statistics."""
-    all_items = list_memory.execute(store=container.storage, limit=None, pinned_only=False)
-    if project_id:
-        all_items = [i for i in all_items if i.project_id == project_id]
-
-    pinned_count = sum(1 for i in all_items if i.pinned)
-    by_tag: dict[str, int] = {}
-    by_source: dict[str, int] = {}
-    for item in all_items:
-        for tag in item.tags:
-            by_tag[tag] = by_tag.get(tag, 0) + 1
-        source = item.source or "unknown"
-        by_source[source] = by_source.get(source, 0) + 1
-
-    return {
-        "total": len(all_items),
-        "pinned": pinned_count,
-        "by_tag": by_tag,
-        "by_source": by_source,
-    }
+    """Get memory usage statistics. `project_id` is a strict filter."""
+    return stats_memory.execute(container.storage, project_id)
 
 
 class MemorySaveRequest(BaseModel):
@@ -118,15 +103,22 @@ def memory_list(
     limit: int | None = Query(default=None, ge=1, le=10_000),
     pinned_only: bool = False,
     offset: int = Query(default=0, ge=0),
+    project_id: str | None = None,
+    compact: bool = False,
 ) -> list[dict[str, Any]]:
-    """List memory items."""
+    """List memory items.
+
+    `project_id` is a strict filter — global (project-less) items are
+    excluded. `compact` swaps content for a preview plus its length.
+    """
     results = list_memory.execute(
         store=container.storage,
         limit=limit,
         pinned_only=pinned_only,
         offset=offset,
+        project_id=project_id,
     )
-    return [memory_to_dict(m) for m in results]
+    return [memory_to_dict(m, compact=compact) for m in results]
 
 
 @router.get("/{memory_id}")
@@ -145,13 +137,23 @@ def memory_get(
 def memory_delete(
     memory_id: Annotated[str, Path(min_length=1, max_length=200)],
     container: ContainerDep,
-) -> dict[str, str]:
-    """Delete a memory item permanently."""
-    delete_memory.execute(
+    confirm: Annotated[bool, Query(description="Required. True deletes; false returns a preview.")],
+) -> dict[str, Any]:
+    """Preview (confirm=false) or hard-delete (confirm=true) a memory.
+
+    The preview returns content, tags, project_id, and pinned state
+    without touching the DB, alongside `deleted: false` and a `next_step`.
+    There is no soft-delete and no recovery path beyond `oc db backup`.
+
+    `confirm` is required — omitting it is a 422, not a preview. A
+    success-shaped preview handed to a caller who never asked for one
+    reads as a completed delete.
+    """
+    return delete_memory.execute(
         store=container.storage,
         memory_id=memory_id,
+        confirm=confirm,
     )
-    return {"status": "ok", "memory_id": memory_id}
 
 
 class MemoryPinRequest(BaseModel):

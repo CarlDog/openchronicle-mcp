@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -314,6 +314,100 @@ class TestProjectRoutes:
         assert resp.status_code == 200
         assert resp.json() == []
 
+    def test_get_project(self, client: TestClient) -> None:
+        _get_container(client).storage.get_project.return_value = _make_project(name="alpha")
+        resp = client.get("/api/v1/project/proj-1")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["id"] == "proj-1"
+        assert data["name"] == "alpha"
+
+    def test_get_project_missing_returns_404(self, client: TestClient) -> None:
+        _get_container(client).storage.get_project.return_value = None
+        resp = client.get("/api/v1/project/nope")
+        assert resp.status_code == 404
+
+    def test_update_project_rename(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.update_project.return_value = _make_project(name="renamed")
+        resp = client.put("/api/v1/project/proj-1", json={"name": "renamed"})
+        assert resp.status_code == 200
+        assert resp.json()["name"] == "renamed"
+        storage.update_project.assert_called_once_with("proj-1", name="renamed", metadata=None)
+
+    def test_update_project_metadata_only(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.update_project.return_value = _make_project()
+        resp = client.put("/api/v1/project/proj-1", json={"metadata": {"team": "ops"}})
+        assert resp.status_code == 200
+        storage.update_project.assert_called_once_with("proj-1", name=None, metadata={"team": "ops"})
+
+    def test_update_project_empty_body_rejected(self, client: TestClient) -> None:
+        """At least one of name or metadata must be set — Pydantic guards this."""
+        resp = client.put("/api/v1/project/proj-1", json={})
+        assert resp.status_code == 422
+
+    def test_update_project_missing_returns_404(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import NotFoundError
+
+        _get_container(client).storage.update_project.side_effect = NotFoundError(
+            "Project not found: nope", code="PROJECT_NOT_FOUND"
+        )
+        resp = client.put("/api/v1/project/nope", json={"name": "x"})
+        assert resp.status_code == 404
+
+    def test_delete_project_without_confirm_returns_422(self, client: TestClient) -> None:
+        """Omitting `confirm` is a validation error, not a preview."""
+        storage = _get_container(client).storage
+
+        resp = client.delete("/api/v1/project/proj-1")
+        assert resp.status_code == 422
+        storage.delete_project.assert_not_called()
+
+    def test_delete_project_confirm_false_returns_preview(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.return_value = _make_project(name="proj")
+        storage.count_memory.return_value = 7
+
+        resp = client.delete("/api/v1/project/proj-1?confirm=false")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {
+            "status": "preview",
+            "deleted": False,
+            "next_step": ("Nothing was deleted. Call again with confirm=true to delete this project and its memories."),
+            "project_id": "proj-1",
+            "name": "proj",
+            "memory_count": 7,
+        }
+        storage.delete_project.assert_not_called()
+
+    def test_delete_project_confirm_calls_cascade(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.return_value = _make_project(name="proj")
+        storage.delete_project.return_value = 3
+
+        resp = client.delete("/api/v1/project/proj-1?confirm=true")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {
+            "status": "ok",
+            "deleted": True,
+            "project_id": "proj-1",
+            "name": "proj",
+            "deleted_memories": 3,
+        }
+        storage.delete_project.assert_called_once_with("proj-1")
+        storage.count_memory.assert_not_called()
+
+    def test_delete_project_missing_returns_404(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.return_value = None
+
+        resp = client.delete("/api/v1/project/nope?confirm=true")
+        assert resp.status_code == 404
+        storage.delete_project.assert_not_called()
+
 
 # ---------------------------------------------------------------------------
 # Routes: memory
@@ -365,6 +459,37 @@ class TestMemoryRoutes:
         assert resp.status_code == 200
         assert resp.json()["status"] == "ok"
 
+    def test_memory_delete_without_confirm_returns_422(self, client: TestClient) -> None:
+        """Omitting `confirm` is a validation error, not a preview."""
+        storage = _get_container(client).storage
+
+        resp = client.delete("/api/v1/memory/mem-1")
+        assert resp.status_code == 422
+        storage.delete_memory.assert_not_called()
+
+    def test_memory_delete_confirm_false_returns_preview(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_memory.return_value = _make_memory()
+
+        resp = client.delete("/api/v1/memory/mem-1?confirm=false")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "preview"
+        assert data["memory_id"] == "mem-1"
+        assert data["content"] == "remember this"
+        assert data["deleted"] is False
+        assert data["next_step"]
+        storage.delete_memory.assert_not_called()
+
+    def test_memory_delete_confirm_calls_store(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+
+        resp = client.delete("/api/v1/memory/mem-1?confirm=true")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data == {"status": "ok", "deleted": True, "memory_id": "mem-1"}
+        storage.delete_memory.assert_called_once_with("mem-1")
+
 
 # ---------------------------------------------------------------------------
 # Shared serializers
@@ -391,7 +516,6 @@ class TestSharedSerializers:
         assert d["source"] == "api"
 
 
-
 # ---------------------------------------------------------------------------
 # Global exception handlers
 # ---------------------------------------------------------------------------
@@ -407,7 +531,7 @@ class TestGlobalExceptionHandlers:
             "openchronicle.interfaces.api.routes.memory.delete_memory.execute",
             side_effect=NotFoundError("Memory not found: x", code="MEMORY_NOT_FOUND"),
         ):
-            resp = client.delete("/api/v1/memory/x")
+            resp = client.delete("/api/v1/memory/x?confirm=false")
         assert resp.status_code == 404
         body = resp.json()
         assert body["code"] == "MEMORY_NOT_FOUND"
@@ -487,3 +611,41 @@ class TestPathParamValidation:
         assert resp.status_code == 422
 
 
+class TestProjectBulkDeleteRoute:
+    def test_preview_reports_found_and_missing(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.side_effect = [_make_project(name="proj"), None]
+        storage.count_memory.return_value = 4
+
+        resp = client.post(
+            "/api/v1/project/bulk-delete",
+            json={"project_ids": ["proj-1", "nope"], "confirm": False},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["deleted"] is False
+        assert data["missing"] == ["nope"]
+        assert data["found"][0]["name"] == "proj"
+        storage.delete_project.assert_not_called()
+
+    def test_confirm_deletes(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        storage.get_project.return_value = _make_project(name="proj")
+        storage.delete_project.return_value = 2
+
+        resp = client.post(
+            "/api/v1/project/bulk-delete",
+            json={"project_ids": ["proj-1"], "confirm": True},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["deleted"] is True
+        assert data["total_deleted_memories"] == 2
+
+    def test_empty_list_is_rejected(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/project/bulk-delete", json={"project_ids": [], "confirm": True})
+        assert resp.status_code == 422
+
+    def test_missing_confirm_is_rejected(self, client: TestClient) -> None:
+        resp = client.post("/api/v1/project/bulk-delete", json={"project_ids": ["proj-1"]})
+        assert resp.status_code == 422

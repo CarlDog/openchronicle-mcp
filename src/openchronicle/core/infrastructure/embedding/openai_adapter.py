@@ -8,8 +8,8 @@ import os
 from typing import Any
 
 from openchronicle.core.domain.errors.error_codes import MISSING_PACKAGE, PROVIDER_ERROR
-from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
+from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 
 logger = logging.getLogger(__name__)
 

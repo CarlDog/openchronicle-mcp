@@ -1,8 +1,156 @@
-# OpenChronicle v2 — Senior Developer Codebase Assessment
+# OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-05
-**Branch:** `main` is v2 (frozen). Active development on `v3/develop`.
-**Revision:** 59 (v3 development; phases 0-7 + folder-by-folder audit; code-complete pending NAS cutover)
+**Date:** 2026-05-06 (rev 66 addendum 2026-07-23)
+**Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
+cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 66 (the v3.0.x read-surface + delete-safety batch, closed
+2026-07-23; 433 → 510 tests). Three `mcp-feedback` OC memories recorded
+friction found by dogfooding OC through its own client sessions; this
+batch worked all five filed items plus the adjacent defects sitting on
+the same code paths. Shipped as `v3.0.0-rc5` on 2026-07-24 and verified
+live: `/api/v1/health` returns the four new fields (which rc4 cannot
+produce) and `DELETE /api/v1/memory/{id}` without `confirm` returns 422.
+**Restart MCP clients** — they cache tool schemas, so a session holding
+the old `memory_delete` signature errors until it reconnects. Eight
+commits:
+
+- **C1 — project-scoped `list_memory`.** `project_id` now threads port →
+  SQL → use case, reusing the `idx_memory_project_created` index that
+  already existed. The filter is scope-strict, which let two in-Python
+  project filters (`embedding_service.generate_missing`,
+  `export_memory.execute`) collapse into a passed-through argument. The
+  store's two scoping rules — scope-strict for enumeration/accounting,
+  scope-with-global for relevance retrieval — are now named and
+  contrasted in the `MemoryStorePort` docstring, with a test pinning the
+  deliberate `list_memory` vs `pinned_items` divergence so neither
+  drifts toward the other. Dead `Page` protocol dropped from
+  `storage_port` (zero references repo-wide). 433 → 439 tests.
+- **C2 — required `confirm` on both delete surfaces.** `confirm` no
+  longer defaults to False on `memory_delete` / `project_delete`; a call
+  that omits it raises (MCP) or 422s (REST) instead of returning a
+  success-shaped preview that a client can mistake for a completed
+  delete. Previews gained `deleted: false` + `next_step`; confirms gained
+  `deleted: true`. The envelope invariant is enforced by a parametrized
+  test rather than a shared constructor — three lines of dict literal
+  don't justify a helper, and the test also catches a surface that skips
+  the convention entirely. `docs/api/STABILITY.md` gained a
+  "Before the v3.0.0 tag" section recording that pre-tag surface changes
+  are design rather than breakage, so this doesn't get relitigated on the
+  next one. 439 → 448 tests.
+- **C3 — filtering and projection on the read surface.** `project_list`
+  gains `name_contains` (literal substring; LIKE metacharacters in the
+  caller's value are escaped, so `100%` doesn't match everything), and
+  `memory_list` / `memory_search` / `context_recent` / `project_list` all
+  gain an opt-in `compact`. Compact replaces the expensive field instead
+  of shortening it — `content` → `content_preview` + `content_length`,
+  `metadata` → `metadata_keys` + `metadata_size` — so nothing can read a
+  truncated value out of a familiar key. Preview length is a module
+  constant rather than a parameter, which is what keeps MCP and REST from
+  growing two clamping conventions the way `limit`/`top_k` did.
+  `context_recent` now shares `memory_to_dict`, retiring the third
+  hand-rolled memory shape. 448 → 471 tests.
+- **C4 — bounded, honest `onboard_git` cluster detail.** Two knobs
+  (`max_commits_per_cluster`, `include_commit_detail`) replace a
+  hardcoded `[:20]`, and the formatter stopped lying: it had been
+  selecting the largest-diff commits and printing them in *size* order
+  despite date-prefixing every line, under a header reporting the full
+  count. Selection is still by churn; presentation is chronological, the
+  header adds `Showing: n of N`, clusters gain `shown_commit_count`, and
+  truncated file lists say `(+N more)`. The watermark bug is fixed too —
+  it anchored to `max(filtered)`, so anything newer than the last kept
+  commit was re-walked forever and a merge at HEAD meant the incremental
+  path never advanced. `key_files` / `suggested_tags` moved from the MCP
+  tool into `git_onboard.cluster_to_summary()`, which is what finally
+  made the response shape reachable from a unit test. 471 → 487 tests.
+- **C5 — `project_delete_bulk`.** New tool + `POST /project/bulk-delete`;
+  surface is now 18 tools. Reporting is per-item (unknown ids come back
+  in `missing` rather than aborting the batch) while durability is
+  all-or-nothing (the confirm loop runs in one `store.transaction()`, so
+  each cascade nests as a savepoint). Duplicate ids collapse; `name` is
+  preserved per project in both branches. No CLI twin, deliberately —
+  the 92-call cost that motivated this is an MCP round-trip problem, and
+  in a shell it is a `for` loop. 487 → 501 tests.
+- **C6 — version + capability signal on `health`.** Adds
+  `package_version`, `schema_version`, `maintenance_degraded`, and
+  `fts5_active`. The first two were already promised by STABILITY.md and
+  the client-setup doc, so this reconciles code to published docs;
+  `fts5_active` is the new one, distinguishing degraded search from
+  broken search. `maintenance_degraded` closes a parity gap where REST
+  appended it post-hoc and the MCP tool simply lacked it — a key-set
+  parity test now prevents that recurring. Fixed a live bug in passing:
+  `oc version` always printed "unknown" because the CLI looked up the
+  distribution `openchronicle` while pyproject declares
+  `openchronicle-mcp`, and the test only asserted that substring, which
+  the failure string contained. Version now has one source
+  (`src/openchronicle/version.py`), which also retires the hardcoded
+  `"3.0.0-dev"` in `api/app.py` that had drifted from pyproject.
+  501 → 507 tests.
+- **C7 — `memory_stats` through `count_memory`.** The stats body existed
+  twice verbatim (MCP tool + REST route) and both violated the rule
+  `count_memory`'s docstring states outright, answering "how many?" with
+  a full table load. `total` is now a SQL COUNT(\*); the histograms still
+  read rows (tags are a JSON column) but read the project-scoped
+  `list_memory` from C1, so a scoped call stops loading other projects'
+  rows to discard them. New `use_cases/stats_memory.py`; the REST
+  duplicate is gone. 507 → 510 tests.
+
+**Deliberately left alone**, so nobody "fixes" them later:
+`export_memory.py` hand-rolls its own dicts rather than sharing
+`interfaces/serializers` — `test_hexagonal_boundaries.py` forbids core
+importing interfaces, and the export payload is a versioned wire format
+(`EXPORT_FORMAT_VERSION`) that has to be free to diverge from the API
+shape. The CLI's two `--confirm` branches stay duplicated: ~8 trivial
+lines each, no shared correctness rule.
+
+**Revision:** 65 (v3.0.0-rc4 live on NAS; rev 64 detail below. On
+2026-07-02 a fresh-eyes review — see the plan file + OC backlog memory
+"Repo improvement review — punch list (2026-07-01)" — produced a
+39-item punch list, of which the Tier-1/Tier-2 batch shipped this
+session: (#1) serialized the shared SQLite connection behind a
+threading.RLock so the request threadpool and maintenance workers can
+no longer collide on BEGIN IMMEDIATE / VACUUM; (#2) made all 17 MCP
+tools `async` with `asyncio.to_thread` so a blocking embed/clone no
+longer stalls the event loop; (#3/#4) fixed git-onboard multi-line
+body truncation and added a clone-URL transport allowlist; plus the
+first tests for git_onboard.py and the db_integrity_check failure
+branch. Test count 394 → 421. Remaining punch-list tiers (docs SSOT
+rewrite, API-consistency polish, CI/CD + Docker hardening, Phase 9
+decommission + v3.0.0 final tag) are still open.)
+
+**Revision:** 64 (v3.0.0-rc3 live on NAS as of 2026-05-06 19:26 UTC;
+turbulent cutover documented in
+[cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md);
+12-item punch list + 3 post-cutover MCP-transport items all closed;
+senior-dev review batch shipped (numpy 265x speedup, API consistency,
+ruff backlog clear); rate-limit ceiling raised 120 → 600 RPM and
+project CRUD surface completed (project_get + project_update +
+project_delete, plus symmetric `confirm` flag on memory_delete) on
+2026-05-11 from V3_PLAN.md "Post-cutover follow-ups"; MCP surface
+is now 17 tools; remaining work is Phase 9 decommission, date-gated
+to 2026-05-13+)
+
+> **Cutover note (2026-05-06):** v3 went live on stack 151 with
+> `:v3.0.0-rc1` image, upgraded to `:v3.0.0-rc2` the same evening
+> after MCP transport bugs (path doubling + Host-header allowlist) were
+> fixed, then to `:v3.0.0-rc3` later that day with the senior-dev
+> review batch (numpy 265x semantic-search speedup, API consistency
+> cleanups, ruff backlog clear). The migrated DB the prior session
+> produced was corrupt by the time v3 first opened it (root cause
+> unconfirmed — likely orphan WAL/SHM files at the destination path).
+> Recovery: abandoned the migration, restarted v3 against a fresh
+> empty volume. v3 booted cleanly; full pipeline verified (HTTP write
+> → DB → embedding → maintenance loop → backup). Cost: 36 v2 memories
+> not preserved through to live v3 (initial estimate 24; L3
+> investigation confirmed the migration source was the laptop
+> backup). v2 DB intact on disk for forensic analysis. New canonical
+> project_id: `fe2ef898-0152-40a4-af97-ed97cc86ca45`. See triage doc
+> for full account; punch list now fully closed.
+
+**Sections below describe v2 architecture as it was at freeze
+(`bb217d9`), preserved for historical reference and v2 archive
+context. v3-specific architecture lives in
+[architecture/ARCHITECTURE.md](architecture/ARCHITECTURE.md) and the
+narrative of how we got here is in [V3_PLAN.md](V3_PLAN.md).**
 
 > **Audit pass (post-Phase 7):** walked all 187 tracked files folder-by-folder
 > and resolved straggler v2 references that grep missed earlier. Stragglers
@@ -68,19 +216,20 @@
 >
 > Tests: 345 passing, 0 failed (was 349 with the deleted `tests/integration/`
 > directory; the policies-purity drop accounts for the further −1).
-
+>
 > **⚠ v3 in active development.** This document describes v2, which is now
 > frozen. The v2 snapshot is preserved at `archive/openchronicle.v2`. Active
 > development happens on `v3/develop`. See [V3_PLAN.md](V3_PLAN.md) for the
 > living plan and phase tracker.
 >
 > **v3 phase progress:**
+>
 > - **Phase 0** (branching) — done.
 > - **Phase 1** (interfaces slimmed) — done. 570 tests passing.
 > - **Phase 2** (application slimmed) — done. Container reduced to memory +
 >   embedding + git-onboard wiring; orchestrator/scheduler/MoE/webhook/asset/
 >   media/llm services + routing/runtime/replay/observability/policies dirs
->   + ~30 use cases + plugins/ deleted. 345 tests passing.
+>   - ~30 use cases + plugins/ deleted. 345 tests passing.
 > - **Phase 3+4** (infrastructure + domain slimmed) — done. Combined commit
 >   because the layers are intertwined: infrastructure adapter dirs (llm/,
 >   media/, privacy/, router_assist/, routing/, logging/) deleted; sqlite_store
@@ -833,6 +982,27 @@ modifies OC's conversation behavior via mode prompt builders, not a connector).
 The plugin loader contract is unchanged — task handlers and mode builders are
 still the plugin extension surface. See "2026-04 Incident Remediation" below.
 
+**Scheduled git-refresh (proposed 2026-06-04).** Git-derived memories
+(`onboard_git`) go stale between sessions — commits pushed from a terminal or by
+other contributors are never picked up unless someone manually re-runs onboard.
+The fix belongs server-side, in the maintenance loop, NOT a client-side cron.
+(Surfaced while trying to wire exactly such a cron from a dev machine: the local
+`oc` CLI operates on its own local store — a *different backend* from the NAS
+deployment that actually serves memory — and the NAS is LAN-only, so any external
+scheduler either refreshes the wrong DB or can't reach the right one. OC owning
+its own freshness is the correct home.) Most of the machinery already exists:
+`git_onboard.py` clones by URL and onboards incrementally via a `since_commit`
+watermark (shallow clone with no watermark, full clone when one is set), so no
+local checkout is needed; `maintenance/jobs.py` already runs `async def
+<job>(container)` jobs (`db_backup`, `db_vacuum`) on the maintenance-loop cadence.
+The feature is the wiring: a new `git_refresh` maintenance job that iterates every
+project with `metadata.repo`, resolves each project's last-onboarded-commit
+watermark, runs the incremental URL-clone onboard, and advances the watermark —
+behind a cadence knob (default daily) and an LLM-synthesis budget so a busy repo
+can't run the onboard LLM unbounded. Open design points: where the per-project
+watermark persists (project metadata vs a dedicated column), and whether to fall
+back to `--no-llm` raw onboarding once the synthesis budget is spent.
+
 ```text
 Core Done
   ✓ LLMPort: function calling / tool use (done)
@@ -850,6 +1020,7 @@ Core Done
   ✓ Embedding Observability (health status, startup logging, backfill resilience, configurable timeout)
   ✓ Inbound Hooks Endpoint (core — interfaces/api/routes/hooks.py, generic POST dispatch to plugin handlers)
   ~ Phase 5 IDE Hooks (prototype — Claude Code PreCompact/SessionStart hooks, `oc memory search --full`)
+  → Scheduled git-refresh (core — maintenance job re-onboards repo-bearing projects on a cadence; reuses git_onboard URL-clone + since_commit watermark)
   → Security Scanner (plugin — stateless handler)
   → Dev Agent Runner (core — needs LLM + sandbox)
   → Serena MCP (core — inside sandbox only)

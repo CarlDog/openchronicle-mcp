@@ -21,12 +21,14 @@ def health(container: ContainerDep) -> dict[str, Any]:
     """Readiness probe: DB reachability, config status, embedding subsystem."""
     report = diagnose_runtime.execute()
     report.embedding_status = container.embedding_status_dict()
+    report.schema_version = container.storage.schema_version()
+    report.maintenance_degraded = bool(getattr(container, "maintenance_degraded", False))
+    report.fts5_active = container.storage.fts5_active
     data = asdict(report)
     if data.get("timestamp_utc"):
         data["timestamp_utc"] = data["timestamp_utc"].isoformat()
     if data.get("db_modified_utc"):
         data["db_modified_utc"] = data["db_modified_utc"].isoformat()
-    data["maintenance_degraded"] = bool(getattr(container, "maintenance_degraded", False))
     return data
 
 

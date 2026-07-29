@@ -50,8 +50,7 @@ class CoreContainer:
         db_path_resolved.parent.mkdir(parents=True, exist_ok=True)
         if not config_dir_resolved.exists():
             raise ConfigError(
-                f"Config directory not found: {config_dir_resolved}. "
-                "Run `oc init` or create the directory.",
+                f"Config directory not found: {config_dir_resolved}. Run `oc init` or create the directory.",
                 code=CONFIG_ERROR,
             )
         output_dir_resolved.mkdir(parents=True, exist_ok=True)

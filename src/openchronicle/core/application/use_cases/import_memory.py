@@ -53,8 +53,7 @@ def execute(
         existing_memory = memory_store.list_memory(limit=1)
         if existing_projects or existing_memory:
             raise ValidationError(
-                "destination is non-empty; refuse to replace. "
-                "Start with a fresh DB or use mode='merge'.",
+                "destination is non-empty; refuse to replace. Start with a fresh DB or use mode='merge'.",
             )
 
     existing_project_ids = {p.id for p in storage.list_projects()}

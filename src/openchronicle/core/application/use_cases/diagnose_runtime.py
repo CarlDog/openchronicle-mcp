@@ -14,6 +14,7 @@ from pathlib import Path
 
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
+from openchronicle.version import package_version
 
 _logger = logging.getLogger(__name__)
 
@@ -53,6 +54,7 @@ def execute() -> DiagnosticsReport:
         config_dir_exists=config_dir_exists,
         running_in_container_hint=running_in_container_hint,
         persistence_hint=persistence_hint,
+        package_version=package_version(),
     )
 
 

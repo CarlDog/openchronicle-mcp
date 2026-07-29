@@ -6,7 +6,6 @@ import argparse
 from collections.abc import Callable
 from pathlib import Path
 
-from openchronicle.core.infrastructure.persistence.backup import backup_from_connection
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 from ._helpers import json_envelope, print_json
@@ -117,8 +116,7 @@ def cmd_db_backup(args: argparse.Namespace, container: CoreContainer) -> int:
         print("Use --force to overwrite.")
         return 1
 
-    src_conn = container.storage._conn  # noqa: SLF001
-    backup_from_connection(src_conn, dest)
+    container.storage.backup_to(dest)
     backup_size = dest.stat().st_size
     print(f"Backup written: {dest} ({backup_size:,} bytes)")
     return 0

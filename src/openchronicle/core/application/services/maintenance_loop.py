@@ -25,7 +25,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -66,7 +66,7 @@ class MaintenanceLoop:
         self,
         container: CoreContainer,
         jobs: list[JobState],
-        handlers: dict[str, JobHandler],
+        handlers: Mapping[str, JobHandler],
         *,
         tick_seconds: float = 1.0,
     ) -> None:
@@ -119,7 +119,7 @@ class MaintenanceLoop:
         self._stop_event.set()
         try:
             await asyncio.wait_for(self._task, timeout=5.0)
-        except (asyncio.TimeoutError, asyncio.CancelledError):
+        except (TimeoutError, asyncio.CancelledError):
             self._task.cancel()
         # Drain any in-flight job tasks (cancel rather than wait for
         # potentially long-running jobs).
@@ -170,10 +170,8 @@ class MaintenanceLoop:
                 _logger.exception("Maintenance loop iteration failed; continuing")
 
             try:
-                await asyncio.wait_for(
-                    self._stop_event.wait(), timeout=self._tick_seconds
-                )
-            except asyncio.TimeoutError:
+                await asyncio.wait_for(self._stop_event.wait(), timeout=self._tick_seconds)
+            except TimeoutError:
                 continue
 
     def _spawn(self, job: JobState) -> None:
@@ -182,35 +180,33 @@ class MaintenanceLoop:
         task.add_done_callback(self._inflight.discard)
 
     async def _invoke(self, job: JobState) -> None:
-        async with job._lock:
-            # Global mutex serializes all jobs across the process —
-            # never two at once. Per-job lock (above) is for next-tick
-            # overlap detection.
-            async with self._global_lock:
-                handler = self._handlers.get(job.name)
-                if handler is None:
-                    _logger.error("maintenance job %s has no handler registered", job.name)
-                    job.last_outcome = "failed"
-                    job.last_error = "no handler registered"
-                    job.runs_failed += 1
-                    job.runs_total += 1
-                    job.last_run_at = utc_now()
-                    return
+        # job._lock = next-tick overlap detection. self._global_lock =
+        # process-wide mutex so two jobs never run simultaneously.
+        async with job._lock, self._global_lock:
+            handler = self._handlers.get(job.name)
+            if handler is None:
+                _logger.error("maintenance job %s has no handler registered", job.name)
+                job.last_outcome = "failed"
+                job.last_error = "no handler registered"
+                job.runs_failed += 1
+                job.runs_total += 1
+                job.last_run_at = utc_now()
+                return
 
-                _logger.info("maintenance job %s: running", job.name)
-                try:
-                    await handler(self._container)
-                    job.last_outcome = "ok"
-                    job.last_error = None
-                    job.runs_ok += 1
-                except Exception as exc:
-                    _logger.exception("maintenance job %s failed", job.name)
-                    job.last_outcome = "failed"
-                    job.last_error = str(exc)
-                    job.runs_failed += 1
-                finally:
-                    job.runs_total += 1
-                    job.last_run_at = utc_now()
+            _logger.info("maintenance job %s: running", job.name)
+            try:
+                await handler(self._container)
+                job.last_outcome = "ok"
+                job.last_error = None
+                job.runs_ok += 1
+            except Exception as exc:
+                _logger.exception("maintenance job %s failed", job.name)
+                job.last_outcome = "failed"
+                job.last_error = str(exc)
+                job.runs_failed += 1
+            finally:
+                job.runs_total += 1
+                job.last_run_at = utc_now()
 
 
 def _is_due(job: JobState, now: datetime) -> bool:
@@ -257,7 +253,7 @@ def load_jobs(file_config: dict[str, Any] | None = None) -> list[JobState]:
         if not isinstance(entry, dict):
             continue
         name = entry.get("name")
-        if name not in known_names:
+        if not isinstance(name, str) or name not in known_names:
             _logger.warning("unknown maintenance job %r in config; skipping", name)
             continue
         states.append(

@@ -1,10 +1,15 @@
 # OpenChronicle v3 — Memory-Only Rewrite Plan
 
-**Status:** Code-complete on `v3/develop` (phases 0-7 done + folder-by-folder
-audit at `6a667db`) + Phase 8 prep (CI triggers + rc tag flow); 345 tests
-passing. Phase 8 (NAS cutover) is the next user-driven step.
-**Branch:** `v3/develop` (forked from `main` HEAD `bb217d9`).
-**v2 archive:** `archive/openchronicle.v2` (frozen).
+**Status:** **SHIPPED 2026-05-06.** v3 is live on the NAS at
+`http://your-nas:18000` (HTTP `/api/v1/*`, MCP `/mcp`). This document
+is now historical reference for the design decisions and phase plan;
+it is no longer the active runbook.
+**Branch:** `main` (force-pushed from `v3/develop` during Phase 8 cutover).
+**v2 archive:** `archive/openchronicle.v2` at `bb217d9` (frozen, immutable).
+**Cutover artifacts:** Docker image `:v3.0.0-rc1`; rollback target
+`:v2-final` (= `bb217d9`); cutover triage at
+[docs/cutover-2026-05-06-triage.md](cutover-2026-05-06-triage.md) for
+the actual lived experience vs. the planned sequence below.
 
 ## Phase Tracker
 
@@ -15,7 +20,7 @@ passing. Phase 8 (NAS cutover) is the next user-driven step.
 | 2 — application slimmed | ✅ done (2026-05-05) | container/services/use_cases/dirs/plugins; 345 tests passing |
 | 3+4 — infrastructure + domain slimmed | ✅ done (2026-05-05) | combined commit; sqlite_store 1882→470 LOC; schema 18→3 tables; `conversation_id` dropped from MemoryItem; `ProviderError` replaces `LLMProviderError`; 294 tests passing |
 | 5 — schema migration + framework + online backup + export/import | ✅ done (2026-05-05) | versioned migrator (savepoint atomicity, idempotent), 001_initial.sql, online backup module (atomic .tmp→rename), `oc memory export/import`, `scripts/migrate_v2_to_v3.py` + `verify_v3_db.py`; 323 tests passing |
-| 6 — ASGI unification + `OC_LOG_FORMAT` | ✅ done (2026-05-05) | FastMCP mounted at `/mcp`; single ASGI process; `OC_LOG_FORMAT=human|json` (Q19 locked); compose 3→1 service; 331 tests passing |
+| 6 — ASGI unification + `OC_LOG_FORMAT` | ✅ done (2026-05-05) | FastMCP mounted at `/mcp`; single ASGI process; `OC_LOG_FORMAT=human` or `json` (Q19 locked); compose 3→1 service; 331 tests passing |
 | 6.5 — maintenance loop + degradation | ✅ done (2026-05-05) | asyncio loop with per-job + global locks (skip-on-overlap, sequential within process), 5 job handlers (db_backup/db_vacuum/db_integrity_check/embedding_backfill/git_onboard_resync), `/api/v1/maintenance/status` endpoint, `oc maintenance` CLI, embedding-failure FTS5 fallback with `degraded` status surfacing; 349 tests passing |
 | 7 — docs sweep + repo polish | ✅ done (2026-05-05) | every doc classified (update/archive/delete); v2 docs moved under `docs/archive/v2/`; new STABILITY.md, security_posture.md, MAINTENANCE.md; README rewritten per voice rules; pyproject 3.0.0.dev0 with dead extras dropped; 349 tests passing |
 | 8 — production cutover | pending | NAS stack 151 redeploy + smoke + client config updates |
@@ -758,30 +763,38 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 **Cutover sequence:**
 
+> **2026-05-06 cutover learnings folded in below.** The original sequence
+> ran into corruption that the original steps didn't defend against.
+> Step 4a (orphan WAL scrub at destination) and step 6 (capture v2 retag
+> BEFORE force-pushing) are NEW based on what bit us. See
+> `docs/cutover-2026-05-06-triage.md` for the full account.
+
 1. Stop the v2 stack 151 in Portainer
 2. **Take a fresh backup of the production DB** (in case the pre-flight backup is stale)
-3. Run `scripts/migrate_v2_to_v3.py` on the production DB
-4. Run `scripts/verify_v3_db.py` — abort if any check fails
-5. `docker-compose.nas.yml` is already in v3 single-service shape on `v3/develop`. Force-push `v3/develop` → `main` so future `:latest` builds carry v3 code:
+3. Run `scripts/migrate_v2_to_v3.py` on the production DB. **Note:** the script now refuses if `-wal`/`-shm` files exist at the destination path — pass `--force` if you trust they're orphans, otherwise scrub the destination dir first.
+4. Run `scripts/verify_v3_db.py` — abort if any check fails. Pay attention to the new `warnings[]` field too: orphan SQLite sidecars at the destination path don't fail validation but indicate trouble (a process holds the DB open OR leftover sidecars from a prior DB are about to corrupt the next opener).
+4a. **Verify the destination volume directory is clean.** Specifically: no `*-wal` or `*-shm` files matching the placed DB's path stem. SQLite associates sidecars by path; an orphan WAL from a prior process or DB will be applied on next open and produce `database disk image is malformed`. The 2026-05-06 cutover lost ~24 memories to this exact trap.
+5. **Capture the v2 retag BEFORE the force-push.** Trigger the `Retag GHCR Image` workflow with `source_tag=latest` (or the v2 build's SHA tag, e.g. `bb217d9`) and `dest_tag=v2-final`. Verify it lands. The 2026-05-06 cutover did this AFTER the force-push and lost the race — `docker-publish.yml` overwrites `:latest` with v3 in ~5-10 min, and the original retag workflow had a lowercase IMAGE_NAME bug (fixed in commit 6ae71812) that ate a chance to retag in the window. Always do this step before step 6.
+6. `docker-compose.nas.yml` is already in v3 single-service shape on `v3/develop`. Force-push `v3/develop` → `main` so future `:latest` builds carry v3 code:
 
    ```bash
    git push --force-with-lease origin v3/develop:main
    ```
 
-6. Update Portainer stack 151's compose to point at v3 image (`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`); redeploy. Use the rc tag, not `:latest` — `:latest` gets flipped only after Day 7 of clean operation (step 12 of Phase 9 Day 0 / Day 7).
-7. Wait for healthcheck green
-8. **Trigger one immediate run of `embedding_backfill`** (`oc maintenance run-once embedding_backfill`) to ensure any v2 memories without embeddings get them before search traffic hits
-9. Run smoke test:
+7. Update Portainer stack 151's compose to point at v3 image (`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`); redeploy. Use the rc tag, not `:latest` — `:latest` gets flipped only after Day 7 of clean operation (step 14 of Phase 9 Day 0 / Day 7).
+8. Wait for healthcheck green. **If you see `database disk image is malformed` in the container logs, STOP.** This is the WAL-orphan trap from the 2026-05-06 cutover. Do NOT let the container restart-loop against the corrupt DB — stop the container, check the volume directory for orphan `*-wal`/`*-shm` sidecars (very common cause), scrub them, then restart. See cutover-2026-05-06-triage.md for the full recovery procedure.
+9. **Verify auth state.** Hit `POST /api/v1/project` with no `Authorization` header. If it succeeds, `OC_API_KEY` is empty and auth is disabled — decide deliberately whether that matches your security posture. If it returns 401, set `$OC_API_KEY` for the smoke-test step below. The 2026-05-06 cutover discovered auth was silently disabled; document the decision in CLAUDE.md.
+10. **Trigger one immediate run of `embedding_backfill`** (`oc maintenance run-once embedding_backfill`) to ensure any v2 memories without embeddings get them before search traffic hits
+11. Run smoke test:
 
-   ```bash
-   python scripts/smoke_test.py http://carldog-nas:18000 \
-     87de0f7d-d6ab-4b83-8613-b2b5ff60a57b
-   ```
+    ```bash
+    python scripts/smoke_test.py http://your-nas:18000 <project-uuid>
+    ```
 
-   The script is stdlib-only and exits non-zero on the first failing step. It walks `/health`, `/api/v1/health`, `/api/v1/maintenance/status`, `/api/v1/project` (verifies the target project resolves), full memory CRUD + search + pin round-trip, and probes the `/mcp` mount (accepting 307/405 since streamable-HTTP doesn't answer GETs). Pair it with a manual `onboard_git` MCP call against a small public repo for the use case the script can't cover (since there's no HTTP-side `onboard_git` endpoint — it's an MCP-only tool).
-10. Verify project UUID `87de0f7d-d6ab-4b83-8613-b2b5ff60a57b` (or current canonical) still resolves
-11. Update Client Cutover Checklist items (point clients at new endpoint)
-12. Tag the merge commit `v3.0.0` (workflow rebuilds and publishes `:v3.0.0`); flipping `:latest` to v3 is deferred to Phase 9 Day 7 per the rollback policy
+    The script is stdlib-only and exits non-zero on the first failing step. It walks `/health`, `/api/v1/health`, `/api/v1/maintenance/status`, `/api/v1/project` (verifies the target project resolves), full memory CRUD + search + pin round-trip, and probes the `/mcp` mount (accepting 307/405 since streamable-HTTP doesn't answer GETs). Pair it with a manual `onboard_git` MCP call against a small public repo for the use case the script can't cover (since there's no HTTP-side `onboard_git` endpoint — it's an MCP-only tool).
+12. Verify project UUID (current canonical: `fe2ef898-0152-40a4-af97-ed97cc86ca45` per CLAUDE.md) still resolves
+13. Update Client Cutover Checklist items (point clients at new endpoint)
+14. Tag the merge commit `v3.0.0` (workflow rebuilds and publishes `:v3.0.0`); flipping `:latest` to v3 is deferred to Phase 9 Day 7 per the rollback policy
 
 **If cutover fails (rollback procedure):**
 
@@ -817,7 +830,27 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
+- **Rate limiter ceiling.** ✅ Landed 2026-05-11. Default bumped 120 → 600 RPM (`_DEFAULT_RPM` in `src/openchronicle/interfaces/api/middleware/rate_limit.py`); `.env.example` and `docs/configuration/env_vars.md` reconciled (both previously claimed `60`, a pre-existing drift). Single-user home-LAN deployments aren't IP-storming attackers; the option-(a) one-line bump was the right move. Option (b) — a bulk-search endpoint (`memory_search_bulk(queries: list[SearchQuery])`) for multi-type retrievals — is still cleaner long-term and remains on the backlog if mnemosyne's `gatherContext` burst pattern proves expensive at the new ceiling.
+- **`project_delete` MCP tool / API surface.** ✅ Landed 2026-05-11 as part of the v3.0.x "project surface completion" pass. Shipped together with `project_get`, `project_update`, and a symmetric `confirm` flag on `memory_delete`:
+  - `delete_project` on `StoragePort` does the atomic cascade (project row + every `memory_items` row with that project_id; `memory_embeddings` cascade via the existing FK). `update_project` and `get_project` round out the port.
+  - `mnemo_*` storytelling adjacent: the use case takes `confirm: bool = False`; the preview branch returns `{status: "preview", project_id, name, memory_count}` without touching the DB, and `confirm=True` returns `{status: "ok", project_id, name, deleted_memories}`.
+  - REST: `DELETE /api/v1/project/{id}?confirm=true`, `GET /api/v1/project/{id}`, `PUT /api/v1/project/{id}` (with a Pydantic model-validator that rejects bodies setting neither name nor metadata → 422).
+  - MCP: `project_get`, `project_update`, `project_delete` registered alongside the existing `project_create` / `project_list`. The bundled v3 MCP surface is now 17 tools.
+  - CLI: `oc show-project` already existed; added `oc update-project --name --metadata` and `oc delete-project --confirm`.
+  - `memory_delete` symmetric pass: same `confirm: bool = False` preview/ok shape on the MCP tool, REST route (`DELETE /api/v1/memory/{id}?confirm=true`), and CLI (`oc memory delete <id> --confirm`). Breaking change to the previous one-shot semantic — acceptable per the no-backwards-compat rule.
+  - Tests: `tests/test_project_crud.py` is a real-SqliteStore integration suite covering cascade + update; HTTP and MCP tool tests round out the mock-container coverage. 386/386 pass.
+- **Project-scoped `memory_list`.** ✅ Landed 2026-07-23. `memory_list` had no `project_id` even though its siblings `memory_search` and `memory_stats` both did, so answering "which projects have memories?" meant pulling every row's full content and filtering client-side — one dogfooding session burned 91,372 characters on exactly that (OC memory `ff7933df`). `project_id` now threads port → SQL → use case, using the `idx_memory_project_created` index that was already in `001_initial.sql`. The filter is **scope-strict** (`project_id = ?`), matching `count_memory`, `list_memory_by_source`, and the `delete_project` cascade. `pinned_items` keeps its scope-with-global rule (`project_id = ? OR project_id IS NULL`) deliberately — a standing rule that belongs to no single project still applies while working inside one, and making it strict would stop standing rules surfacing in project-scoped search. Both rules are now named in the `MemoryStorePort` class docstring, and `test_project_filter_disagrees_with_pinned_items_by_design` pins the divergence so a future reader doesn't "fix" one to match the other. Fallout: the in-Python project filters in `embedding_service.generate_missing` and `export_memory.execute` became a passed-through argument, and the dead `Page` protocol was deleted from `storage_port.py`.
+- **Required `confirm` on both delete surfaces.** ✅ Landed 2026-07-23. `confirm` was `bool = False` on `memory_delete` and `project_delete`, so a call that omitted it got a preview — which is success-shaped. mnemosyne-mcp's `OcClient.memoryDelete` wrapper returns `Promise<void>` and never read the payload, so `mnemo_delete_entity` reported success while the memory stayed in the DB; it surfaced only when an integration test recalled the "deleted" entity (OC memory `a2cdfe56`). `confirm` is now required on both use cases, both MCP tools, and both REST routes (absence is a 422). Previews additionally carry `deleted: false` and a `next_step` string, and confirms carry `deleted: true`, so even a caller that only skims the payload sees the difference. The CLI is unchanged — argparse can't express a required boolean flag sensibly, and its failure mode was never silent (it prints "Re-run with --confirm"). No shared envelope helper was extracted: the payload is three lines of dict literal per use case, so `tests/test_delete_preview_envelope.py` enforces the invariant instead, which also catches a future delete surface that forgets the convention rather than only the ones that remember to call a helper. `test_confirm_is_required` asserts the default cannot be reintroduced.
+- **Filtering and projection on the read surface.** ✅ Landed 2026-07-23. The read tools had no way to return less: `project_list` took zero arguments, and every listing returned full `content` / `metadata`. Finding 46 projects by name prefix meant pulling every project's multi-KB metadata blob (OC memory `837e85cc`), and listing 30 memories cost 91,372 characters (`ff7933df`). Two additions, both opt-in so no existing response shape moved. (1) `project_list` gains `name_contains`, a case-insensitive substring filter compiled to `LIKE ? ESCAPE ?` with `%`, `_`, and the escape character itself escaped in the caller's value — without that a project named `100%` matches every row, which is the quiet kind of wrong, so it has dedicated tests. (2) `memory_list`, `memory_search`, `context_recent`, and `project_list` gain `compact`. Compact **replaces** the expensive field rather than shortening it (`content` → `content_preview` + `content_length`; `metadata` → `metadata_keys` + `metadata_size`) so a consumer reading `content` can never silently receive a truncated string — the same class of failure as the delete preview. The preview length is a module constant, not a parameter: a bool needs no clamping, so MCP and REST take it verbatim and can't drift the way their `limit`/`top_k` range checks already have. `context_recent` now shares `memory_to_dict`, retiring a third hand-rolled memory shape and gaining `source`/`updated_at`. The CLI gets `--project-id` and `--name-contains` but no `--compact` flag: its output was already compact, so it just adopts the shared `content_preview()` helper (3 call sites, which is what earns the extraction).
+- **Bounded, honest `onboard_git` cluster detail.** ✅ Landed 2026-07-23. `max_clusters` capped how many clusters came back but nothing capped the bulk inside each one, so onboarding a 491-commit repo returned 86,006 characters (OC memory `ff7933df`). Two knobs now bound it: `max_commits_per_cluster` (1-100, default 10, replacing a hardcoded `[:20]`) and `include_commit_detail` (default false), which gates the body, per-commit file list, and diffstat together. Grouping those three under one flag rather than three was deliberate — the 500-char body is the dominant term, so capping commit count alone only halves the payload. The separate, arguably more valuable half of this fix is honesty: the old formatter selected the 20 *largest-diff* commits and printed them in *size* order despite prefixing each line with a date, under a header reporting the true `Total commits: 153`. Selection still goes by churn (the best proxy for which commits carry the story) but presentation is now chronological, the header adds `Showing: n of N` whenever the cluster is capped, each cluster gains `shown_commit_count`, and a truncated file list appends `(+N more)` instead of just stopping. Also fixed here: the watermark anchored to `max(filtered)` rather than `max(commits)`, so any commit newer than the last *kept* one — a merge, a format commit, a version bump — was re-walked on every run, and a repo whose HEAD is a merge never advanced at all. The response gains `walked_commit_count` so the existing post-filter `commit_count` stops being ambiguous. Structurally, `key_files` and `suggested_tags` moved out of the MCP tool into `git_onboard.cluster_to_summary()`; that was clustering logic living in an interface module, and it was the reason no test could reach the response shape. `tests/test_onboard_git_tool.py` is new and includes the size cap that would have caught the original complaint.
+- **Bulk project delete.** ✅ Landed 2026-07-23. `project_delete` is strictly one project per call, so clearing 46 stale test projects cost 92 tool calls under the preview/confirm two-step (OC memory `837e85cc`). New `project_delete_bulk` tool + `POST /api/v1/project/bulk-delete` (POST rather than DELETE-with-body, since proxies and clients routinely strip DELETE bodies and this one is load-bearing). A new tool rather than overloading the singular one: accepting a list there would mean either changing `project_id`'s type or adding a mutually-exclusive parameter, and neither is a schema an LLM should have to reason about. Surface is now 18 tools. Two deliberate divergences from `project_delete`, both documented in the tool description: unknown ids are reported in `missing` rather than raising, because aborting a 46-element batch over one typo forces the caller to diff two lists by hand and re-issue — exactly the friction being removed; and while *reporting* is per-item, *durability* is all-or-nothing, since the confirm loop runs inside one `store.transaction()` and each cascade nests as a savepoint. Duplicate ids collapse. `name` is preserved per project in both branches — the mistyped-UUID guard matters more at 46 ids than at one. No CLI twin: bulk in a shell is a `for` loop, and the 92-call cost is an MCP round-trip problem that doesn't exist there.
+- **Version and capability signal on `health`.** ✅ Landed 2026-07-23. A downstream client had no way to tell which OC it was talking to, so a semantics change on an existing tool was undiscoverable without reading this repo's git log (OC memory `a2cdfe56`, suggestion 3). `health` now carries `package_version`, `schema_version`, `maintenance_degraded`, and `fts5_active`. The first two were already promised by `docs/api/STABILITY.md` and `docs/integrations/mcp_client_setup.md`, so this reconciles code to published docs rather than inventing a surface. `fts5_active` is the genuinely new one: search degrades to the Python fallback silently, and without this a caller cannot distinguish "results are poor" from "the fast path is gone". `maintenance_degraded` closes a real parity gap — the REST route appended it after building the payload, so the MCP tool was strictly poorer, and `tests/test_health_parity.py` now asserts the two key sets are identical so that can't recur. Along the way this fixed a live bug: `oc version` printed "unknown" because `pyproject.toml` declares the distribution as `openchronicle-mcp` while the CLI asked `importlib.metadata` for `openchronicle`; the existing test passed because it only checked that the substring "openchronicle" appeared, which the failure string satisfied. Version now has one source — new `src/openchronicle/version.py` reading package metadata — consumed by the CLI, the health payload, and `api/app.py`, whose hardcoded `"3.0.0-dev"` had already drifted from pyproject's `3.0.0.dev0`. Not done: passing a version to `FastMCP(...)` so the protocol handshake reports OC's version rather than a FastMCP default — the pinned `mcp` 1.26.0 constructor takes no `version` kwarg. Revisit when the SDK grows one.
+- **`memory_stats` through `count_memory`.** ✅ Landed 2026-07-23. The stats body existed twice, verbatim, in the MCP tool and the REST route, and both did the thing `MemoryStorePort.count_memory`'s own docstring warns against — answering "how many?" by pulling every row into Python and taking `len(...)`. Worse, the project filter ran in Python, so a scoped stats call on a multi-project DB loaded every other project's rows only to discard them; that is the same root cause as the 91,372-character `memory_list` complaint. Extracted to `use_cases/stats_memory.py`: `total` comes from `count_memory` (a COUNT(\*) at the SQL layer) and the tag/source histograms still need row access — tags are a JSON column with no cheap aggregate — but read the project-scoped `list_memory` added in the first commit of this batch. Two verbatim copies plus a documented correctness rule clears the extraction bar; the REST duplicate is gone.
 - **Dependency audit (unused deps only).** `pyproject.toml` extras (`[dev]`, `[mcp]`, `[openai]`, `[ollama]`) were trimmed during Phase 7 but never re-resolved against actual import use. Walk `pipdeptree` on a fresh `pip install -e ".[dev,mcp,openai,ollama]"` and prune anything not imported by `src/` or `tests/`. Likely candidates to drop or version-pin tighter: leftover transitive deps from the v2 cut. Vulnerability tracking is handled by `.github/dependabot.yml` (pip + github-actions + docker, weekly), so this audit is about *unused* deps, not insecure ones — Dependabot will open PRs for the latter on its own. Build-tooling CVEs (pip / setuptools / wheel on the `python:3.11-slim` base) were addressed pre-cutover by raising `build-system.requires` floors and adding a `pip install --upgrade pip setuptools wheel` step to the Dockerfile.
+- **Report OC's version in the MCP handshake.** The `FastMCP(...)` constructor in the pinned `mcp` 1.26.0 takes no `version` kwarg, so the protocol's `serverInfo.version` is whatever the SDK defaults to — which is worse than absent, because it looks like OC's version and isn't. `health.package_version` covers the need for now; revisit if the SDK grows the parameter. Don't reach into private attributes to force it.
+- **`_semantic_search` loads the whole embeddings table.** `embedding_service.py` reads every row of `memory_embeddings` and does an unfiltered numpy matmul per query, then applies the project filter in Python afterwards. Its own docstring names this the architectural ceiling and points at sqlite-vec as the fix. Fine at this deployment's size; the point at which it stops being fine is a row count nobody is currently watching.
+- **`_cosine_similarity` has no production caller.** Kept deliberately for tests and diagnostics per a note in `embedding_service.py`. Either give it a caller or delete it and move the test coverage onto whatever replaced it — a helper that exists only to be tested is a slow leak.
+- **CLI `--confirm` branch duplication.** `cmd_memory_delete` and `cmd_delete_project` each hand-roll the same "Would delete … Re-run with --confirm" branch. Left alone deliberately in the 2026-07-23 batch: ~8 trivial lines each, no shared correctness rule, so extracting costs more readability than it buys. Revisit only if a third such command appears.
 - **Docker base image refresh.** Verify the Dockerfile base is on the latest patch of python:3.11-slim (or whichever pin is current); rebuild reveals any silently-broken transitive system libs.
 - **Lock file or constraints file.** v2 had no lock file. Consider adding `requirements-dev.txt` from `pip freeze` after a clean install on the v3 image, so reproducibility doesn't drift.
 
@@ -831,10 +864,10 @@ v3 consolidates two ports into one path. **Every MCP client breaks until reconfi
 
 | What | v2 | v3 |
 |---|---|---|
-| HTTP REST | `http://carldog-nas:18000/api/v1/*` | `http://carldog-nas:18000/api/v1/*` (unchanged) |
-| HTTP liveness | `http://carldog-nas:18000/health` | `http://carldog-nas:18000/health` (unchanged) |
-| HTTP OpenAPI | `http://carldog-nas:18000/openapi.json` | `http://carldog-nas:18000/openapi.json` (unchanged, but content now reflects curated v3 surface) |
-| MCP transport | `http://carldog-nas:18001/mcp` | `http://carldog-nas:18000/mcp` (port collapsed) |
+| HTTP REST | `http://your-nas:18000/api/v1/*` | `http://your-nas:18000/api/v1/*` (unchanged) |
+| HTTP liveness | `http://your-nas:18000/health` | `http://your-nas:18000/health` (unchanged) |
+| HTTP OpenAPI | `http://your-nas:18000/openapi.json` | `http://your-nas:18000/openapi.json` (unchanged, but content now reflects curated v3 surface) |
+| MCP transport | `http://your-nas:18001/mcp` | `http://your-nas:18000/mcp` (port collapsed) |
 | Discord bot | (separate `discord` service in stack) | (gone — bot no longer runs) |
 
 ### Known client configs to update
@@ -844,7 +877,7 @@ v3 consolidates two ports into one path. **Every MCP client breaks until reconfi
 | `~/.claude.json` on the user's primary machine | Edit `mcpServers.openchronicle.url` from `:18001/mcp` → `:18000/mcp` |
 | `~/.claude.json` on every other machine the user runs Claude Code from | Same edit. Enumerate machines beforehand. |
 | Goose config (if registered) | Update OC server URL to `:18000/mcp` |
-| Open WebUI tool server (if configured) | Update OpenAPI URL to `http://carldog-nas:18000` (still appends `/openapi.json` itself) |
+| Open WebUI tool server (if configured) | Update OpenAPI URL to `http://your-nas:18000` (still appends `/openapi.json` itself) |
 | Synology Container Manager healthcheck (if pointed at `:18001`) | Update to `:18000/health` |
 | Portainer stack 151 healthcheck | Should use `/health` (already correct, but verify) |
 | Any home-grown scripts hitting `:18001` | Search the user's repos for `:18001` references; update or delete |

@@ -11,7 +11,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 # Defaults — configurable via env vars
-_DEFAULT_RPM = 120  # requests per minute per client
+_DEFAULT_RPM = 600  # requests per minute per client
 _DEFAULT_WINDOW_SECONDS = 60
 
 
@@ -19,7 +19,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     """Simple sliding-window rate limiter keyed by client IP.
 
     Env vars:
-        OC_API_RATE_LIMIT_RPM — max requests per minute per client (default: 120)
+        OC_API_RATE_LIMIT_RPM — max requests per minute per client (default: 600)
 
     Returns 429 with Retry-After header when limit is exceeded.
     """

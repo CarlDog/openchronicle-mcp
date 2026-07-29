@@ -27,11 +27,41 @@ def main(argv: list[str] | None = None) -> int:
     init_project_cmd = sub.add_parser("init-project", help="Create a project")
     init_project_cmd.add_argument("name")
 
-    sub.add_parser("list-projects", help="List projects")
+    list_projects_cmd = sub.add_parser("list-projects", help="List projects")
+    list_projects_cmd.add_argument(
+        "--name-contains",
+        default=None,
+        help="Case-insensitive substring filter on the project name",
+    )
 
     show_project_cmd = sub.add_parser("show-project", help="Show project details")
     show_project_cmd.add_argument("project_id")
     show_project_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    update_project_cmd = sub.add_parser(
+        "update-project",
+        help="Rename a project or update its metadata",
+    )
+    update_project_cmd.add_argument("project_id")
+    update_project_cmd.add_argument("--name", default=None, help="New project name")
+    update_project_cmd.add_argument(
+        "--metadata",
+        default=None,
+        help="Replacement metadata as a JSON object. Pass `{}` to clear.",
+    )
+    update_project_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
+
+    delete_project_cmd = sub.add_parser(
+        "delete-project",
+        help="Preview (default) or delete a project and all its memories",
+    )
+    delete_project_cmd.add_argument("project_id")
+    delete_project_cmd.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Actually delete (default is a no-op preview)",
+    )
+    delete_project_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     # --- Memory commands ---
     memory_cmd = sub.add_parser("memory", help="Memory commands")
@@ -48,6 +78,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_list_cmd.add_argument("--limit", type=int, default=None, help="Limit number of memories shown")
     memory_list_cmd.add_argument("--pinned-only", action="store_true", help="Show only pinned items")
     memory_list_cmd.add_argument("--offset", type=int, default=0, help="Skip first N items")
+    memory_list_cmd.add_argument(
+        "--project-id",
+        default=None,
+        help="Only items in this project (strict; excludes global items)",
+    )
 
     memory_show_cmd = memory_sub.add_parser("show", help="Show memory item")
     memory_show_cmd.add_argument("memory_id")
@@ -58,8 +93,16 @@ def main(argv: list[str] | None = None) -> int:
     pin_group.add_argument("--on", dest="pin_on", action="store_true")
     pin_group.add_argument("--off", dest="pin_on", action="store_false")
 
-    memory_delete_cmd = memory_sub.add_parser("delete", help="Delete a memory item")
+    memory_delete_cmd = memory_sub.add_parser(
+        "delete",
+        help="Preview (default) or delete a memory item",
+    )
     memory_delete_cmd.add_argument("memory_id")
+    memory_delete_cmd.add_argument(
+        "--confirm",
+        action="store_true",
+        help="Actually delete (default is a no-op preview)",
+    )
     memory_delete_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 
     memory_search_cmd = memory_sub.add_parser("search", help="Search memory items")
@@ -158,15 +201,13 @@ def main(argv: list[str] | None = None) -> int:
     maintenance_list = maintenance_sub.add_parser("list", help="Show configured jobs")
     maintenance_list.add_argument("--json", action="store_true", help="Emit JSON output")
     maintenance_run = maintenance_sub.add_parser("run-once", help="Run a single job and exit")
-    maintenance_run.add_argument("job_name", help="One of: db_backup, db_vacuum, db_integrity_check, embedding_backfill, git_onboard_resync")
+    maintenance_run.add_argument(
+        "job_name", help="One of: db_backup, db_vacuum, db_integrity_check, embedding_backfill, git_onboard_resync"
+    )
 
     serve_cmd = sub.add_parser("serve", help="Run the unified HTTP + MCP ASGI server")
-    serve_cmd.add_argument(
-        "--host", default=None, help="Bind address (default: 0.0.0.0)"
-    )
-    serve_cmd.add_argument(
-        "--port", type=int, default=None, help="Port (default: 18000)"
-    )
+    serve_cmd.add_argument("--host", default=None, help="Bind address (default: 0.0.0.0)")
+    serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 18000)")
 
     # --- Parse ---
     args = parser.parse_args(argv)

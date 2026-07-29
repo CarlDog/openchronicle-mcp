@@ -34,9 +34,11 @@ def execute(
         project_id: Restrict export to a single project. If None, exports
             every project and memory item.
     """
-    projects = storage.list_projects()
     if project_id is not None:
-        projects = [p for p in projects if p.id == project_id]
+        scoped = storage.get_project(project_id)
+        projects = [scoped] if scoped is not None else []
+    else:
+        projects = storage.list_projects()
 
     project_payload = [
         {
@@ -48,9 +50,7 @@ def execute(
         for p in projects
     ]
 
-    items = memory_store.list_memory(limit=None, pinned_only=False)
-    if project_id is not None:
-        items = [m for m in items if m.project_id == project_id]
+    items = memory_store.list_memory(limit=None, pinned_only=False, project_id=project_id)
 
     memory_payload = [
         {

@@ -3,19 +3,28 @@
 from __future__ import annotations
 
 import json
+import re
 from unittest.mock import patch
 
 from openchronicle.interfaces.cli.main import main
 
 
 def test_version_human_output() -> None:
-    """Human output contains version and Python version."""
+    """Human output contains a real version and the Python version.
+
+    Asserting a version-shaped string rather than just the substring
+    "openchronicle": the old check passed for years against the literal
+    output "openchronicle unknown", because the distribution name being
+    looked up was wrong.
+    """
     with patch("builtins.print") as mock_print:
         rc = main(["version"])
 
     assert rc == 0
     output = " ".join(str(c.args[0]) for c in mock_print.call_args_list)
     assert "openchronicle" in output
+    assert "unknown" not in output
+    assert re.search(r"\d+\.\d+\.\d+", output)
     assert "Python" in output
 
 

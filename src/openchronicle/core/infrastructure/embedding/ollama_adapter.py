@@ -9,8 +9,8 @@ import os
 import httpx
 
 from openchronicle.core.domain.errors.error_codes import PROVIDER_ERROR, TIMEOUT
-from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
+from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 
 logger = logging.getLogger(__name__)
 

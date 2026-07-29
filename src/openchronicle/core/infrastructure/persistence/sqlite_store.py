@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
@@ -9,24 +10,41 @@ import random
 import sqlite3
 import string
 import struct
+import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
-from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
+from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.infrastructure.persistence import migrator
+from openchronicle.core.infrastructure.persistence.backup import backup_from_connection
 from openchronicle.core.infrastructure.persistence.row_mappers import (
     row_to_memory_item,
     row_to_project,
 )
+
+_LIKE_ESCAPE = "\\"
+
+
+def _escape_like(value: str) -> str:
+    """Escape LIKE metacharacters so a caller's string matches literally.
+
+    Without this a project named "100%" would match every row, and "_"
+    would match any single character. The escape character is substituted
+    first so it doesn't double-escape the ones added after it.
+    """
+    for ch in (_LIKE_ESCAPE, "%", "_"):
+        value = value.replace(ch, _LIKE_ESCAPE + ch)
+    return value
+
 
 _MEMORY_FTS_TABLE = """
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -57,6 +75,29 @@ _MEMORY_SEARCH_LIMIT = 200
 _BEGIN_MAX_RETRIES = 3
 _BEGIN_BASE_DELAY = 0.5  # seconds
 
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def _locked(method: Callable[Concatenate[SqliteStore, _P], _R]) -> Callable[Concatenate[SqliteStore, _P], _R]:
+    """Serialize a store method on the store's re-entrant lock.
+
+    One SqliteStore holds one sqlite3.Connection shared across Starlette's
+    sync-handler threadpool and maintenance worker threads. Without
+    serialization, a statement issued by one thread lands inside another
+    thread's open transaction on the same connection. Every method that
+    touches ``self._conn`` must hold ``self._lock``; the RLock keeps
+    same-thread nesting (e.g. ``update_project`` → ``get_project``, or
+    nested ``transaction()`` savepoints) working.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self: SqliteStore, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+        with self._lock:
+            return method(self, *args, **kwargs)
+
+    return wrapper
+
 
 def _fts5_available(conn: sqlite3.Connection) -> bool:
     """Probe whether the SQLite build includes FTS5."""
@@ -74,14 +115,21 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
+        # Serializes ALL use of the shared connection across threads
+        # (request threadpool + maintenance workers). Guards
+        # _transaction_depth and prevents cross-thread statement
+        # interleaving inside an open transaction. See _locked.
+        self._lock = threading.RLock()
         self._transaction_depth = 0
         self._configure_connection()
         self._fts5_user_enabled = os.getenv("OC_SEARCH_FTS5_ENABLED", "1").lower() in {"1", "true", "yes", "on"}
         self._fts5_active: bool = False
 
+    @_locked
     def close(self) -> None:
         self._conn.close()
 
+    @_locked
     def init_schema(self) -> None:
         # Apply versioned migrations first — establishes projects,
         # memory_items, memory_embeddings, schema_version (idempotent).
@@ -112,32 +160,38 @@ class SqliteStore(StoragePort, MemoryStorePort):
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
-        is_outer = self._transaction_depth == 0
-        savepoint_name = None
-        if is_outer:
-            self._begin_immediate_with_retry()
-        else:
-            savepoint_name = f"sp_{self._transaction_depth + 1}"
-            self._conn.execute(f"SAVEPOINT {savepoint_name}")
-        self._transaction_depth += 1
-        try:
-            yield self._conn
+        # The lock is held for the WHOLE transaction (not just BEGIN), so a
+        # second thread blocks until COMMIT/ROLLBACK instead of nesting a
+        # BEGIN or landing statements inside this transaction. Same-thread
+        # nesting re-enters the RLock and takes the savepoint path.
+        with self._lock:
+            is_outer = self._transaction_depth == 0
+            savepoint_name = None
             if is_outer:
-                self._conn.execute("COMMIT")
+                self._begin_immediate_with_retry()
             else:
-                self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
-        except Exception:
-            if is_outer:
-                self._conn.execute("ROLLBACK")
-            else:
-                self._conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
-                self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
-            raise
-        finally:
-            self._transaction_depth -= 1
+                savepoint_name = f"sp_{self._transaction_depth + 1}"
+                self._conn.execute(f"SAVEPOINT {savepoint_name}")
+            self._transaction_depth += 1
+            try:
+                yield self._conn
+                if is_outer:
+                    self._conn.execute("COMMIT")
+                else:
+                    self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+            except Exception:
+                if is_outer:
+                    self._conn.execute("ROLLBACK")
+                else:
+                    self._conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
+                    self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
+                raise
+            finally:
+                self._transaction_depth -= 1
 
     # ── Projects ────────────────────────────────────────────────────
 
+    @_locked
     def add_project(self, project: Project) -> None:
         cur = self._conn.cursor()
         cur.execute(
@@ -146,18 +200,71 @@ class SqliteStore(StoragePort, MemoryStorePort):
         )
         self._commit_if_needed()
 
-    def list_projects(self) -> list[Project]:
+    @_locked
+    def list_projects(self, name_contains: str | None = None) -> list[Project]:
         cur = self._conn.cursor()
-        rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+        if name_contains is not None:
+            rows = cur.execute(
+                "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC",
+                (f"%{_escape_like(name_contains)}%", _LIKE_ESCAPE),
+            ).fetchall()
+        else:
+            rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
         return [row_to_project(r) for r in rows]
 
+    @_locked
     def get_project(self, project_id: str) -> Project | None:
         cur = self._conn.cursor()
         row = cur.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
         return row_to_project(row) if row else None
 
+    @_locked
+    def delete_project(self, project_id: str) -> int:
+        with self.transaction():
+            cur = self._conn.cursor()
+            proj_row = cur.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone()
+            if proj_row is None:
+                raise NotFoundError(f"Project not found: {project_id}", code=PROJECT_NOT_FOUND)
+            count_row = cur.execute(
+                "SELECT COUNT(*) AS cnt FROM memory_items WHERE project_id=?",
+                (project_id,),
+            ).fetchone()
+            deleted_memories = int(count_row["cnt"]) if count_row else 0
+            cur.execute("DELETE FROM memory_items WHERE project_id=?", (project_id,))
+            cur.execute("DELETE FROM projects WHERE id=?", (project_id,))
+            return deleted_memories
+
+    @_locked
+    def update_project(
+        self,
+        project_id: str,
+        name: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> Project:
+        if name is None and metadata is None:
+            raise ValueError("update_project requires at least one of name or metadata")
+        cur = self._conn.cursor()
+        set_clauses: list[str] = []
+        params: list[Any] = []
+        if name is not None:
+            set_clauses.append("name = ?")
+            params.append(name)
+        if metadata is not None:
+            set_clauses.append("metadata = ?")
+            params.append(json.dumps(metadata))
+        params.append(project_id)
+        sql = f"UPDATE projects SET {', '.join(set_clauses)} WHERE id = ?"
+        cur.execute(sql, params)
+        if cur.rowcount == 0:
+            raise NotFoundError(f"Project not found: {project_id}", code=PROJECT_NOT_FOUND)
+        self._commit_if_needed()
+        updated = self.get_project(project_id)
+        assert updated is not None  # row exists — we just updated it
+        return updated
+
     # ── Memory ──────────────────────────────────────────────────────
 
+    @_locked
     def add_memory(self, item: MemoryItem) -> None:
         cur = self._conn.cursor()
         cur.execute(
@@ -178,19 +285,31 @@ class SqliteStore(StoragePort, MemoryStorePort):
         )
         self._commit_if_needed()
 
+    @_locked
     def get_memory(self, memory_id: str) -> MemoryItem | None:
         cur = self._conn.cursor()
         row = cur.execute("SELECT * FROM memory_items WHERE id=?", (memory_id,)).fetchone()
         return row_to_memory_item(row) if row else None
 
+    @_locked
     def list_memory(
-        self, limit: int | None = None, pinned_only: bool = False, offset: int = 0
+        self,
+        limit: int | None = None,
+        pinned_only: bool = False,
+        offset: int = 0,
+        project_id: str | None = None,
     ) -> list[MemoryItem]:
         cur = self._conn.cursor()
-        sql = "SELECT * FROM memory_items"
-        params: list[int] = []
+        where_clauses: list[str] = []
+        params: list[Any] = []
         if pinned_only:
-            sql += " WHERE pinned=1"
+            where_clauses.append("pinned = 1")
+        if project_id is not None:
+            where_clauses.append("project_id = ?")
+            params.append(project_id)
+        sql = "SELECT * FROM memory_items"
+        if where_clauses:
+            sql += f" WHERE {' AND '.join(where_clauses)}"
         sql += " ORDER BY pinned DESC, created_at DESC, id DESC"
         if limit is not None:
             sql += " LIMIT ?"
@@ -203,6 +322,19 @@ class SqliteStore(StoragePort, MemoryStorePort):
         rows = cur.execute(sql, params).fetchall()
         return [row_to_memory_item(r) for r in rows]
 
+    @_locked
+    def count_memory(self, project_id: str | None = None) -> int:
+        cur = self._conn.cursor()
+        if project_id is not None:
+            row = cur.execute(
+                "SELECT COUNT(*) AS cnt FROM memory_items WHERE project_id = ?",
+                (project_id,),
+            ).fetchone()
+        else:
+            row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_items").fetchone()
+        return row["cnt"] if row else 0
+
+    @_locked
     def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
         cur = self._conn.cursor()
         if project_id is not None:
@@ -213,6 +345,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
             rows = cur.execute(sql, (source,)).fetchall()
         return [row_to_memory_item(r) for r in rows]
 
+    @_locked
     def set_pinned(self, memory_id: str, pinned: bool) -> None:
         cur = self._conn.cursor()
         cur.execute(
@@ -223,6 +356,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
             raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
         self._commit_if_needed()
 
+    @_locked
     def update_memory(
         self,
         memory_id: str,
@@ -247,17 +381,17 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._commit_if_needed()
         return self.get_memory(memory_id)  # type: ignore[return-value]
 
-    def delete_memory(self, memory_id: str) -> bool:
+    @_locked
+    def delete_memory(self, memory_id: str) -> None:
         with self.transaction():
             cur = self._conn.cursor()
-            row = cur.execute("SELECT id FROM memory_items WHERE id = ?", (memory_id,)).fetchone()
-            if row is None:
-                return False
             cur.execute("DELETE FROM memory_items WHERE id = ?", (memory_id,))
-            return True
+            if cur.rowcount == 0:
+                raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
 
     # ── Embedding storage ───────────────────────────────────────────
 
+    @_locked
     def save_embedding(
         self,
         memory_id: str,
@@ -281,6 +415,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         )
         self._commit_if_needed()
 
+    @_locked
     def get_embedding(self, memory_id: str) -> list[float] | None:
         cur = self._conn.cursor()
         row = cur.execute(
@@ -291,6 +426,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
             return None
         return list(struct.unpack(f"{row['dimensions']}f", row["embedding"]))
 
+    @_locked
     def list_embeddings(
         self,
         memory_ids: list[str] | None = None,
@@ -309,16 +445,19 @@ class SqliteStore(StoragePort, MemoryStorePort):
             result[row["memory_id"]] = list(struct.unpack(f"{row['dimensions']}f", row["embedding"]))
         return result
 
+    @_locked
     def delete_embedding(self, memory_id: str) -> None:
         cur = self._conn.cursor()
         cur.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (memory_id,))
         self._commit_if_needed()
 
+    @_locked
     def count_embeddings(self) -> int:
         cur = self._conn.cursor()
         row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings").fetchone()
         return row["cnt"] if row else 0
 
+    @_locked
     def count_stale_embeddings(self, current_model: str) -> int:
         cur = self._conn.cursor()
         row = cur.execute(
@@ -327,6 +466,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         ).fetchone()
         return row["cnt"] if row else 0
 
+    @_locked
     def get_embedding_model(self, memory_id: str) -> str | None:
         cur = self._conn.cursor()
         row = cur.execute(
@@ -337,7 +477,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
 
     # ── Search ──────────────────────────────────────────────────────
 
-    def _fetch_pinned_items(
+    @_locked
+    def pinned_items(
         self,
         project_id: str | None = None,
     ) -> list[MemoryItem]:
@@ -428,6 +569,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         items.sort(key=_score, reverse=True)
         return items[:limit]
 
+    @_locked
     def search_memory(
         self,
         query: str,
@@ -441,7 +583,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         effective_top_k = top_k + offset
         pinned_items: list[MemoryItem] = []
         if include_pinned:
-            pinned_items = self._fetch_pinned_items(project_id)
+            pinned_items = self.pinned_items(project_id)
             if tags:
                 pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
         if self._fts5_active:
@@ -491,6 +633,47 @@ class SqliteStore(StoragePort, MemoryStorePort):
             if clean:
                 escaped.append(f'"{clean}"')
         return " OR ".join(escaped)
+
+    # ── maintenance operations ──────────────────────────────────────
+    # Exposed so maintenance jobs and the CLI never touch self._conn
+    # directly — these must hold the store lock so VACUUM/backup can
+    # never interleave another thread's open transaction.
+
+    @_locked
+    def vacuum(self) -> None:
+        """WAL-checkpoint then VACUUM the database."""
+        self._conn.execute("PRAGMA wal_checkpoint(FULL)")
+        self._conn.execute("VACUUM")
+
+    @_locked
+    def integrity_check(self) -> str:
+        """Run PRAGMA integrity_check; returns 'ok' when healthy."""
+        return str(self._conn.execute("PRAGMA integrity_check").fetchone()[0])
+
+    @_locked
+    def schema_version(self) -> int:
+        """Highest applied migration version."""
+        return migrator.current_version(self._conn)
+
+    @property
+    def fts5_active(self) -> bool:
+        """Whether search is running on FTS5 rather than the Python fallback.
+
+        Worth surfacing on the health payload: search degrades silently, so
+        without this a caller can't tell "results are poor" from "the fast
+        path is unavailable".
+        """
+        return self._fts5_active
+
+    @_locked
+    def backup_to(self, dest: Path | str) -> Path:
+        """Online backup to `dest` (atomic .tmp → rename).
+
+        Holds the store lock for the whole copy so no other thread's
+        statements interleave the page iteration. Blocks writers for
+        the duration — acceptable at this deployment's DB size.
+        """
+        return backup_from_connection(self._conn, dest)
 
     # ── connection / migrations ─────────────────────────────────────
 

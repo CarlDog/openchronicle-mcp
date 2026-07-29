@@ -1,7 +1,14 @@
-"""Memory tools — save, search, list, get, update, delete, pin, stats, embed."""
+"""Memory tools — save, search, list, get, update, delete, pin, stats, embed.
+
+Handlers are async and offload store/embedding work via asyncio.to_thread:
+FastMCP dispatches sync tools inline on the event loop, so a blocking
+embed call (network, up to the provider timeout) would stall every
+in-flight request and the maintenance loop.
+"""
 
 from __future__ import annotations
 
+import asyncio
 from datetime import datetime
 from typing import Any, cast
 
@@ -13,6 +20,7 @@ from openchronicle.core.application.use_cases import (
     list_memory,
     pin_memory,
     search_memory,
+    stats_memory,
     update_memory,
 )
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
@@ -20,7 +28,6 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
-from openchronicle.interfaces.mcp.tracking import track_tool
 from openchronicle.interfaces.serializers import memory_to_dict
 
 
@@ -32,22 +39,26 @@ def register(mcp: FastMCP) -> None:
     """Register memory tools on the MCP server."""
 
     @mcp.tool()
-    @track_tool
-    def memory_search(
+    async def memory_search(
         query: str,
         ctx: Context,
         top_k: int = 8,
         project_id: str | None = None,
         tags: list[str] | None = None,
         offset: int = 0,
+        compact: bool = False,
     ) -> list[dict[str, Any]]:
         """Find memory items relevant to a query (hybrid semantic + keyword).
 
         Use this to look up prior decisions, rejected approaches, or context
         from earlier sessions before re-deriving from scratch. Pair `query`
         with `tags` to narrow by topic. Prefer this over `memory_list` when
-        you have keywords; use `memory_list` for unfiltered pagination and
+        you have keywords; use `memory_list` to enumerate a project and
         `context_recent` for project-scoped session catch-up.
+
+        Scoping note: `project_id` here also surfaces cross-project pinned
+        items, because a standing rule that belongs to no single project
+        still applies while working inside one. `memory_list` is strict.
 
         Args:
             query: Keywords or a natural-language question.
@@ -55,26 +66,30 @@ def register(mcp: FastMCP) -> None:
             project_id: Restrict to a specific project (optional, recommended).
             tags: Require ALL listed tags on each result (AND logic).
             offset: Skip the first N results for pagination.
+            compact: Return a content preview instead of full content.
         """
         if not query or not query.strip():
             raise DomainValidationError("query must be non-empty")
         top_k = min(max(top_k, 1), 1000)
         offset = max(offset, 0)
         container = _get_container(ctx)
-        results = search_memory.execute(
-            store=container.storage,
-            query=query,
-            top_k=top_k,
-            project_id=project_id,
-            tags=tags,
-            offset=offset,
-            embedding_service=container.embedding_service,
-        )
-        return [memory_to_dict(m) for m in results]
+
+        def _run() -> list[dict[str, Any]]:
+            results = search_memory.execute(
+                store=container.storage,
+                query=query,
+                top_k=top_k,
+                project_id=project_id,
+                tags=tags,
+                offset=offset,
+                embedding_service=container.embedding_service,
+            )
+            return [memory_to_dict(m, compact=compact) for m in results]
+
+        return await asyncio.to_thread(_run)
 
     @mcp.tool()
-    @track_tool
-    def memory_save(
+    async def memory_save(
         content: str,
         ctx: Context,
         project_id: str,
@@ -115,48 +130,75 @@ def register(mcp: FastMCP) -> None:
         if created_at is not None:
             kwargs["created_at"] = datetime.fromisoformat(created_at)
         item = MemoryItem(**kwargs)
-        saved = add_memory.execute(
-            store=container.storage,
-            item=item,
-            embedding_service=container.embedding_service,
-        )
-        return memory_to_dict(saved)
+
+        def _run() -> dict[str, Any]:
+            saved = add_memory.execute(
+                store=container.storage,
+                item=item,
+                embedding_service=container.embedding_service,
+            )
+            return memory_to_dict(saved)
+
+        return await asyncio.to_thread(_run)
 
     @mcp.tool()
-    @track_tool
-    def memory_list(
+    async def memory_list(
         ctx: Context,
         limit: int | None = None,
         pinned_only: bool = False,
         offset: int = 0,
+        project_id: str | None = None,
+        compact: bool = False,
     ) -> list[dict[str, Any]]:
-        """Browse memory items in reverse-chronological order.
+        """Browse memory items newest-first, with pinned items floated to the top.
 
-        Use this for unfiltered pagination through stored memories — for
-        example, "what did I save recently?" Prefer `memory_search` when
-        you have keywords. Set `pinned_only=true` to enumerate standing
-        rules.
+        Use this for pagination through stored memories — for example,
+        "what did I save recently?" or "what is in this project?" Prefer
+        `memory_search` when you have keywords. Set `pinned_only=true` to
+        enumerate standing rules.
+
+        Ordering note: pinned items sort ahead of everything else, so a
+        small `limit` can return only pinned rows. Ordering is also by
+        `created_at`, which `memory_save` lets callers backdate — items
+        imported from git history will not appear in a "recent" window.
+        Use `project_id` rather than a limit when you want completeness.
+
+        `project_id` is a strict filter: only items belonging to that
+        project, never global ones. That differs from `memory_search`,
+        where cross-project pinned items surface deliberately because a
+        standing rule still applies inside a project.
+
+        Set `compact=true` when browsing rather than reading. It swaps
+        `content` for `content_preview` + `content_length`, which is the
+        difference between a listing that fits in context and one that
+        does not.
 
         Args:
             limit: Max items to return (1-10,000; None = no limit).
             pinned_only: Only return pinned items.
             offset: Skip the first N items for pagination.
+            project_id: Restrict to a specific project (strict; excludes global items).
+            compact: Return a content preview instead of full content.
         """
         if limit is not None:
             limit = min(max(limit, 1), 10_000)
         offset = max(offset, 0)
         container = _get_container(ctx)
-        results = list_memory.execute(
-            store=container.storage,
-            limit=limit,
-            pinned_only=pinned_only,
-            offset=offset,
-        )
-        return [memory_to_dict(m) for m in results]
+
+        def _run() -> list[dict[str, Any]]:
+            results = list_memory.execute(
+                store=container.storage,
+                limit=limit,
+                pinned_only=pinned_only,
+                offset=offset,
+                project_id=project_id,
+            )
+            return [memory_to_dict(m, compact=compact) for m in results]
+
+        return await asyncio.to_thread(_run)
 
     @mcp.tool()
-    @track_tool
-    def memory_pin(
+    async def memory_pin(
         memory_id: str,
         ctx: Context,
         pinned: bool = True,
@@ -173,7 +215,8 @@ def register(mcp: FastMCP) -> None:
             pinned: True to pin, False to unpin (default True).
         """
         container = _get_container(ctx)
-        pin_memory.execute(
+        await asyncio.to_thread(
+            pin_memory.execute,
             store=container.storage,
             memory_id=memory_id,
             pinned=pinned,
@@ -181,8 +224,7 @@ def register(mcp: FastMCP) -> None:
         return {"status": "ok", "memory_id": memory_id, "pinned": str(pinned)}
 
     @mcp.tool()
-    @track_tool
-    def memory_update(
+    async def memory_update(
         memory_id: str,
         ctx: Context,
         content: str | None = None,
@@ -204,18 +246,21 @@ def register(mcp: FastMCP) -> None:
         if content is not None and len(content) > 100_000:
             raise DomainValidationError("content exceeds maximum length of 100,000 characters")
         container = _get_container(ctx)
-        updated = update_memory.execute(
-            store=container.storage,
-            memory_id=memory_id,
-            content=content,
-            tags=tags,
-            embedding_service=container.embedding_service,
-        )
-        return memory_to_dict(updated)
+
+        def _run() -> dict[str, Any]:
+            updated = update_memory.execute(
+                store=container.storage,
+                memory_id=memory_id,
+                content=content,
+                tags=tags,
+                embedding_service=container.embedding_service,
+            )
+            return memory_to_dict(updated)
+
+        return await asyncio.to_thread(_run)
 
     @mcp.tool()
-    @track_tool
-    def memory_get(
+    async def memory_get(
         memory_id: str,
         ctx: Context,
     ) -> dict[str, Any]:
@@ -229,35 +274,47 @@ def register(mcp: FastMCP) -> None:
             memory_id: The memory's ID.
         """
         container = _get_container(ctx)
-        item = container.storage.get_memory(memory_id)
+        item = await asyncio.to_thread(container.storage.get_memory, memory_id)
         if item is None:
             raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
         return memory_to_dict(item)
 
     @mcp.tool()
-    @track_tool
-    def memory_delete(
+    async def memory_delete(
         memory_id: str,
         ctx: Context,
-    ) -> dict[str, str]:
-        """Permanently delete a memory item.
+        confirm: bool,
+    ) -> dict[str, Any]:
+        """Preview or hard-delete a memory item.
 
-        Hard delete — no soft-delete recovery. Backups are the recovery path.
-        Use `memory_update` instead if you want to revise rather than remove.
+        Two-step safety pattern (matches `project_delete`). Call with
+        `confirm=false` to see the memory you're about to drop — the
+        response has `status: "preview"`, `deleted: false`, a `next_step`
+        telling you what to do, plus content, tags, project_id and pinned
+        state. Call with `confirm=true` to actually delete; the response is
+        `status: "ok"` with `deleted: true`. There is no soft-delete and no
+        recovery path beyond `oc db backup` — use `memory_update` if you
+        want to revise rather than remove.
+
+        `confirm` has no default: omitting it is an error, not a preview
+        request. A preview looks like success to code that doesn't read the
+        payload, so silently returning one to a caller who never asked
+        would hide a failed delete.
 
         Args:
             memory_id: The memory's ID.
+            confirm: Required. True deletes; false returns a preview.
         """
         container = _get_container(ctx)
-        delete_memory.execute(
+        return await asyncio.to_thread(
+            delete_memory.execute,
             store=container.storage,
             memory_id=memory_id,
+            confirm=confirm,
         )
-        return {"status": "ok", "memory_id": memory_id}
 
     @mcp.tool()
-    @track_tool
-    def memory_stats(
+    async def memory_stats(
         ctx: Context,
         project_id: str | None = None,
     ) -> dict[str, Any]:
@@ -265,35 +322,21 @@ def register(mcp: FastMCP) -> None:
 
         Use to inspect what's stored before a search session, or to verify
         backfill/migration outcomes. Scope to a project for accurate counts
-        in multi-project deployments.
+        in multi-project deployments; `project_id` is a strict filter, the
+        same rule `memory_list` uses.
 
         Args:
             project_id: Restrict stats to a specific project (optional).
         """
         container = _get_container(ctx)
-        all_items = container.storage.list_memory(limit=None, pinned_only=False)
-        if project_id:
-            all_items = [i for i in all_items if i.project_id == project_id]
-
-        pinned_count = sum(1 for i in all_items if i.pinned)
-        by_tag: dict[str, int] = {}
-        by_source: dict[str, int] = {}
-        for item in all_items:
-            for tag in item.tags:
-                by_tag[tag] = by_tag.get(tag, 0) + 1
-            source = item.source or "unknown"
-            by_source[source] = by_source.get(source, 0) + 1
-
-        return {
-            "total": len(all_items),
-            "pinned": pinned_count,
-            "by_tag": by_tag,
-            "by_source": by_source,
-        }
+        return await asyncio.to_thread(
+            stats_memory.execute,
+            container.storage,
+            project_id,
+        )
 
     @mcp.tool()
-    @track_tool
-    def memory_embed(
+    async def memory_embed(
         ctx: Context,
         force: bool = False,
     ) -> dict[str, Any]:
@@ -309,13 +352,17 @@ def register(mcp: FastMCP) -> None:
             force: Regenerate every embedding from scratch (default False).
         """
         container = _get_container(ctx)
-        if container.embedding_service is None:
+        service = container.embedding_service
+        if service is None:
             return {
                 "status": "not_configured",
                 "message": "Set OC_EMBEDDING_PROVIDER to enable embeddings.",
             }
-        result = container.embedding_service.generate_missing(force=force)
-        status = container.embedding_service.embedding_status()
+
+        def _run() -> tuple[Any, dict[str, Any]]:
+            return service.generate_missing(force=force), service.embedding_status()
+
+        result, status = await asyncio.to_thread(_run)
         if result.failed == 0:
             outcome = "ok"
         elif result.generated == 0:

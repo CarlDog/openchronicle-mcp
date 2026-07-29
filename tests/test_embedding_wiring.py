@@ -67,7 +67,6 @@ def test_container_builds_stub_embedding() -> None:
 
 def test_add_memory_generates_embedding_when_service_available() -> None:
     store, service = _make_store_and_service()
-    emit = MagicMock()
     item = _make_item()
     add_memory.execute(store, item, embedding_service=service)
     assert store.get_embedding("m1") is not None
@@ -75,7 +74,6 @@ def test_add_memory_generates_embedding_when_service_available() -> None:
 
 def test_update_memory_regenerates_on_content_change() -> None:
     store, service = _make_store_and_service()
-    emit = MagicMock()
     item = _make_item()
     add_memory.execute(store, item, embedding_service=service)
 
@@ -89,7 +87,6 @@ def test_update_memory_regenerates_on_content_change() -> None:
 
 def test_update_memory_skips_regeneration_tags_only() -> None:
     store, service = _make_store_and_service()
-    emit = MagicMock()
     item = _make_item()
     add_memory.execute(store, item, embedding_service=service)
 

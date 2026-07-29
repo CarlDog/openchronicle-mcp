@@ -6,20 +6,16 @@ import argparse
 import logging
 import os
 import sys
+from typing import Any
 
 from openchronicle.core.application.use_cases import init_config, init_runtime
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.commands._helpers import json_envelope, print_json
+from openchronicle.version import package_version
 
 
 def cmd_version(args: argparse.Namespace) -> int:
-    import importlib.metadata
-
-    try:
-        pkg_version = importlib.metadata.version("openchronicle")
-    except importlib.metadata.PackageNotFoundError:
-        pkg_version = "unknown"
-
+    pkg_version = package_version()
     python_version = sys.version.split()[0]
 
     if args.json:
@@ -175,10 +171,17 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
     log = logging.getLogger(__name__)
 
     config = HTTPConfig.from_env(file_config=container.file_configs.get("api"))
+    # HTTPConfig is frozen — use dataclasses.replace for the CLI overrides
+    # rather than mutating in place.
+    overrides: dict[str, Any] = {}
     if getattr(args, "host", None):
-        config.host = args.host
+        overrides["host"] = args.host
     if getattr(args, "port", None):
-        config.port = args.port
+        overrides["port"] = args.port
+    if overrides:
+        from dataclasses import replace
+
+        config = replace(config, **overrides)
 
     app = create_app(container, config)
     # uvicorn's `log_config=None` keeps our root-logger formatting; the

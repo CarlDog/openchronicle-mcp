@@ -38,8 +38,115 @@
 
 ## Current Sprint
 
-**Status:** v3 code-complete (phases 0-7 done) on `v3/develop`.
-NAS stack 151 still runs v2 until Phase 8 cutover.
+**2026-07-23 read-surface + delete-safety batch (shipped, live as
+`v3.0.0-rc5`).** Three
+`mcp-feedback` OC memories (`837e85cc`, `a2cdfe56`, `ff7933df`) recorded
+friction found by dogfooding OC through its own client sessions: an
+unfilterable `memory_list`, an 86 KB `onboard_git` response, a
+zero-argument `project_list`, no bulk project delete, and a
+`memory_delete` whose `confirm` default silently turned a downstream
+call into a no-op (it cost a real bug in mnemosyne-mcp). This batch
+works all five plus the adjacent defects on the same code paths.
+Ratified up front: `confirm` becomes a **required** parameter rather
+than keeping a preview default, projection is an opt-in `compact` bool,
+and the scope is widest (filed items + adjacent bugs + refactors).
+
+- **C1 — project-scoped `list_memory`** — `project_id` threads port →
+  SQL → use case (scope-strict); two in-Python project filters deleted;
+  dead `Page` protocol removed; the store's two scoping rules named and
+  contrasted in the `MemoryStorePort` docstring with a test pinning the
+  `list_memory` vs `pinned_items` divergence. 433 → 439 tests.
+- **C2 — required `confirm` on delete** — omitting `confirm` on
+  `memory_delete` / `project_delete` now raises (MCP) or 422s (REST)
+  instead of returning a success-shaped preview; previews carry
+  `deleted: false` + `next_step`. CLI unchanged (its failure was never
+  silent). STABILITY.md gained a "Before the v3.0.0 tag" section so
+  pre-tag surface changes stop being relitigated. 439 → 448 tests.
+- **C3 — read-surface filtering + projection** — `project_list` gains
+  `name_contains` (LIKE metacharacters escaped); `memory_list`,
+  `memory_search`, `context_recent`, `project_list` gain opt-in
+  `compact`, which *replaces* content/metadata with a preview + length
+  rather than truncating in place. `context_recent` folded onto
+  `memory_to_dict`. 448 → 471 tests.
+- **C4 — bounded `onboard_git`** — `max_commits_per_cluster` +
+  `include_commit_detail` replace a hardcoded `[:20]`; commits are
+  selected by churn but listed chronologically with a `Showing: n of N`
+  header; watermark now anchors to the newest commit *walked* rather than
+  the newest kept, so a merge at HEAD no longer stalls the incremental
+  path. `cluster_to_summary` moved into the service layer. 471 → 487.
+- **C5 — `project_delete_bulk`** — new tool + `POST /project/bulk-delete`
+  (surface now 18 tools). Per-item reporting (`missing` doesn't abort the
+  batch), all-or-nothing durability via one transaction. No CLI twin.
+  487 → 501 tests.
+- **C6 — health signals** — `package_version`, `schema_version`,
+  `maintenance_degraded`, `fts5_active`; MCP/REST key sets now asserted
+  identical. Fixed `oc version` printing "unknown" (CLI looked up
+  `openchronicle`, distribution is `openchronicle-mcp`) and retired the
+  drifted hardcoded version in `api/app.py`. 501 → 507 tests.
+- **C7 — `memory_stats` via `count_memory`** — `total` is a SQL COUNT(\*)
+  instead of a full table load, histograms read the scoped `list_memory`
+  from C1, and the body copied verbatim into the REST route is gone.
+  507 → 510 tests.
+
+433 → 510 tests across the batch. Deployed 2026-07-24 as `v3.0.0-rc5`;
+verified live via `/api/v1/health` (the four new fields are present, which
+rc4 could not produce) and a `DELETE /api/v1/memory/{id}` without `confirm`
+returning 422. **Restart MCP clients** — they cache tool schemas, so a
+session holding the old `memory_delete` signature will get validation
+errors until it reconnects. mnemosyne-mcp was checked before shipping and
+already passes `confirm: true` on both delete wrappers.
+
+**Deploy gotcha worth remembering:** the stack git-polls every 5 minutes,
+so it picked up the new compose file on its own — but `docker-compose.nas.yml`
+pins the image to `${OC_TAG}`, which still said `rc4`. The push alone
+therefore deployed *nothing*. Code only goes live when `OC_TAG` moves,
+which is the "three config stores" trap: repo compose, Portainer stack
+env, local `.env` are independent, and the stack env is the one that
+silently wins.
+
+**2026-07-02 hardening batch (fresh-eyes review follow-up).** A
+multi-agent review produced a 39-item punch list (captured in the
+plan file + the OC backlog memory "Repo improvement review —
+punch list (2026-07-01)"; local mirror at
+`~/.claude/projects/.../memory/project_review_backlog_2026-07.md`
+since the NAS OC server is LAN-only). Tier-1 + Tier-2 shipped this
+session in five commits on `main`:
+
+- **SQLite connection thread-safety** — one shared `sqlite3.Connection`
+  was used from Starlette's sync-handler threadpool and maintenance
+  `to_thread` workers with an unguarded `_transaction_depth`. Added a
+  `threading.RLock` + `@_locked` decorator serializing every connection
+  method; `transaction()` holds the lock for its whole scope; new locked
+  `vacuum()`/`integrity_check()`/`backup_to()` replace the maintenance
+  jobs' and CLI's direct `_conn` pokes.
+- **MCP tools no longer block the event loop** — all 17 tools are now
+  `async def` and offload store/embedding/git work via
+  `asyncio.to_thread` (FastMCP runs sync tools inline on the loop).
+- **git-onboard** — fixed multi-line commit-body truncation (BODYEND
+  sentinel) and added a clone-URL transport allowlist + `--` guard +
+  credential redaction in errors.
+- **Tests** — new `test_sqlite_store_concurrency.py`,
+  `test_git_onboard.py` (incl. token host-scoping), and the
+  `db_integrity_check` failure branch. 394 → 421 tests.
+
+Still open on the punch list: docs SSOT rewrite (this file's status doc
+is still frozen v2 content), API-consistency polish, CI/CD + Docker
+hardening, Phase 9 decommission + `v3.0.0` final tag. NAS still runs
+rc4 at the time — those `src/` changes shipped in `v3.0.0-rc5` on
+2026-07-24, together with the read-surface batch above.
+
+**Status:** v3 live on NAS 2026-05-06; current image
+`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc5` on stack 151 (rc1 →
+rc2 → rc3 within the cutover day, rc4 on 2026-05-11 with the
+rate-limit + project-CRUD batch, rc5 on 2026-07-24 with the 2026-07-02
+hardening batch + the read-surface/delete-safety batch; see
+[docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
+for the full account). rc3 added the senior-dev review batch (265x
+semantic-search speedup via numpy, API consistency cleanups, real
+MCP smoke handshake) and cleared the 12-error ruff backlog. Cost
+of cutover: 36 v2 memories not preserved through to live v3 DB; v2
+DB intact on disk for forensic analysis. Canonical project_id is
+`fe2ef898-0152-40a4-af97-ed97cc86ca45`.
 
 **Phase progress:**
 
@@ -102,18 +209,60 @@ NAS stack 151 still runs v2 until Phase 8 cutover.
   `v3/develop` — flip to default branch post-cutover per the
   Phase 9 Day 0 checklist). Phase 8 runbook tightened with the
   retag command, the rc tag flow, and the force-push step.
-- ⏭ **Phase 8** (NAS cutover) — next user-driven step. Take
-  production backup, retag `:latest` as `:v2-final` for rollback,
-  push `v3.0.0-rc1` git tag to build the rc image, force-push
-  `v3/develop` → `main`, run `scripts/migrate_v2_to_v3.py` on the
-  live DB, deploy v3 image to NAS stack 151, run
-  `oc maintenance run-once embedding_backfill`, verify via smoke
-  test, update each MCP client's `~/.claude.json` URL from
-  `:18001/mcp` to `:18000/mcp`. Cutover-time runbook lives in
-  `docs/V3_PLAN.md` Phase 8 section.
-- pending: Phase 9 (decommission, Day 7+ post-cutover) — also
-  tracks **dependency audit** as a tech-debt follow-up
-  (`docs/V3_PLAN.md` "Post-cutover follow-ups").
+- ✅ **Phase 8** (NAS cutover, 2026-05-06) — **shipped, with turbulence.**
+  Force-push `v3/develop` → `main` succeeded; `v3.0.0-rc1` Docker image
+  built and live; v3 stack deployed at `:18000/mcp`. Two unplanned
+  recoveries: (1) the prior session's migrated DB was corrupt by the
+  time v3 first opened it (root cause unconfirmed — likely orphan
+  `-wal`/`-shm` files at the destination path; possibly compounded by
+  `verify_v3_db.py` doing only superficial checks rather than
+  `PRAGMA integrity_check`). Recovery: abandoned migration, restarted
+  v3 against a fresh empty volume; v3 booted clean. (2) `:v2-final`
+  retag failed first attempt due to lowercase IMAGE_NAME bug in the
+  workflow; fixed in commit `6ae71812` and re-captured by tagging
+  the v2 build SHA `bb217d9` directly. Full triage at
+  [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
+  with a 12-item punch list.
+- ✅ **Triage punch list closed** (rolled up 2026-05-06). All 12 original
+  items + 3 post-cutover MCP-transport items are DONE, deferred to a
+  separate repo (portainer-mcp 400 bug), or date-gated to Phase 9. See
+  [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
+  punch list section for the per-item disposition with commit refs.
+- ✅ **Rate-limiter ceiling raised** (2026-05-11). `_DEFAULT_RPM`
+  bumped 120 → 600 in `interfaces/api/middleware/rate_limit.py`;
+  `.env.example` and `docs/configuration/env_vars.md` reconciled
+  (both previously claimed `60`, a pre-existing drift). Discovered
+  during mnemosyne-mcp Phase C: `mnemo_continue`'s 7-sequential
+  `memory_search` burst tripped the limit under integration-test
+  loads. Closes one item from V3_PLAN.md "Post-cutover follow-ups".
+  Bulk-search endpoint (option (b)) remains on the backlog.
+- ✅ **Project CRUD surface completed** (2026-05-11). Added
+  `project_get`, `project_update`, `project_delete` across the
+  StoragePort, use cases, REST routes, MCP tools, and CLI; brings
+  the project entity to full CRUD parity with memory. `project_delete`
+  has a `confirm: bool = False` preview/ok two-step shape; the
+  preview returns memory_count, and `confirm=True` cascades atomically
+  (project row + memory_items rows; memory_embeddings via existing FK).
+  In the same pass, `memory_delete` got the symmetric `confirm` flag —
+  breaking change to the previous one-shot semantic, acceptable per
+  the no-backwards-compat rule. v3 MCP surface is now 17 tools.
+  Closes the second post-cutover follow-up; rc4 will batch this with
+  the rate-limit bump.
+- ✅ **Read-surface + delete-safety batch** (2026-07-23). Eight commits
+  working the three `mcp-feedback` OC memories filed from dogfooding OC
+  through its own client sessions, plus the adjacent defects on the same
+  code paths. Closes five post-cutover follow-ups: project-scoped
+  `memory_list`, required `confirm` on both delete surfaces, filtering +
+  projection on the read tools, bounded `onboard_git` cluster detail, and
+  bulk project delete — plus a version/capability signal on `health` and
+  `memory_stats` routed through `count_memory`. Fixed in passing:
+  `onboard_git`'s watermark never advancing past a filtered-out HEAD,
+  `oc version` always printing "unknown", and a hardcoded version in
+  `api/app.py` that had drifted from pyproject. MCP surface 17 → 18 tools;
+  433 → 510 tests.
+- pending: Phase 9 (decommission, Day 7+ post-cutover, earliest
+  2026-05-13) — also tracks **dependency audit** as a tech-debt
+  follow-up (`docs/V3_PLAN.md` "Post-cutover follow-ups").
 
 **Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
 `memory_items.conversation_id`; unified ASGI on port `:18000`; cut
@@ -187,7 +336,7 @@ for the full layout.
 - **Ports**: abstract interfaces in `domain/ports/` that
   infrastructure implements. v3 has three: `StoragePort`,
   `MemoryStorePort`, `EmbeddingPort`.
-- **MCP Server**: `interfaces/mcp/` — 14 tools registered via
+- **MCP Server**: `interfaces/mcp/` — 18 tools registered via
   FastMCP, mounted at `/mcp` inside the unified ASGI app.
 - **HTTP API**: `interfaces/api/` — FastAPI app factory
   (`create_app`), routes for memory + project + system, FastMCP
@@ -263,6 +412,13 @@ for the full layout.
   there.
 - Runtime deprecation is a *warning*, not a build failure. Don't
   treat it as a cutover blocker.
+- **Docker image builds amd64 only.** `docker-publish.yml` pins
+  `platforms: linux/amd64`. The NAS deploy target is x86-64 and no
+  fleet host is ARM, so a QEMU-emulated arm64 build is wasted CI time
+  for an image nobody pulls. Re-add `linux/arm64` only if an ARM
+  deployment target appears. See claude-fleet-kit
+  `fleet/lessons/docker-multiarch-only-what-you-deploy` (dropped
+  fleet-wide 2026-07-24).
 
 ## Environment Variables
 
@@ -301,19 +457,16 @@ The MCP server is registered at user scope in `~/.claude.json` as
 `openchronicle` pointing at the NAS endpoint over HTTP streamable-http
 transport. No project-level setup required.
 
-**v2 → v3 endpoint change:** the deployed NAS still serves the v2
-shape (port `:18001/mcp` for the standalone MCP service) until the
-Phase 8 cutover. Post-cutover, MCP collapses onto port `:18000/mcp`
-on the same host. Update each machine's `~/.claude.json` at cutover
-time.
+**v3 endpoint:** MCP and HTTP REST are unified on port `:18000` since the
+2026-05-06 cutover. MCP at `/mcp`, REST at `/api/v1/*`, liveness at
+`/health`. Each machine's `~/.claude.json` should point at
+`http://your-nas:18000/mcp`. (Pre-cutover v2 was `:18001/mcp` for MCP
+and `:18000/api/v1` for REST as separate services — that shape is gone.)
 
 For a fresh registration:
 
 ```bash
-# Pre-cutover (v2):
-claude mcp add --scope user --transport http openchronicle http://carldog-nas:18001/mcp
-# Post-cutover (v3):
-claude mcp add --scope user --transport http openchronicle http://carldog-nas:18000/mcp
+claude mcp add --scope user --transport http openchronicle http://your-nas:18000/mcp
 ```
 
 For local dev (without the NAS), run `oc serve` in a checkout — the
@@ -328,17 +481,32 @@ the NAS one.)
 
 ### Project Identity
 
-Use `project_id: "87de0f7d-d6ab-4b83-8613-b2b5ff60a57b"` in all
-`memory_save` calls on the NAS-hosted OC. This is a FK to the
-projects table — freeform strings will fail. (Project name on the
-NAS is currently `smoke-test-2026-04-29`; rename TBD.)
+Use `project_id: "fe2ef898-0152-40a4-af97-ed97cc86ca45"` in all
+`memory_save` calls on the NAS-hosted OC. This is a FK to the projects
+table — freeform strings will fail. (Project name on the NAS is
+`openchronicle-mcp`, created 2026-05-06 during the v3 cutover.)
 
-The old `project_id 0db2b2ff-f995-4f59-b059-0fae5c78909d` was on the
-LOCAL OC instance (Windows machine) and is no longer valid against
-the NAS DB.
+**Historical project_ids (no longer valid against the live DB):**
 
-If the NAS DB is recreated, create a new project with `project_create`
-and update this UUID.
+- `87de0f7d-d6ab-4b83-8613-b2b5ff60a57b` — v2 NAS project (lost 2026-05-06
+  when the v3 cutover migration produced a corrupt DB and we restarted
+  v3 against a fresh empty volume; ~24 memories from v2 are unrecoverable
+  from the live DB but preserved on disk for forensic analysis at
+  `/volume1/@docker/volumes/openchronicle-mcp_oc-data/_data/openchronicle.db.v2-rollback`)
+- `0db2b2ff-f995-4f59-b059-0fae5c78909d` — LOCAL OC (Windows machine),
+  separate memory pool, never valid against NAS
+
+If the NAS DB is recreated again in the future, create a new project
+with `project_create` and update this UUID.
+
+**Auth posture (decided 2026-05-06, post-cutover):** `OC_API_KEY` on
+stack 151 resolves to empty — auth is **intentionally disabled**.
+This is a single-user home-LAN deployment, the LAN is trusted, no MCP
+clients are configured to send a bearer header, and the cost/benefit
+of switching doesn't pay. If the trust boundary ever changes (public
+exposure, untrusted LAN segment, multi-user environment), follow the
+"How to enable auth on a running deployment" steps in
+[docs/configuration/security_posture.md](docs/configuration/security_posture.md#authentication).
 
 ### Session Protocol Addition
 
@@ -437,7 +605,7 @@ the LLM, so OC's role is memory/retrieval only.
 - `docs/configuration/env_vars.md` — environment variables
 - `docs/configuration/config_files.md` — `core.json` schema
 - `docs/configuration/security_posture.md` — threat model + secrets handling
-- `docs/integrations/mcp_server_spec.md` — MCP tool surface (14 tools)
+- `docs/integrations/mcp_server_spec.md` — MCP tool surface (18 tools)
 - `docs/integrations/mcp_client_setup.md` — registering Claude Code, Goose, Open WebUI
 - `docs/api/STABILITY.md` — semver + deprecation policy
 - `docs/V3_PLAN.md` — full v3 plan, kill list, open questions, phase tracker
