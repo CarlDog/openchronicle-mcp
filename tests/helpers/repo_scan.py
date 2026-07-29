@@ -115,7 +115,7 @@ def scan_repository() -> list[tuple[Path, str]]:
                     # Store relative path
                     rel_path = file_path.relative_to(repo_root)
                     results.append((rel_path, content))
-                except (OSError, PermissionError):
+                except OSError, PermissionError:
                     # Skip files we can't read
                     continue
 

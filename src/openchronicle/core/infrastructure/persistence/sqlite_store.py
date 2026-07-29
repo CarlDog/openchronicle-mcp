@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Concatenate, ParamSpec, TypeVar
+from typing import Any, Concatenate
 
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
@@ -75,11 +75,8 @@ _MEMORY_SEARCH_LIMIT = 200
 _BEGIN_MAX_RETRIES = 3
 _BEGIN_BASE_DELAY = 0.5  # seconds
 
-_P = ParamSpec("_P")
-_R = TypeVar("_R")
 
-
-def _locked(method: Callable[Concatenate[SqliteStore, _P], _R]) -> Callable[Concatenate[SqliteStore, _P], _R]:
+def _locked[**P, R](method: Callable[Concatenate[SqliteStore, P], R]) -> Callable[Concatenate[SqliteStore, P], R]:
     """Serialize a store method on the store's re-entrant lock.
 
     One SqliteStore holds one sqlite3.Connection shared across Starlette's
@@ -92,7 +89,7 @@ def _locked(method: Callable[Concatenate[SqliteStore, _P], _R]) -> Callable[Conc
     """
 
     @functools.wraps(method)
-    def wrapper(self: SqliteStore, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+    def wrapper(self: SqliteStore, *args: P.args, **kwargs: P.kwargs) -> R:
         with self._lock:
             return method(self, *args, **kwargs)
 

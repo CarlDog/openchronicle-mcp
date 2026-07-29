@@ -149,7 +149,7 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
             memory_id=args.memory_id,
             confirm=args.confirm,
         )
-    except (ValueError, NotFoundError, DomainValidationError):
+    except ValueError, NotFoundError, DomainValidationError:
         if args.json:
             payload = json_envelope(
                 command="memory.delete",

@@ -37,7 +37,7 @@ def execute() -> DiagnosticsReport:
             stat_info = db_path_obj.stat()
             db_size_bytes = stat_info.st_size
             db_modified_utc = datetime.fromtimestamp(stat_info.st_mtime, UTC)
-        except (OSError, ValueError):
+        except OSError, ValueError:
             pass
 
     config_dir_exists = config_dir_obj.exists()

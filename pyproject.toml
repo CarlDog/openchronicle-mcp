@@ -14,16 +14,16 @@ authors = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 maintainers = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 license = {text = "AGPL-3.0-only"}
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 keywords = ["llm", "ai", "memory", "mcp", "embeddings", "fts5", "sqlite"]
 classifiers = [
 	"Development Status :: 4 - Beta",
 	"Intended Audience :: Developers",
 	"License :: OSI Approved :: GNU Affero General Public License v3",
 	"Programming Language :: Python :: 3",
-	"Programming Language :: Python :: 3.11",
 	"Programming Language :: Python :: 3.12",
 	"Programming Language :: Python :: 3.13",
+	"Programming Language :: Python :: 3.14",
 	"Topic :: Scientific/Engineering :: Artificial Intelligence",
 	"Typing :: Typed",
 ]
@@ -53,7 +53,11 @@ ollama = [
 	"numpy>=1.24",
 ]
 mcp = [
-	"mcp>=1.0.0",
+	# <2: mcp 2.0.0 removed mcp.server.fastmcp (FastMCP moved to the
+	# standalone fastmcp package). The server imports it directly, so an
+	# unpinned fresh image build ships broken. Migrating to mcp 2.x /
+	# fastmcp is its own project — see V3_PLAN follow-ups.
+	"mcp>=1.0,<2",
 ]
 dev = [
 	"pytest>=7",
@@ -62,7 +66,7 @@ dev = [
 	"ruff>=0.1.0",
 	"openai>=1.0.0",
 	"httpx>=0.25.0",
-	"mcp>=1.0.0",
+	"mcp>=1.0,<2",
 	"numpy>=1.24",
 ]
 
@@ -87,7 +91,7 @@ where = ["src"]
 openchronicle = ["**/*.sql"]
 
 [tool.ruff]
-target-version = "py311"
+target-version = "py314"
 line-length = 120
 
 [tool.ruff.lint]
@@ -118,7 +122,7 @@ unfixable = []
 known-first-party = ["openchronicle"]
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

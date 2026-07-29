@@ -119,7 +119,7 @@ class MaintenanceLoop:
         self._stop_event.set()
         try:
             await asyncio.wait_for(self._task, timeout=5.0)
-        except (TimeoutError, asyncio.CancelledError):
+        except TimeoutError, asyncio.CancelledError:
             self._task.cancel()
         # Drain any in-flight job tasks (cancel rather than wait for
         # potentially long-running jobs).
