@@ -1,0 +1,41 @@
+# Canonical secret-scanning workflow — standard UNI-04.
+#
+# Copy to .github/workflows/gitleaks.yml. This is the fleet's UNIVERSAL CI
+# FLOOR: every repo runs it, whatever else it does or doesn't run. It is
+# deliberately standalone rather than a job inside a test workflow so it drops
+# unchanged into repos with no other CI at all (the PowerShell tools, the build
+# harness, this plugin).
+#
+# Why this exists when every repo already has a pre-commit hook: a local hook is
+# bypassable by design. --no-verify skips it, an unset core.hooksPath disables
+# it silently, a fresh clone has it inactive until someone runs the installer,
+# and a commit pushed from another machine never saw it. The 2026-07-24 survey
+# found two repos with hooks that fail open when gitleaks is missing and two
+# with core.hooksPath unset entirely. CI is the backstop that cannot be skipped
+# by the person making the mistake.
+
+name: gitleaks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan for secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Full history: a secret introduced in an earlier commit and removed
+          # in a later one is still in the pack and still needs rotating. A
+          # shallow clone would scan only the tip and report clean.
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
