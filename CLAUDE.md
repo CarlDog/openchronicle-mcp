@@ -22,9 +22,15 @@
 - **Post-CI redeploy convention.** Once v3 is live on the NAS, pushes
   to `main` that change anything shipping in the runtime image
   (`src/`, `pyproject.toml`, `Dockerfile`, `docker-compose.nas.yml`)
-  trigger a redeploy via `portainer-mcp` once both GitHub Actions
-  workflows go green (`Test` + `Build and Push Docker Image`).
-  Doc-only / hook-only / workflow-only pushes don't need a redeploy.
+  trigger a redeploy via `portainer-mcp` once the `build-and-push` job
+  in `.github/workflows/test.yml` goes green. That job itself only
+  runs `needs: [test, quality]`, so one green check is a stronger
+  signal than the old two-workflow setup: a red pytest/quality run
+  now can't ship `:latest` at all (fixed 2026-07-30, standards-gap
+  UNI-14 — `docker-publish.yml` used to have no `needs:` at all,
+  since GitHub Actions `needs:` can't cross workflow *files*; the fix
+  merged the publish job into `test.yml` as a third job).
+  Doc-only / hook-only pushes don't need a redeploy.
 
   Lookup the stack id dynamically (don't hardcode it):
 
@@ -412,8 +418,8 @@ for the full layout.
   there.
 - Runtime deprecation is a *warning*, not a build failure. Don't
   treat it as a cutover blocker.
-- **Docker image builds amd64 only.** `docker-publish.yml` pins
-  `platforms: linux/amd64`. The NAS deploy target is x86-64 and no
+- **Docker image builds amd64 only.** The `build-and-push` job in
+  `test.yml` pins `platforms: linux/amd64`. The NAS deploy target is x86-64 and no
   fleet host is ARM, so a QEMU-emulated arm64 build is wasted CI time
   for an image nobody pulls. Re-add `linux/arm64` only if an ARM
   deployment target appears. See claude-fleet-kit

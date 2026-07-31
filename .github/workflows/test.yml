@@ -3,6 +3,18 @@ name: Test
 on:
   push:
     branches: [main, v3/develop]
+    tags: ["v*"]
+    # Docs-only changes can't affect the image, tests, or lint (build
+    # context is just the app source + Dockerfile). Skipping them avoids
+    # both wasted CI minutes and republishing :latest, which would
+    # otherwise force-pull + bounce the auto-deploying stack for a pure
+    # documentation commit.
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".vscode/**"
+      - ".env.example"
+      - ".gitattributes"
   pull_request:
     branches: [main, v3/develop]
 
@@ -11,8 +23,12 @@ jobs:
     name: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # macOS leg dropped (REJ-04, rejected pattern): zero users deploy
+      # here, ~50% extra matrix time, has never caught anything ubuntu
+      # didn't already catch. Re-add only if an actual macOS deployment
+      # target appears.
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -57,3 +73,62 @@ jobs:
 
       - name: Mypy
         run: mypy src tests --config-file=pyproject.toml
+
+  build-and-push:
+    name: Build and push Docker image
+    # Only on push (branch or tag) — never on pull_request, and never if
+    # test/quality didn't both pass. This is the fix for UNI-14: previously
+    # a separate docker-publish.yml workflow had no `needs:` at all, so a
+    # red pytest/quality run could still ship :latest to ghcr.io, which the
+    # NAS Portainer stack git-polls and auto-pulls.
+    if: github.event_name == 'push'
+    needs: [test, quality]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io
+      IMAGE_NAME: ${{ github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=,format=short
+            type=ref,event=tag
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          # amd64 only. Every deployment target is x86-64 (the containers
+          # run as Portainer stacks on an amd64 host); nothing in the fleet
+          # runs on ARM, so a QEMU-emulated arm64 build is ~5x slower for an
+          # image no one pulls. Re-add linux/arm64 here if an ARM host ever
+          # joins the fleet. See lessons/docker-multiarch-only-what-you-deploy.
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
