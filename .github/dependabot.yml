@@ -39,13 +39,20 @@ updates:
       - dependencies
       - python
     groups:
-      python-minor-and-patch:
-        update-types:
-          - minor
-          - patch
-      python-major:
-        update-types:
-          - major
+      # Mirrors the npm block's dev/runtime/major split. Previously a single
+      # python-minor-and-patch group covered both dev and production deps
+      # with no dependency-type distinction, so the fleet auto-merge
+      # script's ALLOWED_GROUPS prefix match (which requires "pip-dev")
+      # never matched anything in this repo — pip is this repo's primary
+      # ecosystem, so no pip PR could ever auto-merge (standards-gap PY-04).
+      pip-dev:
+        dependency-type: development
+        update-types: [minor, patch]
+      pip-runtime:
+        dependency-type: production
+        update-types: [minor, patch]
+      pip-major:
+        update-types: [major]
 
   - package-ecosystem: github-actions
     directory: /
