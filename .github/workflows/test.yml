@@ -18,6 +18,14 @@ on:
   pull_request:
     branches: [main, v3/develop]
 
+# Default for every job that doesn't declare its own permissions block
+# (test, quality) — read-only least-privilege for the GITHUB_TOKEN
+# (CodeQL actions/missing-workflow-permissions). build-and-push below
+# needs packages: write for the GHCR push, so it keeps its own
+# job-level block, which overrides this default for that job only.
+permissions:
+  contents: read
+
 jobs:
   test:
     name: ${{ matrix.os }}
