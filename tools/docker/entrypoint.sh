@@ -41,8 +41,21 @@ if [ -d /config-defaults ] && [ ! -f "$OC_CONFIG_DIR/.bootstrapped" ]; then
   touch "$OC_CONFIG_DIR/.bootstrapped"
 fi
 
+# The container starts as root (no Dockerfile USER) specifically so this
+# step can run: fix ownership of every mount point to the unprivileged
+# `oc` user before dropping to it below. This is idempotent and also
+# self-heals a volume that predates the non-root switch — an existing
+# deployment's named volumes were populated while the image ran fully as
+# root, and without this chown the app would get EACCES on its own data
+# the first time it started as `oc`.
+chown -R oc:oc "$(dirname "$OC_DB_PATH")" "$OC_CONFIG_DIR" "$OC_OUTPUT_DIR"
+
+# gosu replaces this shell with the target process running as `oc` (a
+# single setuid+setgid+execve, no wrapper process), so PID-1 signal
+# forwarding for graceful shutdown works exactly as it would running
+# oc serve directly as root.
 if [ "$#" -eq 0 ]; then
-  exec oc serve
+  exec gosu oc oc serve
 fi
 
-exec oc "$@"
+exec gosu oc oc "$@"
