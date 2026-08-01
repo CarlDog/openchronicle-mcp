@@ -26,6 +26,11 @@ permissions:
 jobs:
   scan:
     name: Scan for secrets
+    # Same-repo PRs are already scanned by the push run on their branch; the
+    # duplicate pull_request run is redundant AND fails on Dependabot PRs
+    # (read-only token -> gitleaks-action's PR API calls 403). Keep the
+    # pull_request run only for fork PRs, which have no in-repo push event.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
