@@ -53,6 +53,13 @@ updates:
         update-types: [minor, patch]
       pip-major:
         update-types: [major]
+    ignore:
+      # mcp 2.0 removed mcp.server.fastmcp (FastMCP moved to the
+      # standalone fastmcp package) — the major bump ships a server that
+      # dies on import, so its PR is permanently red until the migration
+      # lands (V3_PLAN follow-up "mcp 2.0 migration"). Stop re-opening it.
+      - dependency-name: mcp
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

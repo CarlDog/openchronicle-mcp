@@ -4,19 +4,36 @@ on:
   push:
     branches: [main, v3/develop]
     tags: ["v*"]
-    # Docs-only changes can't affect the image, tests, or lint (build
-    # context is just the app source + Dockerfile). Skipping them avoids
-    # both wasted CI minutes and republishing :latest, which would
-    # otherwise force-pull + bounce the auto-deploying stack for a pure
-    # documentation commit.
+    # Changes that can't affect the image, tests, or lint (build context
+    # is just the app source + Dockerfile). Skipping them avoids both
+    # wasted CI minutes and republishing :latest, which would otherwise
+    # force-pull + bounce the auto-deploying stack for a pure
+    # documentation/tooling commit. package*.json is markdownlint dev
+    # tooling only — before it was listed here, every weekly Dependabot
+    # npm bump rebuilt and republished the image for nothing.
     paths-ignore:
       - "**.md"
       - "docs/**"
       - ".vscode/**"
       - ".env.example"
       - ".gitattributes"
+      - "package.json"
+      - "package-lock.json"
+      - ".pre-commit-config.yaml"
+      - ".githooks/**"
+      - ".github/dependabot.yml"
+      - ".github/FUNDING.yml"
+      - ".github/workflows/gitleaks.yml"
+      - ".github/workflows/retag-image.yml"
   pull_request:
     branches: [main, v3/develop]
+
+# Two rapid pushes to main otherwise run build-and-push concurrently,
+# and whichever finishes LAST owns :latest — possibly the older commit.
+# Queue runs per ref instead; never cancel (a tag build must complete).
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: false
 
 # Default for every job that doesn't declare its own permissions block
 # (test, quality) — read-only least-privilege for the GITHUB_TOKEN
@@ -102,9 +119,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-
+      # No QEMU step: the build is linux/amd64 only (native on this
+      # runner). Re-add docker/setup-qemu-action if an ARM target
+      # ever joins the platforms list.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
