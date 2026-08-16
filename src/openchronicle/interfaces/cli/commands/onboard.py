@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 
 from openchronicle.core.application.services.git_onboard import (
+    ExtractedHistory,
     cluster_commits,
-    extract_commits_from_git,
+    extract_history_from_path,
     filter_commits,
-    run_git_onboard_raw,
+    materialize_clusters,
+    onboard_git_prepare,
 )
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
@@ -33,6 +35,10 @@ def cmd_onboard_git(args: argparse.Namespace, container: CoreContainer) -> int:
     v3 onboard does not call an LLM. Each cluster is saved as a structured
     raw memory; downstream LLM-aware tools (Claude Code, etc.) can re-read
     and refine via `memory_update` if synthesis is desired.
+
+    Shares `onboard_git_prepare` with the MCP tool, so the watermark
+    semantics are identical: runs are incremental past the stored
+    watermark, and --force wipes both the memories and the watermark.
     """
     project_id: str = args.project_id
     repo_path: str = args.repo_path
@@ -47,33 +53,18 @@ def cmd_onboard_git(args: argparse.Namespace, container: CoreContainer) -> int:
         return 1
 
     store = container.storage
-    if hasattr(store, "list_memory_by_source"):
-        existing = store.list_memory_by_source("git-onboard", project_id)
-        if existing and not force:
-            print(f"Error: {len(existing)} git-onboard memories already exist for this project.")
-            print("Use --force to delete and re-run.")
-            return 1
-        if existing and force:
-            for m in existing:
-                store.delete_memory(m.id)
-            print(f"Deleted {len(existing)} existing git-onboard memories.")
-
-    try:
-        commits = extract_commits_from_git(repo_path, max_commits)
-    except RuntimeError as e:
-        print(f"Error: {e}")
-        return 1
-
-    if not commits:
-        print("No commits found.")
-        return 0
-
-    print(f"Extracted {len(commits)} commits from {repo_path}")
 
     if dry_run:
-        filtered = filter_commits(commits)
+        # Preview only: no memories, no watermark, no wipes.
+        try:
+            history = extract_history_from_path(repo_path, max_commits)
+        except RuntimeError as e:
+            print(f"Error: {e}")
+            return 1
+        print(f"Branch {history.branch} @ {history.head[:12]}")
+        filtered = filter_commits(history.commits)
         clusters = cluster_commits(filtered, max_clusters=max_memories)
-        print(f"Filtered: {len(commits)} -> {len(filtered)} commits")
+        print(f"Filtered: {len(history.commits)} -> {len(filtered)} commits")
         print(f"Clusters: {len(clusters)}")
         for i, cluster in enumerate(clusters):
             sorted_commits = sorted(cluster.commits, key=lambda c: c.date)
@@ -82,14 +73,52 @@ def cmd_onboard_git(args: argparse.Namespace, container: CoreContainer) -> int:
             print(f"  [{i + 1}] {cluster.label} ({len(cluster.commits)} commits, {date_start} to {date_end})")
         return 0
 
+    def _extract(since_commit: str | None) -> ExtractedHistory:
+        return extract_history_from_path(repo_path, max_commits, since_commit=since_commit)
+
+    try:
+        prepared = onboard_git_prepare(
+            store,
+            project_id,
+            _extract,
+            max_clusters=max_memories,
+            force=force,
+        )
+    except RuntimeError as e:
+        print(f"Error: {e}")
+        return 1
+
+    if prepared.status == "exists":
+        print(f"Error: {prepared.existing_count} git-onboard memories already exist for this project.")
+        print("(They predate incremental onboarding, so there is no watermark to resume from.)")
+        print("Use --force to delete and re-run.")
+        return 1
+
+    history = prepared.history
+    print(f"Branch {history.branch} @ {history.head[:12]}")
+
+    if prepared.status == "up_to_date":
+        print("Up to date — no commits past the stored watermark.")
+        return 0
+    if prepared.status == "empty":
+        print("No commits found.")
+        return 0
+
+    if history.watermark_unreachable:
+        print(
+            "Note: the stored watermark was unreachable (history rewritten or "
+            "force-pushed); ran a full walk — some memories may duplicate "
+            "existing ones."
+        )
+    print(f"Walked {len(history.commits)} commits ({len(prepared.filtered)} after filtering)")
+
     def progress(msg: str) -> None:
         print(f"  {msg}")
 
-    memories = run_git_onboard_raw(
-        commits,
-        store=container.storage,
+    memories = materialize_clusters(
+        prepared.clusters,
+        store=store,
         project_id=project_id,
-        max_clusters=max_memories,
         progress_callback=progress,
     )
 

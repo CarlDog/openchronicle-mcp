@@ -285,3 +285,33 @@ def test_clone_command_uses_end_of_options_guard() -> None:
     assert "--" in cmd
     # repo_url comes after the -- guard
     assert cmd.index("--") < cmd.index("https://github.com/foo/bar")
+
+
+def test_clone_command_includes_branch_flag() -> None:
+    captured: dict[str, list[str]] = {}
+
+    def _fake_run(cmd: list[str], **_kw: object) -> SimpleNamespace:
+        captured["cmd"] = cmd
+        return SimpleNamespace(returncode=1, stdout="", stderr="boom")
+
+    with (
+        patch("openchronicle.core.application.services.git_onboard.subprocess.run", side_effect=_fake_run),
+        pytest.raises(RuntimeError, match="git clone failed"),
+    ):
+        extract_commits_from_url("https://github.com/foo/bar", branch="develop")
+
+    cmd = captured["cmd"]
+    branch_idx = cmd.index("--branch")
+    assert cmd[branch_idx + 1] == "develop"
+    # branch value stays inside the options section, before the -- guard
+    assert branch_idx < cmd.index("--")
+
+
+@pytest.mark.parametrize("branch", ["-upload-pack=evil", "--evil", ".hidden", "", "a b"])
+def test_invalid_branch_rejected_before_clone(branch: str) -> None:
+    with (
+        patch("openchronicle.core.application.services.git_onboard.subprocess.run") as mock_run,
+        pytest.raises(RuntimeError, match="Invalid branch name"),
+    ):
+        extract_commits_from_url("https://github.com/foo/bar", branch=branch)
+    mock_run.assert_not_called()

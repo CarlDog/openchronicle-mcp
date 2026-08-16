@@ -13,11 +13,10 @@ from typing import Any, cast
 from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.services.git_onboard import (
-    cluster_commits,
+    ExtractedHistory,
     cluster_to_summary,
     extract_commits_from_url,
-    filter_commits,
-    save_watermark,
+    onboard_git_prepare,
 )
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
@@ -41,6 +40,7 @@ def register(mcp: FastMCP) -> None:
         force: bool = False,
         max_commits_per_cluster: int = 10,
         include_commit_detail: bool = False,
+        branch: str | None = None,
     ) -> dict[str, Any]:
         """Bootstrap project memory from a remote git repo's commit clusters.
 
@@ -52,6 +52,15 @@ def register(mcp: FastMCP) -> None:
         the suggested tags and `created_at`. Re-running is incremental
         (a watermark tracks the last processed commit); pass `force=true`
         to wipe and start over.
+
+        The response echoes the resolved `branch` and its tip `head` SHA —
+        check them: without `branch` the clone follows the remote's
+        DEFAULT branch, which is the wrong ref for mirror-style repos
+        whose work lives elsewhere. If a stored watermark has become
+        unreachable (history rewritten or force-pushed), the run
+        automatically falls back to a full walk and sets
+        `watermark_unreachable` — existing memories are kept, so skip any
+        repeated cluster suggestions.
 
         Private github.com repos require `OC_GIT_TOKEN` set on the server
         with `contents:read` scope. For unpushed local history use the
@@ -72,6 +81,7 @@ def register(mcp: FastMCP) -> None:
             force: Wipe prior git-onboard memories and re-run from scratch.
             max_commits_per_cluster: Commits listed per cluster (1-100, default 10).
             include_commit_detail: Add each commit's body, file list, and diffstat.
+            branch: Branch/ref to walk (default: the remote's default branch).
         """
         max_commits_per_cluster = min(max(max_commits_per_cluster, 1), 100)
         container = _get_container(ctx)
@@ -85,6 +95,7 @@ def register(mcp: FastMCP) -> None:
             force,
             max_commits_per_cluster,
             include_commit_detail,
+            branch,
         )
 
 
@@ -97,43 +108,39 @@ def _onboard_git_sync(
     force: bool,
     max_commits_per_cluster: int = 10,
     include_commit_detail: bool = False,
+    branch: str | None = None,
 ) -> dict[str, Any]:
     """Blocking body of onboard_git — runs on a worker thread."""
-    # Validate project
     project = container.storage.get_project(project_id)
     if project is None:
         raise NotFoundError(f"Project not found: {project_id}", code=PROJECT_NOT_FOUND)
 
     store = container.storage
-    existing = store.list_memory_by_source("git-onboard", project_id)
-    watermark_items = store.list_memory_by_source("git-onboard-watermark", project_id)
-    watermark_hash = watermark_items[0].content if watermark_items else None
 
-    if force:
-        # Delete all git-onboard memories AND watermark
-        for m in existing:
-            store.delete_memory(m.id)
-        for wm in watermark_items:
-            store.delete_memory(wm.id)
-        watermark_hash = None
-    elif existing and not watermark_hash:
-        # Existing memories but no watermark (pre-incremental run) — require force
+    def _extract(since_commit: str | None) -> ExtractedHistory:
+        return extract_commits_from_url(repo_url, max_commits, since_commit=since_commit, branch=branch)
+
+    prepared = onboard_git_prepare(
+        store,
+        project_id,
+        _extract,
+        max_clusters=max_clusters,
+        force=force,
+    )
+
+    if prepared.status == "exists":
         return {
-            "error": f"{len(existing)} git-onboard memories already exist. Use force=True to re-run.",
-            "existing_count": len(existing),
+            "error": (f"{prepared.existing_count} git-onboard memories already exist. Use force=True to re-run."),
+            "existing_count": prepared.existing_count,
         }
 
-    # Extract commits — incremental if watermark exists. Clones the
-    # remote repo into a tmpdir inside the server's container/filesystem,
-    # walks its history, then discards the clone.
-    commits = extract_commits_from_url(repo_url, max_commits, since_commit=watermark_hash)
-    if not commits:
-        if watermark_hash:
-            return {"status": "up_to_date", "watermark": watermark_hash}
-        return {"project_id": project_id, "commit_count": 0, "cluster_count": 0, "clusters": []}
+    history = prepared.history
+    ref_info = {"branch": history.branch, "head": history.head}
 
-    filtered = filter_commits(commits)
-    clusters = cluster_commits(filtered, max_clusters=max_clusters)
+    if prepared.status == "up_to_date":
+        return {"status": "up_to_date", "watermark": prepared.watermark_before, **ref_info}
+    if prepared.status == "empty":
+        return {"project_id": project_id, "commit_count": 0, "cluster_count": 0, "clusters": [], **ref_info}
 
     cluster_data = [
         cluster_to_summary(
@@ -141,28 +148,31 @@ def _onboard_git_sync(
             max_commits=max_commits_per_cluster,
             include_detail=include_commit_detail,
         )
-        for cluster in clusters
+        for cluster in prepared.clusters
     ]
 
-    # Watermark the newest commit WALKED, not the newest one kept. Merge,
-    # format and version-bump commits are filtered out, so anchoring to
-    # `filtered` leaves anything newer than the last kept commit to be
-    # re-walked on every subsequent run — on a repo whose HEAD is a merge,
-    # the incremental path never advances at all.
-    latest_hash = max(commits, key=lambda c: c.date).hash
-    save_watermark(store, project_id, latest_hash)
-
-    return {
+    instructions = (
+        "For each cluster above, synthesize a memory capturing WHY the changes "
+        "were made (decisions, rejected approaches, architectural shifts). Write "
+        "3-8 sentences. Save each using memory_save with the cluster's suggested_tags "
+        "and created_at timestamp."
+    )
+    response: dict[str, Any] = {
         "project_id": project_id,
-        "walked_commit_count": len(commits),
-        "commit_count": len(filtered),
-        "cluster_count": len(clusters),
+        "walked_commit_count": len(history.commits),
+        "commit_count": len(prepared.filtered),
+        "cluster_count": len(prepared.clusters),
         "clusters": cluster_data,
-        "incremental": watermark_hash is not None,
-        "instructions": (
-            "For each cluster above, synthesize a memory capturing WHY the changes "
-            "were made (decisions, rejected approaches, architectural shifts). Write "
-            "3-8 sentences. Save each using memory_save with the cluster's suggested_tags "
-            "and created_at timestamp."
-        ),
+        "incremental": prepared.incremental,
+        **ref_info,
+        "instructions": instructions,
     }
+    if history.watermark_unreachable:
+        response["watermark_unreachable"] = True
+        response["ran_full_walk"] = True
+        response["instructions"] = instructions + (
+            " NOTE: the previous watermark commit was unreachable (history rewritten "
+            "or force-pushed), so this was a full re-walk — some clusters may repeat "
+            "memories the project already has; skip those instead of re-saving."
+        )
+    return response

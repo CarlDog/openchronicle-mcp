@@ -9,18 +9,22 @@ raw-format memories directly.
 from __future__ import annotations
 
 import base64
+import logging
 import os
 import re
 import subprocess
 import tempfile
 from collections import Counter
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+
+_logger = logging.getLogger(__name__)
 
 # --- Filtering ---
 
@@ -308,6 +312,102 @@ def _validate_repo_url(repo_url: str) -> None:
         )
 
 
+# Conservative subset of valid git ref names: no leading dash (option
+# injection), no leading dot/slash, none of git's forbidden characters.
+_BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/\-]*$")
+
+# The watermark's content is spliced into `git log <hash>..HEAD` argv, so
+# it must LOOK like a hash before it gets anywhere near a subprocess.
+_WATERMARK_HASH_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
+
+
+def _validate_branch(branch: str) -> None:
+    """Reject branch names that could be parsed as options or garbage refs."""
+    if not _BRANCH_RE.match(branch):
+        raise RuntimeError(
+            f"Invalid branch name: {branch!r}. Use a plain ref name (letters, digits, ., _, /, -; not starting with -)."
+        )
+
+
+# git's wording for a start-point that isn't in the clone: history was
+# rewritten (hash gone everywhere) or the commit was orphaned by a
+# force-push (still on the server, unreachable from any ref the clone
+# fetched). Both mean the incremental walk cannot proceed from here.
+_UNREACHABLE_MARKERS = ("invalid revision range", "unknown revision", "bad revision")
+
+
+def _is_unreachable_revision_error(err: RuntimeError) -> bool:
+    msg = str(err).lower()
+    return any(marker in msg for marker in _UNREACHABLE_MARKERS)
+
+
+def _resolve_ref(repo_path: str) -> tuple[str, str]:
+    """Return (branch, head_sha) of the checked-out ref in ``repo_path``."""
+    branch = subprocess.run(
+        ["git", "-C", repo_path, "rev-parse", "--abbrev-ref", "HEAD"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    head = subprocess.run(
+        ["git", "-C", repo_path, "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    if branch.returncode != 0 or head.returncode != 0:
+        raise RuntimeError(f"git rev-parse failed: {(branch.stderr + head.stderr).strip()}")
+    return branch.stdout.strip(), head.stdout.strip()
+
+
+@dataclass(frozen=True)
+class ExtractedHistory:
+    """Commits walked plus the resolved ref they came from.
+
+    ``branch``/``head`` make a wrong-ref run self-evident from the
+    response (a mirror-style ``main`` silently onboarding vendor history
+    is otherwise indistinguishable from "this repo has no history").
+    ``watermark_unreachable`` is True when the stored watermark could not
+    be resolved and the walk automatically fell back to a full run.
+    """
+
+    commits: list[GitCommit] = field(default_factory=list)
+    branch: str = ""
+    head: str = ""
+    watermark_unreachable: bool = False
+
+
+def _extract_with_recovery(
+    repo_path: str,
+    max_commits: int,
+    since_commit: str | None,
+) -> tuple[list[GitCommit], bool]:
+    """Run the incremental walk, falling back to a full walk when the
+    watermark commit is unreachable (history rewrite / orphaning force-
+    push). Returns (commits, watermark_unreachable).
+
+    Three live occurrences motivated the auto-recovery: the raw
+    ``git log failed: fatal: Invalid revision range <sha>..HEAD`` error
+    gave no hint that force=true was the fix, and force wipes every
+    git-derived memory just to repair the watermark. Falling back keeps
+    existing memories and re-anchors the watermark from the fresh walk;
+    the caller surfaces ``watermark_unreachable`` so duplicate cluster
+    suggestions are explainable.
+    """
+    if since_commit is None:
+        return extract_commits_from_git(repo_path, max_commits=max_commits), False
+    try:
+        return extract_commits_from_git(repo_path, max_commits=max_commits, since_commit=since_commit), False
+    except RuntimeError as err:
+        if not _is_unreachable_revision_error(err):
+            raise
+        _logger.warning(
+            "git-onboard watermark %s is unreachable (history rewritten or commit orphaned); running a full walk",
+            since_commit[:12],
+        )
+        return extract_commits_from_git(repo_path, max_commits=max_commits), True
+
+
 def extract_commits_from_git(
     repo_path: str, max_commits: int = 500, since_commit: str | None = None
 ) -> list[GitCommit]:
@@ -465,7 +565,8 @@ def extract_commits_from_url(
     repo_url: str,
     max_commits: int = 500,
     since_commit: str | None = None,
-) -> list[GitCommit]:
+    branch: str | None = None,
+) -> ExtractedHistory:
     """Extract commits by cloning a remote repo into a tmpdir.
 
     Used by the MCP server (and any other server-side caller) which doesn't
@@ -484,10 +585,18 @@ def extract_commits_from_url(
         max_commits: Cap on commits to extract.
         since_commit: Optional commit hash; only commits after it are
             returned. Forces a full clone since the hash must be reachable.
+        branch: Optional branch/ref to walk. Default: the remote's default
+            branch — which is the WRONG branch for mirror-style repos whose
+            work lives elsewhere, so the resolved ref is echoed either way.
 
-    The clone tmpdir is deleted before this function returns.
+    Returns an :class:`ExtractedHistory`; if ``since_commit`` turns out to
+    be unreachable in the clone, the walk automatically falls back to a
+    full run and flags ``watermark_unreachable``. The clone tmpdir is
+    deleted before this function returns.
     """
     _validate_repo_url(repo_url)
+    if branch is not None:
+        _validate_branch(branch)
 
     # Pick clone depth: shallow is fine when we just want the most recent
     # max_commits. With a watermark, the arbitrary `since_commit` SHA must be
@@ -496,6 +605,8 @@ def extract_commits_from_url(
     if since_commit is None:
         # +1 to ensure we don't truncate exactly at max_commits and miss a parent
         clone_cmd.extend(["--depth", str(max_commits + 1)])
+    if branch is not None:
+        clone_cmd.extend(["--branch", branch])
     # `--` ends option parsing so repo_url/tmpdir can never be read as flags.
     clone_cmd.append("--")
     clone_cmd.append(repo_url)
@@ -521,38 +632,52 @@ def extract_commits_from_url(
             stderr = result.stderr.strip()
             raise RuntimeError(f"git clone failed for {_redact_url(repo_url)}: {stderr}")
 
-        # Reuse the existing path-based extractor against the freshly cloned tree.
-        return extract_commits_from_git(tmpdir, max_commits=max_commits, since_commit=since_commit)
+        resolved_branch, head = _resolve_ref(tmpdir)
+        commits, unreachable = _extract_with_recovery(tmpdir, max_commits, since_commit)
+        return ExtractedHistory(
+            commits=commits,
+            branch=resolved_branch,
+            head=head,
+            watermark_unreachable=unreachable,
+        )
+
+
+def extract_history_from_path(
+    repo_path: str,
+    max_commits: int = 500,
+    since_commit: str | None = None,
+) -> ExtractedHistory:
+    """Local-path twin of :func:`extract_commits_from_url`.
+
+    Same ref echo and same watermark-unreachable auto-recovery, against
+    an existing working tree instead of a fresh clone. Used by the CLI.
+    """
+    resolved_branch, head = _resolve_ref(repo_path)
+    commits, unreachable = _extract_with_recovery(repo_path, max_commits, since_commit)
+    return ExtractedHistory(
+        commits=commits,
+        branch=resolved_branch,
+        head=head,
+        watermark_unreachable=unreachable,
+    )
 
 
 # --- Orchestration ---
 
 
-def run_git_onboard_raw(
-    commits: list[GitCommit],
+def materialize_clusters(
+    clusters: list[CommitCluster],
     *,
     store: MemoryStorePort,
     project_id: str,
-    max_clusters: int = 15,
     progress_callback: Callable[[str], None] | None = None,
 ) -> list[MemoryItem]:
-    """Filter -> cluster -> save each cluster as a raw-format memory.
+    """Save each cluster as a raw-format memory (the CLI path; no LLM).
 
-    LLM synthesis happens client-side in v3 (the MCP tool returns clusters
-    and instructs the calling agent to synthesize). The CLI uses this
-    function directly to seed memories without an LLM round-trip.
+    The MCP surface instead returns cluster summaries for the calling
+    agent to synthesize — that divergence is deliberate; everything
+    upstream of it lives in :func:`onboard_git_prepare`.
     """
-    filtered = filter_commits(commits)
-    if not filtered:
-        if progress_callback:
-            progress_callback("No commits to process after filtering.")
-        return []
-
-    clusters = cluster_commits(filtered, max_clusters=max_clusters)
-
-    if progress_callback:
-        progress_callback(f"Filtered {len(commits)} -> {len(filtered)} commits, {len(clusters)} clusters")
-
     memories: list[MemoryItem] = []
     for i, cluster in enumerate(clusters):
         if progress_callback:
@@ -573,6 +698,86 @@ def run_git_onboard_raw(
         memories.append(item)
 
     return memories
+
+
+@dataclass(frozen=True)
+class OnboardPrepared:
+    """Outcome of the shared onboard orchestration (transport-agnostic)."""
+
+    status: str  # "ok" | "up_to_date" | "exists" | "empty"
+    history: ExtractedHistory = field(default_factory=ExtractedHistory)
+    filtered: list[GitCommit] = field(default_factory=list)
+    clusters: list[CommitCluster] = field(default_factory=list)
+    watermark_before: str | None = None
+    existing_count: int = 0
+
+    @property
+    def incremental(self) -> bool:
+        """True when this run walked only commits past a usable watermark."""
+        return self.watermark_before is not None and not self.history.watermark_unreachable
+
+
+def onboard_git_prepare(
+    store: MemoryStorePort,
+    project_id: str,
+    extract: Callable[[str | None], ExtractedHistory],
+    *,
+    max_clusters: int = 15,
+    force: bool = False,
+) -> OnboardPrepared:
+    """Shared onboard orchestration: watermark policy, extraction (with
+    unreachable auto-recovery inside the extractor), filter, cluster,
+    watermark re-anchor.
+
+    Both surfaces run through here so the watermark semantics can't
+    diverge again — the CLI's hand-rolled sibling used to save no
+    watermark at all, and its ``--force`` wiped ``git-onboard`` memories
+    while leaving a stale ``git-onboard-watermark`` behind, so a later
+    MCP run resumed from deleted state.
+    """
+    existing = store.list_memory_by_source("git-onboard", project_id)
+    watermark_items = store.list_memory_by_source("git-onboard-watermark", project_id)
+    watermark_hash: str | None = watermark_items[0].content if watermark_items else None
+    if watermark_hash is not None and not _WATERMARK_HASH_RE.match(watermark_hash):
+        # The watermark is spliced into `git log <hash>..HEAD` argv.
+        # Anything that doesn't look like a hash (an imported or
+        # hand-written memory under the watermark source tag) is ignored,
+        # never executed.
+        _logger.warning("Ignoring malformed git-onboard watermark for project %s", project_id)
+        watermark_hash = None
+
+    if force:
+        for m in [*existing, *watermark_items]:
+            store.delete_memory(m.id)
+        existing = []
+        watermark_hash = None
+    elif existing and not watermark_hash:
+        return OnboardPrepared(status="exists", existing_count=len(existing))
+
+    history = extract(watermark_hash)
+    if not history.commits:
+        if watermark_hash:
+            return OnboardPrepared(status="up_to_date", history=history, watermark_before=watermark_hash)
+        return OnboardPrepared(status="empty", history=history)
+
+    filtered = filter_commits(history.commits)
+    clusters = cluster_commits(filtered, max_clusters=max_clusters)
+
+    # Watermark the newest commit WALKED. `git log` output is
+    # ancestry-ordered newest-first, so that is commits[0] — NOT the max
+    # author date: rebased/cherry-picked commits keep their old author
+    # dates, and a single future-dated commit would pin a date-anchored
+    # watermark to itself forever, re-walking (and re-suggesting)
+    # everything after it on every run.
+    save_watermark(store, project_id, history.commits[0].hash)
+
+    return OnboardPrepared(
+        status="ok",
+        history=history,
+        filtered=filtered,
+        clusters=clusters,
+        watermark_before=watermark_hash,
+    )
 
 
 def save_watermark(
