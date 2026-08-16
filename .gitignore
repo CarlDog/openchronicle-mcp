@@ -86,16 +86,11 @@ storage/data/memory.db
 storage/data/*.db
 storage/backups/
 
-# Documentation archives
-documentation_archive_*/
-docs/archive/
-docs/consolidation/
 
 # Test artifacts - comprehensive exclusion
 test_cleanup_*
 temp_test*
 temp_storypack_*
-/test.db
 /test-*.db
 tests/.tmp/
 tests/temp/
@@ -582,6 +577,3 @@ desktop.ini
 .docker/
 docker-compose.override.yml
 docker-compose.local.yml
-
-# Test artifacts (MagicMock paths leaking from container.paths.db_path mocks)
-MagicMock/

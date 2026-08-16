@@ -1,0 +1,13 @@
+{
+  // Path filters for markdownlint-cli2 (rules live in .markdownlint.json).
+  // docs/archive/ is deliberately frozen v2 content — archived for
+  // reference, never maintained, so it is exempt from lint. These
+  // ignores apply to explicitly-passed paths too, which is what keeps
+  // the pre-commit hook from failing on the frozen files.
+  "ignores": [
+    "docs/archive/**",
+    "node_modules/**",
+    ".venv/**",
+    ".pytest_cache/**"
+  ]
+}
