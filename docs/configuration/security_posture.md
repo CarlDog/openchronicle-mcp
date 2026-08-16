@@ -117,7 +117,7 @@ above.
 
 The Dockerfile keeps the v2 hardening choices that still apply:
 
-- `python:3.11-slim` base, not `:latest`, for reproducibility.
+- `python:3.14-slim` base, not `:latest`, for reproducibility.
 - `--no-cache-dir` on `pip install` to avoid bloat.
 - `apt-get` clean of `/var/lib/apt/lists/*` after installing `git`.
 - The image runs as root by default (the same as v2). Future work:

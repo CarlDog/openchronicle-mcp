@@ -330,7 +330,7 @@ pre-commit run --all-files
 
 ## Architecture
 
-Python 3.11+ project using **hexagonal architecture**: `domain/`
+Python 3.14+ project using **hexagonal architecture**: `domain/`
 (pure types + ports) → `application/` (use cases, services) →
 `infrastructure/` (SQLite, embedding adapters, persistence backup,
 maintenance jobs). CLI / API / MCP drivers live in `interfaces/`.
