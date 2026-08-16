@@ -281,3 +281,50 @@ def test_search_hybrid_excludes_same_dims_stale_model_rows() -> None:
     results = service.search_hybrid("alpha topic", top_k=5)
 
     assert "m2" not in [m.id for m in results]
+
+
+def test_search_hybrid_honors_include_pinned_false() -> None:
+    """Regression (2026-08-15 review, verified live): with
+    include_pinned=False the exclusion set was empty, so pinned items
+    re-entered via the semantic channel and ranked first. The store-only
+    path honored the flag; the hybrid path didn't.
+    """
+    service, store, _ = _make_service()
+    _add_memory(store, "m1", "standing rule about deployments", pinned=True)
+    service.generate_for_memory("m1", "standing rule about deployments")
+    _add_memory(store, "m2", "deployments note")
+    service.generate_for_memory("m2", "deployments note")
+
+    results = service.search_hybrid("standing rule about deployments", top_k=5, include_pinned=False)
+
+    ids = [m.id for m in results]
+    assert "m1" not in ids
+    assert "m2" in ids
+
+
+def test_search_hybrid_pinned_appears_once_when_included() -> None:
+    service, store, _ = _make_service()
+    _add_memory(store, "m1", "pinned deployments rule", pinned=True)
+    service.generate_for_memory("m1", "pinned deployments rule")
+
+    results = service.search_hybrid("pinned deployments rule", top_k=5, include_pinned=True)
+
+    assert [m.id for m in results].count("m1") == 1
+
+
+def test_search_hybrid_tag_filtered_pinned_does_not_reenter() -> None:
+    """A pinned item failing the tag filter must not sneak back in via
+    the semantic channel — the exclusion set covers ALL pinned rows, not
+    just the ones that survived the prepend's tag filter.
+    """
+    service, store, _ = _make_service()
+    _add_memory(store, "m1", "gamma content", pinned=True, tags=["other"])
+    service.generate_for_memory("m1", "gamma content")
+    _add_memory(store, "m2", "gamma content two", tags=["wanted"])
+    service.generate_for_memory("m2", "gamma content two")
+
+    results = service.search_hybrid("gamma content", top_k=5, tags=["wanted"])
+
+    ids = [m.id for m in results]
+    assert "m1" not in ids
+    assert "m2" in ids

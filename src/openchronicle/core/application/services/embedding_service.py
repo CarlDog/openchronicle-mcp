@@ -161,17 +161,26 @@ class EmbeddingService:
         """
         effective_top_k = top_k + offset
 
-        # ── Pinned items (always included) ──────────────────────────────
+        # ── Pinned items ────────────────────────────────────────────────
+        # The PREPEND set honors include_pinned (and tags), but the
+        # EXCLUSION set is always every pinned item: pinned rows are
+        # served by the prepend, never by ranking, so they must not
+        # re-enter through the semantic channel (the keyword channel
+        # already excludes them in SQL). Building the exclusion set from
+        # the filtered prepend list is exactly how include_pinned=False —
+        # and a pinned item failing the tag filter — used to leak pinned
+        # results back in via the RRF merge.
+        all_pinned = self._store.pinned_items(project_id)
         pinned_items: list[MemoryItem] = []
         if include_pinned:
-            pinned_items = self._store.pinned_items(project_id)
+            pinned_items = all_pinned
             if tags:
-                pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
+                pinned_items = [i for i in all_pinned if all(t in i.tags for t in tags)]
 
         # Pinned items have separate budget — don't reduce search/RRF limit
         # (prevents pinned items from crowding out query-relevant results)
 
-        pinned_ids = {i.id for i in pinned_items}
+        pinned_ids = {i.id for i in all_pinned}
 
         # ── Keyword search (list A) ─────────────────────────────────────
         keyword_results = self._store.search_memory(
@@ -236,6 +245,10 @@ class EmbeddingService:
         rrf_scores: list[tuple[str, float]] = []
         for mid in all_ids:
             if mid not in item_map:
+                continue
+            # Pinned rows never rank — they're served by the prepend (or
+            # deliberately absent). Belt-and-braces alongside pinned_ids.
+            if item_map[mid].pinned:
                 continue
             # Apply tag filter to semantic-only results
             if tags and not all(t in item_map[mid].tags for t in tags):
