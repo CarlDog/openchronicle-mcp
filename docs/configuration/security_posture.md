@@ -18,8 +18,14 @@ deployment context.
 - MCP: inherits the HTTP auth middleware. Clients must include
   `Authorization: Bearer <key>` (or `X-API-Key: <key>`) when the server
   is configured with a key.
-- `/health` and `/openapi.json` are exempt from auth on purpose —
-  liveness probes and tool discovery shouldn't require credentials.
+- Auth-exempt paths, deliberately: `/health` and `/api/v1/health`
+  (liveness + diagnostics probes), plus the OpenAPI surface (`/docs`,
+  `/redoc`, `/openapi.json` — tool discovery shouldn't require
+  credentials). Everything else, including the mounted `/mcp`
+  transport, requires the key when one is configured. Caveat worth
+  knowing: `/api/v1/health` includes absolute filesystem paths
+  (`db_path`, `config_dir`) — acceptable on the trusted LAN, worth
+  revisiting if the port is ever exposed.
 
 **When to leave auth disabled (`OC_API_KEY` empty):**
 
@@ -115,13 +121,17 @@ above.
 
 ## Container hardening
 
-The Dockerfile keeps the v2 hardening choices that still apply:
+Hardened 2026-07-30 (the review-driven CI batch):
 
 - `python:3.14-slim` base, not `:latest`, for reproducibility.
-- `--no-cache-dir` on `pip install` to avoid bloat.
-- `apt-get` clean of `/var/lib/apt/lists/*` after installing `git`.
-- The image runs as root by default (the same as v2). Future work:
-  add a non-root `oc` user. Tracked but not in scope for v3.0.0.
+- Multi-stage build — the runtime stage copies only the venv, never
+  pip caches or build tooling.
+- **Runs as the non-root `oc` user** (uid 1000): the entrypoint starts
+  as root only long enough to chown the mount points (self-healing
+  volumes that predate this change), then drops via `gosu`.
+- `HEALTHCHECK` probes `/health` from inside the container.
+- `--no-cache-dir` on `pip install`; `apt-get` lists cleaned after
+  installing `git` + `gosu`.
 
 ## Network
 

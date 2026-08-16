@@ -46,11 +46,12 @@ imports — anything reaching outside the process goes through a port.
   memory candidates. No LLM call — synthesis is the caller's job.
 - `services/maintenance_loop.py`: in-process asyncio loop that runs
   scheduled jobs (per-job lock for cross-tick overlap detection,
-  global lock so jobs never run concurrently in this process).
-- `services/context_builder.py`: helpers shared between use cases.
+  global lock so jobs never run concurrently in this process; per-job
+  schedule persisted to `maintenance_state.json`).
 - `use_cases/`: `add_memory`, `delete_memory`, `list_memory`,
   `pin_memory`, `search_memory`, `update_memory`, `show_memory`,
-  `create_project`, `list_projects`, `init_runtime`,
+  `stats_memory`, `create_project`, `list_projects`, `update_project`,
+  `delete_project`, `delete_projects`, `init_runtime`,
   `diagnose_runtime`, `export_memory`, `import_memory`
 - `config/`: runtime path resolution (`paths.py`), embedding settings,
   env-var helpers
@@ -90,12 +91,14 @@ Driver-side adapters: HTTP, MCP, CLI.
 - `api/`: FastAPI app with FastMCP mounted at `/mcp`. Lifespan starts
   FastMCP's session manager and the maintenance loop together.
   - Routes: `system` (health, maintenance/status), `project`, `memory`
-  - Middleware: API key auth, rate limit
-- `mcp/`: FastMCP server + tool modules
+  - Middleware: Host allowlist (DNS-rebinding defense), API key auth,
+    rate limit, optional CORS
+- `mcp/`: FastMCP server + tool modules (18 tools)
   - Tools: `memory_save`, `memory_search`, `memory_list`, `memory_get`,
     `memory_update`, `memory_delete`, `memory_pin`, `memory_stats`,
-    `memory_embed`, `project_create`, `project_list`, `context_recent`,
-    `health`, `onboard_git`
+    `memory_embed`, `project_create`, `project_list`, `project_get`,
+    `project_update`, `project_delete`, `project_delete_bulk`,
+    `context_recent`, `health`, `onboard_git`
 - `cli/`: argparse-based command tree (`oc <command>`)
   - `oc serve` runs the unified ASGI app
   - `oc memory ...`, `oc project ...`, `oc db ...`, `oc onboard git`,
