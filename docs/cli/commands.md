@@ -143,8 +143,15 @@ Project / memory / pinned / embedding counts. `--json` available.
 
 Bootstrap memories from local git history. `--max-commits` (default
 500), `--max-memories` (clusters; default 15), `--force` (delete prior
-git-onboard memories and re-run), `--dry-run` (print clusters without
-saving).
+git-onboard memories **and the watermark**, then re-run from scratch),
+`--dry-run` (print clusters without saving; touches nothing).
+
+Shares its orchestration with the `onboard_git` MCP tool since
+2026-08-16, so the semantics match: runs are **incremental** past a
+stored watermark (re-running only walks new commits), the resolved
+branch + head SHA are printed, and an unreachable watermark (history
+rewrite / force-push) automatically falls back to a full walk with a
+duplicate-memories warning instead of erroring.
 
 For remote repos, use the `onboard_git` MCP tool — that path clones
 shallow into a tmpdir on the server side.

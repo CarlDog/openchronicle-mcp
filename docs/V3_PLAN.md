@@ -841,13 +841,14 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   `include_pinned=False` leak, `dimensions` fact-not-claim with
   blob-length reads, model-scoped `_semantic_search` — and the Q20/Q21
   research answers are recorded in Open Questions below (score
-  surfacing and per-call mode await their own design decision). Still
-  queued: **C — onboard_git robustness**
-  (watermark should anchor `commits[0]` not max-author-date; promote
-  orchestration to the service layer, healing the CLI sibling that never
-  saves a watermark; `branch`/`ref` param + resolved-ref echo;
-  watermark-unreachable auto-recovery — closes OC memories `2f2992cd`,
-  `2cc9e037`, `2c096329`). **D — ops + release integrity** (persist
+  surfacing and per-call mode await their own design decision).
+  **Batch C shipped 2026-08-16** (`29528201`, 538 → 551 tests):
+  watermark anchors `commits[0]`; unreachable-watermark auto-recovery
+  (full-walk fallback + `watermark_unreachable` flag); `branch` param +
+  resolved branch/head echo; orchestration promoted to
+  `onboard_git_prepare` with the CLI sharing watermark semantics —
+  closes OC memories `2f2992cd`, `2cc9e037`, `2c096329`. Still queued:
+  **D — ops + release integrity** (persist
   maintenance `last_run_at` — today every container start fires every
   job and two backups, eroding the 7-slot retention under
   redeploy-bounce; fail-soft the remaining crash-loop config paths;

@@ -44,6 +44,21 @@
 
 ## Current Sprint
 
+**2026-08-16 — full-repo review Batch C (onboard_git robustness;
+shipped on main, NOT yet deployed).** One code commit (`29528201`),
+538 → 551 tests; closes all three open dogfooding memories. Watermark
+now anchors `commits[0]` (was max author date — rebases/future dates
+pinned it forever); unreachable watermarks auto-fall-back to a full
+walk with `watermark_unreachable`/`ran_full_walk` flags instead of the
+raw "Invalid revision range" error (wobblebot's refresh heals on next
+run); new `branch` param + resolved branch/head echoed on every
+response (the gemini wrong-ref trap); orchestration promoted to
+`onboard_git_prepare` in the application layer so the CLI shares
+watermark semantics (it previously saved none, and `--force` left a
+stale watermark). Breaking: `extract_commits_from_url` returns
+`ExtractedHistory`; `run_git_onboard_raw` → `materialize_clusters`.
+Batches D + E queued; deploy still gated on `OC_TAG` (rc6, Batch D).
+
 **2026-08-16 — full-repo review Batch B (search correctness; shipped on
 main, NOT yet deployed).** Two commits (`b387d584`, `5e196fdb`), 530 →
 538 tests, fixing the three empirically verified search bugs from the

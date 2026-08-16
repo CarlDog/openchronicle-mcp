@@ -56,7 +56,7 @@ LLM need to write a memory" shape:
 
 | Tool | Purpose |
 |---|---|
-| `onboard_git` | Clone a remote git repo shallow into a server-side tmpdir, cluster commits, and return per-cluster summaries the caller synthesizes into memories. `max_commits_per_cluster` (default 10) bounds each cluster's listing; `include_commit_detail` adds bodies, file lists and diffstats and can grow the response ~10x. |
+| `onboard_git` | Clone a remote git repo shallow into a server-side tmpdir, cluster commits, and return per-cluster summaries the caller synthesizes into memories. Params: `max_commits` (walk cap, default 500), `max_clusters` (default 15), `force` (wipe prior git-onboard memories + watermark and start over), `max_commits_per_cluster` (default 10, bounds each cluster's listing), `include_commit_detail` (adds bodies/file lists/diffstats; ~10x response growth), `branch` (ref to walk; default is the remote's DEFAULT branch — wrong for mirror-style repos, so check the echo). Every response carries the resolved `branch` + tip `head` SHA. Incremental runs resume past a stored watermark; if that watermark has become unreachable (history rewrite / force-push), the run auto-falls-back to a full walk, keeps existing memories, and flags `watermark_unreachable` + `ran_full_walk` — skip repeated cluster suggestions instead of re-saving. |
 
 ## System
 

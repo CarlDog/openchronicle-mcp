@@ -1,8 +1,41 @@
 # OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-06 (rev 68 addendum 2026-08-16)
+**Date:** 2026-05-06 (rev 69 addendum 2026-08-16)
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 69 (review Batch C — onboard_git robustness, closed
+2026-08-16; 538 → 551 tests, one code commit `29528201`). Closes all
+three open `mcp-feedback` dogfooding memories:
+
+- **Watermark anchors `commits[0]`** (ancestry head from git log's
+  newest-first order), replacing `max(author date)` — rebased commits
+  keep old author dates, and one future-dated commit pinned the
+  date-anchored watermark forever.
+- **Unreachable-watermark auto-recovery** (memories `2cc9e037`,
+  `2c096329`): the raw "Invalid revision range" error (3 live
+  occurrences; wobblebot's refresh silently dead since 2026-08-02) now
+  triggers a full-walk fallback in the same clone — existing memories
+  kept, watermark re-anchored, response flags `watermark_unreachable` +
+  `ran_full_walk` with a duplicate-suggestions warning. The incremental
+  clone was already full-depth, ruling out the shallow-clone hypothesis;
+  the mechanism is history rewrite or force-push orphaning.
+- **`branch` param + resolved-ref echo** (memory `2f2992cd`): every
+  response now carries the resolved `branch` + tip `head` SHA, making
+  the gemini-style wrong-ref onboarding self-evident; branch names are
+  validated before reaching argv.
+- **Orchestration promoted to `onboard_git_prepare`** (application
+  layer): the CLI sibling saved no watermark and its `--force` left a
+  stale one behind; both surfaces are now thin over one function — the
+  CLI gains incremental runs, the ref echo, and correct force
+  semantics. `run_git_onboard_raw` → `materialize_clusters` (the CLI's
+  only real divergence). Watermark content is validated hash-shaped
+  before touching git argv.
+
+Breaking per no-backwards-compat: `extract_commits_from_url` returns
+`ExtractedHistory`; `run_git_onboard_raw` deleted. Batches D (ops +
+release integrity — rc6 + Phase 9 close) and E (docs SSOT + test debt)
+remain queued. NAS still runs rc5 until `OC_TAG` moves.
+
 **Revision:** 68 (review Batch B — search correctness, closed
 2026-08-16; 530 → 538 tests). Three empirically verified
 silent-wrong-results bugs in the flagship search path, fixed in two
