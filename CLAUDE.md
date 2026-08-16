@@ -46,7 +46,7 @@
 
 **2026-08-16 — full-repo review Batch B (search correctness; shipped on
 main, NOT yet deployed).** Two commits (`b387d584`, `5e196fdb`), 530 →
-537 tests, fixing the three empirically verified search bugs from the
+538 tests, fixing the three empirically verified search bugs from the
 review: `dimensions` column records actual vector length + reads unpack
 by blob length (heals poisoned rows; `save_embedding` drops the
 `dimensions` param); `_semantic_search` scoped to the active model
