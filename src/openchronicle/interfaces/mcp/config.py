@@ -6,6 +6,8 @@ import os
 from dataclasses import dataclass
 from typing import Literal, cast
 
+from openchronicle.core.application.config.env_helpers import parse_int_env
+
 # Default allowed Host header values for the streamable-HTTP transport.
 # FastMCP rejects requests whose Host header doesn't match this allowlist
 # (defense against DNS rebinding). The `:*` wildcard matches any port.
@@ -53,14 +55,9 @@ class MCPConfig:
 
         host = os.environ.get("OC_MCP_HOST", "").strip() or _str_or_default(fc.get("host"), "127.0.0.1")
 
-        port_env = os.environ.get("OC_MCP_PORT", "").strip()
         port_file = fc.get("port")
-        if port_env:
-            port = int(port_env)
-        elif isinstance(port_file, int):
-            port = port_file
-        else:
-            port = 8080
+        default_port = port_file if isinstance(port_file, int) else 8080
+        port = parse_int_env(os.environ.get("OC_MCP_PORT"), default=default_port, name="OC_MCP_PORT")
 
         server_name = _str_or_default(fc.get("server_name"), "openchronicle")
 

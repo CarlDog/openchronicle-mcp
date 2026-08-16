@@ -10,6 +10,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from openchronicle.core.application.config.env_helpers import parse_int_env
+
 # Defaults — configurable via env vars
 _DEFAULT_RPM = 600  # requests per minute per client
 _DEFAULT_WINDOW_SECONDS = 60
@@ -26,8 +28,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app: object) -> None:
         super().__init__(app)  # type: ignore[arg-type]
-        rpm_env = os.environ.get("OC_API_RATE_LIMIT_RPM", "").strip()
-        self._rpm = int(rpm_env) if rpm_env else _DEFAULT_RPM
+        rpm_env = os.environ.get("OC_API_RATE_LIMIT_RPM", "")
+        self._rpm = parse_int_env(rpm_env, default=_DEFAULT_RPM, name="OC_API_RATE_LIMIT_RPM")
         self._window = _DEFAULT_WINDOW_SECONDS
         self._lock = threading.Lock()
         # client_ip -> list of request timestamps

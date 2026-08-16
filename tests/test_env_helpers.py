@@ -182,3 +182,29 @@ class TestEnvOverride:
     def test_file_value_none_and_no_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("OC_TEST_VAR", raising=False)
         assert env_override("OC_TEST_VAR", None) is None
+
+
+# ---------- parse_int_env ----------
+
+
+class TestParseIntEnv:
+    """Fail-soft env parsing (2026-08-15 review): a stale Portainer stack
+    value must degrade with a warning, never crash-loop the container.
+    """
+
+    def test_valid_value(self) -> None:
+        from openchronicle.core.application.config.env_helpers import parse_int_env
+
+        assert parse_int_env("1200", default=600, name="X") == 1200
+
+    def test_invalid_value_falls_back(self) -> None:
+        from openchronicle.core.application.config.env_helpers import parse_int_env
+
+        assert parse_int_env("abc", default=600, name="X") == 600
+
+    def test_empty_and_none_fall_back(self) -> None:
+        from openchronicle.core.application.config.env_helpers import parse_int_env
+
+        assert parse_int_env("", default=600, name="X") == 600
+        assert parse_int_env("   ", default=600, name="X") == 600
+        assert parse_int_env(None, default=600, name="X") == 600

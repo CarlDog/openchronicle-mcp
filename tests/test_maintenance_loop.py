@@ -444,3 +444,22 @@ def test_state_write_failure_is_nonfatal(tmp_path: Path) -> None:
     )
     asyncio.run(loop.run_once("probe"))
     assert job.last_outcome == "ok"
+
+
+def test_load_jobs_fails_soft_on_bad_interval() -> None:
+    """A hand-edited core.json typo must not crash create_app (crash-loop
+    rule), and a non-positive interval would fire the job every tick.
+    """
+    config = {
+        "maintenance": {
+            "jobs": [
+                {"name": "db_backup", "interval_seconds": "often", "enabled": True},
+                {"name": "db_vacuum", "interval_seconds": -5, "enabled": True},
+                {"name": "db_integrity_check", "interval_seconds": 1234, "enabled": True},
+            ]
+        }
+    }
+    states = {j.name: j for j in maintenance_loop.load_jobs(config)}
+    assert states["db_backup"].interval_seconds == 3600
+    assert states["db_vacuum"].interval_seconds == 3600
+    assert states["db_integrity_check"].interval_seconds == 1234

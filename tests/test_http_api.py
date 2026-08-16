@@ -658,3 +658,32 @@ class TestProjectBulkDeleteRoute:
     def test_missing_confirm_is_rejected(self, client: TestClient) -> None:
         resp = client.post("/api/v1/project/bulk-delete", json={"project_ids": ["proj-1"]})
         assert resp.status_code == 422
+
+
+class TestConfigFailSoft:
+    """Crash-loop guards (2026-08-15 review): one bad config value must
+    degrade with a warning under restart: unless-stopped, not crash
+    create_app into an indefinite restart loop.
+    """
+
+    def test_invalid_port_env_falls_back_to_default(self) -> None:
+        with patch.dict("os.environ", {"OC_API_PORT": "not-a-port"}):
+            assert HTTPConfig.from_env().port == 8000
+
+    def test_invalid_port_env_falls_back_to_file_value(self) -> None:
+        with patch.dict("os.environ", {"OC_API_PORT": "not-a-port"}):
+            assert HTTPConfig.from_env(file_config={"port": 7777}).port == 7777
+
+    def test_out_of_range_port_falls_back(self) -> None:
+        with patch.dict("os.environ", {"OC_API_PORT": "99999"}):
+            assert HTTPConfig.from_env().port == 8000
+
+    def test_invalid_rate_limit_env_uses_default(self) -> None:
+        from openchronicle.interfaces.api.middleware.rate_limit import (
+            _DEFAULT_RPM,
+            RateLimitMiddleware,
+        )
+
+        with patch.dict("os.environ", {"OC_API_RATE_LIMIT_RPM": "lots"}):
+            middleware = RateLimitMiddleware(MagicMock())
+        assert middleware._rpm == _DEFAULT_RPM

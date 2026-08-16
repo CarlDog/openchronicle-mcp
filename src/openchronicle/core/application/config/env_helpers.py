@@ -7,7 +7,10 @@ and native JSON types (bool, int, float) from config files.
 
 from __future__ import annotations
 
+import logging
 import os
+
+_logger = logging.getLogger(__name__)
 
 
 def parse_bool(value: object, *, default: bool) -> bool:
@@ -92,6 +95,24 @@ def parse_str_list(value: object, *, default: list[str]) -> list[str]:
     if isinstance(value, str):
         return [item.strip() for item in value.split(",") if item.strip()]
     return list(default)
+
+
+def parse_int_env(raw: str | None, *, default: int, name: str) -> int:
+    """``parse_int`` for env values, logging when a set value is discarded.
+
+    One stale Portainer stack value must degrade to the default with a
+    warning — never crash the config path, which under
+    ``restart: unless-stopped`` turns a typo into an indefinite
+    crash-loop (the trap the 2026-07-12 embedding fail-soft fixed for
+    its own settings; this is the shared helper for everything else).
+    """
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw.strip())
+    except ValueError:
+        _logger.warning("Invalid %s=%r; using default %d", name, raw, default)
+        return default
 
 
 def env_override(env_name: str, file_value: object) -> object:

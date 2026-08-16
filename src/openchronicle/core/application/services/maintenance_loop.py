@@ -316,10 +316,22 @@ def load_jobs(file_config: dict[str, Any] | None = None) -> list[JobState]:
         if not isinstance(name, str) or name not in known_names:
             _logger.warning("unknown maintenance job %r in config; skipping", name)
             continue
+        # Fail soft on a bad interval (hand-edited core.json) — one typo
+        # must not crash create_app into a restart loop, and a
+        # zero/negative interval would fire the job every tick.
+        interval_raw = entry.get("interval_seconds", 3600)
+        try:
+            interval = int(interval_raw)
+        except (TypeError, ValueError):
+            _logger.warning("invalid interval_seconds %r for job %s; using 3600", interval_raw, name)
+            interval = 3600
+        if interval <= 0:
+            _logger.warning("non-positive interval_seconds %r for job %s; using 3600", interval_raw, name)
+            interval = 3600
         states.append(
             JobState(
                 name=name,
-                interval_seconds=int(entry.get("interval_seconds", 3600)),
+                interval_seconds=interval,
                 enabled=bool(entry.get("enabled", True)),
             )
         )
