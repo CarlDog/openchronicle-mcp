@@ -44,6 +44,33 @@
 
 ## Current Sprint
 
+**2026-08-16 — full-repo review Batch A (shipped on main, NOT yet
+deployed; NAS still runs rc5).** A six-agent review of `eb422e09`
+(2026-08-15) produced ~60 findings — full report in the session artifact
+"OpenChronicle Repo Review", punch list in OC memory `e22472b8`, batch
+queue in V3_PLAN "Post-cutover follow-ups". Batch A = seven commits
+(`d186b5fd`..`44a6f3dd`), 510 → 530 tests: declared Python floor
+`>=3.14` (four PEP 758 sites made the 3.12 claim a lie CI never tested);
+`context_recent` no-query now lists recency instead of searching `""`
+(FTS5 returned pinned-only on the live NAS); `stateless_http=True`
+(session-per-abandoned-client leak); Host allowlist on the REST surface
+(DNS-rebinding gap — `/mcp` was guarded since rc2, `/api/v1` never was;
+falls back to `OC_MCP_ALLOWED_HOSTS`); empty env vars now fall through
+to `core.json` + six previously Portainer-unreachable vars added to
+compose; CI paths-ignore/concurrency/Dependabot-mcp-ignore; v2
+`oc init-config` zombie deleted + both README quick-start bugs fixed.
+Batches B (search correctness — three empirically verified bugs), C
+(onboard_git robustness — closes three open dogfooding memories), D
+(ops + release integrity — rc6 + Phase 9 close), E (docs SSOT + test
+debt) are queued. Deploy note: code goes live only when `OC_TAG` moves.
+
+Also on main but undocumented until now: the 2026-07-29 py3.14
+toolchain move (`9e71c207`, incl. the `mcp>=1.0,<2` pin) and the
+2026-07-30 CI-hardening batch (publish gated on test+quality, hardened
+Dockerfile, least-privilege permissions, gitleaks backstop).
+
+---
+
 **2026-07-23 read-surface + delete-safety batch (shipped, live as
 `v3.0.0-rc5`).** Three
 `mcp-feedback` OC memories (`837e85cc`, `a2cdfe56`, `ff7933df`) recorded

@@ -23,8 +23,8 @@ the actual lived experience vs. the planned sequence below.
 | 6 — ASGI unification + `OC_LOG_FORMAT` | ✅ done (2026-05-05) | FastMCP mounted at `/mcp`; single ASGI process; `OC_LOG_FORMAT=human` or `json` (Q19 locked); compose 3→1 service; 331 tests passing |
 | 6.5 — maintenance loop + degradation | ✅ done (2026-05-05) | asyncio loop with per-job + global locks (skip-on-overlap, sequential within process), 5 job handlers (db_backup/db_vacuum/db_integrity_check/embedding_backfill/git_onboard_resync), `/api/v1/maintenance/status` endpoint, `oc maintenance` CLI, embedding-failure FTS5 fallback with `degraded` status surfacing; 349 tests passing |
 | 7 — docs sweep + repo polish | ✅ done (2026-05-05) | every doc classified (update/archive/delete); v2 docs moved under `docs/archive/v2/`; new STABILITY.md, security_posture.md, MAINTENANCE.md; README rewritten per voice rules; pyproject 3.0.0.dev0 with dead extras dropped; 349 tests passing |
-| 8 — production cutover | pending | NAS stack 151 redeploy + smoke + client config updates |
-| 9 — decommission | pending | tag v3.0.0; delete v2 stack + orphan volumes after Day 7 |
+| 8 — production cutover | ✅ done (2026-05-06) | NAS stack 151 live on the v3 image (turbulent — see cutover-2026-05-06-triage.md); this row said "pending" until 2026-08-16, contradicting the SHIPPED header above |
+| 9 — decommission | pending (gate passed 2026-05-13; ~3 months overdue as of 2026-08-16) | tag v3.0.0; delete v2 stack + orphan volumes after Day 7. Until the tag exists, STABILITY.md's "before the v3.0.0 tag" escape hatch stays open |
 
 **Locked decisions** (questions 1, 4, 6, 13, 14, 19 from "Open Questions"):
 
@@ -830,6 +830,31 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
+- **2026-08-15 full-repo review — Batches B–E queued.** A six-agent
+  review (~60 findings; punch list in OC memory `e22472b8`, full report
+  in the session artifact "OpenChronicle Repo Review") produced five
+  work batches. **Batch A shipped 2026-08-16** (Python-floor truth,
+  `context_recent` no-query fix, stateless streamable-HTTP, REST Host
+  allowlist, empty-env normalization + compose reachability, CI
+  paths-ignore/concurrency, `init-config` removal). Still queued:
+  **B — search correctness** (hybrid `include_pinned=False` leak;
+  `dimensions` column records the configured not actual vector size;
+  `_semantic_search` matmuls across models — all empirically verified;
+  prerequisite for Open Questions 20/21). **C — onboard_git robustness**
+  (watermark should anchor `commits[0]` not max-author-date; promote
+  orchestration to the service layer, healing the CLI sibling that never
+  saves a watermark; `branch`/`ref` param + resolved-ref echo;
+  watermark-unreachable auto-recovery — closes OC memories `2f2992cd`,
+  `2cc9e037`, `2c096329`). **D — ops + release integrity** (persist
+  maintenance `last_run_at` — today every container start fires every
+  job and two backups, eroding the 7-slot retention under
+  redeploy-bounce; fail-soft the remaining crash-loop config paths;
+  version-bumps-with-tag flow + rc6; Phase 9 close). **E — docs SSOT +
+  test debt** (status-doc rewrite; restore the never-committed
+  `docs/archive/v2/` — `.gitignore` swallowed Phase 7's archive move;
+  CHANGELOG decision; CLI smoke pass — the surface is ~80% untested;
+  MCP handler-test gaps).
+
 - **Rate limiter ceiling.** ✅ Landed 2026-05-11. Default bumped 120 → 600 RPM (`_DEFAULT_RPM` in `src/openchronicle/interfaces/api/middleware/rate_limit.py`); `.env.example` and `docs/configuration/env_vars.md` reconciled (both previously claimed `60`, a pre-existing drift). Single-user home-LAN deployments aren't IP-storming attackers; the option-(a) one-line bump was the right move. Option (b) — a bulk-search endpoint (`memory_search_bulk(queries: list[SearchQuery])`) for multi-type retrievals — is still cleaner long-term and remains on the backlog if mnemosyne's `gatherContext` burst pattern proves expensive at the new ceiling.
 - **`project_delete` MCP tool / API surface.** ✅ Landed 2026-05-11 as part of the v3.0.x "project surface completion" pass. Shipped together with `project_get`, `project_update`, and a symmetric `confirm` flag on `memory_delete`:
   - `delete_project` on `StoragePort` does the atomic cascade (project row + every `memory_items` row with that project_id; `memory_embeddings` cascade via the existing FK). `update_project` and `get_project` round out the port.
@@ -852,7 +877,7 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
 - **`_cosine_similarity` has no production caller.** Kept deliberately for tests and diagnostics per a note in `embedding_service.py`. Either give it a caller or delete it and move the test coverage onto whatever replaced it — a helper that exists only to be tested is a slow leak.
 - **CLI `--confirm` branch duplication.** `cmd_memory_delete` and `cmd_delete_project` each hand-roll the same "Would delete … Re-run with --confirm" branch. Left alone deliberately in the 2026-07-23 batch: ~8 trivial lines each, no shared correctness rule, so extracting costs more readability than it buys. Revisit only if a third such command appears.
 - **mcp 2.0 migration.** `mcp` 2.0.0 removed `mcp.server.fastmcp` (FastMCP moved to the standalone `fastmcp` package), so `interfaces/mcp/server.py` fails to import on a fresh dependency resolve. Caught 2026-07-29 while validating the python 3.14 image — an unpinned rebuild would have shipped a container that dies on startup; the deployed NAS image only worked because it predates the 2.0.0 release. Extras now cap at `mcp>=1.0,<2`. Migrating means adopting the `fastmcp` package or porting to mcp 2.x's native server API, and unlocks the handshake-version item above. Until it lands, close Dependabot pip PRs bumping `mcp` past 1.x against this entry.
-- **Docker base image refresh.** Verify the Dockerfile base is on the latest patch of python:3.11-slim (or whichever pin is current); rebuild reveals any silently-broken transitive system libs.
+- **Docker base image refresh.** ✅ Landed 2026-07-29/30 (`9e71c207` + `c839ddb9`): base moved to `python:3.14-slim` with a multi-stage build, non-root `oc` user, and HEALTHCHECK. The follow-on truth-reconciliation (requires-python `>=3.14`, badge, docs) landed 2026-08-16 in review Batch A.
 - **Lock file or constraints file.** v2 had no lock file. Consider adding `requirements-dev.txt` from `pip freeze` after a clean install on the v3 image, so reproducibility doesn't drift.
 - **Offline / write-behind sync for LAN-unreachable clients.** OC's single-user home-LAN posture (no auth, NAS-only, per `docs/configuration/security_posture.md`) means any client MCP call fails outright — not gracefully degrades — the moment the client isn't on the LAN (VPN off, in-office, mobile). Surfaced 2026-07-30: a Claude Code session working on an unrelated repo (IRIS) finished a real milestone worth a `memory_save`, but the user was in-office and OC was unreachable; the only mitigation available was holding the draft in Claude's own local memory system and re-offering to file it next session — an entirely manual, per-session stopgap with no OC-side support, and it evaporates if the AI or user forgets. Two directions worth researching, not yet scoped or estimated: (a) a **client-side write-behind queue** — buffer `memory_save`/`project_*` calls locally (e.g. a JSON-lines journal) when the NAS request fails/times out, replay them through the real MCP tools once reachable; no server change needed, smallest lift, but doesn't help *reads* (`memory_search`, `context_recent`) while offline. (b) A **local shadow OC instance** — `oc serve` already runs standalone against a local SQLite DB for local dev (a separate memory pool from the NAS one per this file's Project Identity section); journal writes while offline and reconcile into the NAS DB on reconnect. Helps reads too, but needs a real merge story OC has no design for today — a memory created locally and one created on the NAS in the same offline window need distinguishable ids, not naive overwrite-by-id, and reconciliation ordering/conflict rules don't exist yet. Lean toward (a) first: smaller lift, and it covers the case that actually bit us (a write, not a read).
 

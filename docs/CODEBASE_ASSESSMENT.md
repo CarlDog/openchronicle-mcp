@@ -1,8 +1,71 @@
 # OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-06 (rev 66 addendum 2026-07-23)
+**Date:** 2026-05-06 (rev 67 addendum 2026-08-16)
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 67 (Batch A of the 2026-08-15 full-repo review, closed
+2026-08-16; 510 → 530 tests). A six-agent review (correctness,
+architecture, tests, security, CI/CD, docs/process) over `eb422e09`
+produced ~60 findings — full report in the session artifact
+"OpenChronicle Repo Review", punch list + batch queue in OC memory
+`e22472b8` and V3_PLAN's follow-ups. Batch A shipped as seven commits:
+
+- **Python floor truth** (`d186b5fd`) — `requires-python` was `>=3.12`
+  while four PEP 758 `except A, B:` sites made the code 3.14-only and CI
+  tested only 3.14; the declared floor had zero coverage and the package
+  died at import on 3.12/3.13. Now `>=3.14` with matching classifiers,
+  README badge, and CLAUDE.md.
+- **`context_recent` no-query fix** (`aed6c274`) — an omitted query was
+  routed into search as `""`, and FTS5 MATCH returns nothing for it, so
+  on the live NAS every no-query session-start catch-up silently
+  returned pinned items only. Empty now routes to `list_memory` recency;
+  REST search 422s an empty query for MCP parity. Regression test runs
+  the real store with FTS5 active.
+- **Stateless streamable-HTTP** (`42a3b835`) — mcp 1.26.0's stateful
+  session manager leaks a live task + transport per abandoned client
+  (only a client DELETE releases it). OC keeps no per-session state, so
+  `stateless_http=True` removes the registry; verified with a real
+  initialize + session-less tools/list against the mounted app.
+- **REST Host allowlist** (`d3c8b180`) — the rc2 DNS-rebinding fix
+  covered only `/mcp`; `/api/v1/*` had no Host validation, and with auth
+  intentionally off a rebinding page could read memories and call
+  bulk-delete. New outermost `HostAllowlistMiddleware` (421 on
+  mismatch), configured by `OC_API_ALLOWED_HOSTS` falling back to
+  `OC_MCP_ALLOWED_HOSTS` — the deployed stack is covered with zero
+  Portainer changes. Loopback (+ `testserver`) always allowed so the
+  in-container HEALTHCHECK survives any operator allowlist.
+- **Empty-env normalization + compose reachability** (`3f195a4b`) —
+  compose `${VAR:-}` injects `""`, and `env_override` treated it as
+  "explicitly set", silently shadowing `core.json` embedding config on
+  the NAS. Empty now means unset everywhere; six code-read vars gained
+  compose lines (rate-limit RPM, maintenance kill switch, FTS5 toggle,
+  embedding dims/timeout, `OPENAI_BASE_URL`); verification caught the
+  FTS5 toggle's own empty-string trap before the new line could disable
+  FTS5 in production.
+- **CI hygiene** (`a13b5d20`) — `paths-ignore` now covers tooling
+  (weekly markdownlint bumps were rebuilding and republishing `:latest`
+  for files that never enter the image); a per-ref concurrency group
+  stops two rapid pushes racing for `:latest`; the dead QEMU step is
+  gone; Dependabot ignores `mcp` majors until the fastmcp migration.
+- **`init-config` zombie deleted + README quick starts fixed**
+  (`44a6f3dd`) — `oc init-config` wrote v2 LLM config (model pools,
+  router, budget keys) that v3 never reads, under a doc claiming "v3
+  defaults"; the README `docker run` example bound container-loopback
+  and mounted `/app/data`+`/app/config` where the image uses
+  `/data`+`/config` — a copy-paste produced a container that answered
+  nothing and persisted nowhere.
+
+**None of this is deployed until `OC_TAG` moves past rc5** (the stack
+pins the image; a push alone deploys nothing). Note for the record: main
+had already been ahead of rc5 since 2026-07-24 — the py3.14 toolchain
+move (`9e71c207`), the 2026-07-30 CI-hardening batch (publish gated on
+test+quality, hardened Dockerfile, least-privilege permissions, gitleaks
+backstop), and Open Questions 20-22 all landed without a status-doc
+revision; they are summarized here rather than backfilled. Review
+Batches B–E (search correctness, onboard_git robustness, ops/release
+integrity incl. rc6 + Phase 9 close, docs SSOT rewrite + test debt) are
+queued in V3_PLAN's follow-ups.
+
 **Revision:** 66 (the v3.0.x read-surface + delete-safety batch, closed
 2026-07-23; 433 → 510 tests). Three `mcp-feedback` OC memories recorded
 friction found by dogfooding OC through its own client sessions; this
