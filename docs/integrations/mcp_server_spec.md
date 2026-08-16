@@ -104,7 +104,10 @@ meant to agree.
 - **With global** (`project_id = ? OR project_id IS NULL`) — relevance
   retrieval. "What should I know while working in X?" A standing rule
   that belongs to no single project still applies inside one, so pinned
-  global items surface. `memory_search` and `context_recent`.
+  global items surface. `memory_search`, and `context_recent` when a
+  `query` is given. With no `query`, `context_recent` is a recency
+  listing and follows the strict rule (routing an empty query through
+  search would return nothing on the FTS5 path — fixed 2026-08-16).
 
 The visible consequence: `memory_list(project_id=X, pinned_only=true)`
 returns a different set than the pinned items `memory_search` surfaces

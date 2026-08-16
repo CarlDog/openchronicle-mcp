@@ -598,6 +598,15 @@ class TestInputValidation:
         resp = client.get("/api/v1/memory/search", params={"query": "test", "offset": -1})
         assert resp.status_code == 422
 
+    def test_empty_query_rejected(self, client: TestClient) -> None:
+        """Parity with MCP memory_search, which rejects empty queries.
+
+        An empty query also silently returns nothing on the FTS5 path,
+        so accepting it just produces a confusing empty result.
+        """
+        resp = client.get("/api/v1/memory/search", params={"query": ""})
+        assert resp.status_code == 422
+
     def test_negative_top_k_rejected(self, client: TestClient) -> None:
         resp = client.get("/api/v1/memory/search", params={"query": "test", "top_k": 0})
         assert resp.status_code == 422

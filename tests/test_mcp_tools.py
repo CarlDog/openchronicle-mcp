@@ -365,14 +365,60 @@ class TestContextRecent:
         mcp = FastMCP("test")
         register(mcp)
 
+        # No query routes to the recency listing, not search.
         with patch(
-            "openchronicle.interfaces.mcp.tools.context.search_memory.execute",
+            "openchronicle.interfaces.mcp.tools.context.list_memory.execute",
             return_value=[],
         ):
             tool_fn = mcp._tool_manager._tools["context_recent"].fn
             result = asyncio.run(tool_fn(ctx=ctx))
 
         assert result["memories"] == []
+
+    def test_no_query_returns_recent_not_only_pinned(self) -> None:
+        """Regression (2026-08-15 review): an omitted query was routed into
+        search as "", and FTS5 MATCH returns nothing for an empty query —
+        so on FTS5-active deployments (the NAS default) `context_recent`
+        silently returned pinned items only instead of "recent overall".
+        """
+        from openchronicle.core.infrastructure.persistence.sqlite_store import (
+            SqliteStore,
+        )
+
+        store = SqliteStore(db_path=":memory:")
+        store.init_schema()
+        store.add_project(Project(id="proj-1", name="test"))
+        for i, pinned in enumerate([False, False, True]):
+            store.add_memory(
+                MemoryItem(
+                    id=f"mem-{i}",
+                    content=f"note {i}",
+                    tags=[],
+                    created_at=datetime(2026, 2, 20, 12, i, 0, tzinfo=UTC),
+                    pinned=pinned,
+                    source="test",
+                    project_id="proj-1",
+                )
+            )
+        assert store.fts5_active, "regression only reproduces on the FTS5 path"
+
+        container = MagicMock()
+        container.storage = store
+        container.embedding_service = None
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.context import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        tool_fn = mcp._tool_manager._tools["context_recent"].fn
+        result = asyncio.run(tool_fn(ctx=ctx, project_id="proj-1"))
+
+        ids = {m["id"] for m in result["memories"]}
+        assert ids == {"mem-0", "mem-1", "mem-2"}
 
 
 class TestHealth:

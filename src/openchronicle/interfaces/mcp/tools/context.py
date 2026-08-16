@@ -11,7 +11,7 @@ from typing import Any, cast
 
 from mcp.server.fastmcp import Context, FastMCP
 
-from openchronicle.core.application.use_cases import search_memory
+from openchronicle.core.application.use_cases import list_memory, search_memory
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.serializers import memory_to_dict
 
@@ -46,12 +46,25 @@ def register(mcp: FastMCP) -> None:
         memory_limit = min(max(memory_limit, 1), 1000)
         container = _get_container(ctx)
 
-        memories = await asyncio.to_thread(
-            search_memory.execute,
-            store=container.storage,
-            query=query or "",
-            top_k=memory_limit,
-            project_id=project_id,
-            embedding_service=container.embedding_service,
-        )
+        if query:
+            memories = await asyncio.to_thread(
+                search_memory.execute,
+                store=container.storage,
+                query=query,
+                top_k=memory_limit,
+                project_id=project_id,
+                embedding_service=container.embedding_service,
+            )
+        else:
+            # "Omitted = recent overall" must not route through search:
+            # FTS5 MATCH returns nothing for an empty query, so on
+            # FTS5-active deployments the search path degrades to pinned
+            # items only. Recency listing is the honest no-query semantic
+            # (pinned first, then newest; scope-strict under project_id).
+            memories = await asyncio.to_thread(
+                list_memory.execute,
+                store=container.storage,
+                limit=memory_limit,
+                project_id=project_id,
+            )
         return {"memories": [memory_to_dict(m, compact=compact) for m in memories]}

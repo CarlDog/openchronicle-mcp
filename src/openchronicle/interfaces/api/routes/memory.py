@@ -31,7 +31,7 @@ ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 @router.get("/search")
 def memory_search(
     container: ContainerDep,
-    query: str,
+    query: str = Query(min_length=1),
     top_k: int = Query(default=8, ge=1, le=1000),
     project_id: str | None = None,
     tags: str | None = None,
