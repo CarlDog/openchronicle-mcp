@@ -101,6 +101,14 @@ class TestServerCreation:
         ]
         assert sorted(tool_names) == sorted(expected)
 
+    def test_streamable_http_is_stateless(self) -> None:
+        """Stateful mode leaks a live task + transport per session until the
+        client sends DELETE, which abandoned clients never do (2026-08-15
+        review). OC keeps no per-session state, so stateless is free.
+        """
+        server = create_server(_make_container(), MCPConfig())
+        assert server.settings.stateless_http is True
+
 
 # ── Project tools ─────────────────────────────────────────────────
 

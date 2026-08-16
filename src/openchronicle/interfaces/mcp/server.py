@@ -55,6 +55,13 @@ def create_server(container: CoreContainer, config: MCPConfig) -> FastMCP:
         transport_security=TransportSecuritySettings(
             allowed_hosts=list(config.allowed_hosts),
         ),
+        # Stateless streamable-HTTP: OC tools keep nothing per session
+        # (the container comes from the lifespan), while the SDK's
+        # stateful mode keeps a live task + transport per session that is
+        # only released when the client sends DELETE — which killed
+        # sessions, sleeping laptops, and dropped networks never do. On a
+        # container that runs for weeks that leak is unbounded.
+        stateless_http=True,
     )
 
     # Register tool modules
