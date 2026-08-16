@@ -129,6 +129,19 @@ The Dockerfile keeps the v2 hardening choices that still apply:
   `18000:8000`). Set `HOST_HTTP_PORT` to relocate.
 - `extra_hosts: host.docker.internal:host-gateway` lets the container
   reach Ollama running on the NAS host. No reverse direction.
+- **DNS-rebinding defense: Host-header allowlists on both surfaces.**
+  A containerized service can't be secured by its bind address (it
+  binds `0.0.0.0` to be reachable at all), and a malicious web page
+  can reach it via DNS rebinding — which makes the request same-origin
+  in the browser, so CORS never applies. Both transports validate the
+  `Host:` header instead: FastMCP's transport security guards `/mcp`
+  (`OC_MCP_ALLOWED_HOSTS`), and `HostAllowlistMiddleware` guards the
+  REST surface (`OC_API_ALLOWED_HOSTS`, falling back to
+  `OC_MCP_ALLOWED_HOSTS` so the one stack variable protects both).
+  Defaults are loopback-only; rejections are 421. Loopback hosts are
+  always allowed on the REST side so the container-internal
+  HEALTHCHECK survives any operator allowlist. Added 2026-08-16 —
+  before that the REST surface had no Host validation at all.
 
 ## What we don't do (out of scope)
 

@@ -10,7 +10,9 @@ from typing import Literal, cast
 # FastMCP rejects requests whose Host header doesn't match this allowlist
 # (defense against DNS rebinding). The `:*` wildcard matches any port.
 # Operators with non-loopback bindings extend this via OC_MCP_ALLOWED_HOSTS.
-_DEFAULT_ALLOWED_HOSTS: tuple[str, ...] = (
+# Public: the REST surface's HostAllowlistMiddleware shares this default
+# and parse (interfaces/api/config.py), so the two allowlists can't drift.
+DEFAULT_ALLOWED_HOSTS: tuple[str, ...] = (
     "127.0.0.1:*",
     "localhost:*",
     "[::1]:*",
@@ -38,7 +40,7 @@ class MCPConfig:
     host: str = "127.0.0.1"
     port: int = 8080
     server_name: str = "openchronicle"
-    allowed_hosts: tuple[str, ...] = _DEFAULT_ALLOWED_HOSTS
+    allowed_hosts: tuple[str, ...] = DEFAULT_ALLOWED_HOSTS
 
     @classmethod
     def from_env(cls, file_config: dict[str, object] | None = None) -> MCPConfig:
@@ -62,7 +64,7 @@ class MCPConfig:
 
         server_name = _str_or_default(fc.get("server_name"), "openchronicle")
 
-        allowed_hosts = _parse_allowed_hosts(
+        allowed_hosts = parse_allowed_hosts(
             os.environ.get("OC_MCP_ALLOWED_HOSTS"),
             fc.get("allowed_hosts"),
         )
@@ -76,11 +78,11 @@ class MCPConfig:
         )
 
 
-def _parse_allowed_hosts(
+def parse_allowed_hosts(
     env_value: str | None,
     file_value: object,
 ) -> tuple[str, ...]:
-    """Parse the OC_MCP_ALLOWED_HOSTS env var (CSV) with file fallback.
+    """Parse an allowed-hosts env var (CSV) with file fallback.
 
     Empty / unset → default (localhost variants only).
     Env var wins if set. File value (if a list of strings) is the second
@@ -88,14 +90,14 @@ def _parse_allowed_hosts(
     """
     if env_value is not None and env_value.strip():
         parsed = tuple(h.strip() for h in env_value.split(",") if h.strip())
-        return parsed if parsed else _DEFAULT_ALLOWED_HOSTS
+        return parsed if parsed else DEFAULT_ALLOWED_HOSTS
 
     if isinstance(file_value, list):
         parsed = tuple(str(h).strip() for h in file_value if str(h).strip())
         if parsed:
             return parsed
 
-    return _DEFAULT_ALLOWED_HOSTS
+    return DEFAULT_ALLOWED_HOSTS
 
 
 def _str_or_default(value: object, default: str) -> str:

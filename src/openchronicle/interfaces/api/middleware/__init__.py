@@ -1,4 +1,4 @@
-"""HTTP API middleware — auth, rate limiting, CORS."""
+"""HTTP API middleware — host allowlist, auth, rate limiting, CORS."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from fastapi import FastAPI
 
 from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.interfaces.api.middleware.auth import APIKeyMiddleware
+from openchronicle.interfaces.api.middleware.host_allowlist import HostAllowlistMiddleware
 from openchronicle.interfaces.api.middleware.rate_limit import RateLimitMiddleware
 
 # Paths that are always exempt from authentication.
@@ -21,7 +22,7 @@ def register_middleware(app: FastAPI, config: HTTPConfig) -> None:
     """Register all middleware on the FastAPI app.
 
     Middleware executes in reverse registration order (last registered = outermost).
-    Order: rate_limit (outermost) → CORS → auth → handler.
+    Order: host_allowlist (outermost) → rate_limit → CORS → auth → handler.
     """
     # Auth middleware — skipped if no API key configured
     if config.api_key:
@@ -45,3 +46,8 @@ def register_middleware(app: FastAPI, config: HTTPConfig) -> None:
 
     # Rate limiting — simple per-client sliding window
     app.add_middleware(RateLimitMiddleware)
+
+    # Host allowlist — outermost, so a forged Host is rejected before
+    # rate-limit/auth ever see the request. DNS-rebinding defense for
+    # the REST surface; /mcp is skipped (FastMCP guards it itself).
+    app.add_middleware(HostAllowlistMiddleware, allowed_hosts=config.allowed_hosts)

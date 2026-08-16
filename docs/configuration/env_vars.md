@@ -46,6 +46,7 @@ embeddings when the provider recovers.
 | `OC_API_PORT` | Listen port | `8000` |
 | `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
+| `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset, so one stack variable protects both surfaces. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
 
 `/health` and `/openapi.json` are exempt from auth even when
 `OC_API_KEY` is set.
