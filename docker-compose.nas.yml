@@ -90,8 +90,12 @@ services:
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
       # Search + maintenance kill switches (documented escape hatches;
-      # unreachable from Portainer until these lines existed):
-      OC_SEARCH_FTS5_ENABLED: ${OC_SEARCH_FTS5_ENABLED:-}
+      # unreachable from Portainer until these lines existed). FTS5
+      # defaults to a literal "1", not "" — the stack git-polls compose
+      # ahead of any image pull, and pre-rc6 images read an injected ""
+      # as falsy, which would have silently disabled FTS5 on the live
+      # container until OC_TAG moved:
+      OC_SEARCH_FTS5_ENABLED: ${OC_SEARCH_FTS5_ENABLED:-1}
       OC_MAINTENANCE_DISABLED: ${OC_MAINTENANCE_DISABLED:-}
       # MCP transport security (Portainer stack env). Default of empty
       # falls through to MCPConfig's localhost-only allowlist; operators
