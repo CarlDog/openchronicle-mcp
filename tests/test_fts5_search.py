@@ -57,6 +57,16 @@ class TestFTS5Detection:
             store.init_schema()
         assert store._fts5_active is False
 
+    def test_fts5_empty_env_means_enabled(self, tmp_path: Any) -> None:
+        """Compose ${VAR:-} injects "" for blank stack env; that must read
+        as unset (FTS5 on), not falsy (2026-08-16 — adding the compose
+        line would otherwise have silently disabled FTS5 on the NAS).
+        """
+        with patch.dict("os.environ", {"OC_SEARCH_FTS5_ENABLED": ""}):
+            store = SqliteStore(str(tmp_path / "test.db"))
+            store.init_schema()
+        assert store._fts5_active is True
+
     def test_virtual_tables_created(self, tmp_path: Any) -> None:
         store = _store(tmp_path)
         tables = [

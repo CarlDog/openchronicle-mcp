@@ -95,13 +95,18 @@ def parse_str_list(value: object, *, default: list[str]) -> list[str]:
 
 
 def env_override(env_name: str, file_value: object) -> object:
-    """Return env var if set, otherwise file_value.
+    """Return env var if set to a non-empty value, otherwise file_value.
 
     This implements the precedence: env var > JSON file > (caller's default).
-    Only returns the env var when it is explicitly set in the environment.
+    An empty (or whitespace-only) env var counts as UNSET: MCP hosts and
+    docker-compose ``${VAR:-}`` substitutions inject "" for every blank
+    field, so letting "" win would silently shadow the file value — seen
+    live as core.json embedding config being ignored under the NAS compose
+    file. Same empty-means-unset convention as the api_key and
+    allowed-hosts boundaries.
     """
     env_val = os.getenv(env_name)
-    if env_val is not None:
+    if env_val is not None and env_val.strip():
         return env_val
     return file_value
 

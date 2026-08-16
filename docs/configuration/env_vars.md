@@ -4,9 +4,14 @@ OpenChronicle v3 reads configuration from environment variables and an
 optional `core.json` file. Env vars always win, then `core.json` keys,
 then dataclass defaults.
 
-The total surface is small (~15 vars). v2's LLM provider keys, MoE pool
-config, Discord settings, and routing knobs are gone with the
-subsystems they configured.
+The total surface is small (~25 vars, all listed below). v2's LLM
+provider keys, MoE pool config, Discord settings, and routing knobs are
+gone with the subsystems they configured.
+
+An **empty-string env var counts as unset** at every config boundary —
+docker-compose `${VAR:-}` substitutions and MCP hosts inject `""` for
+blank fields, and that must fall through to `core.json` / defaults
+rather than silently shadowing them.
 
 ## Storage paths
 
@@ -30,7 +35,9 @@ The four-layer precedence (constructor arg > per-path env > `OC_DATA_DIR`-derive
 | `OC_EMBEDDING_API_KEY` | Explicit override; falls back to provider-specific env | — |
 | `OC_EMBEDDING_TIMEOUT` | Per-request timeout in seconds | `30.0` |
 | `OPENAI_API_KEY` | Used by the OpenAI embedding adapter | — |
+| `OPENAI_BASE_URL` | OpenAI-compatible endpoint override (proxies, alt providers) | `https://api.openai.com/v1` |
 | `OLLAMA_HOST` | Ollama base URL (e.g. `http://localhost:11434`) | adapter default |
+| `OLLAMA_BASE_URL` | Alias consulted when `OLLAMA_HOST` is unset | adapter default |
 
 When the embedding provider raises during a search, `EmbeddingService`
 falls back to FTS5-only and surfaces `"status": "degraded"` from
@@ -47,6 +54,7 @@ embeddings when the provider recovers.
 | `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
 | `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset, so one stack variable protects both surfaces. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
+| `OC_API_CORS_ORIGINS` | CSV of allowed CORS origins; the CORS middleware is only registered when this is non-empty | — |
 
 `/health` and `/openapi.json` are exempt from auth even when
 `OC_API_KEY` is set.

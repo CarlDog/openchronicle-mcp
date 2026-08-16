@@ -164,10 +164,20 @@ class TestEnvOverride:
         monkeypatch.setenv("OC_TEST_VAR", "from_env")
         assert env_override("OC_TEST_VAR", "from_file") == "from_env"
 
-    def test_env_empty_string_still_overrides(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # An explicitly-set empty env var should still override
+    def test_env_empty_string_treated_as_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Inverted 2026-08-16 (was: empty string still overrides).
+
+        Compose ``${VAR:-}`` lines and MCP hosts inject "" for every blank
+        field, so "" winning silently shadowed core.json values — observed
+        live as the NAS compose disabling core.json embedding config.
+        Empty now means unset, matching every other config boundary.
+        """
         monkeypatch.setenv("OC_TEST_VAR", "")
-        assert env_override("OC_TEST_VAR", "from_file") == ""
+        assert env_override("OC_TEST_VAR", "from_file") == "from_file"
+
+    def test_env_whitespace_only_treated_as_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OC_TEST_VAR", "   ")
+        assert env_override("OC_TEST_VAR", "from_file") == "from_file"
 
     def test_file_value_none_and_no_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("OC_TEST_VAR", raising=False)

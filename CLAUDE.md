@@ -444,7 +444,7 @@ Most-used variables for quick reference:
 | `OC_LOG_FORMAT` | `human` or `json` | `human` |
 | `OC_MAINTENANCE_DISABLED` | `1`/`true`/`yes`/`on` to short-circuit the loop | unset |
 
-Full reference (~15 variables): [docs/configuration/env_vars.md](docs/configuration/env_vars.md)
+Full reference (~25 variables): [docs/configuration/env_vars.md](docs/configuration/env_vars.md)
 
 ## OpenChronicle Memory Integration
 

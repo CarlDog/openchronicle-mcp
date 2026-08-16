@@ -74,12 +74,25 @@ services:
       # Auth + CORS (Portainer stack env):
       OC_API_KEY: ${OC_API_KEY:-}
       OC_API_CORS_ORIGINS: ${OC_API_CORS_ORIGINS:-}
+      # Rate limit ceiling — the var behind the mnemosyne Phase C
+      # incident; must be Portainer-tunable without a compose edit:
+      OC_API_RATE_LIMIT_RPM: ${OC_API_RATE_LIMIT_RPM:-}
+      # REST Host allowlist; empty falls back to OC_MCP_ALLOWED_HOSTS
+      # so the one stack var below protects both surfaces:
+      OC_API_ALLOWED_HOSTS: ${OC_API_ALLOWED_HOSTS:-}
       # Embeddings (Portainer stack env; default 'none' = FTS5-only):
       OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
       OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
+      OC_EMBEDDING_DIMENSIONS: ${OC_EMBEDDING_DIMENSIONS:-}
+      OC_EMBEDDING_TIMEOUT: ${OC_EMBEDDING_TIMEOUT:-}
       OC_EMBEDDING_API_KEY: ${OC_EMBEDDING_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
+      # Search + maintenance kill switches (documented escape hatches;
+      # unreachable from Portainer until these lines existed):
+      OC_SEARCH_FTS5_ENABLED: ${OC_SEARCH_FTS5_ENABLED:-}
+      OC_MAINTENANCE_DISABLED: ${OC_MAINTENANCE_DISABLED:-}
       # MCP transport security (Portainer stack env). Default of empty
       # falls through to MCPConfig's localhost-only allowlist; operators
       # binding to a LAN-reachable interface MUST set this in the

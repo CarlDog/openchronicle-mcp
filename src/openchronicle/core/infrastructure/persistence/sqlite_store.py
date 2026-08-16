@@ -119,7 +119,10 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._lock = threading.RLock()
         self._transaction_depth = 0
         self._configure_connection()
-        self._fts5_user_enabled = os.getenv("OC_SEARCH_FTS5_ENABLED", "1").lower() in {"1", "true", "yes", "on"}
+        # Empty means unset (compose ${VAR:-} injects "" for blank stack
+        # env) — without the `or "1"` an empty var silently disabled FTS5.
+        fts5_env = os.getenv("OC_SEARCH_FTS5_ENABLED", "").strip() or "1"
+        self._fts5_user_enabled = fts5_env.lower() in {"1", "true", "yes", "on"}
         self._fts5_active: bool = False
 
     @_locked
