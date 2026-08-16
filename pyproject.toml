@@ -61,7 +61,12 @@ dev = [
 	"pytest>=7",
 	"pytest-asyncio>=0.23",
 	"mypy>=1.8",
-	"ruff>=0.1.0",
+	# Minor-pinned: the formatter's style evolves across minors (0.16
+	# started writing PEP 758 unparenthesized excepts under py314), and
+	# CI resolves fresh while the venv + pre-commit hook lag — an open
+	# floor let CI fail format-check on code the local gate had passed.
+	# Dependabot's pip-dev group raises the cap when a new minor lands.
+	"ruff>=0.16,<0.17",
 	"openai>=1.0.0",
 	"httpx>=0.25.0",
 	"mcp>=1.0,<2",
