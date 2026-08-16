@@ -1,8 +1,41 @@
 # OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-06 (rev 67 addendum 2026-08-16)
+**Date:** 2026-05-06 (rev 68 addendum 2026-08-16)
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 68 (review Batch B — search correctness, closed
+2026-08-16; 530 → 538 tests). Three empirically verified
+silent-wrong-results bugs in the flagship search path, fixed in two
+commits:
+
+- **`b387d584`** — the `dimensions` column now records the actual
+  vector length (it stored the adapter's *configured* claim; Ollama
+  can't control actual output length, and a mismatch made every
+  subsequent read raise `struct.error` until a forced re-embed).
+  Reads unpack by the blob's own length, which also heals pre-existing
+  poisoned rows. `save_embedding` drops its `dimensions` parameter.
+  Same commit: `_semantic_search` is model-scoped —
+  `list_embeddings(model=...)` — so stale rows after a model switch
+  neither crash the matmul (different dims → the degradation handler
+  silently swallowed it, FTS5-only until backfill) nor inject
+  meaningless cross-space similarities (same dims — the regression test
+  plants a verbatim copy of the query embedding under an old model and
+  asserts it is not a candidate).
+- **`5e196fdb`** — hybrid search honors `include_pinned=False`. The
+  exclusion set was built from the *prepend* list (empty when the flag
+  is off; missing tag-filtered pinned items when on), so pinned rows
+  re-entered through the semantic channel and typically ranked first.
+  Exclusion now covers every pinned row; the RRF merge also skips
+  `item.pinned` as belt-and-braces.
+
+Q20/Q21 research recorded in V3_PLAN Open Questions (confirmed: no
+score reaches any surface; no per-call search mode exists; exact-phrase
+match is not expressible — FTS5 tokens are OR-joined). Score surfacing
+is deliberately its own upcoming design decision, not bolted onto these
+fixes. Batches C (onboard_git robustness), D (ops + release integrity),
+E (docs SSOT + test debt) remain queued. Still not deployed: NAS runs
+rc5 until `OC_TAG` moves.
+
 **Revision:** 67 (Batch A of the 2026-08-15 full-repo review, closed
 2026-08-16; 510 → 530 tests). A six-agent review (correctness,
 architecture, tests, security, CI/CD, docs/process) over `eb422e09`

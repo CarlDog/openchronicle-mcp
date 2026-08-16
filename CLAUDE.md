@@ -44,6 +44,19 @@
 
 ## Current Sprint
 
+**2026-08-16 — full-repo review Batch B (search correctness; shipped on
+main, NOT yet deployed).** Two commits (`b387d584`, `5e196fdb`), 530 →
+537 tests, fixing the three empirically verified search bugs from the
+review: `dimensions` column records actual vector length + reads unpack
+by blob length (heals poisoned rows; `save_embedding` drops the
+`dimensions` param); `_semantic_search` scoped to the active model
+(stale rows crashed the matmul or corrupted ranking cross-space);
+hybrid search honors `include_pinned=False` (exclusion set now covers
+all pinned rows, not just the prepend list). Q20/Q21 research answers
+recorded in V3_PLAN Open Questions — score surfacing and a per-call
+search mode are real surface changes awaiting a design decision, not
+bolted on here. Batches C/D/E queued.
+
 **2026-08-16 — full-repo review Batch A (shipped on main, NOT yet
 deployed; NAS still runs rc5).** A six-agent review of `eb422e09`
 (2026-08-15) produced ~60 findings — full report in the session artifact
