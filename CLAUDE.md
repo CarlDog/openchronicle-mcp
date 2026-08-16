@@ -44,6 +44,21 @@
 
 ## Current Sprint
 
+**2026-08-16 — full-repo review Batch D (ops + release integrity;
+shipped as v3.0.0-rc6 — the deploy that takes Batches A-D live).**
+Four commits, 551 → 563 tests: maintenance schedule persists across
+restarts (`maintenance_state.json`; no more two-backups-per-redeploy)
+plus burst-proof backup retention (newest-7 ∪ newest-per-day×7); four
+crash-loop config paths fail soft via shared `parse_int_env`;
+Dockerfile dependency layer precedes `COPY src` (verified locally);
+version single-source finally moves — `3.0.0rc6` — with a CI
+tag↔version guard, restoring `health.package_version` as the deploy
+signal. Fixture fix ended the suite's `MagicMock/` litter (P4).
+Phase 9's destructive decommission steps (v3.0.0 tag, v2 stack/volume
+deletion) remain gated on explicit operator go-ahead. Batch E (docs
+SSOT + test debt) + the Q20/Q21 design decision are the remaining
+review work.
+
 **2026-08-16 — full-repo review Batch C (onboard_git robustness;
 shipped on main, NOT yet deployed).** One code commit (`29528201`),
 538 → 551 tests; closes all three open dogfooding memories. Watermark

@@ -11,7 +11,7 @@ was overkill.
 
 | Job | Default interval | What it does |
 |---|---|---|
-| `db_backup` | 1 day | Online backup via `sqlite3.Connection.backup()` to `${OC_DATA_DIR}/backups/auto/`; retains the last 7 by mtime |
+| `db_backup` | 1 day | Online backup via `sqlite3.Connection.backup()` to `${OC_DATA_DIR}/backups/auto/`; retention keeps the union of the 7 newest files and the newest file per day for the 7 most recent days with backups (a same-day burst can't evict older days) |
 | `db_vacuum` | 7 days | Runs `db_backup` first (backup-before-destructive policy enforced in code), then `PRAGMA wal_checkpoint(FULL)` and `VACUUM` |
 | `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup`, sets `container.maintenance_degraded = True` (surfaces via `/health`), raises so the loop counts it. On success: clears any prior degraded flag. |
 | `embedding_backfill` | 6 hours | Equivalent to `oc memory embed`; no-op when the embedding service is unset or nothing is missing |
@@ -55,6 +55,17 @@ migration windows.
 
 The combination produces "sequential within process, skip on overlap"
 semantics — what the V3 plan calls for.
+
+## Schedule persistence
+
+Per-job `last_run_at` persists to `maintenance_state.json` next to the
+DB (atomic tmp + replace, written after every job run). Without it,
+every container restart made every enabled job due at once — two
+backups per restart under the redeploy-on-push deployment model, which
+eroded the backup retention window to same-day snapshots (2026-08-15
+review). Counters (`runs_total` etc.) stay per-process; only the
+schedule survives. A corrupt or missing state file degrades to
+pre-persistence behavior with a warning — it can never block boot.
 
 ## Status surface
 

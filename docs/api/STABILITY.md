@@ -17,10 +17,13 @@ client API.
 
 ## Versioning
 
-OC follows [Semantic Versioning](https://semver.org/). The version
-visible at runtime is set in `interfaces/api/app.py` (FastAPI's
-`version`) and `pyproject.toml`. The MCP server reports the same
-version via the `health` tool's `package_version` field.
+OC follows [Semantic Versioning](https://semver.org/). The version has
+one source — `pyproject.toml`, read at runtime through
+`src/openchronicle/version.py` (`importlib.metadata`) — consumed by the
+FastAPI app, the CLI, and both health surfaces' `package_version`
+field. Release flow: bump `pyproject.toml` in the same commit that the
+`v*` tag points at; CI refuses to build a tag whose name doesn't match
+the declared version (`v3.0.0-rc6` ↔ `3.0.0rc6`).
 
 | Bump | Trigger |
 |---|---|

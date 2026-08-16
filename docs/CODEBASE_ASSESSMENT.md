@@ -1,8 +1,41 @@
 # OpenChronicle — Senior Developer Codebase Assessment
 
-**Date:** 2026-05-06 (rev 69 addendum 2026-08-16)
+**Date:** 2026-05-06 (rev 70 addendum 2026-08-16)
 **Branch:** `main` is **v3** (force-pushed from `v3/develop` at Phase 8
 cutover). v2 frozen at `archive/openchronicle.v2` (`bb217d9`).
+**Revision:** 70 (review Batch D — ops + release integrity, closed
+2026-08-16; 551 → 563 tests; ships as **v3.0.0-rc6**, the release that
+finally deploys review Batches A-D to the NAS). Four commits:
+
+- **`28b070c5`** — maintenance schedule persists across restarts
+  (`maintenance_state.json`, atomic write, fully defensive load) — a
+  container restart no longer fires every job at once (two backups per
+  redeploy was eroding retention); retention itself became the union of
+  newest-7-overall + newest-per-day×7 so same-day bursts can't evict
+  older days. Riding along: the unified-ASGI test fixture got real tmp
+  paths, ending the `MagicMock/` litter directories the suite used to
+  leak into the repo root (review finding P4 — previously papered over
+  in .gitignore).
+- **`e25d71c1`** — the four remaining crash-loop config paths fail soft
+  with a warning (rate-limit RPM, both port vars incl. out-of-range,
+  maintenance `interval_seconds` incl. non-positive) via a shared
+  `parse_int_env`.
+- **`f11a301c`** — Dockerfile dependency layer now precedes `COPY src`
+  (installed against a stub package), so code pushes stop re-resolving
+  the full dependency set from PyPI; verified locally incl. cache
+  behavior. Also corrects rev-67's README mount paths (`/app/data` +
+  `/app/config` match the image ENV; rev 67 had wrongly "fixed" them to
+  the compose-overridden paths).
+- **Release integrity** — `pyproject.toml` version moves for the first
+  time since dev0: `3.0.0rc6`, restoring `health.package_version` as a
+  deploy-verification signal; CI gains a tag↔version guard (a `v*` tag
+  that doesn't match pyproject ships nothing); STABILITY.md's version
+  section now describes the real single-source flow.
+
+**Phase 9 note:** the decommission checklist (v3.0.0 final tag, v2
+stack/volume deletion on the NAS) remains gated on an explicit operator
+go-ahead — destructive steps, not batched here.
+
 **Revision:** 69 (review Batch C — onboard_git robustness, closed
 2026-08-16; 538 → 551 tests, one code commit `29528201`). Closes all
 three open `mcp-feedback` dogfooding memories:

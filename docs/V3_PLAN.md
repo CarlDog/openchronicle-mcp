@@ -847,8 +847,14 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   (full-walk fallback + `watermark_unreachable` flag); `branch` param +
   resolved branch/head echo; orchestration promoted to
   `onboard_git_prepare` with the CLI sharing watermark semantics —
-  closes OC memories `2f2992cd`, `2cc9e037`, `2c096329`. Still queued:
-  **D — ops + release integrity** (persist
+  closes OC memories `2f2992cd`, `2cc9e037`, `2c096329`. **Batch D
+  shipped 2026-08-16 as v3.0.0-rc6** (`28b070c5`/`e25d71c1`/`f11a301c`
+  - release commit, 551 → 563 tests): maintenance schedule persistence
+  - burst-proof retention; fail-soft config paths; Dockerfile dep-layer
+  reorder; version `3.0.0rc6` + CI tag↔version guard. Phase 9's
+  destructive decommission (v3.0.0 tag, v2 stack/volume deletion) stays
+  operator-gated. Originally queued as: **D — ops + release integrity**
+  (persist
   maintenance `last_run_at` — today every container start fires every
   job and two backups, eroding the 7-slot retention under
   redeploy-bounce; fail-soft the remaining crash-loop config paths;

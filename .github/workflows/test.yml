@@ -99,6 +99,24 @@ jobs:
       - name: Mypy
         run: mypy src tests --config-file=pyproject.toml
 
+      # Release integrity: the version stayed at 3.0.0.dev0 through five
+      # rc tags, which made health's package_version useless as a deploy
+      # verification signal. A v* tag must match pyproject's version
+      # (v3.0.0-rc6 <-> 3.0.0rc6) or nothing ships.
+      - name: Verify tag matches pyproject version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python - <<'EOF'
+          import os, sys, tomllib
+          tag = os.environ["GITHUB_REF_NAME"]
+          with open("pyproject.toml", "rb") as f:
+              version = tomllib.load(f)["project"]["version"]
+          norm = tag.removeprefix("v").replace("-rc", "rc")
+          if norm != version:
+              sys.exit(f"tag {tag} (normalized {norm}) != pyproject version {version}")
+          print(f"tag {tag} matches pyproject version {version}")
+          EOF
+
   build-and-push:
     name: Build and push Docker image
     # Only on push (branch or tag) — never on pull_request, and never if
