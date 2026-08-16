@@ -63,7 +63,7 @@ class TestDeleteProject:
                 source="manual",
             )
         )
-        store.save_embedding("mem-A", embedding=[0.1, 0.2, 0.3], model="m", dimensions=3)
+        store.save_embedding("mem-A", embedding=[0.1, 0.2, 0.3], model="m")
 
         result = delete_project.execute(
             store=store,

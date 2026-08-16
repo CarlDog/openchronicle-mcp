@@ -391,14 +391,23 @@ class SqliteStore(StoragePort, MemoryStorePort):
 
     # ── Embedding storage ───────────────────────────────────────────
 
+    @staticmethod
+    def _unpack_embedding(blob: bytes) -> list[float]:
+        """Decode a float32 blob by its own length (4 bytes per float)."""
+        return list(struct.unpack(f"{len(blob) // 4}f", blob))
+
     @_locked
     def save_embedding(
         self,
         memory_id: str,
         embedding: list[float],
         model: str,
-        dimensions: int,
     ) -> None:
+        # The dimensions column records the FACT (length of the stored
+        # vector), never a caller-supplied claim. Adapters can't always
+        # control actual output length (Ollama returns whatever the model
+        # returns regardless of the configured default), and a mismatched
+        # claim made every subsequent read raise struct.error.
         blob = struct.pack(f"{len(embedding)}f", *embedding)
         cur = self._conn.cursor()
         cur.execute(
@@ -411,7 +420,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
                 dimensions = excluded.dimensions,
                 generated_at = excluded.generated_at
             """,
-            (memory_id, blob, model, dimensions, datetime.now(UTC).isoformat()),
+            (memory_id, blob, model, len(embedding), datetime.now(UTC).isoformat()),
         )
         self._commit_if_needed()
 
@@ -419,30 +428,45 @@ class SqliteStore(StoragePort, MemoryStorePort):
     def get_embedding(self, memory_id: str) -> list[float] | None:
         cur = self._conn.cursor()
         row = cur.execute(
-            "SELECT embedding, dimensions FROM memory_embeddings WHERE memory_id = ?",
+            "SELECT embedding FROM memory_embeddings WHERE memory_id = ?",
             (memory_id,),
         ).fetchone()
         if row is None:
             return None
-        return list(struct.unpack(f"{row['dimensions']}f", row["embedding"]))
+        # Unpack from the blob's own length, not the dimensions column —
+        # heals any pre-existing row whose recorded claim disagrees.
+        return self._unpack_embedding(row["embedding"])
 
     @_locked
     def list_embeddings(
         self,
         memory_ids: list[str] | None = None,
+        model: str | None = None,
     ) -> dict[str, list[float]]:
+        """List embeddings, optionally filtered by memory ids and/or model.
+
+        Semantic search MUST pass ``model`` — vectors from different
+        models live in different spaces, so mixing them either crashes
+        the matmul (different dims) or silently corrupts ranking (same
+        dims, meaningless cross-space similarities).
+        """
         cur = self._conn.cursor()
+        clauses: list[str] = []
+        params: list[Any] = []
         if memory_ids is not None:
             placeholders = ",".join("?" for _ in memory_ids)
-            rows = cur.execute(
-                f"SELECT memory_id, embedding, dimensions FROM memory_embeddings WHERE memory_id IN ({placeholders})",
-                memory_ids,
-            ).fetchall()
-        else:
-            rows = cur.execute("SELECT memory_id, embedding, dimensions FROM memory_embeddings").fetchall()
+            clauses.append(f"memory_id IN ({placeholders})")
+            params.extend(memory_ids)
+        if model is not None:
+            clauses.append("model = ?")
+            params.append(model)
+        sql = "SELECT memory_id, embedding FROM memory_embeddings"
+        if clauses:
+            sql += f" WHERE {' AND '.join(clauses)}"
+        rows = cur.execute(sql, params).fetchall()
         result: dict[str, list[float]] = {}
         for row in rows:
-            result[row["memory_id"]] = list(struct.unpack(f"{row['dimensions']}f", row["embedding"]))
+            result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
         return result
 
     @_locked

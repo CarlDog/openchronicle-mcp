@@ -69,7 +69,7 @@ def test_generate_for_memory_regenerates_on_model_change() -> None:
     service, store, _ = _make_service()
     _add_memory(store, "m1", "hello")
     # Manually save with a different model
-    store.save_embedding("m1", [0.0] * 32, model="old-model", dimensions=32)
+    store.save_embedding("m1", [0.0] * 32, model="old-model")
     service.generate_for_memory("m1", "hello")
     assert store.get_embedding_model("m1") == "stub"
 
@@ -243,3 +243,41 @@ def test_embedding_status() -> None:
     assert status["embedded"] == 1
     assert status["missing"] == 1
     assert status["stale"] == 0
+
+
+# ── search correctness regressions (2026-08-15 review) ──────────────
+
+
+def test_search_hybrid_ignores_different_dims_stale_model_rows() -> None:
+    """A model switch used to leave stale rows in the matmul. Different
+    dims raised numpy's inhomogeneous-shape error, which the degradation
+    handler swallowed — the whole semantic path silently fell back to
+    FTS5-only until the 6-hourly backfill caught up.
+    """
+    service, store, _ = _make_service()
+    _add_memory(store, "m1", "python programming")
+    service.generate_for_memory("m1", "python programming")
+    _add_memory(store, "m2", "zzz unrelated stale")
+    store.save_embedding("m2", [0.5] * 8, model="old-model")  # 8 dims vs 32
+
+    results = service.search_hybrid("python programming", top_k=5)
+
+    assert service.search_failure_count == 0, "stale row must not degrade search"
+    assert "m1" in [m.id for m in results]
+
+
+def test_search_hybrid_excludes_same_dims_stale_model_rows() -> None:
+    """Same dims, different model: the stale vector matmuls fine but the
+    similarity is meaningless cross-space noise. Here the stale row is a
+    verbatim copy of the query's own embedding, so pre-fix it ranked
+    first; post-fix it is not a semantic candidate at all.
+    """
+    service, store, adapter = _make_service()
+    _add_memory(store, "m1", "alpha topic")
+    service.generate_for_memory("m1", "alpha topic")
+    _add_memory(store, "m2", "zzz qqq xxx")  # no keyword overlap with query
+    store.save_embedding("m2", adapter.embed("alpha topic"), model="old-model")
+
+    results = service.search_hybrid("alpha topic", top_k=5)
+
+    assert "m2" not in [m.id for m in results]

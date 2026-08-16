@@ -76,12 +76,7 @@ class EmbeddingService:
                 return
 
         vec = self._port.embed(content)
-        self._store.save_embedding(
-            memory_id,
-            vec,
-            model=self._port.model_name(),
-            dimensions=self._port.dimensions(),
-        )
+        self._store.save_embedding(memory_id, vec, model=self._port.model_name())
 
     def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> BackfillResult:
         """Backfill embeddings for memories that don't have one.
@@ -120,12 +115,7 @@ class EmbeddingService:
         for item in candidates:
             try:
                 vec = self._port.embed(item.content)
-                self._store.save_embedding(
-                    item.id,
-                    vec,
-                    model=self._port.model_name(),
-                    dimensions=self._port.dimensions(),
-                )
+                self._store.save_embedding(item.id, vec, model=self._port.model_name())
                 count += 1
             except Exception:
                 failed += 1
@@ -294,7 +284,10 @@ class EmbeddingService:
         import numpy as np
 
         query_vec = self._port.embed(query)
-        all_embeddings = self._store.list_embeddings()
+        # Model-scoped: vectors from other models live in other spaces —
+        # a stale row after a model switch either crashed the matmul
+        # (different dims) or silently corrupted ranking (same dims).
+        all_embeddings = self._store.list_embeddings(model=self._port.model_name())
 
         if not all_embeddings:
             return []
