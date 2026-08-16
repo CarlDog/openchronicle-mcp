@@ -687,3 +687,54 @@ class TestConfigFailSoft:
         with patch.dict("os.environ", {"OC_API_RATE_LIMIT_RPM": "lots"}):
             middleware = RateLimitMiddleware(MagicMock())
         assert middleware._rpm == _DEFAULT_RPM
+
+
+class TestMemoryEmbedRoute:
+    """The ok/partial/failed mapping is duplicated per surface (MCP twin
+    tested in test_mcp_handler_gaps); the 2026-05 'status=ok with
+    generated=0' bug lived in exactly this shape.
+    """
+
+    def test_not_configured_when_service_absent(self, client: TestClient) -> None:
+        _get_container(client).embedding_service = None
+        resp = client.post("/api/v1/memory/embed")
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "not_configured"
+
+    def test_outcome_mapping_and_force_passthrough(self, client: TestClient) -> None:
+        from openchronicle.core.application.services.embedding_service import BackfillResult
+
+        service = MagicMock()
+        service.generate_missing.return_value = BackfillResult(generated=3, failed=1, elapsed_ms=5)
+        service.embedding_status.return_value = {"embedded": 3, "missing": 1}
+        _get_container(client).embedding_service = service
+
+        resp = client.post("/api/v1/memory/embed", json={"force": True})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "partial"
+        assert data["generated"] == 3
+        assert data["failed"] == 1
+        assert data["force"] is True
+        assert data["embedded"] == 3
+        assert service.generate_missing.call_args.kwargs["force"] is True
+
+
+class TestMemoryGetRoute:
+    def test_happy_path(self, client: TestClient) -> None:
+        _get_container(client).storage.get_memory.return_value = _make_memory()
+        resp = client.get("/api/v1/memory/mem-1")
+        assert resp.status_code == 200
+        assert resp.json()["id"] == "mem-1"
+        assert resp.json()["content"] == "remember this"
+
+
+class TestMemoryStatsRoute:
+    def test_returns_totals(self, client: TestClient) -> None:
+        container = _get_container(client)
+        container.storage.count_memory.return_value = 2
+        container.storage.list_memory.return_value = [_make_memory(), _make_memory()]
+        resp = client.get("/api/v1/memory/stats")
+        assert resp.status_code == 200
+        assert resp.json()["total"] == 2

@@ -21,16 +21,16 @@ from openchronicle.interfaces.mcp.server import create_server  # noqa: E402
 
 
 def _make_container() -> MagicMock:
-    """Build a mock CoreContainer with storage, event_logger, llm, etc."""
+    """Build a mock CoreContainer with the v3 surface (storage + config).
+
+    2026-08-16: dropped the v2 ghosts this builder still fabricated
+    (event_logger, llm, interaction_router, router_policy, privacy_*) —
+    none exist on the v3 container, and a fixture describing a container
+    shape that isn't real misleads every reader. Shared helpers for new
+    tests live in tests/helpers/mcp_tools.py.
+    """
     container = MagicMock()
     container.storage = MagicMock()
-    container.event_logger = MagicMock()
-    container.event_logger.append = MagicMock()
-    container.llm = MagicMock()
-    container.interaction_router = MagicMock()
-    container.router_policy = MagicMock()
-    container.privacy_gate = MagicMock()
-    container.privacy_settings = MagicMock()
     container.file_configs = {}
     return container
 
