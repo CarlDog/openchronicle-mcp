@@ -23,11 +23,13 @@ Design constraints (locked in V3_PLAN.md):
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from openchronicle.core.domain.time_utils import utc_now
@@ -69,11 +71,13 @@ class MaintenanceLoop:
         handlers: Mapping[str, JobHandler],
         *,
         tick_seconds: float = 1.0,
+        state_path: Path | None = None,
     ) -> None:
         self._container = container
         self._jobs = {j.name: j for j in jobs}
         self._handlers = handlers
         self._tick_seconds = tick_seconds
+        self._state_path = state_path
         self._task: asyncio.Task[None] | None = None
         self._stop_event: asyncio.Event = asyncio.Event()
         # Global mutex so background-spawned jobs still execute one-at-
@@ -105,6 +109,7 @@ class MaintenanceLoop:
     async def start(self) -> None:
         if self._task is not None:
             return
+        self._load_state()
         self._stop_event.clear()
         self._task = asyncio.create_task(self._run(), name="oc-maintenance")
         _logger.info(
@@ -207,6 +212,61 @@ class MaintenanceLoop:
             finally:
                 job.runs_total += 1
                 job.last_run_at = utc_now()
+                await asyncio.to_thread(self._persist_state)
+
+    def _load_state(self) -> None:
+        """Restore persisted ``last_run_at`` so a container restart doesn't
+        make every job due at once.
+
+        Without this, every JobState starts fresh and ``_is_due`` fires
+        every enabled job on boot — two backups per restart (db_backup +
+        db_vacuum's backup-first), which under the redeploy-on-push
+        deployment model eroded the backup retention window to same-day
+        snapshots. Counters stay per-process; only the schedule survives.
+        """
+        if self._state_path is None:
+            return
+        # Fully defensive: a corrupt or weird state file must never block
+        # boot (crash-loop rule) — worst case is pre-persistence behavior.
+        try:
+            if not self._state_path.exists():
+                return
+            raw = json.loads(self._state_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                return
+            entries = raw.get("last_run_at")
+            if not isinstance(entries, dict):
+                return
+            for name, iso in entries.items():
+                job = self._jobs.get(name)
+                if job is None or not isinstance(iso, str):
+                    continue
+                try:
+                    job.last_run_at = datetime.fromisoformat(iso)
+                except ValueError:
+                    continue
+        except Exception as exc:
+            _logger.warning("maintenance state file unreadable (%s); starting fresh", exc)
+
+    def _persist_state(self) -> None:
+        """Write per-job ``last_run_at`` atomically (tmp + replace).
+
+        Called after every job run, serialized by the global lock. A
+        write failure degrades to pre-persistence behavior (all jobs due
+        on next boot) — logged, never fatal.
+        """
+        if self._state_path is None:
+            return
+        payload = {
+            "last_run_at": {j.name: j.last_run_at.isoformat() for j in self._jobs.values() if j.last_run_at is not None}
+        }
+        try:
+            tmp = self._state_path.with_suffix(".tmp")
+            self._state_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(payload), encoding="utf-8")
+            os.replace(tmp, self._state_path)
+        except Exception as exc:
+            _logger.warning("failed to persist maintenance state to %s: %s", self._state_path, exc)
 
 
 def _is_due(job: JobState, now: datetime) -> bool:

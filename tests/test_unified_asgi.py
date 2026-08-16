@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,10 +12,17 @@ from fastapi.testclient import TestClient
 from openchronicle.interfaces.api.app import create_app
 from openchronicle.interfaces.api.config import HTTPConfig
 
+# Real filesystem paths for the mocked container: a MagicMock db_path
+# used to leak literal `MagicMock/...` directories into the repo root
+# when lifespan-driven maintenance jobs ran (papered over in .gitignore
+# for a while), and the maintenance state file needs a real location.
+_TMP = tempfile.TemporaryDirectory(prefix="oc-test-asgi-")
+
 
 def _mock_container() -> MagicMock:
     container = MagicMock()
     container.file_configs = {}
+    container.paths.db_path = Path(_TMP.name) / "data" / "openchronicle.db"
     container.storage = MagicMock()
     container.storage.list_projects.return_value = []
     container.storage.list_memory.return_value = []

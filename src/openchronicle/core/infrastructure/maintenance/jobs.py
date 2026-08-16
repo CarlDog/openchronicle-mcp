@@ -4,8 +4,8 @@ Each handler is a coroutine ``async def(container) -> None``. Failures
 must raise; the loop catches and counts.
 
 Job inventory:
-- ``db_backup`` — atomic online backup to ``${data_dir}/backups/auto/``,
-  retains the last 7.
+- ``db_backup`` — atomic online backup to ``${data_dir}/backups/auto/``;
+  retention keeps the 7 newest plus the newest per day for 7 days.
 - ``db_vacuum`` — runs ``db_backup`` first (backup-before-destructive
   policy), then ``PRAGMA wal_checkpoint(FULL)`` and ``VACUUM``.
 - ``db_integrity_check`` — ``PRAGMA integrity_check``; on failure,
@@ -40,9 +40,30 @@ def _auto_backup_dir(container: CoreContainer) -> Path:
 
 
 def _retention_prune(directory: Path, keep: int) -> None:
-    """Keep the `keep` newest *.db files; delete older ones."""
+    """Prune old backups, keeping the union of two sets:
+
+    - the ``keep`` newest files overall (protects same-day bursts —
+      manual run-once backups, vacuum's backup-first), and
+    - the newest file from each of the ``keep`` most recent UTC days
+      that have backups.
+
+    The per-day set is what a pure newest-N rule lacked: a burst of
+    restarts or manual runs filled all N slots with same-day snapshots
+    and evicted the week-old backup that matters after discovering
+    corruption. Worst-case files retained: 2 × ``keep``.
+    """
     candidates = sorted(directory.glob("*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
-    for path in candidates[keep:]:
+    keep_set: set[Path] = set(candidates[:keep])
+    newest_per_day: dict[str, Path] = {}
+    for path in candidates:  # newest-first, so the first hit per day wins
+        day = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).strftime("%Y-%m-%d")
+        if day not in newest_per_day:
+            newest_per_day[day] = path
+    for day in sorted(newest_per_day, reverse=True)[:keep]:
+        keep_set.add(newest_per_day[day])
+    for path in candidates:
+        if path in keep_set:
+            continue
         try:
             path.unlink()
         except OSError as exc:

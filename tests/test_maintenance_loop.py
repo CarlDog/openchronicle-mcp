@@ -342,3 +342,105 @@ def test_retention_keeps_newest(tmp_path: Path) -> None:
     assert all("old-" in p.name for p in survivors)
     surviving_indices = sorted(int(p.stem.split("-")[1]) for p in survivors)
     assert surviving_indices == [7, 8, 9]
+
+
+def test_retention_burst_cannot_evict_older_days(tmp_path: Path) -> None:
+    """Regression (2026-08-15 review): pure newest-N retention let a burst
+    of same-day backups (restart spam, manual run-once) fill every slot
+    and evict the week-old backup that matters after discovering
+    corruption. The per-day keep-set preserves the newest file of each
+    recent day alongside the newest N overall.
+    """
+    import os
+
+    backup_dir = tmp_path / "auto"
+    backup_dir.mkdir()
+    now = time.time()
+    day = 24 * 3600
+
+    # One backup per day for the six preceding days...
+    for d in range(6, 0, -1):
+        p = backup_dir / f"day-{d}.db"
+        p.write_bytes(b"x")
+        os.utime(p, (now - d * day, now - d * day))
+    # ...plus a burst of four backups today.
+    for i in range(4):
+        p = backup_dir / f"today-{i}.db"
+        p.write_bytes(b"x")
+        ts = now - (4 - i) * 60
+        os.utime(p, (ts, ts))
+
+    maintenance_jobs._retention_prune(backup_dir, keep=3)
+    survivors = {p.name for p in backup_dir.glob("*.db")}
+
+    # Newest 3 overall: the three newest today files.
+    assert {"today-1", "today-2", "today-3"} <= {n.removesuffix(".db") for n in survivors}
+    # Newest-per-day for the 3 most recent days: today, day-1, day-2.
+    assert "day-1.db" in survivors
+    assert "day-2.db" in survivors
+    # Older days and today's burst overflow are pruned.
+    assert "day-3.db" not in survivors
+    assert "day-6.db" not in survivors
+    assert "today-0.db" not in survivors
+
+
+# ─── state persistence ───────────────────────────────────────────────
+
+
+def test_last_run_at_survives_a_new_loop_instance(tmp_path: Path) -> None:
+    """Regression (2026-08-15 review): JobState started fresh on every
+    boot, so _is_due fired every enabled job immediately — two backups
+    per container restart under the redeploy-on-push deployment model.
+    """
+
+    async def _noop(c: object) -> None:  # noqa: ARG001
+        return None
+
+    state_path = tmp_path / "maintenance_state.json"
+    job1 = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop1 = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job1], handlers={"probe": _noop}, state_path=state_path
+    )
+    asyncio.run(loop1.run_once("probe"))
+    assert state_path.exists()
+
+    job2 = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop2 = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job2], handlers={"probe": _noop}, state_path=state_path
+    )
+    loop2._load_state()
+
+    assert job2.last_run_at == job1.last_run_at
+    from openchronicle.core.domain.time_utils import utc_now
+
+    assert maintenance_loop._is_due(job2, utc_now()) is False
+
+
+def test_malformed_state_file_starts_fresh(tmp_path: Path) -> None:
+    state_path = tmp_path / "maintenance_state.json"
+    state_path.write_text("{not json", encoding="utf-8")
+    job = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={}, state_path=state_path)
+    loop._load_state()
+    assert job.last_run_at is None
+
+
+def test_state_write_failure_is_nonfatal(tmp_path: Path) -> None:
+    """A write failure degrades to pre-persistence behavior, never fails
+    the job that just ran.
+    """
+    blocker = tmp_path / "blocker"
+    blocker.write_bytes(b"i am a file, not a directory")
+
+    async def _noop(c: object) -> None:  # noqa: ARG001
+        return None
+
+    job = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(),
+        jobs=[job],
+        handlers={"probe": _noop},
+        state_path=blocker / "state.json",
+    )
+    asyncio.run(loop.run_once("probe"))
+    assert job.last_outcome == "ok"
