@@ -71,10 +71,18 @@ Docker (single container, NAS-friendly):
 ```bash
 docker run --rm \
   -p 8000:8000 \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/config:/app/config \
+  -e OC_API_HOST=0.0.0.0 \
+  -v $(pwd)/data:/data \
+  -v $(pwd)/config:/config \
   ghcr.io/carldog/openchronicle-mcp:latest
 ```
+
+`OC_API_HOST=0.0.0.0` is required in a container — the app default
+binds container-loopback, which the port mapping can't reach. To call
+the server by anything other than `localhost` (a NAS hostname, a LAN
+IP), also set `OC_MCP_ALLOWED_HOSTS=your-host:*` or every request gets
+a 421 (see
+[env_vars.md](docs/configuration/env_vars.md)).
 
 For a Portainer stack on a NAS, use the `docker-compose.nas.yml` at
 the repo root.
@@ -84,7 +92,6 @@ the repo root.
 ```bash
 # Bootstrap the runtime tree
 oc init
-oc init-config
 
 # Create a project
 PROJECT_ID=$(oc init-project "my-project")

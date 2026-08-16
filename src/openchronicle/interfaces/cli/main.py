@@ -181,13 +181,6 @@ def main(argv: list[str] | None = None) -> int:
     init_cmd.add_argument("--force", action="store_true", help="Overwrite templates if they exist")
     init_cmd.add_argument("--no-templates", action="store_true", help="Skip template file creation")
 
-    init_config_cmd = sub.add_parser("init-config", help="Initialize model configuration with examples")
-    init_config_cmd.add_argument(
-        "--config-dir",
-        default=None,
-        help="Configuration directory (default: OC_CONFIG_DIR env var or 'config')",
-    )
-
     config_cmd = sub.add_parser("config", help="Configuration commands")
     config_sub = config_cmd.add_subparsers(dest="config_command")
     config_show_cmd = config_sub.add_parser("show", help="Show effective configuration")

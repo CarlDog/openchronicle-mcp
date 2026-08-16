@@ -171,10 +171,6 @@ Job names: `db_backup`, `db_vacuum`, `db_integrity_check`,
 Create the runtime directory tree and bootstrap config templates.
 `--force` overwrites existing templates. Idempotent.
 
-### `oc init-config [--config-dir PATH]`
-
-Scaffold `core.json` with v3 defaults at the resolved config dir.
-
 ### `oc config show [--json]`
 
 Print effective configuration: paths, `core.json` contents,
@@ -192,6 +188,7 @@ These v2 commands were dropped along with their subsystems:
 | Command | Replacement |
 |---|---|
 | `oc chat` / `oc convo` | OC has no LLM in v3. Use Claude Code, Goose, etc. via the MCP server. |
+| `oc init-config` (removed 2026-08-16) | Was a v2 leftover: it scaffolded LLM model configs and a `core.json` whose every key v3 ignores, while writing none of the sections v3 reads. `core.json` is optional — create it by hand per [config_files.md](../configuration/config_files.md). |
 | `oc story <subcmd>` | Storytelling plugin archived on `archive/openchronicle.v2`. |
 | `oc task` / `oc run-task` / `oc list-tasks` | Orchestrator gone. |
 | `oc scheduler add/list/...` | Replaced by the in-process maintenance loop. |

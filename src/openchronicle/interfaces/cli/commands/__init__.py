@@ -1,7 +1,7 @@
 """CLI command dispatch tables.
 
 Maps command names to handler functions. Two tables:
-- PRE_CONTAINER_COMMANDS: Commands that don't need CoreContainer (init, init-config)
+- PRE_CONTAINER_COMMANDS: Commands that don't need CoreContainer (init, version, config)
 - COMMANDS: Commands that receive (args, container)
 """
 
@@ -24,7 +24,6 @@ from . import (
 # Pre-container commands (no CoreContainer needed)
 PRE_CONTAINER_COMMANDS: dict[str, Callable[[argparse.Namespace], int]] = {
     "init": system.cmd_init,
-    "init-config": system.cmd_init_config,
     "version": system.cmd_version,
     "config": system.cmd_config,
 }

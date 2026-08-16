@@ -1,4 +1,4 @@
-"""System CLI commands: init, init-config, version, config, serve."""
+"""System CLI commands: init, version, config, serve."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import os
 import sys
 from typing import Any
 
-from openchronicle.core.application.use_cases import init_config, init_runtime
+from openchronicle.core.application.use_cases import init_runtime
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.commands._helpers import json_envelope, print_json
 from openchronicle.version import package_version
@@ -124,30 +124,6 @@ def cmd_init(args: argparse.Namespace) -> int:
     for key, payload in result["paths"].items():
         if isinstance(payload, dict):
             _print_status(key, payload)
-    return 0
-
-
-def cmd_init_config(args: argparse.Namespace) -> int:
-    config_dir = args.config_dir or os.getenv("OC_CONFIG_DIR", "config")
-    result = init_config.execute(config_dir)
-
-    print(f"\nConfiguration initialized at: {result['config_dir']}")
-    print()
-
-    created_files = result["created"]
-    if isinstance(created_files, list) and created_files:
-        print(f"Created {result['created_count']} config(s):")
-        for filename in created_files:
-            print(f"  + {filename}")
-    else:
-        print("No new configs created (all already exist)")
-
-    skipped_files = result["skipped"]
-    if isinstance(skipped_files, list) and skipped_files:
-        print(f"\nSkipped {result['skipped_count']} existing config(s):")
-        for filename in skipped_files:
-            print(f"  - {filename}")
-
     return 0
 
 

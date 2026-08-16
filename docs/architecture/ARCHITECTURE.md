@@ -50,7 +50,7 @@ imports — anything reaching outside the process goes through a port.
 - `services/context_builder.py`: helpers shared between use cases.
 - `use_cases/`: `add_memory`, `delete_memory`, `list_memory`,
   `pin_memory`, `search_memory`, `update_memory`, `show_memory`,
-  `create_project`, `list_projects`, `init_runtime`, `init_config`,
+  `create_project`, `list_projects`, `init_runtime`,
   `diagnose_runtime`, `export_memory`, `import_memory`
 - `config/`: runtime path resolution (`paths.py`), embedding settings,
   env-var helpers
