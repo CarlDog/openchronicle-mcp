@@ -44,311 +44,30 @@
 
 ## Current Sprint
 
-**2026-08-16 — full-repo review Batch D (ops + release integrity;
-shipped as v3.0.0-rc6 — the deploy that takes Batches A-D live).**
-Four commits, 551 → 563 tests: maintenance schedule persists across
-restarts (`maintenance_state.json`; no more two-backups-per-redeploy)
-plus burst-proof backup retention (newest-7 ∪ newest-per-day×7); four
-crash-loop config paths fail soft via shared `parse_int_env`;
-Dockerfile dependency layer precedes `COPY src` (verified locally);
-version single-source finally moves — `3.0.0rc6` — with a CI
-tag↔version guard, restoring `health.package_version` as the deploy
-signal. Fixture fix ended the suite's `MagicMock/` litter (P4).
-Phase 9's destructive decommission steps (v3.0.0 tag, v2 stack/volume
-deletion) remain gated on explicit operator go-ahead. Batch E (docs
-SSOT + test debt) + the Q20/Q21 design decision are the remaining
-review work.
+**2026-08-16 — full-repo review Batch E (docs SSOT + test debt), in
+progress.** The last of five batches from the 2026-08-15 six-agent
+review (punch list: OC memory `e22472b8`; report: session artifact
+"OpenChronicle Repo Review"). Batches A-D shipped and deployed as
+**v3.0.0-rc6** the same day. E restores the v2 doc archive that
+`.gitignore` swallowed in Phase 7, rewrites the status doc as a
+current-state snapshot, creates CHANGELOG.md, and pays down the test
+debt (CLI smoke pass, MCP handler gaps, conftest consolidation).
 
-**2026-08-16 — full-repo review Batch C (onboard_git robustness;
-shipped on main, NOT yet deployed).** One code commit (`29528201`),
-538 → 551 tests; closes all three open dogfooding memories. Watermark
-now anchors `commits[0]` (was max author date — rebases/future dates
-pinned it forever); unreachable watermarks auto-fall-back to a full
-walk with `watermark_unreachable`/`ran_full_walk` flags instead of the
-raw "Invalid revision range" error (wobblebot's refresh heals on next
-run); new `branch` param + resolved branch/head echoed on every
-response (the gemini wrong-ref trap); orchestration promoted to
-`onboard_git_prepare` in the application layer so the CLI shares
-watermark semantics (it previously saved none, and `--force` left a
-stale watermark). Breaking: `extract_commits_from_url` returns
-`ExtractedHistory`; `run_git_onboard_raw` → `materialize_clusters`.
-Batches D + E queued; deploy still gated on `OC_TAG` (rc6, Batch D).
+Sprint history now lives in the status doc's revision table and
+[CHANGELOG.md](CHANGELOG.md) — this section holds the in-flight batch
+only (2026-08-16 SSOT rewrite; the stacked historical entries moved
+out). Still open beyond E: Phase 9 decommission (operator-gated) and
+the Q20/Q21 search-surface design (V3_PLAN Open Questions).
 
-**2026-08-16 — full-repo review Batch B (search correctness; shipped on
-main, NOT yet deployed).** Two commits (`b387d584`, `5e196fdb`), 530 →
-538 tests, fixing the three empirically verified search bugs from the
-review: `dimensions` column records actual vector length + reads unpack
-by blob length (heals poisoned rows; `save_embedding` drops the
-`dimensions` param); `_semantic_search` scoped to the active model
-(stale rows crashed the matmul or corrupted ranking cross-space);
-hybrid search honors `include_pinned=False` (exclusion set now covers
-all pinned rows, not just the prepend list). Q20/Q21 research answers
-recorded in V3_PLAN Open Questions — score surfacing and a per-call
-search mode are real surface changes awaiting a design decision, not
-bolted on here. Batches C/D/E queued.
-
-**2026-08-16 — full-repo review Batch A (shipped on main, NOT yet
-deployed; NAS still runs rc5).** A six-agent review of `eb422e09`
-(2026-08-15) produced ~60 findings — full report in the session artifact
-"OpenChronicle Repo Review", punch list in OC memory `e22472b8`, batch
-queue in V3_PLAN "Post-cutover follow-ups". Batch A = seven commits
-(`d186b5fd`..`44a6f3dd`), 510 → 530 tests: declared Python floor
-`>=3.14` (four PEP 758 sites made the 3.12 claim a lie CI never tested);
-`context_recent` no-query now lists recency instead of searching `""`
-(FTS5 returned pinned-only on the live NAS); `stateless_http=True`
-(session-per-abandoned-client leak); Host allowlist on the REST surface
-(DNS-rebinding gap — `/mcp` was guarded since rc2, `/api/v1` never was;
-falls back to `OC_MCP_ALLOWED_HOSTS`); empty env vars now fall through
-to `core.json` + six previously Portainer-unreachable vars added to
-compose; CI paths-ignore/concurrency/Dependabot-mcp-ignore; v2
-`oc init-config` zombie deleted + both README quick-start bugs fixed.
-Batches B (search correctness — three empirically verified bugs), C
-(onboard_git robustness — closes three open dogfooding memories), D
-(ops + release integrity — rc6 + Phase 9 close), E (docs SSOT + test
-debt) are queued. Deploy note: code goes live only when `OC_TAG` moves.
-
-Also on main but undocumented until now: the 2026-07-29 py3.14
-toolchain move (`9e71c207`, incl. the `mcp>=1.0,<2` pin) and the
-2026-07-30 CI-hardening batch (publish gated on test+quality, hardened
-Dockerfile, least-privilege permissions, gitleaks backstop).
-
----
-
-**2026-07-23 read-surface + delete-safety batch (shipped, live as
-`v3.0.0-rc5`).** Three
-`mcp-feedback` OC memories (`837e85cc`, `a2cdfe56`, `ff7933df`) recorded
-friction found by dogfooding OC through its own client sessions: an
-unfilterable `memory_list`, an 86 KB `onboard_git` response, a
-zero-argument `project_list`, no bulk project delete, and a
-`memory_delete` whose `confirm` default silently turned a downstream
-call into a no-op (it cost a real bug in mnemosyne-mcp). This batch
-works all five plus the adjacent defects on the same code paths.
-Ratified up front: `confirm` becomes a **required** parameter rather
-than keeping a preview default, projection is an opt-in `compact` bool,
-and the scope is widest (filed items + adjacent bugs + refactors).
-
-- **C1 — project-scoped `list_memory`** — `project_id` threads port →
-  SQL → use case (scope-strict); two in-Python project filters deleted;
-  dead `Page` protocol removed; the store's two scoping rules named and
-  contrasted in the `MemoryStorePort` docstring with a test pinning the
-  `list_memory` vs `pinned_items` divergence. 433 → 439 tests.
-- **C2 — required `confirm` on delete** — omitting `confirm` on
-  `memory_delete` / `project_delete` now raises (MCP) or 422s (REST)
-  instead of returning a success-shaped preview; previews carry
-  `deleted: false` + `next_step`. CLI unchanged (its failure was never
-  silent). STABILITY.md gained a "Before the v3.0.0 tag" section so
-  pre-tag surface changes stop being relitigated. 439 → 448 tests.
-- **C3 — read-surface filtering + projection** — `project_list` gains
-  `name_contains` (LIKE metacharacters escaped); `memory_list`,
-  `memory_search`, `context_recent`, `project_list` gain opt-in
-  `compact`, which *replaces* content/metadata with a preview + length
-  rather than truncating in place. `context_recent` folded onto
-  `memory_to_dict`. 448 → 471 tests.
-- **C4 — bounded `onboard_git`** — `max_commits_per_cluster` +
-  `include_commit_detail` replace a hardcoded `[:20]`; commits are
-  selected by churn but listed chronologically with a `Showing: n of N`
-  header; watermark now anchors to the newest commit *walked* rather than
-  the newest kept, so a merge at HEAD no longer stalls the incremental
-  path. `cluster_to_summary` moved into the service layer. 471 → 487.
-- **C5 — `project_delete_bulk`** — new tool + `POST /project/bulk-delete`
-  (surface now 18 tools). Per-item reporting (`missing` doesn't abort the
-  batch), all-or-nothing durability via one transaction. No CLI twin.
-  487 → 501 tests.
-- **C6 — health signals** — `package_version`, `schema_version`,
-  `maintenance_degraded`, `fts5_active`; MCP/REST key sets now asserted
-  identical. Fixed `oc version` printing "unknown" (CLI looked up
-  `openchronicle`, distribution is `openchronicle-mcp`) and retired the
-  drifted hardcoded version in `api/app.py`. 501 → 507 tests.
-- **C7 — `memory_stats` via `count_memory`** — `total` is a SQL COUNT(\*)
-  instead of a full table load, histograms read the scoped `list_memory`
-  from C1, and the body copied verbatim into the REST route is gone.
-  507 → 510 tests.
-
-433 → 510 tests across the batch. Deployed 2026-07-24 as `v3.0.0-rc5`;
-verified live via `/api/v1/health` (the four new fields are present, which
-rc4 could not produce) and a `DELETE /api/v1/memory/{id}` without `confirm`
-returning 422. **Restart MCP clients** — they cache tool schemas, so a
-session holding the old `memory_delete` signature will get validation
-errors until it reconnects. mnemosyne-mcp was checked before shipping and
-already passes `confirm: true` on both delete wrappers.
-
-**Deploy gotcha worth remembering:** the stack git-polls every 5 minutes,
-so it picked up the new compose file on its own — but `docker-compose.nas.yml`
-pins the image to `${OC_TAG}`, which still said `rc4`. The push alone
-therefore deployed *nothing*. Code only goes live when `OC_TAG` moves,
-which is the "three config stores" trap: repo compose, Portainer stack
-env, local `.env` are independent, and the stack env is the one that
-silently wins.
-
-**2026-07-02 hardening batch (fresh-eyes review follow-up).** A
-multi-agent review produced a 39-item punch list (captured in the
-plan file + the OC backlog memory "Repo improvement review —
-punch list (2026-07-01)"; local mirror at
-`~/.claude/projects/.../memory/project_review_backlog_2026-07.md`
-since the NAS OC server is LAN-only). Tier-1 + Tier-2 shipped this
-session in five commits on `main`:
-
-- **SQLite connection thread-safety** — one shared `sqlite3.Connection`
-  was used from Starlette's sync-handler threadpool and maintenance
-  `to_thread` workers with an unguarded `_transaction_depth`. Added a
-  `threading.RLock` + `@_locked` decorator serializing every connection
-  method; `transaction()` holds the lock for its whole scope; new locked
-  `vacuum()`/`integrity_check()`/`backup_to()` replace the maintenance
-  jobs' and CLI's direct `_conn` pokes.
-- **MCP tools no longer block the event loop** — all 17 tools are now
-  `async def` and offload store/embedding/git work via
-  `asyncio.to_thread` (FastMCP runs sync tools inline on the loop).
-- **git-onboard** — fixed multi-line commit-body truncation (BODYEND
-  sentinel) and added a clone-URL transport allowlist + `--` guard +
-  credential redaction in errors.
-- **Tests** — new `test_sqlite_store_concurrency.py`,
-  `test_git_onboard.py` (incl. token host-scoping), and the
-  `db_integrity_check` failure branch. 394 → 421 tests.
-
-Still open on the punch list: docs SSOT rewrite (this file's status doc
-is still frozen v2 content), API-consistency polish, CI/CD + Docker
-hardening, Phase 9 decommission + `v3.0.0` final tag. NAS still runs
-rc4 at the time — those `src/` changes shipped in `v3.0.0-rc5` on
-2026-07-24, together with the read-surface batch above.
-
-**Status:** v3 live on NAS 2026-05-06; current image
-`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc5` on stack 151 (rc1 →
-rc2 → rc3 within the cutover day, rc4 on 2026-05-11 with the
-rate-limit + project-CRUD batch, rc5 on 2026-07-24 with the 2026-07-02
-hardening batch + the read-surface/delete-safety batch; see
-[docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
-for the full account). rc3 added the senior-dev review batch (265x
-semantic-search speedup via numpy, API consistency cleanups, real
-MCP smoke handshake) and cleared the 12-error ruff backlog. Cost
-of cutover: 36 v2 memories not preserved through to live v3 DB; v2
-DB intact on disk for forensic analysis. Canonical project_id is
-`fe2ef898-0152-40a4-af97-ed97cc86ca45`.
-
-**Phase progress:**
-
-- ✅ **Phase 0** — `archive/openchronicle.v2` snapshot pushed,
-  `v3/develop` branch created
-- ✅ **Phase 1** (interfaces slimmed) — Discord/asset/conversation/
-  webhook/media/hooks deletion; chat/rpc/stdio modules removed; MCP
-  tool descriptions rewritten
-- ✅ **Phase 2** (application slimmed) — orchestrator/scheduler/MoE/
-  webhook/asset/output/llm services + routing/runtime/replay/
-  observability/policies dirs deleted; ~30 use cases cut; plugins/
-  removed; container reduced to memory + embedding + git-onboard
-- ✅ **Phase 3+4** (infrastructure + domain slimmed) — combined
-  commit; sqlite_store rewritten 1882→470 LOC; schema 18→3 tables;
-  `conversation_id` dropped from MemoryItem; new `ProviderError` /
-  `ConfigError` domain exceptions; git_onboard service drops LLM
-  synthesis (caller-side now)
-- ✅ **Phase 5** (schema migration + backup + export/import) —
-  versioned `Migrator` with savepoint atomicity; `001_initial.sql`
-  baseline; `infrastructure/persistence/backup.py` (atomic .tmp →
-  rename via SQLite backup API); `oc memory export/import` with
-  `format_version=1`; `scripts/migrate_v2_to_v3.py` and
-  `scripts/verify_v3_db.py`
-- ✅ **Phase 6** (ASGI unification + `OC_LOG_FORMAT`) — FastAPI host
-  mounts FastMCP at `/mcp`; lifespan drives FastMCP's session_manager;
-  `OC_LOG_FORMAT=human|json` (default human) via
-  `interfaces/logging_setup.py`; `docker-compose.nas.yml` collapsed
-  3→1 service; Dockerfile drops dead extras
-- ✅ **Phase 6.5** (maintenance loop + embedding degradation) —
-  asyncio `MaintenanceLoop` with per-job + global locks; 5 job
-  handlers (db_backup with 7-backup retention, db_vacuum runs
-  db_backup first, db_integrity_check toggles
-  `container.maintenance_degraded`, embedding_backfill,
-  git_onboard_resync); `/api/v1/maintenance/status` endpoint;
-  `oc maintenance` CLI; `EmbeddingService.search_hybrid` falls back
-  to FTS5-only on provider failure; `embedding_status_dict` reports
-  `degraded`/`active`
-- ✅ **Phase 7** (docs sweep + repo polish) — every doc classified
-  (update / archive to `docs/archive/v2/` / delete); v3 docs
-  rewritten; three new docs (api/STABILITY.md,
-  configuration/security_posture.md, architecture/MAINTENANCE.md);
-  README rewritten per V3_PLAN voice rules; pyproject v3.0.0.dev0;
-  v2 cruft swept from configs/fixtures/CI/scripts
-- ✅ **Audit pass** (post-Phase 7, commit `6a667db`) — folder-by-folder
-  walk of all 187 tracked files. Dropped `application/services/context_builder.py`
-  (imported deleted Conversation/Turn, zero callers), empty `domain/services/`,
-  4 dead `RuntimePaths` fields, ~20 dead error codes, `load_plugin_config()`,
-  v2 model + router_assist template writers, vacuous `tests/test_policies_purity.py`,
-  unused `tests/helpers/subprocess_env.py`. 345 tests passing.
-- ✅ **Phase 8 prep** (CI + tag flow + Dependabot + runbook
-  tightening) — GHA workflows now trigger on `v3/develop` too (was
-  main-only, meaning 9 commits had no CI signal); `docker-publish.yml`
-  gains a `tags: ["v*"]` trigger + `type=ref,event=tag` metadata so
-  `git tag v3.0.0-rc1 && git push --tags` produces the matching
-  Docker tag without flipping `:latest`. New `Retag GHCR Image`
-  workflow_dispatch utility for the `:v2-final` rollback target
-  (and future release-alias housekeeping). New
-  `.github/dependabot.yml` covering pip + github-actions + docker
-  (weekly Mondays, grouped minor/patch, currently target
-  `v3/develop` — flip to default branch post-cutover per the
-  Phase 9 Day 0 checklist). Phase 8 runbook tightened with the
-  retag command, the rc tag flow, and the force-push step.
-- ✅ **Phase 8** (NAS cutover, 2026-05-06) — **shipped, with turbulence.**
-  Force-push `v3/develop` → `main` succeeded; `v3.0.0-rc1` Docker image
-  built and live; v3 stack deployed at `:18000/mcp`. Two unplanned
-  recoveries: (1) the prior session's migrated DB was corrupt by the
-  time v3 first opened it (root cause unconfirmed — likely orphan
-  `-wal`/`-shm` files at the destination path; possibly compounded by
-  `verify_v3_db.py` doing only superficial checks rather than
-  `PRAGMA integrity_check`). Recovery: abandoned migration, restarted
-  v3 against a fresh empty volume; v3 booted clean. (2) `:v2-final`
-  retag failed first attempt due to lowercase IMAGE_NAME bug in the
-  workflow; fixed in commit `6ae71812` and re-captured by tagging
-  the v2 build SHA `bb217d9` directly. Full triage at
-  [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
-  with a 12-item punch list.
-- ✅ **Triage punch list closed** (rolled up 2026-05-06). All 12 original
-  items + 3 post-cutover MCP-transport items are DONE, deferred to a
-  separate repo (portainer-mcp 400 bug), or date-gated to Phase 9. See
-  [docs/cutover-2026-05-06-triage.md](docs/cutover-2026-05-06-triage.md)
-  punch list section for the per-item disposition with commit refs.
-- ✅ **Rate-limiter ceiling raised** (2026-05-11). `_DEFAULT_RPM`
-  bumped 120 → 600 in `interfaces/api/middleware/rate_limit.py`;
-  `.env.example` and `docs/configuration/env_vars.md` reconciled
-  (both previously claimed `60`, a pre-existing drift). Discovered
-  during mnemosyne-mcp Phase C: `mnemo_continue`'s 7-sequential
-  `memory_search` burst tripped the limit under integration-test
-  loads. Closes one item from V3_PLAN.md "Post-cutover follow-ups".
-  Bulk-search endpoint (option (b)) remains on the backlog.
-- ✅ **Project CRUD surface completed** (2026-05-11). Added
-  `project_get`, `project_update`, `project_delete` across the
-  StoragePort, use cases, REST routes, MCP tools, and CLI; brings
-  the project entity to full CRUD parity with memory. `project_delete`
-  has a `confirm: bool = False` preview/ok two-step shape; the
-  preview returns memory_count, and `confirm=True` cascades atomically
-  (project row + memory_items rows; memory_embeddings via existing FK).
-  In the same pass, `memory_delete` got the symmetric `confirm` flag —
-  breaking change to the previous one-shot semantic, acceptable per
-  the no-backwards-compat rule. v3 MCP surface is now 17 tools.
-  Closes the second post-cutover follow-up; rc4 will batch this with
-  the rate-limit bump.
-- ✅ **Read-surface + delete-safety batch** (2026-07-23). Eight commits
-  working the three `mcp-feedback` OC memories filed from dogfooding OC
-  through its own client sessions, plus the adjacent defects on the same
-  code paths. Closes five post-cutover follow-ups: project-scoped
-  `memory_list`, required `confirm` on both delete surfaces, filtering +
-  projection on the read tools, bounded `onboard_git` cluster detail, and
-  bulk project delete — plus a version/capability signal on `health` and
-  `memory_stats` routed through `count_memory`. Fixed in passing:
-  `onboard_git`'s watermark never advancing past a filtered-out HEAD,
-  `oc version` always printing "unknown", and a hardcoded version in
-  `api/app.py` that had drifted from pyproject. MCP surface 17 → 18 tools;
-  433 → 510 tests.
-- pending: Phase 9 (decommission, Day 7+ post-cutover, earliest
-  2026-05-13) — also tracks **dependency audit** as a tech-debt
-  follow-up (`docs/V3_PLAN.md` "Post-cutover follow-ups").
-
-**Locked decisions** (open questions 1, 4, 6, 13, 14, 19): drop
-`memory_items.conversation_id`; unified ASGI on port `:18000`; cut
-plugin system entirely; MCP tool description quality pass done; ship
-`oc memory export/import` day 1; `OC_LOG_FORMAT=human|json` default
-human.
+**Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
+drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
+cut plugin system entirely; MCP tool description quality pass done;
+ship `oc memory export/import` day 1; `OC_LOG_FORMAT=human|json`
+default human.
 
 See [docs/V3_PLAN.md](docs/V3_PLAN.md) for the canonical phase tracker
-and [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for the
-v2 → v3 delta.
+and [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for
+current state.
 
 ## Build and Development
 
@@ -675,6 +394,7 @@ the LLM, so OC's role is memory/retrieval only.
 ## Key Files
 
 - `pyproject.toml` — Project config, dependencies, tool settings
+- `CHANGELOG.md` — release history (rc1 → current)
 - `docs/architecture/ARCHITECTURE.md` — v3 layout + schema + ASGI design
 - `docs/architecture/MAINTENANCE.md` — maintenance loop + degradation policy
 - `docs/cli/commands.md` — `oc` subcommand reference

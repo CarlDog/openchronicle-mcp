@@ -2,8 +2,17 @@
 
 **Status:** **SHIPPED 2026-05-06.** v3 is live on the NAS at
 `http://your-nas:18000` (HTTP `/api/v1/*`, MCP `/mcp`). This document
-is now historical reference for the design decisions and phase plan;
-it is no longer the active runbook.
+is historical reference for the design decisions and phase plan —
+**except two sections that are declared LIVE and receive updates**
+(the ambiguity was a 2026-08-15 review finding: the freshest state was
+accumulating in a doc that disclaimed being current):
+
+- **"Post-cutover follow-ups (tech debt)"** — the project backlog.
+- **"Open Questions" 20-22** — active research threads.
+
+Current state lives in
+[CODEBASE_ASSESSMENT.md](CODEBASE_ASSESSMENT.md); releases in
+[CHANGELOG.md](../CHANGELOG.md).
 **Branch:** `main` (force-pushed from `v3/develop` during Phase 8 cutover).
 **v2 archive:** `archive/openchronicle.v2` at `bb217d9` (frozen, immutable).
 **Cutover artifacts:** Docker image `:v3.0.0-rc1`; rollback target
