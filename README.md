@@ -72,8 +72,8 @@ Docker (single container, NAS-friendly):
 docker run --rm \
   -p 8000:8000 \
   -e OC_API_HOST=0.0.0.0 \
-  -v $(pwd)/data:/data \
-  -v $(pwd)/config:/config \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/config:/app/config \
   ghcr.io/carldog/openchronicle-mcp:latest
 ```
 

@@ -11,7 +11,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml README.md ./
-COPY src ./src
 
 RUN python -m venv /venv \
     # Upgrade install tooling first to dodge CVEs that ship with the base
@@ -19,7 +18,18 @@ RUN python -m venv /venv \
     # pip-audit at the time this was pinned). v3 only needs MCP + the
     # embedding providers (OpenAI / Ollama).
     && /venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp]"
+    # Dependency layer: install against a stub package so source edits
+    # don't invalidate this slow, network-bound layer. Before this split,
+    # COPY src preceded the install and every code push re-resolved and
+    # re-downloaded the full dependency set from PyPI — the CI build
+    # cache could never serve it.
+    && mkdir -p src/openchronicle \
+    && touch src/openchronicle/__init__.py \
+    && /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp]" \
+    && /venv/bin/pip uninstall -y openchronicle-mcp
+
+COPY src ./src
+RUN /venv/bin/pip install --no-cache-dir --no-deps .
 
 # ---- runtime stage ----------------------------------------------------------
 FROM python:3.14-slim
