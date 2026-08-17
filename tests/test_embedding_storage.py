@@ -50,14 +50,6 @@ def test_get_returns_none_for_missing() -> None:
     assert store.get_embedding("nonexistent") is None
 
 
-def test_delete_embedding() -> None:
-    store = _make_store()
-    _add_memory(store, "mem-1")
-    store.save_embedding("mem-1", [0.1, 0.2], model="test")
-    store.delete_embedding("mem-1")
-    assert store.get_embedding("mem-1") is None
-
-
 def test_cascade_delete() -> None:
     """Deleting memory should remove its embedding via CASCADE."""
     store = _make_store()

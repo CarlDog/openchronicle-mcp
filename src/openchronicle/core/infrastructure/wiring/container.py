@@ -29,7 +29,6 @@ class CoreContainer:
         self,
         db_path: str | None = None,
         config_dir: str | None = None,
-        plugin_dir: str | None = None,
         output_dir: str | None = None,
         *,
         paths: RuntimePaths | None = None,
@@ -38,7 +37,6 @@ class CoreContainer:
             paths = RuntimePaths.resolve(
                 db_path=db_path,
                 config_dir=config_dir,
-                plugin_dir=plugin_dir,
                 output_dir=output_dir,
             )
         self.paths = paths

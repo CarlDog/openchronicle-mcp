@@ -484,12 +484,6 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return result
 
     @_locked
-    def delete_embedding(self, memory_id: str) -> None:
-        cur = self._conn.cursor()
-        cur.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (memory_id,))
-        self._commit_if_needed()
-
-    @_locked
     def count_embeddings(self) -> int:
         cur = self._conn.cursor()
         row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings").fetchone()

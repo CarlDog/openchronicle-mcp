@@ -196,7 +196,6 @@ class TestMemorySearch:
         register(mcp)
 
         # Call the function directly (registered tools are wrapped)
-        container.storage.search = MagicMock(return_value=[_sample_memory()])
 
         with patch(
             "openchronicle.interfaces.mcp.tools.memory.search_memory.execute",

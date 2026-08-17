@@ -25,47 +25,6 @@ from pathlib import Path
 _logger = logging.getLogger(__name__)
 
 
-def backup_to(src_db_path: Path | str, dest_db_path: Path | str) -> Path:
-    """Snapshot ``src_db_path`` to ``dest_db_path`` atomically.
-
-    The source connection can have writers in flight; SQLite's online
-    backup API copies pages safely. Returns the destination ``Path``
-    on success. Raises whatever sqlite3 raises on failure (the caller
-    handles logging/retry).
-    """
-    src = Path(src_db_path)
-    dest = Path(dest_db_path)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-
-    tmp = dest.with_name(dest.name + ".tmp")
-    if tmp.exists():
-        tmp.unlink()
-
-    src_conn = sqlite3.connect(str(src))
-    try:
-        # NOTE: ``with sqlite3.connect(...) as conn`` only commits/rollbacks
-        # on exit — it does NOT close the connection. The file handle stays
-        # open. POSIX tolerates renaming an open file; Windows does not
-        # ([WinError 32]). Close the destination connection explicitly
-        # before ``os.replace``.
-        dst_conn = sqlite3.connect(str(tmp))
-        try:
-            src_conn.backup(dst_conn)
-        finally:
-            dst_conn.close()
-        os.replace(tmp, dest)
-    except Exception:
-        if tmp.exists():
-            with contextlib.suppress(OSError):
-                tmp.unlink()
-        raise
-    finally:
-        src_conn.close()
-
-    _logger.info("Online backup written: %s (%d bytes)", dest, dest.stat().st_size)
-    return dest
-
-
 def backup_from_connection(conn: sqlite3.Connection, dest_db_path: Path | str) -> Path:
     """Snapshot from an open connection (e.g. SqliteStore._conn).
 

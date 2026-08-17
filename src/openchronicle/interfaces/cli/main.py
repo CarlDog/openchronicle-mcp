@@ -173,10 +173,8 @@ def main(argv: list[str] | None = None) -> int:
     onboard_git_cmd.add_argument("--dry-run", dest="dry_run", action="store_true", help="Show clusters without saving")
 
     # --- System commands ---
-    init_cmd = sub.add_parser("init", help="Initialize runtime directories and optional templates")
+    init_cmd = sub.add_parser("init", help="Initialize runtime directories")
     init_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
-    init_cmd.add_argument("--force", action="store_true", help="Overwrite templates if they exist")
-    init_cmd.add_argument("--no-templates", action="store_true", help="Skip template file creation")
 
     config_cmd = sub.add_parser("config", help="Configuration commands")
     config_sub = config_cmd.add_subparsers(dest="config_command")

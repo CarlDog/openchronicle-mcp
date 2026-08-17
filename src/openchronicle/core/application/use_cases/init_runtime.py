@@ -19,18 +19,8 @@ def resolve_runtime_paths() -> RuntimePaths:
     return RuntimePaths.resolve()
 
 
-def execute(
-    paths: RuntimePaths,
-    *,
-    write_templates: bool = True,  # noqa: ARG001 - kept for kwarg stability
-    force: bool = False,  # noqa: ARG001 - kept for kwarg stability
-) -> dict[str, Any]:
-    """Ensure the v3 path tree exists. Returns a status dict.
-
-    ``write_templates`` and ``force`` are accepted for caller stability
-    but no longer write anything — v3 has no templates beyond the
-    `core.json.example` baked into the image.
-    """
+def execute(paths: RuntimePaths) -> dict[str, Any]:
+    """Ensure the v3 path tree exists. Returns a status dict."""
     paths_result = {
         "db_path": _ensure_parent(paths.db_path),
         "config_dir": _ensure_dir(paths.config_dir),

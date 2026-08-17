@@ -63,7 +63,6 @@ class RuntimePaths:
         output_dir: str | Path | None = None,
         # Accepted but ignored for backwards-compatible callers (e.g.
         # CLI flags / kwargs that haven't been pruned in lock step).
-        plugin_dir: str | Path | None = None,  # noqa: ARG003 - accepted for kwarg stability
     ) -> RuntimePaths:
         """Build ``RuntimePaths`` with four-layer precedence.
 

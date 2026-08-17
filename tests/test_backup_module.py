@@ -26,18 +26,6 @@ def _seeded_store(tmp_path: Path) -> SqliteStore:
     return store
 
 
-def test_backup_to_creates_destination(tmp_path: Path) -> None:
-    store = _seeded_store(tmp_path)
-    src_path = store.db_path
-    store.close()
-
-    dest = tmp_path / "out.db"
-    result = backup.backup_to(src_path, dest)
-    assert result == dest
-    assert dest.is_file()
-    assert dest.stat().st_size > 0
-
-
 def test_backup_from_connection_preserves_rows(tmp_path: Path) -> None:
     store = _seeded_store(tmp_path)
     dest = tmp_path / "out.db"

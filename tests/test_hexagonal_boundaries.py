@@ -114,28 +114,9 @@ def test_core_has_no_interfaces_imports() -> None:
         raise AssertionError(msg)
 
 
-def test_core_has_no_interfaces_discord_imports() -> None:
-    """
-    Core layers must not import from interfaces.discord.
-
-    Discord is a driving adapter that depends on core, not the reverse.
-    Core must remain runnable without Discord installed.
-    """
-    src_root = Path(__file__).parent.parent / "src"
-    core_path = src_root / "openchronicle" / "core"
-
-    violations = _scan_layer_for_forbidden_imports(
-        core_path,
-        [
-            "openchronicle.interfaces.discord",
-            "discord",
-        ],
-        src_root=src_root,
-    )
-
-    if violations:
-        msg = "Core has forbidden Discord imports:\n" + "\n".join(f"  - {v}" for v in violations)
-        raise AssertionError(msg)
+# (test_core_has_no_interfaces_discord_imports was deleted 2026-08-17:
+# it guarded imports of interfaces.discord, an interface Phase 1 removed
+# entirely — the general no-interfaces guard above covers any revival.)
 
 
 def test_core_has_no_interfaces_mcp_imports() -> None:

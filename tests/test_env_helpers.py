@@ -6,43 +6,10 @@ import pytest
 
 from openchronicle.core.application.config.env_helpers import (
     env_override,
-    parse_bool,
     parse_float,
     parse_int,
     parse_str,
-    parse_str_list,
 )
-
-# ---------- parse_bool ----------
-
-
-class TestParseBool:
-    def test_none_returns_default_true(self) -> None:
-        assert parse_bool(None, default=True) is True
-
-    def test_none_returns_default_false(self) -> None:
-        assert parse_bool(None, default=False) is False
-
-    def test_native_true(self) -> None:
-        assert parse_bool(True, default=False) is True
-
-    def test_native_false(self) -> None:
-        assert parse_bool(False, default=True) is False
-
-    @pytest.mark.parametrize("value", ["1", "true", "True", "TRUE", "yes", "Yes", "on", "ON"])
-    def test_truthy_strings(self, value: str) -> None:
-        assert parse_bool(value, default=False) is True
-
-    @pytest.mark.parametrize("value", ["0", "false", "False", "FALSE", "no", "off", ""])
-    def test_falsy_strings(self, value: str) -> None:
-        assert parse_bool(value, default=True) is False
-
-    def test_whitespace_stripped(self) -> None:
-        assert parse_bool("  true  ", default=False) is True
-
-    def test_non_string_non_bool_returns_default(self) -> None:
-        assert parse_bool(42, default=True) is True
-
 
 # ---------- parse_int ----------
 
@@ -121,35 +88,6 @@ class TestParseStr:
 
     def test_non_string_coerced(self) -> None:
         assert parse_str(42, default="x") == "42"
-
-
-# ---------- parse_str_list ----------
-
-
-class TestParseStrList:
-    def test_none_returns_default(self) -> None:
-        assert parse_str_list(None, default=["a", "b"]) == ["a", "b"]
-
-    def test_list_passthrough(self) -> None:
-        assert parse_str_list(["x", "y"], default=[]) == ["x", "y"]
-
-    def test_list_filters_empties(self) -> None:
-        assert parse_str_list(["a", "", "  ", "b"], default=[]) == ["a", "b"]
-
-    def test_csv_string(self) -> None:
-        assert parse_str_list("a, b, c", default=[]) == ["a", "b", "c"]
-
-    def test_csv_filters_empties(self) -> None:
-        assert parse_str_list("a,,b,,", default=[]) == ["a", "b"]
-
-    def test_non_string_non_list_returns_default(self) -> None:
-        assert parse_str_list(42, default=["x"]) == ["x"]
-
-    def test_default_is_copied(self) -> None:
-        default = ["orig"]
-        result = parse_str_list(None, default=default)
-        result.append("added")
-        assert default == ["orig"]
 
 
 # ---------- env_override ----------

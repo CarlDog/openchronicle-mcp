@@ -62,11 +62,6 @@ class TestExplicitParams:
         paths = RuntimePaths.resolve(db_path=Path("/x/y.db"))
         assert paths.db_path == Path("/x/y.db")
 
-    def test_plugin_dir_kwarg_accepted_but_ignored(self) -> None:
-        """v2 callers may still pass plugin_dir; v3 silently drops it."""
-        paths = RuntimePaths.resolve(plugin_dir="/legacy/plugins")
-        assert not hasattr(paths, "plugin_dir")
-
 
 class TestPerPathEnvVars:
     """Per-path env vars override defaults (layer 2)."""

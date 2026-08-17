@@ -13,22 +13,6 @@ import os
 _logger = logging.getLogger(__name__)
 
 
-def parse_bool(value: object, *, default: bool) -> bool:
-    """Parse a boolean from string, native bool, or None.
-
-    Truthy strings: "1", "true", "yes", "on" (case-insensitive).
-    Falsy strings: "0", "false", "no", "off" (case-insensitive).
-    Native bools pass through. None returns default.
-    """
-    if value is None:
-        return default
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.strip().lower() in {"1", "true", "yes", "on"}
-    return default
-
-
 def parse_int(value: object, *, default: int) -> int:
     """Parse an integer from string, native int, or None.
 
@@ -79,22 +63,6 @@ def parse_str(value: object, *, default: str) -> str:
     if isinstance(value, str):
         return value if value else default
     return str(value)
-
-
-def parse_str_list(value: object, *, default: list[str]) -> list[str]:
-    """Parse a list of strings from a JSON array or CSV string.
-
-    - list[str]: pass through (filtering empties)
-    - str: split on commas, strip, filter empties
-    - None: return default
-    """
-    if value is None:
-        return list(default)
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    if isinstance(value, str):
-        return [item.strip() for item in value.split(",") if item.strip()]
-    return list(default)
 
 
 def parse_int_env(raw: str | None, *, default: int, name: str) -> int:

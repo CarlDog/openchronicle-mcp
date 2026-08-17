@@ -49,17 +49,17 @@ class MCPConfig:
         """Load config from environment variables with file_config fallback."""
         fc = file_config or {}
 
-        transport = os.environ.get("OC_MCP_TRANSPORT", "").strip() or _str_or_default(fc.get("transport"), "stdio")
+        transport = os.environ.get("OC_MCP_TRANSPORT", "").strip() or str_or_default(fc.get("transport"), "stdio")
         if transport not in ("stdio", "sse", "streamable-http"):
             raise ValueError(f"Invalid MCP transport: {transport!r}. Must be 'stdio', 'sse', or 'streamable-http'.")
 
-        host = os.environ.get("OC_MCP_HOST", "").strip() or _str_or_default(fc.get("host"), "127.0.0.1")
+        host = os.environ.get("OC_MCP_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
         port_file = fc.get("port")
         default_port = port_file if isinstance(port_file, int) else 8080
         port = parse_int_env(os.environ.get("OC_MCP_PORT"), default=default_port, name="OC_MCP_PORT")
 
-        server_name = _str_or_default(fc.get("server_name"), "openchronicle")
+        server_name = str_or_default(fc.get("server_name"), "openchronicle")
 
         allowed_hosts = parse_allowed_hosts(
             os.environ.get("OC_MCP_ALLOWED_HOSTS"),
@@ -97,7 +97,7 @@ def parse_allowed_hosts(
     return DEFAULT_ALLOWED_HOSTS
 
 
-def _str_or_default(value: object, default: str) -> str:
+def str_or_default(value: object, default: str) -> str:
     """Return value as str if truthy, else default."""
     if isinstance(value, str) and value.strip():
         return value.strip()

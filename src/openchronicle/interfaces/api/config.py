@@ -7,7 +7,11 @@ import os
 from dataclasses import dataclass
 
 from openchronicle.core.application.config.env_helpers import parse_int_env
-from openchronicle.interfaces.mcp.config import DEFAULT_ALLOWED_HOSTS, parse_allowed_hosts
+from openchronicle.interfaces.mcp.config import (
+    DEFAULT_ALLOWED_HOSTS,
+    parse_allowed_hosts,
+    str_or_default,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -42,7 +46,7 @@ class HTTPConfig:
         """Load config from environment variables with file_config fallback."""
         fc = file_config or {}
 
-        host = os.environ.get("OC_API_HOST", "").strip() or _str_or_default(fc.get("host"), "127.0.0.1")
+        host = os.environ.get("OC_API_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
         port_file = fc.get("port")
         default_port = port_file if isinstance(port_file, int) else 8000
@@ -53,7 +57,7 @@ class HTTPConfig:
             _logger.warning("OC_API_PORT %d out of range; using default %d", port, default_port)
             port = default_port if 1 <= default_port <= 65535 else 8000
 
-        api_key = (os.environ.get("OC_API_KEY", "").strip() or _str_or_default(fc.get("api_key"), "")) or None
+        api_key = (os.environ.get("OC_API_KEY", "").strip() or str_or_default(fc.get("api_key"), "")) or None
 
         allowed_hosts = parse_allowed_hosts(
             os.environ.get("OC_API_ALLOWED_HOSTS") or os.environ.get("OC_MCP_ALLOWED_HOSTS"),
@@ -61,10 +65,3 @@ class HTTPConfig:
         )
 
         return cls(host=host, port=port, api_key=api_key, allowed_hosts=allowed_hosts)
-
-
-def _str_or_default(value: object, default: str) -> str:
-    """Return value as str if truthy, else default."""
-    if isinstance(value, str) and value.strip():
-        return value.strip()
-    return default

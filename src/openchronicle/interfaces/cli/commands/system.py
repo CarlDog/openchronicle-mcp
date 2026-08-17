@@ -106,7 +106,7 @@ def cmd_config_show(args: argparse.Namespace) -> int:
 
 def cmd_init(args: argparse.Namespace) -> int:
     paths = init_runtime.resolve_runtime_paths()
-    result = init_runtime.execute(paths, write_templates=not args.no_templates, force=args.force)
+    result = init_runtime.execute(paths)
     if args.json:
         print_json(result)
         return 0

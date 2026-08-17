@@ -3,15 +3,6 @@
 from __future__ import annotations
 
 import json
-from typing import Any
-
-
-def parse_json(value: str) -> dict[str, Any]:
-    try:
-        result: dict[str, Any] = json.loads(value)
-        return result
-    except json.JSONDecodeError:
-        return {"raw": value}
 
 
 def print_json(payload: dict[str, object]) -> None:
