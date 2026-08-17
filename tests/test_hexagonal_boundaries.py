@@ -1,143 +1,122 @@
 """Test hexagonal architecture boundaries.
 
-Enforces four boundaries:
-1. Domain layer must not import from application or infrastructure.
-2. Application layer must not import from infrastructure.
-3. Core (domain + application + infrastructure) must not import from any interface.
-4. Per-interface tests for Discord and MCP (catch library imports too).
+Enforces the layering with an AST scanner (see
+``tests/helpers/import_scan.py``) since 2026-08-17 — the previous regex
+scanner was anchored at column 0, so TYPE_CHECKING and function-body
+imports bypassed it entirely (2026-08-15 review finding; two real
+type-level leaks rode through the hole).
+
+1. Domain must not import from application or infrastructure.
+2. Application must not import from infrastructure — with two
+   enumerated TYPE_CHECKING exemptions (below).
+3. Core (domain + application + infrastructure) must not import from
+   any interface.
+4. Core must not import the MCP SDK.
 """
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
+from tests.helpers.import_scan import find_forbidden_imports
 
-def _scan_layer_for_forbidden_imports(
-    layer_path: Path,
-    forbidden_patterns: list[str],
-    *,
-    src_root: Path,
-) -> list[str]:
-    """Scan all .py files in *layer_path* for forbidden import strings.
+_SRC_ROOT = Path(__file__).parent.parent / "src"
 
-    Returns a list of human-readable violation descriptions.
-    """
-    violations: list[str] = []
+# The container-as-opaque-token pragmatism, enumerated: these two
+# application modules name CoreContainer in type annotations only —
+# maintenance job handlers receive it as an opaque context token, and
+# build_health_payload assembles the container-backed health payload
+# shared by both surfaces. Neither imports infrastructure at runtime.
+# Anything beyond these two pairs is a violation; extend this set only
+# with the same documented deliberateness.
+_TYPE_CHECKING_ALLOWED = frozenset(
+    {
+        (
+            "openchronicle/core/application/services/maintenance_loop.py",
+            "openchronicle.core.infrastructure",
+        ),
+        (
+            "openchronicle/core/application/use_cases/diagnose_runtime.py",
+            "openchronicle.core.infrastructure",
+        ),
+    }
+)
 
-    for py_file in layer_path.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
 
-        content = py_file.read_text(encoding="utf-8")
-        rel = py_file.relative_to(src_root)
-
-        for pattern in forbidden_patterns:
-            # Match actual import statements, not docstrings / comments
-            if re.search(rf"^(?:from|import)\s+{re.escape(pattern)}", content, re.MULTILINE):
-                violations.append(f"{rel}: imports {pattern}")
-
-    return violations
+def _assert_clean(violations: list[str], label: str) -> None:
+    if violations:
+        raise AssertionError(f"{label}:\n" + "\n".join(f"  - {v}" for v in violations))
 
 
 def test_domain_layer_has_no_application_infrastructure_imports() -> None:
-    """
-    Domain layer must not import from application or infrastructure layers.
-
-    This enforces hexagonal architecture where:
-    - domain: pure business logic (models, ports, exceptions, domain services)
-    - application: orchestration and use cases
-    - infrastructure: adapters and implementations
-    """
-    src_root = Path(__file__).parent.parent / "src"
-    domain_path = src_root / "openchronicle" / "core" / "domain"
-
-    violations = _scan_layer_for_forbidden_imports(
-        domain_path,
-        [
-            "openchronicle.core.application",
-            "openchronicle.core.infrastructure",
-        ],
-        src_root=src_root,
+    violations = find_forbidden_imports(
+        _SRC_ROOT / "openchronicle" / "core" / "domain",
+        ["openchronicle.core.application", "openchronicle.core.infrastructure"],
+        src_root=_SRC_ROOT,
     )
-
-    if violations:
-        msg = "Domain layer has forbidden imports:\n" + "\n".join(f"  - {v}" for v in violations)
-        raise AssertionError(msg)
+    _assert_clean(violations, "Domain layer has forbidden imports")
 
 
 def test_application_layer_has_no_infrastructure_imports() -> None:
-    """
-    Application layer must not import from infrastructure layer.
-
-    The composition root (wiring) lives in infrastructure. Application
-    use-cases, services, and policies depend only on domain ports and
-    application-level config, never on concrete infrastructure.
-    """
-    src_root = Path(__file__).parent.parent / "src"
-    application_path = src_root / "openchronicle" / "core" / "application"
-
-    violations = _scan_layer_for_forbidden_imports(
-        application_path,
-        [
-            "openchronicle.core.infrastructure",
-        ],
-        src_root=src_root,
+    violations = find_forbidden_imports(
+        _SRC_ROOT / "openchronicle" / "core" / "application",
+        ["openchronicle.core.infrastructure"],
+        src_root=_SRC_ROOT,
+        type_checking_allowed=_TYPE_CHECKING_ALLOWED,
     )
-
-    if violations:
-        msg = "Application layer has forbidden infrastructure imports:\n" + "\n".join(f"  - {v}" for v in violations)
-        raise AssertionError(msg)
+    _assert_clean(violations, "Application layer has forbidden infrastructure imports")
 
 
 def test_core_has_no_interfaces_imports() -> None:
-    """
-    Core layers must not import from any interfaces module.
-
-    Interfaces (CLI, Discord, MCP, RPC) are driving adapters that depend
-    on core, not the reverse. This catches any current or future interface
-    leaking into core.
-    """
-    src_root = Path(__file__).parent.parent / "src"
-    core_path = src_root / "openchronicle" / "core"
-
-    violations = _scan_layer_for_forbidden_imports(
-        core_path,
-        [
-            "openchronicle.interfaces",
-        ],
-        src_root=src_root,
+    violations = find_forbidden_imports(
+        _SRC_ROOT / "openchronicle" / "core",
+        ["openchronicle.interfaces"],
+        src_root=_SRC_ROOT,
     )
-
-    if violations:
-        msg = "Core has forbidden interfaces imports:\n" + "\n".join(f"  - {v}" for v in violations)
-        raise AssertionError(msg)
-
-
-# (test_core_has_no_interfaces_discord_imports was deleted 2026-08-17:
-# it guarded imports of interfaces.discord, an interface Phase 1 removed
-# entirely — the general no-interfaces guard above covers any revival.)
+    _assert_clean(violations, "Core has forbidden interfaces imports")
 
 
 def test_core_has_no_interfaces_mcp_imports() -> None:
-    """
-    Core layers must not import from interfaces.mcp.
-
-    MCP is a driving adapter that depends on core, not the reverse.
-    Core must remain runnable without MCP SDK installed.
-    """
-    src_root = Path(__file__).parent.parent / "src"
-    core_path = src_root / "openchronicle" / "core"
-
-    violations = _scan_layer_for_forbidden_imports(
-        core_path,
-        [
-            "openchronicle.interfaces.mcp",
-            "mcp",
-        ],
-        src_root=src_root,
+    """Core must remain runnable without the MCP SDK installed."""
+    violations = find_forbidden_imports(
+        _SRC_ROOT / "openchronicle" / "core",
+        ["openchronicle.interfaces.mcp", "mcp"],
+        src_root=_SRC_ROOT,
     )
+    _assert_clean(violations, "Core has forbidden MCP imports")
 
-    if violations:
-        msg = "Core has forbidden MCP imports:\n" + "\n".join(f"  - {v}" for v in violations)
-        raise AssertionError(msg)
+
+class TestScannerSeesWhatTheRegexMissed:
+    """Self-test pinning the exact holes the 2026-08-15 review found."""
+
+    @staticmethod
+    def _scan(tmp_path: Path, source: str) -> list[str]:
+        pkg = tmp_path / "app" / "core" / "sub"
+        pkg.mkdir(parents=True)
+        (tmp_path / "app" / "__init__.py").write_text("", encoding="utf-8")
+        (tmp_path / "app" / "core" / "__init__.py").write_text("", encoding="utf-8")
+        pkg.joinpath("__init__.py").write_text("", encoding="utf-8")
+        pkg.joinpath("mod.py").write_text(source, encoding="utf-8")
+        return find_forbidden_imports(tmp_path / "app", ["app.forbidden"], src_root=tmp_path)
+
+    def test_detects_type_checking_import(self, tmp_path: Path) -> None:
+        source = "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from app.forbidden import x\n"
+        violations = self._scan(tmp_path, source)
+        assert len(violations) == 1
+        assert "(TYPE_CHECKING)" in violations[0]
+
+    def test_detects_function_body_import(self, tmp_path: Path) -> None:
+        source = "def f():\n    import app.forbidden\n    return app.forbidden\n"
+        assert len(self._scan(tmp_path, source)) == 1
+
+    def test_resolves_relative_imports(self, tmp_path: Path) -> None:
+        # From app/core/sub/mod.py, `from ...forbidden import x` is
+        # app.forbidden — invisible to any absolute-name regex.
+        source = "from ...forbidden import x\n"
+        assert len(self._scan(tmp_path, source)) == 1
+
+    def test_clean_module_and_prefix_confusion(self, tmp_path: Path) -> None:
+        # 'app.forbidden' must not match 'app.forbidden_not' (prefix
+        # match is segment-aware), and stdlib imports never match.
+        source = "import os\nfrom app.forbidden_not import x\n"
+        assert self._scan(tmp_path, source) == []

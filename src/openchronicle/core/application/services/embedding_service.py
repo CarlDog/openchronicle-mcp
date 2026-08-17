@@ -4,13 +4,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
-
-if TYPE_CHECKING:
-    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +33,7 @@ class BackfillResult:
 class EmbeddingService:
     """Coordinates embedding generation and hybrid (FTS5 + semantic) search."""
 
-    def __init__(self, port: EmbeddingPort, store: SqliteStore) -> None:
+    def __init__(self, port: EmbeddingPort, store: MemoryStorePort) -> None:
         self._port = port
         self._store = store
         # Degraded-search bookkeeping — flips on when the embedding

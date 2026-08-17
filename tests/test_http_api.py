@@ -6,7 +6,6 @@ paths), and architectural posture (no core → interfaces/api imports).
 
 from __future__ import annotations
 
-import re
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -27,35 +26,27 @@ _FIXED_DT = datetime(2026, 1, 1, tzinfo=UTC)
 # ---------------------------------------------------------------------------
 
 
-def _scan_for_forbidden_imports(base_path: Path, forbidden: list[str]) -> list[str]:
-    violations: list[str] = []
-    for py_file in base_path.rglob("*.py"):
-        if "__pycache__" in str(py_file):
-            continue
-        content = py_file.read_text(encoding="utf-8")
-        rel = py_file.relative_to(_SRC_ROOT)
-        for pattern in forbidden:
-            if re.search(rf"^(?:from|import)\s+{re.escape(pattern)}", content, re.MULTILINE):
-                violations.append(f"{rel}: imports {pattern}")
-    return violations
-
-
 class TestHTTPAPIPosture:
-    """Core must not import from interfaces.api or FastAPI/uvicorn."""
+    """Core must not import from interfaces.api or FastAPI/uvicorn.
+
+    AST-scanned since 2026-08-17 (shared helper) — the local regex twin
+    had the same column-0 blind spot the boundary guard did.
+    """
 
     def test_core_has_no_fastapi_imports(self) -> None:
+        from tests.helpers.import_scan import find_forbidden_imports
+
         core_path = _SRC_ROOT / "openchronicle" / "core"
-        violations = _scan_for_forbidden_imports(core_path, ["fastapi", "uvicorn"])
+        violations = find_forbidden_imports(core_path, ["fastapi", "uvicorn"], src_root=_SRC_ROOT)
         if violations:
             msg = "Core imports fastapi/uvicorn:\n" + "\n".join(f"  - {v}" for v in violations)
             raise AssertionError(msg)
 
     def test_core_has_no_interfaces_api_imports(self) -> None:
+        from tests.helpers.import_scan import find_forbidden_imports
+
         core_path = _SRC_ROOT / "openchronicle" / "core"
-        violations = _scan_for_forbidden_imports(
-            core_path,
-            ["openchronicle.interfaces.api"],
-        )
+        violations = find_forbidden_imports(core_path, ["openchronicle.interfaces.api"], src_root=_SRC_ROOT)
         if violations:
             msg = "Core imports interfaces.api:\n" + "\n".join(f"  - {v}" for v in violations)
             raise AssertionError(msg)
