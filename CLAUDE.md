@@ -44,15 +44,16 @@
 
 ## Current Sprint
 
-**2026-08-16 — full-repo review COMPLETE.** All five batches from the
-2026-08-15 six-agent review shipped (punch list: OC memory `e22472b8`;
-report: session artifact "OpenChronicle Repo Review"). A-D deployed as
-**v3.0.0-rc6**; E (docs SSOT + test debt, 563 → 587 tests) is on main
-awaiting the next release. Sprint history lives in the status doc's
-revision table and [CHANGELOG.md](CHANGELOG.md) — this section holds
-in-flight work only. Open next: Phase 9 decommission (operator-gated
-destructive checklist), the Q20/Q21 search-surface design (V3_PLAN Open
-Questions), and the remaining V3_PLAN follow-ups.
+**2026-08-17 — post-review work continues on main.** The 2026-08-15
+six-agent review is fully shipped (A-D deployed as **v3.0.0-rc6**; E +
+polish + dead-code sweep + embedding-store port on main), and the
+Q20/Q21 **search-surface v2** landed 2026-08-17: per-result `relevance`
+scores, per-call `mode` (hybrid/keyword/semantic), and `phrase` exact
+matching across MCP/REST/CLI (582 tests). Sprint history lives in the
+status doc's revision table and [CHANGELOG.md](CHANGELOG.md) — this
+section holds in-flight work only. Open next: Phase 9 decommission
+(operator-gated destructive checklist) and the remaining V3_PLAN
+follow-ups (mcp 2.0 migration, sqlite-vec, Q22 heatmaps).
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

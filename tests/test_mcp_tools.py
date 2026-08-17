@@ -14,6 +14,7 @@ mcp_mod = pytest.importorskip("mcp")  # noqa: F841
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError  # noqa: E402
 from openchronicle.core.domain.models.memory_item import MemoryItem  # noqa: E402
 from openchronicle.core.domain.models.project import Project  # noqa: E402
+from openchronicle.core.domain.models.scored_memory import ScoredMemory  # noqa: E402
 from openchronicle.interfaces.mcp.config import MCPConfig  # noqa: E402
 from openchronicle.interfaces.mcp.server import create_server  # noqa: E402
 
@@ -199,7 +200,7 @@ class TestMemorySearch:
 
         with patch(
             "openchronicle.interfaces.mcp.tools.memory.search_memory.execute",
-            return_value=[_sample_memory()],
+            return_value=[ScoredMemory(item=_sample_memory(), channel="keyword", keyword_rank=1)],
         ) as mock_search:
             # Access the raw function
             tool_fn = mcp._tool_manager._tools["memory_search"].fn
@@ -208,7 +209,29 @@ class TestMemorySearch:
         assert len(result) == 1
         assert result[0]["content"] == "User prefers Python"
         assert result[0]["id"] == "mem-1"
+        assert result[0]["relevance"] == {"channel": "keyword", "keyword_rank": 1}
         mock_search.assert_called_once()
+
+    def test_mode_and_phrase_reach_the_use_case(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.memory import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.memory.search_memory.execute",
+            return_value=[],
+        ) as mock_search:
+            tool_fn = mcp._tool_manager._tools["memory_search"].fn
+            asyncio.run(tool_fn(query="Python", ctx=ctx, mode="keyword", phrase=True))
+
+        assert mock_search.call_args.kwargs["mode"] == "keyword"
+        assert mock_search.call_args.kwargs["phrase"] is True
 
 
 class TestMemorySave:
@@ -354,12 +377,13 @@ class TestContextRecent:
 
         with patch(
             "openchronicle.interfaces.mcp.tools.context.search_memory.execute",
-            return_value=[_sample_memory()],
+            return_value=[ScoredMemory(item=_sample_memory(), channel="keyword", keyword_rank=1)],
         ):
             tool_fn = mcp._tool_manager._tools["context_recent"].fn
             result = asyncio.run(tool_fn(ctx=ctx, query="Python"))
 
         assert len(result["memories"]) == 1
+        assert result["memories"][0]["relevance"]["channel"] == "keyword"
 
     def test_empty_without_args(self) -> None:
         container = _make_container()

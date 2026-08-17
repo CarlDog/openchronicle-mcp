@@ -25,7 +25,7 @@ from openchronicle.core.domain.exceptions import ValidationError as DomainValida
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.deps import get_container
-from openchronicle.interfaces.serializers import memory_to_dict
+from openchronicle.interfaces.serializers import memory_to_dict, scored_memory_to_dict
 
 router = APIRouter(prefix="/memory")
 
@@ -41,11 +41,16 @@ def memory_search(
     tags: str | None = None,
     offset: int = Query(default=0, ge=0),
     compact: bool = False,
+    mode: str = Query(default="hybrid", pattern="^(hybrid|keyword|semantic)$"),
+    phrase: bool = False,
 ) -> list[dict[str, Any]]:
-    """Search memory items by keyword.
+    """Search memory items; each result carries a `relevance` block.
 
     Tags parameter accepts comma-separated tag names for AND filtering.
-    `compact` swaps content for a preview plus its length.
+    `compact` swaps content for a preview plus its length. `mode`
+    selects the retrieval channel (hybrid/keyword/semantic); `phrase`
+    makes the keyword channel match the whole query as one
+    adjacent-token phrase.
     """
     tag_list = parse_csv_tags(tags)
     results = search_memory.execute(
@@ -56,8 +61,10 @@ def memory_search(
         tags=tag_list,
         offset=offset,
         embedding_service=container.embedding_service,
+        mode=mode,
+        phrase=phrase,
     )
-    return [memory_to_dict(m, compact=compact) for m in results]
+    return [scored_memory_to_dict(s, compact=compact) for s in results]
 
 
 @router.get("/stats")

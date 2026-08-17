@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 
 from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
@@ -148,13 +149,19 @@ class EmbeddingService:
         include_pinned: bool = True,
         tags: list[str] | None = None,
         offset: int = 0,
-    ) -> list[MemoryItem]:
+        phrase: bool = False,
+    ) -> list[ScoredMemory]:
         """Hybrid search: FTS5 keyword + embedding similarity via RRF.
 
         1. Run keyword search (FTS5) for ranked list A
         2. Embed query → cosine similarity → ranked list B
         3. Combine via Reciprocal Rank Fusion
-        4. Return top_k results
+        4. Return top_k results as ScoredMemory (Q20: the fused score,
+           per-channel signals, and the producing channel travel with
+           each hit instead of being discarded after ordering)
+
+        ``phrase`` applies to the keyword channel only — the query
+        embedding already encodes the full phrase on the semantic side.
         """
         effective_top_k = top_k + offset
 
@@ -179,14 +186,16 @@ class EmbeddingService:
 
         pinned_ids = {i.id for i in all_pinned}
 
-        def _page(ranked: list[MemoryItem]) -> list[MemoryItem]:
+        def _page(ranked: list[ScoredMemory]) -> list[ScoredMemory]:
             # The pinned-prepend pagination rule, in one place for both
-            # the hybrid and degraded return paths (it existed twice in
-            # this method): pinned items get a separate budget and are
-            # prepended on the FIRST page only; `offset` paginates the
-            # non-pinned ranking.
+            # the hybrid and degraded return paths: pinned items get a
+            # separate budget, surface as channel="pinned" (policy, not
+            # relevance — no scores), and are prepended on the FIRST
+            # page only; `offset` paginates the non-pinned ranking.
             page = ranked[offset : offset + top_k]
-            return list(pinned_items) + page if offset == 0 else page
+            if offset == 0:
+                return [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + page
+            return page
 
         # ── Keyword search (list A) ─────────────────────────────────────
         keyword_results = self._store.search_memory(
@@ -195,6 +204,7 @@ class EmbeddingService:
             project_id=project_id,
             include_pinned=False,
             tags=tags,
+            phrase=phrase,
         )
         keyword_results = [i for i in keyword_results if i.id not in pinned_ids]
 
@@ -228,11 +238,12 @@ class EmbeddingService:
                 self._search_failure_count,
                 exc,
             )
-            return _page(keyword_results)
+            return _page(_wrap_keyword_ranked(keyword_results))
 
         # ── RRF merge ──────────────────────────────────────────────────
         keyword_rank: dict[str, int] = {item.id: rank for rank, item in enumerate(keyword_results, start=1)}
-        semantic_rank: dict[str, int] = {mid: rank for rank, mid in enumerate(semantic_ranked, start=1)}
+        semantic_rank: dict[str, int] = {mid: rank for rank, (mid, _sim) in enumerate(semantic_ranked, start=1)}
+        semantic_sim: dict[str, float] = dict(semantic_ranked)
 
         all_ids = set(keyword_rank) | set(semantic_rank)
         # Build lookup for MemoryItem objects
@@ -271,7 +282,25 @@ class EmbeddingService:
 
         rrf_scores.sort(key=lambda x: x[1], reverse=True)
 
-        merged = [item_map[mid] for mid, _ in rrf_scores[:effective_top_k]]
+        merged: list[ScoredMemory] = []
+        for mid, score in rrf_scores[:effective_top_k]:
+            kr = keyword_rank.get(mid)
+            sim = semantic_sim.get(mid)
+            if kr is not None and sim is not None:
+                channel = "hybrid"
+            elif kr is not None:
+                channel = "keyword"
+            else:
+                channel = "semantic"
+            merged.append(
+                ScoredMemory(
+                    item=item_map[mid],
+                    channel=channel,
+                    rrf_score=score,
+                    semantic_similarity=sim,
+                    keyword_rank=kr,
+                )
+            )
         return _page(merged)
 
     def _semantic_search(
@@ -282,8 +311,8 @@ class EmbeddingService:
         tags: list[str] | None = None,
         exclude_ids: set[str] | None = None,
         limit: int = 16,
-    ) -> list[str]:
-        """Return memory IDs ranked by cosine similarity to query embedding.
+    ) -> list[tuple[str, float]]:
+        """Return (memory ID, cosine similarity) ranked by similarity.
 
         All adapters normalize at output, so dot product = cosine similarity.
         Numpy single-matmul replaces a per-item Python loop; for ~5k memories
@@ -315,7 +344,69 @@ class EmbeddingService:
         k = min(limit, scores.shape[0])
         top_unsorted = np.argpartition(-scores, k - 1)[:k] if k < scores.shape[0] else np.arange(scores.shape[0])
         top_sorted = top_unsorted[np.argsort(-scores[top_unsorted])]
-        return [ids[i] for i in top_sorted]
+        # float() — np.float32 is not JSON-serializable downstream.
+        return [(ids[i], float(scores[i])) for i in top_sorted]
+
+    def search_semantic(
+        self,
+        query: str,
+        *,
+        top_k: int = 8,
+        project_id: str | None = None,
+        include_pinned: bool = True,
+        tags: list[str] | None = None,
+        offset: int = 0,
+    ) -> list[ScoredMemory]:
+        """Pure semantic ranking (mode="semantic").
+
+        Unlike ``search_hybrid`` there is NO silent degradation: the
+        caller explicitly asked for semantic results, so a provider
+        failure raises instead of quietly returning keyword matches.
+        """
+        all_pinned = self._store.pinned_items(project_id)
+        pinned_items: list[MemoryItem] = []
+        if include_pinned:
+            pinned_items = all_pinned
+            if tags:
+                pinned_items = [i for i in all_pinned if all(t in i.tags for t in tags)]
+        pinned_ids = {i.id for i in all_pinned}
+
+        ranked = self._semantic_search(
+            query,
+            project_id=project_id,
+            tags=tags,
+            exclude_ids=pinned_ids,
+            limit=(top_k + offset) * 2,  # over-fetch: filters below discard
+        )
+
+        results: list[ScoredMemory] = []
+        for mid, sim in ranked:
+            item = self._store.get_memory(mid)
+            if item is None or item.pinned:
+                continue
+            if tags and not all(t in item.tags for t in tags):
+                continue
+            if project_id and item.project_id != project_id:
+                continue
+            results.append(ScoredMemory(item=item, channel="semantic", semantic_similarity=sim))
+
+        page = results[offset : offset + top_k]
+        if offset == 0:
+            return [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + page
+        return page
+
+
+def _wrap_keyword_ranked(items: list[MemoryItem], offset: int = 0) -> list[ScoredMemory]:
+    """Wrap a keyword-ranked item list as ScoredMemory (channel=keyword).
+
+    ``keyword_rank`` is the 1-based position in the keyword ranking —
+    position is the only honest signal the keyword channel has (raw
+    bm25 values are unbounded negatives, not worth surfacing).
+    """
+    return [
+        ScoredMemory(item=item, channel="keyword", keyword_rank=offset + rank)
+        for rank, item in enumerate(items, start=1)
+    ]
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:

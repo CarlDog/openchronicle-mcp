@@ -116,6 +116,17 @@ def main(argv: list[str] | None = None) -> int:
     memory_search_cmd.set_defaults(include_pinned=True)
     memory_search_cmd.add_argument("--offset", type=int, default=0, help="Skip first N results")
     memory_search_cmd.add_argument("--full", action="store_true", help="Print full content (for context injection)")
+    memory_search_cmd.add_argument(
+        "--mode",
+        choices=["hybrid", "keyword", "semantic"],
+        default="hybrid",
+        help="Retrieval channel (semantic requires an embedding provider)",
+    )
+    memory_search_cmd.add_argument(
+        "--phrase",
+        action="store_true",
+        help="Match the whole query as one adjacent-token phrase (keyword channel)",
+    )
 
     memory_update_cmd = memory_sub.add_parser("update", help="Update a memory item")
     memory_update_cmd.add_argument("memory_id")

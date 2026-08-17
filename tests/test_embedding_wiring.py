@@ -104,7 +104,7 @@ def test_search_memory_uses_hybrid_when_service_available() -> None:
     service.generate_for_memory("m1", "python programming")
 
     results = search_memory.execute(store, "python", embedding_service=service)
-    assert any(r.id == "m1" for r in results)
+    assert any(r.item.id == "m1" for r in results)
 
 
 def test_search_memory_falls_back_to_fts5_without_service() -> None:
@@ -113,7 +113,7 @@ def test_search_memory_falls_back_to_fts5_without_service() -> None:
     store.add_memory(item)
 
     results = search_memory.execute(store, "python", embedding_service=None)
-    assert any(r.id == "m1" for r in results)
+    assert any(r.item.id == "m1" for r in results)
 
 
 # ── Backfill resilience ────────────────────────────────────────────

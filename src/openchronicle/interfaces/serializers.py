@@ -25,6 +25,7 @@ from typing import Any
 
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
+from openchronicle.core.domain.models.scored_memory import ScoredMemory
 
 _COMPACT_PREVIEW_CHARS = 120
 
@@ -76,3 +77,22 @@ def memory_to_dict(m: MemoryItem, *, compact: bool = False) -> dict[str, Any]:
         "created_at": m.created_at.isoformat(),
         "updated_at": m.updated_at.isoformat() if m.updated_at else None,
     }
+
+
+def scored_memory_to_dict(scored: ScoredMemory, *, compact: bool = False) -> dict[str, Any]:
+    """Memory dict plus a ``relevance`` block (Q20).
+
+    ``channel`` is always present; score fields appear only when the
+    producing channel supplied them (None fields are omitted, never
+    serialized as null).
+    """
+    data = memory_to_dict(scored.item, compact=compact)
+    relevance: dict[str, Any] = {"channel": scored.channel}
+    if scored.rrf_score is not None:
+        relevance["rrf_score"] = round(scored.rrf_score, 6)
+    if scored.semantic_similarity is not None:
+        relevance["semantic_similarity"] = round(scored.semantic_similarity, 6)
+    if scored.keyword_rank is not None:
+        relevance["keyword_rank"] = scored.keyword_rank
+    data["relevance"] = relevance
+    return data

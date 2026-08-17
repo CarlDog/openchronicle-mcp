@@ -420,6 +420,50 @@ class TestMemoryRoutes:
         assert resp.status_code == 200
         assert resp.json() == []
 
+    def test_memory_search_result_carries_relevance(self, client: TestClient) -> None:
+        """Search-surface v2 (Q20): every hit explains itself via `relevance`."""
+        _get_container(client).storage.search_memory.return_value = [_make_memory()]
+
+        resp = client.get("/api/v1/memory/search", params={"query": "test"})
+        assert resp.status_code == 200
+        assert resp.json()[0]["relevance"] == {"channel": "keyword", "keyword_rank": 1}
+
+    def test_memory_search_rejects_unknown_mode(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "mode": "cosmic"})
+        assert resp.status_code == 422
+
+    def test_memory_search_semantic_without_provider_is_422(self, client: TestClient) -> None:
+        """mode=semantic on a keyword-only deployment is a caller error (422),
+        not a silent keyword fallback — the explicit request is honored or
+        refused loudly.
+        """
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "mode": "semantic"})
+        assert resp.status_code == 422
+        assert "embedding provider" in resp.json()["detail"]
+
+    def test_memory_search_phrase_reaches_the_store(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+
+        resp = client.get("/api/v1/memory/search", params={"query": "quick brown", "phrase": "true"})
+        assert resp.status_code == 200
+        assert storage.search_memory.call_args.kwargs["phrase"] is True
+
+    def test_memory_search_provider_error_is_502(self, client: TestClient) -> None:
+        """A provider failure under mode=semantic surfaces as 502 with the
+        ProviderError's code and hint — not the generic 500.
+        """
+        from openchronicle.core.domain.exceptions import ProviderError
+
+        service = MagicMock()
+        service.search_semantic.side_effect = ProviderError("embedding provider timed out", hint="check OLLAMA_HOST")
+        _get_container(client).embedding_service = service
+
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "mode": "semantic"})
+        assert resp.status_code == 502
+        body = resp.json()
+        assert body["code"] == "PROVIDER_ERROR"
+        assert body["hint"] == "check OLLAMA_HOST"
+
     def test_memory_list(self, client: TestClient) -> None:
         _get_container(client).storage.list_memory.return_value = [_make_memory()]
 

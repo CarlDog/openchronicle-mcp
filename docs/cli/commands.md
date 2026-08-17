@@ -54,6 +54,17 @@ Hybrid FTS5 + semantic search via Reciprocal Rank Fusion. `--top-k`,
 `--include-pinned`/`--no-include-pinned`, `--offset`, `--full` (print
 full content for context injection).
 
+Search-surface v2 (Q20/Q21):
+
+- `--mode hybrid|keyword|semantic` picks the retrieval channel per
+  call. `keyword` never touches the embedding provider; `semantic`
+  requires one and fails loudly (exit 1) instead of silently degrading.
+- `--phrase` matches the whole query as one adjacent-token phrase on
+  the keyword channel ("does content literally contain this").
+- Each result line carries a bracketed relevance column — the channel
+  that surfaced it (`pinned` / `keyword` / `semantic` / `hybrid`) plus
+  `sim=` cosine similarity when the semantic channel contributed.
+
 ### `oc memory update MEMORY_ID`
 
 Edit content or tags in place. `--content NEW`, `--tags "a,b,c"`.

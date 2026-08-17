@@ -103,6 +103,7 @@ def create_app(
 
     from openchronicle.core.domain.exceptions import (
         NotFoundError,
+        ProviderError,
     )
     from openchronicle.core.domain.exceptions import (
         ValidationError as DomainValidationError,
@@ -120,6 +121,15 @@ def create_app(
         return JSONResponse(
             status_code=422,
             content={"detail": str(exc), "code": exc.code},
+        )
+
+    @app.exception_handler(ProviderError)
+    async def provider_error_handler(_request: Request, exc: ProviderError) -> JSONResponse:
+        # 502: the upstream provider (embedding adapter) failed, not OC —
+        # mode=semantic surfaces this instead of degrading silently.
+        return JSONResponse(
+            status_code=502,
+            content={"detail": str(exc), "code": exc.error_code, "hint": exc.hint},
         )
 
     @app.exception_handler(FileNotFoundError)

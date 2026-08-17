@@ -138,7 +138,7 @@ def test_search_hybrid_returns_fts5_results_when_no_embeddings() -> None:
     service, store, _ = _make_service()
     _add_memory(store, "m1", "python programming language")
     results = service.search_hybrid("python")
-    assert any(r.id == "m1" for r in results)
+    assert any(r.item.id == "m1" for r in results)
 
 
 def test_search_hybrid_returns_semantic_results() -> None:
@@ -152,7 +152,7 @@ def test_search_hybrid_returns_semantic_results() -> None:
     # Semantic search for something related to ML
     results = service.search_hybrid("artificial intelligence neural networks")
     # Both should appear; exact ranking depends on stub embeddings
-    ids = [r.id for r in results]
+    ids = [r.item.id for r in results]
     assert len(ids) > 0
 
 
@@ -176,7 +176,7 @@ def test_search_hybrid_respects_tag_filter() -> None:
     service.generate_for_memory("m2", "alpha beta gamma")
 
     results = service.search_hybrid("alpha", tags=["decision"])
-    ids = [r.id for r in results]
+    ids = [r.item.id for r in results]
     assert "m1" in ids
     assert "m2" not in ids
 
@@ -214,7 +214,7 @@ def test_semantic_search_numpy_path_matches_python_dot_product() -> None:
         )[:8]
     ]
 
-    actual = service._semantic_search(query, limit=8)
+    actual = [mid for mid, _score in service._semantic_search(query, limit=8)]
     assert actual == expected_ranking
 
 
@@ -263,7 +263,7 @@ def test_search_hybrid_ignores_different_dims_stale_model_rows() -> None:
     results = service.search_hybrid("python programming", top_k=5)
 
     assert service.search_failure_count == 0, "stale row must not degrade search"
-    assert "m1" in [m.id for m in results]
+    assert "m1" in [m.item.id for m in results]
 
 
 def test_search_hybrid_excludes_same_dims_stale_model_rows() -> None:
@@ -280,7 +280,7 @@ def test_search_hybrid_excludes_same_dims_stale_model_rows() -> None:
 
     results = service.search_hybrid("alpha topic", top_k=5)
 
-    assert "m2" not in [m.id for m in results]
+    assert "m2" not in [m.item.id for m in results]
 
 
 def test_search_hybrid_honors_include_pinned_false() -> None:
@@ -297,7 +297,7 @@ def test_search_hybrid_honors_include_pinned_false() -> None:
 
     results = service.search_hybrid("standing rule about deployments", top_k=5, include_pinned=False)
 
-    ids = [m.id for m in results]
+    ids = [m.item.id for m in results]
     assert "m1" not in ids
     assert "m2" in ids
 
@@ -309,7 +309,7 @@ def test_search_hybrid_pinned_appears_once_when_included() -> None:
 
     results = service.search_hybrid("pinned deployments rule", top_k=5, include_pinned=True)
 
-    assert [m.id for m in results].count("m1") == 1
+    assert [m.item.id for m in results].count("m1") == 1
 
 
 def test_search_hybrid_tag_filtered_pinned_does_not_reenter() -> None:
@@ -325,6 +325,6 @@ def test_search_hybrid_tag_filtered_pinned_does_not_reenter() -> None:
 
     results = service.search_hybrid("gamma content", top_k=5, tags=["wanted"])
 
-    ids = [m.id for m in results]
+    ids = [m.item.id for m in results]
     assert "m1" not in ids
     assert "m2" in ids

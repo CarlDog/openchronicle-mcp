@@ -13,7 +13,7 @@ stability guarantees see `docs/api/STABILITY.md`.
 | Tool | Purpose |
 |---|---|
 | `memory_save` | Persist a memory item that should outlive the current session. `project_id` required. |
-| `memory_search` | Hybrid FTS5 + semantic search via RRF, scoped optionally by `project_id` and `tags`. `compact` returns a content preview. |
+| `memory_search` | Hybrid FTS5 + semantic search via RRF, scoped optionally by `project_id` and `tags`. `compact` returns a content preview. `mode` (`hybrid`/`keyword`/`semantic`) picks the retrieval channel per call; `phrase` makes the keyword channel match the query as one adjacent-token phrase. Every result carries a `relevance` object (see below). |
 | `memory_list` | Browse memory items newest-first (pinned float to the top). `project_id` filters strictly; `compact` returns a content preview. |
 | `memory_get` | Fetch one memory by ID. |
 | `memory_update` | Edit content/tags in place; preserves identity. |
@@ -126,6 +126,31 @@ point — a caller reading `content` never silently receives a truncated
 string, and the length tells you whether a `memory_get` is worth it.
 
 `memory_get` has no `compact`; returning the whole item is its purpose.
+
+## Relevance (search-surface v2, Q20/Q21)
+
+Every `memory_search` result (and `context_recent` result when a
+`query` is given) carries a `relevance` object explaining *why* it
+surfaced. Fields are omitted when not applicable:
+
+- `channel` (always present) — what produced the hit: `pinned`
+  (standing-rule policy, no scores), `keyword`, `semantic`, or
+  `hybrid` (both channels agreed).
+- `semantic_similarity` — unit-cosine similarity (0–1); the only
+  roughly interpretable score.
+- `rrf_score` — the Reciprocal Rank Fusion value used for ordering.
+  It is a rank-fusion artifact (~2/(k+1) ceiling), **not** calibrated
+  confidence — do not threshold on it. This is why no `min_confidence`
+  parameter ships.
+- `keyword_rank` — 1-based position in the keyword ranking.
+
+`mode` selects the retrieval channel per call: `hybrid` (default;
+degrades to keyword-only on provider failure, per the documented
+degradation policy), `keyword` (never touches the embedding provider),
+or `semantic` (requires a provider; a missing provider is a validation
+error and a provider failure is a `PROVIDER_ERROR` — never a silent
+keyword fallback). `phrase=true` makes the keyword channel match the
+whole query as one adjacent-token phrase.
 
 ## Cut from v2
 

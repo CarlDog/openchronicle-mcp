@@ -7,8 +7,26 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc6)
 
-Review Batch E (docs SSOT + test debt) plus the post-review polish
-batch; 563 → 591 tests.
+Review Batch E (docs SSOT + test debt), the post-review polish batch,
+and the Q20/Q21 search-surface v2; 563 → 582 tests.
+
+- **Search-surface v2 (2026-08-17, Q20/Q21):** `memory_search` (and
+  `context_recent` with a query) explains every result. Each hit
+  carries a `relevance` object — `channel`
+  (`pinned`/`keyword`/`semantic`/`hybrid`), `rrf_score`,
+  `semantic_similarity` (unit cosine, the only roughly interpretable
+  score), `keyword_rank` — across MCP, REST, and CLI;
+  `search_memory.execute` returns `list[ScoredMemory]` from all three
+  paths. New `mode` parameter (`hybrid` default / `keyword` /
+  `semantic`): keyword never touches the embedding provider; semantic
+  requires one — missing provider is a 422 and a provider failure is a
+  502 `PROVIDER_ERROR` via a new global handler, never a silent
+  keyword fallback. New `phrase` flag matches the whole query as one
+  adjacent-token FTS5 phrase (whitespace-normalized substring on the
+  non-FTS5 fallback) — the server-side answer to mnemosyne-mcp's
+  client-side keyphrase matching. No `min_confidence` threshold
+  shipped by design: RRF scores are rank-fusion values, not calibrated
+  confidence.
 
 - **Error honesty:** a wrong `project_id` on memory_save answers 404
   "Project not found" instead of a raw FK-constraint 500; malformed

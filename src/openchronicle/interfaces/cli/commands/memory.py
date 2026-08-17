@@ -115,27 +115,36 @@ def cmd_memory_pin(args: argparse.Namespace, container: CoreContainer) -> int:
 
 def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int:
     tag_list = parse_csv_tags(args.tags)
-    items = search_memory.execute(
-        store=container.storage,
-        query=args.query,
-        top_k=args.top_k,
-        project_id=args.project_id,
-        include_pinned=args.include_pinned,
-        tags=tag_list,
-        offset=args.offset,
-        embedding_service=container.embedding_service,
-    )
+    try:
+        scored = search_memory.execute(
+            store=container.storage,
+            query=args.query,
+            top_k=args.top_k,
+            project_id=args.project_id,
+            include_pinned=args.include_pinned,
+            tags=tag_list,
+            offset=args.offset,
+            embedding_service=container.embedding_service,
+            mode=args.mode,
+            phrase=args.phrase,
+        )
+    except DomainValidationError as exc:
+        # e.g. --mode semantic on a keyword-only deployment.
+        print(str(exc))
+        return 1
     full = getattr(args, "full", False)
-    for item in items:
+    for s in scored:
+        item = s.item
+        rel = s.channel if s.semantic_similarity is None else f"{s.channel} sim={s.semantic_similarity:.2f}"
         if full:
             tags_str = ",".join(item.tags)
-            print(f"--- [{tags_str}] (pinned={item.pinned}) ---")
+            print(f"--- [{tags_str}] (pinned={item.pinned}) [{rel}] ---")
             print(item.content)
             print()
         else:
             tags_str = ",".join(item.tags)
             snippet = content_preview(item.content)
-            print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t{tags_str}\t{snippet}")
+            print(f"{item.id}\t{item.pinned}\t{item.created_at.isoformat()}\t[{rel}]\t{tags_str}\t{snippet}")
     return 0
 
 

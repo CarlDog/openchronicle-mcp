@@ -29,7 +29,7 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
-from openchronicle.interfaces.serializers import memory_to_dict
+from openchronicle.interfaces.serializers import memory_to_dict, scored_memory_to_dict
 
 
 def _get_container(ctx: Context) -> CoreContainer:
@@ -48,6 +48,8 @@ def register(mcp: FastMCP) -> None:
         tags: list[str] | None = None,
         offset: int = 0,
         compact: bool = False,
+        mode: str = "hybrid",
+        phrase: bool = False,
     ) -> list[dict[str, Any]]:
         """Find memory items relevant to a query (hybrid semantic + keyword).
 
@@ -68,6 +70,21 @@ def register(mcp: FastMCP) -> None:
             tags: Require ALL listed tags on each result (AND logic).
             offset: Skip the first N results for pagination.
             compact: Return a content preview instead of full content.
+            mode: Retrieval channel — "hybrid" (default; keyword +
+                semantic fused via RRF), "keyword" (FTS5 only, never
+                touches the embedding provider), or "semantic"
+                (embeddings only; errors if no provider is configured
+                rather than silently degrading).
+            phrase: Match the whole query as one adjacent-token phrase
+                on the keyword channel ("does content literally contain
+                this") instead of the default any-token match.
+
+        Each result carries a `relevance` object: `channel` says what
+        surfaced it ("pinned" = standing-rule policy, no scores);
+        `semantic_similarity` (unit cosine, 0-1) is the only roughly
+        interpretable score — `rrf_score` is a rank-fusion value, NOT
+        calibrated confidence; `keyword_rank` is the 1-based keyword
+        position.
         """
         if not query or not query.strip():
             raise DomainValidationError("query must be non-empty")
@@ -84,8 +101,10 @@ def register(mcp: FastMCP) -> None:
                 tags=tags,
                 offset=offset,
                 embedding_service=container.embedding_service,
+                mode=mode,
+                phrase=phrase,
             )
-            return [memory_to_dict(m, compact=compact) for m in results]
+            return [scored_memory_to_dict(s, compact=compact) for s in results]
 
         return await asyncio.to_thread(_run)
 
