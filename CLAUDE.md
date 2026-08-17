@@ -44,18 +44,17 @@
 
 ## Current Sprint
 
-**2026-08-17 — v3.0.0-rc7 deployed.** The 2026-08-15 six-agent review
-is fully shipped, and rc7 took everything since rc6 live on the NAS:
-Batch E docs/tests, post-review polish, dead-code sweep,
-embedding-store port + AST boundary guard, and the Q20/Q21
-**search-surface v2** (per-result `relevance` scores, per-call `mode`
-hybrid/keyword/semantic, `phrase` exact matching across MCP/REST/CLI;
-582 tests). Restart MCP clients to pick up the new memory_search
-schema. Sprint history lives in the status doc's revision table and
-[CHANGELOG.md](CHANGELOG.md) — this section holds in-flight work only.
-Open next: Phase 9 decommission (operator-gated destructive checklist)
-and the remaining V3_PLAN follow-ups (mcp 2.0 migration, sqlite-vec,
-Q22 heatmaps).
+**2026-08-17 — v3.0.0-rc8 deployed.** rc7 took the Q20/Q21
+**search-surface v2** live (per-result `relevance` scores, per-call
+`mode` hybrid/keyword/semantic, `phrase` exact matching across
+MCP/REST/CLI); rc8 followed same-day with the bounded pinned prepend
+(`pinned_limit`, default 10 newest pins) after live verification caught
+an 85-pin prepend on a `top_k=2` query. 589 tests. Restart MCP clients
+to pick up the new memory_search schema. Sprint history lives in the
+status doc's revision table and [CHANGELOG.md](CHANGELOG.md) — this
+section holds in-flight work only. Open next: Phase 9 decommission
+(operator-gated destructive checklist) and the remaining V3_PLAN
+follow-ups (mcp 2.0 migration, sqlite-vec, Q22 heatmaps).
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

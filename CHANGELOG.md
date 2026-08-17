@@ -5,7 +5,7 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
-## Unreleased (on main since rc7)
+## v3.0.0-rc8 — 2026-08-17
 
 - **Bounded pinned prepend (`pinned_limit`):** `memory_search` caps the
   pinned prepend at the newest 10 pins by default (tunable 0–1000 via
