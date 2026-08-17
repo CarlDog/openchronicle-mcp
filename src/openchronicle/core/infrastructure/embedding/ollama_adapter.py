@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import math
 import os
 
 import httpx
@@ -11,6 +10,7 @@ import httpx
 from openchronicle.core.domain.errors.error_codes import CONNECTION_ERROR, PROVIDER_ERROR, TIMEOUT
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
             response.raise_for_status()
             data = response.json()
             embeddings: list[list[float]] = data["embeddings"]
-            return [_normalize(vec) for vec in embeddings]
+            return [normalize_unit(vec) for vec in embeddings]
         except httpx.HTTPStatusError as exc:
             raise LLMProviderError(
                 f"Ollama embedding failed: HTTP {exc.response.status_code}",
@@ -83,10 +83,3 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
 
     def model_name(self) -> str:
         return self._model
-
-
-def _normalize(vec: list[float]) -> list[float]:
-    mag = math.sqrt(sum(x * x for x in vec))
-    if mag == 0:
-        return vec
-    return [x / mag for x in vec]

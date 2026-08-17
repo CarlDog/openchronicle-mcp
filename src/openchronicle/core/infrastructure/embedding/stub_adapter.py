@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import hashlib
-import math
 import struct
 
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
 
 
 class StubEmbeddingAdapter(EmbeddingPort):
@@ -34,7 +34,7 @@ class StubEmbeddingAdapter(EmbeddingPort):
                 val = struct.unpack(">I", block[i : i + 4])[0]
                 raw.append((val / 0xFFFFFFFF) * 2 - 1)
             counter += 1
-        return _normalize(raw)
+        return normalize_unit(raw)
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
         return [self.embed(t) for t in texts]
@@ -44,10 +44,3 @@ class StubEmbeddingAdapter(EmbeddingPort):
 
     def model_name(self) -> str:
         return "stub"
-
-
-def _normalize(vec: list[float]) -> list[float]:
-    mag = math.sqrt(sum(x * x for x in vec))
-    if mag == 0:
-        return vec
-    return [x / mag for x in vec]

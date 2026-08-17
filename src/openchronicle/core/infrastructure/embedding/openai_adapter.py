@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import logging
-import math
 import os
 from typing import Any
 
 from openchronicle.core.domain.errors.error_codes import MISSING_PACKAGE, PROVIDER_ERROR
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
             )
             vectors: list[list[float]] = []
             for item in response.data:
-                vectors.append(_normalize(item.embedding))
+                vectors.append(normalize_unit(item.embedding))
             return vectors
         except Exception as exc:
             _type = type(exc).__name__
@@ -85,10 +85,3 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
 
     def model_name(self) -> str:
         return self._model
-
-
-def _normalize(vec: list[float]) -> list[float]:
-    mag = math.sqrt(sum(x * x for x in vec))
-    if mag == 0:
-        return vec
-    return [x / mag for x in vec]

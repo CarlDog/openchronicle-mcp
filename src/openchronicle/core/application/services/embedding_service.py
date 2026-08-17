@@ -182,6 +182,15 @@ class EmbeddingService:
 
         pinned_ids = {i.id for i in all_pinned}
 
+        def _page(ranked: list[MemoryItem]) -> list[MemoryItem]:
+            # The pinned-prepend pagination rule, in one place for both
+            # the hybrid and degraded return paths (it existed twice in
+            # this method): pinned items get a separate budget and are
+            # prepended on the FIRST page only; `offset` paginates the
+            # non-pinned ranking.
+            page = ranked[offset : offset + top_k]
+            return list(pinned_items) + page if offset == 0 else page
+
         # ── Keyword search (list A) ─────────────────────────────────────
         keyword_results = self._store.search_memory(
             query,
@@ -222,10 +231,7 @@ class EmbeddingService:
                 self._search_failure_count,
                 exc,
             )
-            non_pinned_page = keyword_results[offset : offset + top_k]
-            if offset == 0:
-                return list(pinned_items) + non_pinned_page
-            return non_pinned_page
+            return _page(keyword_results)
 
         # ── RRF merge ──────────────────────────────────────────────────
         keyword_rank: dict[str, int] = {item.id: rank for rank, item in enumerate(keyword_results, start=1)}
@@ -269,12 +275,7 @@ class EmbeddingService:
         rrf_scores.sort(key=lambda x: x[1], reverse=True)
 
         merged = [item_map[mid] for mid, _ in rrf_scores[:effective_top_k]]
-
-        # Pinned items prepended on first page only; offset paginates non-pinned results
-        non_pinned_page = merged[offset : offset + top_k]
-        if offset == 0:
-            return list(pinned_items) + non_pinned_page
-        return non_pinned_page
+        return _page(merged)
 
     def _semantic_search(
         self,
