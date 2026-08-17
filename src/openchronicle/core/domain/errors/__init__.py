@@ -8,15 +8,13 @@ from openchronicle.core.domain.errors.error_codes import (
     FILE_NOT_FOUND,
     INTERNAL_ERROR,
     INVALID_ARGUMENT,
-    INVALID_JSON,
-    INVALID_REQUEST,
+    INVALID_HOST,
     MEMORY_NOT_FOUND,
     MISSING_PACKAGE,
+    NOT_FOUND,
     PROJECT_NOT_FOUND,
     PROVIDER_ERROR,
     TIMEOUT,
-    UNEXPECTED_ERROR,
-    UNKNOWN_ERROR,
 )
 
 __all__ = [
@@ -25,13 +23,11 @@ __all__ = [
     "FILE_NOT_FOUND",
     "INTERNAL_ERROR",
     "INVALID_ARGUMENT",
-    "INVALID_JSON",
-    "INVALID_REQUEST",
+    "INVALID_HOST",
     "MEMORY_NOT_FOUND",
     "MISSING_PACKAGE",
+    "NOT_FOUND",
     "PROJECT_NOT_FOUND",
     "PROVIDER_ERROR",
     "TIMEOUT",
-    "UNEXPECTED_ERROR",
-    "UNKNOWN_ERROR",
 ]

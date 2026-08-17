@@ -5,8 +5,14 @@ from pathlib import Path
 
 from openchronicle.core.domain.errors import error_codes
 
+# Matches SCREAMING_SNAKE string literals passed as an error code —
+# through error_code=/code= kwargs OR "error_code":/"code": dict keys.
+# The `code=` and `"code":` halves were added 2026-08-16: the original
+# regex only knew the error_code spelling, so exception defaults and
+# the app.py handler dicts drifted to literals with the test green
+# (the docstring claimed the rule; the regex didn't enforce it).
 ERROR_CODE_LITERAL_RE = re.compile(
-    r"error_code\s*=\s*['\"]([A-Za-z0-9_]+)['\"]|['\"]error_code['\"]\s*:\s*['\"]([A-Za-z0-9_]+)['\"]"
+    r"(?:error_)?code\s*=\s*['\"]([A-Z][A-Z0-9_]+)['\"]|['\"](?:error_)?code['\"]\s*:\s*['\"]([A-Z][A-Z0-9_]+)['\"]"
 )
 
 

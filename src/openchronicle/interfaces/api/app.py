@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
+from openchronicle.core.domain.errors.error_codes import FILE_NOT_FOUND, INTERNAL_ERROR
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.version import package_version
@@ -125,7 +126,7 @@ def create_app(
     async def file_not_found_handler(_request: Request, exc: FileNotFoundError) -> JSONResponse:
         return JSONResponse(
             status_code=400,
-            content={"detail": str(exc), "code": "FILE_NOT_FOUND"},
+            content={"detail": str(exc), "code": FILE_NOT_FOUND},
         )
 
     @app.exception_handler(Exception)
@@ -133,7 +134,7 @@ def create_app(
         logger.error("Unhandled exception: %s\n%s", exc, traceback.format_exc())
         return JSONResponse(
             status_code=500,
-            content={"detail": "Internal server error", "code": "INTERNAL_ERROR"},
+            content={"detail": "Internal server error", "code": INTERNAL_ERROR},
         )
 
     from openchronicle.interfaces.api.routes import (

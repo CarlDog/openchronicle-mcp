@@ -1,23 +1,24 @@
-"""Common exceptions for LLM operations."""
+"""Domain exceptions for the v3 memory surface.
+
+(The module docstring used to say "for LLM operations" and the file
+carried BudgetExceededError — v2 vocabulary with zero callers, pruned
+in the 2026-08-15 review's dead-code sweep.)
+"""
 
 from __future__ import annotations
 
-
-class BudgetExceededError(Exception):
-    """Raised when a task exceeds its token budget."""
-
-    def __init__(self, limit: int, current: int, provider: str, model: str) -> None:
-        self.limit = limit
-        self.current = current
-        self.provider = provider
-        self.model = model
-        super().__init__(f"Task token budget exceeded: {current} >= {limit}")
+from openchronicle.core.domain.errors.error_codes import (
+    CONFIG_ERROR,
+    INVALID_ARGUMENT,
+    NOT_FOUND,
+    PROVIDER_ERROR,
+)
 
 
 class NotFoundError(Exception):
     """Raised when a requested entity does not exist."""
 
-    def __init__(self, message: str, *, code: str = "NOT_FOUND") -> None:
+    def __init__(self, message: str, *, code: str = NOT_FOUND) -> None:
         self.code = code
         super().__init__(message)
 
@@ -25,7 +26,7 @@ class NotFoundError(Exception):
 class ValidationError(Exception):
     """Raised when input fails domain validation rules."""
 
-    def __init__(self, message: str, *, code: str = "INVALID_ARGUMENT") -> None:
+    def __init__(self, message: str, *, code: str = INVALID_ARGUMENT) -> None:
         self.code = code
         super().__init__(message)
 
@@ -33,7 +34,7 @@ class ValidationError(Exception):
 class ConfigError(Exception):
     """Raised when runtime configuration is missing or invalid."""
 
-    def __init__(self, message: str, *, code: str = "CONFIG_ERROR") -> None:
+    def __init__(self, message: str, *, code: str = CONFIG_ERROR) -> None:
         self.code = code
         super().__init__(message)
 
@@ -51,7 +52,7 @@ class ProviderError(Exception):
         self,
         message: str,
         *,
-        error_code: str = "PROVIDER_ERROR",
+        error_code: str = PROVIDER_ERROR,
         hint: str | None = None,
         details: dict[str, object] | None = None,
     ) -> None:

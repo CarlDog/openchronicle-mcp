@@ -30,6 +30,8 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
+from openchronicle.core.domain.errors.error_codes import INVALID_HOST
+
 _logger = logging.getLogger(__name__)
 
 _ALWAYS_ALLOWED: tuple[str, ...] = (
@@ -76,6 +78,6 @@ class HostAllowlistMiddleware(BaseHTTPMiddleware):
             _logger.warning("Rejected request with invalid Host header: %r", host)
             return JSONResponse(
                 status_code=421,
-                content={"detail": "Invalid Host header.", "code": "INVALID_HOST"},
+                content={"detail": "Invalid Host header.", "code": INVALID_HOST},
             )
         return await call_next(request)
