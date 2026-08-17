@@ -44,20 +44,15 @@
 
 ## Current Sprint
 
-**2026-08-16 — full-repo review Batch E (docs SSOT + test debt), in
-progress.** The last of five batches from the 2026-08-15 six-agent
-review (punch list: OC memory `e22472b8`; report: session artifact
-"OpenChronicle Repo Review"). Batches A-D shipped and deployed as
-**v3.0.0-rc6** the same day. E restores the v2 doc archive that
-`.gitignore` swallowed in Phase 7, rewrites the status doc as a
-current-state snapshot, creates CHANGELOG.md, and pays down the test
-debt (CLI smoke pass, MCP handler gaps, conftest consolidation).
-
-Sprint history now lives in the status doc's revision table and
-[CHANGELOG.md](CHANGELOG.md) — this section holds the in-flight batch
-only (2026-08-16 SSOT rewrite; the stacked historical entries moved
-out). Still open beyond E: Phase 9 decommission (operator-gated) and
-the Q20/Q21 search-surface design (V3_PLAN Open Questions).
+**2026-08-16 — full-repo review COMPLETE.** All five batches from the
+2026-08-15 six-agent review shipped (punch list: OC memory `e22472b8`;
+report: session artifact "OpenChronicle Repo Review"). A-D deployed as
+**v3.0.0-rc6**; E (docs SSOT + test debt, 563 → 587 tests) is on main
+awaiting the next release. Sprint history lives in the status doc's
+revision table and [CHANGELOG.md](CHANGELOG.md) — this section holds
+in-flight work only. Open next: Phase 9 decommission (operator-gated
+destructive checklist), the Q20/Q21 search-surface design (V3_PLAN Open
+Questions), and the remaining V3_PLAN follow-ups.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
