@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-16 · **Revision:** 71
+**Snapshot date:** 2026-08-16 · **Revision:** 72
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF; falls back to FTS5-only on provider failure; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 587 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 591 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | CI | One workflow, three jobs: test matrix → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only) |
@@ -72,6 +72,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 72 | 2026-08-16 | Post-review polish: shared health/embed payload builders (parity by construction); caller mistakes stop answering 500 (FK→404, created_at→422, uniform 404 shape); transactional `oc memory import`; rate-limiter idle-key sweep; honest Ollama error codes; `maintenance_degraded` declared |
 | 71 | 2026-08-16 | Review Batch E: this SSOT rewrite; v2 archive restored (the Phase 7 move .gitignore swallowed); CHANGELOG created; test-debt pass (CLI smoke, MCP handler gaps, conftest consolidation) |
 | 70 | 2026-08-16 | Review Batch D → **v3.0.0-rc6, deployed**: maintenance schedule persistence + burst-proof retention; fail-soft config; Docker dep-layer cache; version single-sourcing + CI tag guard |
 | 69 | 2026-08-16 | Review Batch C: onboard_git robustness — ancestry watermark, unreachable-watermark auto-recovery, `branch` param + ref echo, shared CLI/MCP orchestration |

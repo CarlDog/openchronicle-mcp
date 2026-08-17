@@ -7,9 +7,23 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc6)
 
-Review Batch E — docs SSOT + test debt (563 → 587 tests). No runtime
-behavior changes beyond removing the dead `oc onboard git --no-llm`
-flag.
+Review Batch E (docs SSOT + test debt) plus the post-review polish
+batch; 563 → 591 tests.
+
+- **Error honesty:** a wrong `project_id` on memory_save answers 404
+  "Project not found" instead of a raw FK-constraint 500; malformed
+  `created_at` answers 422 with an ISO 8601 hint on both surfaces;
+  `memory_get`'s 404 carries the `code` field like its siblings;
+  MCP `project_update` with neither field raises the 422-mapped
+  validation error instead of a bare store ValueError; Ollama
+  connection-refused reports `CONNECTION_ERROR`, not `TIMEOUT`.
+- **Parity by construction:** the health payload and the embed outcome
+  mapping each live in one shared builder instead of verbatim copies
+  per surface.
+- **Ops:** `oc memory import` is transactional (a bad row rolls back
+  the whole restore instead of half-applying); the rate limiter sweeps
+  idle clients' expired windows (slow leak fixed).
+- Removed the dead `oc onboard git --no-llm` flag.
 
 - The v2 documentation archive `docs/archive/v2/` actually exists now —
   Phase 7's move had been silently swallowed by a v2-era `.gitignore`
