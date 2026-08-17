@@ -738,3 +738,24 @@ class TestMemoryStatsRoute:
         resp = client.get("/api/v1/memory/stats")
         assert resp.status_code == 200
         assert resp.json()["total"] == 2
+
+
+class TestErrorShapeParity:
+    """2026-08-15 review: caller mistakes answered 500 or an off-shape 404."""
+
+    def test_bad_created_at_is_422_not_500(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/memory",
+            json={"content": "x", "project_id": "proj-1", "created_at": "not-a-date"},
+        )
+        assert resp.status_code == 422
+        assert "ISO 8601" in resp.text
+
+    def test_memory_get_404_carries_code_field(self, client: TestClient) -> None:
+        """This 404 used to be an inline HTTPException without the "code"
+        key every sibling 404 carries via the global handler.
+        """
+        _get_container(client).storage.get_memory.return_value = None
+        resp = client.get("/api/v1/memory/ghost")
+        assert resp.status_code == 404
+        assert resp.json()["code"] == "MEMORY_NOT_FOUND"

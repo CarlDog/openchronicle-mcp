@@ -17,6 +17,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,
+    embed_memory,
     list_memory,
     pin_memory,
     search_memory,
@@ -128,7 +129,10 @@ def register(mcp: FastMCP) -> None:
             "source": "mcp",
         }
         if created_at is not None:
-            kwargs["created_at"] = datetime.fromisoformat(created_at)
+            try:
+                kwargs["created_at"] = datetime.fromisoformat(created_at)
+            except ValueError as exc:
+                raise DomainValidationError(f"created_at must be an ISO 8601 datetime, got {created_at!r}") from exc
         item = MemoryItem(**kwargs)
 
         def _run() -> dict[str, Any]:
@@ -352,28 +356,4 @@ def register(mcp: FastMCP) -> None:
             force: Regenerate every embedding from scratch (default False).
         """
         container = _get_container(ctx)
-        service = container.embedding_service
-        if service is None:
-            return {
-                "status": "not_configured",
-                "message": "Set OC_EMBEDDING_PROVIDER to enable embeddings.",
-            }
-
-        def _run() -> tuple[Any, dict[str, Any]]:
-            return service.generate_missing(force=force), service.embedding_status()
-
-        result, status = await asyncio.to_thread(_run)
-        if result.failed == 0:
-            outcome = "ok"
-        elif result.generated == 0:
-            outcome = "failed"
-        else:
-            outcome = "partial"
-        return {
-            "status": outcome,
-            "generated": result.generated,
-            "failed": result.failed,
-            "elapsed_ms": result.elapsed_ms,
-            "force": force,
-            **status,
-        }
+        return await asyncio.to_thread(embed_memory.execute, container.embedding_service, force=force)

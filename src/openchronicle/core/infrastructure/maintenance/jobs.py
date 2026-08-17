@@ -110,14 +110,12 @@ async def db_integrity_check(container: CoreContainer) -> None:
             await db_backup(container)
         except Exception:
             _logger.exception("emergency backup also failed")
-        # Flag is opaque on the container; consumers read via getattr
-        # to avoid hard-coupling every call site.
-        setattr(container, "maintenance_degraded", True)  # noqa: B010
+        container.maintenance_degraded = True
         raise RuntimeError(f"integrity_check failed: {result}")
 
     # On success, clear any previously-set degraded flag.
-    if getattr(container, "maintenance_degraded", False):
-        setattr(container, "maintenance_degraded", False)  # noqa: B010
+    if container.maintenance_degraded:
+        container.maintenance_degraded = False
         _logger.info("db_integrity_check: previously-degraded flag cleared")
 
 

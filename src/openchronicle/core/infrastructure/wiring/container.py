@@ -42,6 +42,10 @@ class CoreContainer:
                 output_dir=output_dir,
             )
         self.paths = paths
+        # Set by the db_integrity_check maintenance job; surfaced on both
+        # health endpoints. A declared attribute (not setattr/getattr
+        # conjuring) so mypy actually checks the four call sites.
+        self.maintenance_degraded: bool = False
 
         db_path_resolved = paths.db_path
         config_dir_resolved = paths.config_dir

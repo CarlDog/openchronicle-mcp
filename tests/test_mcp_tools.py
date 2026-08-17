@@ -440,6 +440,7 @@ class TestHealth:
 
         container = _make_container()
         container.embedding_status_dict.return_value = {"status": "disabled", "provider": "none"}
+        container.maintenance_degraded = False
         ctx = _make_context(container)
 
         # Mock diagnose_runtime.execute to avoid needing real filesystem
@@ -458,8 +459,10 @@ class TestHealth:
             package_version="3.0.0.dev0",
         )
 
+        # The tool now delegates to the shared build_health_payload, which
+        # calls diagnose_runtime.execute at its module of definition.
         with patch(
-            "openchronicle.interfaces.mcp.tools.system.diagnose_runtime.execute",
+            "openchronicle.core.application.use_cases.diagnose_runtime.execute",
             return_value=mock_report,
         ):
             tool_fn = mcp._tool_manager._tools["health"].fn

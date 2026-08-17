@@ -7,12 +7,11 @@ FastMCP dispatches sync tools inline on the event loop.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import asdict
 from typing import Any, cast
 
 from mcp.server.fastmcp import Context, FastMCP
 
-from openchronicle.core.application.use_cases import diagnose_runtime
+from openchronicle.core.application.use_cases.diagnose_runtime import build_health_payload
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 
@@ -39,18 +38,4 @@ def register(mcp: FastMCP) -> None:
         otherwise.
         """
         container = _get_container(ctx)
-
-        def _run() -> dict[str, Any]:
-            report = diagnose_runtime.execute()
-            report.embedding_status = container.embedding_status_dict()
-            report.schema_version = container.storage.schema_version()
-            report.maintenance_degraded = bool(getattr(container, "maintenance_degraded", False))
-            report.fts5_active = container.storage.fts5_active
-            return asdict(report)
-
-        data = await asyncio.to_thread(_run)
-        if data.get("timestamp_utc"):
-            data["timestamp_utc"] = data["timestamp_utc"].isoformat()
-        if data.get("db_modified_utc"):
-            data["db_modified_utc"] = data["db_modified_utc"].isoformat()
-        return data
+        return await asyncio.to_thread(build_health_payload, container)

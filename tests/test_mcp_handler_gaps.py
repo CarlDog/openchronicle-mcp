@@ -219,3 +219,27 @@ class TestMemoryEmbed:
         assert result["status"] == "failed"
         assert result["generated"] == 0
         assert result["failed"] == 2
+
+
+class TestProjectUpdateValidation:
+    def test_both_fields_none_raises_domain_validation(self) -> None:
+        """Previously fell through to the store's bare ValueError — the
+        memory twin validated in its use case; the project twin didn't.
+        """
+        from openchronicle.core.domain.exceptions import ValidationError
+
+        container = mock_container()
+        fn = tool_fn(project_tools.register, "project_update")
+        with pytest.raises(ValidationError, match="at least one"):
+            asyncio.run(fn(project_id="proj-1", ctx=mock_ctx(container)))
+
+
+class TestAddMemoryFkTranslation:
+    def test_unknown_project_id_raises_not_found(self) -> None:
+        """A wrong project_id used to surface as a raw 'FOREIGN KEY
+        constraint failed' (REST 500). The store translates it now.
+        """
+        store = SqliteStore(db_path=":memory:")
+        store.init_schema()
+        with pytest.raises(NotFoundError, match="Project not found"):
+            store.add_memory(_memory(project_id="no-such-project"))

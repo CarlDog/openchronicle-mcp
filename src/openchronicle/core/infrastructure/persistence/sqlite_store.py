@@ -267,22 +267,36 @@ class SqliteStore(StoragePort, MemoryStorePort):
     @_locked
     def add_memory(self, item: MemoryItem) -> None:
         cur = self._conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                item.id,
-                item.content,
-                json.dumps(item.tags, sort_keys=True),
-                item.created_at.isoformat(),
-                1 if item.pinned else 0,
-                item.project_id,
-                item.source,
-                item.updated_at.isoformat() if item.updated_at else None,
-            ),
-        )
+        try:
+            cur.execute(
+                """
+                INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    item.id,
+                    item.content,
+                    json.dumps(item.tags, sort_keys=True),
+                    item.created_at.isoformat(),
+                    1 if item.pinned else 0,
+                    item.project_id,
+                    item.source,
+                    item.updated_at.isoformat() if item.updated_at else None,
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            # The only FK on this table is project_id → projects. Translate
+            # here (infrastructure is the layer that knows sqlite3) so a
+            # wrong project id answers 404 / "Project not found" instead of
+            # a raw "FOREIGN KEY constraint failed" surfacing as a 500 —
+            # CLAUDE.md warns "freeform strings will fail", and they used
+            # to fail with the worst possible message.
+            if "FOREIGN KEY" in str(exc).upper():
+                raise NotFoundError(
+                    f"Project not found: {item.project_id}",
+                    code=PROJECT_NOT_FOUND,
+                ) from exc
+            raise
         self._commit_if_needed()
 
     @_locked

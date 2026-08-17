@@ -5,19 +5,23 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+from fastapi import APIRouter, Body, Depends, Path, Query
 from pydantic import BaseModel, Field
 
 from openchronicle.core.application.config.env_helpers import parse_csv_tags  # noqa: F401
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,
+    embed_memory,
     list_memory,
     pin_memory,
     search_memory,
     stats_memory,
     update_memory,
 )
+from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
+from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.deps import get_container
@@ -87,7 +91,12 @@ def memory_save(
         "source": "api",
     }
     if body.created_at is not None:
-        kwargs["created_at"] = datetime.fromisoformat(body.created_at)
+        try:
+            kwargs["created_at"] = datetime.fromisoformat(body.created_at)
+        except ValueError as exc:
+            # The global DomainValidationError handler maps this to 422 —
+            # a caller typo used to surface as a 500.
+            raise DomainValidationError(f"created_at must be an ISO 8601 datetime, got {body.created_at!r}") from exc
     item = MemoryItem(**kwargs)
     saved = add_memory.execute(
         store=container.storage,
@@ -129,7 +138,9 @@ def memory_get(
     """Get a single memory item by ID."""
     item = container.storage.get_memory(memory_id)
     if item is None:
-        raise HTTPException(status_code=404, detail=f"Memory not found: {memory_id}")
+        # Domain exception, not an inline HTTPException: the global
+        # handler adds the "code" field every sibling 404 carries.
+        raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
     return memory_to_dict(item)
 
 
@@ -207,24 +218,4 @@ def memory_embed(
     body: MemoryEmbedRequest = Body(default=MemoryEmbedRequest()),  # noqa: B008
 ) -> dict[str, Any]:
     """Generate embeddings for memories that don't have them."""
-    if container.embedding_service is None:
-        return {
-            "status": "not_configured",
-            "message": "Set OC_EMBEDDING_PROVIDER to enable embeddings.",
-        }
-    result = container.embedding_service.generate_missing(force=body.force)
-    status = container.embedding_service.embedding_status()
-    if result.failed == 0:
-        outcome = "ok"
-    elif result.generated == 0:
-        outcome = "failed"
-    else:
-        outcome = "partial"
-    return {
-        "status": outcome,
-        "generated": result.generated,
-        "failed": result.failed,
-        "elapsed_ms": result.elapsed_ms,
-        "force": body.force,
-        **status,
-    }
+    return embed_memory.execute(container.embedding_service, force=body.force)

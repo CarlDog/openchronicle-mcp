@@ -24,6 +24,7 @@ from openchronicle.core.application.use_cases import (
 )
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
@@ -179,8 +180,11 @@ class TestUpdateProject:
         assert excinfo.value.code == PROJECT_NOT_FOUND
 
     def test_requires_one_field(self, store: SqliteStore) -> None:
+        """Raises the 422-mapped domain error since 2026-08-16 — the check
+        moved from the store's bare ValueError into the use case so the
+        MCP surface stopped leaking an unmapped exception."""
         project = create_project.execute(store=store, name="x")
-        with pytest.raises(ValueError, match="at least one"):
+        with pytest.raises(DomainValidationError, match="at least one"):
             update_project.execute(store=store, project_id=project.id)
 
 

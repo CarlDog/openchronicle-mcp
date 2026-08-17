@@ -9,14 +9,39 @@ from __future__ import annotations
 
 import logging
 import os
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
 from openchronicle.version import package_version
 
+if TYPE_CHECKING:
+    from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
 _logger = logging.getLogger(__name__)
+
+
+def build_health_payload(container: CoreContainer) -> dict[str, Any]:
+    """The full health payload both surfaces serve.
+
+    Existed verbatim in the MCP tool and the REST route;
+    test_health_parity pinned the copies together — sharing the builder
+    makes the parity true by construction instead.
+    """
+    report = execute()
+    report.embedding_status = container.embedding_status_dict()
+    report.schema_version = container.storage.schema_version()
+    report.maintenance_degraded = container.maintenance_degraded
+    report.fts5_active = container.storage.fts5_active
+    data = asdict(report)
+    if data.get("timestamp_utc"):
+        data["timestamp_utc"] = data["timestamp_utc"].isoformat()
+    if data.get("db_modified_utc"):
+        data["db_modified_utc"] = data["db_modified_utc"].isoformat()
+    return data
 
 
 def execute() -> DiagnosticsReport:
