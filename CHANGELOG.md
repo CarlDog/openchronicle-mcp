@@ -32,6 +32,13 @@ batch; 563 → 591 tests.
   dot-product=cosine invariant; `search_hybrid`'s pagination rule
   deduplicated. Test count 591 → 559 — the delta is deleted tests of
   deleted code.
+- **Architecture close-out (2026-08-17):** embedding persistence is
+  part of `MemoryStorePort` (the service is typed against the port, not
+  concrete SqliteStore), and the hexagonal boundary guard is an AST
+  scanner that sees TYPE_CHECKING / function-body / relative imports —
+  the hole the old regex guard had — with the two container-token
+  exemptions enumerated and self-tests pinning the once-missed shapes.
+  Every code-level finding from the 2026-08-15 review is now closed.
 
 - The v2 documentation archive `docs/archive/v2/` actually exists now —
   Phase 7's move had been silently swallowed by a v2-era `.gitignore`
