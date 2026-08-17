@@ -24,6 +24,14 @@ batch; 563 → 591 tests.
   the whole restore instead of half-applying); the rate limiter sweeps
   idle clients' expired windows (slow leak fixed).
 - Removed the dead `oc onboard git --no-llm` flag.
+- **Dead-code sweep (2026-08-17):** unused error codes +
+  `BudgetExceededError` deleted and the canonical-code guard's regex
+  hole closed; `oc init --force/--no-templates` (parsed, did nothing)
+  and the `plugin_dir` kwarg removed; tests-only helpers deleted;
+  `normalize_unit` extracted as the one home of the
+  dot-product=cosine invariant; `search_hybrid`'s pagination rule
+  deduplicated. Test count 591 → 559 — the delta is deleted tests of
+  deleted code.
 
 - The v2 documentation archive `docs/archive/v2/` actually exists now —
   Phase 7's move had been silently swallowed by a v2-era `.gitignore`
