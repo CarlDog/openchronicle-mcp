@@ -170,9 +170,6 @@ def main(argv: list[str] | None = None) -> int:
         "--max-memories", dest="max_memories", type=int, default=15, help="Max memories to create (default: 15)"
     )
     onboard_git_cmd.add_argument("--force", action="store_true", help="Delete existing git-onboard memories and re-run")
-    onboard_git_cmd.add_argument(
-        "--no-llm", dest="no_llm", action="store_true", help="Skip LLM synthesis, use raw format"
-    )
     onboard_git_cmd.add_argument("--dry-run", dest="dry_run", action="store_true", help="Show clusters without saving")
 
     # --- System commands ---

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -321,17 +320,23 @@ def test_handlers_registry_complete() -> None:
 
 
 def test_retention_keeps_newest(tmp_path: Path) -> None:
-    """_retention_prune deletes oldest .db files beyond the keep limit."""
+    """_retention_prune deletes oldest .db files beyond the keep limit.
+
+    All files share one UTC day (fixed mid-day base, not time.time():
+    near 00:00Z the minute stagger straddled midnight, and the
+    newest-per-day keep-set then legitimately preserved a fourth file).
+    """
+    import os
+    from datetime import UTC, datetime
+
     backup_dir = tmp_path / "auto"
     backup_dir.mkdir()
+    base = datetime(2026, 8, 10, 12, 0, 0, tzinfo=UTC).timestamp()
     paths = []
     for i in range(10):
         p = backup_dir / f"old-{i}.db"
         p.write_bytes(b"x")
-        # Stagger mtimes so sort is deterministic.
-        os_time = time.time() - (10 - i) * 60
-        import os
-
+        os_time = base - (10 - i) * 60
         os.utime(p, (os_time, os_time))
         paths.append(p)
 
@@ -352,10 +357,15 @@ def test_retention_burst_cannot_evict_older_days(tmp_path: Path) -> None:
     recent day alongside the newest N overall.
     """
     import os
+    from datetime import UTC, datetime
 
     backup_dir = tmp_path / "auto"
     backup_dir.mkdir()
-    now = time.time()
+    # Fixed mid-day UTC base: deriving from time.time() made the "today"
+    # burst straddle UTC midnight when the suite ran near 00:00Z, and a
+    # straddling burst file legitimately claims the previous day's
+    # newest-per-day slot — correct behavior, flaky assertions.
+    now = datetime(2026, 8, 10, 12, 0, 0, tzinfo=UTC).timestamp()
     day = 24 * 3600
 
     # One backup per day for the six preceding days...
