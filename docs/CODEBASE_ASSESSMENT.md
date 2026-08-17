@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-17 · **Revision:** 75
+**Snapshot date:** 2026-08-17 · **Revision:** 76
 
 ## Current state
 
@@ -19,9 +19,9 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | `v3.0.0-rc6` (2026-08-16), Portainer stack 151, endpoint 2, port `18000` |
+| Deployed release | `v3.0.0-rc7` (2026-08-17), Portainer stack 151, endpoint 2, port `18000` |
 | Deploy verification | `health.package_version` — reports the real release since rc6; also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | In sync at rc6. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
+| Main vs deployed | In sync at rc7. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
@@ -70,6 +70,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 76 | 2026-08-17 | **v3.0.0-rc7 cut + deployed**: everything on main since rc6 reaches the NAS — Batch E docs/tests, post-review polish, dead-code sweep, embedding-store port + AST boundary guard, and search-surface v2 (relevance / mode / phrase). 582 tests |
 | 75 | 2026-08-17 | Search-surface v2 (Q20/Q21 shipped): `search_memory` returns `ScoredMemory` — every result carries `relevance` (channel / rrf_score / semantic_similarity / keyword_rank) on MCP, REST, and CLI; per-call `mode` (keyword bypasses the provider; semantic fails loudly — 422 without a provider, 502 `PROVIDER_ERROR` on failure via a new global handler); `phrase` exact adjacent-token matching on the keyword channel. No `min_confidence` by design (RRF ≠ calibrated confidence). 582 tests |
 | 74 | 2026-08-17 | Embedding persistence joins `MemoryStorePort` (EmbeddingService no longer typed against concrete SqliteStore); boundary guard rewritten as an AST scanner — TYPE_CHECKING/function-body/relative imports are now visible, with the two container-token exemptions enumerated; scanner self-tests pin the old holes |
 | 73 | 2026-08-17 | Dead-code sweep: four unused error codes + BudgetExceededError deleted; canonical-code test regex hole closed (immediately caught INVALID_HOST); lying CLI flags removed (`oc init --force/--no-templates`, `plugin_dir` kwarg); tests-only helpers deleted (parse_bool/parse_str_list — their ''-is-falsy semantics conflict with empty-means-unset, recorded); `normalize_unit` extracted (the dot-product=cosine invariant); pagination rule folded. 559 tests — the drop is deleted tests of deleted code |

@@ -5,9 +5,10 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
-## Unreleased (on main since rc6)
+## v3.0.0-rc7 — 2026-08-17
 
 Review Batch E (docs SSOT + test debt), the post-review polish batch,
+the dead-code sweep, the embedding-store port + AST boundary guard,
 and the Q20/Q21 search-surface v2; 563 → 582 tests.
 
 - **Search-surface v2 (2026-08-17, Q20/Q21):** `memory_search` (and
