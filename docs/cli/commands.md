@@ -61,6 +61,8 @@ Search-surface v2 (Q20/Q21):
   requires one and fails loudly (exit 1) instead of silently degrading.
 - `--phrase` matches the whole query as one adjacent-token phrase on
   the keyword channel ("does content literally contain this").
+- `--pinned-limit N` caps the pinned prepend (newest first; 0 = none;
+  default 10). Use `oc memory list --pinned-only` for every pin.
 - Each result line carries a bracketed relevance column — the channel
   that surfaced it (`pinned` / `keyword` / `semantic` / `hybrid`) plus
   `sim=` cosine similarity when the semantic channel contributed.

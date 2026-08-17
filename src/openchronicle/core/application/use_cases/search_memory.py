@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from openchronicle.core.application.services.embedding_service import DEFAULT_PINNED_LIMIT
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
@@ -24,6 +25,7 @@ def execute(
     embedding_service: EmbeddingService | None = None,
     mode: str = "hybrid",
     phrase: bool = False,
+    pinned_limit: int = DEFAULT_PINNED_LIMIT,
 ) -> list[ScoredMemory]:
     """Search memory, returning scored results (Q20/Q21, 2026-08-17).
 
@@ -41,9 +43,15 @@ def execute(
 
     ``phrase`` makes the keyword channel match the whole query as one
     adjacent-token phrase instead of any-token.
+
+    ``pinned_limit`` bounds the pinned prepend (newest pins first;
+    0 disables it like ``include_pinned=False``). Pins beyond the cap
+    are omitted entirely — they never re-enter through ranking. Use
+    ``list_memory(pinned_only=True)`` to enumerate every standing rule.
     """
     if mode not in VALID_MODES:
         raise DomainValidationError(f"mode must be one of {VALID_MODES}, got {mode!r}")
+    pinned_limit = max(0, pinned_limit)
 
     if mode == "semantic":
         if embedding_service is None:
@@ -58,6 +66,7 @@ def execute(
             include_pinned=include_pinned,
             tags=tags,
             offset=offset,
+            pinned_limit=pinned_limit,
         )
 
     if mode == "hybrid" and embedding_service is not None:
@@ -69,6 +78,7 @@ def execute(
             tags=tags,
             offset=offset,
             phrase=phrase,
+            pinned_limit=pinned_limit,
         )
 
     # mode == "keyword", or hybrid on a keyword-only deployment.
@@ -83,12 +93,16 @@ def execute(
     )
     # The store prepends pinned items (by policy, unranked) and ranks the
     # rest; item.pinned is exact because the store's ranking excludes
-    # pinned rows in SQL.
+    # pinned rows in SQL. The prepend is capped here rather than in the
+    # store so the port surface stays unchanged.
     results: list[ScoredMemory] = []
     rank = 0
+    pins_kept = 0
     for item in items:
         if item.pinned:
-            results.append(ScoredMemory(item=item, channel="pinned"))
+            if pins_kept < pinned_limit:
+                pins_kept += 1
+                results.append(ScoredMemory(item=item, channel="pinned"))
         else:
             rank += 1
             results.append(ScoredMemory(item=item, channel="keyword", keyword_rank=offset + rank))

@@ -152,6 +152,12 @@ error and a provider failure is a `PROVIDER_ERROR` — never a silent
 keyword fallback). `phrase=true` makes the keyword channel match the
 whole query as one adjacent-token phrase.
 
+The pinned prepend is **bounded**: `pinned_limit` (default 10, 0 = no
+pins) keeps only the newest pins — an unbounded prepend once answered a
+`top_k=2` query with 85 pins on a pin-heavy store. Pins beyond the cap
+are omitted entirely (they never re-enter through ranking); enumerate
+every standing rule with `memory_list(pinned_only=true)`.
+
 ## Cut from v2
 
 These v2 MCP tools were dropped along with their subsystems:

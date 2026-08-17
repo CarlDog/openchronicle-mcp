@@ -441,6 +441,34 @@ class TestMemoryRoutes:
         assert resp.status_code == 422
         assert "embedding provider" in resp.json()["detail"]
 
+    def test_memory_search_rejects_negative_pinned_limit(self, client: TestClient) -> None:
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "-1"})
+        assert resp.status_code == 422
+
+    def test_memory_search_pinned_limit_caps_the_prepend(self, client: TestClient) -> None:
+        storage = _get_container(client).storage
+        pins = [
+            MemoryItem(
+                id=f"pin-{i}",
+                content=f"rule {i}",
+                tags=[],
+                pinned=True,
+                project_id="proj-1",
+                source="api",
+                created_at=_FIXED_DT,
+            )
+            for i in range(5)
+        ]
+        # Keyword path: the store prepends pins ahead of ranked results.
+        storage.search_memory.return_value = [*pins, _make_memory()]
+
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "2"})
+        assert resp.status_code == 200
+        data = resp.json()
+        channels = [r["relevance"]["channel"] for r in data]
+        assert channels.count("pinned") == 2
+        assert channels.count("keyword") == 1
+
     def test_memory_search_phrase_reaches_the_store(self, client: TestClient) -> None:
         storage = _get_container(client).storage
 

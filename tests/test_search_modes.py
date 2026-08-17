@@ -50,12 +50,13 @@ def _add(
     content: str,
     *,
     pinned: bool = False,
+    created_at: datetime | None = None,
 ) -> MemoryItem:
     item = MemoryItem(
         id=memory_id,
         content=content,
         tags=["test"],
-        created_at=datetime.now(UTC),
+        created_at=created_at or datetime.now(UTC),
         pinned=pinned,
         source="test",
         project_id="proj-1",
@@ -207,3 +208,98 @@ def test_hybrid_mode_channel_and_score_fields() -> None:
     assert pin.rrf_score is None
     assert pin.semantic_similarity is None
     assert pin.keyword_rank is None
+
+
+# ── pinned_limit (bounded prepend) ──────────────────────────────────
+
+
+def _add_pins(store: SqliteStore, count: int, content: str = "standing rule") -> None:
+    """Add `count` pinned items with strictly increasing created_at, so
+    pin-N is the newest and the newest-first cap is deterministic."""
+    for i in range(count):
+        _add(
+            store,
+            f"pin-{i}",
+            f"{content} {i}",
+            pinned=True,
+            created_at=datetime(2026, 8, 1, 12, 0, i, tzinfo=UTC),
+        )
+
+
+def test_keyword_mode_caps_pinned_prepend_to_newest() -> None:
+    """Observed live (2026-08-17): a top_k=2 search against an 85-pin
+    store returned 87 results. The prepend is now bounded, keeping the
+    newest pins."""
+    store = _make_store()
+    _add_pins(store, 12, content="alpha rule")
+    _add(store, "m1", "alpha note")
+
+    results = search_memory.execute(store, "alpha", mode="keyword", top_k=2)
+
+    pins = [s.item.id for s in results if s.channel == "pinned"]
+    assert len(pins) == 10, "default pinned_limit is 10"
+    assert "pin-11" in pins and "pin-2" in pins, "newest pins survive"
+    assert "pin-0" not in pins and "pin-1" not in pins, "oldest pins are capped out"
+    assert [s.item.id for s in results if s.channel == "keyword"] == ["m1"]
+
+
+def test_pinned_limit_zero_disables_prepend() -> None:
+    store = _make_store()
+    _add_pins(store, 3, content="alpha rule")
+    _add(store, "m1", "alpha note")
+
+    results = search_memory.execute(store, "alpha", mode="keyword", pinned_limit=0)
+
+    assert [s.item.id for s in results] == ["m1"]
+
+
+def test_hybrid_mode_caps_prepend_and_capped_pin_does_not_reenter() -> None:
+    """A capped-out pin must not sneak back in through the semantic
+    channel — the exclusion set covers ALL pins, not just the shown ones.
+    The capped pin here has an embedding that exactly matches the query,
+    so pre-guard it would rank first semantically.
+    """
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=32)
+    service = EmbeddingService(port=adapter, store=store)
+    _add(store, "pin-old", "gamma standing rule", pinned=True, created_at=datetime(2026, 8, 1, tzinfo=UTC))
+    service.generate_for_memory("pin-old", "gamma standing rule")
+    _add(store, "pin-new", "unrelated pin", pinned=True, created_at=datetime(2026, 8, 2, tzinfo=UTC))
+    _add(store, "m1", "gamma note")
+    service.generate_for_memory("m1", "gamma note")
+
+    results = search_memory.execute(
+        store, "gamma standing rule", mode="hybrid", embedding_service=service, pinned_limit=1
+    )
+
+    ids = [s.item.id for s in results]
+    assert "pin-new" in ids, "the newest pin fills the budget"
+    assert "pin-old" not in ids, "capped-out pin must not re-enter via ranking"
+    assert "m1" in ids
+
+
+def test_semantic_mode_caps_pinned_prepend() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=32)
+    service = EmbeddingService(port=adapter, store=store)
+    _add_pins(store, 4)
+    _add(store, "m1", "delta content")
+    service.generate_for_memory("m1", "delta content")
+
+    results = search_memory.execute(store, "delta content", mode="semantic", embedding_service=service, pinned_limit=2)
+
+    pins = [s.item.id for s in results if s.channel == "pinned"]
+    assert pins == ["pin-3", "pin-2"], "newest two pins, in newest-first order"
+    assert "m1" in [s.item.id for s in results]
+
+
+def test_negative_pinned_limit_is_treated_as_zero() -> None:
+    """list[:negative] silently drops from the END — the normalization
+    guard makes a negative cap mean 'no pins', never a surprise slice."""
+    store = _make_store()
+    _add_pins(store, 3, content="alpha rule")
+    _add(store, "m1", "alpha note")
+
+    results = search_memory.execute(store, "alpha", mode="keyword", pinned_limit=-5)
+
+    assert [s.item.id for s in results] == ["m1"]

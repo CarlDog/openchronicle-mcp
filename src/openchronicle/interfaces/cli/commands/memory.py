@@ -127,6 +127,7 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
             embedding_service=container.embedding_service,
             mode=args.mode,
             phrase=args.phrase,
+            pinned_limit=args.pinned_limit,
         )
     except DomainValidationError as exc:
         # e.g. --mode semantic on a keyword-only deployment.

@@ -43,6 +43,7 @@ def memory_search(
     compact: bool = False,
     mode: str = Query(default="hybrid", pattern="^(hybrid|keyword|semantic)$"),
     phrase: bool = False,
+    pinned_limit: int = Query(default=10, ge=0, le=1000),
 ) -> list[dict[str, Any]]:
     """Search memory items; each result carries a `relevance` block.
 
@@ -50,7 +51,9 @@ def memory_search(
     `compact` swaps content for a preview plus its length. `mode`
     selects the retrieval channel (hybrid/keyword/semantic); `phrase`
     makes the keyword channel match the whole query as one
-    adjacent-token phrase.
+    adjacent-token phrase. `pinned_limit` bounds the pinned prepend
+    (newest first; 0 = none) — enumerate all pins via
+    `GET /memory?pinned_only=true`.
     """
     tag_list = parse_csv_tags(tags)
     results = search_memory.execute(
@@ -63,6 +66,7 @@ def memory_search(
         embedding_service=container.embedding_service,
         mode=mode,
         phrase=phrase,
+        pinned_limit=pinned_limit,
     )
     return [scored_memory_to_dict(s, compact=compact) for s in results]
 

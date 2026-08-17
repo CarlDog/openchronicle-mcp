@@ -5,6 +5,17 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## Unreleased (on main since rc7)
+
+- **Bounded pinned prepend (`pinned_limit`):** `memory_search` caps the
+  pinned prepend at the newest 10 pins by default (tunable 0–1000 via
+  `pinned_limit` on MCP/REST/CLI; 0 = none). Observed live right after
+  the rc7 deploy: a `top_k=2` unscoped search against the 85-pin NAS
+  store returned 87 results. Capped-out pins are omitted entirely —
+  the exclusion set still covers all pins, so they can't re-enter
+  through the keyword or semantic ranking. Enumerate every standing
+  rule with `memory_list(pinned_only=true)`. 589 tests.
+
 ## v3.0.0-rc7 — 2026-08-17
 
 Review Batch E (docs SSOT + test debt), the post-review polish batch,

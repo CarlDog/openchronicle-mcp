@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 # RRF constant — standard value from the original RRF paper
 _RRF_K = 60
 
+# Default ceiling on the pinned prepend. Pinned items are policy, not
+# ranking — but an unbounded prepend meant a pin-heavy store answered a
+# top_k=2 query with 85 pins (observed live, 2026-08-17). The cap keeps
+# the newest pins (pinned_items orders created_at DESC); completeness
+# callers enumerate via list_memory(pinned_only=True).
+DEFAULT_PINNED_LIMIT = 10
+
 
 @dataclass(frozen=True)
 class BackfillResult:
@@ -150,6 +157,7 @@ class EmbeddingService:
         tags: list[str] | None = None,
         offset: int = 0,
         phrase: bool = False,
+        pinned_limit: int = DEFAULT_PINNED_LIMIT,
     ) -> list[ScoredMemory]:
         """Hybrid search: FTS5 keyword + embedding similarity via RRF.
 
@@ -180,6 +188,10 @@ class EmbeddingService:
             pinned_items = all_pinned
             if tags:
                 pinned_items = [i for i in all_pinned if all(t in i.tags for t in tags)]
+            # Bounded prepend: newest pinned_limit pins only. The
+            # EXCLUSION set below stays ALL pins — a capped-out pin must
+            # not re-enter through the semantic channel.
+            pinned_items = pinned_items[: max(0, pinned_limit)]
 
         # Pinned items have separate budget — don't reduce search/RRF limit
         # (prevents pinned items from crowding out query-relevant results)
@@ -356,6 +368,7 @@ class EmbeddingService:
         include_pinned: bool = True,
         tags: list[str] | None = None,
         offset: int = 0,
+        pinned_limit: int = DEFAULT_PINNED_LIMIT,
     ) -> list[ScoredMemory]:
         """Pure semantic ranking (mode="semantic").
 
@@ -369,6 +382,9 @@ class EmbeddingService:
             pinned_items = all_pinned
             if tags:
                 pinned_items = [i for i in all_pinned if all(t in i.tags for t in tags)]
+            # Same bounded-prepend rule as search_hybrid; exclusion set
+            # below still covers all pins.
+            pinned_items = pinned_items[: max(0, pinned_limit)]
         pinned_ids = {i.id for i in all_pinned}
 
         ranked = self._semantic_search(

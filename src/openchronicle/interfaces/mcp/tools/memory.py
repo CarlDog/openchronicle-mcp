@@ -50,6 +50,7 @@ def register(mcp: FastMCP) -> None:
         compact: bool = False,
         mode: str = "hybrid",
         phrase: bool = False,
+        pinned_limit: int = 10,
     ) -> list[dict[str, Any]]:
         """Find memory items relevant to a query (hybrid semantic + keyword).
 
@@ -78,6 +79,10 @@ def register(mcp: FastMCP) -> None:
             phrase: Match the whole query as one adjacent-token phrase
                 on the keyword channel ("does content literally contain
                 this") instead of the default any-token match.
+            pinned_limit: Cap on the pinned prepend (default 10, newest
+                pins first; 0 = no pins). The prepend is a bounded
+                convenience — use `memory_list(pinned_only=true)` to
+                enumerate every standing rule.
 
         Each result carries a `relevance` object: `channel` says what
         surfaced it ("pinned" = standing-rule policy, no scores);
@@ -90,6 +95,7 @@ def register(mcp: FastMCP) -> None:
             raise DomainValidationError("query must be non-empty")
         top_k = min(max(top_k, 1), 1000)
         offset = max(offset, 0)
+        pinned_limit = min(max(pinned_limit, 0), 1000)
         container = _get_container(ctx)
 
         def _run() -> list[dict[str, Any]]:
@@ -103,6 +109,7 @@ def register(mcp: FastMCP) -> None:
                 embedding_service=container.embedding_service,
                 mode=mode,
                 phrase=phrase,
+                pinned_limit=pinned_limit,
             )
             return [scored_memory_to_dict(s, compact=compact) for s in results]
 

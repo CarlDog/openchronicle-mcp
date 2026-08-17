@@ -127,6 +127,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Match the whole query as one adjacent-token phrase (keyword channel)",
     )
+    memory_search_cmd.add_argument(
+        "--pinned-limit",
+        type=int,
+        default=10,
+        help="Cap the pinned prepend (newest first; 0 = none; default 10)",
+    )
 
     memory_update_cmd = memory_sub.add_parser("update", help="Update a memory item")
     memory_update_cmd.add_argument("memory_id")

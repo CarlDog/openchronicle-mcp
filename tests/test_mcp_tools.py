@@ -228,10 +228,11 @@ class TestMemorySearch:
             return_value=[],
         ) as mock_search:
             tool_fn = mcp._tool_manager._tools["memory_search"].fn
-            asyncio.run(tool_fn(query="Python", ctx=ctx, mode="keyword", phrase=True))
+            asyncio.run(tool_fn(query="Python", ctx=ctx, mode="keyword", phrase=True, pinned_limit=3))
 
         assert mock_search.call_args.kwargs["mode"] == "keyword"
         assert mock_search.call_args.kwargs["phrase"] is True
+        assert mock_search.call_args.kwargs["pinned_limit"] == 3
 
 
 class TestMemorySave:

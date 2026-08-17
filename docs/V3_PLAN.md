@@ -839,17 +839,22 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
-- **Pinned prepend ignores `top_k` at pin-heavy scale.** Observed
-  live-verifying the rc7 deploy (OC memory `4d1d7601`): a `top_k=2`
-  unscoped `memory_search` returned 87 results — 85 `channel="pinned"`
-  prepends ahead of the 2 requested hits. The separate-budget design is
-  intentional (pins are policy, not ranking) and this is pre-existing
-  behavior that rc7's relevance blocks merely made visible — but at ~85
-  pins the prepend swamps the MCP context window. Candidates to weigh:
-  cap the prepend (a `pinned_limit` + `pinned_total` pair), an
-  `include_pinned="relevant"` mode that prepends only query-matching
-  pins, or at minimum documenting the unscoped-search cost. Not a
-  regression; queued as a design decision.
+- **Pinned prepend ignores `top_k` at pin-heavy scale.** ✅ Landed
+  2026-08-17 (same day it was observed live-verifying the rc7 deploy,
+  OC memory `4d1d7601`: a `top_k=2` unscoped `memory_search` returned
+  87 results — 85 `channel="pinned"` prepends ahead of the 2 requested
+  hits). Fix: `pinned_limit` (default 10, 0 = none, clamped ≤1000) on
+  `memory_search` across MCP/REST/CLI bounds the prepend to the
+  *newest* pins (`pinned_items` orders `created_at DESC`); the
+  exclusion set still covers ALL pins, so a capped-out pin never
+  re-enters through the keyword or semantic ranking (regression-tested
+  with a capped pin whose embedding exactly matches the query).
+  Completeness callers enumerate via `memory_list(pinned_only=true)` —
+  that's the documented split. The `include_pinned="relevant"`
+  alternative (prepend only query-matching pins) was deliberately NOT
+  built: it inverts the pinned-items-are-policy design and needs a
+  pins-only ranking pass; revisit only if dogfooding shows the
+  newest-first cap picks badly.
 
 - **2026-08-15 full-repo review — Batches B–E queued.** A six-agent
   review (~60 findings; punch list in OC memory `e22472b8`, full report
