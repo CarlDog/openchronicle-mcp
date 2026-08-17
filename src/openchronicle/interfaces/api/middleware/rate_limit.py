@@ -62,10 +62,20 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             self._requests[client_ip] = timestamps
             remaining = max(0, self._rpm - len(timestamps))
 
-            # Evict dead keys to prevent memory leak
-            dead_keys = [k for k, v in self._requests.items() if not v]
-            for k in dead_keys:
-                del self._requests[k]
+            # Sweep every client's expired windows. The old eviction only
+            # checked for already-empty lists, but a list was only ever
+            # pruned when ITS client made a request — so idle client keys
+            # lived forever (slow leak on a weeks-running server;
+            # 2026-08-15 review). O(clients) per request is nothing at
+            # this deployment's scale.
+            for key in list(self._requests):
+                if key == client_ip:
+                    continue
+                pruned = [t for t in self._requests[key] if t > cutoff]
+                if pruned:
+                    self._requests[key] = pruned
+                else:
+                    del self._requests[key]
 
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(self._rpm)

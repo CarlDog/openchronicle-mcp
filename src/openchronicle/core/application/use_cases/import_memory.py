@@ -21,6 +21,7 @@ from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
+from openchronicle.core.domain.time_utils import utc_now
 
 VALID_MODES = ("merge", "replace")
 
@@ -62,34 +63,48 @@ def execute(
     projects_added = 0
     memory_added = 0
 
-    for raw_project in payload.get("projects", []):
-        if raw_project["id"] in existing_project_ids:
-            continue
-        storage.add_project(
-            Project(
-                id=raw_project["id"],
-                name=raw_project["name"],
-                metadata=raw_project.get("metadata") or {},
-                created_at=_parse_dt(raw_project["created_at"]) or datetime.now(),
-            )
-        )
-        projects_added += 1
+    # One transaction: this is the disaster-recovery path, where a bad
+    # row mid-loop must roll back everything rather than commit a
+    # half-applied import (each insert used to auto-commit). Row errors
+    # are translated to ValidationError naming the offending id so the
+    # CLI exits cleanly instead of printing a traceback. utc_now() (not
+    # naive datetime.now()) — a naive created_at mixed into aware ones
+    # poisons Python-side datetime sorts later.
+    with storage.transaction():
+        for raw_project in payload.get("projects", []):
+            if raw_project["id"] in existing_project_ids:
+                continue
+            try:
+                storage.add_project(
+                    Project(
+                        id=raw_project["id"],
+                        name=raw_project["name"],
+                        metadata=raw_project.get("metadata") or {},
+                        created_at=_parse_dt(raw_project["created_at"]) or utc_now(),
+                    )
+                )
+            except (KeyError, ValueError) as exc:
+                raise ValidationError(f"invalid project row {raw_project.get('id', '?')!r}: {exc}") from exc
+            projects_added += 1
 
-    for raw_memory in payload.get("memory_items", []):
-        if raw_memory["id"] in existing_memory_ids:
-            continue
-        memory_store.add_memory(
-            MemoryItem(
-                id=raw_memory["id"],
-                content=raw_memory["content"],
-                tags=raw_memory.get("tags") or [],
-                pinned=bool(raw_memory.get("pinned", False)),
-                project_id=raw_memory.get("project_id"),
-                source=raw_memory.get("source") or "import",
-                created_at=_parse_dt(raw_memory["created_at"]) or datetime.now(),
-                updated_at=_parse_dt(raw_memory.get("updated_at")),
-            )
-        )
-        memory_added += 1
+        for raw_memory in payload.get("memory_items", []):
+            if raw_memory["id"] in existing_memory_ids:
+                continue
+            try:
+                memory_store.add_memory(
+                    MemoryItem(
+                        id=raw_memory["id"],
+                        content=raw_memory["content"],
+                        tags=raw_memory.get("tags") or [],
+                        pinned=bool(raw_memory.get("pinned", False)),
+                        project_id=raw_memory.get("project_id"),
+                        source=raw_memory.get("source") or "import",
+                        created_at=_parse_dt(raw_memory["created_at"]) or utc_now(),
+                        updated_at=_parse_dt(raw_memory.get("updated_at")),
+                    )
+                )
+            except (KeyError, ValueError) as exc:
+                raise ValidationError(f"invalid memory row {raw_memory.get('id', '?')!r}: {exc}") from exc
+            memory_added += 1
 
     return {"projects_added": projects_added, "memory_added": memory_added}
