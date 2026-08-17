@@ -839,6 +839,18 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
+- **Pinned prepend ignores `top_k` at pin-heavy scale.** Observed
+  live-verifying the rc7 deploy (OC memory `4d1d7601`): a `top_k=2`
+  unscoped `memory_search` returned 87 results — 85 `channel="pinned"`
+  prepends ahead of the 2 requested hits. The separate-budget design is
+  intentional (pins are policy, not ranking) and this is pre-existing
+  behavior that rc7's relevance blocks merely made visible — but at ~85
+  pins the prepend swamps the MCP context window. Candidates to weigh:
+  cap the prepend (a `pinned_limit` + `pinned_total` pair), an
+  `include_pinned="relevant"` mode that prepends only query-matching
+  pins, or at minimum documenting the unscoped-search cost. Not a
+  regression; queued as a design decision.
+
 - **2026-08-15 full-repo review — Batches B–E queued.** A six-agent
   review (~60 findings; punch list in OC memory `e22472b8`, full report
   in the session artifact "OpenChronicle Repo Review") produced five
