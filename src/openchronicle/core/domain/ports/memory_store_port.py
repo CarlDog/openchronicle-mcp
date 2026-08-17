@@ -84,7 +84,15 @@ class MemoryStorePort(ABC):
         include_pinned: bool = True,
         tags: list[str] | None = None,
         offset: int = 0,
-    ) -> list[MemoryItem]: ...
+        phrase: bool = False,
+    ) -> list[MemoryItem]:
+        """Keyword search, pinned items prepended on the first page.
+
+        ``phrase=True`` matches the whole query as one adjacent-token
+        phrase ("does the content literally contain this") instead of
+        the default any-token match.
+        """
+        ...
 
     @abstractmethod
     def delete_memory(self, memory_id: str) -> None:

@@ -537,8 +537,9 @@ class SqliteStore(StoragePort, MemoryStorePort):
         limit: int,
         project_id: str | None = None,
         tags: list[str] | None = None,
+        phrase: bool = False,
     ) -> list[MemoryItem]:
-        escaped = self._fts5_escape(query)
+        escaped = self._fts5_escape(query, phrase=phrase)
         if not escaped:
             return []
         cur = self._conn.cursor()
@@ -569,6 +570,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         limit: int,
         project_id: str | None = None,
         tags: list[str] | None = None,
+        phrase: bool = False,
     ) -> list[MemoryItem]:
         q_tokens = self._normalize_tokens(query)
         cur = self._conn.cursor()
@@ -593,6 +595,16 @@ class SqliteStore(StoragePort, MemoryStorePort):
         if tags:
             items = [i for i in items if all(t in i.tags for t in tags)]
 
+        if phrase:
+            # Fallback phrase semantics: case-insensitive substring of the
+            # whitespace-normalized query — the closest analogue of the
+            # FTS5 adjacent-tokens phrase match.
+            needle = " ".join(query.split()).casefold()
+            if not needle:
+                return []
+            items = [i for i in items if needle in " ".join(i.content.split()).casefold()]
+            return items[:limit]
+
         def _score(item: MemoryItem) -> tuple[int, int, datetime, str]:
             tag_matches = self._tag_match_count(item.tags, q_tokens)
             keyword_matches = self._keyword_match_count(item.content, q_tokens)
@@ -611,6 +623,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         include_pinned: bool = True,
         tags: list[str] | None = None,
         offset: int = 0,
+        phrase: bool = False,
     ) -> list[MemoryItem]:
         effective_top_k = top_k + offset
         pinned_items: list[MemoryItem] = []
@@ -619,9 +632,9 @@ class SqliteStore(StoragePort, MemoryStorePort):
             if tags:
                 pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
         if self._fts5_active:
-            non_pinned = self._fts5_search_memory(query, effective_top_k, project_id, tags=tags)
+            non_pinned = self._fts5_search_memory(query, effective_top_k, project_id, tags=tags, phrase=phrase)
         else:
-            non_pinned = self._fallback_search_memory(query, effective_top_k, project_id, tags=tags)
+            non_pinned = self._fallback_search_memory(query, effective_top_k, project_id, tags=tags, phrase=phrase)
         pinned_ids = {i.id for i in pinned_items}
         non_pinned = [i for i in non_pinned if i.id not in pinned_ids]
         non_pinned_page = non_pinned[offset : offset + top_k]
@@ -655,15 +668,26 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return sum(1 for token in q_tokens if token in content_lower)
 
     @staticmethod
-    def _fts5_escape(query: str) -> str:
+    def _fts5_escape(query: str, *, phrase: bool = False) -> str:
+        """Neutralize user input for FTS5 MATCH.
+
+        Default: each whitespace token individually quoted and OR-joined
+        (any-token match). ``phrase=True``: the whole query becomes ONE
+        quoted FTS5 phrase, matching the tokens adjacently in order —
+        "does the content literally contain this phrase" (Q21; before
+        2026-08-17 this was not expressible at all).
+        """
         if not query or not query.strip():
             return ""
+        if phrase:
+            clean = " ".join(query.replace('"', "").split())
+            return f'"{clean}"' if clean else ""
         tokens = query.split()
         escaped = []
         for token in tokens:
-            clean = token.replace('"', "")
-            if clean:
-                escaped.append(f'"{clean}"')
+            clean_token = token.replace('"', "")
+            if clean_token:
+                escaped.append(f'"{clean_token}"')
         return " OR ".join(escaped)
 
     # ── maintenance operations ──────────────────────────────────────
