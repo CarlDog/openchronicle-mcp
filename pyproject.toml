@@ -55,7 +55,7 @@ mcp = [
 	# standalone fastmcp package). The server imports it directly, so an
 	# unpinned fresh image build ships broken. Migrating to mcp 2.x /
 	# fastmcp is its own project — see V3_PLAN follow-ups.
-	"mcp>=1.0,<2",
+	"mcp>=1.0,<3",
 ]
 dev = [
 	"pytest>=7",
@@ -69,7 +69,7 @@ dev = [
 	"ruff>=0.16,<0.17",
 	"openai>=1.0.0",
 	"httpx>=0.25.0",
-	"mcp>=1.0,<2",
+	"mcp>=1.0,<3",
 	"numpy>=1.24",
 ]
 
