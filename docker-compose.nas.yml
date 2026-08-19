@@ -58,6 +58,7 @@ services:
   oc:
     image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
     restart: unless-stopped
+    network_mode: bridge
     ports:
       - "${HOST_HTTP_PORT:-18000}:8000"
     environment:
