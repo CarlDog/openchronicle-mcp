@@ -50,6 +50,9 @@ drivers in `interfaces/`), enforced by tests — see
   review's punch list is mirrored in OC memory `e22472b8`.
 - **CLAUDE.md "Current Sprint"** — the in-flight batch only; history
   rolls into the revision table below and the CHANGELOG.
+- **[design/](design/)** — numbered design docs / ADRs (`NNNN-topic.md`).
+  A design here is a *proposal* until its phases ship; current state
+  still lives in this file.
 - **[archive/v2/](archive/v2/README.md)** — frozen v2 docs, never
   maintained.
 
