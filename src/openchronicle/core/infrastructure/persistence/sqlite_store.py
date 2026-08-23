@@ -16,13 +16,13 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Concatenate
+from typing import Any, Concatenate, Literal
 
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
-from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.infrastructure.persistence import migrator
 from openchronicle.core.infrastructure.persistence.backup import backup_from_connection
@@ -32,6 +32,49 @@ from openchronicle.core.infrastructure.persistence.row_mappers import (
 )
 
 _LIKE_ESCAPE = "\\"
+
+# How a search query treats pinned rows. Search asks two independent
+# questions about a pin — may it FLOAT (policy: standing rules lead) and
+# may it RANK (visibility: does it compete on relevance) — and these
+# three modes are every combination that means anything:
+#
+#   "exclude" — neither. The caller passed include_pinned=False.
+#               Scope is strict, matching list_memory.
+#   "include" — rank but do not float. Pins compete on their merits.
+#               Scope is with-global for pinned rows only: a standing
+#               rule belonging to no project still applies inside one.
+#   "only"    — the float query itself: which pins match this query.
+#               Scope is with-global, same reason.
+_PinnedMode = Literal["exclude", "include", "only"]
+
+
+def _pinned_clauses(mode: _PinnedMode, project_id: str | None, alias: str = "") -> tuple[str, str, list[Any]]:
+    """Return (pinned_clause, scope_clause, params) for a search query.
+
+    Centralized because these two clauses have to agree across four
+    call sites (FTS5 + the fallback's two branches + the float query);
+    when they were inlined, the scope rule and the pinned rule drifted
+    apart and pins became unreachable.
+    """
+    p = f"{alias}." if alias else ""
+    params: list[Any] = []
+    if mode == "exclude":
+        pinned_clause = f"AND {p}pinned = 0"
+        scope_clause = ""
+        if project_id is not None:
+            scope_clause = f"AND {p}project_id = ?"
+            params.append(project_id)
+        return pinned_clause, scope_clause, params
+
+    pinned_clause = f"AND {p}pinned = 1" if mode == "only" else ""
+    scope_clause = ""
+    if project_id is not None:
+        if mode == "only":
+            scope_clause = f"AND ({p}project_id = ? OR {p}project_id IS NULL)"
+        else:
+            scope_clause = f"AND ({p}project_id = ? OR ({p}pinned = 1 AND {p}project_id IS NULL))"
+        params.append(project_id)
+    return pinned_clause, scope_clause, params
 
 
 def _escape_like(value: str) -> str:
@@ -538,23 +581,21 @@ class SqliteStore(StoragePort, MemoryStorePort):
         project_id: str | None = None,
         tags: list[str] | None = None,
         phrase: bool = False,
+        pinned_mode: _PinnedMode = "exclude",
     ) -> list[MemoryItem]:
         escaped = self._fts5_escape(query, phrase=phrase)
         if not escaped:
             return []
         cur = self._conn.cursor()
-        params: list[Any] = [escaped]
-        scope_clause = ""
-        if project_id is not None:
-            scope_clause = "AND m.project_id = ?"
-            params.append(project_id)
+        pinned_clause, scope_clause, scope_params = _pinned_clauses(pinned_mode, project_id, alias="m")
+        params: list[Any] = [escaped, *scope_params]
         fetch_limit = limit * 4 if tags else limit
         params.append(fetch_limit)
         sql = f"""
             SELECT m.* FROM memory_fts fts
             JOIN memory_items m ON m.rowid = fts.rowid
             WHERE memory_fts MATCH ?
-            AND m.pinned = 0
+            {pinned_clause}
             {scope_clause}
             ORDER BY fts.rank, m.created_at DESC, m.id ASC
             LIMIT ?
@@ -571,26 +612,20 @@ class SqliteStore(StoragePort, MemoryStorePort):
         project_id: str | None = None,
         tags: list[str] | None = None,
         phrase: bool = False,
+        pinned_mode: _PinnedMode = "exclude",
     ) -> list[MemoryItem]:
         q_tokens = self._normalize_tokens(query)
         cur = self._conn.cursor()
-        params: list[Any] = []
-        if project_id is not None:
-            sql = """
-                SELECT * FROM memory_items
-                WHERE project_id=? AND pinned=0
-                ORDER BY created_at DESC, id DESC
-                LIMIT ?
-            """
-            params = [project_id, _MEMORY_SEARCH_LIMIT]
-        else:
-            sql = """
-                SELECT * FROM memory_items
-                WHERE pinned=0
-                ORDER BY created_at DESC, id DESC
-                LIMIT ?
-            """
-            params = [_MEMORY_SEARCH_LIMIT]
+        pinned_clause, scope_clause, scope_params = _pinned_clauses(pinned_mode, project_id)
+        params: list[Any] = [*scope_params, _MEMORY_SEARCH_LIMIT]
+        sql = f"""
+            SELECT * FROM memory_items
+            WHERE 1=1
+            {pinned_clause}
+            {scope_clause}
+            ORDER BY created_at DESC, id DESC
+            LIMIT ?
+        """
         items = [row_to_memory_item(r) for r in cur.execute(sql, params).fetchall()]
         if tags:
             items = [i for i in items if all(t in i.tags for t in tags)]
@@ -613,6 +648,45 @@ class SqliteStore(StoragePort, MemoryStorePort):
         items.sort(key=_score, reverse=True)
         return items[:limit]
 
+    def _ranked_search(
+        self,
+        query: str,
+        limit: int,
+        project_id: str | None,
+        tags: list[str] | None,
+        phrase: bool,
+        pinned_mode: _PinnedMode,
+    ) -> list[MemoryItem]:
+        """Dispatch to FTS5 or the fallback scorer.
+
+        Deliberately NOT ``@_locked``: every caller already holds the
+        store lock. Calling a locked method from inside another would
+        rely on the lock being reentrant.
+        """
+        if self._fts5_active:
+            return self._fts5_search_memory(query, limit, project_id, tags=tags, phrase=phrase, pinned_mode=pinned_mode)
+        return self._fallback_search_memory(query, limit, project_id, tags=tags, phrase=phrase, pinned_mode=pinned_mode)
+
+    @_locked
+    def search_pinned(
+        self,
+        query: str,
+        *,
+        limit: int = DEFAULT_PINNED_LIMIT,
+        project_id: str | None = None,
+        tags: list[str] | None = None,
+        phrase: bool = False,
+    ) -> list[MemoryItem]:
+        """Pinned items that MATCH the query — the float set.
+
+        Distinct from ``pinned_items``, which enumerates every pin
+        regardless of the query. Scope is with-global (see
+        ``_pinned_clauses``).
+        """
+        if limit <= 0:
+            return []
+        return self._ranked_search(query, limit, project_id, tags, phrase, "only")[:limit]
+
     @_locked
     def search_memory(
         self,
@@ -624,23 +698,20 @@ class SqliteStore(StoragePort, MemoryStorePort):
         tags: list[str] | None = None,
         offset: int = 0,
         phrase: bool = False,
+        exclude_ids: set[str] | None = None,
     ) -> list[MemoryItem]:
+        # Pure ranking. The pinned FLOAT is application policy and lives
+        # in the caller (see search_memory use case / EmbeddingService),
+        # which passes the floated ids as exclude_ids so a floated pin
+        # cannot also consume a slot in the ranking.
         effective_top_k = top_k + offset
-        pinned_items: list[MemoryItem] = []
-        if include_pinned:
-            pinned_items = self.pinned_items(project_id)
-            if tags:
-                pinned_items = [i for i in pinned_items if all(t in i.tags for t in tags)]
-        if self._fts5_active:
-            non_pinned = self._fts5_search_memory(query, effective_top_k, project_id, tags=tags, phrase=phrase)
-        else:
-            non_pinned = self._fallback_search_memory(query, effective_top_k, project_id, tags=tags, phrase=phrase)
-        pinned_ids = {i.id for i in pinned_items}
-        non_pinned = [i for i in non_pinned if i.id not in pinned_ids]
-        non_pinned_page = non_pinned[offset : offset + top_k]
-        if offset == 0:
-            return list(pinned_items) + non_pinned_page
-        return non_pinned_page
+        # Over-fetch by the exclusion size so removing floated rows
+        # cannot shrink the page below top_k.
+        fetch = effective_top_k + len(exclude_ids or ())
+        ranked = self._ranked_search(query, fetch, project_id, tags, phrase, "include" if include_pinned else "exclude")
+        if exclude_ids:
+            ranked = [i for i in ranked if i.id not in exclude_ids]
+        return ranked[offset : offset + top_k]
 
     # ── helpers ─────────────────────────────────────────────────────
 

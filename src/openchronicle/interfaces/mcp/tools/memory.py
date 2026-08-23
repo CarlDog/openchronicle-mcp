@@ -79,13 +79,17 @@ def register(mcp: FastMCP) -> None:
             phrase: Match the whole query as one adjacent-token phrase
                 on the keyword channel ("does content literally contain
                 this") instead of the default any-token match.
-            pinned_limit: Cap on the pinned prepend (default 10, newest
-                pins first; 0 = no pins). The prepend is a bounded
-                convenience — use `memory_list(pinned_only=true)` to
-                enumerate every standing rule.
+            pinned_limit: Cap on how many matching pinned items lead the
+                results (default 10, best-matching first). This bounds
+                the FLOAT, not visibility: 0 means "don't float them",
+                and a pin that doesn't win a slot still ranks normally.
+                Use `include_pinned=false` to hide pins, or
+                `memory_list(pinned_only=true)` to enumerate every
+                standing rule.
 
         Each result carries a `relevance` object: `channel` says what
-        surfaced it ("pinned" = standing-rule policy, no scores);
+        surfaced it ("pinned" = a standing rule that matched and was
+        floated to the top, no scores);
         `semantic_similarity` (unit cosine, 0-1) is the only roughly
         interpretable score — `rrf_score` is a rank-fusion value, NOT
         calibrated confidence; `keyword_rank` is the 1-based keyword
@@ -235,9 +239,11 @@ def register(mcp: FastMCP) -> None:
     ) -> dict[str, str]:
         """Mark a memory as pinned (or unpin it).
 
-        Pinned memories always surface in `memory_search` and
-        `context_recent` results regardless of relevance ranking. Use for
-        standing rules, conventions, and project-wide invariants. Use
+        A pinned memory that MATCHES a `memory_search` query is floated
+        above the ranked results (up to `pinned_limit`); it is not
+        injected into unrelated searches. Use for standing rules,
+        conventions, and project-wide invariants, and
+        `memory_list(pinned_only=true)` to enumerate them all. Use
         `memory_update` for content/tag edits — pin state is separate.
 
         Args:

@@ -131,7 +131,7 @@ def main(argv: list[str] | None = None) -> int:
         "--pinned-limit",
         type=int,
         default=10,
-        help="Cap the pinned prepend (newest first; 0 = none; default 10)",
+        help="Cap how many matching pins float to the top (0 = don't float; they still rank; default 10)",
     )
 
     memory_update_cmd = memory_sub.add_parser("update", help="Update a memory item")

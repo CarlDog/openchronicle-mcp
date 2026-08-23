@@ -44,6 +44,13 @@
 
 ## Current Sprint
 
+**2026-08-23 — query-aware pinned float on main (undeployed).** A
+pinned memory now leads search results only when it *matches* the
+query, and a pin that loses a float slot still ranks — rc8's cap alone
+had made pins past the cap unreachable by any query. Next NAS deploy
+picks it up (`OC_TAG` must move). Cloud-drive backup integration is in
+design; see the workflow output and V3_PLAN open question 12.
+
 **2026-08-17 — v3.0.0-rc8 deployed.** rc7 took the Q20/Q21
 **search-surface v2** live (per-result `relevance` scores, per-call
 `mode` hybrid/keyword/semantic, `phrase` exact matching across

@@ -8,19 +8,12 @@ from dataclasses import dataclass
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
-from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
 
 logger = logging.getLogger(__name__)
 
 # RRF constant — standard value from the original RRF paper
 _RRF_K = 60
-
-# Default ceiling on the pinned prepend. Pinned items are policy, not
-# ranking — but an unbounded prepend meant a pin-heavy store answered a
-# top_k=2 query with 85 pins (observed live, 2026-08-17). The cap keeps
-# the newest pins (pinned_items orders created_at DESC); completeness
-# callers enumerate via list_memory(pinned_only=True).
-DEFAULT_PINNED_LIMIT = 10
 
 
 @dataclass(frozen=True)
@@ -174,51 +167,54 @@ class EmbeddingService:
         effective_top_k = top_k + offset
 
         # ── Pinned items ────────────────────────────────────────────────
-        # The PREPEND set honors include_pinned (and tags), but the
-        # EXCLUSION set is always every pinned item: pinned rows are
-        # served by the prepend, never by ranking, so they must not
-        # re-enter through the semantic channel (the keyword channel
-        # already excludes them in SQL). Building the exclusion set from
-        # the filtered prepend list is exactly how include_pinned=False —
-        # and a pinned item failing the tag filter — used to leak pinned
-        # results back in via the RRF merge.
-        all_pinned = self._store.pinned_items(project_id)
+        # The FLOAT set is pins that MATCH the query, capped — not a
+        # blanket prepend of every pin. The EXCLUSION set is exactly the
+        # floated pins, so an unfloated pin still ranks on its merits
+        # through either channel. These two facts are coupled: widening
+        # the exclusion back to ALL pins (as it was until 2026-08-23)
+        # makes every unfloated pin unreachable by any query, and
+        # floating without excluding duplicates it.
         pinned_items: list[MemoryItem] = []
-        if include_pinned:
-            pinned_items = all_pinned
-            if tags:
-                pinned_items = [i for i in all_pinned if all(t in i.tags for t in tags)]
-            # Bounded prepend: newest pinned_limit pins only. The
-            # EXCLUSION set below stays ALL pins — a capped-out pin must
-            # not re-enter through the semantic channel.
-            pinned_items = pinned_items[: max(0, pinned_limit)]
+        if include_pinned and pinned_limit > 0:
+            pinned_items = self._store.search_pinned(
+                query,
+                limit=pinned_limit,
+                project_id=project_id,
+                tags=tags,
+                phrase=phrase,
+            )
 
         # Pinned items have separate budget — don't reduce search/RRF limit
         # (prevents pinned items from crowding out query-relevant results)
 
-        pinned_ids = {i.id for i in all_pinned}
+        pinned_ids = {i.id for i in pinned_items}
 
         def _page(ranked: list[ScoredMemory]) -> list[ScoredMemory]:
-            # The pinned-prepend pagination rule, in one place for both
-            # the hybrid and degraded return paths: pinned items get a
+            # The pinned-float pagination rule, in one place for both the
+            # hybrid and degraded return paths: floated pins get a
             # separate budget, surface as channel="pinned" (policy, not
-            # relevance — no scores), and are prepended on the FIRST
-            # page only; `offset` paginates the non-pinned ranking.
+            # relevance — no scores), and lead the FIRST page only;
+            # `offset` paginates the ranking underneath them.
             page = ranked[offset : offset + top_k]
             if offset == 0:
                 return [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + page
             return page
 
         # ── Keyword search (list A) ─────────────────────────────────────
+        # include_pinned mirrors the CALLER's intent (are pins visible at
+        # all); exclude_ids drops the ones already floated above. Passing
+        # include_pinned=False unconditionally here — as this did until
+        # 2026-08-23 — is what kept every unfloated pin invisible to the
+        # keyword channel.
         keyword_results = self._store.search_memory(
             query,
             top_k=effective_top_k * 2,  # over-fetch for RRF merge
             project_id=project_id,
-            include_pinned=False,
+            include_pinned=include_pinned,
             tags=tags,
             phrase=phrase,
+            exclude_ids=pinned_ids,
         )
-        keyword_results = [i for i in keyword_results if i.id not in pinned_ids]
 
         # ── Semantic search (list B) ─────────────────────────────────────
         # Embedding-failure degradation: if the provider raises, log it,
@@ -272,15 +268,21 @@ class EmbeddingService:
         for mid in all_ids:
             if mid not in item_map:
                 continue
-            # Pinned rows never rank — they're served by the prepend (or
-            # deliberately absent). Belt-and-braces alongside pinned_ids.
-            if item_map[mid].pinned:
+            item = item_map[mid]
+            # A pin is skipped only if it already floated (avoid a
+            # duplicate) or the caller hid pins entirely. An unfloated
+            # pin ranks like any other row — that is what makes pins
+            # past the float cap reachable at all.
+            if item.pinned and (mid in pinned_ids or not include_pinned):
                 continue
             # Apply tag filter to semantic-only results
-            if tags and not all(t in item_map[mid].tags for t in tags):
+            if tags and not all(t in item.tags for t in tags):
                 continue
-            # Apply project filter to semantic-only results
-            if project_id and item_map[mid].project_id != project_id:
+            # Apply project filter to semantic-only results. Pinned rows
+            # are scope-with-global, matching the store's ranked query: a
+            # standing rule belonging to no project still applies inside
+            # one.
+            if project_id and item.project_id != project_id and not (item.pinned and item.project_id is None):
                 continue
 
             kr = keyword_rank.get(mid)
@@ -376,16 +378,19 @@ class EmbeddingService:
         caller explicitly asked for semantic results, so a provider
         failure raises instead of quietly returning keyword matches.
         """
-        all_pinned = self._store.pinned_items(project_id)
+        # Same float/rank split as search_hybrid: the float set is pins
+        # that MATCH the query (keyword-matched via the store), and the
+        # exclusion covers only those, so an unfloated pin still ranks
+        # semantically below.
         pinned_items: list[MemoryItem] = []
-        if include_pinned:
-            pinned_items = all_pinned
-            if tags:
-                pinned_items = [i for i in all_pinned if all(t in i.tags for t in tags)]
-            # Same bounded-prepend rule as search_hybrid; exclusion set
-            # below still covers all pins.
-            pinned_items = pinned_items[: max(0, pinned_limit)]
-        pinned_ids = {i.id for i in all_pinned}
+        if include_pinned and pinned_limit > 0:
+            pinned_items = self._store.search_pinned(
+                query,
+                limit=pinned_limit,
+                project_id=project_id,
+                tags=tags,
+            )
+        pinned_ids = {i.id for i in pinned_items}
 
         ranked = self._semantic_search(
             query,
@@ -398,11 +403,14 @@ class EmbeddingService:
         results: list[ScoredMemory] = []
         for mid, sim in ranked:
             item = self._store.get_memory(mid)
-            if item is None or item.pinned:
+            if item is None:
+                continue
+            if item.pinned and not include_pinned:
                 continue
             if tags and not all(t in item.tags for t in tags):
                 continue
-            if project_id and item.project_id != project_id:
+            # Pinned rows are scope-with-global; see search_hybrid.
+            if project_id and item.project_id != project_id and not (item.pinned and item.project_id is None):
                 continue
             results.append(ScoredMemory(item=item, channel="semantic", semantic_similarity=sim))
 

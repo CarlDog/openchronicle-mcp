@@ -133,9 +133,9 @@ Every `memory_search` result (and `context_recent` result when a
 `query` is given) carries a `relevance` object explaining *why* it
 surfaced. Fields are omitted when not applicable:
 
-- `channel` (always present) — what produced the hit: `pinned`
-  (standing-rule policy, no scores), `keyword`, `semantic`, or
-  `hybrid` (both channels agreed).
+- `channel` (always present) — what produced the hit: `pinned` (a
+  standing rule that matched and was floated to the top, no scores),
+  `keyword`, `semantic`, or `hybrid` (both channels agreed).
 - `semantic_similarity` — unit-cosine similarity (0–1); the only
   roughly interpretable score.
 - `rrf_score` — the Reciprocal Rank Fusion value used for ordering.
@@ -152,11 +152,26 @@ error and a provider failure is a `PROVIDER_ERROR` — never a silent
 keyword fallback). `phrase=true` makes the keyword channel match the
 whole query as one adjacent-token phrase.
 
-The pinned prepend is **bounded**: `pinned_limit` (default 10, 0 = no
-pins) keeps only the newest pins — an unbounded prepend once answered a
-`top_k=2` query with 85 pins on a pin-heavy store. Pins beyond the cap
-are omitted entirely (they never re-enter through ranking); enumerate
-every standing rule with `memory_list(pinned_only=true)`.
+The pinned **float** is query-aware and bounded. A pinned item leads the
+results only when it *matches* the query, and at most `pinned_limit` of
+them do (default 10, best-matching first, recency breaking ties).
+
+Two independent questions, deliberately kept separate — conflating them
+produced both of the bugs this replaced:
+
+| | float (policy) | rank (visibility) |
+|---|---|---|
+| `pinned_limit=10` (default) | up to 10 matching pins lead | the rest rank normally |
+| `pinned_limit=0` | none lead | **all pins still rank** |
+| `include_pinned=false` | none lead | pins hidden entirely |
+
+History, so it isn't reintroduced: until 2026-08-17 the float was a
+blanket prepend of *every* pin regardless of the query (a `top_k=2`
+search answered with 85 pins). Capping that prepend then made pins past
+the cap unreachable by **any** query, because the ranking excluded all
+pinned rows. The float is now a real query and the exclusion covers only
+the pins actually floated. Enumerate every standing rule — matching or
+not — with `memory_list(pinned_only=true)`.
 
 ## Cut from v2
 

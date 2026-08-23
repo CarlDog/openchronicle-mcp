@@ -839,22 +839,39 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
-- **Pinned prepend ignores `top_k` at pin-heavy scale.** ✅ Landed
-  2026-08-17 (same day it was observed live-verifying the rc7 deploy,
-  OC memory `4d1d7601`: a `top_k=2` unscoped `memory_search` returned
-  87 results — 85 `channel="pinned"` prepends ahead of the 2 requested
-  hits). Fix: `pinned_limit` (default 10, 0 = none, clamped ≤1000) on
-  `memory_search` across MCP/REST/CLI bounds the prepend to the
-  *newest* pins (`pinned_items` orders `created_at DESC`); the
-  exclusion set still covers ALL pins, so a capped-out pin never
-  re-enters through the keyword or semantic ranking (regression-tested
-  with a capped pin whose embedding exactly matches the query).
-  Completeness callers enumerate via `memory_list(pinned_only=true)` —
-  that's the documented split. The `include_pinned="relevant"`
-  alternative (prepend only query-matching pins) was deliberately NOT
-  built: it inverts the pinned-items-are-policy design and needs a
-  pins-only ranking pass; revisit only if dogfooding shows the
-  newest-first cap picks badly.
+- **Pinned prepend ignored the query.** ✅ Fully fixed 2026-08-23, in
+  two passes — the first was incomplete and worth recording as such.
+  - **Pass 1 (2026-08-17, rc8).** Observed live-verifying the rc7
+    deploy (OC memory `4d1d7601`): a `top_k=2` unscoped
+    `memory_search` returned 87 results — 85 `channel="pinned"`
+    prepends ahead of the 2 requested hits. Shipped `pinned_limit`
+    (default 10) to cap the prepend at the *newest* pins, kept the
+    exclusion set covering ALL pins, and **deferred** the
+    `include_pinned="relevant"` alternative as "inverts the
+    pins-are-policy design".
+  - **That was the wrong call, and the cap alone made things worse.**
+    Because the ranked query hardcoded `pinned = 0`, pinned rows only
+    ever reached a caller through the prepend — so capping it made
+    every pin past the cap **unreachable by any query**. Proven live:
+    an exact-phrase search for a pinned memory's own verbatim content
+    returned `[]` with `pinned_limit=0`, while a gibberish query
+    returned all 8 of a project's pins. Both symptoms, one root cause:
+    "floats" and "is visible" were the same flag.
+  - **Pass 2 (2026-08-23) separates them.** The float is now a real
+    query (`MemoryStorePort.search_pinned`) — only pins that MATCH
+    lead the page, best-matching first, capped by `pinned_limit`,
+    scope-with-global. The exclusion covers only the pins actually
+    floated, so an unfloated pin ranks normally and reports its true
+    channel. `pinned_limit=0` means "don't float" and `include_pinned=
+    False` means "hide"; the ranked query no longer hardcodes
+    `pinned = 0`. The float policy moved out of the store into the
+    application layer, so the store keeps two honest primitives
+    (`search_pinned`, and `search_memory` + `exclude_ids`) and the
+    caller never guesses which rows floated from their position.
+  - **Lesson worth keeping:** the deferred option was deferred on a
+    design-purity argument ("pins are policy, not relevance") without
+    checking what the cap did to reachability. A cap on a channel that
+    is a row's *only* route to the caller is a silent delete.
 
 - **2026-08-15 full-repo review — Batches B–E queued.** A six-agent
   review (~60 findings; punch list in OC memory `e22472b8`, full report

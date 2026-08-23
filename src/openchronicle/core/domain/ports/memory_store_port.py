@@ -4,6 +4,11 @@ from abc import ABC, abstractmethod
 
 from openchronicle.core.domain.models.memory_item import MemoryItem
 
+# Ceiling on the pinned float in a single search. Lives here rather than
+# in the service or the store because both layers apply it and a second
+# copy would drift.
+DEFAULT_PINNED_LIMIT = 10
+
 
 class MemoryStorePort(ABC):
     """Persistence operations for memory items.
@@ -18,7 +23,8 @@ class MemoryStorePort(ABC):
     - **scope-with-global** (``project_id = ? OR project_id IS NULL``) —
       relevance retrieval. "What should I know while working in X?"
       Standing rules that belong to no single project have to surface
-      everywhere. Used by `pinned_items`, and through it, hybrid search.
+      everywhere. Used by `pinned_items`, `search_pinned`, and the
+      ranked search's treatment of pinned rows.
 
     One consequence worth stating outright, because it looks like a bug to
     anyone who meets the two rules for the first time:
@@ -85,12 +91,53 @@ class MemoryStorePort(ABC):
         tags: list[str] | None = None,
         offset: int = 0,
         phrase: bool = False,
+        exclude_ids: set[str] | None = None,
     ) -> list[MemoryItem]:
-        """Keyword search, pinned items prepended on the first page.
+        """Keyword search, ranked by relevance. No pinned float — see below.
 
         ``phrase=True`` matches the whole query as one adjacent-token
         phrase ("does the content literally contain this") instead of
         the default any-token match.
+
+        ``include_pinned`` is a VISIBILITY switch, not a float switch:
+
+        - ``True`` (default): pinned rows compete on relevance like any
+          other row, scope-with-global (a standing rule belonging to no
+          project still applies inside one).
+        - ``False``: pinned rows are excluded outright and scope goes
+          strict, matching ``list_memory``.
+
+        ``exclude_ids`` drops specific rows before paging. Callers that
+        float pins pass the floated ids here so a pin cannot both lead
+        the page and consume a slot in the ranking.
+
+        The pinned FLOAT (standing rules lead page one) is application
+        policy and lives in the caller. Until 2026-08-23 it lived here as
+        a blanket prepend of *every* pin regardless of the query — a
+        `top_k=2` search returned 85 pins — and the accompanying
+        all-pins exclusion made any pin past the cap unreachable by
+        every query. Both defects came from conflating "float" with
+        "visible"; keep them separate.
+        """
+        ...
+
+    @abstractmethod
+    def search_pinned(
+        self,
+        query: str,
+        *,
+        limit: int = DEFAULT_PINNED_LIMIT,
+        project_id: str | None = None,
+        tags: list[str] | None = None,
+        phrase: bool = False,
+    ) -> list[MemoryItem]:
+        """Pinned items that MATCH the query — the float set.
+
+        Scope-with-global, same reasoning as ``pinned_items``. Distinct
+        from ``pinned_items``, which enumerates pins regardless of the
+        query; this is what hybrid and semantic search float, so that a
+        pin has to earn its place at the top instead of crowding out the
+        results the caller asked for.
         """
         ...
 
@@ -117,10 +164,13 @@ class MemoryStorePort(ABC):
         """Return all pinned items, optionally project-scoped.
 
         Scope-with-global: cross-project pinned items (project_id IS NULL)
-        are included even when a project_id is supplied. Pinned items always
-        surface in search results regardless of relevance ranking (standing
-        rules / conventions), and a standing rule that belongs to no single
-        project still applies while working inside one.
+        are included even when a project_id is supplied — a standing rule
+        that belongs to no single project still applies while working
+        inside one.
+
+        This is the ENUMERATION surface ("what standing rules exist?").
+        Search floats pins via ``search_pinned``, which additionally
+        requires them to match the query.
         """
         ...
 

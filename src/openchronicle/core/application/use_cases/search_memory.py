@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from openchronicle.core.application.services.embedding_service import DEFAULT_PINNED_LIMIT
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
-from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
 
 if TYPE_CHECKING:
     from openchronicle.core.application.services.embedding_service import EmbeddingService
@@ -44,10 +44,13 @@ def execute(
     ``phrase`` makes the keyword channel match the whole query as one
     adjacent-token phrase instead of any-token.
 
-    ``pinned_limit`` bounds the pinned prepend (newest pins first;
-    0 disables it like ``include_pinned=False``). Pins beyond the cap
-    are omitted entirely — they never re-enter through ranking. Use
-    ``list_memory(pinned_only=True)`` to enumerate every standing rule.
+    ``pinned_limit`` bounds the pinned FLOAT — pins that match the query
+    lead the first page, newest-first, capped. It is not a visibility
+    switch: a pin that does not win a float slot still ranks on its
+    merits and surfaces with its true channel, and ``pinned_limit=0``
+    means "do not float" rather than "hide pins". Use
+    ``include_pinned=False`` to hide them, or
+    ``list_memory(pinned_only=True)`` to enumerate standing rules.
     """
     if mode not in VALID_MODES:
         raise DomainValidationError(f"mode must be one of {VALID_MODES}, got {mode!r}")
@@ -82,6 +85,24 @@ def execute(
         )
 
     # mode == "keyword", or hybrid on a keyword-only deployment.
+    # The float: pins that MATCH the query, capped, scope-with-global.
+    # Computed even when offset > 0 — it is not emitted there, but it is
+    # still the exclusion key, or a pin floated on page 1 would reappear
+    # in page 2's ranking.
+    floated: list[MemoryItem] = []
+    if include_pinned and pinned_limit > 0:
+        floated = store.search_pinned(
+            query,
+            limit=pinned_limit,
+            project_id=project_id,
+            tags=tags,
+            phrase=phrase,
+        )
+    floated_ids = {i.id for i in floated}
+
+    # Pins that did not win a float slot still rank here on their own
+    # merits — that is what keeps them reachable, and it is coupled to
+    # the exclusion above covering ONLY the floated ids.
     items = store.search_memory(
         query,
         top_k=top_k,
@@ -90,20 +111,15 @@ def execute(
         tags=tags,
         offset=offset,
         phrase=phrase,
+        exclude_ids=floated_ids,
     )
-    # The store prepends pinned items (by policy, unranked) and ranks the
-    # rest; item.pinned is exact because the store's ranking excludes
-    # pinned rows in SQL. The prepend is capped here rather than in the
-    # store so the port surface stays unchanged.
+    # Floated pins lead the FIRST page only; `offset` paginates the
+    # ranking underneath them. A pinned row inside `items` got there by
+    # ranking, so it reports channel="keyword" with a real rank — the
+    # float set is known by id, never guessed from position.
     results: list[ScoredMemory] = []
-    rank = 0
-    pins_kept = 0
-    for item in items:
-        if item.pinned:
-            if pins_kept < pinned_limit:
-                pins_kept += 1
-                results.append(ScoredMemory(item=item, channel="pinned"))
-        else:
-            rank += 1
-            results.append(ScoredMemory(item=item, channel="keyword", keyword_rank=offset + rank))
+    if offset == 0:
+        results.extend(ScoredMemory(item=i, channel="pinned") for i in floated)
+    for rank, item in enumerate(items, start=1):
+        results.append(ScoredMemory(item=item, channel="keyword", keyword_rank=offset + rank))
     return results

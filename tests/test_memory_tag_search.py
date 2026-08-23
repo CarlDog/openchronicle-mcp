@@ -55,10 +55,12 @@ def test_search_without_tags_returns_all(tmp_path: Path) -> None:
     """No tag filter returns all matching (default behavior)."""
     storage, project_id = _setup(tmp_path)
     results = storage.search_memory("architecture", project_id=project_id, tags=None)
-    # Should include at least m1, m2 (content match), plus pinned items
+    # m1 and m2 match on content. Neither pinned item does, so neither
+    # appears — pins are floated on match, not unconditionally.
     ids = {r.id for r in results}
     assert "m1" in ids
     assert "m2" in ids
+    assert not ids & {"m5", "m6"}
 
 
 def test_search_with_single_tag(tmp_path: Path) -> None:
@@ -67,8 +69,20 @@ def test_search_with_single_tag(tmp_path: Path) -> None:
     ids = {r.id for r in results}
     assert "m1" in ids  # decision + architecture
     assert "m2" not in ids  # rejected, not decision
-    # m6 is pinned with decision tag, should be included
-    assert "m6" in ids
+    # m6 is pinned and carries the decision tag, but its content
+    # ("pinned decision about config") does not match "architecture".
+    # Until 2026-08-23 it was prepended anyway — the float now requires
+    # a query match, so a standing rule about something else stays out.
+    assert "m6" not in ids
+
+
+def test_pinned_floats_when_it_matches_the_query_and_tags(tmp_path: Path) -> None:
+    """The other half of the rule above: a pin that matches both the
+    query and the tag filter leads the page."""
+    storage, project_id = _setup(tmp_path)
+    results = storage.search_memory("config", project_id=project_id, tags=["decision"])
+    assert results[0].id == "m6"
+    assert results[0].pinned
 
 
 def test_search_with_multiple_tags_and_logic(tmp_path: Path) -> None:

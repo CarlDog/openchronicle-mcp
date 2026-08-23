@@ -5,6 +5,24 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## Unreleased (on main since rc8)
+
+- **The pinned float is query-aware (fixes an rc8 regression).** A
+  pinned memory now leads search results only when it *matches* the
+  query, and — the important half — a pin that doesn't win a float slot
+  still ranks normally instead of disappearing. rc8's cap alone made
+  pins past the cap unreachable by **any** query, because the ranked
+  query excluded all pinned rows: pins reached callers only via the
+  prepend. Proven live before the fix: an exact-phrase search for a
+  pinned memory's own verbatim content returned nothing with
+  `pinned_limit=0`, while a gibberish query returned every pin.
+  `pinned_limit=0` now means "don't float" (pins still rank);
+  `include_pinned=false` is what hides them. New port primitive
+  `search_pinned` (the float query) plus `exclude_ids` on
+  `search_memory`; the float policy moved from the store up to the
+  application layer, so no caller infers which rows floated from their
+  position. 589 → 597 tests.
+
 ## v3.0.0-rc8 — 2026-08-17
 
 - **Bounded pinned prepend (`pinned_limit`):** `memory_search` caps the

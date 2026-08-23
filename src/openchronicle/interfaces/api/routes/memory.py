@@ -51,8 +51,10 @@ def memory_search(
     `compact` swaps content for a preview plus its length. `mode`
     selects the retrieval channel (hybrid/keyword/semantic); `phrase`
     makes the keyword channel match the whole query as one
-    adjacent-token phrase. `pinned_limit` bounds the pinned prepend
-    (newest first; 0 = none) — enumerate all pins via
+    adjacent-token phrase. `pinned_limit` caps how many MATCHING pinned
+    items float above the ranked results (best-matching first; 0 = don't
+    float, which is not the same as hiding them — a pin that doesn't
+    float still ranks). Enumerate all pins via
     `GET /memory?pinned_only=true`.
     """
     tag_list = parse_csv_tags(tags)

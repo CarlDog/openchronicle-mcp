@@ -106,6 +106,7 @@ def _make_mock_container() -> MagicMock:
     # Storage mock — default return values for list operations
     container.storage = MagicMock()
     container.storage.search_memory.return_value = []
+    container.storage.search_pinned.return_value = []
     container.storage.list_memory.return_value = []
     container.storage.list_projects.return_value = []
 
@@ -445,29 +446,47 @@ class TestMemoryRoutes:
         resp = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "-1"})
         assert resp.status_code == 422
 
-    def test_memory_search_pinned_limit_caps_the_prepend(self, client: TestClient) -> None:
+    def test_memory_search_pinned_limit_bounds_the_float_query(self, client: TestClient) -> None:
+        """`pinned_limit` caps the float, which is its own store query."""
         storage = _get_container(client).storage
-        pins = [
-            MemoryItem(
-                id=f"pin-{i}",
-                content=f"rule {i}",
-                tags=[],
-                pinned=True,
-                project_id="proj-1",
-                source="api",
-                created_at=_FIXED_DT,
-            )
-            for i in range(5)
-        ]
-        # Keyword path: the store prepends pins ahead of ranked results.
-        storage.search_memory.return_value = [*pins, _make_memory()]
 
         resp = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "2"})
         assert resp.status_code == 200
+        assert storage.search_pinned.call_args.kwargs["limit"] == 2
+
+    def test_memory_search_floats_by_id_not_by_position(self, client: TestClient) -> None:
+        """Floated pins are identified by the float query, never guessed
+        from position — so a PINNED row that reached the ranking on its
+        own merits is labelled by its rank, not as a float.
+        """
+        storage = _get_container(client).storage
+        floated = MemoryItem(
+            id="pin-1",
+            content="rule",
+            tags=[],
+            pinned=True,
+            project_id="proj-1",
+            source="api",
+            created_at=_FIXED_DT,
+        )
+        ranked_pin = MemoryItem(
+            id="pin-2",
+            content="another rule",
+            tags=[],
+            pinned=True,
+            project_id="proj-1",
+            source="api",
+            created_at=_FIXED_DT,
+        )
+        storage.search_pinned.return_value = [floated]
+        storage.search_memory.return_value = [ranked_pin, _make_memory()]
+
+        resp = client.get("/api/v1/memory/search", params={"query": "test"})
+        assert resp.status_code == 200
         data = resp.json()
-        channels = [r["relevance"]["channel"] for r in data]
-        assert channels.count("pinned") == 2
-        assert channels.count("keyword") == 1
+        assert [r["id"] for r in data] == ["pin-1", "pin-2", "mem-1"]
+        assert [r["relevance"]["channel"] for r in data] == ["pinned", "keyword", "keyword"]
+        assert storage.search_memory.call_args.kwargs["exclude_ids"] == {"pin-1"}
 
     def test_memory_search_phrase_reaches_the_store(self, client: TestClient) -> None:
         storage = _get_container(client).storage
