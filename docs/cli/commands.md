@@ -90,12 +90,43 @@ Dump projects + memory items as a portable JSON envelope. Embeddings
 are excluded (regenerable). Cross-version-portable disaster recovery
 surface.
 
+The envelope carries `exported_at` (import reads it for a staleness
+warning). It does **not** bump `format_version` — an envelope written
+before that field existed still imports, and one carrying it still
+imports into an older build.
+
 ### `oc memory import FILE [--mode merge|replace]`
 
 Read an envelope produced by `oc memory export` and apply it.
 
 - `merge` (default): inserts items whose IDs aren't already present
 - `replace`: refuses if the destination has any project or memory rows
+
+**`merge` is a union by id, not a sync.** There is no update branch, so
+it has two lossy edges, both silent in the data:
+
+- a **collision keeps the destination's copy** — an edit made on the
+  other device (content, tags, pin) is discarded
+- an item **deleted here since the export is re-inserted** — the
+  envelope has no way to know it was deleted
+
+For an exact restore, import into a fresh DB with `--mode replace`.
+
+Merge prints both counts (`added` and `skipped`, for projects and memory
+items alike) and logs two warnings to stderr: one unconditional, naming
+both edges with the counts, and one that fires only when the envelope's
+`exported_at` predates the destination's newest **memory-item**
+`updated_at` — i.e. this store has edits the envelope cannot contain.
+
+The staleness signal is narrower than the hazard, deliberately. It reads
+`updated_at`, never `created_at`: `onboard_git` sets cluster `created_at`
+from the commit author date, so one future-dated commit would otherwise
+make every legitimate envelope read as stale forever. That leaves three
+local edits it cannot see — a project rename or metadata change (the
+`projects` table has no `updated_at` column at all), a pin/unpin
+(`set_pinned` does not bump it), and a store nobody has edited since
+creation (every `updated_at` is null). It is a signal, not a guarantee;
+the unconditional warning is the one that always holds.
 
 ## Project
 

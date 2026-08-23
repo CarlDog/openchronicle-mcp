@@ -7,12 +7,22 @@ Modes:
   silently overwriting). Caller is expected to back up first and
   start with a fresh store.
 
+``merge`` is a **union by id, not a sync**. There is no update branch, so
+a collision keeps the destination's copy and discards the envelope's —
+and an item deleted here since the export is simply absent, so it gets
+re-inserted. Neither is detectable after the fact (no tombstones, no
+per-item version), which is why both counts are returned to the caller
+*and* warned about: silence was the failure mode, not the semantics.
+Use a fresh DB plus ``mode="replace"`` to restore an envelope exactly.
+
 Embeddings are not part of the export format (see ``export_memory``); run
 ``oc memory embed`` after import to regenerate them.
 """
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
@@ -23,11 +33,91 @@ from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.time_utils import utc_now
 
+logger = logging.getLogger(__name__)
+
 VALID_MODES = ("merge", "replace")
 
 
 def _parse_dt(value: str | None) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
+
+
+def _aware_exported_at(value: Any) -> datetime | None:
+    """Parse an envelope's ``exported_at`` to an aware datetime, or ``None``.
+
+    Anything absent, non-string, unparseable, or naive yields ``None``
+    rather than raising: the only consumer is a best-effort warning, and
+    a malformed ``exported_at`` must never fail an import. Naive values
+    are dropped instead of assumed-UTC — they can only arrive via a
+    hand-edited envelope, and guessing the zone would fire or suppress a
+    warning on an invention.
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else None
+
+
+def _newest_edit(items: Iterable[MemoryItem]) -> datetime | None:
+    """Newest timezone-aware ``updated_at`` across ``items``, if any.
+
+    Deliberately NOT ``max(created_at)``: ``onboard_git`` sets cluster
+    ``created_at`` from the commit author date, and a rebased or
+    future-dated commit would then make every legitimate envelope read
+    as stale forever. ``updated_at`` is a local wall-clock edit marker,
+    which is the question being asked. It is ``None`` on an item nobody
+    has edited (and ``set_pinned`` does not bump it), so an unedited
+    store yields ``None`` and the staleness check is skipped rather than
+    guessed. Naive values are excluded for the reason above.
+    """
+    stamps = [m.updated_at for m in items if m.updated_at is not None and m.updated_at.tzinfo is not None]
+    return max(stamps) if stamps else None
+
+
+def _warn_merge_hazards(
+    *,
+    payload: dict[str, Any],
+    existing_items: list[MemoryItem],
+    counts: dict[str, int],
+) -> None:
+    """Log what a merge silently did. Two independent warnings.
+
+    The first is unconditional because both hazards are real at any
+    count: a skip discarded the envelope's copy, and an add may have
+    resurrected a local deletion. The second fires only when the
+    envelope demonstrably predates local edits.
+
+    Both project and memory counts appear in the first — a project
+    collision discards a rename or a metadata edit exactly the way a
+    memory collision discards content. The second is memory-only and
+    cannot be otherwise: `projects` has no `updated_at` column, so a
+    project edit carries no version to compare. It is a signal, not a
+    guarantee, which is why it never replaces the unconditional one.
+    """
+    logger.warning(
+        "merge is a union by id, not a sync: an existing row is kept as-is "
+        "(any newer copy in the envelope is discarded) and an absent row is inserted "
+        "(including anything deleted here since the export). "
+        "This import kept %d project(s) + %d memory item(s) and inserted %d project(s) + %d memory item(s). "
+        "To restore an envelope exactly, import it into a fresh DB with --mode replace.",
+        counts["projects_skipped"],
+        counts["memory_skipped"],
+        counts["projects_added"],
+        counts["memory_added"],
+    )
+
+    exported_at = _aware_exported_at(payload.get("exported_at"))
+    newest_edit = _newest_edit(existing_items)
+    if exported_at is not None and newest_edit is not None and exported_at < newest_edit:
+        logger.warning(
+            "this envelope was exported %s, which predates this store's newest edit (%s) — "
+            "it cannot contain any change made here since then.",
+            exported_at.isoformat(),
+            newest_edit.isoformat(),
+        )
 
 
 def execute(
@@ -37,7 +127,12 @@ def execute(
     *,
     mode: str = "merge",
 ) -> dict[str, int]:
-    """Apply ``payload`` to the store. Returns counts of inserted rows.
+    """Apply ``payload`` to the store. Returns per-kind added/skipped counts.
+
+    The skipped counts are the point, not bookkeeping: without them a
+    caller cannot tell "0 added, the envelope was empty" from "0 added,
+    every item collided and its envelope copy was discarded" — the exact
+    ambiguity that made ``merge``'s union-by-id semantics dangerous.
 
     Raises ``ValidationError`` for unknown modes, missing ``format_version``,
     or non-empty destinations in ``replace`` mode.
@@ -58,10 +153,15 @@ def execute(
             )
 
     existing_project_ids = {p.id for p in storage.list_projects()}
-    existing_memory_ids = {m.id for m in memory_store.list_memory(limit=None)}
+    # Held whole (not reduced to an id set) so the staleness warning can
+    # read updated_at off the same snapshot rather than re-querying.
+    existing_items = memory_store.list_memory(limit=None)
+    existing_memory_ids = {m.id for m in existing_items}
 
     projects_added = 0
+    projects_skipped = 0
     memory_added = 0
+    memory_skipped = 0
 
     # One transaction: this is the disaster-recovery path, where a bad
     # row mid-loop must roll back everything rather than commit a
@@ -73,6 +173,7 @@ def execute(
     with storage.transaction():
         for raw_project in payload.get("projects", []):
             if raw_project["id"] in existing_project_ids:
+                projects_skipped += 1
                 continue
             try:
                 storage.add_project(
@@ -89,6 +190,7 @@ def execute(
 
         for raw_memory in payload.get("memory_items", []):
             if raw_memory["id"] in existing_memory_ids:
+                memory_skipped += 1
                 continue
             try:
                 memory_store.add_memory(
@@ -107,4 +209,16 @@ def execute(
                 raise ValidationError(f"invalid memory row {raw_memory.get('id', '?')!r}: {exc}") from exc
             memory_added += 1
 
-    return {"projects_added": projects_added, "memory_added": memory_added}
+    counts = {
+        "projects_added": projects_added,
+        "projects_skipped": projects_skipped,
+        "memory_added": memory_added,
+        "memory_skipped": memory_skipped,
+    }
+
+    # Warn after the commit, never inside it: a rolled-back import must
+    # not leave a log line claiming it did anything.
+    if mode == "merge":
+        _warn_merge_hazards(payload=payload, existing_items=existing_items, counts=counts)
+
+    return counts

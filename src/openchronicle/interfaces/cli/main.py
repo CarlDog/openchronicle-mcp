@@ -154,7 +154,11 @@ def main(argv: list[str] | None = None) -> int:
         "--mode",
         choices=["merge", "replace"],
         default="merge",
-        help="merge=skip on collision (default); replace=fail if dest non-empty",
+        help=(
+            "merge=union by id (default): never updates an existing item and "
+            "re-inserts anything deleted here since the export; "
+            "replace=fail if dest non-empty (use with a fresh DB for an exact restore)"
+        ),
     )
 
     # --- Database commands ---

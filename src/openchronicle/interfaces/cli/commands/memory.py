@@ -287,11 +287,21 @@ def cmd_memory_export(args: argparse.Namespace, container: CoreContainer) -> int
 
 
 def cmd_memory_import(args: argparse.Namespace, container: CoreContainer) -> int:
-    """Import a previously-exported memory JSON file."""
+    """Import a previously-exported memory JSON file.
+
+    Installs a stderr log handler when nothing else has (same idiom as
+    ``oc maintenance run-once``) so the use case's merge-hazard warnings
+    actually reach the operator instead of falling to ``lastResort``.
+    """
     import json as _json
+    import logging
+    import sys
     from pathlib import Path
 
     from openchronicle.core.domain.exceptions import ValidationError
+
+    if not logging.getLogger().handlers:
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
 
     source = Path(args.in_path)
     if not source.is_file():
@@ -316,5 +326,9 @@ def cmd_memory_import(args: argparse.Namespace, container: CoreContainer) -> int
         print(f"Error: {exc}")
         return 1
 
-    print(f"Imported {result['projects_added']} project(s), {result['memory_added']} memory item(s) (mode={mode})")
+    print(
+        f"Imported {result['projects_added']} project(s), {result['memory_added']} memory item(s) "
+        f"(mode={mode}; skipped {result['projects_skipped']} existing project(s), "
+        f"{result['memory_skipped']} existing memory item(s))"
+    )
     return 0

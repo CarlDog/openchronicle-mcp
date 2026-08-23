@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-23 · **Revision:** 79
+**Snapshot date:** 2026-08-23 · **Revision:** 81
 
 ## Current state
 
@@ -21,11 +21,11 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 |---|---|
 | Deployed release | `v3.0.0-rc8` (2026-08-17), Portainer stack 151, endpoint 2, port `18000` |
 | Deploy verification | `health.package_version` — reports the real release since rc6; also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | Main is ahead of rc8 by the query-aware pinned float. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
+| Main vs deployed | Main is ahead of rc8 by the query-aware pinned float, `JobState.last_success_at`, and the `import --mode merge` warnings. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 597 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 620 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | CI | One workflow, three jobs: test matrix → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only) |
@@ -73,6 +73,8 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 81 | 2026-08-23 | `oc memory import --mode merge` no longer loses edits silently (cloud-backup design §11.4). Semantics unchanged — it is still a union by id — but `export_memory` now stamps `exported_at`, `import_memory` returns `projects_skipped`/`memory_skipped` alongside the added counts, and merge logs one unconditional warning naming both lossy edges plus a second when the envelope predates the destination's newest `updated_at` (never `created_at` — `onboard_git` sets that from the commit author date). No `format_version` bump. 620 tests |
+| 80 | 2026-08-23 | `JobState.last_success_at` — a persisted "when did this job last actually *work*" marker that a job failing every run cannot fake, unlike `last_run_at`. Prerequisite for the cloud-backup staleness alarm (design §6.1); persisted because every push to main bounces the container |
 | 79 | 2026-08-23 | Pinned float made query-aware, fixing an rc8 regression: capping a blanket prepend had made pins past the cap unreachable by any query (the ranked query excluded all pinned rows, so the prepend was their only route). Float and visibility are now separate — `search_pinned` is the float query, `exclude_ids` keeps a floated pin out of the ranking, unfloated pins rank normally, and the float policy moved from the store to the application layer. 597 tests |
 | 78 | 2026-08-17 | **v3.0.0-rc8 cut + deployed**: the bounded pinned prepend goes live — the rc7 search surface now costs `pinned_limit` (≤10 by default) pins instead of all 85 |
 | 77 | 2026-08-17 | Bounded pinned prepend: `pinned_limit` (default 10, newest first, 0 = none) on `memory_search` across MCP/REST/CLI — an unscoped `top_k=2` search against the 85-pin NAS store had returned 87 results; capped-out pins stay excluded from ranking. 589 tests |

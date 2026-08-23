@@ -44,14 +44,22 @@
 
 ## Current Sprint
 
-**2026-08-23 — query-aware pinned float on main (undeployed).** A
-pinned memory now leads search results only when it *matches* the
-query, and a pin that loses a float slot still ranks — rc8's cap alone
-had made pins past the cap unreachable by any query. Next NAS deploy
-picks it up (`OC_TAG` must move). Cloud-drive backup is designed but
-unbuilt — [docs/design/0001-cloud-backup.md](docs/design/0001-cloud-backup.md)
-has its provider decided (Dropbox) and is blocked on the remaining
-§13 decisions, chiefly whether to encrypt at all.
+**2026-08-23 — three changes on main, all undeployed.** (1) The pinned
+float is query-aware: a pinned memory leads results only when it
+*matches* the query, and a pin that loses a float slot still ranks —
+rc8's cap alone had made pins past the cap unreachable by any query.
+(2) `JobState.last_success_at` — a persisted "when did this job last
+actually work" marker. (3) `oc memory import --mode merge` now returns
+skip counts and warns about its two lossy edges. Next NAS deploy picks
+all three up (`OC_TAG` must move).
+
+Cloud-drive backup is designed but unbuilt —
+[docs/design/0001-cloud-backup.md](docs/design/0001-cloud-backup.md) is
+at rev 5: provider decided (Dropbox), encryption decided (age, two
+recipients, independent custody), and two of its prerequisites landed
+(§6.1 `last_success_at`, §11.4 the merge hazard). Open: §13.4 (co-push
+the JSON envelope) and the §11.3 watermark filter. Phase 0 starts with
+a 10-minute Dropbox App Folder check.
 
 **2026-08-17 — v3.0.0-rc8 deployed.** rc7 took the Q20/Q21
 **search-surface v2** live (per-result `relevance` scores, per-call

@@ -10,6 +10,7 @@ from typing import Any
 
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
+from openchronicle.core.domain.time_utils import utc_now
 
 EXPORT_FORMAT_VERSION = 1
 
@@ -66,8 +67,14 @@ def execute(
         for m in items
     ]
 
+    # `exported_at` deliberately does NOT bump format_version: import
+    # treats it as optional (an envelope written before this field
+    # existed still imports), and an envelope carrying it still imports
+    # into an older build, which ignores unknown keys. Its only consumer
+    # is import's staleness warning.
     return {
         "format_version": EXPORT_FORMAT_VERSION,
+        "exported_at": utc_now().isoformat(),
         "projects": project_payload,
         "memory_items": memory_payload,
     }

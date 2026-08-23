@@ -7,6 +7,34 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`oc memory import --mode merge` stops losing edits silently.** The
+  semantics are unchanged and deliberate — merge is a union by id, with
+  no update branch — but it had two lossy edges invisible in the data: a
+  collision keeps the destination's copy and discards the envelope's,
+  and an item deleted here since the export gets re-inserted. A caller
+  also could not tell "0 added, nothing to do" from "0 added, everything
+  collided." Now `export_memory` stamps `exported_at`,
+  `import_memory.execute` returns `projects_skipped` / `memory_skipped`
+  alongside the added counts, and merge logs one unconditional warning
+  naming both edges with the counts plus a second when the envelope's
+  `exported_at` predates the destination's newest `updated_at`. The
+  staleness check reads `updated_at`, never `created_at` — `onboard_git`
+  sets cluster `created_at` from the commit author date, so one
+  future-dated commit would make every legitimate envelope read as stale
+  forever. No `format_version` bump: old envelopes still import, new ones
+  still import into older builds. Flagged as §11.4 of the cloud-backup
+  design, which makes cross-device restore a goal and so manufactures the
+  trigger. 607 → 620 tests.
+- **`JobState.last_success_at`** — a persisted per-job "when did this
+  last actually *work*" timestamp. `last_run_at` keeps advancing forever
+  on a job that raises every time, so it cannot answer that question;
+  `last_success_at` advances only on a run that completed without
+  raising and is never cleared by a later failure. Persisted (not
+  in-process) because every push to main bounces the container, which
+  would otherwise give a job that has been failing for weeks a clean
+  surface after each redeploy. Surfaced on
+  `/api/v1/maintenance/status`. Prerequisite for the cloud-backup
+  staleness alarm.
 - **The pinned float is query-aware (fixes an rc8 regression).** A
   pinned memory now leads search results only when it *matches* the
   query, and — the important half — a pin that doesn't win a float slot
