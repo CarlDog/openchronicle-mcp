@@ -7,6 +7,14 @@
 >
 > **This is the second revision.** It is materially smaller than the first: the `cloud/` package, the persistent staging directory, four of six env vars, `classify_exit`, `redact`, and Phase 2 are all gone. Where a critique was wrong or a tradeoff was deliberate, there is an explicit *considered and rejected* note rather than silence.
 >
+> **Revision 4 (2026-08-23): encryption settled — yes, two recipients.** §13 questions
+> 2 and 3 are answered, so §7 now specifies *independent* custody (primary in a
+> password manager, recovery printed and stored elsewhere) rather than listing both in
+> one place, names the circular-dependency trap of escrowing a key into the account
+> being backed up, and Phase 0's gate decrypts the artifact once per identity. The
+> remaining open questions are §13.4 (co-push the JSON envelope) and §13.5 (fix the
+> `import --mode merge` hazard before the first cross-device restore).
+>
 > **Revision 3 (2026-08-23, same day): the provider is no longer a recommendation.** §4 is rewritten around the operator's actual accounts — Dropbox is chosen, OneDrive is rejected despite being preferred, and the App Folder fallback changed from "a dedicated new account" to "Full Dropbox on the same account" once it emerged that the account carries 23.13 GB of non-reproducible grandfathered quota. §13 question 1 is answered, question 6 is moot, and a `remote_free_bytes` health field was proposed and rejected in §6.2. No other section is affected: age recipient mode, no port, no MCP tool, and the §9 sync analysis are all provider-independent.
 
 ---
@@ -19,7 +27,7 @@ Nightly, the maintenance loop encrypts the three newest local SQLite backup arti
 |---|---|---|
 | Transport | `rclone` — one integration covers OneDrive, Dropbox, Google Drive, and the no-OAuth tier (B2/S3/WebDAV/SFTP) | Per-provider SDKs: N integrations for one 8 MiB nightly upload |
 | Backup engine | **None.** Plain files + `rclone copy` | restic / kopia — §10.1 |
-| Encryption | **age, recipient mode** (`age -r <pubkey>`) | rclone `crypt` — §10.2 |
+| Encryption | **age, recipient mode, two recipients — decided 2026-08-23** (`age -r <primary> -r <recovery>`). Either opens an artifact; independent custody, §7 | rclone `crypt` — §10.2. Shipping unencrypted — §13.2 |
 | Where the code lives | **`core/infrastructure/maintenance/jobs.py`**, directly under `db_backup`. No new package, no port | A `cloud/push.py` module — and a port is then a question nobody can even ask |
 | Scheduling | New `cloud_backup` entry in `HANDLERS`, own 24h job | Chaining off `db_backup` (a cloud failure would mark the local backup failed — a lie); a sidecar or host cron |
 | Job default | `enabled: True`, no-ops when `OC_CLOUD_REMOTE` is empty | `enabled: False` — job enable/disable is core.json-only, so `False` makes the feature unreachable from Portainer |
@@ -213,22 +221,35 @@ ended up with; it is the difference between a token that can read one folder and
 that can read the account.
 
 ```bash
-# 1. Generate the age keypair. The only irreplaceable secret in the design.
-age-keygen -o backup-identity.txt          # prints: # public key: age1...
+# 1. Generate BOTH age keypairs. The only irreplaceable secrets in the design.
+age-keygen -o backup-identity-primary.txt   # prints: # public key: age1...
+age-keygen -o backup-identity-recovery.txt  # prints: # public key: age1...
 
-# 2. ESCROW IT NOW, BEFORE ANYTHING ELSE. Password manager + printed offline copy.
-#    The NAS never receives this file. Ever.
+# 2. ESCROW BOTH NOW, BEFORE ANYTHING ELSE — and to INDEPENDENT places (§7):
+#      primary  -> password manager
+#      recovery -> printed, stored physically elsewhere
+#    Neither goes on the NAS. Neither goes into the Dropbox account being
+#    backed up to — a key inside the backup it unlocks is not a key.
+#    Then shred the local copies; steps 4a/4b prove they are recoverable.
 
 # 3. Configure the remote. Include the instance segment in the path (see §9.2):
 rclone config                               # name it e.g. ocdrop
 rclone config file                          # prints the path you copy in step 5
 
 # 4. Prove the round-trip BEFORE any code exists — this IS the restore drill (§8).
-age -r age1... -o probe.db.age /path/to/some/openchronicle-<ts>.db
+#    Encrypt to BOTH recipients, exactly as the job will.
+age -r age1primary... -r age1recovery... -o probe.db.age /path/to/openchronicle-<ts>.db
 rclone copy . ocdrop:openchronicle/nas/ --ignore-existing --include probe.db.age -v
 rclone copyto ocdrop:openchronicle/nas/probe.db.age ./back.db.age
-age -d -i backup-identity.txt -o back.db back.db.age
-sqlite3 back.db "PRAGMA integrity_check; SELECT COUNT(*) FROM memory_items;"
+
+# 4a. Decrypt with the PRIMARY, retrieved from escrow — not the file still on disk.
+age -d -i backup-identity-primary.txt -o back-p.db back.db.age
+sqlite3 back-p.db "PRAGMA integrity_check; SELECT COUNT(*) FROM memory_items;"
+
+# 4b. Now do it again with the RECOVERY identity. Skipping this is how you
+#     discover in a real disaster that you escrowed a typo.
+age -d -i backup-identity-recovery.txt -o back-r.db back.db.age
+sqlite3 back-r.db "PRAGMA integrity_check; SELECT COUNT(*) FROM memory_items;"
 
 # 5. Install rclone.conf on the NAS (host side of the /config mount), then:
 #    chown 1000:1000 rclone.conf && chmod 600 rclone.conf
@@ -245,13 +266,13 @@ Both bootstrap routes are supported: configure on the desktop and copy the file 
 | Variable | Meaning | Default |
 |---|---|---|
 | `OC_CLOUD_REMOTE` | rclone destination including the instance segment, e.g. `ocdrop:openchronicle/nas`. **Empty disables the whole feature.** Must match `^[A-Za-z0-9_.-]+:[A-Za-z0-9_./-]*$`. | *(unset)* |
-| `OC_CLOUD_AGE_RECIPIENTS` | comma-separated age **public** keys. Empty while remote is set = hard error. | *(unset)* |
+| `OC_CLOUD_AGE_RECIPIENTS` | comma-separated age **public** keys — two, per §7 (primary + recovery). Empty while remote is set = hard error. | *(unset)* |
 | `RCLONE_CONFIG` | container-internal wiring — the mount path, not configuration | `/config/rclone.conf` (hardcoded) |
 
 ```yaml
 # docker-compose.nas.yml, environment:
-  OC_CLOUD_REMOTE: ${OC_CLOUD_REMOTE:-}
-  OC_CLOUD_AGE_RECIPIENTS: ${OC_CLOUD_AGE_RECIPIENTS:-}
+  OC_CLOUD_REMOTE: ${OC_CLOUD_REMOTE:-}          # e.g. ocdrop:openchronicle/nas
+  OC_CLOUD_AGE_RECIPIENTS: ${OC_CLOUD_AGE_RECIPIENTS:-}   # age1primary...,age1recovery...
   RCLONE_CONFIG: /config/rclone.conf
 ```
 
@@ -350,11 +371,39 @@ If rclone is missing, `rclone.conf` is absent, the remote is malformed, or recip
 
 ## 7. Security and key custody
 
-**Threat model.** Protects against: a breach at the cloud provider; compromise of the cloud account (which on OneDrive is unavoidably full-account); a stolen `rclone.conf`. Does not protect against: NAS shell access (the live DB is plaintext); theft of the `/config` volume — weaker than it sounds, since that volume holds only the OAuth token and public keys, granting write-new-backups, not read-old-ones; a subpoena served on the operator. A subpoena to the provider gets ciphertext; a subpoena to you gets the key. Add this as a "Cloud backup" section in `docs/configuration/security_posture.md`.
+**Threat model.** Protects against: a breach at the cloud provider; compromise of the cloud account; a stolen `rclone.conf`. Does not protect against: NAS shell access (the live DB is plaintext); theft of the `/config` volume — weaker than it sounds, since that volume holds only the OAuth token and public keys, granting write-new-backups, not read-old-ones; a subpoena served on the operator. A subpoena to the provider gets ciphertext; a subpoena to you gets the key. Add this as a "Cloud backup" section in `docs/configuration/security_posture.md`.
 
-**Why encrypt — corrected justification. Considered and rejected: the scope critique's claim that recommending Dropbox App Folder makes encryption redundant.** That argument conflates *token scope* with *read access*. App Folder narrows what rclone's OAuth token can reach; it does nothing about what Dropbox itself, or anyone who obtains the account password, can read — the corpus sits readable-by-password in a consumer account either way. The first draft's "provider-scope asymmetry" framing was a weak argument (it is really an argument about OneDrive, which we do not recommend) for a feature that is nonetheless correct. Replace the argument, keep the feature. The honest counter is availability, not necessity, and it is §12.2.
+**Why encrypt — corrected justification. Considered and rejected: the scope critique's claim that recommending Dropbox App Folder makes encryption redundant.** That argument conflates *token scope* with *read access*. App Folder narrows what rclone's OAuth token can reach; it does nothing about what Dropbox itself, or anyone who obtains the account password, can read — the corpus sits readable-by-password in a consumer account either way. The first draft's "provider-scope asymmetry" framing was a weak argument (it is really an argument about OneDrive, which §4 rejected) for a feature that is nonetheless correct. Replace the argument, keep the feature. The honest counter was availability, not necessity — and the operator's answer to it was two recipients rather than none, which addresses the counter directly instead of dismissing it.
 
-**Key custody.** The age identity is generated on the desktop, escrowed off-NAS (password manager plus a printed offline copy), and never installed on the NAS. The container holds only public recipients, in a plain env var. **Set two recipients** (`age1primary,age1recovery`): an artifact encrypted to both opens with either, so losing one is survivable — native escrow at the cost of one comma, and impossible to add retroactively for artifacts already written. Rotation affects **future** artifacts only, so never destroy a retired identity while artifacts encrypted to it still exist on the remote.
+**Key custody — decided 2026-08-23: encrypt, with two recipients.**
+
+Two identities are generated on the desktop; the container holds only their public
+recipients, in a plain env var. An artifact encrypted to both opens with **either**
+— this is an OR, not a threshold scheme, so it buys availability, which is exactly
+the concern that made encryption a real tradeoff in the first place. It is also
+**impossible to add retroactively**: artifacts already written stay readable only by
+the recipients named at the time.
+
+The second recipient is worth nothing unless its custody fails *independently*.
+Two identities in the same password manager are one identity with extra steps.
+
+| | Primary | Recovery |
+|---|---|---|
+| Where | Password manager | Printed on paper, physically separate location |
+| Used for | Routine restores and the quarterly drill | Only when the primary is gone |
+| Fails with | A lost/locked vault | Fire, flood, or losing the paper |
+
+**Neither identity goes on the NAS, and neither goes into the Dropbox account being
+backed up to.** The second is a circular dependency worth naming: a key stored inside
+the backup it unlocks is not a key. The same applies to storing it in any OC memory —
+the corpus in those artifacts *is* the thing being protected.
+
+**Both identities must be proven, not assumed.** Phase 0's gate decrypts the same
+artifact with each identity independently (§8). An untested recovery key is not a
+recovery key, and this is the one moment where testing it is free.
+
+Rotation affects **future** artifacts only, so never destroy a retired identity while
+artifacts encrypted to it still exist on the remote.
 
 **Secret hygiene.** Add `rclone.conf`, `*.age`, `backup-identity*` to `.gitignore` and `.dockerignore` (`*.key` / `*.pem` / `*.env` are already covered; `*.conf` is not). Never put key material or an example `rclone.conf` in the repo's `config/` — `Dockerfile:65` bakes that directory into the published image and the entrypoint copies it into `/config`. `rclone obscure` is **not** encryption (AES-CTR with a static key shared across every rclone build, and OAuth tokens are not obscured at all) — treat `rclone.conf` as plaintext-equivalent and never describe it to the operator as encrypted. Do **not** enable rclone config encryption: the password would sit in Portainer env, readable by exactly the population that can already read the volume, and "there is no way to recover the configuration if you lose your password." Pass `--ask-password=false` as slip-defense against a headless hang.
 
@@ -372,7 +421,7 @@ with whichever access type verified, generate and **escrow** the age keypair, ru
 
 **Considered and accepted: Phase 0's exit gate and the old Phase 2 "restore drill" were the same five commands.** They are now one thing, run for the first time here and re-run quarterly via the phase-end audit checklist.
 
-**DONE when** one manually-encrypted artifact has been uploaded, pulled back, `age -d`-ed from the **escrowed** identity, and passes `PRAGMA integrity_check` (exactly `ok`) *and* a row-count floor of ≥ 90% of live `memory_items` / `projects` — on a machine that is not the NAS. The row-count floor is the load-bearing half: an empty-but-well-formed schema passes `integrity_check` cleanly.
+**DONE when** one manually-encrypted artifact has been uploaded, pulled back, and decrypted **twice — once from each escrowed identity, independently** (§4.1 steps 4a/4b) — with each decryption passing `PRAGMA integrity_check` (exactly `ok`) *and* a row-count floor of ≥ 90% of live `memory_items` / `projects`, on a machine that is not the NAS. Two load-bearing details: the row-count floor, because an empty-but-well-formed schema passes `integrity_check` cleanly; and the second decryption, because a recovery key that has never been used is a recovery key you are *assuming*, and this is the only moment when testing it costs nothing.
 
 On the quarterly re-runs, **sample an artifact older than the newest one** — `rclone lsjson … | tail` picks the object most recently written and therefore least likely to have rotted. Nothing in this design ever re-reads an old remote object, so the drill is the only coverage old artifacts get; say so plainly rather than implying continuous verification.
 
@@ -510,9 +559,9 @@ Only decisions that genuinely need a human.
    Scope is App Folder if §4.1 step 0 verifies, Full Dropbox on the same account if
    not. No B2/S3/Nextcloud is available, which would otherwise have beaten all three.
 
-2. **Encrypt at all?** The design says yes, on confidentiality against the provider and against anyone who obtains the cloud account (§7). The honest counter is availability: encryption adds a **new single point of failure** to a path that previously had none — today a lost NAS means restoring a plaintext `.db`; afterwards it means restoring a plaintext `.db` **and** having the key. For a thing whose whole job is to work when everything else has failed, that concession deserves real weight. If your answer is "I will not reliably escrow a key," the correct decision is to ship unencrypted to a **narrowly-scoped** Dropbox App Folder or Google `drive.file` remote and drop `age` entirely — a smaller, simpler feature that also deletes ~7 MiB from the image, `OC_CLOUD_AGE_RECIPIENTS`, the recipients guard and its test, half of Phase 0, and question 3 below. Decide with eyes open; do not half-do it.
+2. ~~**Encrypt at all?**~~ **RESOLVED 2026-08-23: yes.** The counter-argument was availability — encryption adds a new single point of failure to the one path whose job is to work when everything else has failed. It is recorded rather than deleted because it was a real objection, and because question 3's answer is what *addresses* it instead of dismissing it.
 
-3. **One recipient or two?** Two (`age1primary,age1recovery`) costs one comma and is **impossible to add retroactively** for artifacts already written. Related: where does the identity actually live — password manager plus a printed offline copy is the usual answer, and it must not be on the NAS.
+3. ~~**One recipient or two?**~~ **RESOLVED 2026-08-23: two.** Primary in a password manager, recovery printed and stored physically elsewhere; either opens an artifact, and the custody is deliberately independent because two identities in one vault are one identity (§7). Both are proven in Phase 0 — an untested recovery key is an assumption, not a backup. Cannot be added retroactively, which is why it had to be settled before the first upload rather than after.
 
 4. **Push the JSON export envelope alongside the `.db`?** The design says no in Phase 1 — the `.db` is already produced, already retained, already pruned, and is the fast restore path; the envelope is regenerable from any restored `.db` (§9.1), and adding it means a second file family with a second retention rule. Several reviewers leaned "push both, it's a few hundred KB." Cheap, reversible, genuinely yours.
 
