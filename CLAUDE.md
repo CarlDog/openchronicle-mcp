@@ -44,7 +44,7 @@
 
 ## Current Sprint
 
-**2026-08-23 — four changes on main, all undeployed.** (1) The pinned
+**2026-08-23 — four changes on main, deployed.** (1) The pinned
 float is query-aware: a pinned memory leads results only when it
 *matches* the query, and a pin that loses a float slot still ranks —
 rc8's cap alone had made pins past the cap unreachable by any query.
@@ -53,7 +53,11 @@ actually work" marker. (3) `oc memory import --mode merge` now returns
 skip counts and warns about its two lossy edges. (4) The git-onboard
 watermark is filtered out of both `export_memory` and `import_memory`
 (§11.3), so it can no longer leak across devices via an export
-envelope. Next NAS deploy picks all four up (`OC_TAG` must move).
+envelope. NAS stack (151) redeployed 2026-08-23 on `OC_TAG=61f711b`
+(the short-SHA image tag, per the compose file's reproducible-deploy
+convention — no version bump happened, so `package_version` still
+reports `3.0.0rc8`); `mcp__openchronicle__health` confirmed the new
+container alive.
 
 Cloud-drive backup is designed but unbuilt —
 [docs/design/0001-cloud-backup.md](docs/design/0001-cloud-backup.md) is
