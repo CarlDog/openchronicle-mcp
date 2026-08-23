@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -473,3 +475,253 @@ def test_load_jobs_fails_soft_on_bad_interval() -> None:
     assert states["db_backup"].interval_seconds == 3600
     assert states["db_vacuum"].interval_seconds == 3600
     assert states["db_integrity_check"].interval_seconds == 1234
+
+
+# ─── last_success_at (V3_PLAN Q16; prerequisite for cloud backup §6.1) ───
+
+
+def test_last_success_at_advances_only_on_success() -> None:
+    """`last_run_at` answers "did the loop tick", which a permanently
+    broken job keeps answering forever. `last_success_at` answers "did it
+    last WORK" — the question a silent failure cannot fake.
+    """
+    outcome: list[bool] = [True]
+
+    async def _flaky(c: object) -> None:  # noqa: ARG001
+        if not outcome[0]:
+            raise RuntimeError("boom")
+
+    job = maintenance_loop.JobState(name="probe", interval_seconds=1, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={"probe": _flaky})
+
+    asyncio.run(loop.run_once("probe"))
+    first_success = job.last_success_at
+    assert first_success is not None
+    assert job.last_run_at == first_success, "a successful run stamps both from one clock read"
+
+    outcome[0] = False
+    asyncio.run(loop.run_once("probe"))
+
+    assert job.last_outcome == "failed"
+    assert job.last_success_at == first_success, "a failure must not advance it"
+    assert job.last_run_at is not None and job.last_run_at > first_success, "but the run did happen"
+
+
+def test_last_success_at_is_not_cleared_by_a_later_failure() -> None:
+    """The whole point is surviving a failing streak: if a failure reset
+    it to None, "how long since this last worked" would be unanswerable
+    exactly when it is being asked.
+    """
+
+    async def _bad(c: object) -> None:  # noqa: ARG001
+        raise RuntimeError("boom")
+
+    job = maintenance_loop.JobState(name="bad", interval_seconds=1, enabled=True)
+    job.last_success_at = datetime(2026, 8, 1, 12, 0, 0, tzinfo=UTC)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={"bad": _bad})
+
+    asyncio.run(loop.run_once("bad"))
+
+    assert job.last_success_at == datetime(2026, 8, 1, 12, 0, 0, tzinfo=UTC)
+
+
+def test_last_success_at_survives_a_restart(tmp_path: Path) -> None:
+    """Persisted, not per-process. Every push to main bounces this
+    container, so an in-memory-only marker would let a job that has been
+    failing for weeks present a clean surface after each redeploy.
+    """
+    state_path = tmp_path / "maintenance_state.json"
+
+    async def _noop(c: object) -> None:  # noqa: ARG001
+        return None
+
+    job1 = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop1 = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job1], handlers={"probe": _noop}, state_path=state_path
+    )
+    asyncio.run(loop1.run_once("probe"))
+    assert job1.last_success_at is not None
+
+    job2 = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop2 = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job2], handlers={"probe": _noop}, state_path=state_path
+    )
+    loop2._load_state()  # start() does this; called directly per the sibling test
+
+    assert job2.last_success_at == job1.last_success_at
+
+
+def test_state_file_written_before_last_success_at_loads_without_raising(tmp_path: Path) -> None:
+    """Verify, don't assume: this parses a REAL pre-change state file.
+
+    A state-file exception happens at boot under `restart:
+    unless-stopped` — the exact crash-loop this file exists to prevent.
+    The old shape simply has no `last_success_at` block.
+    """
+    state_path = tmp_path / "maintenance_state.json"
+    state_path.write_text(
+        json.dumps({"last_run_at": {"probe": "2026-08-01T12:00:00+00:00"}}),
+        encoding="utf-8",
+    )
+
+    job = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={}, state_path=state_path)
+    loop._load_state()
+
+    assert job.last_run_at == datetime(2026, 8, 1, 12, 0, 0, tzinfo=UTC), "the old block still loads"
+    assert job.last_success_at is None, "and the absent one is simply unknown, not an error"
+
+
+def test_malformed_last_success_at_block_degrades_per_entry(tmp_path: Path) -> None:
+    """Each tolerance rule is per-entry: a bad value loses that job's
+    timestamp, never the whole file and never the other block.
+    """
+    state_path = tmp_path / "maintenance_state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "last_run_at": {"a": "2026-08-01T12:00:00+00:00", "b": "2026-08-01T12:00:00+00:00"},
+                "last_success_at": {"a": "not-a-timestamp", "b": "2026-08-02T12:00:00+00:00"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    job_a = maintenance_loop.JobState(name="a", interval_seconds=3600, enabled=True)
+    job_b = maintenance_loop.JobState(name="b", interval_seconds=3600, enabled=True)
+
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job_a, job_b], handlers={}, state_path=state_path
+    )
+    loop._load_state()
+
+    assert job_a.last_success_at is None, "the unparseable entry is dropped"
+    assert job_a.last_run_at is not None, "without taking its own last_run_at with it"
+    assert job_b.last_success_at == datetime(2026, 8, 2, 12, 0, 0, tzinfo=UTC), "or its neighbour"
+
+
+def test_status_payload_exposes_last_success_at() -> None:
+    job = maintenance_loop.JobState(name="probe", interval_seconds=60, enabled=True)
+    job.last_success_at = datetime(2026, 8, 1, 12, 0, 0, tzinfo=UTC)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={})
+
+    entry = loop.status()[0]
+
+    assert entry["last_success_at"] == "2026-08-01T12:00:00+00:00"
+    assert entry["last_run_at"] is None, "never run, but a prior success is still reported"
+
+
+def test_a_failing_streak_keeps_the_older_success_across_a_restart(tmp_path: Path) -> None:
+    """The round-trip that actually distinguishes the two fields.
+
+    Every other persistence test drives a handler that only succeeds, so
+    last_run_at == last_success_at by construction and the file cannot
+    show which value landed under which key. Persisting last_run_at
+    under "last_success_at" survives those tests — and silently inverts
+    the feature, since a job failing for weeks would reload a
+    fresh-looking success after every redeploy.
+    """
+    state_path = tmp_path / "maintenance_state.json"
+    ok = [True]
+
+    async def _flaky(c: object) -> None:  # noqa: ARG001
+        if not ok[0]:
+            raise RuntimeError("boom")
+
+    job1 = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop1 = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job1], handlers={"probe": _flaky}, state_path=state_path
+    )
+    asyncio.run(loop1.run_once("probe"))
+    success = job1.last_success_at
+    assert success is not None
+
+    ok[0] = False
+    asyncio.run(loop1.run_once("probe"))
+    assert job1.last_run_at is not None and job1.last_run_at > success
+
+    job2 = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop2 = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job2], handlers={"probe": _flaky}, state_path=state_path
+    )
+    loop2._load_state()
+
+    assert job2.last_success_at == success, "the reloaded success is the success, not the failed run"
+    assert job2.last_run_at == job1.last_run_at
+
+
+def test_is_due_reads_last_run_at_not_last_success_at() -> None:
+    """Pins the scheduler to the right field.
+
+    This change put a lookalike attribute next to the one _is_due reads.
+    Were _is_due to read last_success_at, a job that has never succeeded
+    would be due on every tick and re-fire continuously — the exact
+    runaway-backup regression the state file was added to fix, except
+    permanent.
+    """
+    now = datetime(2026, 8, 1, 12, 0, 0, tzinfo=UTC)
+
+    just_ran_never_succeeded = maintenance_loop.JobState(name="a", interval_seconds=3600, enabled=True)
+    just_ran_never_succeeded.last_run_at = now
+    just_ran_never_succeeded.last_success_at = None
+    assert maintenance_loop._is_due(just_ran_never_succeeded, now) is False, "a failing job still waits its interval"
+
+    stale_run_recent_success = maintenance_loop.JobState(name="b", interval_seconds=3600, enabled=True)
+    stale_run_recent_success.last_run_at = now - timedelta(hours=2)
+    stale_run_recent_success.last_success_at = now
+    assert maintenance_loop._is_due(stale_run_recent_success, now) is True, (
+        "and the schedule follows runs, not successes"
+    )
+
+
+def test_persist_survives_a_job_that_has_never_succeeded(tmp_path: Path) -> None:
+    """The deployed shape on day one: a job that ran and failed.
+
+    _persist_state is called from _invoke's `finally`, so a raise while
+    assembling the payload — e.g. the success block filtering on the
+    neighbouring attribute — escapes the job task rather than being
+    logged. Nothing else in the suite persists state for a job whose
+    last_success_at is still None.
+    """
+    state_path = tmp_path / "maintenance_state.json"
+
+    async def _bad(c: object) -> None:  # noqa: ARG001
+        raise RuntimeError("boom")
+
+    job = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job], handlers={"probe": _bad}, state_path=state_path
+    )
+
+    asyncio.run(loop.run_once("probe"))  # must not raise
+
+    assert job.last_outcome == "failed"
+    assert job.last_success_at is None
+    written = json.loads(state_path.read_text(encoding="utf-8"))
+    assert written["last_run_at"]["probe"], "the run was recorded"
+    assert written["last_success_at"] == {}, "and the success block is simply empty, not absent or wrong"
+
+
+def test_non_string_timestamp_degrades_that_entry_only(tmp_path: Path) -> None:
+    """The asymmetric tolerance rule.
+
+    A non-string value raises TypeError, not ValueError, so it slips
+    past the inner `except ValueError` and would be caught only by
+    _load_state's whole-file handler — turning per-entry tolerance into
+    lose-the-entire-file. The isinstance guard is what keeps a single
+    bad value from costing every other job its schedule.
+    """
+    state_path = tmp_path / "maintenance_state.json"
+    state_path.write_text(
+        json.dumps({"last_run_at": {"a": 1754049600, "b": "2026-08-01T12:00:00+00:00"}}),
+        encoding="utf-8",
+    )
+    job_a = maintenance_loop.JobState(name="a", interval_seconds=3600, enabled=True)
+    job_b = maintenance_loop.JobState(name="b", interval_seconds=3600, enabled=True)
+
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(), jobs=[job_a, job_b], handlers={}, state_path=state_path
+    )
+    loop._load_state()
+
+    assert job_a.last_run_at is None, "the non-string entry is dropped"
+    assert job_b.last_run_at == datetime(2026, 8, 1, 12, 0, 0, tzinfo=UTC), "without costing its neighbour"

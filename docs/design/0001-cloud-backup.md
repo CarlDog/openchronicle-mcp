@@ -300,9 +300,13 @@ Add a test that boots the image with an empty `/config` and asserts a healthy co
 
 ### 6.1 The one thing that matters
 
-**How long since a verified artifact landed.** `JobState` today records `last_run_at` and `last_outcome`, has **no `last_success_at`**, and persists only `last_run_at` — every counter is per-process. Combined with this project's rule that every push to main bounces the container, a persistently failing push presents a clean surface after each redeploy. That is the mechanism by which a backup silently stops working for three weeks.
+**How long since a verified artifact landed.** `last_run_at` alone cannot answer it: it keeps advancing forever on a job that raises every time. Combined with this project's rule that every push to main bounces the container, a per-process-only success marker would present a clean surface after each redeploy — the mechanism by which a backup silently stops working for three weeks.
 
-**Add `last_success_at: datetime | None` to `JobState`, persist it alongside `last_run_at`, advance it only on genuine success.** ~5 lines, generic across all jobs, and it closes two unmet bullets of V3_PLAN open question 16 (last successful `db_backup` / `db_vacuum`). Per the project's own "separate commits per finding category," **land this as its own commit before the feature** — it touches all five jobs and a V3_PLAN question and does not belong inside a cloud-backup diff.
+**✅ SHIPPED 2026-08-23, ahead of this feature and independently of it.** `JobState.last_success_at` advances only on a run that completed without raising, is never cleared by a later failure, persists alongside `last_run_at` in `maintenance_state.json`, and is exposed per job at `/api/v1/maintenance/status`. Generic across all five jobs; closes two bullets of V3_PLAN open question 16. Landed as its own commit per "separate commits per finding category" — it did not belong inside a cloud-backup diff.
+
+Two properties this feature depends on, both now tested: a successful run stamps both timestamps from **one** clock read (so `last_run_at == last_success_at` exactly, and a difference is always meaningful), and a state file written before the field existed loads cleanly rather than raising at boot.
+
+**Caveat for the runbook:** `oc maintenance run-once <job>` calls the handler directly and **bypasses the loop**, so it advances neither timestamp and takes no lock. A manual run is therefore invisible to the staleness signal — deliberate, but say so where an operator will meet it.
 
 ### 6.2 Health block — three fields, read from the state file
 
@@ -427,7 +431,7 @@ On the quarterly re-runs, **sample an artifact older than the newest one** — `
 
 ### Phase 1 — The push job
 
-Two commits. **First:** `JobState.last_success_at` for all five jobs plus persistence, on its own (§6.1). **Then:** Dockerfile, the `cloud_backup` handler in `jobs.py`, all three registrations (`HANDLERS`, `_DEFAULT_JOBS`, `core.json.example`), the health block, the guarded entrypoint chmod, compose lines, ignore files, and docs (ADR + `docs/configuration/cloud_backup.md` runbook + security_posture section + env_vars + MAINTENANCE job table + V3_PLAN Q12 resolved + CHANGELOG).
+~~Two commits. **First:** `JobState.last_success_at` for all five jobs plus persistence, on its own (§6.1).~~ *That prerequisite shipped 2026-08-23; what remains is one commit.* **Namely:** Dockerfile, the `cloud_backup` handler in `jobs.py`, all three registrations (`HANDLERS`, `_DEFAULT_JOBS`, `core.json.example`), the health block, the guarded entrypoint chmod, compose lines, ignore files, and docs (ADR + `docs/configuration/cloud_backup.md` runbook + security_posture section + env_vars + MAINTENANCE job table + V3_PLAN Q12 resolved + CHANGELOG).
 
 Tests (~8, 589 → ~597):
 

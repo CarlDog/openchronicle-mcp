@@ -52,6 +52,14 @@ class JobState:
     interval_seconds: int
     enabled: bool
     last_run_at: datetime | None = None
+    # Advanced ONLY by a run that completed without raising, and never
+    # cleared by a later failure. `last_run_at` answers "did the loop
+    # tick", which a permanently broken job keeps answering forever;
+    # this answers "did it last WORK", which is the only question a
+    # silent failure cannot fake. Persisted, because a per-process
+    # counter resets on every redeploy — and this repo redeploys on
+    # every push to main.
+    last_success_at: datetime | None = None
     last_outcome: str | None = None  # "ok" | "failed" | "skipped_overlap"
     last_error: str | None = None
     runs_total: int = 0
@@ -96,6 +104,7 @@ class MaintenanceLoop:
                     "interval_seconds": job.interval_seconds,
                     "enabled": job.enabled,
                     "last_run_at": job.last_run_at.isoformat() if job.last_run_at else None,
+                    "last_success_at": job.last_success_at.isoformat() if job.last_success_at else None,
                     "last_outcome": job.last_outcome,
                     "last_error": job.last_error,
                     "runs_total": job.runs_total,
@@ -137,7 +146,15 @@ class MaintenanceLoop:
         _logger.info("Maintenance loop stopped")
 
     async def run_once(self, name: str) -> None:
-        """Manually trigger a single job (used by `oc maintenance run-once`)."""
+        """Run one job through the full loop machinery: locks, counters,
+        both timestamps, and state persistence.
+
+        NOT the path `oc maintenance run-once` takes, despite the name —
+        that CLI calls the handler directly (`cli/commands/maintenance.py`)
+        and so bypasses the global lock, the counters, and
+        ``last_success_at``. Corrected 2026-08-23; the docstring had
+        claimed the CLI used this. Production callers: none today.
+        """
         job = self._jobs.get(name)
         if job is None:
             raise KeyError(f"unknown maintenance job: {name}")
@@ -199,11 +216,13 @@ class MaintenanceLoop:
                 return
 
             _logger.info("maintenance job %s: running", job.name)
+            succeeded = False
             try:
                 await handler(self._container)
                 job.last_outcome = "ok"
                 job.last_error = None
                 job.runs_ok += 1
+                succeeded = True
             except Exception as exc:
                 _logger.exception("maintenance job %s failed", job.name)
                 job.last_outcome = "failed"
@@ -211,18 +230,58 @@ class MaintenanceLoop:
                 job.runs_failed += 1
             finally:
                 job.runs_total += 1
-                job.last_run_at = utc_now()
+                # One timestamp for both, so a successful run reads
+                # last_run_at == last_success_at exactly rather than
+                # differing by the microseconds between two utc_now()
+                # calls — a difference that looks like a signal.
+                now = utc_now()
+                job.last_run_at = now
+                if succeeded:
+                    job.last_success_at = now
                 await asyncio.to_thread(self._persist_state)
 
-    def _load_state(self) -> None:
-        """Restore persisted ``last_run_at`` so a container restart doesn't
-        make every job due at once.
+    @staticmethod
+    def _parse_timestamp_map(raw: dict[str, Any], key: str) -> dict[str, datetime]:
+        """Parse one ``{job_name: iso8601}`` block, skipping anything odd.
 
-        Without this, every JobState starts fresh and ``_is_due`` fires
-        every enabled job on boot — two backups per restart (db_backup +
-        db_vacuum's backup-first), which under the redeploy-on-push
-        deployment model eroded the backup retention window to same-day
-        snapshots. Counters stay per-process; only the schedule survives.
+        Shared by the two blocks in the state file so their tolerance
+        rules cannot drift: a missing block, a non-dict block, a
+        non-string value, or an unparseable timestamp each degrade to
+        "that job has no value", never to an exception.
+        """
+        parsed: dict[str, datetime] = {}
+        entries = raw.get(key)
+        if not isinstance(entries, dict):
+            return parsed
+        for name, iso in entries.items():
+            if not isinstance(iso, str):
+                continue
+            try:
+                parsed[name] = datetime.fromisoformat(iso)
+            except ValueError:
+                continue
+        return parsed
+
+    def _load_state(self) -> None:
+        """Restore persisted ``last_run_at`` / ``last_success_at``.
+
+        ``last_run_at`` exists so a container restart doesn't make every
+        job due at once: without it every JobState starts fresh and
+        ``_is_due`` fires every enabled job on boot — two backups per
+        restart (db_backup + db_vacuum's backup-first), which under the
+        redeploy-on-push deployment model eroded the backup retention
+        window to same-day snapshots.
+
+        ``last_success_at`` exists for the opposite reason: it must
+        survive a restart so a job that has been failing for weeks
+        cannot present a clean surface after each redeploy. Counters
+        stay per-process; the two timestamps survive.
+
+        A state file written before ``last_success_at`` existed simply
+        has no such block, which parses to empty — old files load, they
+        do not raise. That matters more than it sounds: an exception
+        here happens at boot, under ``restart: unless-stopped``, which
+        is the crash-loop this file exists to prevent.
         """
         if self._state_path is None:
             return
@@ -234,22 +293,18 @@ class MaintenanceLoop:
             raw = json.loads(self._state_path.read_text(encoding="utf-8"))
             if not isinstance(raw, dict):
                 return
-            entries = raw.get("last_run_at")
-            if not isinstance(entries, dict):
-                return
-            for name, iso in entries.items():
-                job = self._jobs.get(name)
-                if job is None or not isinstance(iso, str):
-                    continue
-                try:
-                    job.last_run_at = datetime.fromisoformat(iso)
-                except ValueError:
-                    continue
+            run_at = self._parse_timestamp_map(raw, "last_run_at")
+            success_at = self._parse_timestamp_map(raw, "last_success_at")
+            for name, job in self._jobs.items():
+                if name in run_at:
+                    job.last_run_at = run_at[name]
+                if name in success_at:
+                    job.last_success_at = success_at[name]
         except Exception as exc:
             _logger.warning("maintenance state file unreadable (%s); starting fresh", exc)
 
     def _persist_state(self) -> None:
-        """Write per-job ``last_run_at`` atomically (tmp + replace).
+        """Write per-job ``last_run_at`` / ``last_success_at`` atomically.
 
         Called after every job run, serialized by the global lock. A
         write failure degrades to pre-persistence behavior (all jobs due
@@ -257,10 +312,23 @@ class MaintenanceLoop:
         """
         if self._state_path is None:
             return
-        payload = {
-            "last_run_at": {j.name: j.last_run_at.isoformat() for j in self._jobs.values() if j.last_run_at is not None}
-        }
         try:
+            # Built INSIDE the try on purpose. This runs from _invoke's
+            # `finally`, where a raise would escape the job task — and
+            # the docstring's "never fatal" has to cover assembling the
+            # payload, not just writing it. Two near-identical
+            # comprehensions is exactly the shape where a copy-paste
+            # slip (wrong attribute in the None-filter) turns into an
+            # AttributeError on the first job that has run but never
+            # succeeded.
+            payload = {
+                "last_run_at": {
+                    j.name: j.last_run_at.isoformat() for j in self._jobs.values() if j.last_run_at is not None
+                },
+                "last_success_at": {
+                    j.name: j.last_success_at.isoformat() for j in self._jobs.values() if j.last_success_at is not None
+                },
+            }
             tmp = self._state_path.with_suffix(".tmp")
             self._state_path.parent.mkdir(parents=True, exist_ok=True)
             tmp.write_text(json.dumps(payload), encoding="utf-8")

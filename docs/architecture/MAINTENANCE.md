@@ -58,14 +58,31 @@ semantics — what the V3 plan calls for.
 
 ## Schedule persistence
 
-Per-job `last_run_at` persists to `maintenance_state.json` next to the
-DB (atomic tmp + replace, written after every job run). Without it,
-every container restart made every enabled job due at once — two
-backups per restart under the redeploy-on-push deployment model, which
-eroded the backup retention window to same-day snapshots (2026-08-15
-review). Counters (`runs_total` etc.) stay per-process; only the
-schedule survives. A corrupt or missing state file degrades to
-pre-persistence behavior with a warning — it can never block boot.
+Two per-job timestamps persist to `maintenance_state.json` next to the
+DB (atomic tmp + replace, written after every job run). Counters
+(`runs_total` etc.) stay per-process; only these survive a restart.
+
+`last_run_at` exists so a container restart doesn't make every enabled
+job due at once — that cost two backups per restart under the
+redeploy-on-push deployment model, eroding the backup retention window
+to same-day snapshots (2026-08-15 review).
+
+`last_success_at` exists for the opposite reason. It advances only on a
+run that completed without raising, and a later failure never clears
+it, so it answers **"when did this job last actually work"** — the one
+question a silently-failing job cannot fake, since `last_run_at` keeps
+advancing forever on a job that raises every time. It is persisted
+specifically because every push to main bounces this container: an
+in-process-only marker would let a job that has been failing for weeks
+present a clean surface after each redeploy. On a successful run both
+timestamps come from a single clock read and are exactly equal.
+
+A corrupt or missing state file degrades to pre-persistence behavior
+with a warning — it can never block boot. Each block is parsed
+independently and per-entry, so a state file written before
+`last_success_at` existed loads fine (the block is simply absent), and
+one unparseable value costs that job that one timestamp rather than
+taking the file, the job's other timestamp, or another job with it.
 
 ## Status surface
 
@@ -78,6 +95,15 @@ oc maintenance run-once db_backup
 GET /api/v1/maintenance/status
 ```
 
+**`oc maintenance run-once` bypasses the loop.** It calls the handler
+directly, so it takes no global lock, increments no counters, and
+advances neither timestamp — a manual run is invisible to the status
+surface and to any staleness check built on it. That is fine for its
+purpose (an operator watching console output) but it means "nothing has
+run for 48 hours" stays true even if you just ran one by hand.
+`MaintenanceLoop.run_once` is the full-machinery path and currently has
+no production callers.
+
 Status payload per job:
 
 ```json
@@ -86,6 +112,7 @@ Status payload per job:
   "interval_seconds": 86400,
   "enabled": true,
   "last_run_at": "2026-05-05T14:00:00+00:00",
+  "last_success_at": "2026-05-05T14:00:00+00:00",
   "last_outcome": "ok",
   "last_error": null,
   "runs_total": 12,

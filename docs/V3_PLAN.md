@@ -1026,8 +1026,8 @@ After updating each client's config, do a single round-trip call (`memory_search
     - Embedding provider status (ok / degraded / disabled, last failure timestamp + count)
     - Last maintenance run timestamp + outcome per job (also exposed via `/api/v1/maintenance/status`)
     - DB size on disk
-    - Last successful `db_vacuum` timestamp
-    - Last successful `db_backup` timestamp (any backup, manual or auto)
+    - ~~Last successful `db_vacuum` timestamp~~ ✅ 2026-08-23 — `JobState.last_success_at`, persisted and exposed per job at `/api/v1/maintenance/status`
+    - ~~Last successful `db_backup` timestamp~~ ✅ 2026-08-23 — same field; covers the scheduled job. Two manual paths deliberately leave no timestamp: `oc db backup` (a direct operator action with its own console output) and `oc maintenance run-once db_backup`, which calls the handler directly and bypasses the loop entirely
     - Schema version (from `schema_version` table)
 
     **Recommendation: implement in Phase 6.5.**
