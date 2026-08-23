@@ -50,8 +50,8 @@ query, and a pin that loses a float slot still ranks — rc8's cap alone
 had made pins past the cap unreachable by any query. Next NAS deploy
 picks it up (`OC_TAG` must move). Cloud-drive backup is designed but
 unbuilt — [docs/design/0001-cloud-backup.md](docs/design/0001-cloud-backup.md)
-is blocked on six operator decisions (§13), chiefly provider and
-whether to encrypt.
+has its provider decided (Dropbox) and is blocked on the remaining
+§13 decisions, chiefly whether to encrypt at all.
 
 **2026-08-17 — v3.0.0-rc8 deployed.** rc7 took the Q20/Q21
 **search-surface v2** live (per-result `relevance` scores, per-call

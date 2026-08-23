@@ -1,11 +1,13 @@
 # Cloud Backup for OpenChronicle — Design
 
-**Status:** Proposed · **Date:** 2026-08-23 · **Suggested path:** `docs/design/0001-cloud-backup.md`
+**Status:** Proposed — provider decided, nothing built · **Date:** 2026-08-23
 **Resolves:** `docs/V3_PLAN.md` open question 12 · **Leaves open:** sync-as-store (stays in the Out of Scope table)
 
 > **Corrected baseline.** The brief said ~3.7 MB / 277 memories. Live health on 2026-08-23T17:29Z: **8,650,752 bytes (8.25 MiB), 730 memories, 728 embedded**, `package_version 3.0.0rc8`, `schema_version 1`. Growth ≈ 5 MiB/quarter. Nothing below changes at this scale — but size the work off 8.25 MiB.
 >
 > **This is the second revision.** It is materially smaller than the first: the `cloud/` package, the persistent staging directory, four of six env vars, `classify_exit`, `redact`, and Phase 2 are all gone. Where a critique was wrong or a tradeoff was deliberate, there is an explicit *considered and rejected* note rather than silence.
+>
+> **Revision 3 (2026-08-23, same day): the provider is no longer a recommendation.** §4 is rewritten around the operator's actual accounts — Dropbox is chosen, OneDrive is rejected despite being preferred, and the App Folder fallback changed from "a dedicated new account" to "Full Dropbox on the same account" once it emerged that the account carries 23.13 GB of non-reproducible grandfathered quota. §13 question 1 is answered, question 6 is moot, and a `remote_free_bytes` health field was proposed and rejected in §6.2. No other section is affected: age recipient mode, no port, no MCP tool, and the §9 sync analysis are all provider-independent.
 
 ---
 
@@ -24,7 +26,7 @@ Nightly, the maintenance loop encrypts the three newest local SQLite backup arti
 | What gets pushed | **The 3 newest `auto/*.db`**, encrypted into a temp dir, `--ignore-existing` | Newest-only (loses an artifact permanently on a *single* failed night); a persistent staging mirror (§10.3) |
 | Remote deletion | **The daemon never deletes and never overwrites.** Unbounded growth accepted (~3 GB/yr) | Any daemon-side prune — the machinery most capable of destroying what it manages |
 | Status surface | 3 fields on `/api/v1/health`, derived from `maintenance_state.json` | Touching `maintenance_degraded` (it means "the DB may be corrupt" and must stay sharp); duplicating the per-job counters already at `/api/v1/maintenance/status` |
-| Provider first | **Dropbox, App Folder scope** | Google Drive (mandatory own client_id + publish step), OneDrive (90-day window, full-drive scope only) |
+| Provider | **Dropbox — decided 2026-08-23** (§4). App Folder scope if it verifies; Full Dropbox on the *same* account if not | Google Drive (mandatory own client_id, seven-day fuse if left in Testing), OneDrive (cannot be narrowed below full-drive) |
 
 **Headline property: zero new secret-bearing environment variables.** age recipient mode means the container holds only a *public* key. Both new vars are safe in Portainer stack env, in `docker inspect`, and in logs — and `OC_CLOUD_REMOTE` is constrained by regex to `name:path` form specifically so an rclone *connection string* (`:s3,access_key_id=…,secret_access_key=…:bucket`) cannot be pasted there and turn a plain var into a credential. The only at-rest secret is `rclone.conf` (the OAuth refresh token) on the existing `/config` mount at 0600. A NAS compromise gets the ability to *write* new backups and nothing else — it cannot read a single historical one. Neither restic nor kopia nor rclone crypt can offer that: in all three, the credential required to write is the credential that decrypts everything.
 
@@ -128,22 +130,87 @@ RUN rclone version && age --version
 
 ## 4. Provider strategy and bootstrap
 
+**Decided 2026-08-23: Dropbox.** The operator holds OneDrive (preferred), Google
+Drive, and a Dropbox account they had been planning to retire. That last one wins
+anyway, and the deciding argument is not the ranking below — it is that Dropbox is
+the only one of the three whose scope rclone can actually narrow.
+
 Ranked by *unattended reliability*, the only ranking that matters for a backup:
 
 | Provider | Own OAuth app? | Narrow scope via rclone? | Inactivity deadline | Verdict |
 |---|---|---|---|---|
-| **Dropbox** | No (shared App ID works) | **Yes** — App Folder access type | None documented | **Recommended primary** |
-| Google Drive | **Yes, mandatory** — shared id retires during 2026 | Yes — `--drive-scope drive.file` | 6 months (**7 days** if left in "Testing") | Fine, highest-maintenance |
-| OneDrive personal | No | **No** — see below | ~90 days | Last of the three |
-| *B2 / S3 / WebDAV / SFTP* | **No OAuth at all** | Yes (bucket + prefix + capability) | None | Strictly better if you have one |
+| **Dropbox** | No (shared App ID works) | **Yes** — App Folder access type | None documented | **Chosen** |
+| Google Drive | **Yes, mandatory** — shared id retires during 2026 | Yes — `--drive-scope drive.file` | 6 months (**7 days** if left in "Testing") | Runner-up, highest-maintenance |
+| OneDrive personal | No | **No** — see below | ~90 days | Rejected despite being preferred |
+| *B2 / S3 / WebDAV / SFTP* | **No OAuth at all** | Yes (bucket + prefix + capability) | None | Strictly better, but the operator has none |
 
 **Dropbox.** No app review for a single-user app (production approval only past 50 linked users), refresh tokens with no documented expiry, `Retry-After` always present on 429, and App Folder is the narrowest blast radius rclone can actually use. Create the app with **App folder** access and enable exactly `account_info.read`, `files.metadata.write`, `files.content.write`, `files.content.read`, `sharing.write`.
+
+**Two facts about this specific account that change the plan.**
+
+*It is not reproducible.* It is a Basic (free) plan carrying **23.13 GB** — far above
+the 2 GB baseline, from referral and promo space accumulated since Dropbox's earliest
+days. That quota is bound to the account: delete it and a fresh Basic account gives
+you 2 GB and none of whatever else is grandfathered in. So the runbook line is not
+"remember to keep this account" but **this account is irreplaceable** — a fact worth
+stating in a sentence that survives forgetting why. Reassuringly, the *app*
+registration is fully reversible: a token can be revoked from the App Console without
+touching the account or its quota, so Phase 0 experimentation costs nothing.
+
+*The retirement plan is now load-bearing.* The operator described this account as
+deprecated. Adopting it as the backup target is a decision to keep it alive, and that
+decision must be recorded where someone tidying up their subscriptions will meet it.
+
+**Storage headroom, measured rather than assumed.** 29.17% of 23.13 GB is in use, so
+about **16.4 GB is free** — roughly five years at today's 9 MB nightly artifact, or
+about two if the database keeps growing at the ≈5 MiB/quarter estimate. This is why
+§8's operator-run prune stays deferred: "years away" is a measurement here, not a
+hope. Dropbox Basic also retains deleted and overwritten files for **30 days**, a free
+backstop against a bad push that complements — rather than duplicates — the
+never-delete rule.
+
+**The fallback changed, and the first draft had it wrong.** If App Folder does not
+verify (§12), the fallback is **Full Dropbox scope on this same account**, *not* a
+dedicated new account. A new account means 2 GB and no grandfathered space, which
+trades a narrow token for a target that cannot hold the backups — a strictly worse
+deal. Under Full Dropbox the exposure is this account's contents specifically, which
+the operator has already written off, and age encryption still means a stolen token
+reads nothing of OC's.
+
+**Why not OneDrive, despite being the preferred provider.** rclone's OneDrive backend
+roots at `/drives/{driveID}` and never addresses `/special/approot`; its
+`access_scopes` enum contains no AppFolder value (`backend/onedrive/onedrive.go`).
+Using it means granting `Files.ReadWrite.All Sites.Read.All` over the entire drive to
+hold a 9 MiB file — and **encryption does not offset this**, because age protects the
+*contents of the backups* while scope protects *everything else in the account*. The
+two are orthogonal. That grant turns "someone reached the NAS" into "someone has
+read/write across my whole personal drive," which is a materially larger prize than
+the OC corpus they would already have from the NAS itself. A dedicated Microsoft
+account would neutralize it; the operator has an account that already satisfies the
+requirement without one.
 
 **OneDrive cannot be narrowed.** rclone's OneDrive backend roots at `/drives/{driveID}` and never addresses `/special/approot`; its `access_scopes` enum contains no AppFolder value (`backend/onedrive/onedrive.go`). Using OneDrive means granting `Files.ReadWrite.All Sites.Read.All` over the entire drive to hold an 8 MiB file. Narrowing it would mean hand-writing a Graph client — a second implementation of what rclone already does.
 
 **Google Drive's trap has a one-week fuse.** Per rclone's own docs the shared client_id "is being retired and will stop working during 2026," and an app left in "Testing" has grants that "expire after a week." `drive.file` and `drive.appdata` are classified non-sensitive, so "Publish app" is self-serve — no review, no fee, no 100-user cap; the cost is a nameless consent screen once. Files created under one client_id are invisible under a different one, so **register your own client_id before uploading anything**. Prefer `drive.file` over `drive.appfolder`: appfolder is invisible in the Drive web UI, defeating browser-based emergency restore.
 
 ### 4.1 Bootstrap runbook (one operator session, ~30 min, desktop only)
+
+**Step 0 — settle the App Folder question first (~10 min).** It is the one
+UNVERIFIED claim on this path (§12), and it decides the app's access type, which
+every later step inherits. In the Dropbox App Console create an app with **App
+folder** access and the five scopes above, then:
+
+```bash
+rclone config                               # new remote, type dropbox, name it e.g. ocdrop
+rclone lsd ocdrop:                          # ← the actual test
+rclone copy ./probe.txt ocdrop:probe/ -v    # and a real write
+```
+
+If either errors with `Path root is not supported for sandbox app`, delete the app,
+recreate it with **Full Dropbox** access on this same account, and carry on — see §4
+for why the fallback is *not* a dedicated new account. Record which access type you
+ended up with; it is the difference between a token that can read one folder and one
+that can read the account.
 
 ```bash
 # 1. Generate the age keypair. The only irreplaceable secret in the design.
@@ -169,7 +236,7 @@ sqlite3 back.db "PRAGMA integrity_check; SELECT COUNT(*) FROM memory_items;"
 
 Both bootstrap routes are supported: configure on the desktop and copy the file (simplest — no rclone on the NAS, no TTY into a container), or `rclone config` → answer `N` → `rclone authorize "dropbox"` on the desktop → paste the token. rclone's docs advise matching versions across the two machines for the authorize route.
 
-For Google Drive, insert before step 3: create a Cloud project, create an OAuth client (Desktop app), add scope `.../auth/drive.file`, and **press "Publish app."** Skipping the publish step produces a backup that silently dies exactly seven days later.
+*Retained for the runner-up only:* were Google Drive ever adopted, insert before step 3 — create a Cloud project, create an OAuth client (Desktop app), add scope `.../auth/drive.file`, and **press "Publish app."** Skipping the publish step produces a backup that silently dies exactly seven days later. Register the client_id *before* uploading anything: files created under one client_id are invisible under another.
 
 ---
 
@@ -230,6 +297,17 @@ Built in `build_health_payload(container)` by reading `container.paths.db_path.p
 
 **Considered and rejected: `last_failure_at`, `last_failure_kind`, `last_error`, `runs_failed`, `instance`, `remote_name`, `recipients`.** Four of those are a second copy of `/api/v1/maintenance/status`, which already serves `MaintenanceLoop.status()` for every job. `remote_name` would leak part of a value the design otherwise treats carefully — nothing to redact if nothing is surfaced. `recipients: 2` told an operator nothing checkable; the startup log line of the actual public keys does.
 
+**Also considered and rejected (2026-08-23): a `remote_free_bytes` field fed by
+`rclone about`.** It was proposed as early warning before the remote fills, and the
+reasoning does not survive contact with the rest of this section: a full remote makes
+pushes *fail*, which stops `last_success_at` advancing, which raises `stale` within 48
+hours — the alarm that already exists catches it. The field would buy warning weeks
+earlier at the cost of a per-job payload in a state file whose schema is shared by all
+five jobs, plus an extra nightly subprocess that can itself fail, on the one job whose
+entire purpose is not failing. Against five years of measured headroom (§8) and a
+quota the provider's own client displays on demand, that is not a trade worth making.
+Revisit only if the prune in §8 is ever actually triggered.
+
 Three defined inputs, all of which must yield a status and never an exception: **state file absent** (first boot) → `stale` if enabled, `disabled` if not; **key absent** (old state file, pre-`last_success_at`) → same; **malformed JSON** → `stale`, logged. `last_success_at is None` while the feature is enabled is **stale, not ok** — otherwise the sole alarm never fires for the case that matters most, a deployment that never worked once.
 
 The Docker healthcheck is unaffected and cannot be broken by this: it probes the top-level `@app.get("/health")` at `app.py:170`, which returns a static `{"status": "ok"}` and does not call `build_health_payload`. The rich payload lives at `/api/v1/health`. Wrap the state-file read in try/except anyway.
@@ -288,7 +366,9 @@ If rclone is missing, `rclone.conf` is absent, the remote is malformed, or recip
 
 ### Phase 0 — Bootstrap, and the first run of the restore drill (operator, zero code)
 
-Choose the provider. Create the app with the right scope. Generate and **escrow** the age keypair. Run `rclone config`. Execute §4.1 end to end.
+Provider is decided (§4). Settle the App Folder question (§4.1 step 0), create the app
+with whichever access type verified, generate and **escrow** the age keypair, run
+`rclone config`, and execute §4.1 end to end.
 
 **Considered and accepted: Phase 0's exit gate and the old Phase 2 "restore drill" were the same five commands.** They are now one thing, run for the first time here and re-run quarterly via the phase-end audit checklist.
 
@@ -324,7 +404,7 @@ Tests (~8, 589 → ~597):
 |---|---|
 | Co-push the `oc memory export` JSON envelope | A SQLite-version restore problem actually occurs, or sync-as-store becomes funded |
 | `oc cloud list` / `oc cloud pull` | Reading health JSON / typing rclone flags becomes a real annoyance |
-| Operator-run remote prune | Remote storage actually pinches (~3 GB/yr; years away) |
+| Operator-run remote prune | Remote storage actually pinches. Measured 2026-08-23: ~16.4 GB free of 23.13 GB, against ~3.3 GB/yr — five years at today's size, ~two if growth continues. Visible any time in the Dropbox client; no code needed to watch it |
 | Restore-over-the-live-DB | An actual disaster, or a second machine — §9.3 |
 | Sync-as-store | §9 |
 
@@ -407,7 +487,7 @@ Carry these into implementation. Do not let them quietly become assertions.
 
 | Claim | Status | How to settle it |
 |---|---|---|
-| rclone works against a **Dropbox App folder** app (reports of "Path root is not supported for sandbox app") | **UNVERIFIED — and Dropbox's top ranking rests partly on it** | 10 min in Phase 0: create the app with App folder access, `rclone authorize "dropbox"`, then `rclone lsd remote:` and copy a file. Fallback is Full Dropbox, which reintroduces full-account blast radius and drops Dropbox below Drive. |
+| rclone works against a **Dropbox App folder** app (reports of "Path root is not supported for sandbox app") | **UNVERIFIED — now the first step of Phase 0** (§4.1 step 0). It no longer gates the *provider*, only the *scope* | 10 min, before any other bootstrap step: create the app with App folder access, `rclone authorize "dropbox"`, then `rclone lsd remote:` and copy a file. Fallback is Full Dropbox **on the same account** — a wider token, but the alternative (a fresh 2 GB account) cannot hold the backups at all. |
 | The official `rclone/rclone` image binary runs on `python:3.14-slim` | **UNVERIFIED, mitigated** — the upstream release binary measures fully static and the image is built `CGO_ENABLED=0`, but the image binary was not executed on Debian | `RUN rclone version` makes it a build failure, not a runtime one. Keep that line. |
 | trixie's `age` package satisfies the `age -r … -o …` invocation | **UNVERIFIED, mitigated** | `RUN age --version` in the same gate; the encrypt path is exercised in Phase 0 by hand before any code exists. |
 | Dropbox refresh tokens never expire | **LIKELY** — stated by Dropbox Community staff; the OAuth guide itself is silent on refresh-token expiry | Only matters after a >90-day OC outage. Re-bootstrap is documented; accept. |
@@ -424,7 +504,11 @@ Carry these into implementation. Do not let them quietly become assertions.
 
 Only decisions that genuinely need a human.
 
-1. **Which provider?** The design recommends **Dropbox with App Folder scope**, defensible on reliability grounds alone. But if you already have Backblaze B2, an S3-compatible bucket, or Nextcloud, that tier is strictly better — no OAuth, no interactive bootstrap, no token refresh, no writable-config requirement, and narrower least-privilege than any consumer provider can express. It works with this design unchanged; only `OC_CLOUD_REMOTE` differs. **Decide before Phase 0** — the runbook, the scope choices, and the token-lifetime caveats are all written against one concrete provider.
+1. ~~**Which provider?**~~ **RESOLVED 2026-08-23: Dropbox** (§4). The operator's
+   OneDrive preference lost to a scope limitation rclone cannot work around, and the
+   Dropbox account slated for retirement is kept alive as the backup target instead.
+   Scope is App Folder if §4.1 step 0 verifies, Full Dropbox on the same account if
+   not. No B2/S3/Nextcloud is available, which would otherwise have beaten all three.
 
 2. **Encrypt at all?** The design says yes, on confidentiality against the provider and against anyone who obtains the cloud account (§7). The honest counter is availability: encryption adds a **new single point of failure** to a path that previously had none — today a lost NAS means restoring a plaintext `.db`; afterwards it means restoring a plaintext `.db` **and** having the key. For a thing whose whole job is to work when everything else has failed, that concession deserves real weight. If your answer is "I will not reliably escrow a key," the correct decision is to ship unencrypted to a **narrowly-scoped** Dropbox App Folder or Google `drive.file` remote and drop `age` entirely — a smaller, simpler feature that also deletes ~7 MiB from the image, `OC_CLOUD_AGE_RECIPIENTS`, the recipients guard and its test, half of Phase 0, and question 3 below. Decide with eyes open; do not half-do it.
 
@@ -434,7 +518,14 @@ Only decisions that genuinely need a human.
 
 5. **Fix the `oc memory import --mode merge` hazard (§11.4) and the watermark leak (§11.3) now, or park them?** Neither blocks Phase 1 — cloud backup is push-only and nothing here performs a merge. But **cross-device restore is an explicit Goal of this design**, and the first restore-and-merge is the trigger condition. So this is not "operator's call, adjacent scope" — it is "must be fixed before the first cross-device merge is attempted." The watermark filter is ~2 lines and independently correct.
 
-6. **Is egress metered on your plan?** ~8 MiB per drill is trivial on any consumer plan, but it gates whether the quarterly drill stays manual. Confirm rather than assume.
+6. ~~**Is egress metered on your plan?**~~ **Moot for the chosen target.** Dropbox
+   consumer plans do not meter egress; the per-drill transfer is ~9 MiB regardless.
+   The question survives only if the provider ever changes.
+
+7. **How much of that account's existing 6.75 GB do you want to keep?** Not a design
+   question — but you had planned to retire this account, and clearing what you no
+   longer want pushes the prune trigger (§8) further out at zero engineering cost.
+   Purely yours; the design works either way.
 
 ---
 
