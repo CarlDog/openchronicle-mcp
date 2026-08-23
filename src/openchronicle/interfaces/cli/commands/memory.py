@@ -331,4 +331,12 @@ def cmd_memory_import(args: argparse.Namespace, container: CoreContainer) -> int
         f"(mode={mode}; skipped {result['projects_skipped']} existing project(s), "
         f"{result['memory_skipped']} existing memory item(s))"
     )
+    # Only when it happened — a line reading "dropped 0 watermarks" on
+    # every import is noise, but a silent drop is the thing this fix exists
+    # to stop being silent.
+    if result["watermark_dropped"]:
+        print(
+            f"Dropped {result['watermark_dropped']} git-onboard watermark(s) from the envelope "
+            f"(device-local git resume state; re-run `oc onboard git` here to re-anchor)"
+        )
     return 0

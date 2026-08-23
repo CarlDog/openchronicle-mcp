@@ -7,6 +7,20 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **The git-onboard watermark no longer leaks across devices via
+  export/import.** The watermark is one device's git resume point,
+  written as an ordinary memory row (`source="git-onboard-watermark"`,
+  now the shared `WATERMARK_SOURCE` constant in `git_onboard.py`).
+  Carried to another device it corrupts incremental onboarding — a hash
+  unreachable in the destination clone forces a full re-walk and
+  duplicate cluster memories, one *ahead* of the destination silently
+  skips commits. `export_memory` now excludes it; `import_memory` drops
+  it on read in both `merge` and `replace`, since every envelope written
+  before the export fix still carries one and those are exactly the
+  envelopes a first cross-device restore reads. Each drop is reported as
+  `watermark_dropped`, counted apart from `memory_skipped` so it isn't
+  mistaken for a collision. Closes §11.3 / §13.5 of the cloud-backup
+  design — the last OC-side prerequisite it named. 620 → 625 tests.
 - **`oc memory import --mode merge` stops losing edits silently.** The
   semantics are unchanged and deliberate — merge is a union by id, with
   no update branch — but it had two lossy edges invisible in the data: a

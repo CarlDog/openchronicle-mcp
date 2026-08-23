@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from openchronicle.core.application.services.git_onboard import WATERMARK_SOURCE
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.time_utils import utc_now
@@ -25,7 +26,9 @@ def execute(
 
     Embeddings are intentionally excluded — they are regenerable from
     content via `oc memory embed` and shipping vector blobs in JSON
-    bloats the export by ~6kB per item with no recovery benefit.
+    bloats the export by ~6kB per item with no recovery benefit. The
+    git-onboard watermark is excluded for the opposite reason: it is
+    device-local state that is actively harmful elsewhere (see below).
 
     Args:
         storage: Project store (StoragePort).
@@ -51,7 +54,18 @@ def execute(
         for p in projects
     ]
 
-    items = memory_store.list_memory(limit=None, pinned_only=False, project_id=project_id)
+    # Drop the git-onboard watermark: it is one device's git resume
+    # point, not portable content. Carried across devices it corrupts
+    # incremental onboarding — a stale hash unreachable in the
+    # destination clone forces a full re-walk and duplicate cluster
+    # memories, one *ahead* of the destination silently skips commits.
+    # Filtered here rather than via a port parameter because it is a
+    # property of the export format, not of the query.
+    items = [
+        m
+        for m in memory_store.list_memory(limit=None, pinned_only=False, project_id=project_id)
+        if m.source != WATERMARK_SOURCE
+    ]
 
     memory_payload = [
         {

@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from openchronicle.core.application.services import git_onboard
 from openchronicle.core.application.use_cases import export_memory, import_memory
 from openchronicle.core.domain.exceptions import ValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -79,6 +80,7 @@ def test_import_merge_into_empty_store(tmp_path: Path) -> None:
         "projects_skipped": 0,
         "memory_added": 2,
         "memory_skipped": 0,
+        "watermark_dropped": 0,
     }
     assert len(dest.list_memory()) == 2
     dest.close()
@@ -102,12 +104,14 @@ def test_import_merge_skips_existing_ids(tmp_path: Path) -> None:
         "projects_skipped": 0,
         "memory_added": 3,
         "memory_skipped": 0,
+        "watermark_dropped": 0,
     }
     assert second == {
         "projects_added": 0,
         "projects_skipped": 1,
         "memory_added": 0,
         "memory_skipped": 3,
+        "watermark_dropped": 0,
     }
 
 
@@ -255,6 +259,7 @@ def test_import_merge_counts_added_and_skipped_independently(tmp_path: Path) -> 
         "projects_skipped": 1,
         "memory_added": 3,
         "memory_skipped": 1,
+        "watermark_dropped": 0,
     }
 
 
@@ -421,3 +426,106 @@ def test_import_tolerates_absent_or_unusable_exported_at(
     assert result["memory_added"] == 1
     assert result["memory_skipped"] == 1
     assert not any("predates" in r.getMessage() for r in caplog.records)
+
+
+# ── git-onboard watermark leak (design 0001 §11.3) ──────────────────────
+#
+# The watermark is one device's git resume point, written as an ordinary
+# memory row. Carried across devices it corrupts incremental onboarding:
+# a hash unreachable in the destination clone forces a full re-walk and
+# duplicate cluster memories, one *ahead* of the destination silently
+# skips commits. Filtered on export (stop producing it) AND on import
+# (every envelope written before the export fix still carries one).
+
+
+def test_save_watermark_writes_the_source_the_filters_read(tmp_path: Path) -> None:
+    """The producer and the filters must agree on one literal.
+
+    This is the whole point of sharing `WATERMARK_SOURCE` as a constant:
+    renaming it in `git_onboard` must not silently turn both filters into
+    no-ops. Asserting against the constant on both sides would pass under
+    exactly that rename, so this reads the row back and compares its
+    stored `source` to what the export filter uses.
+    """
+    store = SqliteStore(str(tmp_path / "wm.db"))
+    store.init_schema()
+    store.add_project(Project(id="proj-0", name="Project 0"))
+    git_onboard.save_watermark(store, "proj-0", "abc1234")
+
+    rows = [m for m in store.list_memory(limit=None) if m.content == "abc1234"]
+    store.close()
+
+    assert len(rows) == 1
+    assert rows[0].source == git_onboard.WATERMARK_SOURCE
+
+
+def test_export_omits_the_watermark(tmp_path: Path) -> None:
+    store = _seeded(tmp_path, project_count=1, items_per_project=2)
+    git_onboard.save_watermark(store, "proj-0", "abc1234")
+    payload = export_memory.execute(storage=store, memory_store=store)
+    store.close()
+
+    assert not any(m["source"] == git_onboard.WATERMARK_SOURCE for m in payload["memory_items"])
+    # The real content is untouched — this filters one row, not the export.
+    assert len(payload["memory_items"]) == 2
+
+
+@pytest.mark.parametrize("mode", ["merge", "replace"])
+def test_import_drops_a_watermark_carried_by_an_old_envelope(tmp_path: Path, mode: str) -> None:
+    """A pre-fix envelope must not re-anchor this device's onboarding.
+
+    Hand-built because `export_memory` will never produce one again —
+    and those pre-fix envelopes are exactly what a first cross-device
+    restore reads. Both modes: a fresh-DB `replace` restore is the most
+    likely path and must not resurrect it either.
+    """
+    payload = _envelope(memory_ids=("mem-a",))
+    payload["memory_items"].append(
+        {
+            "id": "mem-watermark",
+            "content": "deadbee",
+            "tags": [git_onboard.WATERMARK_SOURCE],
+            "pinned": False,
+            "project_id": "proj-0",
+            "source": git_onboard.WATERMARK_SOURCE,
+            "created_at": "2026-01-01T00:00:00+00:00",
+            "updated_at": None,
+        }
+    )
+
+    dest = SqliteStore(str(tmp_path / "dest.db"))
+    dest.init_schema()
+    result = import_memory.execute(storage=dest, memory_store=dest, payload=payload, mode=mode)
+    survivors = dest.list_memory_by_source(git_onboard.WATERMARK_SOURCE, "proj-0")
+    dest.close()
+
+    assert survivors == []
+    assert result["watermark_dropped"] == 1
+    # Counted apart from collisions — folding it into memory_skipped would
+    # undo what that count exists to report.
+    assert result["memory_skipped"] == 0
+    assert result["memory_added"] == 1
+
+
+def test_watermark_survives_a_local_export_import_round_trip_as_absent(tmp_path: Path) -> None:
+    """End-to-end: onboarded state exports and restores without the resume point.
+
+    The property, not the comprehension: a store holding a watermark
+    exports clean, and importing that export into a fresh store leaves
+    the destination with no watermark to resume from.
+    """
+    src = _seeded(tmp_path, project_count=1, items_per_project=2)
+    git_onboard.save_watermark(src, "proj-0", "abc1234")
+    payload = json.loads(json.dumps(export_memory.execute(storage=src, memory_store=src)))
+    src.close()
+
+    dest = SqliteStore(str(tmp_path / "dest.db"))
+    dest.init_schema()
+    result = import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    survivors = dest.list_memory_by_source(git_onboard.WATERMARK_SOURCE, "proj-0")
+    dest.close()
+
+    assert survivors == []
+    assert result["memory_added"] == 2
+    # Nothing to drop on import — the export already omitted it.
+    assert result["watermark_dropped"] == 0

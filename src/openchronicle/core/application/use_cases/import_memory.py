@@ -15,6 +15,12 @@ per-item version), which is why both counts are returned to the caller
 *and* warned about: silence was the failure mode, not the semantics.
 Use a fresh DB plus ``mode="replace"`` to restore an envelope exactly.
 
+Git-onboard watermark rows are dropped in **both** modes. ``export_memory``
+no longer emits them, but every envelope written before that landed still
+carries one, and those are exactly the envelopes a first cross-device
+restore uses — so filtering only on the write side would leave the
+existing artifacts poisoned.
+
 Embeddings are not part of the export format (see ``export_memory``); run
 ``oc memory embed`` after import to regenerate them.
 """
@@ -26,6 +32,7 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
+from openchronicle.core.application.services.git_onboard import WATERMARK_SOURCE
 from openchronicle.core.domain.exceptions import ValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
@@ -133,6 +140,9 @@ def execute(
     caller cannot tell "0 added, the envelope was empty" from "0 added,
     every item collided and its envelope copy was discarded" — the exact
     ambiguity that made ``merge``'s union-by-id semantics dangerous.
+    ``watermark_dropped`` is tracked separately from ``memory_skipped``
+    for the same reason: a dropped watermark is not a collision, and
+    inflating the collision count would undo what it exists to report.
 
     Raises ``ValidationError`` for unknown modes, missing ``format_version``,
     or non-empty destinations in ``replace`` mode.
@@ -162,6 +172,7 @@ def execute(
     projects_skipped = 0
     memory_added = 0
     memory_skipped = 0
+    watermark_dropped = 0
 
     # One transaction: this is the disaster-recovery path, where a bad
     # row mid-loop must roll back everything rather than commit a
@@ -189,6 +200,16 @@ def execute(
             projects_added += 1
 
         for raw_memory in payload.get("memory_items", []):
+            # Never insert another device's git resume point, whatever
+            # mode we are in. Export stopped emitting these, but every
+            # envelope written before that fix still carries one, and
+            # those are exactly the envelopes a first cross-device
+            # restore uses. Counted separately: this is not a collision,
+            # and folding it into memory_skipped would corrupt the one
+            # number a caller relies on to detect discarded edits.
+            if raw_memory.get("source") == WATERMARK_SOURCE:
+                watermark_dropped += 1
+                continue
             if raw_memory["id"] in existing_memory_ids:
                 memory_skipped += 1
                 continue
@@ -214,6 +235,7 @@ def execute(
         "projects_skipped": projects_skipped,
         "memory_added": memory_added,
         "memory_skipped": memory_skipped,
+        "watermark_dropped": watermark_dropped,
     }
 
     # Warn after the commit, never inside it: a rolled-back import must

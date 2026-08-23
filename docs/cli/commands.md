@@ -95,6 +95,9 @@ warning). It does **not** bump `format_version` — an envelope written
 before that field existed still imports, and one carrying it still
 imports into an older build.
 
+The git-onboard watermark (this device's git resume point, see below)
+is never included — it's device-local state, not portable content.
+
 ### `oc memory import FILE [--mode merge|replace]`
 
 Read an envelope produced by `oc memory export` and apply it.
@@ -111,6 +114,12 @@ it has two lossy edges, both silent in the data:
   envelope has no way to know it was deleted
 
 For an exact restore, import into a fresh DB with `--mode replace`.
+
+A git-onboard watermark carried by an envelope written before the export
+fix above is dropped on import too, in both modes, and reported
+separately (`Dropped N git-onboard watermark(s)...`) — not counted as a
+skip, since it isn't a collision. Re-run `oc onboard git` on this device
+afterward to re-anchor its own resume point.
 
 Merge prints both counts (`added` and `skipped`, for projects and memory
 items alike) and logs two warnings to stderr: one unconditional, naming

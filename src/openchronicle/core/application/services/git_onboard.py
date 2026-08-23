@@ -320,6 +320,17 @@ _BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/\-]*$")
 # it must LOOK like a hash before it gets anywhere near a subprocess.
 _WATERMARK_HASH_RE = re.compile(r"^[0-9a-fA-F]{7,64}$")
 
+WATERMARK_SOURCE = "git-onboard-watermark"
+"""``MemoryItem.source`` marking the incremental-onboard watermark row.
+
+Public because `export_memory` and `import_memory` filter on it: a
+watermark is one device's git working state, not portable content, and
+carrying it across devices corrupts the resume point (see
+`docs/design/0001-cloud-backup.md` §11.3). Shared as a constant rather
+than repeated as a literal precisely so renaming it here cannot silently
+disable those filters.
+"""
+
 
 def _validate_branch(branch: str) -> None:
     """Reject branch names that could be parsed as options or garbage refs."""
@@ -736,7 +747,7 @@ def onboard_git_prepare(
     MCP run resumed from deleted state.
     """
     existing = store.list_memory_by_source("git-onboard", project_id)
-    watermark_items = store.list_memory_by_source("git-onboard-watermark", project_id)
+    watermark_items = store.list_memory_by_source(WATERMARK_SOURCE, project_id)
     watermark_hash: str | None = watermark_items[0].content if watermark_items else None
     if watermark_hash is not None and not _WATERMARK_HASH_RE.match(watermark_hash):
         # The watermark is spliced into `git log <hash>..HEAD` argv.
@@ -786,15 +797,15 @@ def save_watermark(
     latest_hash: str,
 ) -> None:
     """Save or update the git-onboard watermark for incremental runs."""
-    existing = store.list_memory_by_source("git-onboard-watermark", project_id)
+    existing = store.list_memory_by_source(WATERMARK_SOURCE, project_id)
     for wm in existing:
         store.delete_memory(wm.id)
     store.add_memory(
         MemoryItem(
             content=latest_hash,
-            tags=["git-onboard-watermark"],
+            tags=[WATERMARK_SOURCE],
             pinned=False,
             project_id=project_id,
-            source="git-onboard-watermark",
+            source=WATERMARK_SOURCE,
         )
     )
