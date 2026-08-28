@@ -1,7 +1,10 @@
 # API + MCP tool stability
 
 What stays stable, what's allowed to change, and the deprecation
-process when something must break. Adopted at v3.0.0 (2026-05).
+process when something must break.
+
+**In force since the `v3.0.0` tag (2026-08-28).** The pre-tag escape
+hatch that stood here until then has been removed, as it instructed.
 
 ## Surfaces under this promise
 
@@ -30,23 +33,6 @@ the declared version (`v3.0.0-rc6` ↔ `3.0.0rc6`).
 | MAJOR | Breaking changes to `/api/v1/*` schemas, MCP tool signatures, or the `core.json` schema. Triggers a `/api/v2/*` parallel deployment for a deprecation window. |
 | MINOR | Additive features. New tools, new fields on existing responses, new optional parameters, new env vars with safe defaults. |
 | PATCH | Bug fixes, performance improvements, doc-only changes, internal refactors with no observable surface change. |
-
-## Before the v3.0.0 tag
-
-This promise is adopted **at** the `v3.0.0` tag, and that tag has not
-shipped yet — it's a Phase 9 deliverable (see `docs/V3_PLAN.md`). Until
-it does, the surface described here is still being designed. A change to
-it is a design decision, not a break of this policy.
-
-Concretely: tightening a parameter from optional to required, or
-reshaping a response object, is a MAJOR-bump event *after* the tag and
-simply "the v3.0.0 surface as designed" before it. Pre-tag versions are
-release candidates (`3.0.0rc8` at time of writing) — do not read a
-version bump as recording a surface change, and do not read a pre-tag
-surface change as a violation of the table above.
-
-Once `v3.0.0` is tagged, delete this section. Everything below binds from
-that point forward.
 
 ## Allowed-without-major-bump
 

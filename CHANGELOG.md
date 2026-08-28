@@ -5,7 +5,14 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
-## Unreleased (on main since rc8)
+## v3.0.0 — 2026-08-28
+
+The first stable v3 tag. From here `docs/api/STABILITY.md` binds: the
+REST schemas, MCP tool signatures, and `core.json` schema are under
+semver, and a breaking change to any of them is a MAJOR event rather
+than "the surface as designed".
+
+Everything below shipped between rc8 (2026-08-17) and this tag.
 
 - **`cluster_commits` no longer hangs forever on a non-positive cap.** With
   `max_clusters <= 0` the merge loop never terminated: once the list was down

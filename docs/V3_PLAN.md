@@ -33,7 +33,7 @@ the actual lived experience vs. the planned sequence below.
 | 6.5 — maintenance loop + degradation | ✅ done (2026-05-05) | asyncio loop with per-job + global locks (skip-on-overlap, sequential within process), 5 job handlers (db_backup/db_vacuum/db_integrity_check/embedding_backfill/git_onboard_resync), `/api/v1/maintenance/status` endpoint, `oc maintenance` CLI, embedding-failure FTS5 fallback with `degraded` status surfacing; 349 tests passing |
 | 7 — docs sweep + repo polish | ✅ done (2026-05-05) | every doc classified (update/archive/delete); v2 docs moved under `docs/archive/v2/`; new STABILITY.md, security_posture.md, MAINTENANCE.md; README rewritten per voice rules; pyproject 3.0.0.dev0 with dead extras dropped; 349 tests passing |
 | 8 — production cutover | ✅ done (2026-05-06) | NAS stack 151 live on the v3 image (turbulent — see cutover-2026-05-06-triage.md); this row said "pending" until 2026-08-16, contradicting the SHIPPED header above |
-| 9 — decommission | pending (gate passed 2026-05-13; ~3 months overdue as of 2026-08-16) | tag v3.0.0; delete v2 stack + orphan volumes after Day 7. Until the tag exists, STABILITY.md's "before the v3.0.0 tag" escape hatch stays open |
+| 9 — decommission | ✅ done (2026-08-28) | `v3.0.0` tagged; STABILITY.md's pre-tag escape hatch removed as it instructed; two genuinely dangling v2 volumes deleted (`oc-assets`, `oc-user-plugins`). The Day-7 list was CORRECTED before execution — it would have deleted the live stack 151 and the in-use `oc-output` volume |
 
 **Locked decisions** (questions 1, 4, 6, 13, 14, 19 from "Open Questions"):
 
@@ -826,14 +826,40 @@ The README is not a market-positioning document. It states what OC is, what it d
 - **Drop `target-branch: v3/develop` lines from `.github/dependabot.yml`** so updates flow to the default branch (now v3) automatically
 - Close out follow-up tasks from this session
 
-**Day 7 post-cutover (if v3 has run clean):**
+**Day 7 post-cutover — CORRECTED 2026-08-28 before execution.**
 
-- Delete the (now-stopped) v2 stack 151 from Portainer
-- Delete orphan named volumes: `oc-output`, `oc-assets` (if they exist)
-- Remove orphan host bind-mount paths if used: `/volume1/docker/openchronicle/{assets,output,plugins}` (the `config` path stays — v3 uses it)
-- Inside `oc-data` named volume: remove orphan dirs `/data/assets/`, `/data/output/` — these are dead bytes after v3 cuts those features
-- Delete the pre-migration backup ONLY if a fresh v3-shaped backup exists and integrity-checks ok
-- Confirm `latest` Docker tag is v3 (cuts the rollback path — only do this after Day 7 success)
+> The original list was written during cutover planning and had gone
+> dangerously stale. Two of its steps would have taken production down,
+> and it is preserved here corrected rather than deleted so the failure
+> mode stays visible:
+>
+> - It said **"delete the (now-stopped) v2 stack 151"**. There is no
+>   separate v2 stack. Stack 151 was *reused* at the cutover and IS the
+>   live v3 stack. Deleting it deletes production.
+> - It said **"delete orphan volumes `oc-output`, `oc-assets`"**.
+>   `oc-output` is mounted by the running container at `/output` —
+>   confirmed by Docker's own dangling filter, which does not list it.
+>
+> It also missed two genuinely dead volumes. Verify against
+> `portainer_list_volumes(dangling=true)` before deleting anything; do
+> not trust a written list of volume names.
+
+- **Do NOT delete stack 151.** It is the live v3 stack.
+- Delete the volumes Docker reports as dangling, and only those. As of
+  2026-08-28 that is `openchronicle-mcp_oc-assets` (v2 assets, feature
+  cut) and `openchronicle-mcp_oc-user-plugins` (v2 plugin system, feature
+  cut).
+- `openchronicle-mcp_oc-config` is also dangling, but only because
+  `HOST_CONFIG_DIR` points at a host bind path. It would come back into
+  use if that variable were ever unset. Left in place deliberately.
+- Keep `oc-data` and `oc-output` — both mounted by the live container.
+- Remove orphan host bind paths if used:
+  `/volume1/docker/openchronicle/{assets,output,plugins}` (the `config`
+  path stays — v3 uses it).
+- Delete the pre-migration backup ONLY if a fresh v3-shaped backup exists
+  and integrity-checks ok.
+- Flip the `latest` Docker tag to v3 LAST — that is what cuts the
+  rollback path.
 
 ### Post-cutover follow-ups (tech debt)
 

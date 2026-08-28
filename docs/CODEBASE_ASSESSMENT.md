@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 106
+**Snapshot date:** 2026-08-28 · **Revision:** 107
 
 ## Current state
 
@@ -19,7 +19,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | `v3.0.0-rc8` code, image tag `4710caf` (2026-08-28), Portainer stack 151, endpoint 2, port `18000` |
+| Deployed release | **`v3.0.0`** (2026-08-28), Portainer stack 151, endpoint 2, port `18000` |
 | Deploy verification | `health.package_version` for the release, but it cannot distinguish two images built from the same rc — compare the container's `org.opencontainers.image.revision` label against HEAD for that. Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
 | Main vs deployed | **In sync.** Image `4710caf` carries every runtime change on main; the commits after it are documentation-only and correctly skipped by `paths-ignore`, so they never enter the image. Code goes live only when the stack's `OC_TAG` env moves; a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
@@ -62,9 +62,11 @@ drivers in `interfaces/`), enforced by tests — see
 
 ## Known-open items (summary)
 
-- **Phase 9 decommission** — operator-gated destructive checklist
-  (`v3.0.0` final tag after rc6 soaks; v2 stack + orphan volume
-  deletion on the NAS). Tracked in V3_PLAN's phase tracker.
+- ~~**Phase 9 decommission**~~ — **done 2026-08-28.** `v3.0.0` tagged,
+  STABILITY.md now binding, dangling v2 volumes removed. The written
+  checklist was corrected first: it would have deleted the live stack and
+  an in-use volume. See V3_PLAN's Day-7 section, which preserves the
+  failure mode rather than hiding it.
 - Remaining V3_PLAN follow-ups (mcp 2.0 migration, sqlite-vec ceiling,
   offline write-behind sync, dependency audit, frozen lock consumption,
   and a quarterly re-check of Ollama Cloud embeddings — viable host, no
@@ -106,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 107 | 2026-08-28 | **Phase 9 decommission — `v3.0.0` released.** Version bumped off the rc series (the CI tag↔version guard requires exact agreement), CHANGELOG's Unreleased section cut as the v3.0.0 entry, and STABILITY.md's pre-tag escape hatch deleted as that section itself instructed — the API/MCP stability promise is now binding. The Day-7 destructive checklist was CORRECTED before execution: it directed deleting "v2 stack 151" (which is the LIVE v3 stack) and the `oc-output` volume (mounted by the running container), and missed two genuinely dead volumes |
 | 106 | 2026-08-28 | Dependabot PR #20 merged after a forced rebase and a fresh green: `actions/checkout` v6 → v7 (now consistent across all four uses) and `gitleaks-action` v2 → v3, with the gitleaks workflow verified passing against the commit-allowlist added earlier today — the untested combination that justified not merging on the 4-day-old check. PR #21 (mcp 2.x) closed citing the V3_PLAN deferral |
 | 105 | 2026-08-28 | Architectural-refactor assessment closed: all five queued candidates assessed and NONE restructured. `sqlite_store.py` and `git_onboard.py` carry recorded cohesion judgements in ARCHITECTURE.md (with a revisit trigger for the former: search-section growth, not total lines); the three rejected restructurings are listed in the AGENTS.md audit checklist so they are closed on sight rather than re-proposed. The assessment's real yield was two defects it found on the way — the `cluster_commits` hang and two false statements in code — not a restructuring. Current Sprint refreshed |
 | 104 | 2026-08-28 | Two false statements in code corrected: `sqlite_store.py`'s maintenance section claimed "maintenance jobs and the CLI never touch self._conn directly" — the jobs honour it, the `oc db` commands deliberately do not, and the comment now says why (`cmd_db_vacuum` needs VACUUM→TRUNCATE, the opposite of `vacuum()`'s FULL→VACUUM; substituting one for the other reports "Saved: 0" and leaves the WAL). And `_TABLE_NAMES` listed 3 of the migration's 4 tables, so `oc db info` under-reported — fixed and now guarded against re-drift. 678 → 679 tests |

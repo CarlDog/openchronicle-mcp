@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "openchronicle-mcp"
-version = "3.0.0rc8"
+version = "3.0.0"
 description = "Memory database for LLM agents — persistent keyword + optional semantic memory, project namespacing, served over HTTP REST and MCP."
 authors = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 maintainers = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
