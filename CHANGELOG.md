@@ -7,6 +7,14 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`_get_container` extracted from all five MCP tool modules.** It was
+  byte-identical in each — one line, so the duplication cost nothing to
+  read, but it hardcoded the lifespan's `"container"` key five separate
+  times. That is the shape the extraction bar exists for: not volume, but a
+  contract that drifts the day someone renames the key and updates four of
+  five copies. Now one helper with the key as a named constant, pinned
+  against `server.py`'s lifespan by a test that fails if either side is
+  renamed alone.
 - **PII scanning gets a CI backstop.** The home-path and personal-email
   checks existed only in the pre-commit hook, which is bypassable by design
   — `--no-verify`, an unset `core.hooksPath`, a fresh clone before the

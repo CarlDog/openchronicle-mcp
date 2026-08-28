@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
 
@@ -28,12 +28,8 @@ from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
-from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.mcp.tools._context import get_container as _get_container
 from openchronicle.interfaces.serializers import memory_to_dict, scored_memory_to_dict
-
-
-def _get_container(ctx: Context) -> CoreContainer:
-    return cast(CoreContainer, ctx.request_context.lifespan_context["container"])
 
 
 def register(mcp: FastMCP) -> None:

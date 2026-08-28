@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 99
+**Snapshot date:** 2026-08-28 · **Revision:** 100
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 675 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 676 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -103,6 +103,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 100 | 2026-08-28 | Phase-end audit: `_get_container` extracted from all five MCP tool modules into `tools/_context.py`. One line each, so the duplication was cheap — but it encoded the lifespan's `"container"` key five times, and a contract repeated five times drifts the day four copies get updated. The key is now a named constant pinned against `server.py` by a test. 675 → 676 tests |
 | 99 | 2026-08-28 | Phase-end audit batch (CI + secret-scanning hygiene): PII scanning now has a CI backstop instead of living only in the bypassable pre-commit hook — generic patterns, masked findings, and positive/negative controls including `users.noreply.github.com`. The one historical gitleaks hit is allowlisted by full SHA after verification (a `REDACT…` placeholder in a test file absent from HEAD), so a full-history sweep now reports clean and a future hit means something. `v3/develop` dropped as a CI trigger (121 behind `main`, 0 ahead, dead since 2026-05-05) and SECURITY.md stops describing the cutover as future; `.codex/**` and `uv.lock` added to `paths-ignore`. 666 → 675 tests |
 | 98 | 2026-08-28 | Phase-end audit batch: `oc config show` survives the config being broken — the command an operator runs *because* core.json is wrong was the one with no error wrapper, since pre-container commands bypass `_build_container`'s. A non-UTF-8 core.json escaped as a raw `UnicodeDecodeError` (the read sat inside the try but only the parse was caught), and an existing-but-empty file reported "not found" because loaded-ness was inferred from truthiness. Plus six doc corrections verified against code: STABILITY.md's frozen version string, an auth-exemption list that named 2 of 5 paths (including the path-disclosing `/api/v1/health`), a git-token docstring contradicting its own helper, undocumented `allowed_hosts` on both config sections, v2 "model configs" in compose, and a 3.11 issue template against a 3.14 floor. 659 → 666 tests |
 | 97 | 2026-08-28 | Phase-end audit batch: dead configuration removed (the `integration` pytest marker registered in one place and filtered against in two, with zero users; `domain/errors/__init__.py`'s unconsumed twelve-code re-export; one `noqa: F401` that suppressed nothing) and two conventions promoted from prose to enforcement — all seven inline `datetime.now(UTC)` sites now route through `utc_now()` behind an AST guard, and `scan_repository()` raises instead of returning a corpus so small that the eight zero-tolerance tests built on it would pass vacuously. 658 → 659 tests |
