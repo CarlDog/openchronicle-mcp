@@ -51,17 +51,25 @@ def cmd_memory_add(args: argparse.Namespace, container: CoreContainer) -> int:
     if args.project_id is None:
         print("--project-id is required when adding memory")
         return 1
-    item = add_memory.execute(
-        store=container.storage,
-        item=MemoryItem(
-            content=args.content,
-            tags=tags,
-            pinned=args.pin,
-            project_id=args.project_id,
-            source=args.source,
-        ),
-        embedding_service=container.embedding_service,
-    )
+    try:
+        item = add_memory.execute(
+            store=container.storage,
+            item=MemoryItem(
+                content=args.content,
+                tags=tags,
+                pinned=args.pin,
+                project_id=args.project_id,
+                source=args.source,
+            ),
+            embedding_service=container.embedding_service,
+        )
+    except (ValueError, NotFoundError, DomainValidationError) as exc:
+        # The content cap raises here now that it lives in the use case.
+        # Without this the CLI would answer an over-long memory with a raw
+        # traceback — cmd_memory_update has caught the same class all along.
+        print(str(exc))
+        return 1
+
     print(item.id)
     return 0
 
@@ -334,6 +342,11 @@ def cmd_memory_import(args: argparse.Namespace, container: CoreContainer) -> int
     # Only when it happened — a line reading "dropped 0 watermarks" on
     # every import is noise, but a silent drop is the thing this fix exists
     # to stop being silent.
+    if result["oversized_content"]:
+        print(
+            f"Note: {result['oversized_content']} imported item(s) exceed the content cap "
+            f"(kept intact — a restore must not fail on data the store already held)"
+        )
     if result["watermark_dropped"]:
         print(
             f"Dropped {result['watermark_dropped']} git-onboard watermark(s) from the envelope "

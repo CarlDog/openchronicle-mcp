@@ -782,7 +782,7 @@ The README is not a market-positioning document. It states what OC is, what it d
 2. **Take a fresh backup of the production DB** (in case the pre-flight backup is stale)
 3. Run `scripts/migrate_v2_to_v3.py` on the production DB. **Note:** the script now refuses if `-wal`/`-shm` files exist at the destination path — pass `--force` if you trust they're orphans, otherwise scrub the destination dir first.
 4. Run `scripts/verify_v3_db.py` — abort if any check fails. Pay attention to the new `warnings[]` field too: orphan SQLite sidecars at the destination path don't fail validation but indicate trouble (a process holds the DB open OR leftover sidecars from a prior DB are about to corrupt the next opener).
-4a. **Verify the destination volume directory is clean.** Specifically: no `*-wal` or `*-shm` files matching the placed DB's path stem. SQLite associates sidecars by path; an orphan WAL from a prior process or DB will be applied on next open and produce `database disk image is malformed`. The 2026-05-06 cutover lost ~24 memories to this exact trap.
+4a. **Verify the destination volume directory is clean.** Specifically: no `*-wal` or `*-shm` files matching the placed DB's path stem. SQLite associates sidecars by path; an orphan WAL from a prior process or DB will be applied on next open and produce `database disk image is malformed`. The 2026-05-06 cutover failed to carry 36 memories into live v3; 24 remained in the NAS rollback snapshot and all 36 in the laptop pre-cutover backup.
 5. **Capture the v2 retag BEFORE the force-push.** Trigger the `Retag GHCR Image` workflow with `source_tag=latest` (or the v2 build's SHA tag, e.g. `bb217d9`) and `dest_tag=v2-final`. Verify it lands. The 2026-05-06 cutover did this AFTER the force-push and lost the race — `docker-publish.yml` overwrites `:latest` with v3 in ~5-10 min, and the original retag workflow had a lowercase IMAGE_NAME bug (fixed in commit 6ae71812) that ate a chance to retag in the window. Always do this step before step 6.
 6. `docker-compose.nas.yml` is already in v3 single-service shape on `v3/develop`. Force-push `v3/develop` → `main` so future `:latest` builds carry v3 code:
 
@@ -792,7 +792,7 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 7. Update Portainer stack 151's compose to point at v3 image (`ghcr.io/carldog/openchronicle-mcp:v3.0.0-rc1`); redeploy. Use the rc tag, not `:latest` — `:latest` gets flipped only after Day 7 of clean operation (step 14 of Phase 9 Day 0 / Day 7).
 8. Wait for healthcheck green. **If you see `database disk image is malformed` in the container logs, STOP.** This is the WAL-orphan trap from the 2026-05-06 cutover. Do NOT let the container restart-loop against the corrupt DB — stop the container, check the volume directory for orphan `*-wal`/`*-shm` sidecars (very common cause), scrub them, then restart. See cutover-2026-05-06-triage.md for the full recovery procedure.
-9. **Verify auth state.** Hit `POST /api/v1/project` with no `Authorization` header. If it succeeds, `OC_API_KEY` is empty and auth is disabled — decide deliberately whether that matches your security posture. If it returns 401, set `$OC_API_KEY` for the smoke-test step below. The 2026-05-06 cutover discovered auth was silently disabled; document the decision in CLAUDE.md.
+9. **Verify auth state.** Hit `POST /api/v1/project` with no `Authorization` header. If it succeeds, `OC_API_KEY` is empty and auth is disabled — decide deliberately whether that matches your security posture. If it returns 401, set `$OC_API_KEY` for the smoke-test step below. The 2026-05-06 cutover discovered auth was silently disabled; document the decision in the canonical `AGENTS.md` instructions and keep the `CLAUDE.md` mirror identical.
 10. **Trigger one immediate run of `embedding_backfill`** (`oc maintenance run-once embedding_backfill`) to ensure any v2 memories without embeddings get them before search traffic hits
 11. Run smoke test:
 
@@ -801,7 +801,7 @@ The README is not a market-positioning document. It states what OC is, what it d
     ```
 
     The script is stdlib-only and exits non-zero on the first failing step. It walks `/health`, `/api/v1/health`, `/api/v1/maintenance/status`, `/api/v1/project` (verifies the target project resolves), full memory CRUD + search + pin round-trip, and probes the `/mcp` mount (accepting 307/405 since streamable-HTTP doesn't answer GETs). Pair it with a manual `onboard_git` MCP call against a small public repo for the use case the script can't cover (since there's no HTTP-side `onboard_git` endpoint — it's an MCP-only tool).
-12. Verify project UUID (current canonical: `fe2ef898-0152-40a4-af97-ed97cc86ca45` per CLAUDE.md) still resolves
+12. Verify project UUID (current canonical: `fe2ef898-0152-40a4-af97-ed97cc86ca45` per `AGENTS.md`) still resolves
 13. Update Client Cutover Checklist items (point clients at new endpoint)
 14. Tag the merge commit `v3.0.0` (workflow rebuilds and publishes `:v3.0.0`); flipping `:latest` to v3 is deferred to Phase 9 Day 7 per the rollback policy
 
@@ -838,6 +838,43 @@ The README is not a market-positioning document. It states what OC is, what it d
 ### Post-cutover follow-ups (tech debt)
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
+
+- **NemoClaw review — operational/recovery hardening (research complete;
+  unscheduled).**
+  [The design review](design/0004-nemoclaw-repository-review.md) found no
+  competing memory-retrieval feature and rejects NemoClaw's agent runtime,
+  sandbox, model-routing, credential-broker, messaging, and lifecycle
+  scope. The 2026-08-28 closeout completed two documentation findings:
+  `AGENTS.md` is canonical with a byte-identical `CLAUDE.md` mirror and
+  regression test, and all six verified public-fact errors were repaired.
+  Remaining right-sized work is strict version dispatch and whole-envelope
+  validation for portable JSON plus atomic private export; a
+  least-privilege `onboard_git` child environment and explicit server-side
+  destination policy; immutable `build_revision` in full diagnostics; and
+  broader CLI/MCP/env documentation parity gates.
+  The review also makes stable operation identity + postcondition checking
+  a prerequisite for the existing offline write-behind idea, and
+  content-bound selection + post-swap writeability a prerequisite for the
+  existing cloud-restore design. NemoClaw's composite embedding and
+  staged-SQLite patterns corroborate items already recorded by the
+  OpenClaw/Ollama reviews rather than creating duplicates. This entry
+  records evidence and priority only; it does not authorize or schedule an
+  implementation batch.
+
+- **OpenClaw review — retrieval-integrity follow-up (accepted tech
+  debt; unscheduled).**
+  [The design review](design/0002-openclaw-memory-review.md) verified
+  that project/tag eligibility is applied after the semantic candidate
+  limit, FTS tag filtering happens after a lossy `limit * 4` window,
+  a failed content re-embedding can leave the old vector permanently
+  eligible, and documented result/pin budgets drift across surfaces.
+  It also records a demonstrated need for one-call filtered
+  chronological enumeration. These should be corrected before new
+  ranking policy is considered, but this entry does not authorize or
+  schedule an implementation batch. Composite embedding identity, MMR,
+  supersession, provenance, deadlines, and shadow-index publication
+  remain proposed or conditional inside the review rather than joining
+  this backlog.
 
 - **Pinned prepend ignored the query.** ✅ Fully fixed 2026-08-23, in
   two passes — the first was incomplete and worth recording as such.
@@ -908,7 +945,7 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   MCP handler-test gaps).
 
 - **Rate limiter ceiling.** ✅ Landed 2026-05-11. Default bumped 120 → 600 RPM (`_DEFAULT_RPM` in `src/openchronicle/interfaces/api/middleware/rate_limit.py`); `.env.example` and `docs/configuration/env_vars.md` reconciled (both previously claimed `60`, a pre-existing drift). Single-user home-LAN deployments aren't IP-storming attackers; the option-(a) one-line bump was the right move. Option (b) — a bulk-search endpoint (`memory_search_bulk(queries: list[SearchQuery])`) for multi-type retrievals — is still cleaner long-term and remains on the backlog if mnemosyne's `gatherContext` burst pattern proves expensive at the new ceiling.
-- **`project_delete` MCP tool / API surface.** ✅ Landed 2026-05-11 as part of the v3.0.x "project surface completion" pass. Shipped together with `project_get`, `project_update`, and a symmetric `confirm` flag on `memory_delete`:
+- **`project_delete` MCP tool / API surface.** ✅ Landed 2026-05-11 as part of the v3.0.x "project surface completion" pass. The bullets below record the rc4 shape and are historical; required `confirm` and the 18-tool surface superseded them on 2026-07-23 (see the next two shipped entries). Shipped together with `project_get`, `project_update`, and a symmetric `confirm` flag on `memory_delete`:
   - `delete_project` on `StoragePort` does the atomic cascade (project row + every `memory_items` row with that project_id; `memory_embeddings` cascade via the existing FK). `update_project` and `get_project` round out the port.
   - `mnemo_*` storytelling adjacent: the use case takes `confirm: bool = False`; the preview branch returns `{status: "preview", project_id, name, memory_count}` without touching the DB, and `confirm=True` returns `{status: "ok", project_id, name, deleted_memories}`.
   - REST: `DELETE /api/v1/project/{id}?confirm=true`, `GET /api/v1/project/{id}`, `PUT /api/v1/project/{id}` (with a Pydantic model-validator that rejects bodies setting neither name nor metadata → 422).
@@ -930,7 +967,7 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
 - **CLI `--confirm` branch duplication.** `cmd_memory_delete` and `cmd_delete_project` each hand-roll the same "Would delete … Re-run with --confirm" branch. Left alone deliberately in the 2026-07-23 batch: ~8 trivial lines each, no shared correctness rule, so extracting costs more readability than it buys. Revisit only if a third such command appears.
 - **mcp 2.0 migration.** `mcp` 2.0.0 removed `mcp.server.fastmcp` (FastMCP moved to the standalone `fastmcp` package), so `interfaces/mcp/server.py` fails to import on a fresh dependency resolve. Caught 2026-07-29 while validating the python 3.14 image — an unpinned rebuild would have shipped a container that dies on startup; the deployed NAS image only worked because it predates the 2.0.0 release. Extras now cap at `mcp>=1.0,<2`. Migrating means adopting the `fastmcp` package or porting to mcp 2.x's native server API, and unlocks the handshake-version item above. Until it lands, close Dependabot pip PRs bumping `mcp` past 1.x against this entry.
 - **Docker base image refresh.** ✅ Landed 2026-07-29/30 (`9e71c207` + `c839ddb9`): base moved to `python:3.14-slim` with a multi-stage build, non-root `oc` user, and HEALTHCHECK. The follow-on truth-reconciliation (requires-python `>=3.14`, badge, docs) landed 2026-08-16 in review Batch A.
-- **Lock file or constraints file.** v2 had no lock file. Consider adding `requirements-dev.txt` from `pip freeze` after a clean install on the v3 image, so reproducibility doesn't drift.
+- **Consume the tracked lock in CI and Docker.** A generated `uv.lock` is now tracked for review and dependency inspection, but the build remains intentionally honest about its current behavior: CI and Docker still resolve/install from `pyproject.toml`, so the lock does not yet make either path reproducible. When scheduled, make frozen lock consumption authoritative on supported Python/OS markers, fail on drift, audit the exact locked runtime graph, and retain Dependabot for updates.
 - **Offline / write-behind sync for LAN-unreachable clients.** OC's single-user home-LAN posture (no auth, NAS-only, per `docs/configuration/security_posture.md`) means any client MCP call fails outright — not gracefully degrades — the moment the client isn't on the LAN (VPN off, in-office, mobile). Surfaced 2026-07-30: a Claude Code session working on an unrelated repo (IRIS) finished a real milestone worth a `memory_save`, but the user was in-office and OC was unreachable; the only mitigation available was holding the draft in Claude's own local memory system and re-offering to file it next session — an entirely manual, per-session stopgap with no OC-side support, and it evaporates if the AI or user forgets. Two directions worth researching, not yet scoped or estimated: (a) a **client-side write-behind queue** — buffer `memory_save`/`project_*` calls locally (e.g. a JSON-lines journal) when the NAS request fails/times out, replay them through the real MCP tools once reachable; no server change needed, smallest lift, but doesn't help *reads* (`memory_search`, `context_recent`) while offline. (b) A **local shadow OC instance** — `oc serve` already runs standalone against a local SQLite DB for local dev (a separate memory pool from the NAS one per this file's Project Identity section); journal writes while offline and reconcile into the NAS DB on reconnect. Helps reads too, but needs a real merge story OC has no design for today — a memory created locally and one created on the NAS in the same offline window need distinguishable ids, not naive overwrite-by-id, and reconciliation ordering/conflict rules don't exist yet. Lean toward (a) first: smaller lift, and it covers the case that actually bit us (a write, not a read).
 
 ---

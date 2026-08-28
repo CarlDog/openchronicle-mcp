@@ -4,7 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
 if TYPE_CHECKING:
@@ -21,6 +21,13 @@ def execute(
 ) -> MemoryItem:
     if item.project_id is None:
         raise DomainValidationError("project_id is required")
+    # Enforced here, not per-driver: the CLI and any future caller reach
+    # the store through this use case, and the two drivers that hand-rolled
+    # their own check left `oc memory add` unbounded.
+    if len(item.content) > MAX_CONTENT_CHARS:
+        raise DomainValidationError(
+            f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters (got {len(item.content):,})"
+        )
     store.add_memory(item)
     if embedding_service is not None:
         try:

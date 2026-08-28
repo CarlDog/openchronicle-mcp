@@ -590,3 +590,21 @@ class TestMCPParameterValidation:
 
         call_kwargs = mock_search.call_args[1]
         assert call_kwargs["offset"] == 0
+
+
+def test_container_key_matches_the_lifespan_that_sets_it() -> None:
+    """The one contract the extracted helper encodes.
+
+    `_context.CONTAINER_KEY` is the literal the five tool modules used to
+    each hardcode. Extraction removed four copies; this pins that the
+    remaining one still agrees with the lifespan in server.py, which is
+    the thing that would silently break if either side were renamed.
+    """
+    from pathlib import Path
+
+    from openchronicle.interfaces.mcp.tools._context import CONTAINER_KEY
+
+    server_src = Path("src/openchronicle/interfaces/mcp/server.py").read_text(encoding="utf-8")
+    assert f'"{CONTAINER_KEY}"' in server_src, (
+        f"the lifespan in server.py no longer stores the container under {CONTAINER_KEY!r}"
+    )

@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
 if TYPE_CHECKING:
@@ -25,6 +25,10 @@ def execute(
 ) -> MemoryItem:
     if content is None and tags is None:
         raise DomainValidationError("At least one of content or tags must be provided")
+    if content is not None and len(content) > MAX_CONTENT_CHARS:
+        raise DomainValidationError(
+            f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters (got {len(content):,})"
+        )
 
     updated = store.update_memory(memory_id, content=content, tags=tags)
 

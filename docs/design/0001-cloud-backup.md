@@ -532,7 +532,7 @@ Rejected. No agent use case — backup cadence is an operator concern on a sched
 
 ### 10.6 Also rejected, one line each
 
-A **sidecar container or host cron** (in-process is ratified at `V3_PLAN.md:559` because the job needs in-process state; it also gets scheduling, locking, `/api/v1/maintenance/status` and `oc maintenance run-once` for free — though notably a once-a-day single-file copy exercises few of those, so do not over-argue it; the sidecar remains the honest escape hatch if +88 MiB is judged unacceptable, at the cost of a second config store). A **boot-time "can I still decrypt" check** — a network call to a cloud provider under `restart: unless-stopped` turns a provider outage into a crash-loop. An **automated weekly decrypt-verify job** — for a static file, with no evidence of rot, and the drill covers it. A **`docs/design/README.md` index table** for a single row — add it at three ADRs.
+A **sidecar container or host cron** (in-process is ratified at `V3_PLAN.md:559` because the job needs in-process state; it also gets scheduling, locking, `/api/v1/maintenance/status` and `oc maintenance run-once` for free — though notably a once-a-day single-file copy exercises few of those, so do not over-argue it; the sidecar remains the honest escape hatch if +88 MiB is judged unacceptable, at the cost of a second config store). A **boot-time "can I still decrypt" check** — a network call to a cloud provider under `restart: unless-stopped` turns a provider outage into a crash-loop. An **automated weekly decrypt-verify job** — for a static file, with no evidence of rot, and the drill covers it. A design index for a single row was rejected initially; the threshold was crossed and [`docs/design/README.md`](README.md) was added during the 2026-08-28 review closeout.
 
 ---
 
@@ -608,5 +608,6 @@ sync-door claim) → revision. Provider and tool claims were checked against
 current vendor docs where possible; anything that could not be settled is in
 the §12 confidence register rather than asserted. No code was written.*
 
-*This establishes `docs/design/` as the ADR home — the directory existed but
-was empty. Numbered, `NNNN-topic.md`. Add an index README at three entries.*
+*This establishes `docs/design/` as the ADR and design-review home — the
+directory existed but was empty. Documents are numbered `NNNN-topic.md`;
+the index was added at four entries in the 2026-08-28 review closeout.*

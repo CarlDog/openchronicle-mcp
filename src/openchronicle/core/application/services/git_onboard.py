@@ -17,12 +17,13 @@ import tempfile
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.time_utils import utc_now
 
 _logger = logging.getLogger(__name__)
 
@@ -498,7 +499,7 @@ def extract_commits_from_git(
         try:
             date = datetime.fromisoformat(date_str)
         except ValueError:
-            date = datetime.now(UTC)
+            date = utc_now()
 
         # Parse numstat lines
         files_changed = []
@@ -586,8 +587,10 @@ def extract_commits_from_url(
     can't resolve arbitrary historical revisions).
 
     Private repos: set ``OC_GIT_TOKEN`` on the OC server to a GitHub PAT
-    with ``contents:read`` scope. The token is injected as a bearer header
-    only on github.com requests (see ``_build_clone_env``). Currently
+    with ``contents:read`` scope. The token is injected as an HTTP Basic
+    ``Authorization`` header (``x-access-token:<PAT>``, GitHub's documented
+    placeholder username) only on github.com requests — see
+    ``_build_clone_env``, whose docstring records why Bearer was rejected. Currently
     github.com only — other hosts would need their own scoping.
 
     Args:

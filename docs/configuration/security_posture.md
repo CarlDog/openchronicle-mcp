@@ -100,9 +100,10 @@ above.
 
 ## Secrets in logs
 
-- `oc config show` masks any env var whose name contains `KEY`,
-  `SECRET`, `TOKEN`, or `PASSWORD` (case-insensitive) before printing.
-  See `interfaces/cli/commands/system.py:_mask_secret`.
+- `oc config show` inspects `OC_*` env vars and masks any whose name
+  contains `KEY`, `SECRET`, `TOKEN`, or `PASSWORD` (case-insensitive)
+  before printing in either human or JSON form. See
+  `interfaces/cli/commands/system.py:_mask_secret`.
 - `OC_LOG_FORMAT=json` mode includes the message verbatim — operators
   must not log raw secrets in their own code (the `logging_setup.py`
   formatter does not redact them).
@@ -175,9 +176,10 @@ Hardened 2026-07-30 (the review-driven CI batch):
 - Embedding provider compromise: rotate the relevant API key and
   redeploy. The degradation policy keeps search working
   (FTS5-only) until the new key is in place.
-- Lost API key: read it back from `oc config show --json` (it's
-  masked in human output but full in JSON) on the host, or rotate by
-  setting a new `OC_API_KEY` in the Portainer stack and redeploying.
+- Lost API key: retrieve it from Portainer or the original secret store.
+  `oc config show` masks it in both human and JSON output. If the
+  original value is unavailable, set a new `OC_API_KEY` in the
+  Portainer stack and redeploy.
 
 ## See also
 

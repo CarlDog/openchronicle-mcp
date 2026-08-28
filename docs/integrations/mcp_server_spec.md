@@ -1,9 +1,11 @@
 # MCP server tool surface (v3)
 
-OpenChronicle's MCP server exposes 18 tools. They map 1:1 with the
-HTTP REST surface (same use cases under both transports). All tools
-return JSON-safe Python dicts; the FastMCP runtime handles
-serialization to MCP's wire format.
+OpenChronicle's MCP server exposes 18 tools. MCP and REST share the same
+application use cases where their surfaces overlap, but the inventories
+are intentionally not identical: `context_recent` and `onboard_git` are
+MCP-only, while maintenance status is REST-only. All MCP tools return
+JSON-safe Python dicts; the FastMCP runtime handles serialization to
+MCP's wire format.
 
 For client setup see `docs/integrations/mcp_client_setup.md`. For
 stability guarantees see `docs/api/STABILITY.md`.
@@ -163,7 +165,9 @@ produced both of the bugs this replaced:
 |---|---|---|
 | `pinned_limit=10` (default) | up to 10 matching pins lead | the rest rank normally |
 | `pinned_limit=0` | none lead | **all pins still rank** |
-| `include_pinned=false` | none lead | pins hidden entirely |
+
+Visibility has no MCP switch: `include_pinned=false` hides pins on the
+`oc memory search` CLI only, and is not a `memory_search` parameter.
 
 History, so it isn't reintroduced: until 2026-08-17 the float was a
 blanket prepend of *every* pin regardless of the query (a `top_k=2`

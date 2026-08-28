@@ -74,9 +74,11 @@ Search-surface v2 (Q20/Q21):
 Edit content or tags in place. `--content NEW`, `--tags "a,b,c"`.
 Preserves identity (id, created_at), bumps `updated_at`.
 
-### `oc memory delete MEMORY_ID`
+### `oc memory delete MEMORY_ID [--confirm]`
 
-Hard delete. No soft-delete recovery; backups are the recovery path.
+Without `--confirm`, prints a deletion preview and leaves the memory
+unchanged. Re-run with `--confirm` for the hard delete. There is no
+soft-delete recovery; backups are the recovery path.
 
 ### `oc memory embed`
 
@@ -114,6 +116,12 @@ it has two lossy edges, both silent in the data:
   envelope has no way to know it was deleted
 
 For an exact restore, import into a fresh DB with `--mode replace`.
+
+Import **reports** over-cap content rather than rejecting it. New content is
+capped at 100,000 characters on every write surface, but a restore is not new
+input — a store can already hold a longer row, and failing the recovery path on
+data the operator already owns would be worse than accepting it. Such rows are
+imported intact, counted, and named in a stderr warning.
 
 A git-onboard watermark carried by an envelope written before the export
 fix above is dropped on import too, in both modes, and reported
@@ -228,16 +236,17 @@ Job names: `db_backup`, `db_vacuum`, `db_integrity_check`,
 
 ## Operator
 
-### `oc init [--force] [--no-templates]`
+### `oc init`
 
-Create the runtime directory tree and bootstrap config templates.
-`--force` overwrites existing templates. Idempotent.
+Create the runtime directory tree. The command is idempotent and does
+not create or overwrite configuration templates. Add the global
+`--json` flag for machine-readable output.
 
 ### `oc config show [--json]`
 
-Print effective configuration: paths, `core.json` contents,
-masked-secret env vars (anything ending in KEY/SECRET/TOKEN/PASSWORD
-is masked in human output; full in JSON).
+Print effective configuration: paths, `core.json` contents, and masked
+`OC_*` secret env vars. Names containing KEY/SECRET/TOKEN/PASSWORD are
+masked in both human and JSON output.
 
 ### `oc version [--json]`
 

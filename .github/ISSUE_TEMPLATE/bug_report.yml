@@ -34,7 +34,7 @@ body:
       description: OS, Python version, install method (pip, Docker), etc.
       placeholder: |
         - OS: Windows 11 / Ubuntu 24.04 / macOS 15
-        - Python: 3.11.x
+        - Python: 3.14.x
         - Install: pip / Docker (ghcr.io/carldog/openchronicle-mcp:latest)
     validations:
       required: false

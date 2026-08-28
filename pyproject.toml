@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "openchronicle-mcp"
 version = "3.0.0rc8"
-description = "Memory database for LLM agents — persistent semantic + keyword memory, project namespacing, served over HTTP REST and MCP."
+description = "Memory database for LLM agents — persistent keyword + optional semantic memory, project namespacing, served over HTTP REST and MCP."
 authors = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 maintainers = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 license = {text = "AGPL-3.0-only"}
@@ -77,9 +77,19 @@ dev = [
 testpaths = ["tests"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
-markers = [
-	"integration: mark test as an integration test that requires env vars to run",
-]
+# No custom markers. The `integration` marker was registered here long
+# after tests/integration/ was cut in v3 and no test ever used it again;
+# it was removed 2026-08-28 along with the `-m "not integration"` filters
+# in test.yml and .pre-commit-config.yaml that selected against nothing.
+#
+# The suite emits exactly one warning, and it is UPSTREAM, not ours:
+#   pydantic_settings IncompleteFieldDefinitionWarning on field 'lifespan'
+# `lifespan` is not a field we declare — it is a constructor argument we
+# pass to FastMCP (interfaces/mcp/server.py), whose own settings model
+# carries the unresolved forward reference. Deliberately NOT silenced via
+# filterwarnings: suppressing it would also hide the day it changes or
+# multiplies, and the mcp 2.x migration in V3_PLAN's follow-ups is the
+# point at which it should disappear on its own.
 
 [project.scripts]
 oc = "openchronicle.interfaces.cli.main:main"

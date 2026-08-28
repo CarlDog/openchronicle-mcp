@@ -134,3 +134,15 @@ def test_v1_reference_excluded_from_hygiene_scan() -> None:
     assert _should_skip_path(test_path), (
         f"ERROR: v1.reference path not being skipped: {test_path}\nThe hard exclusion for hygiene scanning is broken!"
     )
+
+
+def test_agent_instruction_mirrors_are_identical() -> None:
+    """Keep Codex and Claude on the same repository instructions."""
+    repo_root = _get_repo_root()
+    agents = (repo_root / "AGENTS.md").read_bytes()
+    claude = (repo_root / "CLAUDE.md").read_bytes()
+
+    assert agents == claude, (
+        "AGENTS.md is canonical and CLAUDE.md is its compatibility mirror. "
+        "Update AGENTS.md, copy it byte-for-byte to CLAUDE.md, and commit both."
+    )

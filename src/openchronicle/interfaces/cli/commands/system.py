@@ -65,7 +65,10 @@ def cmd_config_show(args: argparse.Namespace) -> int:
 
     config_path = Path(rt.config_dir)
     file_configs = load_config_files(config_path) if config_path.exists() else {}
-    core_loaded = bool(file_configs)
+    # Existence, not truthiness: an empty-but-present core.json is a real
+    # file the operator wrote, and reporting it as "not found" sends them
+    # looking for a missing file instead of an empty one.
+    core_loaded = (config_path / "core.json").is_file()
 
     masked_env: dict[str, str] = {}
     for key in sorted(os.environ):
@@ -131,7 +134,8 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
     """Run the unified HTTP + MCP ASGI server in the foreground.
 
     Single uvicorn process hosts FastAPI at ``/api/v1/*`` and FastMCP at
-    ``/mcp``. Default port is 18000 (the v2 HTTP port — MCP collapses
+    ``/mcp``. Default bind is 127.0.0.1:8000 (18000 is the host-side
+    port the NAS compose maps onto it, not an application default)
     onto the same port). Logging respects ``OC_LOG_FORMAT=human|json``
     via ``configure_root_logger``.
     """
@@ -141,7 +145,7 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
 
     from openchronicle.interfaces.api.app import create_app
     from openchronicle.interfaces.api.config import HTTPConfig
-    from openchronicle.interfaces.logging_setup import configure_root_logger
+    from openchronicle.interfaces.logging_setup import configure_root_logger, uvicorn_log_level
 
     configure_root_logger()
     log = logging.getLogger(__name__)
@@ -167,7 +171,7 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
         app,
         host=config.host,
         port=config.port,
-        log_level=os.getenv("OC_LOG_LEVEL", "info").lower(),
+        log_level=uvicorn_log_level(),
         log_config=None,
     )
     server = uvicorn.Server(uv_config)

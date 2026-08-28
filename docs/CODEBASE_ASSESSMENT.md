@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-23 · **Revision:** 83
+**Snapshot date:** 2026-08-28 · **Revision:** 100
 
 ## Current state
 
@@ -19,15 +19,16 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | `v3.0.0-rc8` code, image tag `61f711b` (2026-08-23), Portainer stack 151, endpoint 2, port `18000` |
-| Deploy verification | `health.package_version` — reports the real release since rc6; also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | In sync as of 2026-08-23: the query-aware pinned float, `JobState.last_success_at`, the `import --mode merge` warnings, and the git-onboard watermark filter are all live. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
+| Deployed release | `v3.0.0-rc8` code, image tag `d4873b4` (2026-08-28), Portainer stack 151, endpoint 2, port `18000` |
+| Deploy verification | `health.package_version` for the release, but it cannot distinguish two images built from the same rc — compare the container's `org.opencontainers.image.revision` label against HEAD for that. Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
+| Main vs deployed | Deployed through the 2026-08-28 content-cap fix (image `d4873b4`). Main is AHEAD by two runtime changes awaiting a redeploy — the empty-string path-env fix and the content-cap unification — plus documentation-only work that never ships in the image. Code goes live only when the stack's `OC_TAG` env moves; a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 625 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 676 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
+| Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
 | CI | One workflow, three jobs: test matrix → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only) |
 | Canonical OC project | `fe2ef898-0152-40a4-af97-ed97cc86ca45` on the NAS deployment |
 | Coverage measurement | None (deliberate; the test count and per-commit gates are the regression signal) |
@@ -48,11 +49,14 @@ drivers in `interfaces/`), enforced by tests — see
   follow-ups" (the backlog) and "Open Questions" 20-22 (Q20/Q21 shipped
   2026-08-17; Q22 heatmaps remains exploratory). The 2026-08-15
   review's punch list is mirrored in OC memory `e22472b8`.
-- **CLAUDE.md "Current Sprint"** — the in-flight batch only; history
-  rolls into the revision table below and the CHANGELOG.
-- **[design/](design/)** — numbered design docs / ADRs (`NNNN-topic.md`).
-  A design here is a *proposal* until its phases ship; current state
-  still lives in this file.
+- **`AGENTS.md` / `CLAUDE.md` "Current Sprint"** — the in-flight batch
+  only; `AGENTS.md` is canonical and a repository-hygiene test keeps the
+  compatibility mirror byte-identical. History rolls into the revision
+  table below and the CHANGELOG.
+- **[design/](design/)** — numbered design docs, ADRs, and design
+  reviews (`NNNN-topic.md`). A design or recommendation here is a
+  *proposal* until its phases ship; current state still lives in this
+  file.
 - **[archive/v2/](archive/v2/README.md)** — frozen v2 docs, never
   maintained.
 
@@ -62,8 +66,34 @@ drivers in `interfaces/`), enforced by tests — see
   (`v3.0.0` final tag after rc6 soaks; v2 stack + orphan volume
   deletion on the NAS). Tracked in V3_PLAN's phase tracker.
 - Remaining V3_PLAN follow-ups (mcp 2.0 migration, sqlite-vec ceiling,
-  offline write-behind sync, dependency audit, lock file). Every
+  offline write-behind sync, dependency audit, frozen lock consumption).
+  Every
   code-level finding from the 2026-08-15 review is now closed.
+- **OpenClaw comparative assessment (2026-08-27)** — identified four
+  local retrieval/embedding integrity defects plus one demonstrated
+  filtered-recency need; the same review benchmark-gates MMR and keeps
+  agent-runtime features out of scope. Findings and dispositions are
+  recorded in
+  [design/0002-openclaw-memory-review.md](design/0002-openclaw-memory-review.md);
+  none is scheduled merely by being documented.
+- **Ollama comparative assessment (2026-08-27)** — verified optional
+  adapter contract defects, strengthened the proposed composite
+  embedding identity with Ollama's manifest digest, and identified
+  provider-independent batching, health, and backup-publication patterns.
+  Model-runtime breadth remains out of scope. Findings and dispositions
+  are recorded in
+  [design/0003-ollama-repository-review.md](design/0003-ollama-repository-review.md);
+  none is scheduled merely by being documented.
+- **NemoClaw comparative assessment (2026-08-28)** — found no competing
+  memory-retrieval capability and no reason to adopt its agent/runtime
+  stack. The same closeout fixed the agent-instruction authority and six
+  current public-fact errors. Portable-envelope validation, git-child
+  credential scope, immutable build identity, and broader parity gates
+  remain unscheduled; its replay and restore patterns constrain two
+  already-planned features. Findings, trigger-gated ideas, and explicit
+  non-fits are recorded in
+  [design/0004-nemoclaw-repository-review.md](design/0004-nemoclaw-repository-review.md);
+  no implementation batch is authorized by the review.
 
 ## Revision history
 
@@ -73,6 +103,23 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 100 | 2026-08-28 | Phase-end audit: `_get_container` extracted from all five MCP tool modules into `tools/_context.py`. One line each, so the duplication was cheap — but it encoded the lifespan's `"container"` key five times, and a contract repeated five times drifts the day four copies get updated. The key is now a named constant pinned against `server.py` by a test. 675 → 676 tests |
+| 99 | 2026-08-28 | Phase-end audit batch (CI + secret-scanning hygiene): PII scanning now has a CI backstop instead of living only in the bypassable pre-commit hook — generic patterns, masked findings, and positive/negative controls including `users.noreply.github.com`. The one historical gitleaks hit is allowlisted by full SHA after verification (a `REDACT…` placeholder in a test file absent from HEAD), so a full-history sweep now reports clean and a future hit means something. `v3/develop` dropped as a CI trigger (121 behind `main`, 0 ahead, dead since 2026-05-05) and SECURITY.md stops describing the cutover as future; `.codex/**` and `uv.lock` added to `paths-ignore`. 666 → 675 tests |
+| 98 | 2026-08-28 | Phase-end audit batch: `oc config show` survives the config being broken — the command an operator runs *because* core.json is wrong was the one with no error wrapper, since pre-container commands bypass `_build_container`'s. A non-UTF-8 core.json escaped as a raw `UnicodeDecodeError` (the read sat inside the try but only the parse was caught), and an existing-but-empty file reported "not found" because loaded-ness was inferred from truthiness. Plus six doc corrections verified against code: STABILITY.md's frozen version string, an auth-exemption list that named 2 of 5 paths (including the path-disclosing `/api/v1/health`), a git-token docstring contradicting its own helper, undocumented `allowed_hosts` on both config sections, v2 "model configs" in compose, and a 3.11 issue template against a 3.14 floor. 659 → 666 tests |
+| 97 | 2026-08-28 | Phase-end audit batch: dead configuration removed (the `integration` pytest marker registered in one place and filtered against in two, with zero users; `domain/errors/__init__.py`'s unconsumed twelve-code re-export; one `noqa: F401` that suppressed nothing) and two conventions promoted from prose to enforcement — all seven inline `datetime.now(UTC)` sites now route through `utc_now()` behind an AST guard, and `scan_repository()` raises instead of returning a corpus so small that the eight zero-tolerance tests built on it would pass vacuously. 658 → 659 tests |
+| 96 | 2026-08-28 | Phase-end audit fix: the 100,000-character content cap is enforced in ONE place. It was four hardcoded literals across two driver files with nothing between — MCP hand-rolled it twice, REST declared it twice via Pydantic, and the use cases had no check — so the same store accepted a 200KB memory through `oc memory add` while rejecting it over MCP and HTTP. `MAX_CONTENT_CHARS` now lives beside `MemoryItem`; `add_memory` and `update_memory` enforce it and the drivers reference it. `import_memory` deliberately REPORTS instead (new count `oversized_content` + a warning naming ids): a restore is not new input, and failing it on data the store already holds would break disaster recovery. A structural test fails if any surface hardcodes the number again. 647 → 658 tests |
+| 95 | 2026-08-28 | Phase-end audit fix: the path boundary now honours the project's own empty-string-is-unset invariant (`env_vars.md`: "at every config boundary"), which it was the sole violator of. `os.environ.get` returns `""` for a blank var and `Path("")` is `Path(".")`, so `OC_DB_PATH=` silently relocated the SQLite store to the working directory and a blank `OC_DATA_DIR` demoted every derived path to a bare relative name — both one `${VAR:-}` compose line away. A sweep of every other env read confirmed no sibling violators (`or` chains and `parse_int_env`/`parse_allowed_hosts` already strip). 637 → 647 tests |
+| 94 | 2026-08-28 | `pyproject.toml`'s description dropped the same semantic-search overclaim the GitHub repository description shed earlier today: semantic retrieval is opt-in (`EmbeddingSettings.provider` defaults to `"none"`, both compose files pass an empty `OC_EMBEDDING_PROVIDER`), so "persistent semantic + keyword memory" became "persistent keyword + optional semantic memory". Queued at revision 92 to avoid a redeploy for a one-line docstring; cashed in here because the merge fix already earns one. Backlog entry retired |
+| 93 | 2026-08-28 | Phase-end audit fix: `core.json`'s `maintenance.jobs` list now MERGES onto the defaults instead of replacing them. A config naming one job used to silently delete the other four — including `db_backup` — and since the entrypoint seeds `/config` from `core.json.example` with `cp -rn`, a stale seeded file would have dropped every job added in any later release, unwarned (the loop only warned on *unknown* names, never missing ones). Omission no longer disables; `"enabled": false` does, as the example already showed. Ordering follows `_DEFAULT_JOBS`, not the file. Documented in MAINTENANCE.md and config_files.md, which had never stated the semantics either way. 632 → 637 tests |
+| 92 | 2026-08-28 | Phase-end audit follow-up: the README's Docker badge rendered as a shields.io "404: badge not found", not a Docker badge — the literal hyphen in `openchronicle-mcp` split the label/message/color path. Escaped as `--`, the convention the sibling License badge (`AGPL--3.0`) already used. Verified against shields.io before and after. Documentation only |
+| 91 | 2026-08-28 | Phase-end audit fix 3/3: five docs corrected that were wrong about *runtime behavior* — the same class as revision 88's `db_modified_utc`, and this window's systemic theme. `mcp_client_setup.md` told operators `OC_MCP_TRANSPORT=stdio` + `oc serve` disables HTTP (`cmd_serve` never reads that variable; only `python -m openchronicle.interfaces.mcp` does, and `create_app` mounts `/mcp` unconditionally); `oc serve --help` and `cmd_serve`'s docstring advertised `0.0.0.0:18000` when the real defaults are `127.0.0.1:8000` (18000 is the NAS compose host-side mapping); `ARCHITECTURE.md` listed the deleted `BudgetExceededError` and two CLI commands that do not exist (`oc project ...`, `oc health`). All five verified against the code, not against other docs. 632 tests |
+| 90 | 2026-08-28 | Phase-end audit fix 2/3: `OC_LOG_LEVEL` can no longer crash-loop the container. `oc serve` passed the raw value into `uvicorn.Config`, which indexes its own `LOG_LEVELS` dict — `OC_LOG_LEVEL=WARN` died with `KeyError: 'warn'`, and under `restart: unless-stopped` that is an indefinite outage from one typo'd Portainer value. New `uvicorn_log_level()` validates against uvicorn's real table (not a local copy), accepts the `WARN`/`FATAL` aliases `logging` defines, and otherwise warns and falls back — matching the fail-soft `configure_root_logger` already applied to the same variable. 620 → 632 tests |
+| 89 | 2026-08-28 | Phase-end audit fix 1/3: the `memory_search` MCP tool no longer advertises a parameter it does not have. Its description told the model to pass `include_pinned=false`; that switch exists only on `oc memory search`, and the registered schema exposes only compact/mode/offset/phrase/pinned_limit/project_id/query/tags/top_k (confirmed against a live `list_tools()`). `docs/integrations/mcp_server_spec.md` carried the same claim inside its MCP-surface table. Both now say the switch is CLI-only. Introduced 2026-08-23 with the query-aware pinned float. Documentation only |
+| 88 | 2026-08-28 | Deploy-verification guidance corrected in the agent instructions: `health.package_version` is the signal that the new image is running; `db_modified_utc` is not and never was. The store opens `PRAGMA journal_mode = WAL`, so writes land in the `-wal` sidecar and the main DB's mtime only advances on checkpoint — observed live, a memory written at 14:47Z still read `db_modified_utc` 05:26Z a minute later. Missed by revision 87's own deploy-fact sweep. `docs/integrations/mcp_client_setup.md` was checked and already correct. Documentation only |
+| 87 | 2026-08-28 | Comparative-review closeout: committed the OpenClaw, Ollama, and NemoClaw assessments; made `AGENTS.md` canonical with a byte-parity guard; corrected verified CLI/MCP/security/config/deploy/README facts; added the design index and a documented post-compaction OC hook; tracked `uv.lock` without claiming frozen build consumption. 626 tests; no runtime-image change |
+| 86 | 2026-08-28 | NemoClaw comparative assessment: cloned and pinned the official NVIDIA repository, separated verified OpenChronicle gaps from constraints on existing future work and trigger-gated hardening, recorded agent-runtime non-fits, and prioritized the applicable work. Documentation only |
+| 85 | 2026-08-27 | Ollama comparative assessment: pinned the reviewed upstream commit, verified optional-adapter contract defects, strengthened the composite embedding-identity proposal, separated provider-independent hardening from conditional ideas, and recorded model-runtime non-fits. Documentation only |
+| 84 | 2026-08-27 | OpenClaw comparative assessment: pinned the reviewed upstream commit, separated immediate OpenChronicle correctness findings from experiments and conditional ideas, recorded explicit non-fits, and linked the research into the live backlog. Documentation only |
 | 83 | 2026-08-23 | NAS stack (151) redeployed: `OC_TAG` moved to image `61f711b`, bringing all four undeployed changes (revisions 79-82: query-aware pinned float, `last_success_at`, merge-hazard warnings, watermark filter) live. No code change — deploy only |
 | 82 | 2026-08-23 | Git-onboard watermark no longer leaks across devices (cloud-backup design §11.3, closes §13.5): `export_memory` stops emitting the `source=WATERMARK_SOURCE` row, `import_memory` drops it on read in both `merge` and `replace` (covers envelopes written before the export fix), each drop counted as `watermark_dropped` apart from `memory_skipped`. The literal is now a shared constant in `git_onboard.py` so a rename can't silently disable either filter. 625 tests |
 | 81 | 2026-08-23 | `oc memory import --mode merge` no longer loses edits silently (cloud-backup design §11.4). Semantics unchanged — it is still a union by id — but `export_memory` now stamps `exported_at`, `import_memory` returns `projects_skipped`/`memory_skipped` alongside the added counts, and merge logs one unconditional warning naming both lossy edges plus a second when the envelope predates the destination's newest `updated_at` (never `created_at` — `onboard_git` sets that from the commit author date). No `format_version` bump. 620 tests |

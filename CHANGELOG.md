@@ -7,6 +7,187 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`_get_container` extracted from all five MCP tool modules.** It was
+  byte-identical in each — one line, so the duplication cost nothing to
+  read, but it hardcoded the lifespan's `"container"` key five separate
+  times. That is the shape the extraction bar exists for: not volume, but a
+  contract that drifts the day someone renames the key and updates four of
+  five copies. Now one helper with the key as a named constant, pinned
+  against `server.py`'s lifespan by a test that fails if either side is
+  renamed alone.
+- **PII scanning gets a CI backstop.** The home-path and personal-email
+  checks existed only in the pre-commit hook, which is bypassable by design
+  — `--no-verify`, an unset `core.hooksPath`, a fresh clone before the
+  installer runs, a push from another machine. Now enforced in CI too, with
+  the patterns kept generic (the file is public, so baking in a real name
+  would leak what it guards) and findings **masked** in the failure message,
+  since a test that prints the PII it caught into a public log defeats
+  itself. Positive and negative controls ship with it — the negatives matter
+  more, because a pattern that also flagged `users.noreply.github.com` or
+  `/data/...` would fail on every commit and be deleted within a day.
+
+  The repo's one historical gitleaks hit is now allowlisted by full SHA,
+  after being identified rather than assumed: `generic-api-key` in a test
+  file absent from HEAD, whose "secret" gitleaks itself renders as
+  `REDACT…` — a placeholder. A full-history sweep now reports clean, so the
+  next hit means something instead of being the standing one everyone
+  learned to ignore.
+
+  Also: `v3/develop` is no longer a CI trigger (121 commits behind `main`,
+  none ahead, untouched since 2026-05-05) and SECURITY.md stops describing
+  the v3 cutover as a future event; `.codex/**` and `uv.lock` join
+  `paths-ignore`, both tracked and both exactly the docs/tooling commits the
+  list exists to keep from rebuilding the image.
+- **`oc config show` survives the config being broken.** It is the command
+  an operator runs *because* core.json is wrong, and it was the one command
+  with no error handling: pre-container commands bypass `_build_container`,
+  and its `try/except` with them. Three compounding defects — a non-UTF-8
+  core.json escaped as a raw `UnicodeDecodeError` (the file read sits inside
+  the same `try` as the parse, but only `JSONDecodeError` was caught, losing
+  the filename `ConfigLoadError` exists to attach); malformed JSON produced a
+  traceback rather than an exit code; and an existing-but-empty core.json
+  reported as "not found", sending the operator to look for a missing file
+  instead of an empty one. All three reproduced before the fix and verified
+  after. 659 → 666 tests.
+- **Two conventions promoted from prose to enforcement.** The agent
+  instructions say to use `utc_now()` rather than an inline
+  `datetime.now(UTC)`; seven sites across six files had drifted past it.
+  All now route through the helper, and an AST-based guard fails if a new
+  one appears — AST rather than text matching, because the text version
+  flagged a *comment* that merely mentions the call, and a guard that cries
+  wolf gets deleted. This is not only style: a naked clock read is what
+  makes time un-fakeable in a test.
+
+  Separately, `scan_repository()` now refuses to return a corpus smaller
+  than 50 files. Eight zero-tolerance tests iterate it and assert nothing
+  matches their forbidden pattern, so a scan returning nothing turned all
+  eight green while checking nothing — and the realistic trigger, the repo
+  root resolving somewhere unexpected, is silent by construction. The real
+  corpus is 197 files, so the floor only ever catches a broken scan.
+- **The content cap is enforced in one place instead of four.** The
+  100,000-character limit lived as hardcoded literals in two driver files
+  and nowhere in between: MCP hand-rolled the check twice, the REST routes
+  declared it twice via Pydantic, and the use cases had none. So the same
+  store rejected a 200KB memory over MCP and HTTP while `oc memory add` and
+  `oc memory import` accepted it — not a drift risk, an existing
+  inconsistency. `MAX_CONTENT_CHARS` now sits beside `MemoryItem`;
+  `add_memory` and `update_memory` enforce it, so every caller inherits it,
+  and the drivers reference the constant as fast-fail decoration. Raising or
+  lowering the cap is now one edit.
+
+  `oc memory import` deliberately **reports** rather than enforces: a restore
+  is not new input, an over-cap row can already exist from before this fix,
+  and failing the disaster-recovery path on data the operator already owns
+  would be the worse bug. Such rows import intact, are counted as
+  `oversized_content`, and are named in a warning. A structural test now
+  fails if any surface hardcodes the number again. Found by the first
+  phase-end audit. 647 → 658 tests.
+- **A blank path env var no longer outranks the default.** `env_vars.md`
+  states that an empty-string env var counts as unset *at every config
+  boundary*; the path boundary was the one place that didn't honour it.
+  `os.environ.get` returns `""` for a blank var, `""` is not `None`, and
+  `Path("")` is `Path(".")` — so `OC_DB_PATH=` silently relocated the SQLite
+  store to the working directory, and a blank `OC_DATA_DIR` demoted every
+  derived path to a bare relative name instead of falling through. Both are
+  one `${VAR:-}` line away in a compose file, which is exactly the form the
+  fleet convention pushes operator-tunable values toward. Empty and
+  whitespace-only now fall through, matching the `is_disabled()` /
+  `env_override()` precedent. The value itself is never rewritten — only the
+  emptiness test strips — so a path an operator actually meant survives
+  verbatim. Constructor params are deliberately not normalized: those are
+  code, not operator input. A sweep of every other env read in `src/`
+  confirmed no sibling violators. Found by the first phase-end audit.
+  637 → 647 tests.
+- **`pyproject.toml`'s description drops the semantic-search overclaim**, the
+  same correction the GitHub repository description got earlier the same day.
+  Semantic retrieval is opt-in, not shipped behaviour: the provider defaults
+  to `none` and both compose files pass an empty `OC_EMBEDDING_PROVIDER`, so
+  a stock container is keyword-only. Deliberately held back from its own push
+  — `pyproject.toml` is not in `paths-ignore`, so shipping it alone would have
+  rebuilt the image and bounced the live stack for one docstring. It rode
+  along with the maintenance-merge fix instead.
+- **`maintenance.jobs` merges onto the defaults instead of replacing them.**
+  A `core.json` that named one job silently deleted every other — an
+  operator halving the backup interval lost `db_vacuum`,
+  `db_integrity_check` and `embedding_backfill` with no warning, because
+  `load_jobs` only ever warned about *unknown* job names, never missing
+  ones. The latent half was worse: the entrypoint seeds `/config` from
+  `core.json.example` with `cp -rn`, and that example enumerates all five
+  jobs, so the first release to add a sixth would have found every existing
+  deployment quietly ignoring it. An entry now overrides the matching
+  default by name and unmentioned jobs keep their defaults, which makes both
+  failures impossible. Omitting a job no longer disables it — set
+  `"enabled": false`, the way the shipped example already expresses "off"
+  for `git_onboard_resync`. Job ordering follows `_DEFAULT_JOBS` rather than
+  the file, so the status surface is stable however the JSON is arranged.
+  MAINTENANCE.md and config_files.md now state the semantics; neither had.
+  No effect on the live deployment, which runs the defaults. Flagged as
+  §11.1 of the cloud-backup design and confirmed by the first phase-end
+  audit. 632 → 637 tests.
+- **The README's Docker badge actually renders now.** It had been showing
+  shields.io's "404: badge not found" image on the public README: the literal
+  hyphen in `openchronicle-mcp` made shields split the static-badge path as
+  label/message/color in the wrong places. Escaped to `openchronicle--mcp`,
+  matching the License badge's existing `AGPL--3.0`. Confirmed by fetching
+  both URLs: the old one titles "404: badge not found", the new one titles
+  "Docker: ghcr.io/carldog/openchronicle-mcp". Found by the first phase-end
+  audit.
+- **Five docs corrected that were wrong about runtime behavior.** Not
+  stale prose — claims a reader would act on and be misled by, the same
+  class as the `db_modified_utc` fix and the systemic theme of this window.
+  `mcp_client_setup.md` told operators that `OC_MCP_TRANSPORT=stdio` plus
+  `oc serve` avoids starting HTTP; `cmd_serve` never reads that variable and
+  `create_app` mounts `/mcp` unconditionally, so the result was a bound port
+  and a live streamable-HTTP endpoint — the opposite of what was promised.
+  `oc serve --help` and `cmd_serve`'s docstring advertised `0.0.0.0:18000`
+  when the effective defaults are `127.0.0.1:8000` (18000 is the host-side
+  port the NAS compose maps onto 8000, never an application default), and
+  `--help` is the surface a user actually reads. `ARCHITECTURE.md` listed
+  `BudgetExceededError`, deleted long ago, and two CLI commands that do not
+  exist in the argparse tree (`oc project ...`, `oc health`). Every
+  correction verified against the code. Found by the first phase-end audit.
+- **`OC_LOG_LEVEL` can no longer crash-loop the container.** `oc serve`
+  handed the raw value to `uvicorn.Config`, which indexes its own
+  `LOG_LEVELS` dict directly — so `OC_LOG_LEVEL=WARN` (the alias every
+  other log tool accepts, and one `logging` itself defines) died with a raw
+  `KeyError: 'warn'`. Under `restart: unless-stopped` that is an indefinite
+  outage caused by one typo'd Portainer value. `uvicorn_log_level()` now
+  validates against uvicorn's real table rather than a local copy that could
+  drift, maps the `WARN`/`FATAL` aliases, and otherwise logs a warning
+  naming the valid set and falls back to the default — the same fail-soft
+  `configure_root_logger` already applied to this very variable, and the
+  trap `parse_int_env`'s docstring exists to prevent. Found by the first
+  phase-end audit; same bug class as the 2026-07-12 embedding fail-soft fix.
+- **`memory_search` stops advertising a parameter it does not have.** Its
+  MCP tool description told the model to pass `include_pinned=false` to hide
+  pins. That switch is CLI-only (`oc memory search --no-include-pinned`); the
+  registered MCP schema has no such parameter, so a model following the
+  instruction emitted an unsatisfiable call. `mcp_server_spec.md` repeated the
+  claim inside a table of MCP parameters. Both now state it is CLI-only and
+  point MCP callers at `memory_list(pinned_only=true)`. Introduced 2026-08-23
+  alongside the query-aware pinned float; found by the first phase-end audit.
+- **Deploy verification no longer points at a checkpoint clock.** The
+  agent instructions told operators a recent `db_modified_utc` confirms
+  a new container is live. It does not: the store opens
+  `PRAGMA journal_mode = WAL`, so writes land in the `-wal` sidecar and
+  the main DB's mtime only advances on checkpoint — a memory written at
+  14:47Z still read `db_modified_utc` 05:26Z a minute later.
+  `health.package_version` is the signal, and the line now says so and
+  names the wrong one explicitly so it can't be reintroduced. Caught
+  while refreshing a session against the repo, one revision after the
+  closeout that swept deploy facts. No code change.
+- **Comparative repository-review closeout.** Added source-pinned
+  assessments of OpenClaw (`894f254`), Ollama (`f96e7aa`), and NemoClaw
+  (`b7261ff`) without importing their runtime scope. Closed the review's
+  immediate documentation findings: `AGENTS.md` is canonical and
+  byte-identical to the `CLAUDE.md` compatibility mirror, verified by a
+  repository-hygiene test; stale CLI/MCP/security/config/deploy/README
+  facts are corrected; and `docs/design/README.md` indexes the four
+  numbered documents. Replaced nonportable/ineffective compaction hooks
+  with one documented post-compaction OC reload. `uv.lock` is now
+  tracked for dependency-graph inspection, while CI/Docker frozen
+  consumption remains explicitly open. 625 → 626 tests; no runtime-image
+  change.
 - **The git-onboard watermark no longer leaks across devices via
   export/import.** The watermark is one device's git resume point,
   written as an ordinary memory row (`source="git-onboard-watermark"`,

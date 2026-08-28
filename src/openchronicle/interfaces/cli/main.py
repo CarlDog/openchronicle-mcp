@@ -215,8 +215,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     serve_cmd = sub.add_parser("serve", help="Run the unified HTTP + MCP ASGI server")
-    serve_cmd.add_argument("--host", default=None, help="Bind address (default: 0.0.0.0)")
-    serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 18000)")
+    serve_cmd.add_argument("--host", default=None, help="Bind address (default: 127.0.0.1)")
+    serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 8000)")
 
     # --- Parse ---
     args = parser.parse_args(argv)
@@ -225,9 +225,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 0
 
-    # Pre-container commands (no CoreContainer needed)
+    # Pre-container commands (no CoreContainer needed). These skip
+    # _build_container and therefore used to skip its error handling too —
+    # so `oc config show`, the diagnostic for a broken config, answered a
+    # malformed core.json with a raw traceback. Same catch as
+    # _build_container: an operator gets a message and an exit code.
     if args.command in PRE_CONTAINER_COMMANDS:
-        return PRE_CONTAINER_COMMANDS[args.command](args)
+        try:
+            return PRE_CONTAINER_COMMANDS[args.command](args)
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc))
+            return 1
 
     container = _build_container(args)
     if container is None:

@@ -40,9 +40,10 @@ it is a design decision, not a break of this policy.
 
 Concretely: tightening a parameter from optional to required, or
 reshaping a response object, is a MAJOR-bump event *after* the tag and
-simply "the v3.0.0 surface as designed" before it. The version stays
-`3.0.0.dev0` throughout — do not bump it to record a pre-tag change, and
-do not read one as a violation of the table above.
+simply "the v3.0.0 surface as designed" before it. Pre-tag versions are
+release candidates (`3.0.0rc8` at time of writing) — do not read a
+version bump as recording a surface change, and do not read a pre-tag
+surface change as a violation of the table above.
 
 Once `v3.0.0` is tagged, delete this section. Everything below binds from
 that point forward.

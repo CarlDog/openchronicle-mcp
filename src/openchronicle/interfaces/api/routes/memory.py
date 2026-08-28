@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from openchronicle.core.application.config.env_helpers import parse_csv_tags  # noqa: F401
+from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,
@@ -22,7 +22,7 @@ from openchronicle.core.application.use_cases import (
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.deps import get_container
 from openchronicle.interfaces.serializers import memory_to_dict, scored_memory_to_dict
@@ -83,7 +83,7 @@ def memory_stats(
 
 
 class MemorySaveRequest(BaseModel):
-    content: str = Field(min_length=1, max_length=100_000)
+    content: str = Field(min_length=1, max_length=MAX_CONTENT_CHARS)
     project_id: str = Field(min_length=1, max_length=200)
     tags: list[str] | None = Field(default=None, max_length=50)
     pinned: bool = False
@@ -200,7 +200,7 @@ def memory_pin(
 
 
 class MemoryUpdateRequest(BaseModel):
-    content: str | None = Field(default=None, min_length=1, max_length=100_000)
+    content: str | None = Field(default=None, min_length=1, max_length=MAX_CONTENT_CHARS)
     tags: list[str] | None = Field(default=None, max_length=50)
 
 

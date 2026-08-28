@@ -7,7 +7,7 @@ FastMCP dispatches sync tools inline on the event loop.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, cast
+from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
 
@@ -20,12 +20,8 @@ from openchronicle.core.application.use_cases import (
 )
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
-from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.interfaces.mcp.tools._context import get_container as _get_container
 from openchronicle.interfaces.serializers import project_to_dict
-
-
-def _get_container(ctx: Context) -> CoreContainer:
-    return cast(CoreContainer, ctx.request_context.lifespan_context["container"])
 
 
 def register(mcp: FastMCP) -> None:

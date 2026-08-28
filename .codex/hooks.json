@@ -1,0 +1,20 @@
+{
+  "description": "Reload transient OpenChronicle context after Codex compaction.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "^compact$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.codex/hooks/post_compact_reload.py\"",
+            "commandWindows": "powershell -NoProfile -Command \"$root = git rev-parse --show-toplevel; python (Join-Path $root '.codex/hooks/post_compact_reload.py')\"",
+            "timeout": 30,
+            "additionalContextLimit": 4000,
+            "statusMessage": "Reloading OpenChronicle context"
+          }
+        ]
+      }
+    ]
+  }
+}

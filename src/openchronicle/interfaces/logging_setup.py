@@ -17,6 +17,8 @@ import os
 import sys
 from typing import Any
 
+_logger = logging.getLogger(__name__)
+
 _VALID_FORMATS = ("human", "json")
 
 
@@ -107,3 +109,44 @@ def configure_root_logger(*, default_level: str = "INFO") -> None:
         handler.setFormatter(formatter)
         handler.setLevel(level)
         root.addHandler(handler)
+
+
+# `logging` defines these aliases; uvicorn's LOG_LEVELS table does not.
+# An operator typing the form every other log tool accepts should not
+# take the service down for it.
+_UVICORN_LEVEL_ALIASES = {"warn": "warning", "fatal": "critical"}
+
+
+def uvicorn_log_level(*, default: str = "info") -> str:
+    """Map ``OC_LOG_LEVEL`` onto a level ``uvicorn.Config`` will accept.
+
+    uvicorn indexes its own ``LOG_LEVELS`` dict directly
+    (``LOG_LEVELS[self.log_level.lower()]``), so an unrecognized value
+    raises ``KeyError`` from inside the constructor. Under
+    ``restart: unless-stopped`` that turns one typo'd Portainer value
+    into an indefinite crash-loop with no service -- the trap
+    ``parse_int_env`` exists to prevent everywhere else, and the one
+    ``configure_root_logger`` already avoids for this very variable via
+    ``getattr(logging, ..., logging.INFO)``. The serve path was the last
+    place the two disagreed.
+
+    Validates against uvicorn's real table rather than a local copy, so
+    the accepted set cannot drift from what the library will take. The
+    import is function-level: uvicorn is only needed by ``oc serve``, and
+    every other CLI command imports this module.
+    """
+    from uvicorn.config import LOG_LEVELS
+
+    raw = os.getenv("OC_LOG_LEVEL", default).strip().lower()
+    if not raw:
+        return default
+    resolved = _UVICORN_LEVEL_ALIASES.get(raw, raw)
+    if resolved not in LOG_LEVELS:
+        _logger.warning(
+            "Invalid OC_LOG_LEVEL=%r; using %r. Valid: %s",
+            os.getenv("OC_LOG_LEVEL"),
+            default,
+            ", ".join(sorted(LOG_LEVELS)),
+        )
+        return default
+    return resolved

@@ -68,6 +68,7 @@ HTTP REST surface configuration.
 | `host` | bind address | `127.0.0.1` |
 | `port` | int | `8000` |
 | `api_key` | bearer token (auth disabled when unset/empty) | — |
+| `allowed_hosts` | list of `Host:` patterns for the DNS-rebinding allowlist; `OC_API_ALLOWED_HOSTS` overrides it | loopback only |
 
 ### `mcp`
 
@@ -76,10 +77,18 @@ transport is mounted into the FastAPI app at `/mcp` and shares the
 `api.port`; this section is for the standalone-MCP code path used by
 older clients pinning `:8080`.
 
+It also reads `allowed_hosts` (same shape and purpose as `api.allowed_hosts`,
+overridden by `OC_MCP_ALLOWED_HOSTS`). Both loaders read the key from the
+file, so the rebinding allowlist is configurable without an env var —
+which was not discoverable from this document before 2026-08-28.
+
 ### `maintenance`
 
-Maintenance loop schedule. Unknown job names are silently dropped. See
-`docs/architecture/MAINTENANCE.md`.
+Maintenance loop schedule. The `jobs` list **merges onto the built-in
+defaults** — an entry overrides the matching default by name, and any job
+it omits keeps its default rather than being dropped. Omitting a job does
+not disable it; set `"enabled": false` explicitly. Unknown job names are
+skipped with a warning. See `docs/architecture/MAINTENANCE.md`.
 
 ## See also
 

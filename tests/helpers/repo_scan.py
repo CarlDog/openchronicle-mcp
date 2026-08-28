@@ -16,6 +16,10 @@ def get_repo_root() -> Path:
     return Path(__file__).parent.parent.parent.resolve()
 
 
+_MIN_PLAUSIBLE_FILES = 50
+"""Floor below which the scan is assumed broken rather than thorough."""
+
+
 def scan_repository() -> list[tuple[Path, str]]:
     """
     Scan repository for text files.
@@ -118,5 +122,20 @@ def scan_repository() -> list[tuple[Path, str]]:
                 except OSError, PermissionError:
                     # Skip files we can't read
                     continue
+
+    # An empty (or implausibly small) corpus must FAIL, not pass quietly.
+    # Eight zero-tolerance tests iterate this list and assert nothing
+    # matches their forbidden pattern — so a scan that returns nothing
+    # turns all eight green while checking nothing at all. The realistic
+    # trigger is get_repo_root() resolving somewhere unexpected, which is
+    # silent by construction. The floor is deliberately far below the real
+    # count (several hundred) so it only ever catches a broken scan, never
+    # a legitimately shrinking repo.
+    if len(results) < _MIN_PLAUSIBLE_FILES:
+        raise RuntimeError(
+            f"scan_repository() found only {len(results)} file(s) under {repo_root} — "
+            f"expected at least {_MIN_PLAUSIBLE_FILES}. Every guard built on this scan "
+            f"would pass vacuously. Check that the repo root resolved correctly."
+        )
 
     return results

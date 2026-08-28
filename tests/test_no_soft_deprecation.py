@@ -280,3 +280,38 @@ def _format_violations_message(violations: list[tuple[Path, str, list[tuple[int,
     )
 
     return msg
+
+
+def test_clock_reads_go_through_utc_now() -> None:
+    """The documented convention, enforced instead of just written down.
+
+    AGENTS.md: "Use `utc_now()` from `domain/time_utils.py` for current
+    UTC time (not inline `datetime.now(UTC)`)". Seven sites across six
+    files had drifted past it. This is not only style: a naked clock read
+    is what makes time un-fakeable in a test.
+
+    Uses AST rather than text matching — an earlier text version flagged a
+    *comment* in import_memory.py that merely mentions `datetime.now()`,
+    which is exactly the kind of false positive that gets a guard deleted.
+
+    `time_utils` itself is the one legal caller: it is the definition.
+    """
+    import ast
+    from pathlib import Path
+
+    offenders: list[str] = []
+    for path in Path("src/openchronicle").rglob("*.py"):
+        if path.name == "time_utils.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "now"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "datetime"
+            ):
+                offenders.append(f"{path.as_posix()}:{node.lineno}")
+
+    assert offenders == [], f"use utc_now() instead of an inline clock read: {offenders}"

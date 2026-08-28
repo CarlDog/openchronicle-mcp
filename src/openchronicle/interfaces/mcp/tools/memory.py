@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime
-from typing import Any, cast
+from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
 
@@ -27,13 +27,9 @@ from openchronicle.core.application.use_cases import (
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
-from openchronicle.core.infrastructure.wiring.container import CoreContainer
+from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
+from openchronicle.interfaces.mcp.tools._context import get_container as _get_container
 from openchronicle.interfaces.serializers import memory_to_dict, scored_memory_to_dict
-
-
-def _get_container(ctx: Context) -> CoreContainer:
-    return cast(CoreContainer, ctx.request_context.lifespan_context["container"])
 
 
 def register(mcp: FastMCP) -> None:
@@ -83,9 +79,10 @@ def register(mcp: FastMCP) -> None:
                 results (default 10, best-matching first). This bounds
                 the FLOAT, not visibility: 0 means "don't float them",
                 and a pin that doesn't win a slot still ranks normally.
-                Use `include_pinned=false` to hide pins, or
-                `memory_list(pinned_only=true)` to enumerate every
-                standing rule.
+                This tool cannot hide pins — there is no
+                `include_pinned` here (that switch is CLI-only, on
+                `oc memory search`). Use `memory_list(pinned_only=true)`
+                to enumerate every standing rule.
 
         Each result carries a `relevance` object: `channel` says what
         surfaced it ("pinned" = a standing rule that matched and was
@@ -145,8 +142,8 @@ def register(mcp: FastMCP) -> None:
         """
         if not content or not content.strip():
             raise DomainValidationError("content must be non-empty")
-        if len(content) > 100_000:
-            raise DomainValidationError("content exceeds maximum length of 100,000 characters")
+        if len(content) > MAX_CONTENT_CHARS:
+            raise DomainValidationError(f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters")
         if not project_id:
             raise DomainValidationError("project_id is required")
         container = _get_container(ctx)
@@ -279,8 +276,8 @@ def register(mcp: FastMCP) -> None:
             content: New content (replaces existing). Omit to keep current.
             tags: New tags (replaces existing). Omit to keep current.
         """
-        if content is not None and len(content) > 100_000:
-            raise DomainValidationError("content exceeds maximum length of 100,000 characters")
+        if content is not None and len(content) > MAX_CONTENT_CHARS:
+            raise DomainValidationError(f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters")
         container = _get_container(ctx)
 
         def _run() -> dict[str, Any]:

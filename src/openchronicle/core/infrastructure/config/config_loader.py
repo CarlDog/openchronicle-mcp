@@ -42,6 +42,13 @@ def load_json_config(path: str | Path) -> dict:
         data = json.loads(text)
     except json.JSONDecodeError as exc:
         raise ConfigLoadError(p, exc) from exc
+    except (OSError, UnicodeDecodeError) as exc:
+        # The read is inside the same try, so a non-UTF-8 or unreadable
+        # core.json used to escape as a raw UnicodeDecodeError/OSError —
+        # losing the filename that ConfigLoadError exists to attach, and
+        # crashing `oc config show`, the command an operator runs
+        # precisely when the config is broken.
+        raise ConfigLoadError(p, exc) from exc
     if not isinstance(data, dict):
         raise ConfigLoadError(p, ValueError(f"Expected JSON object, got {type(data).__name__}"))
     return data

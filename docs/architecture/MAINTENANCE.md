@@ -35,8 +35,33 @@ was overkill.
 }
 ```
 
-Unknown job names in config are silently dropped (typo-safe). Missing
-section falls back to the defaults above.
+**The `jobs` list MERGES onto the defaults — it does not replace them.**
+An entry overrides the matching default *by name*; every job it does not
+mention keeps its default interval and enabled state, and jobs added in
+future releases appear automatically even against an older config file.
+So a config that tunes one interval is safe:
+
+```json
+{"maintenance": {"jobs": [{"name": "db_backup", "interval_seconds": 43200}]}}
+```
+
+leaves `db_vacuum`, `db_integrity_check`, `embedding_backfill` and
+`git_onboard_resync` exactly as shipped.
+
+**Omitting a job does NOT disable it.** Set `"enabled": false` explicitly
+— the same way the example expresses "off" for `git_onboard_resync`.
+
+Ordering always follows the table above, not the file, so the status
+surface is stable however the JSON is arranged. Unknown job names are
+skipped with a warning (typo-safe); a missing `maintenance` section falls
+back to the defaults.
+
+This was a total replacement until 2026-08-28, which cost jobs two ways:
+tuning one interval meant hand-copying every other job or losing it
+(including `db_backup`), and because the entrypoint seeds `/config` from
+`core.json.example` with `cp -rn`, a stale seeded file would have dropped
+every job added in any later release — silently, since the loop only ever
+warned about *unknown* names, never missing ones.
 
 `OC_MAINTENANCE_DISABLED=1` (or `true`/`yes`/`on`) short-circuits the
 loop entirely. Useful for tests, one-shot CLI invocations, and

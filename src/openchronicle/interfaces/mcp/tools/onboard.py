@@ -8,7 +8,7 @@ tool's git clone can block for minutes on a large repo.
 from __future__ import annotations
 
 import asyncio
-from typing import Any, cast
+from typing import Any
 
 from mcp.server.fastmcp import Context, FastMCP
 
@@ -21,10 +21,7 @@ from openchronicle.core.application.services.git_onboard import (
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
-
-
-def _get_container(ctx: Context) -> CoreContainer:
-    return cast(CoreContainer, ctx.request_context.lifespan_context["container"])
+from openchronicle.interfaces.mcp.tools._context import get_container as _get_container
 
 
 def register(mcp: FastMCP) -> None:
