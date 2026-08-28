@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 89
+**Snapshot date:** 2026-08-28 · **Revision:** 90
 
 ## Current state
 
@@ -103,6 +103,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 90 | 2026-08-28 | Phase-end audit fix 2/3: `OC_LOG_LEVEL` can no longer crash-loop the container. `oc serve` passed the raw value into `uvicorn.Config`, which indexes its own `LOG_LEVELS` dict — `OC_LOG_LEVEL=WARN` died with `KeyError: 'warn'`, and under `restart: unless-stopped` that is an indefinite outage from one typo'd Portainer value. New `uvicorn_log_level()` validates against uvicorn's real table (not a local copy), accepts the `WARN`/`FATAL` aliases `logging` defines, and otherwise warns and falls back — matching the fail-soft `configure_root_logger` already applied to the same variable. 620 → 632 tests |
 | 89 | 2026-08-28 | Phase-end audit fix 1/3: the `memory_search` MCP tool no longer advertises a parameter it does not have. Its description told the model to pass `include_pinned=false`; that switch exists only on `oc memory search`, and the registered schema exposes only compact/mode/offset/phrase/pinned_limit/project_id/query/tags/top_k (confirmed against a live `list_tools()`). `docs/integrations/mcp_server_spec.md` carried the same claim inside its MCP-surface table. Both now say the switch is CLI-only. Introduced 2026-08-23 with the query-aware pinned float. Documentation only |
 | 88 | 2026-08-28 | Deploy-verification guidance corrected in the agent instructions: `health.package_version` is the signal that the new image is running; `db_modified_utc` is not and never was. The store opens `PRAGMA journal_mode = WAL`, so writes land in the `-wal` sidecar and the main DB's mtime only advances on checkpoint — observed live, a memory written at 14:47Z still read `db_modified_utc` 05:26Z a minute later. Missed by revision 87's own deploy-fact sweep. `docs/integrations/mcp_client_setup.md` was checked and already correct. Documentation only |
 | 87 | 2026-08-28 | Comparative-review closeout: committed the OpenClaw, Ollama, and NemoClaw assessments; made `AGENTS.md` canonical with a byte-parity guard; corrected verified CLI/MCP/security/config/deploy/README facts; added the design index and a documented post-compaction OC hook; tracked `uv.lock` without claiming frozen build consumption. 626 tests; no runtime-image change |

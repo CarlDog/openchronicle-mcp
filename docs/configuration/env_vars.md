@@ -94,7 +94,7 @@ them.
 | Var | Purpose | Default |
 |---|---|---|
 | `OC_LOG_FORMAT` | `human` (Python default formatter) or `json` (one JSON object per line, suitable for Loki/OpenSearch/Datadog) | `human` |
-| `OC_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` | `INFO` |
+| `OC_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` (`WARN`/`FATAL` accepted as aliases). An unrecognized value logs a warning and falls back to the default rather than failing to start | `INFO` |
 
 ## Maintenance loop
 

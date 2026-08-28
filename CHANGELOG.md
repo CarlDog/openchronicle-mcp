@@ -7,6 +7,18 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`OC_LOG_LEVEL` can no longer crash-loop the container.** `oc serve`
+  handed the raw value to `uvicorn.Config`, which indexes its own
+  `LOG_LEVELS` dict directly — so `OC_LOG_LEVEL=WARN` (the alias every
+  other log tool accepts, and one `logging` itself defines) died with a raw
+  `KeyError: 'warn'`. Under `restart: unless-stopped` that is an indefinite
+  outage caused by one typo'd Portainer value. `uvicorn_log_level()` now
+  validates against uvicorn's real table rather than a local copy that could
+  drift, maps the `WARN`/`FATAL` aliases, and otherwise logs a warning
+  naming the valid set and falls back to the default — the same fail-soft
+  `configure_root_logger` already applied to this very variable, and the
+  trap `parse_int_env`'s docstring exists to prevent. Found by the first
+  phase-end audit; same bug class as the 2026-07-12 embedding fail-soft fix.
 - **`memory_search` stops advertising a parameter it does not have.** Its
   MCP tool description told the model to pass `include_pinned=false` to hide
   pins. That switch is CLI-only (`oc memory search --no-include-pinned`); the

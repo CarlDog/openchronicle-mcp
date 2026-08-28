@@ -141,7 +141,7 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
 
     from openchronicle.interfaces.api.app import create_app
     from openchronicle.interfaces.api.config import HTTPConfig
-    from openchronicle.interfaces.logging_setup import configure_root_logger
+    from openchronicle.interfaces.logging_setup import configure_root_logger, uvicorn_log_level
 
     configure_root_logger()
     log = logging.getLogger(__name__)
@@ -167,7 +167,7 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
         app,
         host=config.host,
         port=config.port,
-        log_level=os.getenv("OC_LOG_LEVEL", "info").lower(),
+        log_level=uvicorn_log_level(),
         log_config=None,
     )
     server = uvicorn.Server(uv_config)
