@@ -47,7 +47,7 @@ openai = [
 	"numpy>=1.24",
 ]
 ollama = [
-	"httpx>=0.25.0",
+	"httpx>=0.28.1",
 	"numpy>=1.24",
 ]
 mcp = [
@@ -76,7 +76,7 @@ dev = [
 	# Dependabot's pip-dev group raises the cap when a new minor lands.
 	"ruff>=0.16,<0.17",
 	"openai>=1.0.0",
-	"httpx>=0.25.0",
+	"httpx>=0.28.1",
 	# Keep in step with the [mcp] extra above — that comment carries the
 	# reasoning. This is the copy CI's test job actually installs, so an
 	# older floor here would resolve the MCP baseline tests against a
