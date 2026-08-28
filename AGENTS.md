@@ -74,6 +74,27 @@ does differently.
   citing this entry — not to re-analyse it, not to ask the operator
   again.**
 
+- **Splitting `sqlite_store.py`, `git_onboard.py`, or
+  `tests/test_http_api.py` on size.** Assessed 2026-08-28 and rejected:
+  all three are one concern expressed at length, and the "300-400 line
+  soft cap" they were measured against is not repo policy — it appears
+  once, as an aside in `docs/design/0001-cloud-backup.md`. Cohesion
+  judgements for the two source files are recorded in
+  [ARCHITECTURE.md](docs/architecture/ARCHITECTURE.md); the revisit
+  trigger for `sqlite_store.py` is search-section growth, not total lines.
+- **Substituting `container.storage.vacuum()` into `cmd_db_vacuum` to
+  remove its `noqa: SLF001`.** Measured regression: `vacuum()`
+  checkpoints FULL *then* VACUUMs, while the CLI needs VACUUM *then*
+  `wal_checkpoint(TRUNCATE)`. Through the port the command would report
+  "Saved: 0" and leave the WAL untruncated. The reach-through is
+  deliberate and documented at the method.
+- **Adding a shared `store` fixture to `tests/conftest.py`.** pytest
+  resolves fixtures nearest-first, so the six existing local definitions
+  would shadow it — it becomes a seventh shape rather than replacing six.
+  The local fixtures also diverge load-bearingly (different seeded
+  projects, different close behaviour). Tolerated, per the duplication
+  bar.
+
 ### Cadence relaxations
 
 - The **author-identity audit** (`git log --all --pretty='%ae' | sort -u`)
@@ -84,34 +105,31 @@ does differently.
 
 ## Current Sprint
 
-**2026-08-28 — comparative repository-review closeout.** Three
-source-pinned, documentation-only assessments now capture what is and is
-not worth carrying into OpenChronicle:
+**2026-08-28 — first phase-end audit, worked to closure.** The repo's
+first formal phase-end audit ran as a 7-dimension adversarial fan-out (52
+findings survived verification, 1 refuted) and its punch list is now
+worked down. Shipped across the day: the query-aware pinned float,
+`JobState.last_success_at`, `import --mode merge` visibility, the
+git-onboard watermark filter, `OC_LOG_LEVEL` fail-soft, the
+`maintenance.jobs` merge, single-source content-cap enforcement,
+empty-string path-env normalization, `oc config show` surviving a broken
+config, a PII CI backstop, and a remotely-reachable infinite loop in
+`cluster_commits`.
 
-- [OpenClaw memory review](docs/design/0002-openclaw-memory-review.md)
-  at `894f254` separates verified retrieval-integrity defects from
-  benchmark-only ideas and agent-runtime non-fits.
-- [Ollama repository review](docs/design/0003-ollama-repository-review.md)
-  at `f96e7aa` verifies optional-adapter contract gaps and strengthens
-  existing embedding-identity, batching, health, and backup proposals.
-- [NemoClaw repository review](docs/design/0004-nemoclaw-repository-review.md)
-  at `b7261ff` finds no competing memory engine; it contributes
-  right-sized state, subprocess, deployment-identity, and recovery
-  invariants while rejecting the sandbox/runtime bulk.
+Three things were assessed and deliberately NOT done — see the
+"Phase-end audit checklist" section above, which exists so they are
+closed on sight rather than re-proposed: splitting the three large files,
+substituting `vacuum()` into the CLI, and a shared `store` fixture. Two
+cohesion judgements are recorded in ARCHITECTURE.md with an explicit
+revisit trigger.
 
-This closeout restores one agent-instruction authority (`AGENTS.md`,
-mirrored byte-for-byte to `CLAUDE.md`), repairs the documentation drift
-proved by the reviews, adds the overdue design index, and replaces broken
-compaction hooks with one documented post-compaction OC reload. A
-tracked `uv.lock` records the resolved graph for inspection, but CI and
-Docker do not consume it yet, so reproducible frozen installs remain
-open. Runtime recommendations from the reviews are evidence-backed but
-unscheduled; none is implemented by this batch.
+Deployed: image `4710caf`; runtime and main are in sync (later commits
+are documentation-only and skipped by `paths-ignore`). Test baseline 679.
 
-The deployed runtime remains `v3.0.0-rc8` at image `61f711b`; this
-closeout does not change the runtime image and needs no NAS redeploy. The
-repository test baseline is 626. Open next: operator-gated Phase 9 and
-the accepted V3_PLAN follow-ups.
+Open next: PR #20 (rebased, awaiting fresh CI — it carries a
+`gitleaks-action` major bump alongside the checkout fix), operator-gated
+Phase 9, and the accepted V3_PLAN follow-ups including the quarterly
+Ollama Cloud re-check.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

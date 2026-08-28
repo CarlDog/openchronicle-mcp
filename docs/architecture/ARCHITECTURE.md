@@ -44,6 +44,16 @@ imports — anything reaching outside the process goes through a port.
   embedding provider failure (the embedding-degradation policy).
 - `services/git_onboard.py`: clone-and-cluster a remote git repo into
   memory candidates. No LLM call — synthesis is the caller's job.
+  **Size judged deliberately (2026-08-28, ~814 lines): cohesive, keep as
+  one file.** It is five sequential stages of ONE pipeline — extract →
+  filter → cluster → format → orchestrate — bound together by
+  `onboard_git_prepare`, and both drivers (CLI and MCP) import across
+  nearly all of it. Splitting turns one import into three or four per
+  caller and fragments a workflow neither uses piecewise. Isolating the
+  subprocess half properly would need a `GitPort`: a fourth port with a
+  single implementation and no second planned, which is exactly the
+  premature abstraction the project rules say to inline back rather than
+  create.
 - `services/maintenance_loop.py`: in-process asyncio loop that runs
   scheduled jobs (per-job lock for cross-tick overlap detection,
   global lock so jobs never run concurrently in this process; per-job
@@ -66,6 +76,22 @@ HTTP clients, the wiring container).
 - `persistence/`:
   - `sqlite_store.py`: SQLite-backed implementation of
     `StoragePort` + `MemoryStorePort`.
+    **Size judged deliberately (2026-08-28, ~840 lines): cohesive, keep
+    as one file.** It is one adapter owning four shared mutable
+    attributes — `_conn`, `_lock`, `_transaction_depth`, `_fts5_active`
+    — and every candidate split boundary (projects / memory / embeddings
+    / search / maintenance) crosses all four. The correctness invariant
+    is "every method touching `self._conn` holds `self._lock`", today
+    auditable by reading one file and checking each public method carries
+    `@_locked`. Free functions taking `(conn, lock)` would scatter that
+    invariant across files; helper objects would still need ~30
+    forwarding stubs, because the two port ABCs mandate the surface. Both
+    trade a line count for a concurrency hazard.
+    **Revisit trigger, not a permanent waiver:** the file went 470 → 840
+    lines between 2026-05-05 and 2026-08-28. If the keyword-search
+    section (currently ~240 lines, its own vocabulary and its own test
+    files) grows materially, extract that first — it is the one part
+    whose reason to change is usually unrelated to persistence.
   - `migrator.py`: versioned schema migration runner. Reads
     `migrations/NNN_*.sql`, applies pending versions in order with
     savepoint atomicity, records `schema_version` rows.

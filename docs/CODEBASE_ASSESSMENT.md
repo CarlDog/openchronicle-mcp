@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 104
+**Snapshot date:** 2026-08-28 · **Revision:** 105
 
 ## Current state
 
@@ -106,6 +106,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 105 | 2026-08-28 | Architectural-refactor assessment closed: all five queued candidates assessed and NONE restructured. `sqlite_store.py` and `git_onboard.py` carry recorded cohesion judgements in ARCHITECTURE.md (with a revisit trigger for the former: search-section growth, not total lines); the three rejected restructurings are listed in the AGENTS.md audit checklist so they are closed on sight rather than re-proposed. The assessment's real yield was two defects it found on the way — the `cluster_commits` hang and two false statements in code — not a restructuring. Current Sprint refreshed |
 | 104 | 2026-08-28 | Two false statements in code corrected: `sqlite_store.py`'s maintenance section claimed "maintenance jobs and the CLI never touch self._conn directly" — the jobs honour it, the `oc db` commands deliberately do not, and the comment now says why (`cmd_db_vacuum` needs VACUUM→TRUNCATE, the opposite of `vacuum()`'s FULL→VACUUM; substituting one for the other reports "Saved: 0" and leaves the WAL). And `_TABLE_NAMES` listed 3 of the migration's 4 tables, so `oc db info` under-reported — fixed and now guarded against re-drift. 678 → 679 tests |
 | 103 | 2026-08-28 | Fixed a remotely-reachable infinite loop in `cluster_commits`: a `max_clusters` of 0 or less never terminated, because once the merge list reached one entry `merge_into == smallest_idx`, nothing was popped, and the condition stayed true with no state changing. The `onboard_git` MCP tool accepted the value unbounded — its neighbour `max_commits_per_cluster` was clamped, this one was not — so an agent passing 0 would wedge a worker thread permanently. Clamped at both the boundary and the algorithm. Found while ASSESSING the file for a split, not by splitting it. 676 → 678 tests |
 | 102 | 2026-08-28 | NAS redeployed to image `4710caf`, bringing the empty-string path-env fix and the content-cap unification live; runtime is back in sync with main. Ollama Cloud recorded in V3_PLAN as **trigger-gated recurring research, not rejected** — a viable host that today lists zero embedding models, with the 19-model baseline captured so a future check is a diff, a key-free public re-check command, and the adopt-work pre-scoped (one Bearer header) for when the trigger fires |
