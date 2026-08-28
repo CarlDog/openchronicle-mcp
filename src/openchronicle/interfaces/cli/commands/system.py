@@ -131,7 +131,8 @@ def cmd_serve(args: argparse.Namespace, container: CoreContainer) -> int:
     """Run the unified HTTP + MCP ASGI server in the foreground.
 
     Single uvicorn process hosts FastAPI at ``/api/v1/*`` and FastMCP at
-    ``/mcp``. Default port is 18000 (the v2 HTTP port — MCP collapses
+    ``/mcp``. Default bind is 127.0.0.1:8000 (18000 is the host-side
+    port the NAS compose maps onto it, not an application default)
     onto the same port). Logging respects ``OC_LOG_FORMAT=human|json``
     via ``configure_root_logger``.
     """

@@ -71,8 +71,10 @@ claude mcp add --scope user --transport http openchronicle \
 ```
 
 For stdio transport (no HTTP, no networking), set
-`OC_MCP_TRANSPORT=stdio` and run `oc serve` — the unified ASGI app
-won't actually start; this remains as the legacy single-purpose path.
+`OC_MCP_TRANSPORT=stdio python -m openchronicle.interfaces.mcp`. Note that
+`oc serve` does **not** read `OC_MCP_TRANSPORT` — it always builds the
+unified ASGI app and binds a port, mounting `/mcp` regardless — so the
+module entry point above is the only one that honours the variable.
 Most clients today prefer streamable-http over stdio.
 
 ## Verifying the connection

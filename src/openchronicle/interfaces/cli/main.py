@@ -215,8 +215,8 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     serve_cmd = sub.add_parser("serve", help="Run the unified HTTP + MCP ASGI server")
-    serve_cmd.add_argument("--host", default=None, help="Bind address (default: 0.0.0.0)")
-    serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 18000)")
+    serve_cmd.add_argument("--host", default=None, help="Bind address (default: 127.0.0.1)")
+    serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 8000)")
 
     # --- Parse ---
     args = parser.parse_args(argv)

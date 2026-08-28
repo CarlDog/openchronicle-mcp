@@ -7,6 +7,20 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **Five docs corrected that were wrong about runtime behavior.** Not
+  stale prose — claims a reader would act on and be misled by, the same
+  class as the `db_modified_utc` fix and the systemic theme of this window.
+  `mcp_client_setup.md` told operators that `OC_MCP_TRANSPORT=stdio` plus
+  `oc serve` avoids starting HTTP; `cmd_serve` never reads that variable and
+  `create_app` mounts `/mcp` unconditionally, so the result was a bound port
+  and a live streamable-HTTP endpoint — the opposite of what was promised.
+  `oc serve --help` and `cmd_serve`'s docstring advertised `0.0.0.0:18000`
+  when the effective defaults are `127.0.0.1:8000` (18000 is the host-side
+  port the NAS compose maps onto 8000, never an application default), and
+  `--help` is the surface a user actually reads. `ARCHITECTURE.md` listed
+  `BudgetExceededError`, deleted long ago, and two CLI commands that do not
+  exist in the argparse tree (`oc project ...`, `oc health`). Every
+  correction verified against the code. Found by the first phase-end audit.
 - **`OC_LOG_LEVEL` can no longer crash-loop the container.** `oc serve`
   handed the raw value to `uvicorn.Config`, which indexes its own
   `LOG_LEVELS` dict directly — so `OC_LOG_LEVEL=WARN` (the alias every

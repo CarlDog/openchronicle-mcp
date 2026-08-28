@@ -30,7 +30,7 @@ Pure business types. No imports of `application/` or `infrastructure/`.
 - `models/`: `MemoryItem`, `Project`, `GitCommit` / `CommitCluster`
 - `ports/`: `MemoryStorePort`, `StoragePort`, `EmbeddingPort`
 - `exceptions.py`: `NotFoundError`, `ValidationError`, `ConfigError`,
-  `ProviderError`, `BudgetExceededError`
+  `ProviderError`
 - `errors/error_codes.py`: SCREAMING_SNAKE_CASE error codes
 - `time_utils.py`: `utc_now()`
 
@@ -55,7 +55,7 @@ imports — anything reaching outside the process goes through a port.
   `diagnose_runtime`, `export_memory`, `import_memory`
 - `config/`: runtime path resolution (`paths.py`), embedding settings,
   env-var helpers
-- `models/diagnostics_report.py`: shape returned by `oc health` /
+- `models/diagnostics_report.py`: shape returned by `oc config show` /
   `/api/v1/health`
 
 ### Infrastructure (`src/openchronicle/core/infrastructure/`)
@@ -101,7 +101,9 @@ Driver-side adapters: HTTP, MCP, CLI.
     `context_recent`, `health`, `onboard_git`
 - `cli/`: argparse-based command tree (`oc <command>`)
   - `oc serve` runs the unified ASGI app
-  - `oc memory ...`, `oc project ...`, `oc db ...`, `oc onboard git`,
+  - `oc memory ...`, `oc db ...`, `oc onboard git`,
+    `oc init-project` / `oc list-projects` / `oc show-project` /
+    `oc update-project` / `oc delete-project`,
     `oc maintenance ...`, `oc init`, `oc config show`, `oc version`
 - `serializers.py`: shared dict serializers (project, memory) used by
   both API routes and MCP tools
