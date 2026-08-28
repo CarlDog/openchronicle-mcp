@@ -1,0 +1,524 @@
+{
+  "context_recent": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "title": "Compact",
+        "type": "boolean"
+      },
+      "memory_limit": {
+        "default": 5,
+        "title": "Memory Limit",
+        "type": "integer"
+      },
+      "project_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Project Id"
+      },
+      "query": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Query"
+      }
+    },
+    "title": "context_recentArguments",
+    "type": "object"
+  },
+  "health": {
+    "properties": {},
+    "title": "healthArguments",
+    "type": "object"
+  },
+  "memory_delete": {
+    "properties": {
+      "confirm": {
+        "title": "Confirm",
+        "type": "boolean"
+      },
+      "memory_id": {
+        "title": "Memory Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "memory_id",
+      "confirm"
+    ],
+    "title": "memory_deleteArguments",
+    "type": "object"
+  },
+  "memory_embed": {
+    "properties": {
+      "force": {
+        "default": false,
+        "title": "Force",
+        "type": "boolean"
+      }
+    },
+    "title": "memory_embedArguments",
+    "type": "object"
+  },
+  "memory_get": {
+    "properties": {
+      "memory_id": {
+        "title": "Memory Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "memory_id"
+    ],
+    "title": "memory_getArguments",
+    "type": "object"
+  },
+  "memory_list": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "title": "Compact",
+        "type": "boolean"
+      },
+      "limit": {
+        "anyOf": [
+          {
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Limit"
+      },
+      "offset": {
+        "default": 0,
+        "title": "Offset",
+        "type": "integer"
+      },
+      "pinned_only": {
+        "default": false,
+        "title": "Pinned Only",
+        "type": "boolean"
+      },
+      "project_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Project Id"
+      }
+    },
+    "title": "memory_listArguments",
+    "type": "object"
+  },
+  "memory_pin": {
+    "properties": {
+      "memory_id": {
+        "title": "Memory Id",
+        "type": "string"
+      },
+      "pinned": {
+        "default": true,
+        "title": "Pinned",
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "memory_id"
+    ],
+    "title": "memory_pinArguments",
+    "type": "object"
+  },
+  "memory_save": {
+    "properties": {
+      "content": {
+        "title": "Content",
+        "type": "string"
+      },
+      "created_at": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Created At"
+      },
+      "pinned": {
+        "default": false,
+        "title": "Pinned",
+        "type": "boolean"
+      },
+      "project_id": {
+        "title": "Project Id",
+        "type": "string"
+      },
+      "tags": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tags"
+      }
+    },
+    "required": [
+      "content",
+      "project_id"
+    ],
+    "title": "memory_saveArguments",
+    "type": "object"
+  },
+  "memory_search": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "title": "Compact",
+        "type": "boolean"
+      },
+      "mode": {
+        "default": "hybrid",
+        "title": "Mode",
+        "type": "string"
+      },
+      "offset": {
+        "default": 0,
+        "title": "Offset",
+        "type": "integer"
+      },
+      "phrase": {
+        "default": false,
+        "title": "Phrase",
+        "type": "boolean"
+      },
+      "pinned_limit": {
+        "default": 10,
+        "title": "Pinned Limit",
+        "type": "integer"
+      },
+      "project_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Project Id"
+      },
+      "query": {
+        "title": "Query",
+        "type": "string"
+      },
+      "tags": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tags"
+      },
+      "top_k": {
+        "default": 8,
+        "title": "Top K",
+        "type": "integer"
+      }
+    },
+    "required": [
+      "query"
+    ],
+    "title": "memory_searchArguments",
+    "type": "object"
+  },
+  "memory_stats": {
+    "properties": {
+      "project_id": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Project Id"
+      }
+    },
+    "title": "memory_statsArguments",
+    "type": "object"
+  },
+  "memory_update": {
+    "properties": {
+      "content": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Content"
+      },
+      "memory_id": {
+        "title": "Memory Id",
+        "type": "string"
+      },
+      "tags": {
+        "anyOf": [
+          {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Tags"
+      }
+    },
+    "required": [
+      "memory_id"
+    ],
+    "title": "memory_updateArguments",
+    "type": "object"
+  },
+  "onboard_git": {
+    "properties": {
+      "branch": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Branch"
+      },
+      "force": {
+        "default": false,
+        "title": "Force",
+        "type": "boolean"
+      },
+      "include_commit_detail": {
+        "default": false,
+        "title": "Include Commit Detail",
+        "type": "boolean"
+      },
+      "max_clusters": {
+        "default": 15,
+        "title": "Max Clusters",
+        "type": "integer"
+      },
+      "max_commits": {
+        "default": 500,
+        "title": "Max Commits",
+        "type": "integer"
+      },
+      "max_commits_per_cluster": {
+        "default": 10,
+        "title": "Max Commits Per Cluster",
+        "type": "integer"
+      },
+      "project_id": {
+        "title": "Project Id",
+        "type": "string"
+      },
+      "repo_url": {
+        "title": "Repo Url",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project_id",
+      "repo_url"
+    ],
+    "title": "onboard_gitArguments",
+    "type": "object"
+  },
+  "project_create": {
+    "properties": {
+      "metadata": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Metadata"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "title": "project_createArguments",
+    "type": "object"
+  },
+  "project_delete": {
+    "properties": {
+      "confirm": {
+        "title": "Confirm",
+        "type": "boolean"
+      },
+      "project_id": {
+        "title": "Project Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project_id",
+      "confirm"
+    ],
+    "title": "project_deleteArguments",
+    "type": "object"
+  },
+  "project_delete_bulk": {
+    "properties": {
+      "confirm": {
+        "title": "Confirm",
+        "type": "boolean"
+      },
+      "project_ids": {
+        "items": {
+          "type": "string"
+        },
+        "title": "Project Ids",
+        "type": "array"
+      }
+    },
+    "required": [
+      "project_ids",
+      "confirm"
+    ],
+    "title": "project_delete_bulkArguments",
+    "type": "object"
+  },
+  "project_get": {
+    "properties": {
+      "project_id": {
+        "title": "Project Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project_id"
+    ],
+    "title": "project_getArguments",
+    "type": "object"
+  },
+  "project_list": {
+    "properties": {
+      "compact": {
+        "default": false,
+        "title": "Compact",
+        "type": "boolean"
+      },
+      "name_contains": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Name Contains"
+      }
+    },
+    "title": "project_listArguments",
+    "type": "object"
+  },
+  "project_update": {
+    "properties": {
+      "metadata": {
+        "anyOf": [
+          {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Metadata"
+      },
+      "name": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Name"
+      },
+      "project_id": {
+        "title": "Project Id",
+        "type": "string"
+      }
+    },
+    "required": [
+      "project_id"
+    ],
+    "title": "project_updateArguments",
+    "type": "object"
+  }
+}
