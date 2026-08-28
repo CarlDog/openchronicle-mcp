@@ -44,11 +44,11 @@ Documentation = "https://github.com/CarlDog/openchronicle-mcp/tree/main/docs"
 # vectorized cosine similarity on the read path.
 openai = [
 	"openai>=1.0.0",
-	"numpy>=1.24",
+	"numpy>=2.5.2",
 ]
 ollama = [
 	"httpx>=0.25.0",
-	"numpy>=1.24",
+	"numpy>=2.5.2",
 ]
 mcp = [
 	# Floor 1.29: the version the MCP surface baselines were captured on
@@ -82,7 +82,7 @@ dev = [
 	# older floor here would resolve the MCP baseline tests against a
 	# version they were never captured on.
 	"mcp>=1.29,<2",
-	"numpy>=1.24",
+	"numpy>=2.5.2",
 ]
 
 [tool.pytest.ini_options]
