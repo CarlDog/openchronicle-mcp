@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 100
+**Snapshot date:** 2026-08-28 · **Revision:** 101
 
 ## Current state
 
@@ -103,6 +103,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 101 | 2026-08-28 | Author email in public commit history CLOSED WITH PREJUDICE — accepted, never to be remediated, recorded in `security_posture.md` and in a new AGENTS.md "Phase-end audit checklist" section that instructs future audits to close it on sight rather than re-analyse it. A rewrite cannot retract the address (unreferenced commits stay SHA-retrievable absent a GitHub Support GC; it has been public since 2025-07-15 and is mirrored beyond reach) while certainly destroying ~1,700 SHAs, the `archive/*` frozen guarantee, and every SHA reference in our own docs and memories. The pre-commit identity hook prevents recurrence and is verified working. Also closes the audit's own finding that this repo carried no project-specific audit checklist |
 | 100 | 2026-08-28 | Phase-end audit: `_get_container` extracted from all five MCP tool modules into `tools/_context.py`. One line each, so the duplication was cheap — but it encoded the lifespan's `"container"` key five times, and a contract repeated five times drifts the day four copies get updated. The key is now a named constant pinned against `server.py` by a test. 675 → 676 tests |
 | 99 | 2026-08-28 | Phase-end audit batch (CI + secret-scanning hygiene): PII scanning now has a CI backstop instead of living only in the bypassable pre-commit hook — generic patterns, masked findings, and positive/negative controls including `users.noreply.github.com`. The one historical gitleaks hit is allowlisted by full SHA after verification (a `REDACT…` placeholder in a test file absent from HEAD), so a full-history sweep now reports clean and a future hit means something. `v3/develop` dropped as a CI trigger (121 behind `main`, 0 ahead, dead since 2026-05-05) and SECURITY.md stops describing the cutover as future; `.codex/**` and `uv.lock` added to `paths-ignore`. 666 → 675 tests |
 | 98 | 2026-08-28 | Phase-end audit batch: `oc config show` survives the config being broken — the command an operator runs *because* core.json is wrong was the one with no error wrapper, since pre-container commands bypass `_build_container`'s. A non-UTF-8 core.json escaped as a raw `UnicodeDecodeError` (the read sat inside the try but only the parse was caught), and an existing-but-empty file reported "not found" because loaded-ness was inferred from truthiness. Plus six doc corrections verified against code: STABILITY.md's frozen version string, an auth-exemption list that named 2 of 5 paths (including the path-disclosing `/api/v1/health`), a git-token docstring contradicting its own helper, undocumented `allowed_hosts` on both config sections, v2 "model configs" in compose, and a 3.11 issue template against a 3.14 floor. 659 → 666 tests |

@@ -166,6 +166,47 @@ Hardened 2026-07-30 (the review-driven CI batch):
   Ingest backpressure (V3_PLAN open question 17) is on the backlog
   but not implemented.
 
+## Author email in commit metadata — CLOSED, do not re-raise
+
+**Decided 2026-08-28. This is settled. It is not an open item, not a
+backlog entry, and not an audit finding. Do not surface it again.**
+
+540 of 779 commits reachable from `main` carry a personal-domain email in
+their author and/or committer fields, spanning 2025-07-15 to 2026-07-07,
+on a public repository. A further 162 entries carry a corporate domain.
+This is accurate and was verified directly against `git log`.
+
+**It will not be remediated.** The reasoning, recorded once so it never
+needs re-deriving:
+
+- **A force-push does not remove it.** Rewritten-away commits become
+  unreferenced, not deleted, and stay retrievable at
+  `/commit/<old-sha>` indefinitely. Every affected SHA is written down in
+  this repo's own CHANGELOG, status doc, and OC memories. Actually
+  deleting them needs a manual GitHub Support garbage-collection request.
+- **It would not retract the past regardless.** The address has been
+  public since 2025-07-15, GitHub associates it with the account
+  independently of any commit, and forks, mirrors, and the commit-search
+  index are all outside our reach.
+- **The cost is severe and certain.** ~1,700 commits across five refs;
+  every SHA reference in our docs and memories invalidated; the
+  "frozen at `bb217d9`" guarantee that is the entire purpose of the
+  `archive/*` branches broken; the deployed container's
+  `org.opencontainers.image.revision` provenance orphaned; every clone
+  re-cloned.
+
+A large, irreversible, self-inflicted breakage that does not solve the
+problem is not a fix. **Accepted as-is.**
+
+### What actually protects us, and is already working
+
+The pre-commit author-identity check (`.githooks/check-identity-and-pii.sh`,
+added 2026-05-01) blocks any commit whose configured author matches a
+personal-domain pattern, and `test_no_secrets_committed.py` backstops the
+PII half in CI where a local hook can be bypassed. Both verified green
+across every commit made on 2026-08-28. Nothing new is accumulating —
+that is the part that matters, and it is handled.
+
 ## Incident response
 
 - DB corruption: the maintenance loop's `db_integrity_check` job

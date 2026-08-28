@@ -52,6 +52,36 @@ enforces parity.
   written at 14:47Z still read `db_modified_utc` 05:26Z a minute later.
   It is a checkpoint clock, not a liveness or freshness signal.
 
+## Phase-end audit checklist
+
+Project-specific additions to the standard phase-end audit. The generic
+checklist lives in the fleet rules; this section records what *this* repo
+does differently.
+
+### Permanently closed — do NOT re-raise
+
+- **Author email in commit history.** 540 of 779 public commits carry a
+  personal-domain email. **Decided 2026-08-28: accepted, never to be
+  remediated.** A history rewrite cannot retract it (unreferenced commits
+  stay retrievable by SHA without a manual GitHub Support GC request; the
+  address has been public since 2025-07-15 and is mirrored beyond our
+  reach) while certainly destroying ~1,700 commit SHAs, the
+  `archive/*` frozen-branch guarantee, and every SHA reference in our own
+  docs and OC memories. Full reasoning:
+  [security_posture.md](configuration/security_posture.md).
+  The pre-commit identity hook prevents recurrence and is verified
+  working. **If an audit surfaces this, the correct action is to close it
+  citing this entry — not to re-analyse it, not to ask the operator
+  again.**
+
+### Cadence relaxations
+
+- The **author-identity audit** (`git log --all --pretty='%ae' | sort -u`)
+  is retired as a finding-producing check per the above. Run it if you
+  like; the only actionable outcome is a *new* non-noreply identity
+  appearing after 2026-08-28, which would mean the hook is not installed
+  on some machine.
+
 ## Current Sprint
 
 **2026-08-28 — comparative repository-review closeout.** Three
