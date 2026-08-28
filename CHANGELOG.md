@@ -7,6 +7,17 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`oc config show` survives the config being broken.** It is the command
+  an operator runs *because* core.json is wrong, and it was the one command
+  with no error handling: pre-container commands bypass `_build_container`,
+  and its `try/except` with them. Three compounding defects — a non-UTF-8
+  core.json escaped as a raw `UnicodeDecodeError` (the file read sits inside
+  the same `try` as the parse, but only `JSONDecodeError` was caught, losing
+  the filename `ConfigLoadError` exists to attach); malformed JSON produced a
+  traceback rather than an exit code; and an existing-but-empty core.json
+  reported as "not found", sending the operator to look for a missing file
+  instead of an empty one. All three reproduced before the fix and verified
+  after. 659 → 666 tests.
 - **Two conventions promoted from prose to enforcement.** The agent
   instructions say to use `utc_now()` rather than an inline
   `datetime.now(UTC)`; seven sites across six files had drifted past it.

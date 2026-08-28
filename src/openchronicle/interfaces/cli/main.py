@@ -225,9 +225,17 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 0
 
-    # Pre-container commands (no CoreContainer needed)
+    # Pre-container commands (no CoreContainer needed). These skip
+    # _build_container and therefore used to skip its error handling too —
+    # so `oc config show`, the diagnostic for a broken config, answered a
+    # malformed core.json with a raw traceback. Same catch as
+    # _build_container: an operator gets a message and an exit code.
     if args.command in PRE_CONTAINER_COMMANDS:
-        return PRE_CONTAINER_COMMANDS[args.command](args)
+        try:
+            return PRE_CONTAINER_COMMANDS[args.command](args)
+        except Exception as exc:  # noqa: BLE001
+            print(str(exc))
+            return 1
 
     container = _build_container(args)
     if container is None:

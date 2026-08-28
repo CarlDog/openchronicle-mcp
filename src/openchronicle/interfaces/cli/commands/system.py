@@ -65,7 +65,10 @@ def cmd_config_show(args: argparse.Namespace) -> int:
 
     config_path = Path(rt.config_dir)
     file_configs = load_config_files(config_path) if config_path.exists() else {}
-    core_loaded = bool(file_configs)
+    # Existence, not truthiness: an empty-but-present core.json is a real
+    # file the operator wrote, and reporting it as "not found" sends them
+    # looking for a missing file instead of an empty one.
+    core_loaded = (config_path / "core.json").is_file()
 
     masked_env: dict[str, str] = {}
     for key in sorted(os.environ):
