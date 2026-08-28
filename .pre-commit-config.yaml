@@ -78,12 +78,12 @@ repos:
         name: Check for large files
         args: [--maxkb=1000]
 
-  # Tests - Pytest (no integration)
+  # Tests - Pytest
   - repo: local
     hooks:
-      - id: pytest-no-integration
-        name: Pytest (no integration)
-        entry: bash -c 'if [ -f .venv/Scripts/python.exe ]; then .venv/Scripts/python.exe -m pytest -m "not integration"; elif [ -f .venv/bin/python ]; then .venv/bin/python -m pytest -m "not integration"; else python -m pytest -m "not integration"; fi'
+      - id: pytest
+        name: Pytest
+        entry: bash -c 'if [ -f .venv/Scripts/python.exe ]; then .venv/Scripts/python.exe -m pytest; elif [ -f .venv/bin/python ]; then .venv/bin/python -m pytest; else python -m pytest; fi'
         language: system
         pass_filenames: false
 

@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from openchronicle.core.application.config.env_helpers import parse_csv_tags  # noqa: F401
+from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
     add_memory,
     delete_memory,

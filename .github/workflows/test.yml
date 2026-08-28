@@ -68,11 +68,11 @@ jobs:
       - name: Install dependencies
         run: pip install -e ".[dev,mcp,openai,ollama]"
 
-      - name: Test (no integration)
+      - name: Test
         # Integration tests require live provider keys and the
         # `integration` marker; CI validates unit + functional only.
         # -v gives per-test names so a hang surfaces which test died.
-        run: pytest -m "not integration" -v
+        run: pytest -v
 
   quality:
     name: lint + format + types
