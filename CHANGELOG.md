@@ -7,6 +7,29 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **PII scanning gets a CI backstop.** The home-path and personal-email
+  checks existed only in the pre-commit hook, which is bypassable by design
+  — `--no-verify`, an unset `core.hooksPath`, a fresh clone before the
+  installer runs, a push from another machine. Now enforced in CI too, with
+  the patterns kept generic (the file is public, so baking in a real name
+  would leak what it guards) and findings **masked** in the failure message,
+  since a test that prints the PII it caught into a public log defeats
+  itself. Positive and negative controls ship with it — the negatives matter
+  more, because a pattern that also flagged `users.noreply.github.com` or
+  `/data/...` would fail on every commit and be deleted within a day.
+
+  The repo's one historical gitleaks hit is now allowlisted by full SHA,
+  after being identified rather than assumed: `generic-api-key` in a test
+  file absent from HEAD, whose "secret" gitleaks itself renders as
+  `REDACT…` — a placeholder. A full-history sweep now reports clean, so the
+  next hit means something instead of being the standing one everyone
+  learned to ignore.
+
+  Also: `v3/develop` is no longer a CI trigger (121 commits behind `main`,
+  none ahead, untouched since 2026-05-05) and SECURITY.md stops describing
+  the v3 cutover as a future event; `.codex/**` and `uv.lock` join
+  `paths-ignore`, both tracked and both exactly the docs/tooling commits the
+  list exists to keep from rebuilding the image.
 - **`oc config show` survives the config being broken.** It is the command
   an operator runs *because* core.json is wrong, and it was the one command
   with no error handling: pre-container commands bypass `_build_container`,

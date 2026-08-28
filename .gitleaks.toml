@@ -22,3 +22,14 @@ useDefault = true
     '''sk-(test|secret|fake|file)-key-\d+''',
     '''default_api_key''',
   ]
+
+  # One historical false positive, verified 2026-08-28. A full-history
+  # `gitleaks detect` reports exactly one hit: rule `generic-api-key` in
+  # tests/test_diagnose.py at commit 3dfc8346d5a4 (2026-01-13). The file is
+  # absent from HEAD, and gitleaks' own redacted output shows the "secret"
+  # begins with REDACT — it was already a placeholder in a test fixture.
+  # Allowlisted by commit so the periodic history sweep stays actionable:
+  # an unexplained standing hit trains the reader to ignore the result.
+  commits = [
+    "3dfc8346d5a4508bd21aae1b4b35dbf8878ee188",
+  ]

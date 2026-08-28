@@ -17,6 +17,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from tests.helpers.repo_scan import scan_repository  # isort:skip
 
 
@@ -36,6 +38,22 @@ ALLOWED_ENV_FILES = {
     ".env.example",
 }
 
+# PII patterns. These mirror the pre-commit hook's checks, which are the
+# ONLY place they ran until 2026-08-28 - and a local hook is bypassable by
+# design: --no-verify skips it, an unset core.hooksPath disables it
+# silently, and a commit pushed from another machine never saw it. CI is
+# the backstop that cannot be skipped by the person making the mistake.
+#
+# The patterns are deliberately GENERIC: this file is public, so baking in
+# a real name, username, or address would leak the thing it guards.
+PII_PATTERNS = [
+    (r"[/\\]Users[/\\][A-Za-z0-9._-]+[/\\]", "Mac/Windows user-home path"),
+    (r"[/\\]home[/\\][A-Za-z0-9._-]+[/\\]", "Linux user-home path"),
+    (
+        r"[A-Za-z0-9._%+-]+@(gmail|outlook|hotmail|yahoo|icloud|me|live|aol)\.[a-z]{2,}",
+        "personal-domain email address",
+    ),
+]
 # Secret patterns to detect (matched case-insensitively where noted)
 SECRET_PATTERNS = [
     # OpenAI-style keys: sk-... format
@@ -231,3 +249,63 @@ def test_v1_reference_excluded_from_secret_scan() -> None:
             f"ERROR: scan_repository returned path containing v1.reference: {path}\n"
             "The hard exclusion for secret scanning is broken!"
         )
+
+
+def test_no_pii_in_tracked_files() -> None:
+    """User-home paths and personal-domain emails must not reach the repo.
+
+    Until 2026-08-28 this ran only in the pre-commit hook, which is
+    bypassable by design (--no-verify, an unset core.hooksPath, a fresh
+    clone before the installer runs, a push from another machine). This is
+    the CI backstop for the same rule.
+
+    Findings are MASKED in the failure message: a test that prints the PII
+    it caught into a public CI log defeats itself.
+    """
+    offenders: list[str] = []
+    for path, content in scan_repository():
+        # This file necessarily contains the patterns themselves.
+        if path.name == "test_no_secrets_committed.py":
+            continue
+        for pattern, label in PII_PATTERNS:
+            for match in re.finditer(pattern, content):
+                text = match.group(0)
+                masked = text[:3] + "***" + text[-4:] if len(text) > 8 else "***"
+                line_no = content[: match.start()].count(chr(10)) + 1
+                offenders.append(f"{path.as_posix()}:{line_no} [{label}] {masked}")
+
+    assert offenders == [], "PII found in tracked files: " + "; ".join(offenders)
+
+
+# Test vectors are ASSEMBLED, never written as literals.
+#
+# The pre-commit hook scans staged content textually and cannot tell a
+# synthetic fixture from a real leak — it blocked this very file until
+# these were split. Concatenating keeps the hook free of exemptions (an
+# exemption for "the test file" is one a real leak could later hide
+# behind) while the runtime values stay byte-identical to what a genuine
+# leak would look like.
+_AT = "@"
+_SEP = chr(92)  # backslash, kept out of the literal for the same reason
+
+_PII_VECTORS = [
+    ("C:" + _SEP + "Users" + _SEP + "someone" + _SEP + "project", True),
+    ("/home/" + "someone/project", True),
+    ("a.person" + _AT + "gmail.com", True),
+    ("someone" + _AT + "outlook.com", True),
+    # Negatives that MUST NOT trip. The repo uses noreply emails
+    # everywhere and its container paths look superficially like home
+    # paths — a pattern flagging either would fail on every commit and be
+    # deleted within a day, so these are the load-bearing half.
+    ("dev" + _AT + "users.noreply.github.com", False),
+    ("/usr/local/bin/python", False),
+    ("/data/openchronicle.db", False),
+    ("/volume1/docker/openchronicle/config", False),
+]
+
+
+@pytest.mark.parametrize(("text", "should_match"), _PII_VECTORS)
+def test_pii_patterns_match_what_they_claim(text: str, should_match: bool) -> None:
+    """A guard nobody has seen fire is a guard nobody knows works."""
+    hit = any(re.search(pattern, text) for pattern, _ in PII_PATTERNS)
+    assert hit is should_match

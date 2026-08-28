@@ -2,7 +2,7 @@ name: Test
 
 on:
   push:
-    branches: [main, v3/develop]
+    branches: [main]
     tags: ["v*"]
     # Changes that can't affect the image, tests, or lint (build context
     # is just the app source + Dockerfile). Skipping them avoids both
@@ -23,10 +23,12 @@ on:
       - ".githooks/**"
       - ".github/dependabot.yml"
       - ".github/FUNDING.yml"
+      - ".codex/**"
+      - "uv.lock"
       - ".github/workflows/gitleaks.yml"
       - ".github/workflows/retag-image.yml"
   pull_request:
-    branches: [main, v3/develop]
+    branches: [main]
 
 # Two rapid pushes to main otherwise run build-and-push concurrently,
 # and whichever finishes LAST owns :latest — possibly the older commit.
