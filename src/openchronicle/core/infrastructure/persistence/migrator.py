@@ -29,11 +29,11 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
-from datetime import UTC, datetime
 from pathlib import Path
 
 from openchronicle.core.domain.errors.error_codes import CONFIG_ERROR
 from openchronicle.core.domain.exceptions import ConfigError
+from openchronicle.core.domain.time_utils import utc_now
 
 _logger = logging.getLogger(__name__)
 
@@ -111,7 +111,7 @@ def apply_pending(
                 conn.execute(stmt)
             conn.execute(
                 "INSERT INTO schema_version (version, applied_at) VALUES (?, ?)",
-                (version, datetime.now(UTC).isoformat()),
+                (version, utc_now().isoformat()),
             )
             conn.execute(f"RELEASE SAVEPOINT {savepoint}")
         except Exception as exc:

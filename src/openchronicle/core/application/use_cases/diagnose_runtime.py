@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
+from openchronicle.core.domain.time_utils import utc_now
 from openchronicle.version import package_version
 
 if TYPE_CHECKING:
@@ -70,7 +71,7 @@ def execute() -> DiagnosticsReport:
     persistence_hint = _infer_persistence_hint(db_path, running_in_container_hint)
 
     return DiagnosticsReport(
-        timestamp_utc=datetime.now(UTC),
+        timestamp_utc=utc_now(),
         db_path=db_path,
         db_exists=db_exists,
         db_size_bytes=db_size_bytes,

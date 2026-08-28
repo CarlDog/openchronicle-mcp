@@ -17,12 +17,13 @@ import tempfile
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.time_utils import utc_now
 
 _logger = logging.getLogger(__name__)
 
@@ -498,7 +499,7 @@ def extract_commits_from_git(
         try:
             date = datetime.fromisoformat(date_str)
         except ValueError:
-            date = datetime.now(UTC)
+            date = utc_now()
 
         # Parse numstat lines
         files_changed = []

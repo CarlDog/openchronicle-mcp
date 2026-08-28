@@ -7,6 +7,21 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **Two conventions promoted from prose to enforcement.** The agent
+  instructions say to use `utc_now()` rather than an inline
+  `datetime.now(UTC)`; seven sites across six files had drifted past it.
+  All now route through the helper, and an AST-based guard fails if a new
+  one appears — AST rather than text matching, because the text version
+  flagged a *comment* that merely mentions the call, and a guard that cries
+  wolf gets deleted. This is not only style: a naked clock read is what
+  makes time un-fakeable in a test.
+
+  Separately, `scan_repository()` now refuses to return a corpus smaller
+  than 50 files. Eight zero-tolerance tests iterate it and assert nothing
+  matches their forbidden pattern, so a scan returning nothing turned all
+  eight green while checking nothing — and the realistic trigger, the repo
+  root resolving somewhere unexpected, is silent by construction. The real
+  corpus is 197 files, so the floor only ever catches a broken scan.
 - **The content cap is enforced in one place instead of four.** The
   100,000-character limit lived as hardcoded literals in two driver files
   and nowhere in between: MCP hand-rolled the check twice, the REST routes

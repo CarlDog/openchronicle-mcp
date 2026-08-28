@@ -9,6 +9,7 @@ from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
+from openchronicle.core.domain.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -237,10 +238,8 @@ class EmbeddingService:
                 )
                 self._search_failure_count = 0
         except Exception as exc:
-            from datetime import UTC, datetime
-
             self._search_failure_count += 1
-            self._last_failure_at = datetime.now(UTC).isoformat()
+            self._last_failure_at = utc_now().isoformat()
             logger.warning(
                 "embedding search failed (%d total); degrading to FTS5-only: %s",
                 self._search_failure_count,

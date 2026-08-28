@@ -26,6 +26,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from openchronicle.core.domain.time_utils import utc_now
+
 if TYPE_CHECKING:
     from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
@@ -79,7 +81,7 @@ async def db_backup(container: CoreContainer) -> None:
     finding from the 2026-05-06 cutover.
     """
     directory = _auto_backup_dir(container)
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+    timestamp = utc_now().strftime("%Y%m%dT%H%M%S%fZ")
     dest = directory / f"openchronicle-{timestamp}.db"
 
     # The stdlib backup API blocks; run on a worker thread so the

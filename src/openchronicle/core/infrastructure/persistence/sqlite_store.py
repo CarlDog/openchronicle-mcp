@@ -14,7 +14,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Concatenate, Literal
 
@@ -24,6 +24,7 @@ from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
+from openchronicle.core.domain.time_utils import utc_now
 from openchronicle.core.infrastructure.persistence import migrator
 from openchronicle.core.infrastructure.persistence.backup import backup_from_connection
 from openchronicle.core.infrastructure.persistence.row_mappers import (
@@ -420,7 +421,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         content: str | None = None,
         tags: list[str] | None = None,
     ) -> MemoryItem:
-        now_iso = datetime.now(UTC).isoformat()
+        now_iso = utc_now().isoformat()
         cur = self._conn.cursor()
         set_clauses: list[str] = ["updated_at = ?"]
         params: list[Any] = [now_iso]
@@ -477,7 +478,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
                 dimensions = excluded.dimensions,
                 generated_at = excluded.generated_at
             """,
-            (memory_id, blob, model, len(embedding), datetime.now(UTC).isoformat()),
+            (memory_id, blob, model, len(embedding), utc_now().isoformat()),
         )
         self._commit_if_needed()
 
