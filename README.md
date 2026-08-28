@@ -153,4 +153,16 @@ The architecture is enforced by tests:
 
 ## License
 
-[AGPL-3.0](LICENSE).
+Copyright (C) 2025-2026 CarlDog
+
+[AGPL-3.0](LICENSE). This program is free software: you can redistribute
+it and/or modify it under the terms of the GNU Affero General Public
+License as published by the Free Software Foundation, either version 3
+of the License, or (at your option) any later version. It is distributed
+WITHOUT ANY WARRANTY; see the license for details.
+
+The copyright line lives here rather than inside `LICENSE`: that file is
+the AGPL text verbatim, and the `<year> <name of author>` placeholders in
+its closing appendix are the license's own *instructions* for what to put
+in your source files — not blanks to fill in. Editing them would modify
+the license text itself.
