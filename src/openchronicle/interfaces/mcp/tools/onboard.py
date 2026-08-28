@@ -81,6 +81,11 @@ def register(mcp: FastMCP) -> None:
             branch: Branch/ref to walk (default: the remote's default branch).
         """
         max_commits_per_cluster = min(max(max_commits_per_cluster, 1), 100)
+        # Same treatment as its neighbour above, which was clamped while this
+        # one was not. cluster_commits now floors it too; clamping here as well
+        # keeps the tool's contract honest at the boundary rather than relying
+        # on a downstream guard to paper over a value we accepted.
+        max_clusters = max(1, max_clusters)
         container = _get_container(ctx)
         return await asyncio.to_thread(
             _onboard_git_sync,

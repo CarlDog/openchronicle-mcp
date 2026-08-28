@@ -7,6 +7,17 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`cluster_commits` no longer hangs forever on a non-positive cap.** With
+  `max_clusters <= 0` the merge loop never terminated: once the list was down
+  to one entry, `smallest_idx` was 0, the `len(merged) > 1` arm was false, so
+  `merge_into` was 0 too — the pop was skipped, nothing changed, and `1 > 0`
+  kept it spinning. This was reachable from outside: the `onboard_git` MCP
+  tool passed `max_clusters` through unbounded while clamping its immediate
+  neighbour `max_commits_per_cluster` one line above, and
+  `oc onboard git --max-memories` had no bound either. An agent passing 0
+  would wedge an MCP worker thread permanently. Now floored at both the tool
+  boundary and inside the algorithm; a nonsensical cap degrades to one
+  cluster rather than failing the run. 676 → 678 tests.
 - **Ollama Cloud recorded as trigger-gated research, not a rejection.**
   Investigated against the live API 2026-08-28: it hosts 19 models, none
   advertising the `embedding` capability, and every known embedding model

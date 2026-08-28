@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 102
+**Snapshot date:** 2026-08-28 · **Revision:** 103
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 676 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 678 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -106,6 +106,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 103 | 2026-08-28 | Fixed a remotely-reachable infinite loop in `cluster_commits`: a `max_clusters` of 0 or less never terminated, because once the merge list reached one entry `merge_into == smallest_idx`, nothing was popped, and the condition stayed true with no state changing. The `onboard_git` MCP tool accepted the value unbounded — its neighbour `max_commits_per_cluster` was clamped, this one was not — so an agent passing 0 would wedge a worker thread permanently. Clamped at both the boundary and the algorithm. Found while ASSESSING the file for a split, not by splitting it. 676 → 678 tests |
 | 102 | 2026-08-28 | NAS redeployed to image `4710caf`, bringing the empty-string path-env fix and the content-cap unification live; runtime is back in sync with main. Ollama Cloud recorded in V3_PLAN as **trigger-gated recurring research, not rejected** — a viable host that today lists zero embedding models, with the 19-model baseline captured so a future check is a diff, a key-free public re-check command, and the adopt-work pre-scoped (one Bearer header) for when the trigger fires |
 | 101 | 2026-08-28 | Author email in public commit history CLOSED WITH PREJUDICE — accepted, never to be remediated, recorded in `security_posture.md` and in a new AGENTS.md "Phase-end audit checklist" section that instructs future audits to close it on sight rather than re-analyse it. A rewrite cannot retract the address (unreferenced commits stay SHA-retrievable absent a GitHub Support GC; it has been public since 2025-07-15 and is mirrored beyond reach) while certainly destroying ~1,700 SHAs, the `archive/*` frozen guarantee, and every SHA reference in our own docs and memories. The pre-commit identity hook prevents recurrence and is verified working. Also closes the audit's own finding that this repo carried no project-specific audit checklist |
 | 100 | 2026-08-28 | Phase-end audit: `_get_container` extracted from all five MCP tool modules into `tools/_context.py`. One line each, so the duplication was cheap — but it encoded the lifespan's `"container"` key five times, and a contract repeated five times drifts the day four copies get updated. The key is now a named constant pinned against `server.py` by a test. 675 → 676 tests |

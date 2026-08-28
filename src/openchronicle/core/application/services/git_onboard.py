@@ -94,7 +94,19 @@ def cluster_commits(
         else:
             merged.append(group)
 
-    # Cap total: merge smallest into nearest temporal neighbor
+    # Cap total: merge smallest into nearest temporal neighbor.
+    #
+    # The floor of 1 is load-bearing, not defensive tidying. Without it a
+    # caller passing max_clusters <= 0 hangs forever: once `merged` is down
+    # to a single entry, `smallest_idx` is 0, the `len(merged) > 1` arm is
+    # false, so `merge_into` is also 0 — the `if` below is skipped, nothing
+    # is popped, and `1 > 0` keeps the loop alive with no state changing.
+    # `max_clusters` reaches here unbounded from the `onboard_git` MCP tool
+    # and from `oc onboard git --max-memories`, so this was remotely
+    # reachable: an agent passing 0 would wedge a worker thread permanently.
+    # Clamping beats raising — the value is a cap, and one nonsensical cap
+    # should degrade to "one cluster", not fail an onboarding run.
+    max_clusters = max(1, max_clusters)
     while len(merged) > max_clusters:
         # Find smallest cluster
         smallest_idx = min(range(len(merged)), key=lambda i: len(merged[i]))

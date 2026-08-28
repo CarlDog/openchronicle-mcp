@@ -9,6 +9,7 @@ these stay fast and git-free.
 
 from __future__ import annotations
 
+import threading
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -26,7 +27,7 @@ from openchronicle.core.application.services.git_onboard import (
     extract_commits_from_url,
     filter_commits,
 )
-from openchronicle.core.domain.models.git_commit import GitCommit
+from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 
 _SEP = "---GIT_ONBOARD_SEP---"
 _FSEP = "---GIT_ONBOARD_FIELD---"
@@ -116,6 +117,50 @@ def test_cluster_respects_max_clusters_cap() -> None:
     assert len(clusters) <= 3
     # No commits dropped by the cap-merge loop.
     assert sum(len(c.commits) for c in clusters) == 6
+
+
+@pytest.mark.parametrize("max_clusters", [0, -1])
+def test_non_positive_max_clusters_terminates(max_clusters: int) -> None:
+    """A cap of 0 or less used to hang forever, not raise.
+
+    Once the merge loop reduced `merged` to one entry, `smallest_idx` was 0
+    and the `len(merged) > 1` arm was false, so `merge_into` was also 0 —
+    the pop was skipped, no state changed, and `1 > 0` kept the loop alive.
+
+    It was reachable from outside: the `onboard_git` MCP tool accepted
+    `max_clusters` unbounded (its neighbour `max_commits_per_cluster` was
+    clamped, this one was not), as did `oc onboard git --max-memories`. An
+    agent passing 0 would wedge a worker thread permanently.
+
+    Clamped rather than rejected: the value is a cap, and one nonsensical
+    cap should degrade to a single cluster, not fail the onboarding run.
+    """
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    commits = [
+        _commit(f"c{i}", hash=str(i), when=base + timedelta(hours=200 * i), files=[f"f{i}.py"]) for i in range(4)
+    ]
+
+    # Run in a worker with a join timeout rather than calling directly: if the
+    # guard is ever removed, this fails in seconds with a clear message instead
+    # of hanging the whole suite, which is how a regression here would present.
+    #
+    # Kept to two cases with a short join deliberately. A regression leaves the
+    # daemon spinning in a tight Python loop, and several of those starve the
+    # GIL badly enough to bury the very assertion message this exists to show —
+    # measured, not guessed. Two cases cover the branch (zero and negative);
+    # more would only make the failure harder to read.
+    result: list[list[CommitCluster]] = []
+    worker = threading.Thread(target=lambda: result.append(cluster_commits(commits, max_clusters=max_clusters)))
+    worker.daemon = True
+    worker.start()
+    worker.join(timeout=5.0)
+
+    assert not worker.is_alive(), f"cluster_commits did not terminate for max_clusters={max_clusters}"
+    assert len(result) == 1
+    clusters = result[0]
+
+    assert len(clusters) == 1, "a non-positive cap floors to one cluster"
+    assert sum(len(c.commits) for c in clusters) == 4, "no commit may be dropped"
 
 
 def test_generate_label_from_paths_and_subject_type() -> None:
