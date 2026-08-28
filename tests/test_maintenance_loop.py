@@ -167,7 +167,8 @@ def test_load_jobs_falls_back_to_defaults_on_empty_config() -> None:
     assert "embedding_backfill" in names
 
 
-def test_load_jobs_drops_unknown_names_silently() -> None:
+def test_load_jobs_drops_unknown_names() -> None:
+    """An unknown name is skipped; the known ones still merge onto the defaults."""
     config = {
         "maintenance": {
             "jobs": [
@@ -177,8 +178,79 @@ def test_load_jobs_drops_unknown_names_silently() -> None:
         }
     }
     jobs = maintenance_loop.load_jobs(file_config=config)
-    assert len(jobs) == 1
-    assert jobs[0].name == "db_vacuum"
+    names = [j.name for j in jobs]
+    assert "totally_made_up" not in names
+    assert names == [d["name"] for d in maintenance_loop._DEFAULT_JOBS]
+    assert {j.name: j.interval_seconds for j in jobs}["db_vacuum"] == 60
+
+
+def test_load_jobs_merges_onto_defaults_instead_of_replacing() -> None:
+    """The whole point: tuning one job must not silently delete the others.
+
+    Before this merged, a config naming only db_backup left the store with
+    no vacuum, no integrity check and no embedding backfill — no warning,
+    because the loop only ever warned about *unknown* names.
+    """
+    config = {"maintenance": {"jobs": [{"name": "db_backup", "interval_seconds": 43200}]}}
+    jobs = {j.name: j for j in maintenance_loop.load_jobs(file_config=config)}
+
+    assert jobs["db_backup"].interval_seconds == 43200, "the override must apply"
+    # Every unmentioned job survives, at its default interval.
+    for default in maintenance_loop._DEFAULT_JOBS:
+        name = default["name"]
+        assert name in jobs, f"{name} was dropped by a config that never mentioned it"
+        if name != "db_backup":
+            assert jobs[name].interval_seconds == default["interval_seconds"]
+            assert jobs[name].enabled == default["enabled"]
+
+
+def test_load_jobs_omission_does_not_disable() -> None:
+    """Omitting a job inherits its default; only `enabled: false` turns one off."""
+    config = {"maintenance": {"jobs": [{"name": "db_vacuum", "enabled": False}]}}
+    jobs = {j.name: j for j in maintenance_loop.load_jobs(file_config=config)}
+
+    assert jobs["db_vacuum"].enabled is False, "explicit false must disable"
+    assert jobs["db_backup"].enabled is True, "omission must NOT disable"
+    # An omitted job with a non-default `enabled` keeps its own default,
+    # not a blanket True — git_onboard_resync ships off.
+    assert jobs["git_onboard_resync"].enabled is False
+
+
+def test_load_jobs_partial_entry_inherits_unspecified_fields() -> None:
+    """A config entry may override one field without restating the rest."""
+    config = {"maintenance": {"jobs": [{"name": "git_onboard_resync", "enabled": True}]}}
+    jobs = {j.name: j for j in maintenance_loop.load_jobs(file_config=config)}
+
+    default = next(d for d in maintenance_loop._DEFAULT_JOBS if d["name"] == "git_onboard_resync")
+    assert jobs["git_onboard_resync"].enabled is True
+    assert jobs["git_onboard_resync"].interval_seconds == default["interval_seconds"]
+
+
+@pytest.mark.parametrize(
+    "named",
+    [
+        pytest.param("all-reversed", id="all-reversed"),
+        pytest.param("one-late-job", id="partial-override"),
+    ],
+)
+def test_load_jobs_ordering_follows_defaults_not_the_file(named: str) -> None:
+    """Status output must be stable however the operator arranged their JSON.
+
+    The partial case is the one that matters: overriding a single job that
+    sits late in the defaults must not float it to the front. An
+    all-overridden config cannot catch that — every entry is present, so a
+    reordering bug is invisible under a stable sort.
+    """
+    defaults = maintenance_loop._DEFAULT_JOBS
+    if named == "all-reversed":
+        entries = [{"name": d["name"]} for d in reversed(defaults)]
+    else:
+        # db_backup is 4th of 5 — a mutation that groups configured jobs
+        # first would move it, and nothing else would.
+        entries = [{"name": "db_backup", "interval_seconds": 43200}]
+
+    jobs = maintenance_loop.load_jobs(file_config={"maintenance": {"jobs": entries}})
+    assert [j.name for j in jobs] == [d["name"] for d in defaults]
 
 
 # ─── job handler tests ───────────────────────────────────────────────

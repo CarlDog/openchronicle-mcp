@@ -78,8 +78,11 @@ older clients pinning `:8080`.
 
 ### `maintenance`
 
-Maintenance loop schedule. Unknown job names are skipped with a warning.
-See `docs/architecture/MAINTENANCE.md`.
+Maintenance loop schedule. The `jobs` list **merges onto the built-in
+defaults** — an entry overrides the matching default by name, and any job
+it omits keeps its default rather than being dropped. Omitting a job does
+not disable it; set `"enabled": false` explicitly. Unknown job names are
+skipped with a warning. See `docs/architecture/MAINTENANCE.md`.
 
 ## See also
 

@@ -364,26 +364,47 @@ def is_disabled() -> bool:
 
 
 def load_jobs(file_config: dict[str, Any] | None = None) -> list[JobState]:
-    """Build JobState list from core.json's `maintenance.jobs` entry.
+    """Build JobState list by MERGING core.json's `maintenance.jobs` onto the defaults.
 
-    Falls back to ``_DEFAULT_JOBS`` when no config is supplied. Unknown
-    job names in config are silently dropped (safer than crashing on
-    typos in a hand-edited file).
+    A config entry overrides the matching default **by name**; every job
+    it does not mention keeps its default. Omitting a job therefore does
+    NOT disable it — set ``"enabled": false`` explicitly, which is how the
+    shipped example already expresses "off" for ``git_onboard_resync``.
+
+    This used to be a total replacement, and that silently cost the
+    operator jobs twice over. Tuning one interval meant hand-copying every
+    other job or losing it — including ``db_backup``. Worse, the entrypoint
+    seeds ``/config`` from ``core.json.example`` with ``cp -rn``, so a
+    stale seeded file would have dropped every job added in any future
+    release, with no warning: the loop only ever warned about *unknown*
+    names, never missing ones. Merging makes both harmless.
+
+    Unknown job names are warned about and skipped rather than raising —
+    a typo in a hand-edited file must not crash the config path, which
+    under ``restart: unless-stopped`` is an indefinite crash-loop.
+
+    Ordering follows ``_DEFAULT_JOBS``, not the config file, so the status
+    surface is stable regardless of how an operator arranged their JSON.
     """
     fc = (file_config or {}).get("maintenance", {}) if file_config else {}
     jobs_config = fc.get("jobs") if isinstance(fc, dict) else None
-    if not isinstance(jobs_config, list) or not jobs_config:
-        jobs_config = _DEFAULT_JOBS
 
+    overrides: dict[str, dict[str, Any]] = {}
     known_names = {entry["name"] for entry in _DEFAULT_JOBS}
+    if isinstance(jobs_config, list):
+        for entry in jobs_config:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name")
+            if not isinstance(name, str) or name not in known_names:
+                _logger.warning("unknown maintenance job %r in config; skipping", name)
+                continue
+            overrides[name] = entry
+
     states: list[JobState] = []
-    for entry in jobs_config:
-        if not isinstance(entry, dict):
-            continue
-        name = entry.get("name")
-        if not isinstance(name, str) or name not in known_names:
-            _logger.warning("unknown maintenance job %r in config; skipping", name)
-            continue
+    for default in _DEFAULT_JOBS:
+        name = default["name"]
+        entry = {**default, **overrides.get(name, {})}
         # Fail soft on a bad interval (hand-edited core.json) — one typo
         # must not crash create_app into a restart loop, and a
         # zero/negative interval would fire the job every tick.

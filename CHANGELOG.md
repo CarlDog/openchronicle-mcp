@@ -7,6 +7,24 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`maintenance.jobs` merges onto the defaults instead of replacing them.**
+  A `core.json` that named one job silently deleted every other — an
+  operator halving the backup interval lost `db_vacuum`,
+  `db_integrity_check` and `embedding_backfill` with no warning, because
+  `load_jobs` only ever warned about *unknown* job names, never missing
+  ones. The latent half was worse: the entrypoint seeds `/config` from
+  `core.json.example` with `cp -rn`, and that example enumerates all five
+  jobs, so the first release to add a sixth would have found every existing
+  deployment quietly ignoring it. An entry now overrides the matching
+  default by name and unmentioned jobs keep their defaults, which makes both
+  failures impossible. Omitting a job no longer disables it — set
+  `"enabled": false`, the way the shipped example already expresses "off"
+  for `git_onboard_resync`. Job ordering follows `_DEFAULT_JOBS` rather than
+  the file, so the status surface is stable however the JSON is arranged.
+  MAINTENANCE.md and config_files.md now state the semantics; neither had.
+  No effect on the live deployment, which runs the defaults. Flagged as
+  §11.1 of the cloud-backup design and confirmed by the first phase-end
+  audit. 632 → 637 tests.
 - **The README's Docker badge actually renders now.** It had been showing
   shields.io's "404: badge not found" image on the public README: the literal
   hyphen in `openchronicle-mcp` made shields split the static-badge path as
