@@ -123,3 +123,63 @@ class TestTypeGuarantees:
         paths = RuntimePaths.resolve()
         with pytest.raises(AttributeError):
             paths.db_path = Path("/nope")  # type: ignore[misc]
+
+
+class TestEmptyEnvVarsCountAsUnset:
+    """`docs/configuration/env_vars.md`: an empty-string env var counts as
+    unset at EVERY config boundary. This one used to be the exception.
+
+    `os.environ.get` returns "" for a blank var, "" is not None, and
+    `Path("")` is `Path(".")` — so a blank `OC_DB_PATH` silently relocated
+    the SQLite store to the working directory. Both compose
+    (`${VAR:-}`) and MCP hosts inject "" for blank fields.
+    """
+
+    def test_empty_db_path_falls_through_to_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OC_DB_PATH", "")
+        paths = RuntimePaths.resolve()
+        assert paths.db_path == Path(DEFAULT_DB_PATH)
+        assert paths.db_path != Path(""), "Path('') is Path('.') — the bug this guards"
+
+    def test_empty_data_dir_falls_through_to_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The nastier half: a blank OC_DATA_DIR demoted every derived path
+        # to a bare relative name (Path("") / "openchronicle.db").
+        monkeypatch.setenv("OC_DATA_DIR", "")
+        paths = RuntimePaths.resolve()
+        assert paths.db_path == Path(DEFAULT_DB_PATH)
+        assert paths.config_dir == Path(DEFAULT_CONFIG_DIR)
+        assert paths.output_dir == Path(DEFAULT_OUTPUT_DIR)
+
+    @pytest.mark.parametrize("blank", ["", "   ", "\t", "\n"])
+    def test_whitespace_only_is_also_unset(self, monkeypatch: pytest.MonkeyPatch, blank: str) -> None:
+        monkeypatch.setenv("OC_CONFIG_DIR", blank)
+        assert RuntimePaths.resolve().config_dir == Path(DEFAULT_CONFIG_DIR)
+
+    def test_empty_per_path_var_does_not_shadow_data_dir(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The precedence bug: "" must not outrank a real OC_DATA_DIR."""
+        monkeypatch.setenv("OC_DATA_DIR", "/srv/oc")
+        monkeypatch.setenv("OC_DB_PATH", "")
+        assert RuntimePaths.resolve().db_path == Path("/srv/oc") / "openchronicle.db"
+
+    def test_real_values_are_still_honoured(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The normalization must not swallow legitimate values."""
+        monkeypatch.setenv("OC_DB_PATH", "/data/oc.db")
+        monkeypatch.setenv("OC_CONFIG_DIR", "/config")
+        paths = RuntimePaths.resolve()
+        assert paths.db_path == Path("/data/oc.db")
+        assert paths.config_dir == Path("/config")
+
+    def test_value_with_significant_surrounding_space_is_kept_verbatim(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Only the emptiness test strips — the value itself is not rewritten.
+
+        A path is only discarded when it is blank; a non-blank value is
+        passed through exactly as given, so we never silently alter a
+        directory name an operator actually meant.
+        """
+        monkeypatch.setenv("OC_CONFIG_DIR", " /config ")
+        assert RuntimePaths.resolve().config_dir == Path(" /config ")
+
+    def test_explicit_param_is_not_empty_normalized(self) -> None:
+        """`explicit` is code, not operator input — a caller passing "" has
+        a bug that should surface, not be papered over."""
+        assert RuntimePaths.resolve(db_path="").db_path == Path("")

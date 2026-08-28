@@ -22,6 +22,31 @@ DEFAULT_CONFIG_DIR = "config"
 DEFAULT_OUTPUT_DIR = "output"
 
 
+def _env(name: str) -> str | None:
+    """Read an env var, treating empty/whitespace-only as UNSET.
+
+    The project-wide invariant, stated at ``docs/configuration/env_vars.md``:
+    "An empty-string env var counts as unset at every config boundary —
+    docker-compose ``${VAR:-}`` substitutions and MCP hosts inject "" for
+    blank fields, and that must fall through to core.json / defaults
+    rather than silently shadowing them."
+
+    This boundary used to be the exception. ``os.environ.get`` returns ""
+    for a blank var, "" is not None, and ``Path("")`` is ``Path(".")`` —
+    so ``OC_DB_PATH=`` silently relocated the SQLite store to the working
+    directory, and a blank ``OC_DATA_DIR`` demoted every derived path to a
+    bare relative name instead of falling through to its default. Both are
+    one ``${VAR:-}`` line away in a compose file, which is precisely the
+    form the fleet convention pushes operator-tunable values toward.
+
+    Matches the ``is_disabled()`` / ``env_override()`` strip precedent.
+    """
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return None
+    return raw
+
+
 def _resolve(
     explicit: str | Path | None,
     env_var: str,
@@ -32,13 +57,17 @@ def _resolve(
     """Four-layer path resolution.
 
     1. Constructor param (``explicit``) — wins unconditionally.
-    2. Per-path env var — checked next.
-    3. ``OC_DATA_DIR + suffix`` — if ``OC_DATA_DIR`` is set.
+    2. Per-path env var — checked next; empty/whitespace-only is unset.
+    3. ``OC_DATA_DIR + suffix`` — if ``OC_DATA_DIR`` is set (same rule).
     4. Hardcoded fallback — last resort.
+
+    ``explicit`` is deliberately NOT empty-normalized: it is a constructor
+    argument from code, not operator input, so a caller passing "" has a
+    bug worth surfacing rather than papering over.
     """
     if explicit is not None:
         return Path(explicit)
-    env_val = os.environ.get(env_var)
+    env_val = _env(env_var)
     if env_val is not None:
         return Path(env_val)
     if data_dir is not None:
@@ -69,7 +98,7 @@ class RuntimePaths:
         Constructor params > per-path env vars > ``OC_DATA_DIR``-derived
         > defaults.
         """
-        data_dir = os.environ.get("OC_DATA_DIR")
+        data_dir = _env("OC_DATA_DIR")
 
         return cls(
             db_path=_resolve(db_path, "OC_DB_PATH", data_dir, "openchronicle.db", DEFAULT_DB_PATH),

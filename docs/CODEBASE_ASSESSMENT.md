@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 94
+**Snapshot date:** 2026-08-28 · **Revision:** 95
 
 ## Current state
 
@@ -103,6 +103,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 95 | 2026-08-28 | Phase-end audit fix: the path boundary now honours the project's own empty-string-is-unset invariant (`env_vars.md`: "at every config boundary"), which it was the sole violator of. `os.environ.get` returns `""` for a blank var and `Path("")` is `Path(".")`, so `OC_DB_PATH=` silently relocated the SQLite store to the working directory and a blank `OC_DATA_DIR` demoted every derived path to a bare relative name — both one `${VAR:-}` compose line away. A sweep of every other env read confirmed no sibling violators (`or` chains and `parse_int_env`/`parse_allowed_hosts` already strip). 637 → 647 tests |
 | 94 | 2026-08-28 | `pyproject.toml`'s description dropped the same semantic-search overclaim the GitHub repository description shed earlier today: semantic retrieval is opt-in (`EmbeddingSettings.provider` defaults to `"none"`, both compose files pass an empty `OC_EMBEDDING_PROVIDER`), so "persistent semantic + keyword memory" became "persistent keyword + optional semantic memory". Queued at revision 92 to avoid a redeploy for a one-line docstring; cashed in here because the merge fix already earns one. Backlog entry retired |
 | 93 | 2026-08-28 | Phase-end audit fix: `core.json`'s `maintenance.jobs` list now MERGES onto the defaults instead of replacing them. A config naming one job used to silently delete the other four — including `db_backup` — and since the entrypoint seeds `/config` from `core.json.example` with `cp -rn`, a stale seeded file would have dropped every job added in any later release, unwarned (the loop only warned on *unknown* names, never missing ones). Omission no longer disables; `"enabled": false` does, as the example already showed. Ordering follows `_DEFAULT_JOBS`, not the file. Documented in MAINTENANCE.md and config_files.md, which had never stated the semantics either way. 632 → 637 tests |
 | 92 | 2026-08-28 | Phase-end audit follow-up: the README's Docker badge rendered as a shields.io "404: badge not found", not a Docker badge — the literal hyphen in `openchronicle-mcp` split the label/message/color path. Escaped as `--`, the convention the sibling License badge (`AGPL--3.0`) already used. Verified against shields.io before and after. Documentation only |

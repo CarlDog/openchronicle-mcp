@@ -7,6 +7,22 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **A blank path env var no longer outranks the default.** `env_vars.md`
+  states that an empty-string env var counts as unset *at every config
+  boundary*; the path boundary was the one place that didn't honour it.
+  `os.environ.get` returns `""` for a blank var, `""` is not `None`, and
+  `Path("")` is `Path(".")` — so `OC_DB_PATH=` silently relocated the SQLite
+  store to the working directory, and a blank `OC_DATA_DIR` demoted every
+  derived path to a bare relative name instead of falling through. Both are
+  one `${VAR:-}` line away in a compose file, which is exactly the form the
+  fleet convention pushes operator-tunable values toward. Empty and
+  whitespace-only now fall through, matching the `is_disabled()` /
+  `env_override()` precedent. The value itself is never rewritten — only the
+  emptiness test strips — so a path an operator actually meant survives
+  verbatim. Constructor params are deliberately not normalized: those are
+  code, not operator input. A sweep of every other env read in `src/`
+  confirmed no sibling violators. Found by the first phase-end audit.
+  637 → 647 tests.
 - **`pyproject.toml`'s description drops the semantic-search overclaim**, the
   same correction the GitHub repository description got earlier the same day.
   Semantic retrieval is opt-in, not shipped behaviour: the provider defaults
