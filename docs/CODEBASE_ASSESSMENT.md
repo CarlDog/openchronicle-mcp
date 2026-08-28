@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 110
+**Snapshot date:** 2026-08-28 · **Revision:** 111
 
 ## Current state
 
@@ -108,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 111 | 2026-08-28 | The tool-schema snapshot now captures `outputSchema` alongside `inputSchema` — the surface mcp 2.x's `func_metadata` rewrite most directly touches, and the largest hole in the rev-109 guard. Not redundant, measured: widening one tool's return from `dict[str, str]` to `dict[str, Any]` leaves all 681 other tests green and fails here alone. The outputs are not uniform either — 14 open objects, three `{"result": [...]}` wrappers around non-dict returns, one string-valued map — so the wrapping convention itself is now pinned. Test count unchanged (the two existing tests were extended); fixture 8.4K → 15K |
 | 110 | 2026-08-28 | The MCP surface's DNS-rebinding guard is now tested. Existing coverage pinned only the permissive direction (an allowlisted Host must work); nothing asserted a FORGED Host is rejected. Measured: setting `enable_dns_rebinding_protection=False` — the real off-switch — left the entire 681-test suite green while the forged Host reached the transport with a 406. A security control was one line from silent disablement. 681 → 683 tests |
 | 109 | 2026-08-28 | The MCP tool signatures STABILITY.md now binds are actually enforced: all 18 schemas snapshotted to `tests/fixtures/mcp_tool_schemas.json`, with a test that fails on any signature change and names the tool. Descriptions excluded deliberately — prose is not signature, and a guard that fails on every docstring edit gets regenerated until it guards nothing (verified: a description-only edit passes, a required-ness change fails). Also the pre-migration baseline: it is the only way to later prove the `mcp<2` lift was schema-invisible. 679 → 681 tests |
 | 108 | 2026-08-28 | **v3.0.0 deployed.** Stack 151 runs image `:v3.0.0`; `health.package_version` reports `3.0.0`, making the primary deploy signal diagnostic again after a day of same-version images. Third stale Phase 9 item corrected: "flip `:latest` LAST — it cuts the rollback path" describes a manual action CI has automated on every main push since the cutover, so that path was cut months ago; the real rollback surface is `:v2-final` plus the eight rc tags |

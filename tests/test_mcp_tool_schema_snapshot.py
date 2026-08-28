@@ -18,8 +18,19 @@ Two uses:
 contract and worth getting right, but they are documentation, not
 signature: a reworded docstring is not a semver event, and a snapshot that
 fails on every prose edit gets regenerated reflexively until it guards
-nothing. What is captured is names, parameters, types, defaults and
-required-ness.
+nothing. What is captured is names, parameters, types, defaults, required-ness,
+and — since it is the surface mcp 2.x's metadata rewrite most directly
+touches — each tool's `outputSchema` alongside its input.
+
+The `outputSchema` half is not redundant, and that is measured rather
+than assumed. Widening one tool's return annotation from
+`dict[str, str]` to `dict[str, Any]` — an outputSchema-only change,
+inputSchema byte-identical — leaves all 681 other tests green and is
+caught here alone. It is also not uniform prose: 14 tools serialize to
+a plain open object, three to `{"result": [...]}` (how `func_metadata`
+wraps a non-dict return), one to a string-valued map. That wrapping
+convention is client-visible structured content, and it is precisely
+what the 2.x metadata rewrite reaches.
 
 Regenerate ONLY for an intended change, and say why in the commit:
 
@@ -57,7 +68,13 @@ async def _live_schemas(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict
     monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
     server = create_server(CoreContainer(), MCPConfig.from_env())
     tools = await server.list_tools()
-    return {t.name: _strip_descriptions(t.inputSchema) for t in tools}
+    return {
+        t.name: {
+            "input": _strip_descriptions(t.inputSchema),
+            "output": _strip_descriptions(getattr(t, "outputSchema", None)),
+        }
+        for t in tools
+    }
 
 
 @pytest.mark.anyio
@@ -91,6 +108,13 @@ async def test_snapshot_covers_every_registered_tool(monkeypatch: pytest.MonkeyP
 
     assert len(live) == 18, f"expected 18 registered tools, found {len(live)}"
     assert len(expected) == len(live), "fixture and live server disagree on tool count"
-    assert all(s.get("properties") is not None for s in expected.values()), (
-        "a fixture entry has no properties block — likely a truncated regeneration"
+    assert all("input" in e and "output" in e for e in expected.values()), (
+        "a fixture entry is missing its input/output split — likely a stale or truncated regeneration"
+    )
+    assert all(e["input"].get("properties") is not None for e in expected.values()), (
+        "a fixture entry has no input properties block — likely a truncated regeneration"
+    )
+    assert all(e["output"] is not None for e in expected.values()), (
+        "a fixture entry has a null outputSchema; all 18 tools declared one on mcp 1.29.0, so a "
+        "null here means the surface changed or the regeneration was partial"
     )

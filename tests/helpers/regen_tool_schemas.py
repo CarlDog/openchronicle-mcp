@@ -28,9 +28,21 @@ async def _main() -> None:
         from openchronicle.interfaces.mcp.server import create_server
         from tests.test_mcp_tool_schema_snapshot import _strip_descriptions
 
-        server = create_server(CoreContainer(), MCPConfig.from_env())
-        tools = await server.list_tools()
-        snap = {t.name: _strip_descriptions(t.inputSchema) for t in sorted(tools, key=lambda x: x.name)}
+        container = CoreContainer()
+        try:
+            server = create_server(container, MCPConfig.from_env())
+            tools = await server.list_tools()
+            snap = {
+                t.name: {
+                    "input": _strip_descriptions(t.inputSchema),
+                    "output": _strip_descriptions(getattr(t, "outputSchema", None)),
+                }
+                for t in sorted(tools, key=lambda x: x.name)
+            }
+        finally:
+            # Windows refuses to remove the temp dir while the SQLite handle
+            # is open, so the close has to happen inside the with-block.
+            container.close()
 
     _FIXTURE.write_text(json.dumps(snap, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"wrote {len(snap)} tool schemas to {_FIXTURE}")
