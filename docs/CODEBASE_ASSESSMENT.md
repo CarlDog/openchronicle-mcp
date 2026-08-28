@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 111
+**Snapshot date:** 2026-08-28 · **Revision:** 112
 
 ## Current state
 
@@ -108,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 112 | 2026-08-28 | The MCP error envelope is now pinned — it had zero coverage, and no test in the repo so much as referenced `isError`. Five client-visible failure shapes captured on mcp 1.29.0 through a real client session (calling `FastMCP.call_tool` directly fails with "Context is not available outside of a request" and masks the error under test). Deliberately asserts only what mcp/FastMCP owns: the `Error executing tool {name}:` prefix and its telling ABSENCE on unknown-tool, the generated `{tool}Arguments` model name, and our own domain messages — not pydantic's version-stamped validation prose, which a Dependabot bump would break for reasons unrelated to mcp. Found on the way: domain exceptions carry a structured `.code` that the MCP path silently drops, so the error-code convention is REST-only in practice (filed as a V3_PLAN follow-up, not fixed — a fix would reshape the surface this baseline exists to pin). 683 → 688 tests |
 | 111 | 2026-08-28 | The tool-schema snapshot now captures `outputSchema` alongside `inputSchema` — the surface mcp 2.x's `func_metadata` rewrite most directly touches, and the largest hole in the rev-109 guard. Not redundant, measured: widening one tool's return from `dict[str, str]` to `dict[str, Any]` leaves all 681 other tests green and fails here alone. The outputs are not uniform either — 14 open objects, three `{"result": [...]}` wrappers around non-dict returns, one string-valued map — so the wrapping convention itself is now pinned. Test count unchanged (the two existing tests were extended); fixture 8.4K → 15K |
 | 110 | 2026-08-28 | The MCP surface's DNS-rebinding guard is now tested. Existing coverage pinned only the permissive direction (an allowlisted Host must work); nothing asserted a FORGED Host is rejected. Measured: setting `enable_dns_rebinding_protection=False` — the real off-switch — left the entire 681-test suite green while the forged Host reached the transport with a 406. A security control was one line from silent disablement. 681 → 683 tests |
 | 109 | 2026-08-28 | The MCP tool signatures STABILITY.md now binds are actually enforced: all 18 schemas snapshotted to `tests/fixtures/mcp_tool_schemas.json`, with a test that fails on any signature change and names the tool. Descriptions excluded deliberately — prose is not signature, and a guard that fails on every docstring edit gets regenerated until it guards nothing (verified: a description-only edit passes, a required-ness change fails). Also the pre-migration baseline: it is the only way to later prove the `mcp<2` lift was schema-invisible. 679 → 681 tests |

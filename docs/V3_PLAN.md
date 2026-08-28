@@ -873,6 +873,32 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
+- **MCP clients never see `error_code`; the REST surface does.**
+  Found 2026-08-28 while capturing the MCP error-shape baseline
+  (`tests/test_mcp_error_shape.py`). Domain exceptions carry a structured
+  code — `NotFoundError(..., code=MEMORY_NOT_FOUND)`,
+  `ValidationError(..., code=INVALID_ARGUMENT)` — and the REST surface
+  maps it through the global handlers into an HTTP status plus an
+  envelope field. The MCP path drops it: FastMCP stringifies the
+  exception into text content, so a client gets
+  `Error executing tool memory_get: Memory not found: <id>` and nothing
+  machine-readable. The error-code convention that `AGENTS.md` documents
+  is therefore REST-only in practice.
+
+  Not a defect in FastMCP — it is the library's model — but it does mean
+  an MCP client that wants to branch on failure kind has to substring
+  -match our prose, which is exactly what the baseline test warns is
+  unstable across a major version.
+
+  **Deliberately not fixed alongside the baseline**: any fix reshapes the
+  very surface that test was written to pin, so the baseline has to land
+  first. Options when picked up: raise `ToolError` with the code in the
+  message in a documented prefix form (cheap, still prose), or return a
+  structured error payload as normal content with `isError` (breaks the
+  "errors are text" convention, so a MINOR/MAJOR call under
+  `docs/api/STABILITY.md`). Decide against the mcp 2.x migration, which
+  may change the available mechanisms.
+
 - **Ollama Cloud embeddings — NOT rejected, gated on a trigger that has not
   fired. Re-check periodically.**
   Investigated 2026-08-28. Ollama Cloud is a viable host that currently
