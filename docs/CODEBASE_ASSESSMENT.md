@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 91
+**Snapshot date:** 2026-08-28 · **Revision:** 92
 
 ## Current state
 
@@ -103,6 +103,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 92 | 2026-08-28 | Phase-end audit follow-up: the README's Docker badge rendered as a shields.io "404: badge not found", not a Docker badge — the literal hyphen in `openchronicle-mcp` split the label/message/color path. Escaped as `--`, the convention the sibling License badge (`AGPL--3.0`) already used. Verified against shields.io before and after. Documentation only |
 | 91 | 2026-08-28 | Phase-end audit fix 3/3: five docs corrected that were wrong about *runtime behavior* — the same class as revision 88's `db_modified_utc`, and this window's systemic theme. `mcp_client_setup.md` told operators `OC_MCP_TRANSPORT=stdio` + `oc serve` disables HTTP (`cmd_serve` never reads that variable; only `python -m openchronicle.interfaces.mcp` does, and `create_app` mounts `/mcp` unconditionally); `oc serve --help` and `cmd_serve`'s docstring advertised `0.0.0.0:18000` when the real defaults are `127.0.0.1:8000` (18000 is the NAS compose host-side mapping); `ARCHITECTURE.md` listed the deleted `BudgetExceededError` and two CLI commands that do not exist (`oc project ...`, `oc health`). All five verified against the code, not against other docs. 632 tests |
 | 90 | 2026-08-28 | Phase-end audit fix 2/3: `OC_LOG_LEVEL` can no longer crash-loop the container. `oc serve` passed the raw value into `uvicorn.Config`, which indexes its own `LOG_LEVELS` dict — `OC_LOG_LEVEL=WARN` died with `KeyError: 'warn'`, and under `restart: unless-stopped` that is an indefinite outage from one typo'd Portainer value. New `uvicorn_log_level()` validates against uvicorn's real table (not a local copy), accepts the `WARN`/`FATAL` aliases `logging` defines, and otherwise warns and falls back — matching the fail-soft `configure_root_logger` already applied to the same variable. 620 → 632 tests |
 | 89 | 2026-08-28 | Phase-end audit fix 1/3: the `memory_search` MCP tool no longer advertises a parameter it does not have. Its description told the model to pass `include_pinned=false`; that switch exists only on `oc memory search`, and the registered schema exposes only compact/mode/offset/phrase/pinned_limit/project_id/query/tags/top_k (confirmed against a live `list_tools()`). `docs/integrations/mcp_server_spec.md` carried the same claim inside its MCP-surface table. Both now say the switch is CLI-only. Introduced 2026-08-23 with the query-aware pinned float. Documentation only |

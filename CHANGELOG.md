@@ -7,6 +7,14 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **The README's Docker badge actually renders now.** It had been showing
+  shields.io's "404: badge not found" image on the public README: the literal
+  hyphen in `openchronicle-mcp` made shields split the static-badge path as
+  label/message/color in the wrong places. Escaped to `openchronicle--mcp`,
+  matching the License badge's existing `AGPL--3.0`. Confirmed by fetching
+  both URLs: the old one titles "404: badge not found", the new one titles
+  "Docker: ghcr.io/carldog/openchronicle-mcp". Found by the first phase-end
+  audit.
 - **Five docs corrected that were wrong about runtime behavior.** Not
   stale prose — claims a reader would act on and be misled by, the same
   class as the `db_modified_utc` fix and the systemic theme of this window.
