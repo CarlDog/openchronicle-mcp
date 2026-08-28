@@ -148,3 +148,28 @@ class TestDbStats:
         assert result["memory_items"] == 0
         assert result["pinned"] == 0
         assert result["embeddings"] == 0
+
+
+def test_table_names_matches_the_migration() -> None:
+    """`oc db info`'s table list is hand-maintained; keep it honest.
+
+    It listed three tables while 001_initial.sql creates four, so the
+    command silently under-reported. A hardcoded schema list in the driver
+    layer drifts by construction — this makes the drift fail a test rather
+    than quietly shrink the output.
+    """
+    import re
+    from pathlib import Path
+
+    from openchronicle.interfaces.cli.commands.db import _TABLE_NAMES
+
+    migration = Path("src/openchronicle/core/infrastructure/persistence/migrations/001_initial.sql").read_text(
+        encoding="utf-8"
+    )
+    created = {m.group(1) for m in re.finditer(r"CREATE TABLE (?:IF NOT EXISTS )?([a-z_]+)", migration, re.IGNORECASE)}
+    # FTS5 virtual tables are excluded: they are created at runtime behind
+    # feature detection, not by the migration, and may not exist.
+    assert set(_TABLE_NAMES) == created, (
+        f"_TABLE_NAMES drifted from the migration. missing={created - set(_TABLE_NAMES)} "
+        f"extra={set(_TABLE_NAMES) - created}"
+    )

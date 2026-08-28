@@ -763,9 +763,21 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return " OR ".join(escaped)
 
     # ── maintenance operations ──────────────────────────────────────
-    # Exposed so maintenance jobs and the CLI never touch self._conn
-    # directly — these must hold the store lock so VACUUM/backup can
-    # never interleave another thread's open transaction.
+    # Exposed so the maintenance JOBS never touch self._conn directly —
+    # they run on background threads, so they must hold the store lock or
+    # a VACUUM/backup could interleave another thread's open transaction.
+    #
+    # The `oc db` CLI commands are a deliberate exception and DO reach
+    # through to the connection (db.py:36, :91, :127, each with an
+    # explicit `noqa: SLF001`). This comment used to claim otherwise,
+    # which was simply false. They are single-process, single-threaded
+    # invocations with no concurrent writer to interleave with, and
+    # `cmd_db_vacuum` needs an ordering this method deliberately does not
+    # provide: it runs VACUUM *then* `wal_checkpoint(TRUNCATE)` so the
+    # size it reports is the real reclaimed footprint, whereas `vacuum()`
+    # below checkpoints FULL *first* — correct for the job, but it would
+    # leave the CLI reporting "Saved: 0" and a multi-megabyte WAL behind.
+    # Substituting one for the other is a regression, not a cleanup.
 
     @_locked
     def vacuum(self) -> None:

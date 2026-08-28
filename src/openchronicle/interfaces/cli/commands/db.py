@@ -10,10 +10,14 @@ from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 from ._helpers import json_envelope, print_json
 
+# Must stay in step with migrations/001_initial.sql. `schema_version` was
+# missing until 2026-08-28, so `oc db info` silently under-reported the
+# table list — the drift this kind of hand-maintained list invites.
 _TABLE_NAMES = [
     "projects",
     "memory_items",
     "memory_embeddings",
+    "schema_version",
 ]
 
 
