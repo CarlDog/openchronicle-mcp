@@ -66,7 +66,9 @@ drivers in `interfaces/`), enforced by tests — see
   (`v3.0.0` final tag after rc6 soaks; v2 stack + orphan volume
   deletion on the NAS). Tracked in V3_PLAN's phase tracker.
 - Remaining V3_PLAN follow-ups (mcp 2.0 migration, sqlite-vec ceiling,
-  offline write-behind sync, dependency audit, frozen lock consumption).
+  offline write-behind sync, dependency audit, frozen lock consumption,
+  the `pyproject.toml` semantic-search overclaim — queued to ride with the
+  next change that already earns a redeploy).
   Every
   code-level finding from the 2026-08-15 review is now closed.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
