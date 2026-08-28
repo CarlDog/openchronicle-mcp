@@ -105,33 +105,52 @@ does differently.
 
 ## Current Sprint
 
-**2026-08-28 — v3.0.0 released; Phase 9 closed.** The repo's first
-formal phase-end audit ran as an adversarial fan-out, its punch list was
-worked down, and the release it unblocked is live: stack 151 runs
-`:v3.0.0` and `health.package_version` reports `3.0.0`.
+**2026-08-28 — MCP migration readiness (the pin stays; the reasoning was
+rebuilt).** v3.0.0 is live on stack 151 and `docs/api/STABILITY.md`
+BINDS: `/api/v1/*` schemas, MCP tool signatures and the `core.json`
+schema are under semver.
 
-`docs/api/STABILITY.md` now BINDS — `/api/v1/*` schemas, MCP tool
-signatures and the `core.json` schema are under semver, and the pre-tag
-escape hatch has been deleted as that section instructed.
+An mcp 2.x migration was assessed and **deferred, not rejected**. The
+deferral now rests on triggers rather than on a false premise. Three
+files — `pyproject.toml`, `.github/dependabot.yml`, `docs/V3_PLAN.md` —
+had justified the `mcp<2` cap by claiming 2.0 "moved FastMCP to the
+standalone `fastmcp` package." Verified against the 2.1.1 wheel, that is
+wrong: `mcp.server.fastmcp` is a tombstone raising `ModuleNotFoundError`,
+and FastMCP was **renamed in-tree** to `mcp.server.mcpserver.MCPServer`.
+The cap is still right; only its reason was wrong — and the wrong reason
+made migration look like a third-party dependency swap rather than a
+first-party rename, which had been an unexamined input to deferring it.
 
-Phase 9's written checklist was **corrected before execution, not
-after**. Three of its steps had gone stale in the three months since it
-was authored: it directed deleting "v2 stack 151" (which is the LIVE v3
-stack), deleting the `oc-output` volume (mounted by the running
-container), and flipping `:latest` "last, because it cuts the rollback
-path" (CI has published `:latest` on every main push since the cutover,
-so that path was cut months ago). The corrected list is in V3_PLAN with
-the original failure preserved rather than quietly rewritten, plus the
-rule that caught it: **verify against `dangling=true` and the current
-compose file, never against a written list of resource names.**
+Measured scope: `lifespan` survives on the constructor;
+`streamable_http_path`, `stateless_http` and `transport_security` move to
+the transport methods. Four named revisit triggers and a one-command
+re-check are recorded in V3_PLAN.
 
-Three restructurings were assessed and deliberately NOT done — see the
-"Phase-end audit checklist" above, which exists so they are closed on
-sight rather than re-proposed. Test baseline 679.
+Four readiness items shipped so a future migration can be *proved*
+schema-invisible rather than asserted:
 
-Open next: the accepted V3_PLAN follow-ups (mcp 2.x migration, sqlite-vec
-ceiling, frozen lock consumption, the quarterly Ollama Cloud re-check)
-and the unscheduled comparative-review findings.
+- forged-Host rejection through the mounted `/mcp` — mutation showed
+  `enable_dns_rebinding_protection=False` left all 681 tests green while
+  a forged Host reached the transport
+- the tool-schema snapshot extended to `outputSchema` — mutation showed
+  an output-only change is caught by that test alone
+- the client-visible MCP error envelope pinned on 1.29.0, which had zero
+  coverage; no test referenced `isError`
+- floor raised `mcp>=1.0` → `>=1.29`, the version those baselines were
+  captured on
+
+Filed not fixed: domain exceptions carry a structured `.code` that the
+MCP path drops, so the error-code convention is REST-only in practice.
+Fixing it would reshape the surface the new baseline exists to pin, so
+the baseline landed first.
+
+Test baseline 688. `pyproject.toml` changed, so this batch rebuilds the
+runtime image; a redeploy is warranted once `build-and-push` is green.
+
+Open next: the accepted V3_PLAN follow-ups (mcp 2.x migration on a
+trigger, the `error_code` gap, sqlite-vec ceiling, frozen lock
+consumption, the quarterly Ollama Cloud re-check) and the unscheduled
+comparative-review findings.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
