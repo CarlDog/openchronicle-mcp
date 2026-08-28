@@ -56,8 +56,15 @@ embeddings when the provider recovers.
 | `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset, so one stack variable protects both surfaces. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
 | `OC_API_CORS_ORIGINS` | CSV of allowed CORS origins; the CORS middleware is only registered when this is non-empty | — |
 
-`/health` and `/openapi.json` are exempt from auth even when
-`OC_API_KEY` is set.
+Five paths are exempt from auth even when `OC_API_KEY` is set:
+`/health`, `/api/v1/health`, `/docs`, `/redoc`, and `/openapi.json`
+(`_AUTH_EXEMPT_PATHS` plus `_DOCS_PATHS` in
+`interfaces/api/middleware/`). Note that `/api/v1/health` is the *full*
+diagnostic payload, not the static liveness probe — it reports absolute
+`db_path` and `config_dir` values, so on a deployment that enables auth
+this exemption discloses filesystem layout to an unauthenticated caller.
+Narrowing it to the top-level `/health` probe is an open item from the
+2026-08-15 review.
 
 **Auth posture:** OC supports auth but does not require it. Whether to
 set `OC_API_KEY` is a deployment decision — see

@@ -27,8 +27,8 @@
 #     volume (never operator-relocatable). The config dir defaults to
 #     a named volume too; set HOST_CONFIG_DIR to a host path to switch
 #     to bind-mount mode.
-#       HOST_CONFIG_DIR     Host path for /config (core.json + model
-#                           configs). On first start with an empty
+#       HOST_CONFIG_DIR     Host path for /config (core.json). On first
+#                           start with an empty
 #                           bind-mount, the entrypoint copies example
 #                           configs (creates a .bootstrapped marker so
 #                           it doesn't repeat).

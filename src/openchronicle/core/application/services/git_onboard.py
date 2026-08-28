@@ -587,8 +587,10 @@ def extract_commits_from_url(
     can't resolve arbitrary historical revisions).
 
     Private repos: set ``OC_GIT_TOKEN`` on the OC server to a GitHub PAT
-    with ``contents:read`` scope. The token is injected as a bearer header
-    only on github.com requests (see ``_build_clone_env``). Currently
+    with ``contents:read`` scope. The token is injected as an HTTP Basic
+    ``Authorization`` header (``x-access-token:<PAT>``, GitHub's documented
+    placeholder username) only on github.com requests — see
+    ``_build_clone_env``, whose docstring records why Bearer was rejected. Currently
     github.com only — other hosts would need their own scoping.
 
     Args:
