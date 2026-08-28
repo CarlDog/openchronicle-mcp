@@ -43,8 +43,14 @@ enforces parity.
   portainer_redeploy_git_stack(stack_id=<id>, confirm=true, pull_image=true)
   ```
 
-  Verify with `mcp__openchronicle__health` — a recent `db_modified_utc`
-  confirms the new container is alive.
+  Verify with `mcp__openchronicle__health`: `package_version` is the
+  signal — it reports the real release since rc6, so an unchanged value
+  means the new image is not running. Do **not** use `db_modified_utc`
+  for this. The store opens `PRAGMA journal_mode = WAL`
+  (`sqlite_store.py`), so writes land in the `-wal` sidecar and the main
+  DB's mtime only advances on checkpoint — observed 2026-08-28, a memory
+  written at 14:47Z still read `db_modified_utc` 05:26Z a minute later.
+  It is a checkpoint clock, not a liveness or freshness signal.
 
 ## Current Sprint
 

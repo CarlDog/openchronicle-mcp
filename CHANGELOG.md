@@ -7,6 +7,16 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **Deploy verification no longer points at a checkpoint clock.** The
+  agent instructions told operators a recent `db_modified_utc` confirms
+  a new container is live. It does not: the store opens
+  `PRAGMA journal_mode = WAL`, so writes land in the `-wal` sidecar and
+  the main DB's mtime only advances on checkpoint — a memory written at
+  14:47Z still read `db_modified_utc` 05:26Z a minute later.
+  `health.package_version` is the signal, and the line now says so and
+  names the wrong one explicitly so it can't be reintroduced. Caught
+  while refreshing a session against the repo, one revision after the
+  closeout that swept deploy facts. No code change.
 - **Comparative repository-review closeout.** Added source-pinned
   assessments of OpenClaw (`894f254`), Ollama (`f96e7aa`), and NemoClaw
   (`b7261ff`) without importing their runtime scope. Closed the review's
