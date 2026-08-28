@@ -68,7 +68,7 @@ mcp = [
 dev = [
 	"pytest>=7",
 	"pytest-asyncio>=0.23",
-	"mypy>=1.8",
+	"mypy>=2.3.1",
 	# Minor-pinned: the formatter's style evolves across minors (0.16
 	# started writing PEP 758 unparenthesized excepts under py314), and
 	# CI resolves fresh while the venv + pre-commit hook lag — an open
