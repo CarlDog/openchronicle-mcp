@@ -77,7 +77,11 @@ dev = [
 	"ruff>=0.16,<0.17",
 	"openai>=1.0.0",
 	"httpx>=0.25.0",
-	"mcp>=1.0,<2",
+	# Keep in step with the [mcp] extra above — that comment carries the
+	# reasoning. This is the copy CI's test job actually installs, so an
+	# older floor here would resolve the MCP baseline tests against a
+	# version they were never captured on.
+	"mcp>=1.29,<2",
 	"numpy>=1.24",
 ]
 

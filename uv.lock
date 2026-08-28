@@ -667,7 +667,7 @@ wheels = [
 
 [[package]]
 name = "openchronicle-mcp"
-version = "3.0.0rc8"
+version = "3.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -702,8 +702,8 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.110.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.25.0" },
     { name = "httpx", marker = "extra == 'ollama'", specifier = ">=0.25.0" },
-    { name = "mcp", marker = "extra == 'dev'", specifier = ">=1.0,<2" },
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0,<2" },
+    { name = "mcp", marker = "extra == 'dev'", specifier = ">=1.29,<2" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.29,<2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8" },
     { name = "numpy", marker = "extra == 'dev'", specifier = ">=1.24" },
     { name = "numpy", marker = "extra == 'ollama'", specifier = ">=1.24" },

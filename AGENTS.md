@@ -144,8 +144,13 @@ MCP path drops, so the error-code convention is REST-only in practice.
 Fixing it would reshape the surface the new baseline exists to pin, so
 the baseline landed first.
 
-Test baseline 688. `pyproject.toml` changed, so this batch rebuilds the
-runtime image; a redeploy is warranted once `build-and-push` is green.
+Test baseline 688. `pyproject.toml` changed, so CI rebuilt `:latest` —
+but **no redeploy**: stack 151 is tag-pinned to `:v3.0.0` via `OC_TAG`,
+the floor bump resolves to the identical dependency set (1.29.0 satisfied
+the old specifier too), and nothing here changes runtime behaviour. A
+same-version bounce could not even be verified, since
+`health.package_version` would read `3.0.0` either way. This batch ships
+with the next tagged release.
 
 Open next: the accepted V3_PLAN follow-ups (mcp 2.x migration on a
 trigger, the `error_code` gap, sqlite-vec ceiling, frozen lock

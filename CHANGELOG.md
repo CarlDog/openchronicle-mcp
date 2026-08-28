@@ -5,6 +5,35 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## Unreleased
+
+Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
+`:v3.0.0`. Nothing here changes runtime behaviour.
+
+- **MCP migration readiness.** An mcp 2.x migration was assessed and
+  deferred on named triggers rather than on a premise that turned out to
+  be false. `pyproject.toml`, `.github/dependabot.yml` and
+  `docs/V3_PLAN.md` had all justified the `mcp<2` cap by claiming 2.0
+  "moved FastMCP to the standalone `fastmcp` package". Verified against
+  the 2.1.1 wheel: `mcp.server.fastmcp` is a tombstone module raising
+  `ModuleNotFoundError`, and FastMCP was **renamed in-tree** to
+  `mcp.server.mcpserver.MCPServer`. The cap is still correct; the reason
+  was not, and the wrong reason made migration look like a third-party
+  dependency swap rather than a first-party rename.
+- **Three MCP baselines, so a future migration can be proved
+  schema-invisible rather than asserted.** The tool-schema snapshot now
+  covers `outputSchema` as well as `inputSchema`; the client-visible
+  error envelope is pinned across five failure shapes on mcp 1.29.0
+  (previously zero coverage — no test referenced `isError`); and a forged
+  `Host` is asserted to be rejected through the mounted `/mcp`, which
+  mutation testing showed was one line from silent disablement.
+  679 → 688 tests.
+- **Dependency floor `mcp>=1.0` → `>=1.29`** in both the `mcp` and `dev`
+  extras — the version those baselines were captured on. The old floor
+  was fiction; nothing had verified the server against mcp 1.0.
+  `uv.lock` regenerated, which also cleared a stale `3.0.0rc8` project
+  version left over from the release.
+
 ## v3.0.0 — 2026-08-28
 
 The first stable v3 tag. From here `docs/api/STABILITY.md` binds: the
