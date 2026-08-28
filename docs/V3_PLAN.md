@@ -858,8 +858,16 @@ The README is not a market-positioning document. It states what OC is, what it d
   path stays — v3 uses it).
 - Delete the pre-migration backup ONLY if a fresh v3-shaped backup exists
   and integrity-checks ok.
-- Flip the `latest` Docker tag to v3 LAST — that is what cuts the
-  rollback path.
+- ~~Flip the `latest` Docker tag to v3 LAST — that is what cuts the
+  rollback path.~~ **Already true, and has been for months.** This step
+  reads as a careful manual action; in reality `test.yml`'s
+  `type=raw,value=latest,enable={{is_default_branch}}` publishes
+  `:latest` on EVERY push to main, so it has tracked v3 since the first
+  post-cutover push. The rollback path this step meant to protect was cut
+  long before Phase 9 ran. The real rollback surface is the preserved
+  `:v2-final` image plus the eight `v3.0.0-rc*` tags, none of which
+  `:latest` affects. Verified 2026-08-28: `:latest`, `:v3.0.0` and
+  `:4ba1c5d` all resolve to the same version.
 
 ### Post-cutover follow-ups (tech debt)
 

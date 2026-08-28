@@ -105,31 +105,33 @@ does differently.
 
 ## Current Sprint
 
-**2026-08-28 — first phase-end audit, worked to closure.** The repo's
-first formal phase-end audit ran as a 7-dimension adversarial fan-out (52
-findings survived verification, 1 refuted) and its punch list is now
-worked down. Shipped across the day: the query-aware pinned float,
-`JobState.last_success_at`, `import --mode merge` visibility, the
-git-onboard watermark filter, `OC_LOG_LEVEL` fail-soft, the
-`maintenance.jobs` merge, single-source content-cap enforcement,
-empty-string path-env normalization, `oc config show` surviving a broken
-config, a PII CI backstop, and a remotely-reachable infinite loop in
-`cluster_commits`.
+**2026-08-28 — v3.0.0 released; Phase 9 closed.** The repo's first
+formal phase-end audit ran as an adversarial fan-out, its punch list was
+worked down, and the release it unblocked is live: stack 151 runs
+`:v3.0.0` and `health.package_version` reports `3.0.0`.
 
-Three things were assessed and deliberately NOT done — see the
-"Phase-end audit checklist" section above, which exists so they are
-closed on sight rather than re-proposed: splitting the three large files,
-substituting `vacuum()` into the CLI, and a shared `store` fixture. Two
-cohesion judgements are recorded in ARCHITECTURE.md with an explicit
-revisit trigger.
+`docs/api/STABILITY.md` now BINDS — `/api/v1/*` schemas, MCP tool
+signatures and the `core.json` schema are under semver, and the pre-tag
+escape hatch has been deleted as that section instructed.
 
-Deployed: image `4710caf`; runtime and main are in sync (later commits
-are documentation-only and skipped by `paths-ignore`). Test baseline 679.
+Phase 9's written checklist was **corrected before execution, not
+after**. Three of its steps had gone stale in the three months since it
+was authored: it directed deleting "v2 stack 151" (which is the LIVE v3
+stack), deleting the `oc-output` volume (mounted by the running
+container), and flipping `:latest` "last, because it cuts the rollback
+path" (CI has published `:latest` on every main push since the cutover,
+so that path was cut months ago). The corrected list is in V3_PLAN with
+the original failure preserved rather than quietly rewritten, plus the
+rule that caught it: **verify against `dangling=true` and the current
+compose file, never against a written list of resource names.**
 
-Open next: PR #20 (rebased, awaiting fresh CI — it carries a
-`gitleaks-action` major bump alongside the checkout fix), operator-gated
-Phase 9, and the accepted V3_PLAN follow-ups including the quarterly
-Ollama Cloud re-check.
+Three restructurings were assessed and deliberately NOT done — see the
+"Phase-end audit checklist" above, which exists so they are closed on
+sight rather than re-proposed. Test baseline 679.
+
+Open next: the accepted V3_PLAN follow-ups (mcp 2.x migration, sqlite-vec
+ceiling, frozen lock consumption, the quarterly Ollama Cloud re-check)
+and the unscheduled comparative-review findings.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
