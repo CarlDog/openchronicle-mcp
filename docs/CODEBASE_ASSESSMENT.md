@@ -19,13 +19,13 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | `v3.0.0-rc8` code, image tag `61f711b` (2026-08-23), Portainer stack 151, endpoint 2, port `18000` |
-| Deploy verification | `health.package_version` — reports the real release since rc6; also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | Runtime code is in sync as of 2026-08-23: the query-aware pinned float, `JobState.last_success_at`, the `import --mode merge` warnings, and the git-onboard watermark filter are all live. Main additionally carries the 2026-08-28 documentation/repository-hygiene closeout, which does not ship in the runtime image. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
+| Deployed release | `v3.0.0-rc8` code, image tag `d4873b4` (2026-08-28), Portainer stack 151, endpoint 2, port `18000` |
+| Deploy verification | `health.package_version` for the release, but it cannot distinguish two images built from the same rc — compare the container's `org.opencontainers.image.revision` label against HEAD for that. Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
+| Main vs deployed | Deployed through the 2026-08-28 content-cap fix (image `d4873b4`). Main is AHEAD by two runtime changes awaiting a redeploy — the empty-string path-env fix and the content-cap unification — plus documentation-only work that never ships in the image. Code goes live only when the stack's `OC_TAG` env moves; a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 626 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 659 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
