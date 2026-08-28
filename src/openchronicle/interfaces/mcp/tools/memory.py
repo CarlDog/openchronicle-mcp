@@ -27,7 +27,7 @@ from openchronicle.core.application.use_cases import (
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.serializers import memory_to_dict, scored_memory_to_dict
 
@@ -146,8 +146,8 @@ def register(mcp: FastMCP) -> None:
         """
         if not content or not content.strip():
             raise DomainValidationError("content must be non-empty")
-        if len(content) > 100_000:
-            raise DomainValidationError("content exceeds maximum length of 100,000 characters")
+        if len(content) > MAX_CONTENT_CHARS:
+            raise DomainValidationError(f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters")
         if not project_id:
             raise DomainValidationError("project_id is required")
         container = _get_container(ctx)
@@ -280,8 +280,8 @@ def register(mcp: FastMCP) -> None:
             content: New content (replaces existing). Omit to keep current.
             tags: New tags (replaces existing). Omit to keep current.
         """
-        if content is not None and len(content) > 100_000:
-            raise DomainValidationError("content exceeds maximum length of 100,000 characters")
+        if content is not None and len(content) > MAX_CONTENT_CHARS:
+            raise DomainValidationError(f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters")
         container = _get_container(ctx)
 
         def _run() -> dict[str, Any]:

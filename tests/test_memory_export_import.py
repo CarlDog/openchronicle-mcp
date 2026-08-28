@@ -12,7 +12,7 @@ import pytest
 from openchronicle.core.application.services import git_onboard
 from openchronicle.core.application.use_cases import export_memory, import_memory
 from openchronicle.core.domain.exceptions import ValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
@@ -81,6 +81,7 @@ def test_import_merge_into_empty_store(tmp_path: Path) -> None:
         "memory_added": 2,
         "memory_skipped": 0,
         "watermark_dropped": 0,
+        "oversized_content": 0,
     }
     assert len(dest.list_memory()) == 2
     dest.close()
@@ -105,6 +106,7 @@ def test_import_merge_skips_existing_ids(tmp_path: Path) -> None:
         "memory_added": 3,
         "memory_skipped": 0,
         "watermark_dropped": 0,
+        "oversized_content": 0,
     }
     assert second == {
         "projects_added": 0,
@@ -112,6 +114,7 @@ def test_import_merge_skips_existing_ids(tmp_path: Path) -> None:
         "memory_added": 0,
         "memory_skipped": 3,
         "watermark_dropped": 0,
+        "oversized_content": 0,
     }
 
 
@@ -260,6 +263,7 @@ def test_import_merge_counts_added_and_skipped_independently(tmp_path: Path) -> 
         "memory_added": 3,
         "memory_skipped": 1,
         "watermark_dropped": 0,
+        "oversized_content": 0,
     }
 
 
@@ -529,3 +533,57 @@ def test_watermark_survives_a_local_export_import_round_trip_as_absent(tmp_path:
     assert result["memory_added"] == 2
     # Nothing to drop on import — the export already omitted it.
     assert result["watermark_dropped"] == 0
+
+
+# ── content cap (design audit: driver-only enforcement) ─────────────────
+#
+# The 100k cap lived as four hardcoded literals in two driver files and
+# nowhere in between, so the same store rejected a 200KB memory over MCP
+# and HTTP while `oc memory add` accepted it. Enforcement moved into the
+# use cases; import REPORTS rather than enforces, because it is a restore
+# of data the store may already hold.
+
+
+def test_import_accepts_oversized_content_but_counts_it(tmp_path: Path) -> None:
+    """A restore must not fail on data the operator already owns."""
+    payload = _envelope(memory_ids=("mem-a",))
+    payload["memory_items"][0]["content"] = "x" * (MAX_CONTENT_CHARS + 1)
+
+    dest = SqliteStore(str(tmp_path / "dest.db"))
+    dest.init_schema()
+    result = import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    stored = dest.list_memory(limit=None)
+    dest.close()
+
+    assert result["memory_added"] == 1, "the row must actually be imported"
+    assert result["oversized_content"] == 1
+    assert len(stored[0].content) == MAX_CONTENT_CHARS + 1, "content must survive intact"
+
+
+def test_import_warns_about_oversized_content(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    payload = _envelope(memory_ids=("mem-a",))
+    payload["memory_items"][0]["content"] = "x" * (MAX_CONTENT_CHARS + 1)
+
+    dest = SqliteStore(str(tmp_path / "dest.db"))
+    dest.init_schema()
+    with caplog.at_level(logging.WARNING):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    dest.close()
+
+    msg = next((r.getMessage() for r in caplog.records if "exceeds" in r.getMessage()), "")
+    assert "mem-a" in msg, "the warning must name the offending id"
+
+
+def test_import_does_not_warn_when_all_content_is_within_cap(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """No false alarm on an ordinary restore."""
+    payload = _envelope(memory_ids=("mem-a",))
+    payload["memory_items"][0]["content"] = "x" * MAX_CONTENT_CHARS  # exactly at the cap
+
+    dest = SqliteStore(str(tmp_path / "dest.db"))
+    dest.init_schema()
+    with caplog.at_level(logging.WARNING):
+        result = import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    dest.close()
+
+    assert result["oversized_content"] == 0, "at the cap is not over it"
+    assert not any("exceeds" in r.getMessage() for r in caplog.records)

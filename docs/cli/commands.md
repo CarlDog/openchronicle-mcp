@@ -117,6 +117,12 @@ it has two lossy edges, both silent in the data:
 
 For an exact restore, import into a fresh DB with `--mode replace`.
 
+Import **reports** over-cap content rather than rejecting it. New content is
+capped at 100,000 characters on every write surface, but a restore is not new
+input — a store can already hold a longer row, and failing the recovery path on
+data the operator already owns would be worse than accepting it. Such rows are
+imported intact, counted, and named in a stderr warning.
+
 A git-onboard watermark carried by an envelope written before the export
 fix above is dropped on import too, in both modes, and reported
 separately (`Dropped N git-onboard watermark(s)...`) — not counted as a

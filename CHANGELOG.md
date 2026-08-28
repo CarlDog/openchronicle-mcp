@@ -7,6 +7,24 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **The content cap is enforced in one place instead of four.** The
+  100,000-character limit lived as hardcoded literals in two driver files
+  and nowhere in between: MCP hand-rolled the check twice, the REST routes
+  declared it twice via Pydantic, and the use cases had none. So the same
+  store rejected a 200KB memory over MCP and HTTP while `oc memory add` and
+  `oc memory import` accepted it — not a drift risk, an existing
+  inconsistency. `MAX_CONTENT_CHARS` now sits beside `MemoryItem`;
+  `add_memory` and `update_memory` enforce it, so every caller inherits it,
+  and the drivers reference the constant as fast-fail decoration. Raising or
+  lowering the cap is now one edit.
+
+  `oc memory import` deliberately **reports** rather than enforces: a restore
+  is not new input, an over-cap row can already exist from before this fix,
+  and failing the disaster-recovery path on data the operator already owns
+  would be the worse bug. Such rows import intact, are counted as
+  `oversized_content`, and are named in a warning. A structural test now
+  fails if any surface hardcodes the number again. Found by the first
+  phase-end audit. 647 → 658 tests.
 - **A blank path env var no longer outranks the default.** `env_vars.md`
   states that an empty-string env var counts as unset *at every config
   boundary*; the path boundary was the one place that didn't honour it.

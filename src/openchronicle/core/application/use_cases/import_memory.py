@@ -34,7 +34,7 @@ from typing import Any
 
 from openchronicle.core.application.services.git_onboard import WATERMARK_SOURCE
 from openchronicle.core.domain.exceptions import ValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
@@ -173,6 +173,8 @@ def execute(
     memory_added = 0
     memory_skipped = 0
     watermark_dropped = 0
+    oversized_content = 0
+    oversized_ids: list[str] = []
 
     # One transaction: this is the disaster-recovery path, where a bad
     # row mid-loop must roll back everything rather than commit a
@@ -213,6 +215,15 @@ def execute(
             if raw_memory["id"] in existing_memory_ids:
                 memory_skipped += 1
                 continue
+            # Import is a RESTORE, not new input, so the content cap is
+            # reported rather than enforced: a store can already hold an
+            # over-cap row (the CLI accepted them before the cap moved
+            # into the use cases), and refusing it here would turn the
+            # disaster-recovery path into a failure on data the operator
+            # already owns. Counted and warned so it is never silent.
+            if len(raw_memory.get("content") or "") > MAX_CONTENT_CHARS:
+                oversized_content += 1
+                oversized_ids.append(str(raw_memory["id"]))
             try:
                 memory_store.add_memory(
                     MemoryItem(
@@ -236,7 +247,20 @@ def execute(
         "memory_added": memory_added,
         "memory_skipped": memory_skipped,
         "watermark_dropped": watermark_dropped,
+        "oversized_content": oversized_content,
     }
+
+    if oversized_content:
+        # Accepted deliberately (see the loop), but an operator restoring
+        # rows no current surface would let them create should know.
+        logger.warning(
+            "imported %d memory item(s) whose content exceeds the %d-character cap: %s. "
+            "Accepted for round-trip fidelity — a restore must not fail on data the store "
+            "already held — but no current surface would accept this content as new input.",
+            oversized_content,
+            MAX_CONTENT_CHARS,
+            ", ".join(oversized_ids[:10]) + (" ..." if len(oversized_ids) > 10 else ""),
+        )
 
     # Warn after the commit, never inside it: a rolled-back import must
     # not leave a log line claiming it did anything.
