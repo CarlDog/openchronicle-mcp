@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 109
+**Snapshot date:** 2026-08-28 · **Revision:** 110
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 681 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 683 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -108,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 110 | 2026-08-28 | The MCP surface's DNS-rebinding guard is now tested. Existing coverage pinned only the permissive direction (an allowlisted Host must work); nothing asserted a FORGED Host is rejected. Measured: setting `enable_dns_rebinding_protection=False` — the real off-switch — left the entire 681-test suite green while the forged Host reached the transport with a 406. A security control was one line from silent disablement. 681 → 683 tests |
 | 109 | 2026-08-28 | The MCP tool signatures STABILITY.md now binds are actually enforced: all 18 schemas snapshotted to `tests/fixtures/mcp_tool_schemas.json`, with a test that fails on any signature change and names the tool. Descriptions excluded deliberately — prose is not signature, and a guard that fails on every docstring edit gets regenerated until it guards nothing (verified: a description-only edit passes, a required-ness change fails). Also the pre-migration baseline: it is the only way to later prove the `mcp<2` lift was schema-invisible. 679 → 681 tests |
 | 108 | 2026-08-28 | **v3.0.0 deployed.** Stack 151 runs image `:v3.0.0`; `health.package_version` reports `3.0.0`, making the primary deploy signal diagnostic again after a day of same-version images. Third stale Phase 9 item corrected: "flip `:latest` LAST — it cuts the rollback path" describes a manual action CI has automated on every main push since the cutover, so that path was cut months ago; the real rollback surface is `:v2-final` plus the eight rc tags |
 | 107 | 2026-08-28 | **Phase 9 decommission — `v3.0.0` released.** Version bumped off the rc series (the CI tag↔version guard requires exact agreement), CHANGELOG's Unreleased section cut as the v3.0.0 entry, and STABILITY.md's pre-tag escape hatch deleted as that section itself instructed — the API/MCP stability promise is now binding. The Day-7 destructive checklist was CORRECTED before execution: it directed deleting "v2 stack 151" (which is the LIVE v3 stack) and the `oc-output` volume (mounted by the running container), and missed two genuinely dead volumes |

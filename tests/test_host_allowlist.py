@@ -115,3 +115,59 @@ class TestHTTPConfigAllowedHosts:
         monkeypatch.setenv("OC_API_ALLOWED_HOSTS", "")
         monkeypatch.setenv("OC_MCP_ALLOWED_HOSTS", "mcp-host:*")
         assert HTTPConfig.from_env().allowed_hosts == ("mcp-host:*",)
+
+
+class TestMcpSurfaceRejectsForgedHost:
+    """The /mcp guard itself — the half nothing asserted until 2026-08-28.
+
+    `test_mcp_path_bypasses_rest_guard` above proves /mcp is deliberately
+    EXEMPT from the REST middleware, because FastMCP runs its own
+    TransportSecuritySettings guard. But nothing proved that guard actually
+    rejects anything. The config tests only check that the allowlist
+    PARSES; the bypass test only checks the REST guard stays out of the way.
+
+    So the DNS-rebinding defense on the MCP surface — the one configured in
+    production via OC_MCP_ALLOWED_HOSTS — was load-bearing and untested.
+
+    Measured, not assumed. Two mutations, two different outcomes:
+
+    - REMOVING `transport_security=` is already caught, by
+      `test_mcp_path_is_skipped` above. FastMCP then falls back to a
+      localhost-only default, so an allowlisted host starts getting 421 —
+      an availability regression, loud by accident.
+    - Setting `enable_dns_rebinding_protection=False` — the real
+      off-switch, and what a careless migration or a "stop the 421s"
+      change would reach for — leaves the ENTIRE suite green at 681
+      passed. The forged Host then reaches the transport with a 406.
+      Only the first test below catches it.
+
+    That asymmetry is the point: the existing coverage pins the permissive
+    direction (an allowlisted host must work) and nothing pinned the
+    rejecting direction. This is also the migration tripwire — the only
+    test that would catch the control being silently lost in a future port
+    off `mcp<2`.
+    """
+
+    def _mounted(self, monkeypatch: pytest.MonkeyPatch, allowed: str, base_url: str) -> TestClient:
+        monkeypatch.setenv("OC_MCP_ALLOWED_HOSTS", allowed)
+        container = MagicMock()
+        container.file_configs = {}
+        app = create_app(container, HTTPConfig(), mount_mcp=True)
+        return TestClient(app, base_url=base_url)
+
+    def test_forged_host_is_rejected_with_421(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A rebinding page resolving its own name to the container's IP."""
+        with self._mounted(monkeypatch, "goodhost:*", "http://evil.example:18000") as client:
+            resp = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+
+        assert resp.status_code == 421, (
+            f"forged Host reached the MCP transport (got {resp.status_code}). "
+            "TransportSecuritySettings is not guarding /mcp."
+        )
+
+    def test_allowlisted_host_is_not_rejected(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The other half — a guard that rejects everything is equally broken."""
+        with self._mounted(monkeypatch, "goodhost:*", "http://goodhost:18000") as client:
+            resp = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "initialize"})
+
+        assert resp.status_code != 421, "an allowlisted Host must not be rejected"
