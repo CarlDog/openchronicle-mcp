@@ -7,6 +7,16 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **Ollama Cloud recorded as trigger-gated research, not a rejection.**
+  Investigated against the live API 2026-08-28: it hosts 19 models, none
+  advertising the `embedding` capability, and every known embedding model
+  name 404s — so it offers OpenChronicle nothing *today*. That is not the
+  same as a dead end. The 19-model baseline is recorded so a future check
+  is a diff rather than a re-investigation, the re-check needs no API key
+  (`/api/tags` is public), and the adopt-work is pre-scoped: the adapter
+  already targets `/api/embed`, the correct cloud path, so the change is one
+  `Authorization: Bearer` header. Filed in V3_PLAN's follow-ups for the
+  quarterly audit cadence.
 - **`_get_container` extracted from all five MCP tool modules.** It was
   byte-identical in each — one line, so the duplication cost nothing to
   read, but it hardcoded the lifespan's `"container"` key five separate

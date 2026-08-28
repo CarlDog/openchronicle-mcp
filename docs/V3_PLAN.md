@@ -839,6 +839,48 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
+- **Ollama Cloud embeddings — NOT rejected, gated on a trigger that has not
+  fired. Re-check periodically.**
+  Investigated 2026-08-28. Ollama Cloud is a viable host that currently
+  offers us nothing, which is different from being a dead end: the moment
+  it lists an embedding model, it becomes an immediately usable provider
+  and the work to adopt it is small and already scoped.
+
+  **Baseline captured 2026-08-28** (so a future check is a diff, not a
+  re-derivation): 19 hosted models — kimi-k2.6/k2.7-code/k3, gpt-oss:20b/120b,
+  mistral-large-3:675b, glm-5.1/5.2/5.3/5.3-flash, minimax-m2.7/m3,
+  nemotron-3-nano:30b/super/ultra, deepseek-v4-flash/pro, qwen3.5:397b,
+  gemma4:31b. Capabilities across all 19 are drawn only from
+  {completion, tools, thinking, vision} — **none advertises `embedding`**.
+  Every known embedding model name 404s (nomic-embed-text, embeddinggemma,
+  all-minilm, mxbai-embed-large, bge-m3, qwen3-embedding).
+  `POST /api/embed` returns 401 (exists, auth-gated, nothing to serve);
+  `POST /v1/embeddings` returns 404 (absent on the hosted service, though
+  the *local* server registers it with cloud-passthrough middleware).
+
+  **The re-check is free and needs no API key** — `/api/tags` is public:
+
+  ```bash
+  curl -sS https://ollama.com/api/tags | grep -Eio '"(model|name)":"[^"]+"' | sort -u
+  ```
+
+  If any embedding-capable model appears, confirm with
+  `curl -sS -X POST https://ollama.com/api/show -d '{"model":"<name>"}'`
+  and look for `"embedding"` in `capabilities`.
+
+  **If the trigger fires, the work is known and small:** the adapter
+  already targets `/api/embed`, which is the correct cloud path; the only
+  code change is adding `Authorization: Bearer $OLLAMA_API_KEY` (confirmed
+  against ollama-python `_client.py:108-110`, which sets exactly that
+  header on the base client). Note this is a *different* mechanism from
+  the local daemon's cloud proxy, which signs requests with an ed25519 key
+  from `~/.ollama/id_ed25519` (`server/cloud_proxy.go`) — that path is for
+  the daemon, not for a direct HTTP client like ours.
+
+  **Suggested cadence:** with the quarterly items in the phase-end audit.
+  The operator holds an Ollama Cloud API key, so a live confirmation is
+  available the day it becomes worth making.
+
 - **NemoClaw review — operational/recovery hardening (research complete;
   unscheduled).**
   [The design review](design/0004-nemoclaw-repository-review.md) found no

@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 101
+**Snapshot date:** 2026-08-28 · **Revision:** 102
 
 ## Current state
 
@@ -19,9 +19,9 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | `v3.0.0-rc8` code, image tag `d4873b4` (2026-08-28), Portainer stack 151, endpoint 2, port `18000` |
+| Deployed release | `v3.0.0-rc8` code, image tag `4710caf` (2026-08-28), Portainer stack 151, endpoint 2, port `18000` |
 | Deploy verification | `health.package_version` for the release, but it cannot distinguish two images built from the same rc — compare the container's `org.opencontainers.image.revision` label against HEAD for that. Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | Deployed through the 2026-08-28 content-cap fix (image `d4873b4`). Main is AHEAD by two runtime changes awaiting a redeploy — the empty-string path-env fix and the content-cap unification — plus documentation-only work that never ships in the image. Code goes live only when the stack's `OC_TAG` env moves; a push alone deploys nothing |
+| Main vs deployed | **In sync.** Image `4710caf` carries every runtime change on main; the commits after it are documentation-only and correctly skipped by `paths-ignore`, so they never enter the image. Code goes live only when the stack's `OC_TAG` env moves; a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
@@ -66,7 +66,10 @@ drivers in `interfaces/`), enforced by tests — see
   (`v3.0.0` final tag after rc6 soaks; v2 stack + orphan volume
   deletion on the NAS). Tracked in V3_PLAN's phase tracker.
 - Remaining V3_PLAN follow-ups (mcp 2.0 migration, sqlite-vec ceiling,
-  offline write-behind sync, dependency audit, frozen lock consumption).
+  offline write-behind sync, dependency audit, frozen lock consumption,
+  and a quarterly re-check of Ollama Cloud embeddings — viable host, no
+  embedding models hosted as of 2026-08-28, baseline recorded so the
+  re-check is a diff).
   Every
   code-level finding from the 2026-08-15 review is now closed.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
@@ -103,6 +106,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 102 | 2026-08-28 | NAS redeployed to image `4710caf`, bringing the empty-string path-env fix and the content-cap unification live; runtime is back in sync with main. Ollama Cloud recorded in V3_PLAN as **trigger-gated recurring research, not rejected** — a viable host that today lists zero embedding models, with the 19-model baseline captured so a future check is a diff, a key-free public re-check command, and the adopt-work pre-scoped (one Bearer header) for when the trigger fires |
 | 101 | 2026-08-28 | Author email in public commit history CLOSED WITH PREJUDICE — accepted, never to be remediated, recorded in `security_posture.md` and in a new AGENTS.md "Phase-end audit checklist" section that instructs future audits to close it on sight rather than re-analyse it. A rewrite cannot retract the address (unreferenced commits stay SHA-retrievable absent a GitHub Support GC; it has been public since 2025-07-15 and is mirrored beyond reach) while certainly destroying ~1,700 SHAs, the `archive/*` frozen guarantee, and every SHA reference in our own docs and memories. The pre-commit identity hook prevents recurrence and is verified working. Also closes the audit's own finding that this repo carried no project-specific audit checklist |
 | 100 | 2026-08-28 | Phase-end audit: `_get_container` extracted from all five MCP tool modules into `tools/_context.py`. One line each, so the duplication was cheap — but it encoded the lifespan's `"container"` key five times, and a contract repeated five times drifts the day four copies get updated. The key is now a named constant pinned against `server.py` by a test. 675 → 676 tests |
 | 99 | 2026-08-28 | Phase-end audit batch (CI + secret-scanning hygiene): PII scanning now has a CI backstop instead of living only in the bypassable pre-commit hook — generic patterns, masked findings, and positive/negative controls including `users.noreply.github.com`. The one historical gitleaks hit is allowlisted by full SHA after verification (a `REDACT…` placeholder in a test file absent from HEAD), so a full-history sweep now reports clean and a future hit means something. `v3/develop` dropped as a CI trigger (121 behind `main`, 0 ahead, dead since 2026-05-05) and SECURITY.md stops describing the cutover as future; `.codex/**` and `uv.lock` added to `paths-ignore`. 666 → 675 tests |
