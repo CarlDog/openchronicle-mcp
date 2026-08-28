@@ -78,8 +78,8 @@ older clients pinning `:8080`.
 
 ### `maintenance`
 
-Maintenance loop schedule. Unknown job names are silently dropped. See
-`docs/architecture/MAINTENANCE.md`.
+Maintenance loop schedule. Unknown job names are skipped with a warning.
+See `docs/architecture/MAINTENANCE.md`.
 
 ## See also
 

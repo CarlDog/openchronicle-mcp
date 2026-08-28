@@ -35,8 +35,8 @@ was overkill.
 }
 ```
 
-Unknown job names in config are silently dropped (typo-safe). Missing
-section falls back to the defaults above.
+Unknown job names in config are skipped with a warning (typo-safe).
+Missing section falls back to the defaults above.
 
 `OC_MAINTENANCE_DISABLED=1` (or `true`/`yes`/`on`) short-circuits the
 loop entirely. Useful for tests, one-shot CLI invocations, and

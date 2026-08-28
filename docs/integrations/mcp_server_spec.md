@@ -1,9 +1,11 @@
 # MCP server tool surface (v3)
 
-OpenChronicle's MCP server exposes 18 tools. They map 1:1 with the
-HTTP REST surface (same use cases under both transports). All tools
-return JSON-safe Python dicts; the FastMCP runtime handles
-serialization to MCP's wire format.
+OpenChronicle's MCP server exposes 18 tools. MCP and REST share the same
+application use cases where their surfaces overlap, but the inventories
+are intentionally not identical: `context_recent` and `onboard_git` are
+MCP-only, while maintenance status is REST-only. All MCP tools return
+JSON-safe Python dicts; the FastMCP runtime handles serialization to
+MCP's wire format.
 
 For client setup see `docs/integrations/mcp_client_setup.md`. For
 stability guarantees see `docs/api/STABILITY.md`.

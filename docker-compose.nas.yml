@@ -51,7 +51,7 @@
 #                           private repos (fine-grained, contents:read
 #                           scope). Public repos work without it.
 #
-# Image: ghcr.io/carldog/openchronicle-mcp (multi-arch, published by
+# Image: ghcr.io/carldog/openchronicle-mcp (linux/amd64, published by
 # GitHub Actions on every push to main).
 
 services:

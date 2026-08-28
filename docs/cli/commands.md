@@ -74,9 +74,11 @@ Search-surface v2 (Q20/Q21):
 Edit content or tags in place. `--content NEW`, `--tags "a,b,c"`.
 Preserves identity (id, created_at), bumps `updated_at`.
 
-### `oc memory delete MEMORY_ID`
+### `oc memory delete MEMORY_ID [--confirm]`
 
-Hard delete. No soft-delete recovery; backups are the recovery path.
+Without `--confirm`, prints a deletion preview and leaves the memory
+unchanged. Re-run with `--confirm` for the hard delete. There is no
+soft-delete recovery; backups are the recovery path.
 
 ### `oc memory embed`
 
@@ -228,16 +230,17 @@ Job names: `db_backup`, `db_vacuum`, `db_integrity_check`,
 
 ## Operator
 
-### `oc init [--force] [--no-templates]`
+### `oc init`
 
-Create the runtime directory tree and bootstrap config templates.
-`--force` overwrites existing templates. Idempotent.
+Create the runtime directory tree. The command is idempotent and does
+not create or overwrite configuration templates. Add the global
+`--json` flag for machine-readable output.
 
 ### `oc config show [--json]`
 
-Print effective configuration: paths, `core.json` contents,
-masked-secret env vars (anything ending in KEY/SECRET/TOKEN/PASSWORD
-is masked in human output; full in JSON).
+Print effective configuration: paths, `core.json` contents, and masked
+`OC_*` secret env vars. Names containing KEY/SECRET/TOKEN/PASSWORD are
+masked in both human and JSON output.
 
 ### `oc version [--json]`
 

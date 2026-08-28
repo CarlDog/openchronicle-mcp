@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-23 · **Revision:** 83
+**Snapshot date:** 2026-08-28 · **Revision:** 87
 
 ## Current state
 
@@ -21,13 +21,14 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 |---|---|
 | Deployed release | `v3.0.0-rc8` code, image tag `61f711b` (2026-08-23), Portainer stack 151, endpoint 2, port `18000` |
 | Deploy verification | `health.package_version` — reports the real release since rc6; also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | In sync as of 2026-08-23: the query-aware pinned float, `JobState.last_success_at`, the `import --mode merge` warnings, and the git-onboard watermark filter are all live. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
+| Main vs deployed | Runtime code is in sync as of 2026-08-23: the query-aware pinned float, `JobState.last_success_at`, the `import --mode merge` warnings, and the git-onboard watermark filter are all live. Main additionally carries the 2026-08-28 documentation/repository-hygiene closeout, which does not ship in the runtime image. Code goes live only when the stack's `OC_TAG` env moves — a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 625 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 626 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
+| Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
 | CI | One workflow, three jobs: test matrix → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only) |
 | Canonical OC project | `fe2ef898-0152-40a4-af97-ed97cc86ca45` on the NAS deployment |
 | Coverage measurement | None (deliberate; the test count and per-commit gates are the regression signal) |
@@ -48,11 +49,14 @@ drivers in `interfaces/`), enforced by tests — see
   follow-ups" (the backlog) and "Open Questions" 20-22 (Q20/Q21 shipped
   2026-08-17; Q22 heatmaps remains exploratory). The 2026-08-15
   review's punch list is mirrored in OC memory `e22472b8`.
-- **CLAUDE.md "Current Sprint"** — the in-flight batch only; history
-  rolls into the revision table below and the CHANGELOG.
-- **[design/](design/)** — numbered design docs / ADRs (`NNNN-topic.md`).
-  A design here is a *proposal* until its phases ship; current state
-  still lives in this file.
+- **`AGENTS.md` / `CLAUDE.md` "Current Sprint"** — the in-flight batch
+  only; `AGENTS.md` is canonical and a repository-hygiene test keeps the
+  compatibility mirror byte-identical. History rolls into the revision
+  table below and the CHANGELOG.
+- **[design/](design/)** — numbered design docs, ADRs, and design
+  reviews (`NNNN-topic.md`). A design or recommendation here is a
+  *proposal* until its phases ship; current state still lives in this
+  file.
 - **[archive/v2/](archive/v2/README.md)** — frozen v2 docs, never
   maintained.
 
@@ -62,8 +66,34 @@ drivers in `interfaces/`), enforced by tests — see
   (`v3.0.0` final tag after rc6 soaks; v2 stack + orphan volume
   deletion on the NAS). Tracked in V3_PLAN's phase tracker.
 - Remaining V3_PLAN follow-ups (mcp 2.0 migration, sqlite-vec ceiling,
-  offline write-behind sync, dependency audit, lock file). Every
+  offline write-behind sync, dependency audit, frozen lock consumption).
+  Every
   code-level finding from the 2026-08-15 review is now closed.
+- **OpenClaw comparative assessment (2026-08-27)** — identified four
+  local retrieval/embedding integrity defects plus one demonstrated
+  filtered-recency need; the same review benchmark-gates MMR and keeps
+  agent-runtime features out of scope. Findings and dispositions are
+  recorded in
+  [design/0002-openclaw-memory-review.md](design/0002-openclaw-memory-review.md);
+  none is scheduled merely by being documented.
+- **Ollama comparative assessment (2026-08-27)** — verified optional
+  adapter contract defects, strengthened the proposed composite
+  embedding identity with Ollama's manifest digest, and identified
+  provider-independent batching, health, and backup-publication patterns.
+  Model-runtime breadth remains out of scope. Findings and dispositions
+  are recorded in
+  [design/0003-ollama-repository-review.md](design/0003-ollama-repository-review.md);
+  none is scheduled merely by being documented.
+- **NemoClaw comparative assessment (2026-08-28)** — found no competing
+  memory-retrieval capability and no reason to adopt its agent/runtime
+  stack. The same closeout fixed the agent-instruction authority and six
+  current public-fact errors. Portable-envelope validation, git-child
+  credential scope, immutable build identity, and broader parity gates
+  remain unscheduled; its replay and restore patterns constrain two
+  already-planned features. Findings, trigger-gated ideas, and explicit
+  non-fits are recorded in
+  [design/0004-nemoclaw-repository-review.md](design/0004-nemoclaw-repository-review.md);
+  no implementation batch is authorized by the review.
 
 ## Revision history
 
@@ -73,6 +103,10 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 87 | 2026-08-28 | Comparative-review closeout: committed the OpenClaw, Ollama, and NemoClaw assessments; made `AGENTS.md` canonical with a byte-parity guard; corrected verified CLI/MCP/security/config/deploy/README facts; added the design index and a documented post-compaction OC hook; tracked `uv.lock` without claiming frozen build consumption. 626 tests; no runtime-image change |
+| 86 | 2026-08-28 | NemoClaw comparative assessment: cloned and pinned the official NVIDIA repository, separated verified OpenChronicle gaps from constraints on existing future work and trigger-gated hardening, recorded agent-runtime non-fits, and prioritized the applicable work. Documentation only |
+| 85 | 2026-08-27 | Ollama comparative assessment: pinned the reviewed upstream commit, verified optional-adapter contract defects, strengthened the composite embedding-identity proposal, separated provider-independent hardening from conditional ideas, and recorded model-runtime non-fits. Documentation only |
+| 84 | 2026-08-27 | OpenClaw comparative assessment: pinned the reviewed upstream commit, separated immediate OpenChronicle correctness findings from experiments and conditional ideas, recorded explicit non-fits, and linked the research into the live backlog. Documentation only |
 | 83 | 2026-08-23 | NAS stack (151) redeployed: `OC_TAG` moved to image `61f711b`, bringing all four undeployed changes (revisions 79-82: query-aware pinned float, `last_success_at`, merge-hazard warnings, watermark filter) live. No code change — deploy only |
 | 82 | 2026-08-23 | Git-onboard watermark no longer leaks across devices (cloud-backup design §11.3, closes §13.5): `export_memory` stops emitting the `source=WATERMARK_SOURCE` row, `import_memory` drops it on read in both `merge` and `replace` (covers envelopes written before the export fix), each drop counted as `watermark_dropped` apart from `memory_skipped`. The literal is now a shared constant in `git_onboard.py` so a rename can't silently disable either filter. 625 tests |
 | 81 | 2026-08-23 | `oc memory import --mode merge` no longer loses edits silently (cloud-backup design §11.4). Semantics unchanged — it is still a union by id — but `export_memory` now stamps `exported_at`, `import_memory` returns `projects_skipped`/`memory_skipped` alongside the added counts, and merge logs one unconditional warning naming both lossy edges plus a second when the envelope predates the destination's newest `updated_at` (never `created_at` — `onboard_git` sets that from the commit author date). No `format_version` bump. 620 tests |

@@ -7,6 +7,18 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **Comparative repository-review closeout.** Added source-pinned
+  assessments of OpenClaw (`894f254`), Ollama (`f96e7aa`), and NemoClaw
+  (`b7261ff`) without importing their runtime scope. Closed the review's
+  immediate documentation findings: `AGENTS.md` is canonical and
+  byte-identical to the `CLAUDE.md` compatibility mirror, verified by a
+  repository-hygiene test; stale CLI/MCP/security/config/deploy/README
+  facts are corrected; and `docs/design/README.md` indexes the four
+  numbered documents. Replaced nonportable/ineffective compaction hooks
+  with one documented post-compaction OC reload. `uv.lock` is now
+  tracked for dependency-graph inspection, while CI/Docker frozen
+  consumption remains explicitly open. 625 → 626 tests; no runtime-image
+  change.
 - **The git-onboard watermark no longer leaks across devices via
   export/import.** The watermark is one device's git resume point,
   written as an ordinary memory row (`source="git-onboard-watermark"`,

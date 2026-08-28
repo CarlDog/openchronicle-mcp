@@ -29,8 +29,9 @@ MCP from a single ASGI process. Runs on your hardware.
   healthcheck.
 - **Embedding-failure degradation.** When the embedding provider goes
   down, search degrades cleanly to FTS5-only and surfaces the
-  degraded state via `/health`. Backfill catches up when the provider
-  returns.
+  degraded state via `/api/v1/health` and the MCP `health` tool.
+  Backfill catches up when the provider returns; the static `/health`
+  endpoint remains a minimal liveness probe.
 - **Schema migration framework.** Versioned `.sql` migrations with
   savepoint atomicity. Re-runs are idempotent. Future schema changes
   drop in as `NNN_<slug>.sql` files.
@@ -48,8 +49,9 @@ MCP from a single ASGI process. Runs on your hardware.
   deployments. See `docs/configuration/security_posture.md` for the
   when-to-enable guidance.
 - Not a cloud sync layer. The DB lives on your hardware. Backups go
-  to a directory next to it. Cross-device sync isn't built in (see
-  V3_PLAN.md open question 12 for the design sketch).
+  to a directory next to it. Cross-device sync isn't built in; a
+  backup-only Dropbox design is documented but not implemented in
+  [`docs/design/0001-cloud-backup.md`](docs/design/0001-cloud-backup.md).
 
 By design.
 
@@ -133,6 +135,7 @@ See `docs/architecture/ARCHITECTURE.md` for the full layout.
 - [`docs/integrations/mcp_client_setup.md`](docs/integrations/mcp_client_setup.md) — register the MCP server
 - [`docs/integrations/mcp_server_spec.md`](docs/integrations/mcp_server_spec.md) — MCP tool surface
 - [`docs/api/STABILITY.md`](docs/api/STABILITY.md) — versioning + deprecation policy
+- [`docs/design/README.md`](docs/design/README.md) — proposed designs and comparative repository reviews
 
 ## Development
 
