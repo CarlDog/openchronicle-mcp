@@ -7,6 +7,14 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`memory_search` stops advertising a parameter it does not have.** Its
+  MCP tool description told the model to pass `include_pinned=false` to hide
+  pins. That switch is CLI-only (`oc memory search --no-include-pinned`); the
+  registered MCP schema has no such parameter, so a model following the
+  instruction emitted an unsatisfiable call. `mcp_server_spec.md` repeated the
+  claim inside a table of MCP parameters. Both now state it is CLI-only and
+  point MCP callers at `memory_list(pinned_only=true)`. Introduced 2026-08-23
+  alongside the query-aware pinned float; found by the first phase-end audit.
 - **Deploy verification no longer points at a checkpoint clock.** The
   agent instructions told operators a recent `db_modified_utc` confirms
   a new container is live. It does not: the store opens

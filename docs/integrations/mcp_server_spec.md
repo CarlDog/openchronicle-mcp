@@ -165,7 +165,9 @@ produced both of the bugs this replaced:
 |---|---|---|
 | `pinned_limit=10` (default) | up to 10 matching pins lead | the rest rank normally |
 | `pinned_limit=0` | none lead | **all pins still rank** |
-| `include_pinned=false` | none lead | pins hidden entirely |
+
+Visibility has no MCP switch: `include_pinned=false` hides pins on the
+`oc memory search` CLI only, and is not a `memory_search` parameter.
 
 History, so it isn't reintroduced: until 2026-08-17 the float was a
 blanket prepend of *every* pin regardless of the query (a `top_k=2`

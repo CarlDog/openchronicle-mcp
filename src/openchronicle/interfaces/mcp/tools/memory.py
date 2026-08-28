@@ -83,9 +83,10 @@ def register(mcp: FastMCP) -> None:
                 results (default 10, best-matching first). This bounds
                 the FLOAT, not visibility: 0 means "don't float them",
                 and a pin that doesn't win a slot still ranks normally.
-                Use `include_pinned=false` to hide pins, or
-                `memory_list(pinned_only=true)` to enumerate every
-                standing rule.
+                This tool cannot hide pins — there is no
+                `include_pinned` here (that switch is CLI-only, on
+                `oc memory search`). Use `memory_list(pinned_only=true)`
+                to enumerate every standing rule.
 
         Each result carries a `relevance` object: `channel` says what
         surfaced it ("pinned" = a standing rule that matched and was
