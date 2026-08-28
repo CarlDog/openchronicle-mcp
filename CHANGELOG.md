@@ -59,6 +59,15 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
   the v3 cutover as a future event; `.codex/**` and `uv.lock` join
   `paths-ignore`, both tracked and both exactly the docs/tooling commits the
   list exists to keep from rebuilding the image.
+
+  The `gitleaks.yml` checkout pin was left to Dependabot rather than
+  hand-edited, and PR #20 has since merged it — `actions/checkout` is now
+  `@v7` across all four uses, and `gitleaks-action` is at `@v3`, verified
+  green against the new commit-allowlist. The stated reason for deferring
+  was wrong, though: this file is fleet-canonical, but the fleet had
+  already split 2-2 on these versions, so the merge moved this repo onto
+  the majority side rather than forking it. `downloader-mcp` and
+  `portainer-mcp` still lag at v6/v2.
 - **`oc config show` survives the config being broken.** It is the command
   an operator runs *because* core.json is wrong, and it was the one command
   with no error handling: pre-container commands bypass `_build_container`,
