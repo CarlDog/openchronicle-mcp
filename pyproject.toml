@@ -67,7 +67,7 @@ mcp = [
 ]
 dev = [
 	"pytest>=7",
-	"pytest-asyncio>=0.23",
+	"pytest-asyncio>=1.4.0",
 	"mypy>=1.8",
 	# Minor-pinned: the formatter's style evolves across minors (0.16
 	# started writing PEP 758 unparenthesized excepts under py314), and
