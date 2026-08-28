@@ -54,10 +54,15 @@ updates:
       pip-major:
         update-types: [major]
     ignore:
-      # mcp 2.0 removed mcp.server.fastmcp (FastMCP moved to the
-      # standalone fastmcp package) — the major bump ships a server that
-      # dies on import, so its PR is permanently red until the migration
-      # lands (V3_PLAN follow-up "mcp 2.0 migration"). Stop re-opening it.
+      # In mcp 2.x `mcp.server.fastmcp` is a tombstone that raises
+      # ModuleNotFoundError, so the major bump ships a server dying on
+      # import and its PR is permanently red until the migration lands
+      # (V3_PLAN follow-up "mcp 2.x migration"). Stop re-opening it.
+      #
+      # NB: FastMCP was renamed in-tree to mcp.server.mcpserver.MCPServer;
+      # it did NOT move to the standalone PyPI `fastmcp` project, as this
+      # comment previously claimed. Corrected 2026-08-28 against the 2.1.1
+      # wheel. The ignore stands either way — only the reason was wrong.
       - dependency-name: mcp
         update-types: ["version-update:semver-major"]
 

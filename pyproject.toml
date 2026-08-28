@@ -51,11 +51,19 @@ ollama = [
 	"numpy>=1.24",
 ]
 mcp = [
-	# <2: mcp 2.0.0 removed mcp.server.fastmcp (FastMCP moved to the
-	# standalone fastmcp package). The server imports it directly, so an
-	# unpinned fresh image build ships broken. Migrating to mcp 2.x /
-	# fastmcp is its own project — see V3_PLAN follow-ups.
-	"mcp>=1.0,<2",
+	# Floor 1.29: the version the MCP surface baselines were captured on
+	# (tests/test_mcp_tool_schema_snapshot.py, tests/test_mcp_error_shape.py).
+	# The old >=1.0 floor was fiction — nothing ever verified the server
+	# against it, and a resolver free to pick 1.0 would not have run.
+	#
+	# Cap <2: in mcp 2.x `mcp.server.fastmcp` is a tombstone module that
+	# raises ModuleNotFoundError on import, so an unpinned rebuild ships a
+	# container that dies on startup. Verified against the 2.1.1 wheel
+	# 2026-08-28 — FastMCP was RENAMED IN-TREE to
+	# `mcp.server.mcpserver.MCPServer`. It did NOT move to the standalone
+	# PyPI `fastmcp` project, which this comment used to claim.
+	# See the V3_PLAN "mcp 2.x migration" entry for the verified scope.
+	"mcp>=1.29,<2",
 ]
 dev = [
 	"pytest>=7",
