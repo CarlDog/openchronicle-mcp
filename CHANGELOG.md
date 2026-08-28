@@ -7,6 +7,14 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 
 ## Unreleased (on main since rc8)
 
+- **`pyproject.toml`'s description drops the semantic-search overclaim**, the
+  same correction the GitHub repository description got earlier the same day.
+  Semantic retrieval is opt-in, not shipped behaviour: the provider defaults
+  to `none` and both compose files pass an empty `OC_EMBEDDING_PROVIDER`, so
+  a stock container is keyword-only. Deliberately held back from its own push
+  — `pyproject.toml` is not in `paths-ignore`, so shipping it alone would have
+  rebuilt the image and bounced the live stack for one docstring. It rode
+  along with the maintenance-merge fix instead.
 - **`maintenance.jobs` merges onto the defaults instead of replacing them.**
   A `core.json` that named one job silently deleted every other — an
   operator halving the backup interval lost `db_vacuum`,

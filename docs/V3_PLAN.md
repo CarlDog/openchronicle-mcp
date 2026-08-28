@@ -839,24 +839,6 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
-- **`pyproject.toml` description overclaims semantic search (bundle with the
-  next code change; do NOT push alone).**
-  `pyproject.toml:12` reads "persistent semantic + keyword memory". Semantic
-  retrieval is opt-in, not shipped behaviour: `EmbeddingSettings.provider`
-  defaults to `"none"` (`core/application/config/settings.py:23`), both
-  `docker-compose.yml:32` and `docker-compose.nas.yml:85` pass
-  `OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}` (empty → none), and a
-  stock config resolves to `provider = none` (verified 2026-08-28). On a
-  default container `mode="semantic"` raises and `mode="hybrid"` falls through
-  to the FTS5 branch. Fix: "persistent keyword + optional semantic memory",
-  matching the GitHub repository description set 2026-08-28 and the honest
-  phrasing already in the agent instructions ("Search is keyword-based by
-  default").
-  **Why it is queued rather than done:** `pyproject.toml` is not in
-  `test.yml`'s `paths-ignore`, so pushing it alone rebuilds the image and
-  bounces the live stack for a one-line doc string. Land it with the next
-  change that already earns a redeploy. Found by the first phase-end audit.
-
 - **NemoClaw review — operational/recovery hardening (research complete;
   unscheduled).**
   [The design review](design/0004-nemoclaw-repository-review.md) found no

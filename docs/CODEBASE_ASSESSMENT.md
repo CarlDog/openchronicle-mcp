@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-28 · **Revision:** 93
+**Snapshot date:** 2026-08-28 · **Revision:** 94
 
 ## Current state
 
@@ -66,9 +66,7 @@ drivers in `interfaces/`), enforced by tests — see
   (`v3.0.0` final tag after rc6 soaks; v2 stack + orphan volume
   deletion on the NAS). Tracked in V3_PLAN's phase tracker.
 - Remaining V3_PLAN follow-ups (mcp 2.0 migration, sqlite-vec ceiling,
-  offline write-behind sync, dependency audit, frozen lock consumption,
-  the `pyproject.toml` semantic-search overclaim — queued to ride with the
-  next change that already earns a redeploy).
+  offline write-behind sync, dependency audit, frozen lock consumption).
   Every
   code-level finding from the 2026-08-15 review is now closed.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
@@ -105,6 +103,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 94 | 2026-08-28 | `pyproject.toml`'s description dropped the same semantic-search overclaim the GitHub repository description shed earlier today: semantic retrieval is opt-in (`EmbeddingSettings.provider` defaults to `"none"`, both compose files pass an empty `OC_EMBEDDING_PROVIDER`), so "persistent semantic + keyword memory" became "persistent keyword + optional semantic memory". Queued at revision 92 to avoid a redeploy for a one-line docstring; cashed in here because the merge fix already earns one. Backlog entry retired |
 | 93 | 2026-08-28 | Phase-end audit fix: `core.json`'s `maintenance.jobs` list now MERGES onto the defaults instead of replacing them. A config naming one job used to silently delete the other four — including `db_backup` — and since the entrypoint seeds `/config` from `core.json.example` with `cp -rn`, a stale seeded file would have dropped every job added in any later release, unwarned (the loop only warned on *unknown* names, never missing ones). Omission no longer disables; `"enabled": false` does, as the example already showed. Ordering follows `_DEFAULT_JOBS`, not the file. Documented in MAINTENANCE.md and config_files.md, which had never stated the semantics either way. 632 → 637 tests |
 | 92 | 2026-08-28 | Phase-end audit follow-up: the README's Docker badge rendered as a shields.io "404: badge not found", not a Docker badge — the literal hyphen in `openchronicle-mcp` split the label/message/color path. Escaped as `--`, the convention the sibling License badge (`AGPL--3.0`) already used. Verified against shields.io before and after. Documentation only |
 | 91 | 2026-08-28 | Phase-end audit fix 3/3: five docs corrected that were wrong about *runtime behavior* — the same class as revision 88's `db_modified_utc`, and this window's systemic theme. `mcp_client_setup.md` told operators `OC_MCP_TRANSPORT=stdio` + `oc serve` disables HTTP (`cmd_serve` never reads that variable; only `python -m openchronicle.interfaces.mcp` does, and `create_app` mounts `/mcp` unconditionally); `oc serve --help` and `cmd_serve`'s docstring advertised `0.0.0.0:18000` when the real defaults are `127.0.0.1:8000` (18000 is the NAS compose host-side mapping); `ARCHITECTURE.md` listed the deleted `BudgetExceededError` and two CLI commands that do not exist (`oc project ...`, `oc health`). All five verified against the code, not against other docs. 632 tests |
