@@ -11,6 +11,13 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **`include_pinned` is available on every search surface** (design
+  0002, batch A; operator decision). MCP `memory_search` and
+  `GET /api/v1/memory/search` gain the visibility switch the CLI
+  already had: `false` hides pinned items entirely — no float, no
+  ranking, strict project scope — distinct from `pinned_limit=0`,
+  which only stops the float. Additive optional parameter (MINOR);
+  tool-schema snapshot regenerated.
 - **`top_k` is now a total response budget** (design 0002, batch A;
   operator-decided contract). Floated pins and ranked results share
   one combined stream that `top_k` bounds and `offset` paginates — a

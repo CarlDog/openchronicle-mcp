@@ -977,20 +977,24 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   records evidence and priority only; it does not authorize or schedule an
   implementation batch.
 
-- **OpenClaw review — retrieval-integrity follow-up (accepted tech
-  debt; unscheduled).**
-  [The design review](design/0002-openclaw-memory-review.md) verified
-  that project/tag eligibility is applied after the semantic candidate
-  limit, FTS tag filtering happens after a lossy `limit * 4` window,
-  a failed content re-embedding can leave the old vector permanently
-  eligible, and documented result/pin budgets drift across surfaces.
-  It also records a demonstrated need for one-call filtered
-  chronological enumeration. These should be corrected before new
-  ranking policy is considered, but this entry does not authorize or
-  schedule an implementation batch. Composite embedding identity, MMR,
-  supersession, provenance, deadlines, and shadow-index publication
-  remain proposed or conditional inside the review rather than joining
-  this backlog.
+- **OpenClaw review — retrieval-integrity follow-up.** ✅ **Batch A
+  SHIPPED 2026-08-28** (assessment revs 120-124, one commit per
+  finding): project/tag eligibility now precedes the semantic top-N
+  (`eligible_memory_ids`), FTS tag filtering runs in SQL before LIMIT
+  on both branches, a content update invalidates the stored vector
+  before re-embedding (failure leaves it missing, never stale),
+  `top_k` is a total response budget across all three modes
+  (operator-decided contract), and `include_pinned` is exposed on
+  MCP + REST (operator decision, additive/MINOR). With correctness
+  landed, ranking policy is unblocked per
+  [the review](design/0002-openclaw-memory-review.md)'s own ordering
+  rule — but composite embedding identity, MMR, supersession,
+  provenance, deadlines, and shadow-index publication remain proposed
+  or conditional inside the review rather than joining this backlog.
+  **Still open from the review: batch B**, the demonstrated need for
+  one-call filtered chronological enumeration (`memory_list` with
+  tags/exclude-tags/pure-chronology — the Mnemosyne consumer),
+  unscheduled.
 
 - **Pinned prepend ignored the query.** ✅ Fully fixed 2026-08-23, in
   two passes — the first was incomplete and worth recording as such.

@@ -277,6 +277,11 @@
           "title": "Compact",
           "type": "boolean"
         },
+        "include_pinned": {
+          "default": true,
+          "title": "Include Pinned",
+          "type": "boolean"
+        },
         "mode": {
           "default": "hybrid",
           "title": "Mode",

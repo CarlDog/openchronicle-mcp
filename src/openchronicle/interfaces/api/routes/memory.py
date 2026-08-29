@@ -44,6 +44,7 @@ def memory_search(
     mode: str = Query(default="hybrid", pattern="^(hybrid|keyword|semantic)$"),
     phrase: bool = False,
     pinned_limit: int = Query(default=10, ge=0, le=1000),
+    include_pinned: bool = True,
 ) -> list[dict[str, Any]]:
     """Search memory items; each result carries a `relevance` block.
 
@@ -55,8 +56,9 @@ def memory_search(
     pins count against it. `pinned_limit` caps how many MATCHING pinned
     items lead the results (best-matching first, each consuming a
     `top_k` slot; 0 = don't float, which is not the same as hiding them
-    — a pin that doesn't float still ranks). Enumerate all pins via
-    `GET /memory?pinned_only=true`.
+    — a pin that doesn't float still ranks). `include_pinned=false`
+    hides pins entirely (no float, no ranking; scope goes strict).
+    Enumerate all pins via `GET /memory?pinned_only=true`.
     """
     tag_list = parse_csv_tags(tags)
     results = search_memory.execute(
@@ -70,6 +72,7 @@ def memory_search(
         mode=mode,
         phrase=phrase,
         pinned_limit=pinned_limit,
+        include_pinned=include_pinned,
     )
     return [scored_memory_to_dict(s, compact=compact) for s in results]
 

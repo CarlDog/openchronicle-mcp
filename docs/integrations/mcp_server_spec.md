@@ -166,8 +166,11 @@ produced both of the bugs this replaced:
 | `pinned_limit=10` (default) | up to 10 matching pins lead | the rest rank normally |
 | `pinned_limit=0` | none lead | **all pins still rank** |
 
-Visibility has no MCP switch: `include_pinned=false` hides pins on the
-`oc memory search` CLI only, and is not a `memory_search` parameter.
+Visibility is the `include_pinned` switch, on every surface since
+2026-08-28 (MCP `memory_search`, `GET /api/v1/memory/search`, and the
+CLI): `false` hides pins outright — no float, no ranking, strict
+project scope. Distinct from `pinned_limit=0`, which only stops the
+float. `top_k` is a total response budget: floated pins consume slots.
 
 History, so it isn't reintroduced: until 2026-08-17 the float was a
 blanket prepend of *every* pin regardless of the query (a `top_k=2`

@@ -173,15 +173,18 @@ Landed so far, one focused commit per item:
 - **0002 batch A, item 4 — `top_k` is a total budget** (rev 123,
   744 → 747 tests): floated pins consume `top_k` slots in one combined
   stream that `offset` paginates; no response exceeds the ask.
+- **0002 batch A, item 5 — `include_pinned` on MCP + REST** (rev 124,
+  747 → 749 tests): the visibility switch reaches every surface;
+  schema snapshot regenerated (additive/MINOR). **Batch A complete.**
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
 tagged release. A push alone deploys nothing.
 
-Open next in this sequence: 0002 batch A (retrieval correctness), with
-two contracts already decided by the operator: `top_k` becomes a TOTAL
-response budget (floated pins count against it), and `include_pinned`
-is exposed on MCP + REST (additive, MINOR under STABILITY.md). Standing V3_PLAN follow-ups (mcp 2.x on its
+Open next: 0002 batch B (filtered chronological enumeration — the
+Mnemosyne consumer), the embedding-identity ADR (gates 0003 Phase C/D),
+and cloud-backup Phase 0 (operator runbook). All runtime changes since
+v3.0.0 ship with the next tagged release. Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

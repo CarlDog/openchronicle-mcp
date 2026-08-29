@@ -442,6 +442,18 @@ class TestMemoryRoutes:
         assert resp.status_code == 422
         assert "embedding provider" in resp.json()["detail"]
 
+    def test_memory_search_include_pinned_false_reaches_the_store(self, client: TestClient) -> None:
+        """REST exposes the visibility switch (decided 2026-08-28); false
+        must arrive at the store as include_pinned=False and suppress the
+        pinned float query entirely."""
+        storage = _get_container(client).storage
+        storage.search_memory.return_value = []
+
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "include_pinned": "false"})
+        assert resp.status_code == 200
+        storage.search_pinned.assert_not_called()
+        assert storage.search_memory.call_args.kwargs["include_pinned"] is False
+
     def test_memory_search_rejects_negative_pinned_limit(self, client: TestClient) -> None:
         resp = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "-1"})
         assert resp.status_code == 422

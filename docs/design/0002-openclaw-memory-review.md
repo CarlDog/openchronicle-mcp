@@ -516,13 +516,27 @@ This sequence is a recommendation, not a commitment.
 
 ### Candidate batch A: retrieval correctness
 
-- filter project/tag eligibility before semantic top-N;
-- filter tags in SQL before FTS pagination;
-- invalidate or version embeddings after content changes;
-- reconcile total-result and pin budgets;
-- expose pin visibility controls consistently;
-- add adversarial tests where valid matches sit beyond the former
-  global or 4x candidate window.
+**✅ SHIPPED IN FULL 2026-08-28** (assessment revs 120-124, one commit
+per finding, after a validation pass re-confirmed every claim at HEAD):
+
+- ~~filter project/tag eligibility before semantic top-N~~ — rev 121,
+  via a new `eligible_memory_ids` store primitive sharing the ranked
+  search's clause builders;
+- ~~filter tags in SQL before FTS pagination~~ — rev 120, JSON1
+  `json_each` predicate on both branches (and the fallback's 200-row
+  window, the same defect shape this review had not separately named);
+- ~~invalidate or version embeddings after content changes~~ — rev 122,
+  the invalidate option: `delete_embedding` on every content change
+  before re-embedding (the hash/version option folded into the
+  embedding-identity ADR, which also owns the concurrent-update race);
+- ~~reconcile total-result and pin budgets~~ — rev 123, the operator
+  chose the total-budget contract: one combined stream bounded by
+  `top_k`, paginated by `offset`;
+- ~~expose pin visibility controls consistently~~ — rev 124,
+  `include_pinned` on MCP + REST by operator decision (additive/MINOR;
+  schema snapshot regenerated);
+- ~~add adversarial tests where valid matches sit beyond the former
+  global or 4x candidate window~~ — landed with each item.
 
 ### Candidate batch B: read-surface completion
 

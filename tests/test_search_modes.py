@@ -449,3 +449,17 @@ def test_semantic_top_k_is_a_total_budget() -> None:
 
     results = search_memory.execute(store, "delta", mode="semantic", top_k=3, embedding_service=service)
     assert len(results) == 3
+
+
+def test_include_pinned_false_hides_pins_on_every_surface_path() -> None:
+    """The visibility switch, now exposed beyond the CLI (decided
+    2026-08-28): false excludes pins outright — no float, no ranking."""
+    store = _make_store()
+    _add(store, "pin-rule", "epsilon standing rule", pinned=True)
+    _add(store, "m1", "epsilon note")
+
+    visible = search_memory.execute(store, "epsilon", mode="keyword", include_pinned=True)
+    hidden = search_memory.execute(store, "epsilon", mode="keyword", include_pinned=False)
+
+    assert "pin-rule" in {s.item.id for s in visible}
+    assert {s.item.id for s in hidden} == {"m1"}
