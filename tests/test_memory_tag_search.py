@@ -162,3 +162,70 @@ def test_tag_filter_composes_with_scoping(tmp_path: Path) -> None:
     ids = {r.id for r in results}
     assert "x1" in ids
     assert "x2" not in ids
+
+
+def test_tagged_match_beyond_the_old_overfetch_window_is_found(tmp_path: Path) -> None:
+    """Adversarial: the valid tagged row ranks BELOW limit*4 untagged rows.
+
+    The old shape fetched `limit * 4` FTS matches and tag-filtered in
+    Python, so with top_k=2 a tagged row ranked past position 8 was
+    silently never considered. The predicate now runs in SQL before
+    LIMIT, so rank among untagged rows is irrelevant.
+    """
+    db_path = tmp_path / "window.db"
+    storage = SqliteStore(str(db_path))
+    storage.init_schema()
+    project = Project(name="p", metadata={})
+    storage.add_project(project)
+
+    # 40 untagged rows that match the query strongly (query term repeated),
+    # ranking every one of them above the single tagged row.
+    for i in range(40):
+        storage.add_memory(
+            MemoryItem(
+                id=f"noise-{i:02d}",
+                content="gadget gadget gadget gadget strong match",
+                tags=[],
+                project_id=project.id,
+            )
+        )
+    storage.add_memory(
+        MemoryItem(id="needle", content="one weak gadget mention", tags=["wanted"], project_id=project.id)
+    )
+
+    results = storage.search_memory("gadget", project_id=project.id, tags=["wanted"], top_k=2)
+    assert [r.id for r in results] == ["needle"]
+
+
+def test_fallback_tagged_match_beyond_the_scan_window_is_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Same defect shape on the no-FTS5 path: the fallback scanned a fixed
+    200-row recency window and tag-filtered in Python afterwards, so a
+    tagged row older than 200 untagged ones was never considered."""
+    monkeypatch.setenv("OC_SEARCH_FTS5_ENABLED", "0")
+    db_path = tmp_path / "fallback-window.db"
+    storage = SqliteStore(str(db_path))
+    storage.init_schema()
+    assert not storage._fts5_active  # noqa: SLF001
+    project = Project(name="p", metadata={})
+    storage.add_project(project)
+
+    from datetime import UTC, datetime, timedelta
+
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    # The tagged row is the OLDEST; 210 newer untagged rows fill the window.
+    storage.add_memory(
+        MemoryItem(id="needle", content="widget target", tags=["wanted"], project_id=project.id, created_at=base)
+    )
+    for i in range(210):
+        storage.add_memory(
+            MemoryItem(
+                id=f"noise-{i:03d}",
+                content="widget filler",
+                tags=[],
+                project_id=project.id,
+                created_at=base + timedelta(minutes=i + 1),
+            )
+        )
+
+    results = storage.search_memory("widget", project_id=project.id, tags=["wanted"], top_k=5)
+    assert "needle" in {r.id for r in results}

@@ -158,6 +158,10 @@ Landed so far, one focused commit per item:
   operator decision landed — MCP `onboard_git` accepts only
   `https://github.com/<owner>/<repo>`, closing the SSRF class; CLI
   local-path onboarding unaffected.
+- **0002 batch A, item 1 — SQL tag filtering** (rev 120, 734 → 736
+  tests): tag containment runs inside the query via `json_each` on
+  both search branches, before LIMIT — no more `limit * 4` over-fetch
+  window a valid tagged row could fall past.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next

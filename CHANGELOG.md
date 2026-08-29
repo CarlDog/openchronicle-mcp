@@ -11,6 +11,13 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **Search tag filters apply in SQL, before LIMIT** (design 0002,
+  batch A). Both branches used to over-fetch a bounded window
+  (`limit * 4` FTS rows, a 200-row recency scan on the fallback) and
+  tag-filter in Python — a valid tagged result past the window was
+  silently omitted. Tag containment now runs inside the query via
+  JSON1 `json_each` on both branches, so a tagged row is found
+  regardless of how many untagged rows outrank it.
 - **MCP `onboard_git` clones from github.com only** (design 0004,
   Finding 3, destination-policy half; decided 2026-08-28 — no
   non-GitHub consumer exists). The server-side tool used to point its

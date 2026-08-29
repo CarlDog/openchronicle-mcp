@@ -78,6 +78,27 @@ def _pinned_clauses(mode: _PinnedMode, project_id: str | None, alias: str = "") 
     return pinned_clause, scope_clause, params
 
 
+def _tags_clause(tags: list[str] | None, alias: str = "") -> tuple[str, list[Any]]:
+    """SQL predicate for "row carries ALL of these tags", applied pre-LIMIT.
+
+    The tags column is a JSON array, so containment is expressed with
+    JSON1's ``json_each`` (always compiled into the SQLite that CPython
+    3.14 bundles): no requested tag may be absent from the row's array.
+    This must run inside the query, before any LIMIT — the old shape
+    fetched ``limit * 4`` rows and filtered in Python, so a valid tagged
+    row past that window was silently never considered (the OpenClaw
+    review's FTS over-fetch defect).
+    """
+    if not tags:
+        return "", []
+    p = f"{alias}." if alias else ""
+    clause = (
+        f"AND NOT EXISTS (SELECT 1 FROM json_each(?) AS req "
+        f"WHERE req.value NOT IN (SELECT value FROM json_each({p}tags)))"
+    )
+    return clause, [json.dumps(tags)]
+
+
 def _escape_like(value: str) -> str:
     """Escape LIKE metacharacters so a caller's string matches literally.
 
@@ -589,22 +610,19 @@ class SqliteStore(StoragePort, MemoryStorePort):
             return []
         cur = self._conn.cursor()
         pinned_clause, scope_clause, scope_params = _pinned_clauses(pinned_mode, project_id, alias="m")
-        params: list[Any] = [escaped, *scope_params]
-        fetch_limit = limit * 4 if tags else limit
-        params.append(fetch_limit)
+        tags_clause, tags_params = _tags_clause(tags, alias="m")
+        params: list[Any] = [escaped, *scope_params, *tags_params, limit]
         sql = f"""
             SELECT m.* FROM memory_fts fts
             JOIN memory_items m ON m.rowid = fts.rowid
             WHERE memory_fts MATCH ?
             {pinned_clause}
             {scope_clause}
+            {tags_clause}
             ORDER BY fts.rank, m.created_at DESC, m.id ASC
             LIMIT ?
         """
-        items = [row_to_memory_item(r) for r in cur.execute(sql, params).fetchall()]
-        if tags:
-            items = [i for i in items if all(t in i.tags for t in tags)]
-        return items[:limit]
+        return [row_to_memory_item(r) for r in cur.execute(sql, params).fetchall()]
 
     def _fallback_search_memory(
         self,
@@ -618,18 +636,18 @@ class SqliteStore(StoragePort, MemoryStorePort):
         q_tokens = self._normalize_tokens(query)
         cur = self._conn.cursor()
         pinned_clause, scope_clause, scope_params = _pinned_clauses(pinned_mode, project_id)
-        params: list[Any] = [*scope_params, _MEMORY_SEARCH_LIMIT]
+        tags_clause, tags_params = _tags_clause(tags)
+        params: list[Any] = [*scope_params, *tags_params, _MEMORY_SEARCH_LIMIT]
         sql = f"""
             SELECT * FROM memory_items
             WHERE 1=1
             {pinned_clause}
             {scope_clause}
+            {tags_clause}
             ORDER BY created_at DESC, id DESC
             LIMIT ?
         """
         items = [row_to_memory_item(r) for r in cur.execute(sql, params).fetchall()]
-        if tags:
-            items = [i for i in items if all(t in i.tags for t in tags)]
 
         if phrase:
             # Fallback phrase semantics: case-insensitive substring of the
