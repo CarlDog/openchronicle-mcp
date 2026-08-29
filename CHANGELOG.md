@@ -5,10 +5,15 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
-## Unreleased
+## v3.3.0 — 2026-08-29
 
-Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
-`:v3.2.0`.
+The health-honesty release: ADR 0009 end-to-end (permanent
+embed-failure classification) plus started-job reindexes.
+
+**Deploy note:** after the redeploy, run one backfill
+(`memory_embed` with `background=true`, or the maintenance loop's
+next cycle) — it parks the 9 over-length rows as tombstones and
+health flips `degraded`/`stale: 9` → `active`/`unembeddable: 9`.
 
 - **Permanent embed-failure classification (ADR 0009) — over-length
   content parks instead of poisoning health** (additive/MINOR). Under
