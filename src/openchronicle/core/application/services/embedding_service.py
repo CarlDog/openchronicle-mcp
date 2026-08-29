@@ -38,12 +38,19 @@ class EmbeddingService:
     def __init__(self, port: EmbeddingPort, store: MemoryStorePort) -> None:
         self._port = port
         self._store = store
-        # Degraded-search bookkeeping — flips on when the embedding
-        # provider raises during a search, flips off the next time
-        # it succeeds. Surfaced via container.embedding_status_dict
-        # for /api/v1/health.
+        # Degraded-provider bookkeeping. Two counters on purpose:
+        # `_search_failure_count` keeps its original search-only meaning
+        # (and its health-payload keys), while `_failure_count` covers
+        # EVERY provider operation — search, save, backfill. Until
+        # 2026-08-28 only search failures existed, so a dead provider
+        # with no search traffic read "active" while every save and
+        # backfill silently failed (the Ollama review's success-shaped
+        # health defect). Any successful provider call clears both.
         self._search_failure_count: int = 0
+        self._last_search_failure_at: str | None = None
+        self._failure_count: int = 0
         self._last_failure_at: str | None = None
+        self._last_failure_op: str | None = None
 
     @property
     def port(self) -> EmbeddingPort:
@@ -54,8 +61,33 @@ class EmbeddingService:
         return self._search_failure_count
 
     @property
+    def failure_count(self) -> int:
+        """Consecutive provider failures across every operation."""
+        return self._failure_count
+
+    @property
     def last_failure_at(self) -> str | None:
         return self._last_failure_at
+
+    @property
+    def last_failure_op(self) -> str | None:
+        """Which operation failed last: "search", "save", or "backfill"."""
+        return self._last_failure_op
+
+    @property
+    def last_search_failure_at(self) -> str | None:
+        return self._last_search_failure_at
+
+    def _record_failure(self, op: str) -> None:
+        self._failure_count += 1
+        self._last_failure_at = utc_now().isoformat()
+        self._last_failure_op = op
+
+    def _record_success(self) -> None:
+        if self._failure_count:
+            logger.info("embedding provider recovered after %d failure(s)", self._failure_count)
+        self._failure_count = 0
+        self._last_failure_op = None
 
     def generate_for_memory(
         self,
@@ -74,8 +106,17 @@ class EmbeddingService:
             if existing_model == self._port.model_name():
                 return
 
-        vec = self._port.embed(content)
+        try:
+            vec = self._port.embed(content)
+        except Exception:
+            # Counted at the boundary (op="save") so a dead provider is
+            # visible in health even when nothing ever searches; the
+            # exception still propagates — save-path policy belongs to
+            # the caller (update_memory logs and continues).
+            self._record_failure("save")
+            raise
         self._store.save_embedding(memory_id, vec, model=self._port.model_name())
+        self._record_success()
 
     def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> BackfillResult:
         """Backfill embeddings for memories that don't have one.
@@ -116,8 +157,10 @@ class EmbeddingService:
                 vec = self._port.embed(item.content)
                 self._store.save_embedding(item.id, vec, model=self._port.model_name())
                 count += 1
+                self._record_success()
             except Exception:
                 failed += 1
+                self._record_failure("backfill")
                 logger.warning("Embedding generation failed for memory %s", item.id, exc_info=True)
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
@@ -239,9 +282,11 @@ class EmbeddingService:
                     self._search_failure_count,
                 )
                 self._search_failure_count = 0
+            self._record_success()
         except Exception as exc:
             self._search_failure_count += 1
-            self._last_failure_at = utc_now().isoformat()
+            self._record_failure("search")
+            self._last_search_failure_at = self._last_failure_at
             logger.warning(
                 "embedding search failed (%d total); degrading to FTS5-only: %s",
                 self._search_failure_count,

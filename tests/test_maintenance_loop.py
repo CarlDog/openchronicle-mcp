@@ -797,3 +797,78 @@ def test_non_string_timestamp_degrades_that_entry_only(tmp_path: Path) -> None:
 
     assert job_a.last_run_at is None, "the non-string entry is dropped"
     assert job_b.last_run_at == datetime(2026, 8, 1, 12, 0, 0, tzinfo=UTC), "without costing its neighbour"
+
+
+# ── truthful backfill outcome + durable degraded (0003 F4 / 0004 F9) ──
+
+
+def test_embedding_backfill_all_failed_raises(tmp_path: Path) -> None:
+    """A totally failed backfill must FAIL the job. Returning normally
+    let the loop record last_outcome="ok" and advance last_success_at
+    while zero vectors were generated — a dead provider read as a
+    healthy nightly success."""
+    from openchronicle.core.application.services.embedding_service import BackfillResult
+
+    container = MagicMock()
+    container.embedding_service.generate_missing.return_value = BackfillResult(generated=0, failed=7, elapsed_ms=1)
+    with pytest.raises(RuntimeError, match="all 7 candidate"):
+        asyncio.run(maintenance_jobs.embedding_backfill(container))
+
+
+def test_embedding_backfill_partial_failure_completes(tmp_path: Path) -> None:
+    """Partial success stays a completed run — per-item resilience is the
+    point of the backfill loop; only TOTAL failure raises."""
+    from openchronicle.core.application.services.embedding_service import BackfillResult
+
+    container = MagicMock()
+    container.embedding_service.generate_missing.return_value = BackfillResult(generated=3, failed=2, elapsed_ms=1)
+    asyncio.run(maintenance_jobs.embedding_backfill(container))  # must not raise
+
+
+def test_degraded_survives_restart_via_persisted_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """maintenance_degraded is process-local and every push bounces the
+    container — so a failed integrity check used to present a clean
+    health surface after restart. The persisted run/success timestamps
+    are the durable evidence, and health now consults them."""
+    import json as _json
+
+    from openchronicle.core.application.use_cases.diagnose_runtime import _integrity_failure_persisted
+
+    db_path = tmp_path / "data" / "oc.db"
+    db_path.parent.mkdir(parents=True)
+    monkeypatch.setenv("OC_DB_PATH", str(db_path))
+    state = db_path.parent / "maintenance_state.json"
+
+    # Last run failed: run stamped, success older (or absent).
+    state.write_text(
+        _json.dumps(
+            {
+                "last_run_at": {"db_integrity_check": "2026-08-28T10:00:00+00:00"},
+                "last_success_at": {"db_integrity_check": "2026-08-27T10:00:00+00:00"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert _integrity_failure_persisted() is True
+
+    # Success stamps both from one clock read — equal means healthy.
+    state.write_text(
+        _json.dumps(
+            {
+                "last_run_at": {"db_integrity_check": "2026-08-28T10:00:00+00:00"},
+                "last_success_at": {"db_integrity_check": "2026-08-28T10:00:00+00:00"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert _integrity_failure_persisted() is False
+
+    # Ran once, never succeeded.
+    state.write_text(
+        _json.dumps({"last_run_at": {"db_integrity_check": "2026-08-28T10:00:00+00:00"}}), encoding="utf-8"
+    )
+    assert _integrity_failure_persisted() is True
+
+    # Never ran / no state file: fail-soft to False.
+    state.unlink()
+    assert _integrity_failure_persisted() is False

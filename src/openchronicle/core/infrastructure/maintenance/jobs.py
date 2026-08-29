@@ -133,12 +133,22 @@ async def embedding_backfill(container: CoreContainer) -> None:
         return {"generated": result.generated, "failed": result.failed}
 
     summary = await asyncio.to_thread(_run)
-    if summary["generated"] or summary["failed"]:
-        _logger.info(
-            "embedding_backfill: generated=%d failed=%d",
+    # A total failure must FAIL the job: returning normally here let the
+    # loop record last_outcome="ok" and advance last_success_at while
+    # zero vectors were generated — a dead provider produced "backfill
+    # succeeded" every night (the Ollama review's success-shaped health
+    # defect). Partial success stays a completed-but-degraded run with
+    # exact counts; zero candidates stays a clean no-op.
+    if summary["failed"] and not summary["generated"]:
+        raise RuntimeError(f"embedding_backfill: all {summary['failed']} candidate(s) failed — provider down?")
+    if summary["failed"]:
+        _logger.warning(
+            "embedding_backfill: partial failure — generated=%d failed=%d",
             summary["generated"],
             summary["failed"],
         )
+    elif summary["generated"]:
+        _logger.info("embedding_backfill: generated=%d", summary["generated"])
 
 
 async def git_onboard_resync(container: CoreContainer) -> None:

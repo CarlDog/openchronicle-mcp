@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from openchronicle.core.application.services.embedding_service import (
     EmbeddingService,
     _cosine_similarity,
@@ -411,3 +413,58 @@ def test_eligible_ids_scope_includes_global_pins() -> None:
     assert "mine" in eligible
     assert "global-pin" in eligible, "a standing rule belonging to no project applies inside one"
     assert "global-unpinned" not in eligible
+
+
+# ── provider health covers every operation (0003 F4) ──────────────────
+
+
+class _DeadPort(EmbeddingPort):
+    def embed(self, text: str) -> list[float]:
+        raise RuntimeError("provider down")
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        raise RuntimeError("provider down")
+
+    def model_name(self) -> str:
+        return "dead-model"
+
+    def dimensions(self) -> int:
+        return 2
+
+
+def test_save_path_failures_are_visible_in_provider_health() -> None:
+    """A dead provider used to read 'active' until someone searched —
+    only search failures updated the counters, while every save failed
+    silently. The boundary recorder now covers save too."""
+    store = SqliteStore(db_path=":memory:")
+    store.init_schema()
+    store.add_memory(MemoryItem(id="m1", content="x"))
+    service = EmbeddingService(port=_DeadPort(), store=store)
+
+    with pytest.raises(RuntimeError):
+        service.generate_for_memory("m1", "x", force=True)
+
+    assert service.failure_count == 1
+    assert service.last_failure_op == "save"
+    assert service.last_failure_at is not None
+    assert service.search_failure_count == 0, "the search-only counter keeps its meaning"
+
+
+def test_backfill_failures_count_and_success_resets() -> None:
+    store = SqliteStore(db_path=":memory:")
+    store.init_schema()
+    for i in range(3):
+        store.add_memory(MemoryItem(id=f"m{i}", content=f"content {i}"))
+    dead = EmbeddingService(port=_DeadPort(), store=store)
+
+    result = dead.generate_missing()
+    assert result.failed == 3 and result.generated == 0
+    assert dead.failure_count == 3
+    assert dead.last_failure_op == "backfill"
+
+    # A healthy provider clears the consecutive counter on first success.
+    healthy = EmbeddingService(port=StubEmbeddingAdapter(dims=8), store=store)
+    healthy._failure_count = 5  # noqa: SLF001 — simulate accumulated failures
+    healthy.generate_for_memory("m0", "content 0", force=True)
+    assert healthy.failure_count == 0
+    assert healthy.last_failure_op is None

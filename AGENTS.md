@@ -180,6 +180,11 @@ Landed so far, one focused commit per item:
   tests): a backup must prove it opens before it may replace the
   previous one; failures quarantine as `.failed-quick-check` for
   forensics.
+- **Truthful provider + maintenance health** (rev 126, 753 → 758
+  tests): all-failed backfill fails its job; provider failure counters
+  cover search/save/backfill; `maintenance_degraded` derives from
+  persisted evidence so a restart can't clear a failed integrity
+  check.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next

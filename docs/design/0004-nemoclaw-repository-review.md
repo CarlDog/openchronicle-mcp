@@ -550,8 +550,17 @@ small OpenChronicle model and make it truthful:
 The backfill portion is already proposed in the Ollama review. Record one
 implementation item, not two.
 
-**Disposition:** verified behavior; combine with existing maintenance and
-provider-health debt rather than creating a NemoClaw-branded subsystem.
+**Disposition:** ~~verified behavior; combine with existing maintenance and
+provider-health debt rather than creating a NemoClaw-branded subsystem.~~
+**✅ SHIPPED 2026-08-28** (assessment rev 126), combined with the Ollama
+review's Finding 4 exactly as this disposition asked: health derives
+`maintenance_degraded` from the persisted `db_integrity_check`
+run/success timestamps as well as the in-process flag (equal stamps —
+one clock read — mean healthy; run newer than success means the last
+run raised), and an all-failed backfill fails its job. The bool shape
+was kept rather than adding an `unknown` state: never-ran reports
+healthy-by-absence, matching the loop's own fail-soft treatment of the
+state file, and the health schema stays additive under STABILITY.
 
 ## Finding 10: operational state is still stored as user memory
 
@@ -654,7 +663,7 @@ implementation.
 | 7 | Repair public docs + CLI/MCP/env parity checks | Documentation / correctness | 3 | 4 | 2 | 28 | **Docs closed 2026-08-28**; broader inventory gates remain unscheduled |
 | 8 | Outbound clone destination policy | Security / SSRF | 4 | 4 | 3 | 24 | **✅ Decided + shipped 2026-08-28** (rev 119): github.com-only on the server surface; Finding 3 records the closeout |
 | 9 | Lock consumed by CI/Docker + dependency audit | Build / supply chain | 4 | 4 | 3 | 24 | Existing backlog; a prior fresh resolve would have produced a startup-broken image |
-| 10 | Durable integrity outcome + truthful backfill success | Operations / reliability | 4 | 4 | 3 | 24 | Combine with existing maintenance/provider-health debt; restart currently clears the visible degraded boolean |
+| 10 | Durable integrity outcome + truthful backfill success | Operations / reliability | 4 | 4 | 3 | 24 | **✅ Shipped 2026-08-28** (rev 126), combined with 0003 F4; Finding 9 records the closeout |
 | 11 | Built artifact/container contract smoke | Testing / packaging | 3 | 3 | 2 | 24 | Bounded experiment; current CI tests editable source but never starts the image it publishes |
 | 12 | Dedicated git-onboard operational state | Architecture cleanup | 3 | 3 | 3 | 18 | Triggered by more state or multi-repo use; current filters contain the known cross-device problem |
 | 13 | Container resource limits | Security / resilience | 3 | 3 | 3 | 18 | Pilot first; useful around untrusted repo history, but must not break entrypoint ownership setup |

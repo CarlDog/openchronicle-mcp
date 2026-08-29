@@ -25,6 +25,34 @@ if TYPE_CHECKING:
 _logger = logging.getLogger(__name__)
 
 
+def _integrity_failure_persisted() -> bool:
+    """Did the last `db_integrity_check` run fail, per the state file?
+
+    The in-process `maintenance_degraded` flag resets on every restart —
+    and every push to main bounces the container — so a failed integrity
+    check used to present a clean health surface the moment the process
+    came back (the NemoClaw review's Finding 9). The persisted evidence
+    survives: a `last_run_at` newer than `last_success_at` (which stamps
+    only non-raising runs, from the same clock read) means the last run
+    raised. Fail-soft: an absent or unreadable state file reports False,
+    matching the loop's own tolerance of it.
+    """
+    state_path = RuntimePaths.resolve().db_path.parent / "maintenance_state.json"
+    try:
+        import json
+
+        raw = json.loads(state_path.read_text(encoding="utf-8"))
+        run = raw.get("last_run_at", {}).get("db_integrity_check")
+        success = raw.get("last_success_at", {}).get("db_integrity_check")
+        if not run:
+            return False
+        if not success:
+            return True
+        return datetime.fromisoformat(success) < datetime.fromisoformat(run)
+    except Exception:
+        return False
+
+
 def build_health_payload(container: CoreContainer) -> dict[str, Any]:
     """The full health payload both surfaces serve.
 
@@ -35,7 +63,9 @@ def build_health_payload(container: CoreContainer) -> dict[str, Any]:
     report = execute()
     report.embedding_status = container.embedding_status_dict()
     report.schema_version = container.storage.schema_version()
-    report.maintenance_degraded = container.maintenance_degraded
+    # In-process flag OR persisted evidence: the flag is immediate, the
+    # state file survives the restart that used to clear it.
+    report.maintenance_degraded = container.maintenance_degraded or _integrity_failure_persisted()
     report.fts5_active = container.storage.fts5_active
     data = asdict(report)
     if data.get("timestamp_utc"):

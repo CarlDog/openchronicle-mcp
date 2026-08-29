@@ -418,8 +418,19 @@ startup outage.
 - A total provider failure should raise so the job records `failed` and
   does not advance `last_success_at`.
 
-**Disposition:** verified operational defect. Design the recorder once
-for OpenAI and Ollama rather than adding Ollama-only health fields.
+**Disposition:** ~~verified operational defect. Design the recorder once
+for OpenAI and Ollama rather than adding Ollama-only health fields.~~
+**✅ Core SHIPPED 2026-08-28** (assessment rev 126), provider-independent
+as specified: the service-level recorder covers search, save, and
+backfill (`failure_count`/`last_failure_at`/`last_failure_op` drive the
+degraded status); an all-failed backfill raises so the maintenance job
+records `failed` and does not advance `last_success_at`; partial
+success stays completed-with-counts; zero candidates stays a no-op.
+The NemoClaw review's durable-outcome half landed in the same batch
+(persisted run/success evidence backs `maintenance_degraded` across
+restarts). NOT adopted from this finding's full sketch: the cached
+Ollama capability probe (goes with the Phase C adapter work) and
+request-latency tracking (no consumer yet).
 
 ## Finding 5: validate staged backups before publication
 
@@ -712,7 +723,7 @@ style OpenChronicle should copy.
 |---|---|---|
 | Explicit dimensions/truncation and response validation | Verified adapter defect | Implementation batch approval |
 | Structured Ollama errors | Verified adapter defect | Implementation batch approval |
-| Boundary-wide provider health and all-failed backfill outcome | Verified operational defect | Implementation batch approval |
+| Boundary-wide provider health and all-failed backfill outcome | **✅ Shipped 2026-08-28** (rev 126) | Finding 4 records the closeout; the Ollama capability probe rides Phase C |
 | Composite embedding identity plus content revision | Proposed hardening; promote to ADR | ADR approval and migration/reindex plan |
 | Bounded batch backfill | Proportionate improvement | Preferably lands with an identity-driven reindex |
 | Staged backup validation | **✅ Shipped 2026-08-28** (rev 125) | Finding 5 records the closeout |

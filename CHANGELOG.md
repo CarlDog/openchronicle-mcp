@@ -11,6 +11,17 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **Provider and maintenance health stop being success-shaped**
+  (design 0003 Finding 4 + design 0004 Finding 9). An all-failed
+  embedding backfill now fails the maintenance job instead of
+  recording a nightly "ok" with zero vectors generated; provider
+  failure counters cover search, save, AND backfill (new
+  `failure_count`/`last_failure_at`/`last_failure_op` health fields
+  drive the degraded status — a dead provider used to read `active`
+  until someone searched); and `maintenance_degraded` derives from
+  persisted run/success evidence as well as the in-process flag, so a
+  container restart no longer clears a failed integrity check from
+  the health surface. All additive.
 - **Staged backups are validated before publication** (design 0003,
   Finding 5). The nightly backup staged to `.tmp` and atomically
   renamed with no check the artifact was openable. The staged file now
