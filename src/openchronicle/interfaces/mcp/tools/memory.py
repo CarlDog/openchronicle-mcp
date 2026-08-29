@@ -373,6 +373,7 @@ def register(mcp: FastMCP) -> None:
     async def memory_stats(
         ctx: Context,
         project_id: str | None = None,
+        top_tags: int = 25,
     ) -> dict[str, Any]:
         """Summarize memory contents: total/pinned counts, breakdowns by tag and source.
 
@@ -381,14 +382,22 @@ def register(mcp: FastMCP) -> None:
         in multi-project deployments; `project_id` is a strict filter, the
         same rule `memory_list` uses.
 
+        `by_tag` shows the `top_tags` most frequent tags (count-ordered);
+        when tags were rolled up, `other_tags` counts the distinct tags
+        not shown. An unscoped call against a large deployment used to
+        return the whole tail — hundreds of count-1 tags.
+
         Args:
             project_id: Restrict stats to a specific project (optional).
+            top_tags: How many tags by_tag shows (1-1000, default 25).
         """
+        top_tags = min(max(top_tags, 1), 1000)
         container = _get_container(ctx)
         return await asyncio.to_thread(
             stats_memory.execute,
             container.storage,
             project_id,
+            top_tags,
         )
 
     @mcp.tool()

@@ -264,3 +264,47 @@ class TestMemoryStatsParity:
     def test_total_agrees_with_count_memory(self, tmp_path: Path) -> None:
         store = self._store(tmp_path)
         assert stats_memory.execute(store, "proj-1")["total"] == store.count_memory(project_id="proj-1")
+
+
+# ── memory_stats: bounded by_tag histogram (mcp-feedback 2026-08-28) ──
+
+
+def _tag_heavy_store(tmp_path: Path) -> SqliteStore:
+    from openchronicle.core.domain.models.memory_item import MemoryItem
+    from openchronicle.core.domain.models.project import Project
+
+    store = SqliteStore(str(tmp_path / "stats.db"))
+    store.init_schema()
+    store.add_project(Project(id="p", name="p"))
+    # One dominant tag and a 40-tag long tail of count-1 entries.
+    for i in range(40):
+        store.add_memory(MemoryItem(id=f"m{i}", content=f"row {i}", tags=["common", f"unique-{i:02d}"], project_id="p"))
+    return store
+
+
+def test_stats_by_tag_is_capped_and_count_ordered(tmp_path: Path) -> None:
+    """An unscoped stats call used to return the whole tail — ~700
+    count-1 tags on the live corpus, ~95% of the payload. by_tag is now
+    the top_tags most frequent, with the remainder rolled up."""
+    from openchronicle.core.application.use_cases import stats_memory
+
+    store = _tag_heavy_store(tmp_path)
+    result = stats_memory.execute(store, top_tags=5)
+    store.close()
+
+    assert len(result["by_tag"]) == 5
+    assert next(iter(result["by_tag"])) == "common", "count-ordered: the dominant tag leads"
+    assert result["by_tag"]["common"] == 40
+    assert result["other_tags"] == 36, "41 distinct tags minus the 5 shown"
+    assert result["total"] == 40
+
+
+def test_stats_omits_rollup_when_nothing_was_rolled_up(tmp_path: Path) -> None:
+    from openchronicle.core.application.use_cases import stats_memory
+
+    store = _tag_heavy_store(tmp_path)
+    result = stats_memory.execute(store, top_tags=1000)
+    store.close()
+
+    assert len(result["by_tag"]) == 41
+    assert "other_tags" not in result, "no rollup line when the map is complete"

@@ -131,9 +131,9 @@ the ratified rule is *never guess*:
 
 ## 6. Sequencing after acceptance
 
-1. **Phase B (this ADR's implementation):** migration + store predicate
-   - CAS publication + health fields. One commit, full reindex NOT yet
-   forced.
+1. **Phase B (this ADR's implementation):** migration, store predicate,
+   CAS publication, and health fields. One commit; the full reindex is
+   NOT yet forced.
 2. **Phase C (0003):** Ollama adapter contract — request `dimensions`,
    explicit `truncate=false`, response validation, structured errors,
    cached capability probe. The fingerprint gives these changes a place

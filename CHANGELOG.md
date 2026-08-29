@@ -10,6 +10,11 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.1.0`.
 
+- **`memory_stats.by_tag` is bounded** (dogfooding feedback). The tag
+  histogram now shows the `top_tags` most frequent tags (count-ordered,
+  default 25, param on MCP + REST) with an `other_tags` rollup count —
+  an unscoped call used to return the corpus's entire tag tail
+  (~700 entries, mostly count-1) regardless of what the caller wanted.
 - **`memory_list` gains filtered chronological enumeration** (design
   0002, batch B — the demonstrated Mnemosyne consumer). Additive on
   every surface (MCP, REST, use case, port): `tags` (require-all),

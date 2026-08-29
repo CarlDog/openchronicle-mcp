@@ -412,6 +412,11 @@
           ],
           "default": null,
           "title": "Project Id"
+        },
+        "top_tags": {
+          "default": 25,
+          "title": "Top Tags",
+          "type": "integer"
         }
       },
       "title": "memory_statsArguments",

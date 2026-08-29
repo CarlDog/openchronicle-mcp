@@ -81,9 +81,14 @@ def memory_search(
 def memory_stats(
     container: ContainerDep,
     project_id: str | None = None,
+    top_tags: int = Query(default=25, ge=1, le=1000),
 ) -> dict[str, Any]:
-    """Get memory usage statistics. `project_id` is a strict filter."""
-    return stats_memory.execute(container.storage, project_id)
+    """Get memory usage statistics. `project_id` is a strict filter.
+
+    `by_tag` shows the `top_tags` most frequent tags (count-ordered),
+    with `other_tags` counting any rolled-up remainder.
+    """
+    return stats_memory.execute(container.storage, project_id, top_tags)
 
 
 class MemorySaveRequest(BaseModel):

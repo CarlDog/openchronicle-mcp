@@ -18,9 +18,31 @@ from typing import Any
 
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
+DEFAULT_TOP_TAGS = 25
+"""How many tags ``by_tag`` shows by default.
 
-def execute(store: MemoryStorePort, project_id: str | None = None) -> dict[str, Any]:
-    """Return total/pinned counts and per-tag / per-source breakdowns."""
+The histogram used to be unbounded, and a global-scope call against the
+live corpus returned ~700 tag entries — most with count 1, ~95% of the
+payload — to a caller who wanted one number (observed 2026-08-28,
+mcp-feedback). Count-ordered and capped, with an ``other_tags`` rollup,
+the map answers "what are the dominant tags?" without eating the
+caller's context; ``top_tags`` widens it when the long tail is the
+question.
+"""
+
+
+def execute(
+    store: MemoryStorePort,
+    project_id: str | None = None,
+    top_tags: int = DEFAULT_TOP_TAGS,
+) -> dict[str, Any]:
+    """Return total/pinned counts and per-tag / per-source breakdowns.
+
+    ``by_tag`` holds the ``top_tags`` most frequent tags (count
+    descending, then name for determinism); when tags were rolled up,
+    ``other_tags`` counts the distinct tags not shown. ``by_source`` is
+    naturally small and stays complete.
+    """
     total = store.count_memory(project_id=project_id)
     items = store.list_memory(limit=None, pinned_only=False, project_id=project_id)
 
@@ -35,9 +57,13 @@ def execute(store: MemoryStorePort, project_id: str | None = None) -> dict[str, 
         source = item.source or "unknown"
         by_source[source] = by_source.get(source, 0) + 1
 
-    return {
+    ranked = sorted(by_tag.items(), key=lambda kv: (-kv[1], kv[0]))
+    result: dict[str, Any] = {
         "total": total,
         "pinned": pinned,
-        "by_tag": by_tag,
+        "by_tag": dict(ranked[:top_tags]),
         "by_source": by_source,
     }
+    if len(ranked) > top_tags:
+        result["other_tags"] = len(ranked) - top_tags
+    return result

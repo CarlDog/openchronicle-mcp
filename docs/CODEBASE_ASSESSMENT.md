@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-29 · **Revision:** 130
+**Snapshot date:** 2026-08-29 · **Revision:** 131
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 763 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 765 (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -109,6 +109,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 131 | 2026-08-29 | **`memory_stats.by_tag` is bounded** (mcp-feedback filed 2026-08-28, memory `2845ed54`): an unscoped stats call against the live corpus returned ~700 tag entries — most count-1, ~95% of the payload — to a caller who wanted the 3-key `by_source` map. `by_tag` now holds the `top_tags` most frequent tags (count descending, then name; default 25, param 1-1000 on MCP + REST), with `other_tags` counting the rolled-up remainder — omitted when nothing was rolled up. `by_source` stays complete (naturally small). Also from that note, no action: `by_source` exposing `git-onboard-watermark` rows stays as-is — the 0004 F10 dedicated-table cleanup remains trigger-gated. Snapshot regenerated. 763 → 765 tests |
 | 130 | 2026-08-29 | **ADR 0005 drafted — composite embedding identity** (`docs/design/0005-embedding-identity.md`, PROPOSED, not accepted). Two identities judged together: an embedding-*space* identity (provider, model, nullable `model_revision`, actual dimensions, `settings_fingerprint`) and a *content* identity (`content_hash`), with compare-and-swap publication closing the concurrent-update race rev 122 left to this design. Migration stance: never guess — legacy rows get a sentinel fingerprint, count as stale, stay search-eligible for one release while the Phase-D reindex replaces them. Acceptance unblocks 0003 Phase C (Ollama adapter contract) and D (bounded batch reindex). Design-doc index statuses refreshed to post-remediation reality while in the file. Docs only |
 | 129 | 2026-08-29 | **0002 batch B: filtered chronological enumeration on `memory_list`** — the OpenClaw review's demonstrated consumer gap, felt in production by Mnemosyne (its recency-first scene selection needed "the N newest `scene`-tagged rows excluding `validation:errors`" and had to full-scan the project compact then `memory_get` each winner). Additive on every surface: `tags` (require-all, same semantics as search), `exclude_tags` (drop-any, new `_exclude_tags_clause` beside its complement), and `order_by` — `"pinned_first"` default preserves the browsing order, `"created_at"` is pure chronology with **no pin float** (the trap that made a small `limit` fill with standing rules before reaching recent rows). All predicates in SQL before pagination, per the batch-A rule; enumeration stays semantically distinct from relevance search per the review. Unknown `order_by` is a ValidationError → 422. MINOR; snapshot regenerated. 758 → 763 tests |
 | 128 | 2026-08-29 | **v3.1.0 deployed.** Tag built green (test → quality → build-and-push), `OC_TAG` moved to `v3.1.0` on stack 151 via one `portainer_set_stack_env` call (env + pull + redeploy), container recreated on compose `93a65636`. Verified live from health: `package_version` `3.1.0` and — for the first time — `build_revision` `93a65636d527…`, matching the tag commit exactly, so the same-version-redeploy ambiguity this release ships the fix for is already closed for the next one. Embeddings active (0 failures across the new all-operation counters), FTS5 on, `maintenance_degraded` false, 859 memories |
