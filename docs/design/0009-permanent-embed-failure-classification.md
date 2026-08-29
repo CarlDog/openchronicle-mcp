@@ -1,9 +1,11 @@
 # ADR 0009 — Permanent Embed-Failure Classification
 
-**Status:** PROPOSED (rev 3 — rev 2 was re-verified by both original
-critics: all rev-1 findings confirmed resolved against code; the
-residual findings, one shared MAJOR and six MINORs, are amended in
-this rev; see Review history) · **Date:** 2026-08-29 ·
+**Status:** ACCEPTED (rev 3, operator, 2026-08-29) — after a
+two-critic adversarial review of rev 1 (2 BLOCKING, 8 MAJOR-tier, 5
+MINOR — all dispositioned in rev 2) and a verification round on rev 2
+by the same critics (all findings confirmed resolved against code;
+residuals amended in rev 3). Implementation proceeds on `main` (v3.x
+additive line). · **Date:** 2026-08-29 ·
 **Queue:** V3_PLAN active queue item 4 · **Ships:** v3.x from `main`
 (additive) — independent of the v4 line.
 
