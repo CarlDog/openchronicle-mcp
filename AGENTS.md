@@ -140,15 +140,19 @@ Landed so far, one focused commit per item:
   version dispatch, required arrays, per-row types, project references,
   duplicate ids, rejections naming collection/index/id — and
   `oc memory export --out` publishes via `mkstemp` + `os.replace`.
+- **Least-privilege `onboard_git` child env** (rev 117, 708 → 718
+  tests): allowlisted clone env (sentinel-tested), raw `OC_GIT_TOKEN`
+  never in the child, `GIT_TERMINAL_PROMPT=0`, `--no-checkout`,
+  userinfo/query/fragment rejection, stderr token scrubbing. The
+  clone *destination policy* is still an open operator decision.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
 tagged release. A push alone deploys nothing.
 
-Open next in this sequence: least-privilege `onboard_git` child
-environment (+ the destination-policy decision, which needs the
-operator to name any non-GitHub consumer), immutable `build_revision`,
-then 0002 batch A. Standing V3_PLAN follow-ups (mcp 2.x on its
+Open next in this sequence: immutable `build_revision`, then 0002
+batch A. The clone destination-policy decision needs the operator to
+name any non-GitHub consumer. Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

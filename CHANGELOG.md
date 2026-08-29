@@ -11,6 +11,21 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **`onboard_git`'s `git clone` child runs least-privilege** (design
+  0004, Finding 3, child-env half). The subprocess env was
+  `os.environ.copy()` — every server secret crossed the boundary for an
+  operation that needs none of them. Now an allowlist (binary
+  discovery, Windows plumbing, locale, TLS roots, proxies, ssh-agent),
+  sentinel-tested so a future secret cannot cross either; the raw
+  `OC_GIT_TOKEN` never enters the child (only the derived host-scoped
+  header does); `GIT_TERMINAL_PROMPT=0` fails a token-less private
+  clone fast instead of blocking 300s on a prompt nothing can answer;
+  the clone is `--no-checkout` (the walk reads history, never the
+  worktree); https URLs carrying userinfo, query strings, or fragments
+  are refused; and clone stderr is scrubbed of token material before it
+  reaches an error message. Server-side destination policy (loopback /
+  private / metadata addresses) is deliberately not changed here — it
+  is an open product decision recorded in the review.
 - **The portable JSON envelope is a real versioned contract, and export
   publication is atomic.** First implementation batch from the
   comparative reviews (design 0004, Finding 2). Import used to check

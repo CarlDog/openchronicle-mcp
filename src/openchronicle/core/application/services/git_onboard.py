@@ -323,6 +323,20 @@ def _validate_repo_url(repo_url: str) -> None:
             "Unsupported repo URL. Use an https:// or ssh:// URL, or scp-style user@host:path "
             "(ext::/fd::/file:// transports and local paths are not allowed)."
         )
+    # A clone URL needs neither. Userinfo in an https URL is a credential
+    # travelling in a caller-supplied string — the supported path for
+    # private repos is OC_GIT_TOKEN, which stays server-side and
+    # host-scoped. Query/fragment material has no git-clone meaning and
+    # is where credential-shaped tokens otherwise hide. (ssh URLs keep
+    # their userinfo: `ssh://git@host/...` is the transport's identity,
+    # not a secret.)
+    if _HTTPS_URL.match(repo_url) and "@" in repo_url.split("://", 1)[1].split("/", 1)[0]:
+        raise RuntimeError(
+            "Credentials embedded in the URL are not supported. "
+            "For private github.com repos set OC_GIT_TOKEN on the server instead."
+        )
+    if "?" in repo_url or "#" in repo_url:
+        raise RuntimeError("Unsupported repo URL: query strings and fragments are not allowed in a clone URL.")
 
 
 # Conservative subset of valid git ref names: no leading dash (option
@@ -548,8 +562,65 @@ def extract_commits_from_git(
     return commits
 
 
+# Environment variables the `git clone` child actually needs, and nothing
+# else. The old shape was `os.environ.copy()`, which handed the child every
+# secret the server holds — OC_API_KEY, OPENAI_API_KEY, the raw
+# OC_GIT_TOKEN — for an operation whose only consumer needs are binary
+# discovery, TLS trust, proxies, locale, and (for ssh URLs) the agent
+# socket. An allowlist excludes future secrets by construction, where a
+# denylist would have to name them one by one and miss the next one.
+_CLONE_ENV_PASSTHROUGH = (
+    # binary discovery + working basics
+    "PATH",
+    "HOME",
+    "TMPDIR",
+    # Windows process/network plumbing — subprocess + WinHTTP fail oddly
+    # without these (harmlessly absent elsewhere)
+    # ("Temp" not all-caps: the repo's tech-debt guard bans that exact
+    # word, and Windows — the only platform where this var exists — reads
+    # env names case-insensitively in both os.environ and the child.)
+    "USERPROFILE",
+    "SYSTEMROOT",
+    "SYSTEMDRIVE",
+    "COMSPEC",
+    "PATHEXT",
+    "Temp",
+    "TMP",
+    # locale
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    # TLS trust roots
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "CURL_CA_BUNDLE",
+    "GIT_SSL_CAINFO",
+    # proxies (git honours both cases; Windows env collapses them anyway)
+    "http_proxy",
+    "https_proxy",
+    "all_proxy",
+    "no_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "ALL_PROXY",
+    "NO_PROXY",
+    # ssh transport, for the ssh:// and scp-style URLs the gate allows
+    "SSH_AUTH_SOCK",
+    "GIT_SSH",
+    "GIT_SSH_COMMAND",
+)
+
+
 def _build_clone_env(repo_url: str) -> dict[str, str]:
-    """Build the subprocess env for ``git clone``, injecting auth when configured.
+    """Build a least-privilege subprocess env for ``git clone``.
+
+    Passes through only ``_CLONE_ENV_PASSTHROUGH``, sets
+    ``GIT_TERMINAL_PROMPT=0`` (a private repo with no token must fail
+    fast with git's own "could not read Username" error, not sit blocked
+    on a prompt that can never be answered until the 300s timeout), and
+    injects auth when configured. The raw ``OC_GIT_TOKEN`` is read here
+    but never enters the child env — only the derived, host-scoped
+    header does.
 
     If ``OC_GIT_TOKEN`` is set in the process env AND ``repo_url`` is an
     https://github.com/ URL, inject an ``Authorization: Basic <b64>`` header
@@ -571,7 +642,8 @@ def _build_clone_env(repo_url: str) -> dict[str, str]:
     that the clone might somehow follow. v1 supports github.com only;
     GitLab/Bitbucket/etc. would need their own host-scoped tokens.
     """
-    env = os.environ.copy()
+    env = {name: value for name in _CLONE_ENV_PASSTHROUGH if (value := os.environ.get(name)) is not None}
+    env["GIT_TERMINAL_PROMPT"] = "0"
     token = os.environ.get("OC_GIT_TOKEN")
     if token and repo_url.startswith("https://github.com/"):
         # GitHub ignores the username for PATs, but the Basic-auth wire
@@ -583,6 +655,25 @@ def _build_clone_env(repo_url: str) -> dict[str, str]:
         # single-quotes so no escaping needed.
         env["GIT_CONFIG_PARAMETERS"] = f"'http.https://github.com/.extraheader=AUTHORIZATION: Basic {basic_b64}'"
     return env
+
+
+def _redact_clone_secrets(text: str, clone_env: dict[str, str]) -> str:
+    """Scrub the token and its derived header value from captured stderr.
+
+    Defense in depth, not the primary control: the raw token never enters
+    the child env and the header travels base64-encoded — but git error
+    text is upstream-owned and has echoed configuration before, so
+    anything secret-bearing this process knows about is masked before the
+    text can reach an exception message or a log.
+    """
+    secrets = [os.environ.get("OC_GIT_TOKEN") or ""]
+    params = clone_env.get("GIT_CONFIG_PARAMETERS", "")
+    if "Basic " in params:
+        secrets.append(params.split("Basic ", 1)[1].rstrip("'"))
+    for secret in secrets:
+        if secret:
+            text = text.replace(secret, "***")
+    return text
 
 
 def extract_commits_from_url(
@@ -627,7 +718,13 @@ def extract_commits_from_url(
     # Pick clone depth: shallow is fine when we just want the most recent
     # max_commits. With a watermark, the arbitrary `since_commit` SHA must be
     # reachable, so do a full clone (--depth changes git's view of history).
-    clone_cmd: list[str] = ["git", "clone", "--quiet"]
+    # --no-checkout: this function only reads history (rev-parse + log),
+    # never the working tree, so materializing one is pure waste — and on
+    # a hostile repo it is also the half of clone that writes
+    # attacker-chosen file names/modes to disk. (No partial-clone
+    # --filter: --numstat still needs blob metadata; benchmark that
+    # separately before adding it.)
+    clone_cmd: list[str] = ["git", "clone", "--quiet", "--no-checkout"]
     if since_commit is None:
         # +1 to ensure we don't truncate exactly at max_commits and miss a parent
         clone_cmd.extend(["--depth", str(max_commits + 1)])
@@ -655,7 +752,7 @@ def extract_commits_from_url(
             raise RuntimeError("git clone timed out after 300 seconds") from err
 
         if result.returncode != 0:
-            stderr = result.stderr.strip()
+            stderr = _redact_clone_secrets(result.stderr.strip(), clone_env)
             raise RuntimeError(f"git clone failed for {_redact_url(repo_url)}: {stderr}")
 
         resolved_branch, head = _resolve_ref(tmpdir)

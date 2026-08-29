@@ -315,9 +315,14 @@ first needs an explicit product decision:
 Do not impose the same rule on `OLLAMA_HOST`; private Ollama connectivity
 is an intentional operator configuration, not a caller-selected URL.
 
-**Disposition:** minimize the child environment in the next hardening
-batch. Treat destination policy as a medium-high decision requiring the
-actual non-GitHub consumer to be named.
+**Disposition:** ~~minimize the child environment in the next hardening
+batch.~~ **✅ Child-environment half SHIPPED 2026-08-28** (assessment rev
+117): allowlisted clone env (`_CLONE_ENV_PASSTHROUGH`) with a
+sentinel-secret regression test, raw `OC_GIT_TOKEN` never in the child,
+`GIT_TERMINAL_PROMPT=0`, `--no-checkout`, https userinfo and
+query/fragment rejection, and clone-stderr scrubbing of token material.
+Destination policy remains as written: a medium-high decision requiring
+the actual non-GitHub consumer to be named.
 
 ## Finding 4: release version is not deploy identity
 
@@ -627,7 +632,7 @@ implementation.
 | 1 | Canonical agent-instruction source | Documentation / operations | 4 | 5 | 1 | 45 | **Closed 2026-08-28**; exact mirror plus regression test |
 | 2 | Strict export/import envelope + atomic private export | Reliability / data safety | 5 | 5 | 2 | 40 | **✅ Shipped 2026-08-28** (rev 116); Finding 2 records the closeout |
 | 3 | Content-bound, post-write-checked live restore | Reliability / data safety | 5 | 5 | 2 | 40 | Before cloud restore ships; the failure consequence is maximum, but no live restore exists yet |
-| 4 | Least-privilege git child environment | Security | 4 | 5 | 2 | 36 | Now; unrelated server secrets cross a child-process boundary with no consumer need |
+| 4 | Least-privilege git child environment | Security | 4 | 5 | 2 | 36 | **✅ Shipped 2026-08-28** (rev 117); Finding 3 records the closeout. Destination policy (rank 8) stays open |
 | 5 | Immutable build revision in diagnostics | Operations / provenance | 4 | 4 | 2 | 32 | Now; directly closes ambiguity in the current short-SHA Portainer deployment workflow |
 | 6 | Idempotent postcondition-checked offline replay | Reliability / feature design | 5 | 5 | 3 | 30 | Before the existing write-behind item ships; prevents duplicates after ambiguous timeout |
 | 7 | Repair public docs + CLI/MCP/env parity checks | Documentation / correctness | 3 | 4 | 2 | 28 | **Docs closed 2026-08-28**; broader inventory gates remain unscheduled |

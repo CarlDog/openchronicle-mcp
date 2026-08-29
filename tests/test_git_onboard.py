@@ -238,10 +238,43 @@ def test_extract_handles_multiple_commits() -> None:
 # ── _build_clone_env token host-scoping (security boundary) ────────
 
 
-def test_clone_env_no_token_leaves_env_unmodified(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_clone_env_no_token_injects_no_header(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OC_GIT_TOKEN", raising=False)
     env = _build_clone_env("https://github.com/CarlDog/openchronicle-mcp")
     assert "GIT_CONFIG_PARAMETERS" not in env
+
+
+def test_clone_env_is_an_allowlist_no_unrelated_secret_crosses(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The child gets what `git clone` needs — never the server's secrets.
+
+    The old shape was os.environ.copy(): every server secret crossed the
+    child-process boundary for an operation with no consumer need for
+    any of them. A sentinel proves the allowlist, not a denylist, is
+    doing the work — a variable invented after this test was written
+    still cannot cross.
+    """
+    monkeypatch.setenv("OC_API_KEY", "server-api-secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-embedding-secret")
+    monkeypatch.setenv("TOTALLY_NEW_SECRET_SENTINEL", "must-not-cross")
+    env = _build_clone_env("https://github.com/CarlDog/openchronicle-mcp")
+    assert "OC_API_KEY" not in env
+    assert "OPENAI_API_KEY" not in env
+    assert "TOTALLY_NEW_SECRET_SENTINEL" not in env
+    assert "PATH" in env, "binary discovery must survive the allowlist"
+
+
+def test_clone_env_never_carries_the_raw_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only the derived host-scoped header crosses; the raw PAT stays server-side."""
+    monkeypatch.setenv("OC_GIT_TOKEN", "ghp_secrettoken")
+    env = _build_clone_env("https://github.com/CarlDog/openchronicle-mcp")
+    assert "OC_GIT_TOKEN" not in env
+    assert not any("ghp_secrettoken" in v for v in env.values())
+
+
+def test_clone_env_disables_terminal_prompts() -> None:
+    """A private repo with no token must fail fast, not block on a prompt."""
+    env = _build_clone_env("https://github.com/CarlDog/openchronicle-mcp")
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
 
 
 def test_clone_env_injects_host_scoped_header_for_github(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -306,6 +339,74 @@ def test_extract_from_url_rejects_ext_transport_before_clone() -> None:
     ):
         extract_commits_from_url("ext::sh -c 'evil'")
     mock_run.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://x:ghp_secret@github.com/foo/bar",
+        "https://token@github.com/foo/bar",
+    ],
+)
+def test_validate_rejects_https_userinfo(url: str) -> None:
+    """A credential in a caller-supplied URL is refused, pointing at OC_GIT_TOKEN."""
+    with pytest.raises(RuntimeError, match="OC_GIT_TOKEN"):
+        _validate_repo_url(url)
+
+
+def test_validate_still_accepts_ssh_userinfo() -> None:
+    """`git@` in an ssh URL is transport identity, not a credential."""
+    _validate_repo_url("ssh://git@github.com/foo/bar.git")
+    _validate_repo_url("git@github.com:CarlDog/openchronicle-mcp.git")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com/foo/bar?token=abc",
+        "https://github.com/foo/bar#fragment",
+    ],
+)
+def test_validate_rejects_query_and_fragment(url: str) -> None:
+    with pytest.raises(RuntimeError, match="query strings and fragments"):
+        _validate_repo_url(url)
+
+
+def test_clone_stderr_is_scrubbed_of_token_material(monkeypatch: pytest.MonkeyPatch) -> None:
+    """git error text is upstream-owned; anything secret we know about is masked."""
+    import base64 as _b64
+
+    monkeypatch.setenv("OC_GIT_TOKEN", "ghp_secrettoken")
+    basic = _b64.b64encode(b"x-access-token:ghp_secrettoken").decode()
+
+    def _fake_run(cmd: list[str], **_kw: object) -> SimpleNamespace:
+        return SimpleNamespace(returncode=1, stdout="", stderr=f"fatal: auth ghp_secrettoken / Basic {basic} rejected")
+
+    with (
+        patch("openchronicle.core.application.services.git_onboard.subprocess.run", side_effect=_fake_run),
+        pytest.raises(RuntimeError) as excinfo,
+    ):
+        extract_commits_from_url("https://github.com/foo/bar")
+    message = str(excinfo.value)
+    assert "ghp_secrettoken" not in message
+    assert basic not in message
+    assert "***" in message
+
+
+def test_clone_command_uses_no_checkout() -> None:
+    """History-only walk: no working tree is materialized from the clone."""
+    captured: dict[str, list[str]] = {}
+
+    def _fake_run(cmd: list[str], **_kw: object) -> SimpleNamespace:
+        captured["cmd"] = cmd
+        return SimpleNamespace(returncode=1, stdout="", stderr="boom")
+
+    with (
+        patch("openchronicle.core.application.services.git_onboard.subprocess.run", side_effect=_fake_run),
+        pytest.raises(RuntimeError, match="git clone failed"),
+    ):
+        extract_commits_from_url("https://github.com/foo/bar")
+    assert "--no-checkout" in captured["cmd"]
 
 
 def test_redact_url_strips_embedded_credentials() -> None:

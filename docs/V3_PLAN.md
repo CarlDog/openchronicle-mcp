@@ -955,10 +955,16 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   envelope before the write transaction (version dispatch, required
   arrays, per-row types, project references, duplicate ids; rejections
   name collection/index/id) and `oc memory export --out` publishes via
-  `mkstemp` + `os.replace`. Remaining right-sized work is a
-  least-privilege `onboard_git` child environment and explicit server-side
-  destination policy; immutable `build_revision` in full diagnostics; and
-  broader CLI/MCP/env documentation parity gates.
+  `mkstemp` + `os.replace`. ~~A least-privilege `onboard_git` child
+  environment~~ — **✅ SHIPPED 2026-08-28** (rev 117): allowlisted clone
+  env with a sentinel test, raw token never in the child,
+  `GIT_TERMINAL_PROMPT=0`, `--no-checkout`, userinfo/query/fragment
+  rejection, stderr scrubbing. Remaining right-sized work is the
+  explicit server-side clone *destination policy* (an operator decision:
+  GitHub-only allowlist vs. address-class rejection — the review
+  requires naming any non-GitHub consumer first); immutable
+  `build_revision` in full diagnostics; and broader CLI/MCP/env
+  documentation parity gates.
   The review also makes stable operation identity + postcondition checking
   a prerequisite for the existing offline write-behind idea, and
   content-bound selection + post-swap writeability a prerequisite for the
