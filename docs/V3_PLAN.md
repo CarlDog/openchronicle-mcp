@@ -873,6 +873,25 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
+- **Pin-float can consume the ENTIRE search response on a pin-heavy
+  corpus.** Found 2026-08-29 by the embedding-provider benchmark
+  (operator-directed flag): `DEFAULT_PINNED_LIMIT` (10) equals the
+  default `top_k` (10), and floated pins lead the one combined stream
+  that `top_k` bounds (the rev-123 total-budget decision). On the live
+  corpus — 149 pinned of 868 memories — any broad query that
+  keyword-matches ≥10 pins therefore returns ONLY floated pins: zero
+  relevance-ranked results survive, from either channel. The benchmark
+  hit this as a confound (12 different embedding models scored
+  byte-identically because the top-10 was pins for every one of them),
+  but it is equally a production behavior on `memory_search` today.
+  Options when picked up: drop `DEFAULT_PINNED_LIMIT` well below
+  `top_k` (e.g. 3) so ranked results always keep a majority of the
+  budget; or scale the float cap to a fraction of the effective
+  `top_k`. Either changes documented response composition — a
+  MINOR-at-least call under `docs/api/STABILITY.md`. Whether pins
+  *should* dominate broad queries is the operator decision this item
+  exists to force before any code moves.
+
 - **MCP clients never see `error_code`; the REST surface does.**
   Found 2026-08-28 while capturing the MCP error-shape baseline
   (`tests/test_mcp_error_shape.py`). Domain exceptions carry a structured
