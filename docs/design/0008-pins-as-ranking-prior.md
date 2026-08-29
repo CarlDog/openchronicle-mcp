@@ -1,11 +1,12 @@
 # ADR 0008 — Pins as a Ranking Prior
 
-**Status:** PROPOSED (rev 2 — rev 1 failed adversarial review, see
-Review history) · **Date:** 2026-08-29 · **Supersedes:** the pin-float
-mechanism in BOTH its implementations (the hybrid/semantic float in
-`EmbeddingService` and the keyword-mode float in
-`search_memory.execute`) · **Direction ratified** by the operator
-2026-08-29 (V3_PLAN active queue item 1; OC memory `141393b7`).
+**Status:** PROPOSED (rev 3 — rev 1 failed adversarial review, rev 2's
+mechanism survived it with amendments; see Review history) ·
+**Date:** 2026-08-29 · **Supersedes:** the pin-float mechanism in BOTH
+its implementations (the hybrid/semantic float in `EmbeddingService`
+and the keyword-mode float in `search_memory.execute`) · **Direction
+ratified** by the operator 2026-08-29 (V3_PLAN active queue item 1;
+OC memory `141393b7`).
 
 ## Problem
 
@@ -22,214 +23,241 @@ never consults the semantic channel.
 The float exists **twice**: in `search_hybrid`/`search_semantic`
 (`EmbeddingService`) and, independently, in the keyword-mode branch of
 `use_cases/search_memory.py` (which also serves keyword-only
-deployments). Rev 1 missed the second site; any redesign must cover
-both or it is not a redesign.
+deployments). Any redesign must cover both.
 
 ### Explicitly out of scope: the hybrid-R@1 deficit
 
 The 0006 benchmark also showed hybrid R@1 (0.750) trailing
-semantic-only R@1 (0.950). Rev 1 proposed channel weights; review
-showed that is **structurally unfixable inside RRF**: the paraphrase
-failure case is a target at semantic #1 absent from the keyword list,
-and a competitor at semantic #2 + keyword #1 wins whenever
-`W_KEYWORD > ~0.016` — far below any useful weight, while going under
-that threshold collapses hybrid into semantic-only. RRF's rank
-compression discards semantic confidence by construction (a
-0.95-vs-0.60 cosine gap becomes 1/61 vs 1/62). Fixing it means
-score-aware fusion — a different, larger design with its own
-normalization pitfalls. It is scoped OUT of this ADR and recorded as
-a candidate future design; this ADR changes pin policy only.
+semantic-only R@1 (0.950). Review proved this **structurally
+unfixable inside RRF**: the paraphrase failure case is a target at
+semantic #1 absent from the keyword list, and a competitor at
+semantic #2 + keyword #1 wins whenever `W_KEYWORD > ~0.016` — far
+below any useful weight, while going under collapses hybrid into
+semantic-only. RRF's rank compression discards semantic confidence by
+construction. Fixing it means score-aware fusion — a different,
+larger design recorded as a candidate future ADR. This ADR changes
+pin policy only.
 
 ## Decision (proposed)
 
-### 1. The prior lives in the RANK domain, not the score domain
+### 1. The prior lives in the RANK domain: a bounded, clamped lift
 
-Rev 1's multiplicative score boost is dead — review proved it has no
-gate in semantic mode (background cosine sits ~0.2-0.5, never zero,
-so a 0.35-similarity pin × 2.0 beats a 0.65 relevant row) and
-misbehaves catastrophically on RRF's rank-compressed scores (all
-fused scores live in [2/(60+2k), 2/61]; at rev 1's own grid values a
-pin ranked 16th in both channels outscored a double-#1, refilling the
-all-pin page).
-
-Instead: **a bounded rank lift.** Wherever a pinned row appears in a
-channel's ranked candidate list, its rank is improved by a fixed
-number of positions before fusion/cut:
+Rev 1's multiplicative score boost is dead (no gate in semantic mode;
+all-pin pages on RRF's compressed scores at its own grid values).
+Instead, wherever a pinned row appears in a channel's ranked
+candidate list, its rank improves by a bounded number of positions
+before fusion/cut:
 
 ```text
-effective_rank(m, channel) = max(1, rank(m, channel) − PIN_RANK_LIFT)   if m.pinned
-                             rank(m, channel)                            otherwise
+effective_lift            = min(PIN_RANK_LIFT, effective_top_k)      # per request
+effective_rank(m, ch)     = max(1, rank(m, ch) − effective_lift)     # if m.pinned
+                            rank(m, ch)                              # otherwise
 ```
 
-Properties the review demanded and this form delivers:
-
-- **A real gate.** A pin absent from a channel's candidate list gets
-  nothing from that channel — presence in a ranked list is the
-  relevance evidence. No background-similarity floor to exploit.
-- **Bounded influence by construction.** A pin can pass at most
-  `PIN_RANK_LIFT` competitors per channel — it can never leapfrog the
-  whole page, so the all-pin failure mode is structurally excluded
-  for any lift value materially smaller than `top_k`'s window
-  (enforced: `PIN_RANK_LIFT < K_WINDOW / 2`, asserted in code).
+- **Clamped, never asserted.** The lift's reach is capped per request
+  by the request's own `effective_top_k` — a small `top_k` shrinks
+  the lift instead of tripping an assertion (rev 2's
+  `PIN_RANK_LIFT < K_WINDOW/2` assert was over a caller-controlled
+  quantity and its own sweep grid violated it at default `top_k`;
+  a caller-triggerable 500 is not an invariant).
+- **Deterministic total order.** The clamp *guarantees* effective-
+  rank collisions (every lifted pin collides with the row holding its
+  target rank; multiple pins can pile on the `max(1, ·)` floor).
+  Ordering is therefore defined as the tuple
+  **(effective rank, original rank, memory id)** — ascending, total,
+  stable across requests. Consequences of this tie-break, stated
+  plainly: a lifted pin *ties* do not let it pass the row already AT
+  its target rank (original rank breaks the tie in that row's favor)
+  — the lift lets a pin pass the rows *between*, which is the
+  intended semantics ("gains up to `effective_lift` positions") and
+  makes `offset` pagination well-defined.
+- **The gate, stated honestly.** A pin benefits only where it appears
+  in a channel's candidate list. For the keyword channel that is a
+  real relevance gate (FTS5 match required). For the semantic channel
+  every embedded row has *some* cosine, so the gate there is depth,
+  not absence: a near-noise pin sits at a deep rank and a bounded
+  lift cannot surface it through a populated page — but on a sparse
+  result set (fewer genuine matches than `top_k`) low-similarity rows
+  including pins can fill the bottom of the page, exactly as they can
+  today with `include_pinned=True`. The mechanism adds no new
+  exposure; it does not claim an absolute gate (rev 2 overclaimed).
 - **Score domains untouched.** RRF fuses lifted ranks with the
   unchanged formula and `K = 60`; `rrf_score` keeps its documented
-  ~2/61 ceiling, `semantic_similarity` stays raw. No response-field
-  semantics change.
+  ~2/61 ceiling; `semantic_similarity` stays raw. In semantic mode
+  the result order may therefore disagree with the
+  `semantic_similarity` fields the caller sees — the row's `pinned`
+  flag is the explanation, and the docs updated by this ADR say so
+  (rev 2 dispositioned this only for `rrf_score`).
 - **One mechanism for every mode.** Ranks exist in the keyword list,
   the semantic ranking, the keyword-only path, and the degraded
-  fallback — the SAME lift applies in all of them. This resolves rev
-  1's mode inconsistency (boost in two modes, nothing in the others)
-  and the unnamed degraded-mode regression (degraded mode keeps pin
-  preference, now relevance-gated instead of floated).
+  fallback — the SAME clamped lift and the SAME tie-break apply in
+  all of them. Keyword-only/degraded deployments keep pin
+  preference, relevance-gated instead of float-shaped.
 
-### 2. Pinned candidate quota at the window stage
+### 2. The candidate window extends by the lift's reach (no quota)
 
-Fusion only sees each channel's over-fetched candidate window
-(~2×top_k, selected today without regard to pins). Review showed that
-without a window story, 149 pins compete with everything else for
-~20 slots and the lottery relocates rather than dies. Therefore: each
-channel's candidate set becomes
+Rev 2 proposed an additive "pinned quota at true full-ranking rank."
+Review killed it from two directions: the keyword channel cannot
+produce a pin's true full-ranking rank without an unbounded per-query
+sort (a pinned-only predicate yields rank-*within-pins*, a different
+number), and any quota row deeper than `window + lift` is dead weight
+that RRF's monotonicity can never surface. The mechanically
+equivalent cheap design replaces it:
 
 ```text
-candidates(channel) = top_W unpinned-or-pinned as ranked   (the window, unchanged)
-                    ∪ top_Q pinned rows of that channel    (the quota, additive)
+channel fetch = top (2 × effective_top_k + effective_lift)   # was 2 × effective_top_k
 ```
 
-with each quota row carrying its TRUE rank from the full channel
-ranking (so the lift operates on honest ranks). The quota is additive
-— it never displaces unpinned candidates — and small (`PIN_QUOTA`,
-default 10). A pin outside both the window and the quota is genuinely
-not relevant enough to surface; that is the aging argument working,
-not failing: relevance ordering, not arrival order or cap luck,
-decides which pins compete.
+Every pin the lift could possibly surface is inside the widened
+fetch by construction; every rank the lift operates on is an honest
+rank from the fetch itself; no new port surface exists
+(`search_pinned` dies with nothing replacing it — the ordinary
+ranked query with `include_pinned=True` is the one primitive).
+Pins deeper than the widened window remain unreachable — that is the
+aging argument working: relevance ordering, not arrival order or cap
+luck, decides which pins compete.
 
-### 3. Both constants tuned against an upgraded harness — honestly
+### 3. Tuning against the upgraded harness
 
-Review sustained that the rev 1 tuning plan was unexecutable
-(per-cell full re-embeds, no pinned-target marker in the fixture, no
-broad-query set, no threshold) and statistically dishonest (argmax on
-the same 40 queries, granularity 0.10 on the pinned subset). Rev 2
-schedules the instrument work FIRST:
-
-- **Fixture upgrades:** pinned-target flags stored per gold query;
-  the pinned-target query set expanded to ≥20; a new ~10-query
-  broad-query fixture for the pin-crowding probe with a numeric gate
-  (mean pins-in-top-10 ≤ 5, max ≤ 8 across the set).
-- **Harness upgrades:** embed once per store, re-score all sweep
-  cells against the same vectors (constants injected via
-  `EmbeddingService` constructor parameters, landing as named module
-  defaults); the `pinned_limit=0` measurement special-case is deleted
-  (post-refactor the production config IS the measurable config —
-  the property rev 1 claimed and didn't have).
-- **Held-out validation:** queries split ~60/40 tune/validate; the
-  winning cell must hold direction on the validation split, and
-  deltas under one query's granularity are reported as noise, not
-  wins (0006's own caveat, now binding on this tuning).
-- **Sweep:** `PIN_RANK_LIFT ∈ {0, 2, 5, 10}` × `PIN_QUOTA ∈ {5, 10}`.
-  `LIFT = 0` (mechanism off, float still removed) is an admissible
-  outcome; the test plan below is written to survive it.
+- **Fixture upgrades first:** pinned-target flags stored per gold
+  query; pinned-target queries expanded to ≥20; a ~10-query
+  broad-query fixture for the pin-crowding probe with numeric gates
+  (mean pins-in-top-10 ≤ 5, max ≤ 8).
+- **Harness upgrades first:** embed once per store, re-score all
+  sweep cells against the same vectors; `PIN_RANK_LIFT` injected via
+  the `EmbeddingService` constructor (production wiring passes the
+  named module default — the constant is deliberately code-only, no
+  env var / `core.json` key: retuning is a code change by design,
+  per the no-over-engineering rule); the harness's `pinned_limit=0`
+  special case is deleted.
+- **Sweep:** `PIN_RANK_LIFT ∈ {0, 2, 4, 8}` (all cells valid under
+  the clamp at the benchmark's `top_k=10`; rev 2's `10` cell
+  violated its own bound at default `top_k`). `LIFT = 0` (lift off;
+  float still removed) is an admissible outcome and the test plan
+  survives it. The quota dimension is gone with the quota.
+- **Held-out validation is a regression veto, not a confirmation
+  bar:** queries split ~60/40 tune/validate; the winning cell is
+  REJECTED if its validated delta is negative; at the fixture's size
+  (~8 validation pinned queries, R@1 granularity 0.125) a
+  confirmation requirement would be noise-decided, so none is
+  imposed — deltas under one query's granularity are reported as
+  noise either way.
 
 ### 4. Surface contract
 
 - `include_pinned` keeps its exact meaning in every mode (`False`
-  hides pins from results entirely) — visibility policy, orthogonal
-  to ranking.
-- `channel` keeps reporting the producing ranked channel. The
-  `"pinned"` value stops occurring in ALL modes — including keyword
-  mode, whose float is replaced by the same rank lift (this is the
-  documented-behavior change that drives versioning, below).
+  hides pins entirely) — visibility policy, orthogonal to ranking.
+- `channel` keeps reporting the producing ranked channel; the
+  `"pinned"` value stops occurring in ALL modes (the
+  documented-behavior change that drives versioning).
 - `pinned_limit` becomes inert on every wire surface (MCP tool, REST
-  query param, CLI flag): accepted, documented as deprecated, removed
-  at the MAJOR after next. **The accepted-inert parameter IS the
-  deprecation window** — rev 1's "waive the window" framing was
-  wrong; no parallel surface is needed because no request/response
-  schema changes.
+  query param, CLI flag): accepted, marked deprecated (FastAPI
+  `deprecated=True` so the OpenAPI spec says so per STABILITY step 2;
+  its `ge/le` range validation is dropped along with the meaning it
+  validated), removed **no earlier than v5.0.0**.
 - Internal signatures (`EmbeddingService.search_*`,
-  `search_memory.execute`) drop `pinned_limit` outright — internal
+  `search_memory.execute`) drop `pinned_limit` outright; internal
   callers (CLI plumbing, `scripts/benchmark_embeddings.py`) are
-  updated in the same change; they are not under STABILITY.
-- `MemoryStorePort.search_pinned` now genuinely loses ALL callers
-  (both float sites die) and is removed (port + store + tests). The
-  quota fetch reuses `search_memory`'s ranked query with a
-  pinned-only predicate — one ranking primitive, not two.
-- Documentation inventory (review finding): the float is described in
-  `mcp_server_spec.md` (channel enum, float paragraphs, `rrf_score`
-  ceiling note stays valid), the MCP/REST/CLI docstrings,
-  `memory_store_port.py` commentary, and the sqlite tristate
-  comments. The implementation stage carries an explicit
-  grep-`pinned`-docs checklist; "documented as deprecated" is a
-  listed edit set, not an intention.
+  updated in the same change — they are not under STABILITY.
+- `MemoryStorePort.search_pinned` loses ALL callers (both float
+  sites die) and is removed (port + store + tests). Nothing replaces
+  it.
+- **Documentation inventory** (checklist for the implementation
+  stage, since the schema snapshot does not catch docstring drift):
+  `mcp_server_spec.md` (channel enum, float paragraphs),
+  `docs/cli/commands.md` (relevance/channel column text),
+  `scored_memory.py` docstring (documents the `pinned` channel
+  value), `interfaces/serializers.py` relevance commentary, the
+  MCP/REST/CLI docstrings and flag help, `memory_store_port.py`
+  float commentary and `DEFAULT_PINNED_LIMIT`, and the
+  `sqlite_store.py` include/exclude tristate comments. Grep `pinned`
+  across `docs/` and docstrings is the exit check.
 
 ### 5. Versioning — OPEN QUESTION for the operator
 
-The honest classification: request/response *schemas* are unchanged;
-what changes is documented *behavior* (pins stop leading; a
-documented `channel` enum value ceases to occur; a documented
-parameter goes inert). By STABILITY.md that is still
-"changing the meaning of an existing field" → **recommend v4.0.0**,
-with the deprecation mechanics satisfied by the accepted-inert
-parameter (§4) rather than a parallel `/api/v2` surface (which the
-policy reserves for schema breaks). The alternative — calling it
-MINOR as "behavioral tuning" — remains rejected: quiet
-reinterpretation is how stability promises rot.
+Request/response *schemas* are unchanged; documented *behavior*
+changes (pins stop leading; a documented `channel` enum value ceases
+to occur; a documented parameter goes inert). Under STABILITY.md's
+"changing the meaning of an existing field" this is **MAJOR →
+recommend v4.0.0**. On the deprecation window, stated honestly this
+time: STABILITY's window text attaches to MAJOR changes wholesale and
+says "keep the old shape working." This ADR keeps the old *syntax*
+working (the accepted-inert parameter, through v4.x) but the old
+*behavior* (pins leading the page) ends at v4.0.0 with no parallel
+surface — **a deliberate deviation from the policy's letter**,
+justified by proportionality: a parallel `/api/v2` deployment to
+preserve a float for an audience of zero external users is ceremony
+without a beneficiary. The operator accepting §5 accepts that
+deviation explicitly. The alternative — calling this MINOR — remains
+rejected: quiet reinterpretation is how stability promises rot.
 
 ## Consequences
 
-- A broad query can never return an all-pin page: the lift is bounded
-  below the window size by construction, not by tuning luck.
-- A relevant pin reliably outranks near-equal unpinned rows in every
-  mode, at any pin population; an irrelevant pin (absent from the
-  ranked channels) surfaces nowhere.
-- Degraded and keyword-only deployments keep pin preference —
-  relevance-gated, no longer float-shaped.
+- **The lift adds no all-pin failure mode** — bounded per pin, tied
+  conservatively, capped by the request's own size. Stated precisely
+  (rev 2 overclaimed "can never return an all-pin page"): a page can
+  still be pin-heavy when the *unlifted* ranking honestly is — 149
+  pins genuinely outranking everything is relevance deciding, and no
+  ranking policy should hide it. What can no longer happen is
+  policy *manufacturing* that page, which is the defect this ADR
+  kills.
+- A relevant pin passes up to `effective_lift` near-equal unpinned
+  competitors in every mode, at any pin population; rows it merely
+  ties (the row at its target rank) keep their place.
+- Degraded and keyword-only deployments keep pin preference via the
+  same mechanism.
 - One ranking-policy mechanism total (down from two float
   implementations + one exclusion-set protocol); the benchmark
   measures production behavior with no special configuration.
-- Costs accepted: `PIN_RANK_LIFT`/`PIN_QUOTA` are global constants (a
-  future corpus may want different values — rerun the tuning);
-  `rrf_score` ordering is no longer derivable from raw channel ranks
-  alone (the lift intervenes; the per-channel raw signals remain in
-  the response).
+- Costs accepted: `PIN_RANK_LIFT` is a global, code-only constant
+  (retuning is a release); result order is no longer derivable from
+  the raw per-channel signals alone (the lift intervenes; the
+  `pinned` flag explains it, and semantic mode's order may visibly
+  disagree with its `semantic_similarity` fields — documented).
 
 ## Test plan
 
-- **Bounded-lift property:** a pinned row gains at most
-  `PIN_RANK_LIFT` positions per channel (deterministic constructs
-  with fixed injected constants — no identical-score assertions; the
-  review showed RRF tie order is hash-iteration-dependent, so
-  equality-based tests are banned here).
-- **Gate:** a pin absent from both channels' candidates+quota never
-  surfaces, in hybrid, semantic, and keyword modes.
+- **Bounded-lift + tie-break properties** (deterministic, injected
+  constants; equality-of-score assertions stay banned): a pin gains
+  at most `effective_lift` positions per channel; a pin lifted onto
+  an occupied rank sorts AFTER the original-rank holder; pile-ups at
+  the rank-1 floor order by original rank then id.
+- **Clamp:** `top_k=1` and `top_k=2` requests succeed with the lift
+  clamped, never erroring.
+- **Keyword-gate:** a pin with no FTS5 match never surfaces in
+  keyword mode / the keyword channel.
+- **Semantic exposure parity:** on a sparse result set, a
+  low-similarity pin appears no earlier than it would today with
+  `include_pinned=True` and no float (the mechanism adds no new
+  exposure).
 - **Mode parity:** keyword mode and degraded-hybrid apply the same
-  lift (regression guard on the rev-1 blind spot).
-- **Quota:** a pin at true rank outside the window but inside the
-  quota enters fusion with its true rank; unpinned candidates are
-  never displaced by the quota.
-- **`include_pinned=False`** hides pins in all three modes
-  (semantic-mode guard explicitly retained when float tests die).
-- **Pagination:** `offset` walks the lifted ordering consistently
-  (a lift must not duplicate/skip rows across page boundaries).
+  lift and tie-break as the fused path.
+- **Window extension:** a pin at unlifted rank `2×top_k + lift` (the
+  last fetched row) can surface; one rank deeper cannot.
+- **`include_pinned=False`** hides pins in all three modes.
+- **Pagination:** two consecutive `offset` pages neither duplicate
+  nor drop rows (now satisfiable — the total order is defined).
 - **Inert-param compat:** `pinned_limit` accepted on MCP/REST/CLI and
-  ignored (until the scheduled MAJOR-after-next removal).
-- Tuning-gate tests live in the harness, not pytest: non-regression
-  on unpinned targets, pinned-target improvement, crowding gate,
-  held-out confirmation.
-- Schema snapshot + spec/docstring edits land in the same commit as
-  the surface change (the snapshot does NOT catch docstring drift —
-  review finding — hence the explicit checklist in §4).
+  ignored; OpenAPI marks it deprecated.
+- Tuning gates live in the harness: unpinned non-regression,
+  pinned-target improvement, crowding gate, held-out regression veto.
+- Schema snapshot + the §4 documentation checklist land with the
+  surface change.
 
 ## Rollout
 
-1. Rev 2 adversarial re-review → ACCEPTED rev.
-2. Harness + fixture upgrades (§3) — landable independently, useful
-   regardless of tuning outcome.
-3. Implement lift+quota with `PIN_RANK_LIFT=0` injected: at that
-   setting the ranked stream is verifiably identical to today's
-   `pinned_limit=0` behavior (the harness config that already exists
-   proves it), while the float removal itself is the deliberate,
-   versioned behavior change at defaults — enumerated in the
-   CHANGELOG, never called "byte-equivalent" (rev 1's false claim).
-4. Tuning run per §3; land winning constants; record the cell here.
+1. Operator decision on this rev (mechanism reviewed twice; the
+   rev-2→3 amendments follow the critics' own prescriptions).
+2. Harness + fixture upgrades (§3) — landable independently.
+3. Implement lift + window extension with `PIN_RANK_LIFT=0`
+   injected. **At LIFT=0 the window extension adds zero rows and no
+   rank moves — the ranked stream is identical to today's
+   `pinned_limit=0` behavior by construction** (a real equivalence
+   this time: rev 2's version was falsified by its own always-on
+   quota). The float removal itself is the deliberate, versioned
+   behavior change at defaults — enumerated in the CHANGELOG.
+4. Tuning run per §3; land the winning constant; record the cell
+   here.
 5. Version bump per the operator's §5 answer; ships with the next
    tag; no reindex (ranking-only).
 
@@ -238,17 +266,33 @@ reinterpretation is how stability promises rot.
 - **Rev 1 (2026-08-29): FAILED adversarial review** (three critics —
   ranking-math, API-contract, implementation). Sustained: the
   multiplicative score boost had no gate in semantic mode and
-  permitted all-pin pages on RRF's compressed scores at the proposed
-  grid values; the keyword-mode float in `search_memory.execute` was
-  entirely unaccounted for (falsifying the "only caller" /
-  "no-op" / "stops occurring" claims); weighted RRF was
-  mathematically incapable of fixing the hybrid-R@1 deficit it cited
-  (`W_KEYWORD` threshold ≈ 0.016); the candidate window recreated the
-  pin lottery; the "pure refactor / benchmark confirms
-  byte-equivalence" rollout claim was unfalsifiable at the
-  benchmark's `pinned_limit=0` config; the tuning plan overfit n=40
-  with no held-out set and an unexecutable harness; degraded mode
-  silently lost its float; §5 misdescribed its own deprecation
-  mechanics. Rev 2 replaces the mechanism (rank-domain lift + quota),
-  covers both float sites and all modes, scopes the fusion-quality
-  question out, and schedules the instrument work before tuning.
+  permitted all-pin pages on RRF's compressed scores at its own grid
+  values; the keyword-mode float in `search_memory.execute` was
+  unaccounted for; weighted RRF was mathematically incapable of
+  fixing the hybrid-R@1 deficit it cited (`W_KEYWORD` threshold
+  ≈ 0.016); the candidate window recreated the pin lottery; the
+  "byte-equivalent" rollout claim was unfalsifiable; the tuning plan
+  overfit n=40 with no held-out set; degraded mode silently lost its
+  float; §5 misdescribed its own deprecation mechanics.
+- **Rev 2 (2026-08-29): mechanism SURVIVED re-review; amendments
+  required** (same three critics, rev-1 findings verdicted
+  individually — all resolved or partially resolved). Sustained
+  against rev 2 and fixed in rev 3: the pinned quota was
+  unimplementable as specified (keyword-channel "true rank" needs an
+  unbounded per-query sort; a pinned-only predicate yields
+  rank-within-pins; deep quota rows were dead weight) → replaced by
+  the lift-reach window extension both critics prescribed; the
+  LIFT=0 equivalence claim was falsified by the always-on quota →
+  now a construction-level identity; the `K_WINDOW/2` assert was
+  over a caller-controlled quantity and the sweep's own LIFT=10 cell
+  violated it → per-request clamp, grid rebased to {0,2,4,8}; lifted
+  ranks collided with no tie-break, leaving ordering and pagination
+  undefined → total order (effective rank, original rank, id); "can
+  never return an all-pin page" and the "real gate" were overclaims →
+  restated precisely (no *added* failure mode; keyword gate absolute,
+  semantic gate is depth); §5 misattributed a schema-break carve-out
+  to STABILITY → the deviation is now owned explicitly; held-out
+  gate at ~8 validation queries was noise-decided → regression veto;
+  plus doc-inventory additions (scored_memory, cli docs,
+  serializers, OpenAPI `deprecated=True`), "no earlier than v5.0.0"
+  removal date, and the code-only-constant decision made explicit.
