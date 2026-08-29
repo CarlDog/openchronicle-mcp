@@ -6,11 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.application.use_cases import update_memory
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
+from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 from openchronicle.interfaces.serializers import memory_to_dict
 
@@ -171,3 +173,92 @@ def test_fresh_memory_has_no_updated_at(tmp_path: Path) -> None:
     loaded = storage.get_memory(item.id)
     assert loaded is not None
     assert loaded.updated_at is None
+
+
+# ── content change invalidates the stored vector (0002 batch A) ────────
+
+
+class _FailingPort(EmbeddingPort):
+    """Provider that always fails — the scenario that used to strand a
+    stale vector: content committed, re-embed raised, old vector kept."""
+
+    def embed(self, text: str) -> list[float]:
+        raise RuntimeError("provider down")
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        raise RuntimeError("provider down")
+
+    def model_name(self) -> str:
+        return "test-model"
+
+    def dimensions(self) -> int:
+        return 2
+
+
+def _store_with_embedded_memory(tmp_path: Path) -> SqliteStore:
+    store = SqliteStore(str(tmp_path / "inv.db"))
+    store.init_schema()
+    store.add_memory(MemoryItem(id="m1", content="original content"))
+    store.save_embedding("m1", [1.0, 0.0], model="test-model")
+    return store
+
+
+def test_failed_reembed_leaves_no_stale_vector(tmp_path: Path) -> None:
+    """The defect: the old vector's model still matched, so semantic
+    search ranked the OLD content indefinitely and backfill (which skips
+    rows whose stored model equals the current one) never repaired it.
+    Invalidation now precedes regeneration, so failure leaves the row
+    MISSING — visible to backfill — not stale."""
+    store = _store_with_embedded_memory(tmp_path)
+    service = EmbeddingService(port=_FailingPort(), store=store)
+
+    updated = update_memory.execute(store, "m1", content="rewritten content", embedding_service=service)
+
+    assert updated.content == "rewritten content"
+    assert store.get_embedding_model("m1") is None, "a failed re-embed must not preserve the old vector"
+    # And the row is a real backfill candidate again:
+    assert store.list_embeddings(model="test-model") == {}
+    store.close()
+
+
+def test_content_update_without_provider_also_invalidates(tmp_path: Path) -> None:
+    """No embedding_service configured is not an excuse to keep a vector
+    of content that no longer exists — a later provider re-enable would
+    find its model string current and never regenerate it."""
+    store = _store_with_embedded_memory(tmp_path)
+    update_memory.execute(store, "m1", content="rewritten content")
+    assert store.get_embedding_model("m1") is None
+    store.close()
+
+
+def test_tags_only_update_keeps_the_vector(tmp_path: Path) -> None:
+    """Tags don't change what the vector represents — no invalidation."""
+    store = _store_with_embedded_memory(tmp_path)
+    update_memory.execute(store, "m1", tags=["new-tag"])
+    assert store.get_embedding_model("m1") == "test-model"
+    store.close()
+
+
+def test_successful_reembed_replaces_the_vector(tmp_path: Path) -> None:
+    class _OkPort(_FailingPort):
+        def embed(self, text: str) -> list[float]:
+            return [0.0, 1.0]
+
+    store = _store_with_embedded_memory(tmp_path)
+    service = EmbeddingService(port=_OkPort(), store=store)
+    update_memory.execute(store, "m1", content="rewritten content", embedding_service=service)
+    assert store.get_embedding_model("m1") == "test-model"
+    assert store.list_embeddings(model="test-model")["m1"] == [0.0, 1.0]
+    store.close()
+
+
+def test_delete_embedding_is_idempotent(tmp_path: Path) -> None:
+    store = SqliteStore(str(tmp_path / "idem.db"))
+    store.init_schema()
+    store.add_memory(MemoryItem(id="m1", content="x"))
+    store.delete_embedding("m1")  # nothing stored — must not raise
+    store.save_embedding("m1", [1.0], model="test-model")
+    store.delete_embedding("m1")
+    store.delete_embedding("m1")  # second call — still fine
+    assert store.get_embedding_model("m1") is None
+    store.close()

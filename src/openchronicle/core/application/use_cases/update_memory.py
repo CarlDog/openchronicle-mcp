@@ -32,6 +32,17 @@ def execute(
 
     updated = store.update_memory(memory_id, content=content, tags=tags)
 
+    if content is not None:
+        # Invalidate BEFORE attempting regeneration, and regardless of
+        # whether a provider is configured. The old vector represents
+        # content that no longer exists, and the model-string freshness
+        # check cannot tell (same model, older content) — so if the
+        # regeneration below failed, semantic search kept ranking the old
+        # content and backfill skipped the row forever. Missing is
+        # honest: hybrid search degrades to FTS5 for this row and the
+        # next backfill sees a real candidate.
+        store.delete_embedding(memory_id)
+
     if content is not None and embedding_service is not None:
         try:
             embedding_service.generate_for_memory(memory_id, updated.content, force=True)

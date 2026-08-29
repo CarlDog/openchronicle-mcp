@@ -219,6 +219,20 @@ class MemoryStorePort(ABC):
         ...
 
     @abstractmethod
+    def delete_embedding(self, memory_id: str) -> None:
+        """Remove the stored embedding for a memory item, if any. Idempotent.
+
+        The content-change invalidation primitive: a vector for content
+        that no longer exists must become MISSING, not stay stale — the
+        model-string freshness check cannot see it (same model, older
+        content), so semantic search would rank the old content
+        indefinitely and backfill would skip it forever (the OpenClaw
+        review's stale-vector defect). An absent row is a no-op, not an
+        error: invalidation runs on every content update, embedded or not.
+        """
+        ...
+
+    @abstractmethod
     def count_embeddings(self) -> int:
         """Total stored embeddings (SQL COUNT, not a row load)."""
         ...

@@ -11,6 +11,13 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **A content update invalidates its embedding before re-embedding**
+  (design 0002, batch A). A failed re-embed used to leave the OLD
+  vector in place with a current model string — semantic search ranked
+  the old content indefinitely and backfill never saw the row. The
+  vector is now deleted on every content change (provider configured
+  or not) before regeneration is attempted: failure leaves it missing
+  and backfill-visible, never stale. Tags-only updates keep it.
 - **Semantic search filters eligibility before its top-N window**
   (design 0002, batch A). Similarity ranking used to run over the
   whole model-scoped embedding table with project/tag filtering

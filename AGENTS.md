@@ -166,6 +166,10 @@ Landed so far, one focused commit per item:
   736 → 739 tests): `eligible_memory_ids` filters the similarity
   candidate set before top-N, so out-of-scope vectors can no longer
   crowd out in-scope matches.
+- **0002 batch A, item 3 — content updates invalidate the vector**
+  (rev 122, 739 → 744 tests): `delete_embedding` runs on every content
+  change before re-embedding — a failed re-embed leaves the row
+  missing and backfill-visible, never stale.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
