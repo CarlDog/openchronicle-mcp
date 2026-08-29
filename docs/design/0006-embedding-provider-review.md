@@ -70,6 +70,7 @@ FTS5 degradation. Neither direction wins outright.
 | Switch to `text-embedding-3-large` | No demonstrated retrieval-quality gap to close; 3072 dims doubles vector storage for an unmeasured gain. Not recommended without a benchmark showing 3-small failing |
 | **Local Ollama** (`embeddinggemma` / `qwen3-embedding` / `nomic-embed-text`) | **The credible challenger, gated on the benchmark.** Closes the privacy asymmetry outright; switching is now config + pull + ~1-minute reindex, and the identity machinery makes a botched switch impossible to *silently* get wrong. Pull and benchmark before any cutover — never switch on vibes |
 | Ollama Cloud | Non-option: hosts zero embedding models. Quarterly re-check stands; if that changes it inherits the same benchmark gate *and* the same privacy posture as OpenAI |
+| Atlas Cloud | Non-option today: 65 Text models, all chat/completion, zero embeddings (probed 2026-08-29). Watched on the same quarterly clock; would be config-only to adopt via `OPENAI_BASE_URL` if an OpenAI-compatible embeddings endpoint appears |
 | Dual/fallback providers | Rejected — a second active provider is a second vector space and a second failure surface; the FTS5 fallback already covers outages. The identity machinery would keep it *correct*, but nothing needs it |
 
 ## Recommendation
@@ -108,11 +109,20 @@ never a re-derivation:
    hosted models, zero with `embedding` capability). The moment it
    lists one, it becomes an immediately usable provider — with the same
    benchmark gate and the same privacy posture as OpenAI.
-3. **Candidates found**: pull locally, run the gold-set benchmark
+3. **Atlas Cloud** (fleet subscription, `atlascloud-mcp`): baseline
+   2026-08-29 — the full Text catalog is 65 models, all
+   chat/completion LLMs (plus OCR), **zero embedding models**. Checked
+   because the operator raised it; kept on this clock because adoption
+   would be near-free if that changes: OC's OpenAI adapter already
+   honors `OPENAI_BASE_URL`, so an OpenAI-compatible `/v1/embeddings`
+   endpoint there would be a config-only switch — inheriting, as
+   always, the benchmark gate and the cloud privacy posture. One
+   `atlas_list_models(query="embedding")` call per quarter.
+4. **Candidates found**: pull locally, run the gold-set benchmark
    (until that benchmark exists, record the candidate here with a date
    and hold — a model nobody measured is not a switch argument), and
    update this document's baseline either way.
-4. **Reopen the provider decision** only on this review's named
+5. **Reopen the provider decision** only on this review's named
    triggers or a benchmark result within tolerance of the incumbent.
 
 **Ollama library baseline (2026-08-29), 12 families:**
