@@ -62,7 +62,8 @@ def register(mcp: FastMCP) -> None:
 
         Args:
             query: Keywords or a natural-language question.
-            top_k: Maximum number of results (1-1000, default 8).
+            top_k: Maximum number of results, TOTAL — floated pinned
+                items count against it (1-1000, default 8).
             project_id: Restrict to a specific project (optional, recommended).
             tags: Require ALL listed tags on each result (AND logic).
             offset: Skip the first N results for pagination.
@@ -76,9 +77,10 @@ def register(mcp: FastMCP) -> None:
                 on the keyword channel ("does content literally contain
                 this") instead of the default any-token match.
             pinned_limit: Cap on how many matching pinned items lead the
-                results (default 10, best-matching first). This bounds
-                the FLOAT, not visibility: 0 means "don't float them",
-                and a pin that doesn't win a slot still ranks normally.
+                results (default 10, best-matching first), each
+                consuming a `top_k` slot. This bounds the FLOAT, not
+                visibility: 0 means "don't float them", and a pin that
+                doesn't win a slot still ranks normally.
                 This tool cannot hide pins — there is no
                 `include_pinned` here (that switch is CLI-only, on
                 `oc memory search`). Use `memory_list(pinned_only=true)`

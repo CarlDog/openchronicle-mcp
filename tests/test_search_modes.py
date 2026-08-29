@@ -226,9 +226,11 @@ def _add_pins(store: SqliteStore, count: int, content: str = "standing rule") ->
         )
 
 
-def test_keyword_mode_caps_the_float_and_breaks_ties_by_recency() -> None:
+def test_keyword_mode_top_k_is_a_total_budget() -> None:
     """Observed live (2026-08-17): a top_k=2 search against an 85-pin
-    store returned 87 results. The float is bounded.
+    store returned 87 results. Two fixes later the contract is total:
+    floated pins consume top_k slots (decided 2026-08-28), so the
+    response can never exceed what the caller asked for.
 
     All twelve pins here match "alpha" equally well, so relevance ties
     and the secondary sort decides — newest-first.
@@ -237,13 +239,19 @@ def test_keyword_mode_caps_the_float_and_breaks_ties_by_recency() -> None:
     _add_pins(store, 12, content="alpha rule")
     _add(store, "m1", "alpha note")
 
-    results = search_memory.execute(store, "alpha", mode="keyword", top_k=2)
+    small = search_memory.execute(store, "alpha", mode="keyword", top_k=2)
+    assert len(small) == 2, "top_k bounds the WHOLE response, pins included"
+    assert all(s.channel == "pinned" for s in small)
+    assert [s.item.id for s in small] == ["pin-11", "pin-10"], "newest pins win the tie"
 
-    pins = [s.item.id for s in results if s.channel == "pinned"]
+    # With room for everything: the float still caps at pinned_limit (10),
+    # the ranked results fill the remaining budget.
+    wide = search_memory.execute(store, "alpha", mode="keyword", top_k=12)
+    pins = [s.item.id for s in wide if s.channel == "pinned"]
     assert len(pins) == 10, "default pinned_limit is 10"
-    assert "pin-11" in pins and "pin-2" in pins, "newest win the tie"
-    assert "pin-0" not in pins and "pin-1" not in pins, "oldest lose it"
-    assert "m1" in [s.item.id for s in results]
+    assert "pin-0" not in pins and "pin-1" not in pins, "oldest lose the tie"
+    assert "m1" in [s.item.id for s in wide]
+    assert len(wide) <= 12
 
 
 def test_float_requires_a_query_match() -> None:
@@ -389,3 +397,55 @@ def test_semantic_mode_does_not_float_unrelated_pins() -> None:
     results = search_memory.execute(store, "delta content", mode="semantic", embedding_service=service)
 
     assert not [s for s in results if s.channel == "pinned"]
+
+
+def test_pagination_walks_one_combined_stream() -> None:
+    """Page 2 starts exactly where page 1 ended — pins included.
+
+    The stream is floated pins first, then the ranking; offset indexes
+    into that combined stream, so no row is duplicated or skipped
+    across pages.
+    """
+    store = _make_store()
+    _add_pins(store, 3, content="omega rule")
+    for i in range(6):
+        _add(store, f"m{i}", f"omega note {i}")
+
+    page1 = search_memory.execute(store, "omega", mode="keyword", top_k=4, offset=0)
+    page2 = search_memory.execute(store, "omega", mode="keyword", top_k=4, offset=4)
+    page3 = search_memory.execute(store, "omega", mode="keyword", top_k=4, offset=8)
+
+    ids1 = [s.item.id for s in page1]
+    ids2 = [s.item.id for s in page2]
+    ids3 = [s.item.id for s in page3]
+    assert len(ids1) == 4
+    assert not (set(ids1) & set(ids2)) and not (set(ids2) & set(ids3))
+    assert len(ids1) + len(ids2) + len(ids3) == 9, "3 pins + 6 ranked, no dupes, no gaps"
+
+
+def test_hybrid_top_k_is_a_total_budget() -> None:
+    """Same budget rule through the hybrid path (stub embeddings)."""
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=16)
+    service = EmbeddingService(port=adapter, store=store)
+    _add_pins(store, 5, content="gamma rule")
+    for i in range(5):
+        _add(store, f"m{i}", f"gamma note {i}")
+    service.generate_missing()
+
+    results = search_memory.execute(store, "gamma", mode="hybrid", top_k=3, embedding_service=service)
+    assert len(results) == 3, "hybrid response is bounded by top_k, pins included"
+    assert all(s.channel == "pinned" for s in results), "floated pins consume the first slots"
+
+
+def test_semantic_top_k_is_a_total_budget() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=16)
+    service = EmbeddingService(port=adapter, store=store)
+    _add_pins(store, 5, content="delta rule")
+    for i in range(5):
+        _add(store, f"m{i}", f"delta note {i}")
+    service.generate_missing()
+
+    results = search_memory.execute(store, "delta", mode="semantic", top_k=3, embedding_service=service)
+    assert len(results) == 3

@@ -170,6 +170,9 @@ Landed so far, one focused commit per item:
   (rev 122, 739 → 744 tests): `delete_embedding` runs on every content
   change before re-embedding — a failed re-embed leaves the row
   missing and backfill-visible, never stale.
+- **0002 batch A, item 4 — `top_k` is a total budget** (rev 123,
+  744 → 747 tests): floated pins consume `top_k` slots in one combined
+  stream that `offset` paginates; no response exceeds the ask.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next

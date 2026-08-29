@@ -11,6 +11,14 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **`top_k` is now a total response budget** (design 0002, batch A;
+  operator-decided contract). Floated pins and ranked results share
+  one combined stream that `top_k` bounds and `offset` paginates — a
+  `top_k=8` search returns at most 8 items, pins included, where it
+  could previously return `top_k + pinned_limit`. Pin-heavy queries
+  now yield fewer ranked hits per page; pagination walks the combined
+  stream with no duplicates or gaps. `context_recent.memory_limit`
+  becomes truthful transitively.
 - **A content update invalidates its embedding before re-embedding**
   (design 0002, batch A). A failed re-embed used to leave the OLD
   vector in place with a current model string — semantic search ranked

@@ -192,14 +192,16 @@ class EmbeddingService:
 
         def _page(ranked: list[ScoredMemory]) -> list[ScoredMemory]:
             # The pinned-float pagination rule, in one place for both the
-            # hybrid and degraded return paths: floated pins get a
-            # separate budget, surface as channel="pinned" (policy, not
-            # relevance — no scores), and lead the FIRST page only;
-            # `offset` paginates the ranking underneath them.
-            page = ranked[offset : offset + top_k]
-            if offset == 0:
-                return [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + page
-            return page
+            # hybrid and degraded return paths: floated pins surface as
+            # channel="pinned" (policy, not relevance — no scores) and
+            # lead ONE combined stream that `top_k` bounds and `offset`
+            # paginates. top_k is a TOTAL response budget (decided
+            # 2026-08-28): a floated pin consumes a slot, so a caller
+            # asking for 8 gets at most 8 — the pre-decision shape
+            # returned top_k ranked hits PLUS up to pinned_limit pins,
+            # and the documented "maximum number of results" was false.
+            combined = [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + ranked
+            return combined[offset : offset + top_k]
 
         # ── Keyword search (list A) ─────────────────────────────────────
         # include_pinned mirrors the CALLER's intent (are pins visible at
@@ -421,10 +423,10 @@ class EmbeddingService:
                 continue
             results.append(ScoredMemory(item=item, channel="semantic", semantic_similarity=sim))
 
-        page = results[offset : offset + top_k]
-        if offset == 0:
-            return [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + page
-        return page
+        # Same combined-stream budget as search_hybrid's _page: top_k is
+        # the total, floated pins consume slots, offset walks the stream.
+        combined = [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + results
+        return combined[offset : offset + top_k]
 
 
 def _wrap_keyword_ranked(items: list[MemoryItem], offset: int = 0) -> list[ScoredMemory]:

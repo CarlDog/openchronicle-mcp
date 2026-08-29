@@ -44,12 +44,19 @@ def execute(
     ``phrase`` makes the keyword channel match the whole query as one
     adjacent-token phrase instead of any-token.
 
+    ``top_k`` is a TOTAL response budget (decided 2026-08-28): floated
+    pins and ranked results share one combined stream that ``top_k``
+    bounds and ``offset`` paginates, so a caller asking for 8 never
+    receives more than 8. Before the decision the response was up to
+    ``top_k + pinned_limit`` while the docs called ``top_k`` the
+    maximum — the budget ambiguity the OpenClaw review flagged.
+
     ``pinned_limit`` bounds the pinned FLOAT — pins that match the query
-    lead the first page, newest-first, capped. It is not a visibility
-    switch: a pin that does not win a float slot still ranks on its
-    merits and surfaces with its true channel, and ``pinned_limit=0``
-    means "do not float" rather than "hide pins". Use
-    ``include_pinned=False`` to hide them, or
+    lead the stream, newest-first, capped, each consuming a ``top_k``
+    slot. It is not a visibility switch: a pin that does not win a float
+    slot still ranks on its merits and surfaces with its true channel,
+    and ``pinned_limit=0`` means "do not float" rather than "hide pins".
+    Use ``include_pinned=False`` to hide them, or
     ``list_memory(pinned_only=True)`` to enumerate standing rules.
     """
     if mode not in VALID_MODES:
@@ -102,24 +109,25 @@ def execute(
 
     # Pins that did not win a float slot still rank here on their own
     # merits — that is what keeps them reachable, and it is coupled to
-    # the exclusion above covering ONLY the floated ids.
+    # the exclusion above covering ONLY the floated ids. Fetched from
+    # rank 0 through the page's end because the page is sliced from the
+    # COMBINED stream below, not from the ranking alone.
     items = store.search_memory(
         query,
-        top_k=top_k,
+        top_k=offset + top_k,
         project_id=project_id,
         include_pinned=include_pinned,
         tags=tags,
-        offset=offset,
         phrase=phrase,
         exclude_ids=floated_ids,
     )
-    # Floated pins lead the FIRST page only; `offset` paginates the
-    # ranking underneath them. A pinned row inside `items` got there by
-    # ranking, so it reports channel="keyword" with a real rank — the
-    # float set is known by id, never guessed from position.
-    results: list[ScoredMemory] = []
-    if offset == 0:
-        results.extend(ScoredMemory(item=i, channel="pinned") for i in floated)
+    # One combined stream — floated pins first, then the ranking —
+    # bounded by top_k as a TOTAL budget and paginated by offset
+    # (decided 2026-08-28; mirrors EmbeddingService._page). A pinned row
+    # inside `items` got there by ranking, so it reports
+    # channel="keyword" with its real rank — the float set is known by
+    # id, never guessed from position.
+    combined: list[ScoredMemory] = [ScoredMemory(item=i, channel="pinned") for i in floated]
     for rank, item in enumerate(items, start=1):
-        results.append(ScoredMemory(item=item, channel="keyword", keyword_rank=offset + rank))
-    return results
+        combined.append(ScoredMemory(item=item, channel="keyword", keyword_rank=rank))
+    return combined[offset : offset + top_k]
