@@ -916,7 +916,20 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   default then means for existing fingerprints (a fingerprint change
   triggers a reindex under ADR 0005 — plan the migration note).
 
-- **MCP clients never see `error_code`; the REST surface does.**
+- **`memory_embed` is synchronous, so a real reindex can't be driven
+  over MCP.** Found 2026-08-29 executing the v3.2.0 LAN-local cutover:
+  the tool's own description says "run with force=true after switching
+  embedding model," but that exact operation — 870 rows on the NAS CPU
+  — takes ~20 minutes, past any MCP host tool timeout (the fleet's
+  chained-call-timeout lesson, on our own tool). The cutover had to
+  dodge it with a background REST call and a 50-minute client timeout.
+  Fix shape (scheduled as step-1 work, 2026-08-29): make the backfill
+  a started-job — the MCP/REST surfaces kick it off and return
+  immediately with a `started` status, progress is already observable
+  in health (`stale`/`missing` count down), and overlap with the
+  maintenance loop's own `embedding_backfill` job is prevented by
+  reusing its skip-on-overlap locking rather than spawning a rival
+  runner.
   Found 2026-08-28 while capturing the MCP error-shape baseline
   (`tests/test_mcp_error_shape.py`). Domain exceptions carry a structured
   code — `NotFoundError(..., code=MEMORY_NOT_FOUND)`,
@@ -1132,7 +1145,7 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
 - **`memory_stats` through `count_memory`.** ✅ Landed 2026-07-23. The stats body existed twice, verbatim, in the MCP tool and the REST route, and both did the thing `MemoryStorePort.count_memory`'s own docstring warns against — answering "how many?" by pulling every row into Python and taking `len(...)`. Worse, the project filter ran in Python, so a scoped stats call on a multi-project DB loaded every other project's rows only to discard them; that is the same root cause as the 91,372-character `memory_list` complaint. Extracted to `use_cases/stats_memory.py`: `total` comes from `count_memory` (a COUNT(\*) at the SQL layer) and the tag/source histograms still need row access — tags are a JSON column with no cheap aggregate — but read the project-scoped `list_memory` added in the first commit of this batch. Two verbatim copies plus a documented correctness rule clears the extraction bar; the REST duplicate is gone.
 - **Dependency audit (unused deps only).** `pyproject.toml` extras (`[dev]`, `[mcp]`, `[openai]`, `[ollama]`) were trimmed during Phase 7 but never re-resolved against actual import use. Walk `pipdeptree` on a fresh `pip install -e ".[dev,mcp,openai,ollama]"` and prune anything not imported by `src/` or `tests/`. Likely candidates to drop or version-pin tighter: leftover transitive deps from the v2 cut. Vulnerability tracking is handled by `.github/dependabot.yml` (pip + github-actions + docker, weekly), so this audit is about *unused* deps, not insecure ones — Dependabot will open PRs for the latter on its own. Build-tooling CVEs (pip / setuptools / wheel on the `python:3.11-slim` base) were addressed pre-cutover by raising `build-system.requires` floors and adding a `pip install --upgrade pip setuptools wheel` step to the Dockerfile.
 - **Report OC's version in the MCP handshake.** No 1.x `FastMCP(...)` constructor takes a `version` kwarg (re-confirmed against 1.29.0, 2026-08-28), so the protocol's `serverInfo.version` is whatever the SDK defaults to — which is worse than absent, because it looks like OC's version and isn't. `health.package_version` covers the need for now. **This is now a confirmed 2.x-only capability**: `MCPServer.__init__` in 2.1.1 takes `version: str = ""`, making it a concrete instance of trigger 2 on the mcp 2.x migration entry rather than a hypothetical one. Don't reach into private attributes to force it.
-- **`_semantic_search` loads the whole embeddings table.** `embedding_service.py` reads every row of `memory_embeddings` and does an unfiltered numpy matmul per query, then applies the project filter in Python afterwards. Its own docstring names this the architectural ceiling and points at sqlite-vec as the fix. Fine at this deployment's size; the point at which it stops being fine is a row count nobody is currently watching.
+- **`_semantic_search` loads the whole embeddings table.** `embedding_service.py` reads every space-matching row of `memory_embeddings` per query for the numpy matmul. (Stale half of this entry corrected 2026-08-29: the "project filter applied in Python afterwards" clause was fixed by rev 121 — `eligible_memory_ids` now filters BEFORE the top-N window. The full-table load is what remains.) The docstring names this the architectural ceiling and points at sqlite-vec as the fix. Fine at this deployment's size; the point at which it stops being fine is a row count nobody is currently watching.
 - **`_cosine_similarity` has no production caller.** Kept deliberately for tests and diagnostics per a note in `embedding_service.py`. Either give it a caller or delete it and move the test coverage onto whatever replaced it — a helper that exists only to be tested is a slow leak.
 - **CLI `--confirm` branch duplication.** `cmd_memory_delete` and `cmd_delete_project` each hand-roll the same "Would delete … Re-run with --confirm" branch. Left alone deliberately in the 2026-07-23 batch: ~8 trivial lines each, no shared correctness rule, so extracting costs more readability than it buys. Revisit only if a third such command appears.
 - **mcp 2.x migration.** Deferred, not rejected — and the stated reason
