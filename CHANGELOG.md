@@ -11,6 +11,14 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **Staged backups are validated before publication** (design 0003,
+  Finding 5). The nightly backup staged to `.tmp` and atomically
+  renamed with no check the artifact was openable. The staged file now
+  must pass `PRAGMA quick_check` (read-only open) before it may
+  replace the previous backup; a failing artifact is quarantined as
+  `<dest>.failed-quick-check` for forensics — evidence the live DB may
+  be corrupt — never deleted, never published, never pruned by
+  retention.
 - **`include_pinned` is available on every search surface** (design
   0002, batch A; operator decision). MCP `memory_search` and
   `GET /api/v1/memory/search` gain the visibility switch the CLI

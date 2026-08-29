@@ -176,6 +176,10 @@ Landed so far, one focused commit per item:
 - **0002 batch A, item 5 — `include_pinned` on MCP + REST** (rev 124,
   747 → 749 tests): the visibility switch reaches every surface;
   schema snapshot regenerated (additive/MINOR). **Batch A complete.**
+- **Staged-backup `quick_check` validation** (rev 125, 749 → 753
+  tests): a backup must prove it opens before it may replace the
+  previous one; failures quarantine as `.failed-quick-check` for
+  forensics.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next

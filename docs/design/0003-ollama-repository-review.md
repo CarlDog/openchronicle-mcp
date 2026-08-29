@@ -455,8 +455,15 @@ and surface the validation result.
 Given the corrupt-database cutover history, this is a credible reliability
 improvement, not generic defensive ceremony.
 
-**Disposition:** separate provider-independent hardening. It does not
-depend on accepting any embedding work.
+**Disposition:** ~~separate provider-independent hardening. It does not
+depend on accepting any embedding work.~~ **✅ SHIPPED 2026-08-28**
+(assessment rev 125): `PRAGMA quick_check` on a read-only open of the
+staged file gates `os.replace`; a failing artifact is quarantined as
+`<dest>.failed-quick-check` (forensic capture per the NemoClaw
+review's caveat), the previous destination survives, and retention
+pruning already ran only after successful publication. `quick_check`
+over `integrity_check` exactly as proposed; the schema-version check
+stayed optional and unadopted.
 
 ## Conditional mechanisms
 
@@ -708,7 +715,7 @@ style OpenChronicle should copy.
 | Boundary-wide provider health and all-failed backfill outcome | Verified operational defect | Implementation batch approval |
 | Composite embedding identity plus content revision | Proposed hardening; promote to ADR | ADR approval and migration/reindex plan |
 | Bounded batch backfill | Proportionate improvement | Preferably lands with an identity-driven reindex |
-| Staged backup validation | Proportionate independent hardening | Implementation batch approval |
+| Staged backup validation | **✅ Shipped 2026-08-28** (rev 125) | Finding 5 records the closeout |
 | Cached capability probe | Proposed component of provider-health work | Provider-health design approval |
 | Persistent HTTP client | Conditional implementation detail | Adapter lifecycle work or measured connection cost |
 | Provider admission | Conditional | Observed overlap, queueing, or saturation |

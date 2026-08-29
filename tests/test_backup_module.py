@@ -128,3 +128,59 @@ def test_backup_failure_cleans_up_tmp(tmp_path: Path, monkeypatch: pytest.Monkey
     # Restore for cleanup safety (autouse on session scope can leak otherwise)
     monkeypatch.setattr(backup.os, "replace", real_replace)
     store.close()
+
+
+# ── validate-before-publish (0003 F5 / 0004 F8) ────────────────────────
+
+
+def test_valid_backup_publishes_and_leaves_no_quarantine(tmp_path: Path) -> None:
+    store = _seeded_store(tmp_path)
+    dest = tmp_path / "out.db"
+    backup.backup_from_connection(store._conn, dest)
+    store.close()
+    assert dest.exists()
+    assert not (tmp_path / "out.db.failed-quick-check").exists()
+    assert not (tmp_path / "out.db.tmp").exists()
+
+
+def test_validate_staged_rejects_garbage(tmp_path: Path) -> None:
+    garbage = tmp_path / "garbage.db"
+    garbage.write_bytes(b"this is not a sqlite database, not even close" * 100)
+    with pytest.raises(backup.BackupValidationError):
+        backup._validate_staged(garbage)
+
+
+def test_failed_validation_preserves_previous_backup_and_quarantines(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The previous good artifact must survive, and the invalid staged
+    file must be kept as forensic evidence — not deleted, not published."""
+    store = _seeded_store(tmp_path)
+    dest = tmp_path / "out.db"
+    previous = b"previous good backup bytes"
+    dest.write_bytes(previous)
+
+    def _always_fail(tmp: Path) -> None:
+        raise backup.BackupValidationError("staged backup failed quick_check: 'boom'")
+
+    monkeypatch.setattr(backup, "_validate_staged", _always_fail)
+    with pytest.raises(backup.BackupValidationError):
+        backup.backup_from_connection(store._conn, dest)
+    store.close()
+
+    assert dest.read_bytes() == previous, "an unvalidated artifact must never replace the previous backup"
+    quarantine = tmp_path / "out.db.failed-quick-check"
+    assert quarantine.exists(), "the invalid artifact is evidence, not trash"
+    assert not (tmp_path / "out.db.tmp").exists()
+
+
+def test_quarantine_name_is_outside_the_retention_glob(tmp_path: Path) -> None:
+    """_retention_prune globs *.db non-recursively; the quarantine file
+    must never be pruned as if it were a restorable backup."""
+    from openchronicle.core.infrastructure.maintenance.jobs import _retention_prune
+
+    (tmp_path / "openchronicle-1.db").write_bytes(b"a")
+    quarantine = tmp_path / "openchronicle-1.db.failed-quick-check"
+    quarantine.write_bytes(b"evidence")
+    _retention_prune(tmp_path, keep=1)
+    assert quarantine.exists()
