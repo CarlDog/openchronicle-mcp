@@ -17,6 +17,17 @@ logger = logging.getLogger(__name__)
 # RRF constant — standard value from the original RRF paper
 _RRF_K = 60
 
+# Backfill chunk size (ADR 0005 Phase D / 0003 Finding 3). One
+# provider round-trip per chunk instead of per memory — the reliable
+# win is fewer HTTP round-trips, not compute parallelism (Ollama runs
+# embedding inference with restricted runner parallelism regardless).
+# Deliberately NOT derived from Ollama's internal `num_batch`, which
+# governs runner token processing, not request items. Bounded because
+# one failed input fails Ollama's whole HTTP batch — the smaller the
+# chunk, the less work one bad item can take down before the per-item
+# fallback isolates it.
+_BACKFILL_CHUNK_SIZE = 32
+
 
 @dataclass(frozen=True)
 class BackfillResult:
@@ -185,30 +196,59 @@ class EmbeddingService:
         t0 = time.monotonic()
         count = 0
         failed = 0
-        for item in candidates:
+        # Bounded chunks through embed_batch (ADR 0005 Phase D): one
+        # provider round-trip per chunk. A failed CHUNK falls back to
+        # per-item calls so one bad memory cannot discard its
+        # chunk-mates' results — Ollama fails the whole HTTP batch on
+        # one bad input, and the old per-item loop's resilience is a
+        # contract, not an implementation accident.
+        for start in range(0, len(candidates), _BACKFILL_CHUNK_SIZE):
+            chunk = candidates[start : start + _BACKFILL_CHUNK_SIZE]
+            vectors: list[list[float]] | None
             try:
-                vec = self._port.embed(item.content)
-                published = self._store.save_embedding(
-                    item.id,
-                    vec,
-                    model=self._port.model_name(),
-                    provider=self._port.provider_name(),
-                    content_hash=hash_content(item.content),
-                    model_revision=self._port.model_revision(),
-                    settings_fingerprint=self._port.settings_fingerprint(),
-                )
-                if published:
-                    count += 1
-                else:
-                    # CAS refusal: the memory changed or vanished while
-                    # this batch ran. Not a provider failure — the next
-                    # backfill sees the row as a candidate again.
-                    logger.info("backfill: embedding for %s not published (content moved on)", item.id)
-                self._record_success()
+                vectors = self._port.embed_batch([item.content for item in chunk])
+                if len(vectors) != len(chunk):
+                    # Boundary distrust at the service too: a wrong
+                    # cardinality means per-vector attribution would be
+                    # a guess — retry the chunk item-by-item instead.
+                    logger.warning(
+                        "backfill: batch returned %d vector(s) for %d input(s); retrying per item",
+                        len(vectors),
+                        len(chunk),
+                    )
+                    vectors = None
             except Exception:
-                failed += 1
-                self._record_failure("backfill")
-                logger.warning("Embedding generation failed for memory %s", item.id, exc_info=True)
+                logger.warning(
+                    "backfill: batch of %d failed; retrying per item to isolate the failure",
+                    len(chunk),
+                    exc_info=True,
+                )
+                vectors = None
+
+            for i, item in enumerate(chunk):
+                try:
+                    vec = vectors[i] if vectors is not None else self._port.embed(item.content)
+                    published = self._store.save_embedding(
+                        item.id,
+                        vec,
+                        model=self._port.model_name(),
+                        provider=self._port.provider_name(),
+                        content_hash=hash_content(item.content),
+                        model_revision=self._port.model_revision(),
+                        settings_fingerprint=self._port.settings_fingerprint(),
+                    )
+                    if published:
+                        count += 1
+                    else:
+                        # CAS refusal: the memory changed or vanished
+                        # while this batch ran. Not a provider failure —
+                        # the next backfill sees the row again.
+                        logger.info("backfill: embedding for %s not published (content moved on)", item.id)
+                    self._record_success()
+                except Exception:
+                    failed += 1
+                    self._record_failure("backfill")
+                    logger.warning("Embedding generation failed for memory %s", item.id, exc_info=True)
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
         logger.info(

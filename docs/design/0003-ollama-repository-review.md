@@ -359,9 +359,12 @@ should not be inferred from Ollama's internal `num_batch`, which controls
 runner token processing rather than the number of OpenChronicle memories
 per request.
 
-**Disposition:** provider-independent improvement. It has strongest value
-after the identity migration creates a real reindex event; it is not an
-urgent optimization for two missing rows.
+**Disposition:** ~~provider-independent improvement. It has strongest value
+after the identity migration creates a real reindex event.~~ **✅ SHIPPED
+2026-08-29** (rev 136) — landing, as this disposition predicted, exactly
+when the identity migration created the reindex it pays for: 32-item
+chunks, per-item fallback isolating one bad input, wrong-cardinality
+answers retried item-by-item, exact accounting preserved.
 
 ## Finding 4: provider and maintenance health can be success-shaped
 
@@ -734,7 +737,7 @@ style OpenChronicle should copy.
 | Structured Ollama errors | **✅ Shipped 2026-08-29** (rev 135) | Bounded to 300 chars; no credential-bearing URL |
 | Boundary-wide provider health and all-failed backfill outcome | **✅ Shipped 2026-08-28** (rev 126) | Finding 4 records the closeout; the Ollama capability probe rides Phase C |
 | Composite embedding identity plus content revision | **✅ ADR 0005 accepted; Phases B+C shipped 2026-08-29** (revs 134-135) | Phase D (batch backfill) remains |
-| Bounded batch backfill | Proportionate improvement | Preferably lands with an identity-driven reindex |
+| Bounded batch backfill | **✅ Shipped 2026-08-29** (rev 136), with the identity reindex as predicted | Finding 3 records the closeout |
 | Staged backup validation | **✅ Shipped 2026-08-28** (rev 125) | Finding 5 records the closeout |
 | Cached capability probe | **✅ Shipped 2026-08-29** (rev 135) | Lazy `/api/tags` digest probe, cached, non-fatal |
 | Persistent HTTP client | Conditional implementation detail | Adapter lifecycle work or measured connection cost |

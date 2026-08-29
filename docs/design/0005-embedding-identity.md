@@ -1,8 +1,8 @@
 # ADR 0005 — Composite Embedding Identity
 
 **Status:** ACCEPTED (revision 2) — operator-ratified 2026-08-29;
-**Phases B and C implemented the same day** (assessment revs 134-135,
-768 → 786 tests). Phase D remains · **Date:** 2026-08-29
+**FULLY IMPLEMENTED — Phases B, C, and D all shipped 2026-08-29**
+(assessment revs 134-136, 768 → 789 tests) · **Date:** 2026-08-29
 
 **Sources:** [0002 Finding 3](0002-openclaw-memory-review.md) (proposed
 hardening), [0003 Finding 1](0003-ollama-repository-review.md) (promoted

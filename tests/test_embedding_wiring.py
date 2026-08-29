@@ -120,23 +120,33 @@ def test_search_memory_falls_back_to_fts5_without_service() -> None:
 
 
 def test_generate_missing_skips_failures_and_continues() -> None:
-    """Individual embedding failures should not abort the entire backfill."""
+    """A persistently-bad item must not abort the backfill.
+
+    Failure is keyed to the ITEM, not the call count: since Phase D the
+    backfill goes batch-first with a per-item fallback, so a one-call
+    transient blip now heals on the retry (deliberately). What this
+    test pins is the per-item resilience contract — the bad item fails,
+    its neighbours land.
+    """
     store, service = _make_store_and_service()
     for i in range(3):
         store.add_memory(_make_item(memory_id=f"m{i}", content=f"content {i}"))
 
-    # Make the port fail on the second call only
     original_embed = service.port.embed
-    call_count = 0
+    original_batch = service.port.embed_batch
 
-    def flaky_embed(text: str) -> list[float]:
-        nonlocal call_count
-        call_count += 1
-        if call_count == 2:
-            raise RuntimeError("simulated API timeout")
+    def bad_item_embed(text: str) -> list[float]:
+        if text == "content 1":
+            raise RuntimeError("simulated API failure for this item")
         return original_embed(text)
 
-    service._port.embed = flaky_embed  # type: ignore[method-assign]
+    def bad_item_batch(texts: list[str]) -> list[list[float]]:
+        if "content 1" in texts:
+            raise RuntimeError("simulated API failure in the batch")
+        return original_batch(texts)
+
+    service._port.embed = bad_item_embed  # type: ignore[method-assign]
+    service._port.embed_batch = bad_item_batch  # type: ignore[method-assign]
 
     result = service.generate_missing()
     assert result.generated == 2  # 2 succeeded

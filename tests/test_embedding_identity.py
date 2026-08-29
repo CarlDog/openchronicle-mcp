@@ -246,3 +246,83 @@ def test_fresh_save_is_current_and_skipped_by_backfill() -> None:
 def test_unknown_memory_has_no_identity() -> None:
     store = _store()
     assert store.get_embedding_identity("ghost") is None
+
+
+# ── Phase D: bounded batch backfill with per-item fallback ────────────
+
+
+class _BatchTrackingPort(_Port):
+    """Counts batch vs single calls; optionally fails batches or one text."""
+
+    def __init__(self, *, fail_batches: bool = False, poison_text: str | None = None) -> None:
+        super().__init__()
+        self.batch_calls: list[int] = []
+        self.single_calls = 0
+        self._fail_batches = fail_batches
+        self._poison = poison_text
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        self.batch_calls.append(len(texts))
+        if self._fail_batches or (self._poison is not None and self._poison in texts):
+            raise RuntimeError("batch failed")
+        return [[1.0, 0.0] for _ in texts]
+
+    def embed(self, text: str) -> list[float]:
+        self.single_calls += 1
+        if self._poison is not None and text == self._poison:
+            raise RuntimeError("poison item")
+        return [1.0, 0.0]
+
+
+def _seed(store: SqliteStore, n: int) -> None:
+    for i in range(n):
+        store.add_memory(MemoryItem(id=f"m{i:03d}", content=f"content {i:03d}", project_id="p"))
+
+
+def test_backfill_uses_bounded_batches_not_per_item_calls() -> None:
+    """817 memories used to mean 817 HTTP round-trips (0003 Finding 3).
+    The backfill now chunks through embed_batch."""
+    store = _store()
+    _seed(store, 70)  # 3 chunks at the 32 default
+    port = _BatchTrackingPort()
+    service = EmbeddingService(port=port, store=store)
+
+    result = service.generate_missing()
+    assert result.generated == 70 and result.failed == 0
+    assert port.batch_calls == [32, 32, 6], "bounded chunks, not one giant request"
+    assert port.single_calls == 0, "no per-item calls on the happy path"
+
+
+def test_one_poison_item_does_not_discard_its_chunkmates() -> None:
+    """Ollama fails the whole HTTP batch on one bad input; the per-item
+    fallback must isolate it so the rest of the chunk still lands."""
+    store = _store()
+    _seed(store, 10)
+    port = _BatchTrackingPort(poison_text="content 003")
+    service = EmbeddingService(port=port, store=store)
+
+    result = service.generate_missing()
+    assert result.generated == 9, "nine good items survive the poisoned chunk"
+    assert result.failed == 1
+    assert port.single_calls == 10, "the failed chunk was retried item by item"
+    assert store.get_embedding_identity("m003") is None
+    assert store.get_embedding_identity("m004") is not None
+
+
+def test_wrong_cardinality_batch_falls_back_per_item() -> None:
+    """A batch answer with the wrong vector count would make per-vector
+    attribution a guess — the service retries item by item instead."""
+
+    class _ShortPort(_BatchTrackingPort):
+        def embed_batch(self, texts: list[str]) -> list[list[float]]:
+            self.batch_calls.append(len(texts))
+            return [[1.0, 0.0]]  # always one vector, whatever was asked
+
+    store = _store()
+    _seed(store, 3)
+    port = _ShortPort()
+    service = EmbeddingService(port=port, store=store)
+
+    result = service.generate_missing()
+    assert result.generated == 3 and result.failed == 0
+    assert port.single_calls == 3

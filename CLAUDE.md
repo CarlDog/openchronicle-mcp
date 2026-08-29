@@ -194,16 +194,20 @@ Since the tag: **0002 batch B shipped** (rev 129) — `memory_list`
 gained `tags`/`exclude_tags`/`order_by="created_at"`; **`OC_LOG_FILE`**
 (rev 132) and the **bounded `memory_stats.by_tag`** (rev 131) landed;
 and **ADR 0005 was adversarially reviewed (three critics, rev 1
-rewritten), ACCEPTED, and Phase B implemented** (rev 134, tests now
-778): schema v2 `provider`+`content_hash`, CAS publication, full
-space-identity search filtering, disjoint stale buckets. **Deploy note
-for the next release:** after the redeploy, run
-`oc maintenance run-once embedding_backfill` — the migration marks all
-pre-existing vectors stale and the reindex takes minutes (FTS5-only
-semantic degradation until it finishes, `stale` counts down in
-health). Open next: 0003 Phase C (Ollama adapter contract +
-`model_revision`/`settings_fingerprint`), Phase D (`embed_batch`),
-and cloud-backup Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
+rewritten), ACCEPTED, and FULLY IMPLEMENTED — Phases B, C, and D**
+(revs 134-136, tests now 789): schema v2+v3 (`provider`,
+`content_hash`, `model_revision` IS-matched, `settings_fingerprint`),
+CAS publication, full space-identity search filtering, disjoint stale
+buckets, truthful Ollama contract (`truncate:false`, validated
+responses, structured errors, cached digest probe), dimensions-truth
+health trio, and 32-item batched backfill with per-item fallback.
+**Deploy note for the next release:** after the redeploy, run
+`oc maintenance run-once embedding_backfill` — the migrations mark all
+pre-existing vectors stale and the batched reindex takes ~a minute
+(FTS5-only semantic degradation until it finishes; `stale` counts down
+in health). Open next: an **embedding-provider review** (operator
+request, queued behind the phases — now due), and cloud-backup
+Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

@@ -22,6 +22,12 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
   default 25, param on MCP + REST) with an `other_tags` rollup count —
   an unscoped call used to return the corpus's entire tag tail
   (~700 entries, mostly count-1) regardless of what the caller wanted.
+- **Bounded batch backfill — ADR 0005 Phase D** (design 0003, Finding
+  3). The backfill chunks through `embed_batch` (32 per chunk) instead
+  of one HTTP round-trip per memory, with a per-item fallback that
+  isolates a poisoned input from its chunk-mates and catches
+  wrong-cardinality batch answers. The deploy-time reindex now runs at
+  batch speed. All ADR 0005 phases are complete.
 - **Truthful Ollama adapter contract + full space identity — ADR 0005
   Phase C** (design 0003, Findings 1+2). Schema v3 adds
   `model_revision` (nullable, `IS`-matched) and `settings_fingerprint`
