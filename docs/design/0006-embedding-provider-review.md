@@ -101,6 +101,17 @@ Every cloud provider here shares OpenAI's privacy posture (content
 leaves the LAN) and the same benchmark gate. The matrix exists so
 "can we use X?" is a lookup, not a project.
 
+**Egress notice (shipped 2026-08-29, rev 141):** choosing any of these
+is warned at startup — a WARNING log naming the remote endpoint and
+the consequence, plus `content_egress: "remote"` in health — so cloud
+embedding is always a made choice. The operator's accompanying
+priority statement is recorded here as standing direction: **the
+notice does not discharge the duty to secure embedding activity;
+locking down internal (LAN-local Ollama) embedding remains the
+priority path.** That sharpens reopen-trigger (a) below: the local
+option is not merely a challenger, it is the stated destination
+pending the benchmark.
+
 ## Recommendation
 
 1. **Stay on `text-embedding-3-small` today.** Nothing is broken, the

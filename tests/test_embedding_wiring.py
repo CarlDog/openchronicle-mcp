@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from openchronicle.core.application.config.settings import load_embedding_settings
 from openchronicle.core.application.services.embedding_service import EmbeddingService
@@ -226,3 +229,111 @@ def test_embedding_status_dict_active() -> None:
     assert result["total_memories"] == 1
     assert result["embedded"] == 1
     assert result["missing"] == 0
+
+
+# ── content-egress notice (operator-directed 2026-08-29) ──────────────
+
+
+class TestContentEgressNotice:
+    """A cloud embedding provider must be a MADE choice, never a silent
+    default: the container warns at startup and health carries the fact."""
+
+    def test_private_host_classification(self) -> None:
+        from openchronicle.core.infrastructure.wiring.container import _looks_private_host
+
+        local = [
+            "http://localhost:11434",
+            "http://127.0.0.1:11434",
+            "http://[::1]:11434",
+            "http://host.docker.internal:11434",
+            "http://192.168.1.50:11434",
+            "http://10.0.0.5:11434",
+            "http://carldog-nas:11434",  # single-label LAN name
+            "http://nas.local:11434",
+            "http://ollama.internal:11434",
+        ]
+        remote = [
+            "https://api.openai.com/v1",
+            "https://api.voyageai.com/v1",
+            "https://ollama.com",
+            "https://nas.example.com:11434",  # public-looking FQDN: fail-safe -> warn
+        ]
+        for url in local:
+            assert _looks_private_host(url), f"{url} should classify local"
+        for url in remote:
+            assert not _looks_private_host(url), f"{url} should classify remote"
+
+    def _container_with(self, monkeypatch: pytest.MonkeyPatch, provider: str, **env: str) -> MagicMock:
+        from openchronicle.core.application.config.settings import EmbeddingSettings
+        from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
+        for key in ("OPENAI_BASE_URL", "OLLAMA_HOST", "OLLAMA_BASE_URL"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in env.items():
+            monkeypatch.setenv(key, value)
+        container = MagicMock(spec=CoreContainer)
+        container.embedding_settings = EmbeddingSettings(provider=provider)
+        container._embedding_endpoint = lambda: CoreContainer._embedding_endpoint(container)
+        container.embedding_endpoint_is_remote = lambda: CoreContainer.embedding_endpoint_is_remote(container)
+        return container
+
+    def test_default_openai_is_remote(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        c = self._container_with(monkeypatch, "openai")
+        assert c.embedding_endpoint_is_remote() is True
+
+    def test_lan_ollama_is_local_but_cloud_ollama_is_remote(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        c = self._container_with(monkeypatch, "ollama", OLLAMA_HOST="http://host.docker.internal:11434")
+        assert c.embedding_endpoint_is_remote() is False
+        c2 = self._container_with(monkeypatch, "ollama", OLLAMA_HOST="https://ollama.com")
+        assert c2.embedding_endpoint_is_remote() is True, "ollama pointed at a cloud host is still egress"
+
+    def test_stub_and_none_are_never_remote(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        assert self._container_with(monkeypatch, "stub").embedding_endpoint_is_remote() is False
+        assert self._container_with(monkeypatch, "none").embedding_endpoint_is_remote() is False
+
+    def test_health_carries_the_egress_fact(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from openchronicle.core.application.config.settings import EmbeddingSettings
+        from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        store, service = _make_store_and_service()
+        container = MagicMock(spec=CoreContainer)
+        container.embedding_settings = EmbeddingSettings(provider="stub")
+        container.embedding_service = service
+        container.storage = store
+        container._embedding_endpoint = lambda: CoreContainer._embedding_endpoint(container)
+        container.embedding_endpoint_is_remote = lambda: CoreContainer.embedding_endpoint_is_remote(container)
+
+        result = CoreContainer.embedding_status_dict(container)
+        assert result["content_egress"] == "local"
+
+    def test_startup_warning_fires_for_remote_endpoint(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, tmp_path: Path
+    ) -> None:
+        import logging
+
+        from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        (tmp_path / "config").mkdir()
+        monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "egress.db"))
+        monkeypatch.setenv("OC_CONFIG_DIR", str(tmp_path / "config"))
+        monkeypatch.setenv("OC_EMBEDDING_PROVIDER", "stub")
+        with caplog.at_level(logging.WARNING):
+            container = CoreContainer()
+            try:
+                # stub is local — no warning
+                assert not [r for r in caplog.records if "content leaves this host" in r.getMessage()]
+            finally:
+                container.close()
+
+        monkeypatch.setenv("OC_EMBEDDING_PROVIDER", "ollama")
+        monkeypatch.setenv("OLLAMA_HOST", "https://ollama.com")
+        with caplog.at_level(logging.WARNING):
+            container = CoreContainer()
+            try:
+                warnings = [r for r in caplog.records if "content leaves this host" in r.getMessage()]
+                assert warnings, "a remote embedding endpoint must warn at startup"
+                assert "ollama.com" in warnings[0].getMessage()
+            finally:
+                container.close()

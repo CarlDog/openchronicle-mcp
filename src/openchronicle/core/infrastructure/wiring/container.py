@@ -15,6 +15,34 @@ from openchronicle.core.infrastructure.config.config_loader import load_config_f
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
 
+def _looks_private_host(url: str) -> bool:
+    """Best-effort: does this endpoint look like it stays on the LAN?
+
+    Used only to decide whether the content-egress WARNING fires, and
+    deliberately fail-safe in the warning direction: anything ambiguous
+    (a public-looking FQDN that happens to resolve locally) reads as
+    remote and warns. Recognized as local: loopback, RFC1918/link-local
+    literals, ``host.docker.internal``, ``*.local``/``*.internal``/
+    ``*.lan``/``*.home``/``*.localhost`` suffixes, and dot-less
+    single-label hostnames (LAN NetBIOS/mDNS names like ``carldog-nas``).
+    """
+    import ipaddress
+    from urllib.parse import urlsplit
+
+    host = (urlsplit(url).hostname or "").strip("[]").lower()
+    if not host:
+        return False
+    if host in ("localhost", "host.docker.internal"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_private or ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        pass
+    if "." not in host:
+        return True  # single-label LAN name
+    return host.rsplit(".", 1)[-1] in ("local", "internal", "lan", "home", "localhost")
+
+
 class CoreContainer:
     """Slim v3 DI container — memory storage + optional embeddings.
 
@@ -124,8 +152,39 @@ class CoreContainer:
             "last_failure_op": self.embedding_service.last_failure_op,
             "search_failure_count": search_failures,
             "last_search_failure_at": self.embedding_service.last_search_failure_at,
+            # The operator's egress choice, visible where agents look
+            # (operator-directed 2026-08-29): "remote" means memory
+            # content leaves this host on every save/semantic search.
+            "content_egress": "remote" if self.embedding_endpoint_is_remote() else "local",
             **coverage,
         }
+
+    def _embedding_endpoint(self) -> str:
+        """The URL the active embedding provider actually talks to.
+
+        Resolved from the same inputs the adapters read (settings + the
+        provider env vars, empty-string = unset) — the composition root
+        owns config, so this mirrors adapter resolution rather than
+        reaching into adapter privates. Keep in lockstep with
+        `openai_adapter` / `ollama_adapter` defaults.
+        """
+        import os
+
+        provider = self.embedding_settings.provider
+        if provider == "openai":
+            return os.getenv("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+        if provider == "ollama":
+            return os.getenv("OLLAMA_HOST") or os.getenv("OLLAMA_BASE_URL") or "http://localhost:11434"
+        return ""  # stub / none — no endpoint
+
+    def embedding_endpoint_is_remote(self) -> bool:
+        """True when embedding content leaves this host (best-effort).
+
+        Fail-safe toward warning: an ambiguous host classifies as
+        remote. `stub`/`none` are never remote.
+        """
+        endpoint = self._embedding_endpoint()
+        return bool(endpoint) and not _looks_private_host(endpoint)
 
     def _build_embedding_port(self) -> EmbeddingPort | None:
         import logging
@@ -145,6 +204,22 @@ class CoreContainer:
                 port.dimensions(),
                 settings.timeout,
             )
+            # Content-egress notice (operator-directed 2026-08-29): a
+            # cloud embedding provider sends every saved memory's FULL
+            # CONTENT and every semantic search query off this host. The
+            # choice is the operator's to make — this warning exists so
+            # it is always a MADE choice, never a silent default. It is
+            # a notice, not a control: the actual mitigation is a
+            # LAN-local provider (ollama on a LAN host).
+            if self.embedding_endpoint_is_remote():
+                log.warning(
+                    "Embedding provider %r sends memory content to a REMOTE endpoint (%s) on every "
+                    "save, and search queries on every semantic search — content leaves this host. "
+                    "If that is not intended, point OC_EMBEDDING_PROVIDER=ollama at a LAN host to "
+                    "keep embedding local. See docs/design/0006-embedding-provider-review.md.",
+                    settings.provider,
+                    self._embedding_endpoint(),
+                )
             return port
         except Exception as exc:
             log.warning(

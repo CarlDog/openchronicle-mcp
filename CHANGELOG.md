@@ -10,6 +10,15 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.1.0`.
 
+- **Content-egress notice for cloud embedding providers.** When the
+  configured embedding endpoint is not clearly LAN-local, startup logs
+  a WARNING naming the endpoint and the consequence (every save's full
+  content and every semantic query leave this host), and health
+  carries an additive `content_egress: "remote"|"local"` field.
+  Fail-safe classification: ambiguous hosts warn. Applies to `openai`
+  anywhere and to `ollama` pointed at a cloud host alike. A notice,
+  not a control — the operator's cloud choice stands; the secure path
+  remains a LAN-local provider.
 - **`OC_LOG_FILE`: logs that survive a container recreate.** A
   Portainer redeploy recreates the container and its stderr history
   dies with it — observed mid-diagnosis when the v3.1.0 deploy

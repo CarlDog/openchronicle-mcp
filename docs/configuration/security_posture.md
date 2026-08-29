@@ -229,3 +229,17 @@ that is the part that matters, and it is handled.
 - `docs/architecture/MAINTENANCE.md` — degraded-state surfacing
 - `docs/configuration/env_vars.md` — full env var inventory
 - `archive/openchronicle.v2` — v2 incident notes lived here pre-rewrite
+
+## Embedding content egress
+
+A cloud embedding provider sends every saved memory's full content and
+every semantic search query off this host — the same corpus the backup
+design age-encrypts against a different cloud. Since 2026-08-29 that
+choice is surfaced rather than silent: startup logs a WARNING whenever
+the configured embedding endpoint is not clearly LAN-local (fail-safe:
+ambiguous hosts warn), and `/api/v1/health` + the MCP `health` tool
+report `content_egress: "remote" | "local"`. The warning is a notice,
+not a control; the mitigation is a LAN-local provider
+(`OC_EMBEDDING_PROVIDER=ollama` pointed at a LAN host). Operator
+direction (2026-08-29): local embedding is the priority path — see
+[design/0006](../design/0006-embedding-provider-review.md).
