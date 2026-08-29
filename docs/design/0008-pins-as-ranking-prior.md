@@ -340,13 +340,50 @@ reinterpretation is how stability promises rot.
 - Schema snapshot + the §4 documentation checklist land with the
   surface change.
 
+## Winning cell (step 4 adjudicated 2026-08-29): PIN_RANK_LIFT = 0
+
+The tuning sweep ran on `v4/develop` (driver commit `0f9cf940`; seven
+cells — LIFT 0/2/4/8 + window-only ablations; one embedded store,
+cached query vectors, exact integer hit counts; results + gate policy
+in `data/embedding_benchmark/sweep_results.json`, verifier findings
+alongside). **The held-out regression veto rejected every nonzero
+lift**: validate∩pinned-target hybrid R@1 fell 0.875 → 0.5 (lifts
+2/4) and → 0.375 (lift 8), tune-side pinned deltas were negative at
+every lift (the lift harmed the subset it exists to help), unpinned
+R@1 dropped 2-5 queries, and lift 4 also failed the crowding gate
+(max per-query increase +3). The ablation cells held the veto metric
+exactly flat, attributing the damage to the lift itself, not the
+fetch depth. Mechanism, consistent with §1's own ordering rules: on
+a 149-pin corpus a competitor pin at ranks (2,2) floors to (1,1) and
+exactly TIES a true (1,1) target's fused score, turning the fused id
+tie-break into an id lottery that displaces true targets — the
+single-channel tuple order protects the incumbent; RRF's bare-number
+rank consumption cannot.
+
+**So the mechanism ships DISABLED — and the sweep's larger finding is
+that the float removal alone was the fix**: with the float gone,
+broad-query crowding fell from the float-era mean 10.0 pins-in-top-10
+to 5.0 at LIFT=0 — half the all-pin page was float-manufactured, the
+remaining pin presence is relevance-earned. Both outcomes are ones
+this ADR explicitly admitted in advance (§3: "`LIFT = 0` … is an
+admissible outcome"; Consequences: honest pin-density is relevance
+deciding). The lift machinery stays in the code, tested (including
+the mutation-verified fusion tests) and injectable, should a future
+corpus or a fused-tie-break redesign change the evidence. Harness
+hardening minors from the sweep's verification (channel-integrity
+assertion, run-identity metadata, `--out` default collision, noise
+labels not consulted by ablation verdicts) are recorded in
+`data/embedding_benchmark/sweep_verifier_findings.txt` and on the
+V3_PLAN punch list.
+
 ## Rollout
 
-1. Operator decision on this rev (mechanism reviewed three times; the
+1. ✅ Operator decision on this rev (mechanism reviewed three times; the
    rev-3→4 amendments follow the ultracode review's prescriptions
-   verbatim).
-2. Harness + fixture upgrades (§3) — landable independently.
-3. Implement lift + fetch extension with `PIN_RANK_LIFT=0` injected.
+   verbatim). ACCEPTED 2026-08-29 with §5 = v4.0.0.
+2. ✅ Harness + fixture upgrades (§3) — landed on `main` (rev 157).
+3. ✅ Implement lift + fetch extension with `PIN_RANK_LIFT=0` injected
+   — DONE on `v4/develop` (`de7e5c6d` + fix pass `8072cf4a`; 817 tests).
    At LIFT=0 the fetch extension adds zero rows and no rank moves —
    the ranked stream is identical to today's `pinned_limit=0`
    behavior **up to fused-tie ordering**, which this ADR makes
@@ -354,7 +391,8 @@ reinterpretation is how stability promises rot.
    is the improvement, not a regression). The float removal itself is
    the deliberate, versioned behavior change at defaults — enumerated
    in the CHANGELOG.
-4. Tuning run per §3 (cells + ablations); land the winning constant;
+4. ✅ Tuning run per §3 (cells + ablations) — DONE (`0f9cf940`); the
+   winning constant is the shipped default (see Winning cell above);
    record the cell here.
 5. Version bump per the operator's §5 answer; ships with the next
    tag; no reindex (ranking-only).

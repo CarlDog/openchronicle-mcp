@@ -875,10 +875,22 @@ The README is not a market-positioning document. It states what OC is, what it d
 authoritative order for picking up work; each line points at the full
 entry (below, or in its design doc):
 
-1. **Pins as ranking prior** — the ranking-quality stage (full entry
-   below): retire the pin-float, boost `pinned=true` inside RRF, own
-   ADR, tuned against the gold-set benchmark. The only open item
-   degrading a daily surface.
+1. ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
+   ships as v4.0.0 on the operator's tag call).** ADR 0008 (rev 4,
+   three review rounds) implemented on `v4/develop`
+   (`de7e5c6d`+`8072cf4a`+`0f9cf940`, 818 tests): float retired from
+   all modes, bounded rank lift in place. The step-4 sweep's held-out
+   veto rejected every nonzero lift (the fused-tie id lottery
+   displaces true targets), so **`PIN_RANK_LIFT = 0` is the adjudged
+   winning cell — the float removal alone was the fix** (broad-query
+   crowding fell mean 10.0 → 5.0 without it). Full record in the
+   ADR's Winning cell section. Residual: sweep-harness hardening
+   minors (channel-integrity assertion in the crowding probe;
+   run-identity metadata in the results JSON; `--sweep` inherits the
+   provider-benchmark `--out` default and can overwrite it; noise
+   labels not consulted by ablation verdicts) — recorded in
+   `data/embedding_benchmark/sweep_verifier_findings.txt`, batch into
+   the next harness touch.
 2. **Cloud-backup Phase 0** ([design 0001](design/0001-cloud-backup.md),
    reinforced by [0007](design/0007-long-term-scale-and-resilience.md)
    Stage 0): the operator-run ~30-min desktop runbook — Dropbox App
