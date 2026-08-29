@@ -2,7 +2,11 @@ name: Test
 
 on:
   push:
-    branches: [main]
+    # v4/develop is the v4.0.0 development line (ADR 0008 et al.):
+    # full test + quality on every push, but NO image publish — the
+    # build-and-push job is gated to main + tags below, so prod
+    # (main, OC_TAG-pinned) can never pull v4 work by accident.
+    branches: [main, v4/develop]
     tags: ["v*"]
     # Changes that can't affect the image, tests, or lint (build context
     # is just the app source + Dockerfile). Skipping them avoids both
@@ -121,12 +125,14 @@ jobs:
 
   build-and-push:
     name: Build and push Docker image
-    # Only on push (branch or tag) — never on pull_request, and never if
-    # test/quality didn't both pass. This is the fix for UNI-14: previously
-    # a separate docker-publish.yml workflow had no `needs:` at all, so a
-    # red pytest/quality run could still ship :latest to ghcr.io, which the
-    # NAS Portainer stack git-polls and auto-pulls.
-    if: github.event_name == 'push'
+    # Only on push to MAIN or a tag — never on pull_request, never for
+    # v4/develop (that line tests without publishing), and never if
+    # test/quality didn't both pass. The needs: gate is the fix for
+    # UNI-14: previously a separate docker-publish.yml workflow had no
+    # `needs:` at all, so a red pytest/quality run could still ship
+    # :latest to ghcr.io, which the NAS Portainer stack git-polls and
+    # auto-pulls.
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
     needs: [test, quality]
     runs-on: ubuntu-latest
     permissions:

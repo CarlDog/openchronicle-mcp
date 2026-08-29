@@ -19,10 +19,17 @@ enforces parity.
   The commit and the docs land together — never one without the other.
 - **No backwards compatibility.** Personal project, no public users,
   no production. Break whatever needs breaking.
-- **Branch state.** `main` is v3; it was force-pushed from
-  `v3/develop` at the 2026-05-06 cutover. v2 is frozen at
-  `archive/openchronicle.v2` (`bb217d9`), and v1 lives at
-  `archive/openchronicle.v1`.
+- **Branch state.** `main` is the v3.x PRODUCTION line (it was
+  force-pushed from `v3/develop` at the 2026-05-06 cutover). Since
+  2026-08-29, **`v4/develop` is the v4.0.0 development line**
+  (operator-directed, created for ADR 0008's breaking work): v3.x
+  maintenance and additive features go straight to `main`; anything
+  MAJOR-breaking goes to `v4/develop`; merge `main` → `v4/develop`
+  regularly so v4 tracks prod fixes. CI runs test+quality on both
+  branches but publishes images ONLY from `main` and tags — a
+  `v4/develop` push can never move `:latest` or reach the NAS stack.
+  v2 is frozen at `archive/openchronicle.v2` (`bb217d9`), and v1
+  lives at `archive/openchronicle.v1`.
 - **Post-CI redeploy convention.** The stack is TAG-PINNED, so a green
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy

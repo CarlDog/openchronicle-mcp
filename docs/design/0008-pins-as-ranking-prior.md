@@ -1,8 +1,13 @@
 # ADR 0008 — Pins as a Ranking Prior
 
-**Status:** PROPOSED (rev 4 — rev 3 passed an ultracode six-lens
-review with amendments required; every amendment below was prescribed
-by that review's verified findings; see Review history) · **Date:**
+**Status:** ACCEPTED (rev 4, operator, 2026-08-29 — including §5:
+**v4.0.0**, with the deprecation-window deviation explicitly
+accepted). Implementation proceeds on the **`v4/develop` branch**
+(operator-directed): `main` stays the v3.x production line so fixes
+ship to prod untangled from v4 work; `main` merges into `v4/develop`
+regularly; CI runs test+quality on `v4/develop` but publishes images
+only from `main`/tags. Exception: the §3 harness + fixture upgrades
+are v3-compatible additive work and land on `main`. · **Date:**
 2026-08-29 · **Supersedes:** the pin-float mechanism in BOTH its
 implementations (the hybrid/semantic float in `EmbeddingService` and
 the keyword-mode float in `search_memory.execute`) · **Direction
