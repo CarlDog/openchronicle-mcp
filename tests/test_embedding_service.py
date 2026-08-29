@@ -216,7 +216,7 @@ def test_background_backfill_guard_and_restart() -> None:
     def slow_backfill(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
         seen_force.append(force)
         release.wait(5)
-        return BackfillResult(generated=0, failed=0, elapsed_ms=0)
+        return BackfillResult(generated=0, failed=0, tombstoned=0, elapsed_ms=0)
 
     service.generate_missing = slow_backfill  # type: ignore[method-assign]
 

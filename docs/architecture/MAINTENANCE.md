@@ -175,6 +175,43 @@ successful semantic search resets the counter.
 `/api/v1/health` and the MCP `health` tool both return this shape, so
 clients see degradation cleanly without parsing logs.
 
+### Classified permanent outcomes (ADR 0009)
+
+An upstream rejection classified as `CONTENT_TOO_LONG` (the content
+exceeds the embedding model's context) is a designed outcome, not
+degradation: NO failure counter moves — not on save, not on backfill,
+and not for an over-length *query* (caller content, keyword-only
+results). The row parks as a `status='content_too_long'` tombstone and
+stops being retried; a backfill run reports parked rows in the
+`tombstoned` count (neither `generated` nor `failed`), and the
+`embedding_backfill` job treats a tombstoned-only run as a success.
+
+### Coverage-field relationships
+
+`embedding_status` coverage fields, after ADR 0009's tombstones:
+
+- `embedded` = rows with `status='ok'` (real vectors, current or stale).
+- `unembeddable` = CURRENT tombstones only — identity **and** content
+  hash match the active space. It clears on its own when the content
+  is shortened or the model/provider changes; `force=true` retries.
+- `missing` = total memories − ALL rows (a tombstone is known, not
+  missing).
+- `stale` = `space_mismatch` + `content_mismatch`, counting
+  regeneration work **regardless of row status**: a NON-current
+  tombstone is a genuine backfill candidate and lands in these
+  buckets.
+
+Consequences worth stating so nobody re-derives them wrong:
+`stale ⊆ embedded` **no longer holds** (a non-current tombstone is in
+a stale bucket but not in `embedded` — after a provider switch a
+corpus with 9 parked rows reads `embedded: 863, stale: 872`). The
+invariants that DO hold are `embedded + tombstones = total rows` and
+`missing = total memories − total rows`. Health fields legitimately
+overlay (an ok-but-stale row is in `embedded` AND a stale bucket);
+the underlying ROW classes partition cleanly: every
+`memory_embeddings` row is exactly one of {`status='ok'`, current
+tombstone, non-current tombstone}.
+
 ## Tests
 
 - `tests/test_maintenance_loop.py` — loop semantics (overlap-skip,

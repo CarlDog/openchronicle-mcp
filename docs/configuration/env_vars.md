@@ -46,6 +46,18 @@ falls back to FTS5-only and surfaces `"status": "degraded"` from
 `embedding_backfill` job (default every 6 hours) catches up missing
 embeddings when the provider recovers.
 
+Content the provider rejects as exceeding the model's context is a
+classified PERMANENT outcome (`CONTENT_TOO_LONG`, ADR 0009), not
+degradation: the row parks as an `unembeddable` tombstone instead of
+being retried every cycle, no failure counter moves (health stays
+`active` on a healthy system), and the memory remains FTS5-searchable.
+The park expires on its own when the content is shortened or the
+model/provider changes; `oc memory embed --force` retries parked rows
+as-is. `embedding_status` reports the count in the additive
+`unembeddable` field (see
+[MAINTENANCE.md](../architecture/MAINTENANCE.md) for the coverage-field
+relationships).
+
 ## HTTP API
 
 | Var | Purpose | Default |

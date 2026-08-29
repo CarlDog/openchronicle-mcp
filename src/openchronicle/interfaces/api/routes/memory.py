@@ -246,7 +246,10 @@ def memory_update(
 
 
 class MemoryEmbedRequest(BaseModel):
-    force: bool = Field(default=False, description="Regenerate all embeddings")
+    force: bool = Field(
+        default=False,
+        description=("Regenerate all embeddings, including rows parked as unembeddable (content_too_long tombstones)"),
+    )
     background: bool = Field(
         default=False,
         description=(

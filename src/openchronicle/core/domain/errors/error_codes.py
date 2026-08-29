@@ -30,11 +30,17 @@ PROVIDER_ERROR = "PROVIDER_ERROR"
 MISSING_PACKAGE = "MISSING_PACKAGE"
 TIMEOUT = "TIMEOUT"
 CONNECTION_ERROR = "CONNECTION_ERROR"
+# The upstream rejected THIS content as exceeding the embedding model's
+# context (ADR 0009). Permanent per (space × content) — not provider
+# health: consumers park the row as a tombstone instead of retrying,
+# and the failure counters ignore it.
+CONTENT_TOO_LONG = "CONTENT_TOO_LONG"
 
 
 __all__ = [
     "CONFIG_ERROR",
     "CONNECTION_ERROR",
+    "CONTENT_TOO_LONG",
     "FILE_NOT_FOUND",
     "INTERNAL_ERROR",
     "INVALID_ARGUMENT",

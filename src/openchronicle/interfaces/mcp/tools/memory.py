@@ -412,18 +412,28 @@ def register(mcp: FastMCP) -> None:
         or after switching embedding model/provider (the identity
         machinery marks every old vector stale; a plain backfill picks
         them up — `force` is only for re-embedding rows that are
-        already current). The maintenance loop also backfills
+        already current, and it also retries rows previously parked as
+        unembeddable). The maintenance loop also backfills
         periodically — manual invocation is for explicit control.
+
+        Content the provider rejects as exceeding the model's context is
+        PARKED, not retried: the run reports it in the additive
+        `tombstoned` count (neither `generated` nor `failed` — a
+        tombstoned-only run is `status="ok"`), and health reports such
+        rows as `unembeddable`. A parked row re-embeds automatically
+        after its content is shortened or the model/provider changes;
+        `force=true` retries it as-is.
 
         USE `background=true` FOR FULL REINDEXES: a corpus-wide backfill
         runs tens of minutes, far past MCP tool timeouts. It returns
         `status="started"` (or `"already_running"`) immediately; watch
         `health.embedding_status` — `stale` and `missing` count down
-        to 0. The synchronous default is for small incremental backfills
-        only.
+        to 0 (`unembeddable` rows stay parked by design). The
+        synchronous default is for small incremental backfills only.
 
         Args:
-            force: Regenerate every embedding from scratch (default False).
+            force: Regenerate every embedding from scratch, including
+                rows parked as unembeddable (default False).
             background: Start the backfill and return immediately
                 (default False).
         """

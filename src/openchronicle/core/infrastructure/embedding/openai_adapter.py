@@ -7,7 +7,7 @@ import os
 from typing import Any
 
 from openchronicle.core.domain.embedding_fingerprint import settings_fingerprint
-from openchronicle.core.domain.errors.error_codes import MISSING_PACKAGE, PROVIDER_ERROR
+from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG, MISSING_PACKAGE, PROVIDER_ERROR
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
@@ -15,6 +15,40 @@ from openchronicle.core.infrastructure.embedding.vector_norm import normalize_un
 logger = logging.getLogger(__name__)
 
 DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1"
+
+# Over-length phrases the 4xx message fallback matches (ADR 0009):
+# - "context length" — the SDK-documented `context_length_exceeded`
+#   family's wording, kept for hosts that phrase it that way;
+# - "maximum input length" — the LIVE OpenAI embeddings rejection,
+#   captured 2026-08-29: `BadRequestError`, HTTP 400, `code=None`,
+#   "Invalid 'input[0]': maximum input length is 8192 tokens."
+#   (the real endpoint sets NO error code, so without the captured
+#   phrase the fallback would never fire where it matters most).
+_OVERLENGTH_MESSAGE_MARKERS = ("context length", "maximum input length")
+
+
+def _classify_error(exc: Exception) -> str:
+    """Classify an SDK error: over-length content vs provider health (ADR 0009).
+
+    Inspects the SDK error's STRUCTURED attributes (duck-typed, so no
+    ``openai`` import is needed here and non-SDK exceptions fall through
+    cleanly): ``code == "context_length_exceeded"`` classifies outright;
+    otherwise a message-substring fallback applies ONLY to 400-family
+    (4xx) errors — an ungated fallback would classify any error whose
+    stringification happens to contain a marker phrase. Caveat, accepted
+    and documented (ADR 0009 §1): on generic OpenAI-compatible hosts
+    (``OPENAI_BASE_URL`` — Voyage, Gemini, Mistral) neither may match;
+    the conservative bias means those deployments keep today's
+    retry-forever behavior rather than risk a false-permanent.
+    """
+    if getattr(exc, "code", None) == "context_length_exceeded":
+        return CONTENT_TOO_LONG
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int) and 400 <= status < 500:
+        message = str(getattr(exc, "message", None) or exc).lower()
+        if any(marker in message for marker in _OVERLENGTH_MESSAGE_MARKERS):
+            return CONTENT_TOO_LONG
+    return PROVIDER_ERROR
 
 
 class OpenAIEmbeddingAdapter(EmbeddingPort):
@@ -77,7 +111,7 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
             _type = type(exc).__name__
             raise LLMProviderError(
                 f"OpenAI embedding failed: {_type}: {exc}",
-                error_code=PROVIDER_ERROR,
+                error_code=_classify_error(exc),
                 details={"provider": "openai", "model": self._model},
             ) from exc
 

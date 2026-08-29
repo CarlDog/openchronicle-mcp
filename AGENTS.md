@@ -154,131 +154,41 @@ does differently.
 
 ## Current Sprint
 
-**2026-08-28 (late) — working the validated comparative-review findings,
-one batch at a time.** v3.0.0 is live on stack 151 and
-`docs/api/STABILITY.md` BINDS: `/api/v1/*` schemas, MCP tool signatures
-and the `core.json` schema are under semver.
+**2026-08-29 — the ranking/identity/provider arc closed; v3.3.0
+shipping to prod.** One day's arc, all reviewed adversarially and all
+pushed:
 
-A validation pass first re-verified every claim in the four
-`docs/design/` review documents against HEAD (OC memory `19842001`):
-all 8 SHIPPED claims confirmed, ~14 of 16 defect claims still held —
-and the import-envelope defect had *accreted* since the review snapshot
-(the content-cap work added a third unguarded `raw_memory["id"]`).
-Agreed sequencing: (1) 0004 Phase B — envelope/export, git child env,
-build_revision; (2) 0002 batch A retrieval correctness; (3) the
-embedding-identity ADR gating 0003's adapter work; (4) cloud-backup
-Phase 0 (operator runbook) whenever convenient.
+- **v3.2.0 shipped and deployed** with the LAN-local embedding cutover:
+  `ollama/nomic-embed-text` on the NAS (`content_egress: local`),
+  chosen by the 0006 gold-set benchmark (nomic topped 15 candidates at
+  parity with the best cloud models) and a NAS latency leg.
+- **ADR 0008 (pins as ranking prior, ACCEPTED rev 4 after three review
+  rounds) is COMPLETE on `v4/develop`** (tip includes the sweep):
+  float retired from all modes, bounded rank lift implemented, and the
+  step-4 sweep's held-out veto rejected every nonzero lift —
+  **`PIN_RANK_LIFT = 0` is the recorded winning cell; the float
+  removal alone was the fix** (broad-query crowding fell mean
+  10.0 → 5.0). Ships as **v4.0.0 on the operator's tag call** (not
+  yet made).
+- **ADR 0009 (permanent embed-failure classification, ACCEPTED rev 3)
+  is IMPLEMENTED and merged to `main`** (844 tests): over-length rows
+  park as space/content-scoped tombstones instead of poisoning
+  health; `unembeddable` health bucket; `BackfillResult.tombstoned`;
+  the live OpenAI capture falsified the spec's error shape (recorded
+  in the ADR's Implementation note).
+- **v3.3.0 releases from `main`** carrying ADR 0009 +
+  `memory_embed background=true`. Deploy note: after redeploy, run
+  one backfill (`memory_embed background=true`) — it writes 9
+  tombstones and the live NAS health flips
+  `degraded`/`stale: 9` → `active`/`unembeddable: 9`.
 
-Landed so far, one focused commit per item:
-
-- **Strict import envelope + atomic export** (rev 116, 688 → 708
-  tests): whole-envelope validation before the write transaction —
-  version dispatch, required arrays, per-row types, project references,
-  duplicate ids, rejections naming collection/index/id — and
-  `oc memory export --out` publishes via `mkstemp` + `os.replace`.
-- **Least-privilege `onboard_git` child env** (rev 117, 708 → 718
-  tests): allowlisted clone env (sentinel-tested), raw `OC_GIT_TOKEN`
-  never in the child, `GIT_TERMINAL_PROMPT=0`, `--no-checkout`,
-  userinfo/query/fragment rejection, stderr token scrubbing. The
-  clone *destination policy* is still an open operator decision.
-- **Immutable `build_revision`** (rev 118, 718 → 722 tests): CI bakes
-  the full git SHA to `/app/build-revision`; health, `oc version`, and
-  the REST/MCP diagnostics report it (file-read, not env-assertable);
-  `docker-compose.nas.yml` now *requires* `OC_TAG` — no `:latest`
-  fallback.
-- **GitHub-only server-side clones** (rev 119, 722 → 734 tests):
-  operator decision landed — MCP `onboard_git` accepts only
-  `https://github.com/<owner>/<repo>`, closing the SSRF class; CLI
-  local-path onboarding unaffected.
-- **0002 batch A, item 1 — SQL tag filtering** (rev 120, 734 → 736
-  tests): tag containment runs inside the query via `json_each` on
-  both search branches, before LIMIT — no more `limit * 4` over-fetch
-  window a valid tagged row could fall past.
-- **0002 batch A, item 2 — scope-aware semantic window** (rev 121,
-  736 → 739 tests): `eligible_memory_ids` filters the similarity
-  candidate set before top-N, so out-of-scope vectors can no longer
-  crowd out in-scope matches.
-- **0002 batch A, item 3 — content updates invalidate the vector**
-  (rev 122, 739 → 744 tests): `delete_embedding` runs on every content
-  change before re-embedding — a failed re-embed leaves the row
-  missing and backfill-visible, never stale.
-- **0002 batch A, item 4 — `top_k` is a total budget** (rev 123,
-  744 → 747 tests): floated pins consume `top_k` slots in one combined
-  stream that `offset` paginates; no response exceeds the ask.
-- **0002 batch A, item 5 — `include_pinned` on MCP + REST** (rev 124,
-  747 → 749 tests): the visibility switch reaches every surface;
-  schema snapshot regenerated (additive/MINOR). **Batch A complete.**
-- **Staged-backup `quick_check` validation** (rev 125, 749 → 753
-  tests): a backup must prove it opens before it may replace the
-  previous one; failures quarantine as `.failed-quick-check` for
-  forensics.
-- **Truthful provider + maintenance health** (rev 126, 753 → 758
-  tests): all-failed backfill fails its job; provider failure counters
-  cover search/save/backfill; `maintenance_degraded` derives from
-  persisted evidence so a restart can't clear a failed integrity
-  check.
-
-**v3.1.0 is live** (2026-08-29): tag built green, `OC_TAG` moved,
-verified via `health.package_version` AND `health.build_revision`
-(`93a65636…`, the tag commit). A push alone deploys nothing.
-
-Since the tag: **0002 batch B shipped** (rev 129) — `memory_list`
-gained `tags`/`exclude_tags`/`order_by="created_at"`; **`OC_LOG_FILE`**
-(rev 132) and the **bounded `memory_stats.by_tag`** (rev 131) landed;
-and **ADR 0005 was adversarially reviewed (three critics, rev 1
-rewritten), ACCEPTED, and FULLY IMPLEMENTED — Phases B, C, and D**
-(revs 134-136, tests now 789): schema v2+v3 (`provider`,
-`content_hash`, `model_revision` IS-matched, `settings_fingerprint`),
-CAS publication, full space-identity search filtering, disjoint stale
-buckets, truthful Ollama contract (`truncate:false`, validated
-responses, structured errors, cached digest probe), dimensions-truth
-health trio, and 32-item batched backfill with per-item fallback.
-**Deploy note for the next release:** after the redeploy, run
-`oc maintenance run-once embedding_backfill` — the migrations mark all
-pre-existing vectors stale and the batched reindex takes ~a minute
-(FTS5-only semantic degradation until it finishes; `stale` counts down
-in health). The **embedding-provider review ran its
-gold-set benchmark** (rev 145): LAN-local `nomic-embed-text` cleared
-the quality gate at parity with the best cloud models, and the **switch
-executed**: v3.2.0 is live on stack 151 (verified via
-`build_revision`) with `OC_EMBEDDING_PROVIDER=ollama` /
-`nomic-embed-text` — `content_egress: local`. Design 0007 (long-term
-scale & resilience) is ACCEPTED; the V3_PLAN follow-ups section now
-carries the operator-ratified **active queue**: (1) pins-as-ranking-
-prior stage, (2) cloud-backup Phase 0 + restore drill, (3) the 0007
-concurrency load probe, then demand-/trigger-gated items. Standing V3_PLAN follow-ups (mcp 2.x on its
-triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
-consumption, quarterly Ollama Cloud re-check) are unchanged.
-
-**ADR 0008 rollout step 2 landed on `main`** (rev 157 — the §3
-harness + fixture upgrades, the slice the ADR carves out as
-v3-compatible; no `src/` change): pinned-target status derived at
-load time from the corpus fixture, per-channel pinned/unpinned and
-stratified 60/40 tune/validate subset reporting, embed-once with
-re-runnable scoring passes for the v4 sweep, a broad-query
-pin-crowding probe (absolute reading now; the delta-vs-LIFT=0 gate
-arrives with the sweep), and the gold set expanded 40 → 50 queries
-(20 pinned-target, meeting the ADR's ≥20). **Step 3 landed on
-`v4/develop`** (rev 159, the first v4-only revision — BREAKING): the
-bounded rank lift with `PIN_RANK_LIFT = 0` replaces the pin-float in
-every mode; `channel="pinned"`, `MemoryStorePort.search_pinned`, and
-the internal `pinned_limit` plumbing are gone, while the wire
-parameter stays accepted-but-inert (REST marks it deprecated in
-OpenAPI) until at least v5.0.0. At the 0 default the ranked stream
-matches the old `pinned_limit=0` behavior except that fused-score
-ties now break deterministically by memory id. **Step 4's tuning
-sweep has RUN** (rev 161): `--sweep` in the benchmark script embeds
-once and scores all seven cells (LIFT 0/2/4/8 + window-only
-ablations via a harness-facing `fetch_extension` constructor knob),
-computing every §3 gate from exact hit counts as deltas vs LIFT=0.
-Result: EVERY nonzero lift is vetoed — validated pinned-target
-hybrid R@1 drops 3-4 of 8 queries at every lift (the rank-1 floor
-collides top pins and the fused id tie-break becomes an id lottery
-on a 149-pin corpus), while the ablations sit at noise — so LIFT=0
-is the only eligible cell (an ADR-admissible outcome). Full table in
-`data/embedding_benchmark/sweep_results.json` (untracked).
-Adjudication (winning-cell record in the ADR) and step 5 — the
-v4.0.0 tag — remain.
+**Active queue after this release** (V3_PLAN carries the full
+entries): (2) cloud-backup Phase 0 + restore drill (operator at a
+desktop; 0007 Stage 0), (3) the concurrency load probe (0007 Stage 0,
+self-contained), then demand-/trigger-gated items. Design 0007
+(long-term scale & resilience) is ACCEPTED with its staged
+trigger-gated path. Open operator decision: the **v4.0.0 tag** from
+`v4/develop`.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

@@ -50,6 +50,9 @@ def execute(service: EmbeddingService | None, *, force: bool = False) -> dict[st
         }
     result = service.generate_missing(force=force)
     status = service.embedding_status()
+    # Tombstoned rows (ADR 0009) are classified permanent outcomes, not
+    # failures: a tombstoned-only run maps to "ok" (failed == 0) and the
+    # additive `tombstoned` field carries the count.
     if result.failed == 0:
         outcome = "ok"
     elif result.generated == 0:
@@ -60,6 +63,7 @@ def execute(service: EmbeddingService | None, *, force: bool = False) -> dict[st
         "status": outcome,
         "generated": result.generated,
         "failed": result.failed,
+        "tombstoned": result.tombstoned,
         "elapsed_ms": result.elapsed_ms,
         "force": force,
         **status,

@@ -520,6 +520,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         content_hash: str,
         model_revision: str | None = None,
         settings_fingerprint: str = "",
+        status: str = "ok",
     ) -> bool:
         # Compare-and-swap publication (ADR 0005): persist only if the
         # memory's CURRENT content still hashes to what the caller
@@ -541,14 +542,23 @@ class SqliteStore(StoragePort, MemoryStorePort):
         # vector), never a caller-supplied claim. Adapters can't always
         # control actual output length (Ollama returns whatever the model
         # returns regardless of the configured default), and a mismatched
-        # claim made every subsequent read raise struct.error.
+        # claim made every subsequent read raise struct.error. A tombstone
+        # (status='content_too_long', ADR 0009) stores an EMPTY payload,
+        # so the same rule records its honest dimensions = 0.
         blob = struct.pack(f"{len(embedding)}f", *embedding)
         cur = self._conn.cursor()
+        # `status = excluded.status` is the RESURRECTION clause (ADR
+        # 0009's rev-1 blocker): a later successful save onto a
+        # tombstoned row flips it back to 'ok' in the same statement —
+        # without it, the ADR's own headline recovery (larger-context
+        # model → re-embed succeeds) would leave a valid vector
+        # permanently marked unembeddable.
         cur.execute(
             """
             INSERT INTO memory_embeddings (memory_id, embedding, model, dimensions, generated_at,
-                                           provider, content_hash, model_revision, settings_fingerprint)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                           provider, content_hash, model_revision, settings_fingerprint,
+                                           status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(memory_id) DO UPDATE SET
                 embedding = excluded.embedding,
                 model = excluded.model,
@@ -557,7 +567,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
                 provider = excluded.provider,
                 content_hash = excluded.content_hash,
                 model_revision = excluded.model_revision,
-                settings_fingerprint = excluded.settings_fingerprint
+                settings_fingerprint = excluded.settings_fingerprint,
+                status = excluded.status
             """,
             (
                 memory_id,
@@ -569,6 +580,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
                 content_hash,
                 model_revision,
                 settings_fingerprint,
+                status,
             ),
         )
         self._commit_if_needed()
@@ -608,9 +620,14 @@ class SqliteStore(StoragePort, MemoryStorePort):
         must never rank. All three columns are NOT NULL, so plain
         equality is safe here; when the nullable ``model_revision``
         lands (Phase C) its predicate must use ``IS``, never ``=``.
+
+        Only ``status = 'ok'`` rows return (ADR 0009) — a tombstone has
+        no usable vector and must never rank. (Belt-and-braces: its
+        ``dimensions = 0`` already fails the dimension filter on the
+        search path; the status predicate is the stated guard.)
         """
         cur = self._conn.cursor()
-        clauses: list[str] = []
+        clauses: list[str] = ["status = 'ok'"]
         params: list[Any] = []
         if memory_ids is not None:
             placeholders = ",".join("?" for _ in memory_ids)
@@ -644,10 +661,48 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return result
 
     @_locked
-    def count_embeddings(self) -> int:
+    def count_embeddings(self, status: str | None = None) -> int:
+        """Stored embedding rows; ``status`` narrows to one row status.
+
+        ``None`` counts every row (tombstones included — the ADR 0009
+        ``missing = total memories − all rows`` invariant needs that);
+        ``"ok"`` counts real vectors (health's ``embedded``).
+        """
         cur = self._conn.cursor()
-        row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings").fetchone()
+        if status is None:
+            row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings").fetchone()
+        else:
+            row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE status = ?", (status,)).fetchone()
         return row["cnt"] if row else 0
+
+    @_locked
+    def count_unembeddable_embeddings(
+        self,
+        provider: str,
+        model: str,
+        settings_fingerprint: str = "",
+        model_revision: str | None = None,
+    ) -> int:
+        """CURRENT tombstones: space identity AND content hash both match.
+
+        Health's additive ``unembeddable`` count (ADR 0009). Non-current
+        tombstones are deliberately NOT counted here — they are genuine
+        backfill candidates and already land in the stale buckets
+        (``stale_embedding_counts`` needs no status predicate for that;
+        verified, per the ADR). Content hashes are compared in Python,
+        same as the content-mismatch bucket.
+        """
+        cur = self._conn.cursor()
+        rows = cur.execute(
+            """
+            SELECT m.content AS content, e.content_hash AS content_hash
+            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
+            WHERE e.status = 'content_too_long'
+              AND e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
+            """,
+            (provider, model, settings_fingerprint, model_revision),
+        ).fetchall()
+        return sum(1 for r in rows if hash_content(r["content"]) == r["content_hash"])
 
     @_locked
     def stale_embedding_counts(
@@ -695,10 +750,14 @@ class SqliteStore(StoragePort, MemoryStorePort):
 
         The truth surface for 0003 Finding 2's dimensions gap: health
         used to display only the adapter's CLAIM, which could disagree
-        with every stored row.
+        with every stored row. ``status = 'ok'`` only (ADR 0009): a
+        tombstone's factual ``0`` is payload truth, not vector truth —
+        surfacing ``stored_dimensions: [0, 768]`` would read as drift.
         """
         cur = self._conn.cursor()
-        rows = cur.execute("SELECT DISTINCT dimensions FROM memory_embeddings ORDER BY dimensions").fetchall()
+        rows = cur.execute(
+            "SELECT DISTINCT dimensions FROM memory_embeddings WHERE status = 'ok' ORDER BY dimensions"
+        ).fetchall()
         return [row["dimensions"] for row in rows]
 
     @_locked
@@ -720,13 +779,18 @@ class SqliteStore(StoragePort, MemoryStorePort):
     def get_embedding_identity(self, memory_id: str) -> dict[str, Any] | None:
         """The stored identity of a memory's vector, or None when absent.
 
-        Keys: ``provider``, ``model``, ``dimensions``, ``content_hash``.
-        This is what freshness checks compare against the active port
-        and the memory's current content (ADR 0005).
+        Keys: ``provider``, ``model``, ``dimensions``, ``content_hash``,
+        ``model_revision``, ``settings_fingerprint``, ``status``. This is
+        what freshness checks compare against the active port and the
+        memory's current content (ADR 0005). ``status`` rides along for
+        diagnostics/tests ONLY — candidacy must NEVER consult it: a
+        current tombstone reading as current is exactly how ADR 0009's
+        emergent exclusion works, and an explicit "tombstone → not
+        current" branch would reintroduce the infinite retry.
         """
         cur = self._conn.cursor()
         row = cur.execute(
-            "SELECT provider, model, dimensions, content_hash, model_revision, settings_fingerprint"
+            "SELECT provider, model, dimensions, content_hash, model_revision, settings_fingerprint, status"
             " FROM memory_embeddings WHERE memory_id = ?",
             (memory_id,),
         ).fetchone()
@@ -739,6 +803,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
             "content_hash": row["content_hash"],
             "model_revision": row["model_revision"],
             "settings_fingerprint": row["settings_fingerprint"],
+            "status": row["status"],
         }
 
     # ── Search ──────────────────────────────────────────────────────

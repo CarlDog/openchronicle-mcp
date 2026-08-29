@@ -7,6 +7,7 @@ import logging
 from dataclasses import dataclass
 
 from openchronicle.core.domain.content_hash import hash_content
+from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
 from openchronicle.core.domain.exceptions import ProviderError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
@@ -98,10 +99,17 @@ class BackfillResult:
     from blocking the rest, but it must NOT hide total failure from callers.
     Carrying ``failed`` alongside ``generated`` lets the MCP/API/CLI surfaces
     return an honest status to clients.
+
+    ``tombstoned`` (ADR 0009) counts rows parked as unembeddable —
+    classified permanent outcomes, in NEITHER ``generated`` nor
+    ``failed``: a tombstoned-only run is a success (the maintenance
+    guard's ``failed and not generated`` doesn't match, ``embed_memory``
+    maps it to ``ok``, the CLI exits 0).
     """
 
     generated: int
     failed: int
+    tombstoned: int
     elapsed_ms: int
 
 
@@ -223,6 +231,48 @@ class EmbeddingService:
         self._failure_count = 0
         self._last_failure_op = None
 
+    @staticmethod
+    def _is_content_too_long(exc: Exception) -> bool:
+        """Did the adapter classify this failure as over-length content?
+
+        Consulted ONLY in per-item handlers (ADR 0009): the adapter
+        classifies wherever the upstream rejection matches — batch or
+        single call — but a batch-level ``CONTENT_TOO_LONG`` must never
+        attribute the failure to every item, so the batch handler falls
+        to the existing per-item isolation retry regardless of code.
+        """
+        return isinstance(exc, ProviderError) and exc.error_code == CONTENT_TOO_LONG
+
+    def _write_tombstone(self, memory_id: str, content: str) -> bool:
+        """Park ``memory_id`` as unembeddable for this exact content.
+
+        The tombstone goes through the SAME CAS as a real save (full
+        space identity, the FAILED content's hash, empty vector →
+        dimensions 0, ``status='content_too_long'``), so content that
+        moved on mid-run refuses cleanly and the row simply stays a
+        candidate. One INFO line names the id and the remedy — this is
+        a designed outcome, never a traceback (ADR 0009).
+        """
+        published = self._store.save_embedding(
+            memory_id,
+            [],
+            model=self._port.model_name(),
+            provider=self._port.provider_name(),
+            content_hash=hash_content(content),
+            model_revision=self._port.model_revision(),
+            settings_fingerprint=self._port.settings_fingerprint(),
+            status="content_too_long",
+        )
+        if published:
+            logger.info(
+                "memory %s parked as unembeddable: content exceeds the embedding model's context — "
+                "shorten the content, or use a larger-context model (force=true retries it)",
+                memory_id,
+            )
+        else:
+            logger.info("tombstone for memory %s not published (content changed or memory deleted)", memory_id)
+        return published
+
     def _is_current(self, memory_id: str, content: str) -> bool:
         """ADR 0005 freshness: stored identity matches the active space
         AND the stored content hash matches this content.
@@ -256,13 +306,25 @@ class EmbeddingService:
         Publication is compare-and-swap: a refusal (content moved on, or
         the memory was deleted mid-flight) is logged and NOT a provider
         failure — the row stays a backfill candidate.
+
+        A classified ``CONTENT_TOO_LONG`` is a HANDLED outcome (ADR
+        0009): the tombstone is written, the INFO line logged, and this
+        RETURNS NORMALLY — no raise, no caller traceback, no failure
+        counted (nor a success: the counters ignore classified
+        outcomes). The save itself already succeeded — the memory is
+        stored and FTS5-searchable; health's ``unembeddable`` and the
+        INFO line are the surfaces. Transient failures keep the
+        raise-on-failure contract unchanged.
         """
         if not force and self._is_current(memory_id, content):
             return
 
         try:
             vec = self._port.embed(content)
-        except Exception:
+        except Exception as exc:
+            if self._is_content_too_long(exc):
+                self._write_tombstone(memory_id, content)
+                return
             # Counted at the boundary (op="save") so a dead provider is
             # visible in health even when nothing ever searches; the
             # exception still propagates — save-path policy belongs to
@@ -306,7 +368,7 @@ class EmbeddingService:
 
         if not candidates:
             logger.info("Embedding backfill: 0 candidates, nothing to do")
-            return BackfillResult(generated=0, failed=0, elapsed_ms=0)
+            return BackfillResult(generated=0, failed=0, tombstoned=0, elapsed_ms=0)
 
         logger.info(
             "Embedding backfill started: %d candidates (model=%s, force=%s)",
@@ -318,6 +380,7 @@ class EmbeddingService:
         t0 = time.monotonic()
         count = 0
         failed = 0
+        tombstoned = 0
         # Bounded chunks through embed_batch (ADR 0005 Phase D): one
         # provider round-trip per chunk. A failed CHUNK falls back to
         # per-item calls so one bad memory cannot discard its
@@ -380,6 +443,16 @@ class EmbeddingService:
                         logger.info("backfill: embedding for %s not published (content moved on)", item.id)
                     self._record_success()
                 except Exception as exc:
+                    if self._is_content_too_long(exc):
+                        # Classified permanent outcome (ADR 0009): park
+                        # the row, count it in `tombstoned` ONLY, and
+                        # touch neither failure nor success counters. A
+                        # CAS-refused tombstone (content moved mid-run)
+                        # counts nothing — the row stays a candidate,
+                        # mirroring the ok-path refusal.
+                        if self._write_tombstone(item.id, item.content):
+                            tombstoned += 1
+                        continue
                     failed += 1
                     self._record_failure("backfill")
                     # Same split as the batch path: known ProviderError →
@@ -396,12 +469,13 @@ class EmbeddingService:
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
         logger.info(
-            "Embedding backfill completed: %d generated, %d failed, %dms elapsed",
+            "Embedding backfill completed: %d generated, %d failed, %d tombstoned, %dms elapsed",
             count,
             failed,
+            tombstoned,
             elapsed_ms,
         )
-        return BackfillResult(generated=count, failed=failed, elapsed_ms=elapsed_ms)
+        return BackfillResult(generated=count, failed=failed, tombstoned=tombstoned, elapsed_ms=elapsed_ms)
 
     def embedding_status(self) -> dict[str, int]:
         """Return embedding coverage stats.
@@ -411,10 +485,31 @@ class EmbeddingService:
         included) + ``content_mismatch`` (right space, stale content
         hash). The old model-string-only predicate under-counted —
         this refinement is the field's documented MINOR change.
+
+        Row classes partition (ADR 0009): every stored row is exactly
+        one of {``status='ok'``, current tombstone, non-current
+        tombstone}. ``embedded`` counts the ok rows (byte-identical to
+        the old all-rows count on any pre-ADR database); current
+        tombstones are ``unembeddable``; non-current tombstones are
+        genuine candidates and land in the stale buckets. The health
+        FIELDS legitimately overlay — an ok-but-stale row is in
+        ``embedded`` AND a stale bucket, exactly as before. Cross-field
+        relationships: ``stale ⊆ embedded`` no longer holds; what DOES
+        hold is ``embedded + tombstones = total rows`` and
+        ``missing = total_memories − total rows`` (a tombstone is
+        known, not missing); ``stale`` counts regeneration work
+        regardless of row status.
         """
         total_memories = self._store.count_memory()
-        embedded = self._store.count_embeddings()
+        total_rows = self._store.count_embeddings()
+        embedded = self._store.count_embeddings(status="ok")
         buckets = self._store.stale_embedding_counts(
+            self._port.provider_name(),
+            self._port.model_name(),
+            settings_fingerprint=self._port.settings_fingerprint(),
+            model_revision=self._port.model_revision(),
+        )
+        unembeddable = self._store.count_unembeddable_embeddings(
             self._port.provider_name(),
             self._port.model_name(),
             settings_fingerprint=self._port.settings_fingerprint(),
@@ -423,7 +518,8 @@ class EmbeddingService:
         return {
             "total_memories": total_memories,
             "embedded": embedded,
-            "missing": total_memories - embedded,
+            "missing": total_memories - total_rows,
+            "unembeddable": unembeddable,
             "space_mismatch": buckets["space_mismatch"],
             "content_mismatch": buckets["content_mismatch"],
             "stale": buckets["space_mismatch"] + buckets["content_mismatch"],
@@ -503,6 +599,12 @@ class EmbeddingService:
                 self._search_failure_count = 0
             self._record_success()
         except Exception as exc:
+            if self._is_content_too_long(exc):
+                # An over-length QUERY is caller content, not provider
+                # health (ADR 0009): degrade to keyword-only without
+                # touching either failure counter.
+                logger.info("semantic query exceeds the embedding model's context; returning keyword-only results")
+                return _page(_wrap_keyword_ranked(keyword_results))
             self._search_failure_count += 1
             self._record_failure("search")
             self._last_search_failure_at = self._last_failure_at

@@ -244,6 +244,10 @@ def cmd_memory_embed(args: argparse.Namespace, container: CoreContainer) -> int:
             print(f"Embedded:       {status['embedded']}")
             print(f"Missing:        {status['missing']}")
             print(f"Stale:          {status['stale']}")
+            # Without this line, parked rows would be visible in NO
+            # printed field (ADR 0009): they are neither embedded,
+            # missing, nor stale.
+            print(f"Unembeddable:   {status['unembeddable']}")
             print(f"Model:          {service.port.model_name()}")
         return 0
 
@@ -252,14 +256,20 @@ def cmd_memory_embed(args: argparse.Namespace, container: CoreContainer) -> int:
     payload = {
         "generated": result.generated,
         "failed": result.failed,
+        "tombstoned": result.tombstoned,
         "elapsed_ms": result.elapsed_ms,
         "force": force,
     }
     if getattr(args, "json", False):
         print(_json.dumps(payload))
     else:
-        print(f"Generated {result.generated} embedding(s); {result.failed} failed in {result.elapsed_ms}ms.")
-    # Non-zero exit when nothing succeeded (catches misconfigs in scripts/CI).
+        print(
+            f"Generated {result.generated} embedding(s); {result.tombstoned} tombstoned (unembeddable); "
+            f"{result.failed} failed in {result.elapsed_ms}ms."
+        )
+    # Non-zero exit when nothing succeeded (catches misconfigs in
+    # scripts/CI). Tombstoned-only runs are classified permanent
+    # outcomes, not failures — failed stays 0 and the exit stays 0.
     if result.failed > 0 and result.generated == 0:
         return 1
     return 0
