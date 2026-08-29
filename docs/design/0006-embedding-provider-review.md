@@ -206,12 +206,30 @@ against sampled memories — differences under ~0.05 are one query and
 must not be over-read. The relative tiers (nomic/3-large/gemini at
 top; incumbent mid; small-context models out) are robust.
 
-**Next step — the NAS latency leg:** pull `nomic-embed-text` on the
-NAS Ollama (274 MB), re-measure query latency + full-reindex there
-(CPU-only), and if acceptable the switch is: stack env
-`OC_EMBEDDING_PROVIDER=ollama` + `OLLAMA_HOST=http://host.docker.internal:11434`,
-then `oc maintenance run-once embedding_backfill`. The identity
-machinery (ADR 0005) makes the cutover safe by construction.
+**NAS latency leg (RUN 2026-08-29, same day):** `nomic-embed-text`
+pulled on the NAS Ollama and timed through the real adapter with real
+corpus content:
+
+| Path | NAS (CPU) | Incumbent (OpenAI) |
+|---|---|---|
+| Query embed, warm | **396 ms** mean / 428 ms p95 | ~213 ms |
+| Query embed, cold (model unloaded) | 2.2 s | — |
+| Batch of 32 memories | ~40 s | — |
+| Full 868-row reindex (extrapolated) | **~19-25 min** | 25 s |
+
+The NAS Ollama already runs the fleet-recommended env
+(`OLLAMA_KEEP_ALIVE=24h`, `MAX_LOADED_MODELS=3`, `NUM_PARALLEL=1`), so
+steady state is the warm path — the cold 2.2 s applies only after a
+container restart or model eviction. **Verdict: livable.** Every
+semantic search pays ~+180 ms over the incumbent (sub-second
+end-to-end); the reindex cost is rare, background, and degrades to
+FTS5-only rather than downtime; ongoing per-save embedding is well
+under a second. The quality gate and the latency gate are both
+cleared — the switch (stack env `OC_EMBEDDING_PROVIDER=ollama` +
+`OLLAMA_HOST=http://host.docker.internal:11434` +
+`OC_EMBEDDING_MODEL=nomic-embed-text`, then
+`oc maintenance run-once embedding_backfill`) awaits the operator's
+go. ADR 0005 makes it safe by construction.
 
 ## Recurring cadence — the quarterly embedding-provider sweep
 
