@@ -892,6 +892,21 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   *should* dominate broad queries is the operator decision this item
   exists to force before any code moves.
 
+- **The openai adapter always sends `dimensions`; strict
+  OpenAI-compat hosts reject the request outright.** Live-confirmed
+  2026-08-29 by the embedding benchmark: Mistral 422s
+  (`extra_forbidden`) and Voyage 400s ("Argument 'dimensions' is not
+  supported") on the param `OpenAIEmbeddingAdapter.embed_batch`
+  unconditionally includes — the fleet's strict-upstream lesson
+  (build request bodies by adding only supplied fields) applied to our
+  own adapter. Blocks the operator-directed "all major cloud
+  providers" path for those two. Fix shape when picked up: make
+  `dimensions` optional-send (send only when explicitly configured,
+  like the ollama adapter), keeping the value in the
+  settings-fingerprint either way; decide what the OpenAI-native
+  default then means for existing fingerprints (a fingerprint change
+  triggers a reindex under ADR 0005 — plan the migration note).
+
 - **MCP clients never see `error_code`; the REST surface does.**
   Found 2026-08-28 while capturing the MCP error-shape baseline
   (`tests/test_mcp_error_shape.py`). Domain exceptions carry a structured

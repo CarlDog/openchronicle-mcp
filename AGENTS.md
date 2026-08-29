@@ -230,8 +230,12 @@ health trio, and 32-item batched backfill with per-item fallback.
 `oc maintenance run-once embedding_backfill` — the migrations mark all
 pre-existing vectors stale and the batched reindex takes ~a minute
 (FTS5-only semantic degradation until it finishes; `stale` counts down
-in health). Open next: an **embedding-provider review** (operator
-request, queued behind the phases — now due), and cloud-backup
+in health). The **embedding-provider review ran its
+gold-set benchmark** (rev 145): LAN-local `nomic-embed-text` cleared
+the quality gate at parity with the best cloud models, and 0006's
+recommendation is now *switch, gated on the NAS latency leg* (pull the
+model on NAS Ollama, measure CPU latency/reindex there) and the
+operator's decision. Open next: that NAS leg, and cloud-backup
 Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.

@@ -1,7 +1,8 @@
 # Embedding Provider Review
 
-**Status:** Review complete — recommendation recorded, no switch made;
-the benchmark is the named gate for any change · **Date:** 2026-08-29
+**Status:** Benchmark RUN (see results below) — the local option cleared
+the gate; the switch decision is with the operator, pending the NAS
+latency leg · **Date:** 2026-08-29
 
 **Requested by the operator** at the close of ADR 0005's
 implementation, which is what makes this review timely: provider
@@ -89,10 +90,10 @@ triggers the standard reindex.
 |---|---|---|
 | OpenAI | native (current) | — |
 | **Anthropic** | **no embeddings API exists** | Verified 2026-08-29 against Anthropic's own docs: "Anthropic does not offer its own embedding model" — it recommends Voyage AI. Watched in the quarterly sweep in case a first-party API ships |
-| Voyage AI | `OPENAI_BASE_URL=https://api.voyageai.com/v1` | Anthropic's recommended vendor; wire format verified OpenAI-shaped. Caveat: Voyage's `input_type` query/document prompts aren't expressible on the compat path — full quality needs a dedicated adapter (trigger-gated on actually choosing Voyage) |
+| Voyage AI | **blocked on the compat path today** | Live 400 (2026-08-29 benchmark): "Argument 'dimensions' is not supported" — our openai adapter always sends it. Needs the dimensions-optional adapter change AND (for full quality) the `input_type` dedicated adapter; both trigger-gated on actually choosing Voyage |
 | Google Gemini | `.../v1beta/openai` compat endpoint | `gemini-embedding-001` family |
-| Mistral | `https://api.mistral.ai/v1` | `mistral-embed` |
-| Cohere | `https://api.cohere.ai/compatibility/v1` | `embed-v4` family |
+| Mistral | **blocked on the compat path today** | Live 422 (2026-08-29 benchmark): `extra_forbidden` on `dimensions` — strict schema rejects the param our adapter always sends. Same dimensions-optional fix would unblock it |
+| Cohere | `https://api.cohere.ai/compatibility/v1` | `embed-v4.0`; endpoint accepted our requests but the trial key's 100 calls/min 429'd the backfill — needs a production key or throttling to benchmark |
 | Together / Fireworks / DeepInfra / etc. | their OpenAI-compat base URLs | Host the open models (`qwen3-embedding`, `bge-m3`, ...) as cloud endpoints |
 | Azure OpenAI | needs auth-path check | Deployment-scoped URLs + `api-key` header differ from the Bearer scheme; verify before promising |
 | Ollama Cloud / Atlas Cloud | watched (zero embedding models) | Sweep legs above |
@@ -114,21 +115,103 @@ pending the benchmark.
 
 ## Recommendation
 
-1. **Stay on `text-embedding-3-small` today.** Nothing is broken, the
-   cost is noise, and quality is proven-in-use.
-2. **The one funded next step, if any: build the 0003 gold-set
-   benchmark** (an offline script + fixture, not a service feature).
-   It is the decision instrument for every future provider question —
-   local models, 3-large, a future Ollama Cloud — and without it every
-   switch argument is vibes.
-3. **The trigger that reopens this review:** the operator deciding the
-   privacy asymmetry now outweighs proven quality (a posture change,
-   like the auth decision would be), OR a benchmark showing a local
-   model within tolerance on the gold set, OR OpenAI API terms/pricing
-   moving materially.
-4. Bookkeeping: the quarterly Ollama Cloud re-check continues — as one
-   leg of the recurring sweep below; the fleet NAS rules' MoE caveat
-   does not apply to the small dense embedding models in play here.
+**Superseded 2026-08-29 by the benchmark results above.** The original
+recommendation (stay on 3-small; build the benchmark; reopen on a
+benchmark showing a local model within tolerance) executed exactly as
+written: the benchmark was built, run, and its reopen-trigger fired —
+`nomic-embed-text` is at parity with the best cloud models on this
+corpus while closing the privacy asymmetry the operator has named the
+priority path.
+
+**Current recommendation: switch to LAN-local Ollama
+`nomic-embed-text`, gated only on the NAS latency leg** (pull the
+model on the NAS, measure query latency + reindex on its CPU — the
+one number this benchmark could not produce). The switch itself is
+stack-env config + one backfill; ADR 0005 makes it safe by
+construction. The decision is the operator's.
+
+Bookkeeping: the quarterly sweep below continues unchanged; the fleet
+NAS rules' MoE caveat was re-confirmed by `nomic-embed-text-v2-moe`'s
+disqualification.
+
+## Gold-set benchmark results (2026-08-29)
+
+The 0003 gold-set benchmark was built and run
+(`scripts/benchmark_embeddings.py`): 868-memory real-corpus fixture
+(full NAS snapshot), 40 authored paraphrase queries with one
+known-relevant target each (fixtures untracked under
+`data/embedding_benchmark/` — they contain private memory content),
+scored through the REAL pipeline (`EmbeddingService.search_semantic` /
+`search_hybrid`, RRF included) per candidate in a throwaway store.
+Measurement config `include_pinned=True, pinned_limit=0` — both pin
+defaults are policy, not relevance, and each silently broke a run
+before this was understood (the second failure is now a V3_PLAN
+punch-list item: the pin-float can consume the entire response on a
+pin-heavy corpus).
+
+Semantic-only recall/MRR, sorted; hybrid shown for the production mode.
+`fails` = rows rejected under `truncate:false` (context-window honesty
+— those rows stay FTS5-only). Latency measured on the authoring
+machine, NOT the NAS; accuracy is the gate.
+
+| Candidate | sem R@1 | sem R@10 | sem MRR | hyb R@1 | hyb R@10 | fails | reindex |
+|---|---|---|---|---|---|---|---|
+| **ollama/nomic-embed-text** (adapter default!) | **0.950** | **1.000** | **0.959** | 0.750 | 1.000 | 9 | 142s |
+| openai/text-embedding-3-large | 0.925 | 0.975 | 0.946 | 0.700 | 0.975 | 1 | 25s |
+| gemini/gemini-embedding-001 | 0.900 | 0.975 | 0.924 | 0.700 | 1.000 | 0 | 13s |
+| ollama/bge-m3 | 0.875 | 1.000 | 0.923 | 0.725 | 1.000 | 19 | 338s |
+| ollama/embeddinggemma | 0.850 | 1.000 | 0.908 | 0.725 | 1.000 | 13 | 156s |
+| openai/text-embedding-3-small (incumbent) | 0.825 | 1.000 | 0.888 | 0.700 | 1.000 | 1 | 25s |
+| ollama/snowflake-arctic-embed2 | 0.775 | 0.975 | 0.859 | 0.750 | 1.000 | 19 | 341s |
+| ollama/qwen3-embedding:8b | 0.750 | 1.000 | 0.859 | 0.775 | 1.000 | 0 | 1673s |
+| ollama/qwen3-embedding:4b | 0.675 | 0.950 | 0.784 | 0.700 | 0.975 | 0 | 311s |
+| ollama/qwen3-embedding:0.6b | 0.625 | 0.850 | 0.718 | 0.700 | 0.975 | 0 | 82s |
+| ollama/mxbai-embed-large | 0.550 | 0.550 | 0.550 | 0.425 | 0.875 | **353** | 342s |
+| ollama/nomic-embed-text-v2-moe | 0.500 | 0.500 | 0.500 | 0.375 | 0.900 | **383** | 435s |
+| fts5-only (baseline) | — | — | — | 0.600 | 0.850 | — | — |
+
+**Findings:**
+
+1. **`nomic-embed-text` — the adapter default — tops the table**,
+   at/above parity with every cloud model including 3-large (its 0.025
+   edge is one query on n=40: treat as parity, not victory). The 0006
+   reopen-trigger "a benchmark showing a local model within tolerance
+   on the gold set" is UNAMBIGUOUSLY met — by the smallest (274 MB),
+   fastest-reindexing strong candidate, which also closes the privacy
+   asymmetry outright. `bge-m3` and `embeddinggemma` also clear the
+   incumbent.
+2. **The incumbent ranks mid-table** (0.825) — nothing is broken, but
+   staying on it is no longer defensible on quality grounds.
+3. **Small-context models are disqualified by the long-input leg:**
+   `mxbai-embed-large` (353 fails) and `nomic-v2-moe` (383) can't hold
+   this corpus under `truncate:false` — the MoE model re-confirms the
+   fleet's measured CPU-MoE caveat. The qwen3 family (32k ctx, 0
+   fails) underperforms far smaller models here and 8b's 28-minute
+   reindex buys nothing.
+4. **Hybrid R@1 < semantic R@1 for every strong model** (e.g. nomic
+   0.750 vs 0.950): RRF's keyword channel dilutes an excellent
+   semantic top-1 on paraphrase queries, though hybrid keeps R@10 at
+   1.000. Worth a follow-up look at RRF weighting someday; not part of
+   the provider decision.
+5. **Cloud-compat matrix corrections** (live errors, not docs):
+   Mistral (`extra_forbidden`) and Voyage ("not supported") both
+   REJECT the `dimensions` param the openai adapter always sends — the
+   generic path does NOT work for them today (the fleet's
+   strict-upstream lesson, verbatim: build bodies by adding only
+   supplied fields). Cohere trial keys cap at 100 calls/min and 429'd
+   the backfill. All three rows updated below.
+
+**Caveats:** n=40, single-target gold, queries authored by one person
+against sampled memories — differences under ~0.05 are one query and
+must not be over-read. The relative tiers (nomic/3-large/gemini at
+top; incumbent mid; small-context models out) are robust.
+
+**Next step — the NAS latency leg:** pull `nomic-embed-text` on the
+NAS Ollama (274 MB), re-measure query latency + full-reindex there
+(CPU-only), and if acceptable the switch is: stack env
+`OC_EMBEDDING_PROVIDER=ollama` + `OLLAMA_HOST=http://host.docker.internal:11434`,
+then `oc maintenance run-once embedding_backfill`. The identity
+machinery (ADR 0005) makes the cutover safe by construction.
 
 ## Recurring cadence — the quarterly embedding-provider sweep
 
