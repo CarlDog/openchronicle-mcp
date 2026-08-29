@@ -10,6 +10,13 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.1.0`.
 
+- **`OC_LOG_FILE`: logs that survive a container recreate.** A
+  Portainer redeploy recreates the container and its stderr history
+  dies with it — observed mid-diagnosis when the v3.1.0 deploy
+  destroyed the v3.0.0 logs a bug report needed. When set, the log
+  stream is mirrored to a size-rotating file (5 MiB × 4, same
+  format/level as stderr, fail-soft on unwritable paths); the NAS
+  compose defaults it onto the output volume. stderr stays primary.
 - **`memory_stats.by_tag` is bounded** (dogfooding feedback). The tag
   histogram now shows the `top_tags` most frequent tags (count-ordered,
   default 25, param on MCP + REST) with an `other_tags` rollup count —

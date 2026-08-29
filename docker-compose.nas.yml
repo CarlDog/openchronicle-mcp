@@ -112,6 +112,12 @@ services:
       OC_GIT_TOKEN: ${OC_GIT_TOKEN:-}
       # Logging posture (Q19 locked):
       OC_LOG_FORMAT: ${OC_LOG_FORMAT:-human}
+      # Rotating file mirror of the log stream (5 MiB x 4 on the output
+      # volume). Container stderr dies with the container — a Portainer
+      # redeploy RECREATES it, so the previous release's logs vanish at
+      # exactly the moment a regression report needs them (observed
+      # 2026-08-29). Empty disables; stderr always stays on.
+      OC_LOG_FILE: ${OC_LOG_FILE:-/app/output/logs/openchronicle.log}
       OC_LOG_LEVEL: ${OC_LOG_LEVEL:-INFO}
     extra_hosts:
       - host.docker.internal:host-gateway

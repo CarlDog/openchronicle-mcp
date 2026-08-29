@@ -27,7 +27,7 @@ enforces parity.
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
   with it unset fails loudly instead of silently tracking `:latest`),
-  and stack 151 sets `OC_TAG=v3.0.0`; a push to `main` refreshes only
+  and stack 151 sets `OC_TAG=v3.1.0`; a push to `main` refreshes only
   `:latest`, which that stack does not pull. **Code goes live when
   `OC_TAG` moves — a push alone deploys nothing.** So runtime changes
   (`src/`, `pyproject.toml`, `Dockerfile`, `docker-compose.nas.yml`)
@@ -370,6 +370,7 @@ Most-used variables for quick reference:
 | `OPENAI_API_KEY` | Used by the OpenAI embedding adapter | — |
 | `OLLAMA_HOST` | Used by the Ollama embedding adapter | adapter default |
 | `OC_LOG_FORMAT` | `human` or `json` | `human` |
+| `OC_LOG_FILE` | Rotating file mirror of the logs (survives container recreates when on a volume) | *(unset; NAS compose sets it)* |
 | `OC_MAINTENANCE_DISABLED` | `1`/`true`/`yes`/`on` to short-circuit the loop | unset |
 
 Full reference: [docs/configuration/env_vars.md](docs/configuration/env_vars.md)

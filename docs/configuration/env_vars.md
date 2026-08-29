@@ -101,6 +101,7 @@ them.
 | Var | Purpose | Default |
 |---|---|---|
 | `OC_LOG_FORMAT` | `human` (Python default formatter) or `json` (one JSON object per line, suitable for Loki/OpenSearch/Datadog) | `human` |
+| `OC_LOG_FILE` | Mirror the log stream to this size-rotating file (5 MiB × 1 live + 3 rotated; same format/level as stderr). Point it at a mounted volume so logs survive a container recreate — a Portainer redeploy destroys the previous container's stderr history. Unwritable paths degrade to stderr-only with a warning, never a crash. Empty = disabled. The NAS compose defaults it to `/app/output/logs/openchronicle.log` | *(unset; NAS compose sets it)* |
 | `OC_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` (`WARN`/`FATAL` accepted as aliases). An unrecognized value logs a warning and falls back to the default rather than failing to start | `INFO` |
 
 ## Maintenance loop
