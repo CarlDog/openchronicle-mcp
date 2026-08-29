@@ -21,7 +21,12 @@ from typing import Any
 import httpx
 
 from openchronicle.core.domain.embedding_fingerprint import settings_fingerprint
-from openchronicle.core.domain.errors.error_codes import CONNECTION_ERROR, PROVIDER_ERROR, TIMEOUT
+from openchronicle.core.domain.errors.error_codes import (
+    CONNECTION_ERROR,
+    CONTENT_TOO_LONG,
+    PROVIDER_ERROR,
+    TIMEOUT,
+)
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
@@ -98,9 +103,15 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
             self._validate(embeddings, expected=len(texts))
             return [normalize_unit(vec) for vec in embeddings]
         except httpx.HTTPStatusError as exc:
+            # The one structured place both status and body still exist —
+            # classification happens here or not at all (ADR 0009).
+            message = _upstream_error(exc.response)
+            code = (
+                CONTENT_TOO_LONG if _is_context_length_rejection(exc.response.status_code, message) else PROVIDER_ERROR
+            )
             raise LLMProviderError(
-                f"Ollama embedding failed: HTTP {exc.response.status_code}: {_upstream_error(exc.response)}",
-                error_code=PROVIDER_ERROR,
+                f"Ollama embedding failed: HTTP {exc.response.status_code}: {message}",
+                error_code=code,
                 details={"provider": "ollama", "model": self._model},
             ) from exc
         except httpx.ConnectError as exc:
@@ -226,6 +237,21 @@ def _normalize_host(raw: str) -> str:
     if "://" not in raw:
         return f"http://{raw}"
     return raw
+
+
+def _is_context_length_rejection(status_code: int, message: str) -> bool:
+    """Is this upstream rejection Ollama's over-length refusal? (ADR 0009)
+
+    True only for a 400 whose error message contains ``context length``,
+    case-insensitively — ground truth is the repo's captured rejection,
+    ``"input exceeds maximum context length"`` (pinned in
+    ``tests/test_embedding_adapters.py``). Conservative by design: the
+    misclassification bias is asymmetric — a false negative preserves
+    today's retry behavior, a false positive parks a row until its next
+    content edit or space change — so nothing outside a 400 with that
+    phrase classifies.
+    """
+    return status_code == 400 and "context length" in message.lower()
 
 
 def _upstream_error(response: httpx.Response) -> str:

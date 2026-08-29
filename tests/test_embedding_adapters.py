@@ -9,9 +9,23 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
+from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG, PROVIDER_ERROR
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
-from openchronicle.core.infrastructure.embedding.ollama_adapter import OllamaEmbeddingAdapter
-from openchronicle.core.infrastructure.embedding.openai_adapter import OpenAIEmbeddingAdapter
+from openchronicle.core.infrastructure.embedding.ollama_adapter import (
+    OllamaEmbeddingAdapter,
+    _is_context_length_rejection,
+)
+from openchronicle.core.infrastructure.embedding.openai_adapter import (
+    OpenAIEmbeddingAdapter,
+    _classify_error,
+)
+
+# The LIVE OpenAI embeddings over-length rejection, captured 2026-08-29
+# (one deliberately-oversized request against text-embedding-3-small):
+# BadRequestError, HTTP 400, code=None — the real endpoint sets NO
+# error code, and its message says "maximum input length", not
+# "context length". This capture is the classification ground truth.
+CAPTURED_OPENAI_OVERLENGTH_MESSAGE = "Invalid 'input[0]': maximum input length is 8192 tokens."
 
 
 def _magnitude(vec: list[float]) -> float:
@@ -266,6 +280,140 @@ def test_openai_fingerprint_distinguishes_hosts(monkeypatch: pytest.MonkeyPatch)
     assert default.settings_fingerprint() != voyage.settings_fingerprint(), (
         "a different embeddings host is a different vector space"
     )
+
+
+class TestOllamaContextLengthClassification:
+    """ADR 0009 §1: the over-length rejection classifies as CONTENT_TOO_LONG.
+
+    The predicate is one module-level function; ground truth is the
+    captured rejection string pinned in this file. Near-misses stay
+    PROVIDER_ERROR — the misclassification bias is deliberately
+    conservative (a false positive would park a row).
+    """
+
+    def test_predicate_matches_the_captured_rejection(self) -> None:
+        assert _is_context_length_rejection(400, "input exceeds maximum context length")
+
+    def test_predicate_is_case_insensitive(self) -> None:
+        assert _is_context_length_rejection(400, "Input exceeds maximum CONTEXT LENGTH")
+
+    def test_predicate_near_misses_stay_negative(self) -> None:
+        # Wrong status: the same body on a 500 is server trouble, not
+        # a content fact.
+        assert not _is_context_length_rejection(500, "input exceeds maximum context length")
+        # Other 400s: bad model, malformed request, timeout-ish wording.
+        assert not _is_context_length_rejection(400, 'model "nope" not found')
+        assert not _is_context_length_rejection(400, "invalid request body")
+        assert not _is_context_length_rejection(400, "request timed out")
+        assert not _is_context_length_rejection(400, "")
+
+    def _adapter(self) -> OllamaEmbeddingAdapter:
+        return OllamaEmbeddingAdapter(model="nomic-embed-text", host="http://localhost:11434", timeout_seconds=5.0)
+
+    @staticmethod
+    def _error_response(status: int, body: dict[str, str]) -> httpx.Response:
+        return httpx.Response(
+            status,
+            json=body,
+            request=httpx.Request("POST", "http://localhost:11434/api/embed"),
+        )
+
+    def test_captured_rejection_raises_content_too_long(self) -> None:
+        response = self._error_response(400, {"error": "input exceeds maximum context length"})
+        with patch("httpx.post", return_value=response):
+            with pytest.raises(LLMProviderError, match="input exceeds maximum context length") as excinfo:
+                self._adapter().embed("hello")
+        assert excinfo.value.error_code == CONTENT_TOO_LONG
+
+    def test_other_400_bodies_stay_provider_error(self) -> None:
+        response = self._error_response(400, {"error": 'model "nope" not found'})
+        with patch("httpx.post", return_value=response):
+            with pytest.raises(LLMProviderError) as excinfo:
+                self._adapter().embed("hello")
+        assert excinfo.value.error_code == PROVIDER_ERROR
+
+    def test_500_with_the_phrase_stays_provider_error(self) -> None:
+        response = self._error_response(500, {"error": "internal: context length probe failed"})
+        with patch("httpx.post", return_value=response):
+            with pytest.raises(LLMProviderError) as excinfo:
+                self._adapter().embed("hello")
+        assert excinfo.value.error_code == PROVIDER_ERROR
+
+
+class _FakeSDKError(Exception):
+    """Duck-typed stand-in for the openai SDK's APIStatusError shape."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        code: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        if status_code is not None:
+            self.status_code = status_code
+        self.code = code
+
+
+class TestOpenAIContextLengthClassification:
+    """ADR 0009 §1: structured `code` first, 4xx-gated message fallback.
+
+    The live embeddings endpoint's over-length rejection (captured
+    2026-08-29) carries `code=None` and says "maximum input length" —
+    the fallback's marker list is grounded in that capture, and the ADR's
+    documented `context_length_exceeded` / "context length" shapes are
+    kept for hosts that use them.
+    """
+
+    def test_structured_code_classifies(self) -> None:
+        exc = _FakeSDKError("This model's maximum context length is 8192 tokens", code="context_length_exceeded")
+        assert _classify_error(exc) == CONTENT_TOO_LONG
+
+    def test_captured_live_rejection_classifies(self) -> None:
+        exc = _FakeSDKError(CAPTURED_OPENAI_OVERLENGTH_MESSAGE, status_code=400, code=None)
+        assert _classify_error(exc) == CONTENT_TOO_LONG
+
+    def test_documented_context_length_message_classifies_on_4xx(self) -> None:
+        exc = _FakeSDKError("This model's maximum context length is 8192 tokens", status_code=400)
+        assert _classify_error(exc) == CONTENT_TOO_LONG
+
+    def test_message_fallback_is_gated_to_4xx(self) -> None:
+        # The same phrase on a 500 is server trouble, not a content fact.
+        assert _classify_error(_FakeSDKError("context length exceeded", status_code=500)) == PROVIDER_ERROR
+        # No structured status at all (a bare exception whose str happens
+        # to contain the phrase) must NOT classify — the ungated fallback
+        # the ADR review rejected.
+        assert _classify_error(RuntimeError("context length exceeded")) == PROVIDER_ERROR
+
+    def test_compat_host_unclassifiable_stays_provider_error(self) -> None:
+        # A generic OpenAI-compatible host (Voyage/Gemini/Mistral via
+        # OPENAI_BASE_URL) phrasing its over-length error differently:
+        # conservative bias keeps today's retry behavior.
+        exc = _FakeSDKError("input too large for this model", status_code=400)
+        assert _classify_error(exc) == PROVIDER_ERROR
+        assert _classify_error(_FakeSDKError("rate limit exceeded", status_code=429)) == PROVIDER_ERROR
+
+    def test_adapter_raises_content_too_long_for_classified_errors(self) -> None:
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=3, timeout_seconds=5.0)
+        mock_client = MagicMock()
+        mock_client.embeddings.create.side_effect = _FakeSDKError(
+            CAPTURED_OPENAI_OVERLENGTH_MESSAGE, status_code=400, code=None
+        )
+        adapter._client = mock_client
+        with pytest.raises(LLMProviderError, match="maximum input length") as excinfo:
+            adapter.embed("hello")
+        assert excinfo.value.error_code == CONTENT_TOO_LONG
+
+    def test_adapter_keeps_provider_error_for_transients(self) -> None:
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=3, timeout_seconds=5.0)
+        mock_client = MagicMock()
+        mock_client.embeddings.create.side_effect = RuntimeError("timeout")
+        adapter._client = mock_client
+        with pytest.raises(LLMProviderError) as excinfo:
+            adapter.embed("hello")
+        assert excinfo.value.error_code == PROVIDER_ERROR
 
 
 class TestOllamaHostHandling:
