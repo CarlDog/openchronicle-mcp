@@ -95,6 +95,11 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
         return None
 
     def settings_fingerprint(self) -> str:
-        # `dimensions` is always sent (see embed_batch) — it is the one
-        # request-side setting that changes the vector space.
-        return settings_fingerprint({"dimensions": self._dimensions})
+        # `dimensions` is always sent (see embed_batch). `base_url` is
+        # in the fingerprint because this adapter is the GENERIC
+        # OpenAI-compatible path (operator-directed 2026-08-29): pointed
+        # at Voyage, Gemini, Mistral, or any /v1/embeddings host via
+        # OPENAI_BASE_URL, the same model label can name a different
+        # vector space per host — the endpoint IS an embedding-affecting
+        # setting. On the default OpenAI URL it is a stable constant.
+        return settings_fingerprint({"dimensions": self._dimensions, "base_url": self._base_url})

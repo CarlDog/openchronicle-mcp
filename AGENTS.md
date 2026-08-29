@@ -115,7 +115,8 @@ does differently.
 ### Quarterly additions
 
 - **Embedding-provider sweep** (operator-directed 2026-08-29): diff the
-  Ollama library embedding catalog, Ollama Cloud, and Atlas Cloud
+  Ollama library embedding catalog, Ollama Cloud, Atlas Cloud, and the
+  Anthropic embeddings page (no first-party API as of 2026-08-29)
   against the baselines in
   [design/0006 §Recurring cadence](docs/design/0006-embedding-provider-review.md);
   pull + benchmark any new credible candidate; reopen the provider

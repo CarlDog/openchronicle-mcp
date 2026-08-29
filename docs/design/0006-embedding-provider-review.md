@@ -73,6 +73,34 @@ FTS5 degradation. Neither direction wins outright.
 | Atlas Cloud | Non-option today: 65 Text models, all chat/completion, zero embeddings (probed 2026-08-29). Watched on the same quarterly clock; would be config-only to adopt via `OPENAI_BASE_URL` if an OpenAI-compatible embeddings endpoint appears |
 | Dual/fallback providers | Rejected — a second active provider is a second vector space and a second failure surface; the FTS5 fallback already covers outages. The identity machinery would keep it *correct*, but nothing needs it |
 
+## Cloud-provider support (added 2026-08-29, operator-directed)
+
+**Every major cloud LLM provider is usable as OC's embedding provider
+today, through one mechanism** — no per-provider adapters. The
+`openai` adapter is the generic OpenAI-compatible client:
+`OPENAI_BASE_URL` (already a Portainer-overridable compose var) points
+it at any `/v1/embeddings` host, the provider's key goes in
+`OC_EMBEDDING_API_KEY`, its model name in `OC_EMBEDDING_MODEL`. The
+endpoint is part of the embedding-space fingerprint (ADR 0005), so
+vectors from different hosts can never silently mix and any switch
+triggers the standard reindex.
+
+| Provider | Path | Notes (verify URLs/compat at switch time) |
+|---|---|---|
+| OpenAI | native (current) | — |
+| **Anthropic** | **no embeddings API exists** | Verified 2026-08-29 against Anthropic's own docs: "Anthropic does not offer its own embedding model" — it recommends Voyage AI. Watched in the quarterly sweep in case a first-party API ships |
+| Voyage AI | `OPENAI_BASE_URL=https://api.voyageai.com/v1` | Anthropic's recommended vendor; wire format verified OpenAI-shaped. Caveat: Voyage's `input_type` query/document prompts aren't expressible on the compat path — full quality needs a dedicated adapter (trigger-gated on actually choosing Voyage) |
+| Google Gemini | `.../v1beta/openai` compat endpoint | `gemini-embedding-001` family |
+| Mistral | `https://api.mistral.ai/v1` | `mistral-embed` |
+| Cohere | `https://api.cohere.ai/compatibility/v1` | `embed-v4` family |
+| Together / Fireworks / DeepInfra / etc. | their OpenAI-compat base URLs | Host the open models (`qwen3-embedding`, `bge-m3`, ...) as cloud endpoints |
+| Azure OpenAI | needs auth-path check | Deployment-scoped URLs + `api-key` header differ from the Bearer scheme; verify before promising |
+| Ollama Cloud / Atlas Cloud | watched (zero embedding models) | Sweep legs above |
+
+Every cloud provider here shares OpenAI's privacy posture (content
+leaves the LAN) and the same benchmark gate. The matrix exists so
+"can we use X?" is a lookup, not a project.
+
 ## Recommendation
 
 1. **Stay on `text-embedding-3-small` today.** Nothing is broken, the
@@ -109,7 +137,11 @@ never a re-derivation:
    hosted models, zero with `embedding` capability). The moment it
    lists one, it becomes an immediately usable provider — with the same
    benchmark gate and the same privacy posture as OpenAI.
-3. **Atlas Cloud** (fleet subscription, `atlascloud-mcp`): baseline
+3. **Anthropic**: baseline 2026-08-29 — no first-party embeddings API
+   exists ("Anthropic does not offer its own embedding model"; it
+   recommends Voyage AI, already in the cloud matrix below). One doc
+   check per quarter in case that changes.
+4. **Atlas Cloud** (fleet subscription, `atlascloud-mcp`): baseline
    2026-08-29 — the full Text catalog is 65 models, all
    chat/completion LLMs (plus OCR), **zero embedding models**. Checked
    because the operator raised it; kept on this clock because adoption
@@ -118,11 +150,11 @@ never a re-derivation:
    endpoint there would be a config-only switch — inheriting, as
    always, the benchmark gate and the cloud privacy posture. One
    `atlas_list_models(query="embedding")` call per quarter.
-4. **Candidates found**: pull locally, run the gold-set benchmark
+5. **Candidates found**: pull locally, run the gold-set benchmark
    (until that benchmark exists, record the candidate here with a date
    and hold — a model nobody measured is not a switch argument), and
    update this document's baseline either way.
-5. **Reopen the provider decision** only on this review's named
+6. **Reopen the provider decision** only on this review's named
    triggers or a benchmark result within tolerance of the incumbent.
 
 **Ollama library baseline (2026-08-29), 12 families:**

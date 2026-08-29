@@ -248,3 +248,21 @@ class TestOllamaEmbeddingAdapter:
         assert a.settings_fingerprint() == b.settings_fingerprint(), "identical settings, identical fingerprint"
         c = self._make_adapter(dimensions=384)
         assert c.settings_fingerprint() != a.settings_fingerprint(), "a space-changing setting changes it"
+
+
+def test_openai_fingerprint_distinguishes_hosts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The openai adapter is the GENERIC OpenAI-compatible path
+    (operator-directed 2026-08-29): pointed at Voyage/Gemini/Mistral via
+    OPENAI_BASE_URL, the same model label can name a different vector
+    space per host — so the endpoint must be part of the space
+    fingerprint, making silent cross-host mixing impossible."""
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    default = OpenAIEmbeddingAdapter()
+    voyage = OpenAIEmbeddingAdapter(base_url="https://api.voyageai.com/v1")
+    same_as_default = OpenAIEmbeddingAdapter()
+
+    assert default.settings_fingerprint() == same_as_default.settings_fingerprint()
+    assert default.settings_fingerprint() != voyage.settings_fingerprint(), (
+        "a different embeddings host is a different vector space"
+    )

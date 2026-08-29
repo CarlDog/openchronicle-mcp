@@ -35,7 +35,7 @@ The four-layer precedence (constructor arg > per-path env > `OC_DATA_DIR`-derive
 | `OC_EMBEDDING_API_KEY` | Explicit override; falls back to provider-specific env | — |
 | `OC_EMBEDDING_TIMEOUT` | Per-request timeout in seconds | `30.0` |
 | `OPENAI_API_KEY` | Used by the OpenAI embedding adapter | — |
-| `OPENAI_BASE_URL` | OpenAI-compatible endpoint override (proxies, alt providers) | `https://api.openai.com/v1` |
+| `OPENAI_BASE_URL` | **The generic cloud-provider path** (operator-directed 2026-08-29): point the `openai` adapter at ANY OpenAI-compatible `/v1/embeddings` host. Examples — Voyage `https://api.voyageai.com/v1` (Anthropic's recommended embeddings vendor; Anthropic itself has no embeddings API), Gemini `https://generativelanguage.googleapis.com/v1beta/openai`, Mistral `https://api.mistral.ai/v1`, Cohere `https://api.cohere.ai/compatibility/v1` — verify each provider's current URL and compat at switch time. Pair with the provider's key in `OC_EMBEDDING_API_KEY` and its model in `OC_EMBEDDING_MODEL`. The endpoint is part of the embedding-space fingerprint (ADR 0005), so vectors from different hosts can never silently mix; a switch triggers the standard reindex | `https://api.openai.com/v1` |
 | `OLLAMA_HOST` | Ollama base URL (e.g. `http://localhost:11434`) | adapter default |
 | `OLLAMA_BASE_URL` | Alias consulted when `OLLAMA_HOST` is unset | adapter default |
 
