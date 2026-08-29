@@ -920,6 +920,30 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   what N it starts to hurt, which is what schedules (or indefinitely
   defers) Stage 1's read-pool work.
 
+- **Permanently over-length rows keep provider health `degraded`
+  forever and are retried every backfill cycle.** Found 2026-08-29
+  finishing the v3.2.0 reindex: 9 corpus rows exceed
+  `nomic-embed-text`'s context and fail visibly under
+  `truncate:false` — correct, designed behavior — but the backfill
+  has no notion of a PERMANENT failure. Each run (manual or the
+  6-hourly maintenance job) retries all 9, fails all 9, and once they
+  are the only stale candidates there are no successes to reset the
+  consecutive-failure counter, so `embedding_status.status` reads
+  `degraded` indefinitely on a healthy system (observed live:
+  `failure_count` 36 and climbing) — failure-shaped health on
+  designed behavior, the mirror image of the success-shaped-health
+  defect fixed in rev 126. Fix directions when picked up (small
+  design decision needed): classify the over-length `ProviderError`
+  as permanent-for-this-content (persist a marker so backfill skips
+  the row and health reports it separately — `unembeddable: 9`
+  rather than `stale: 9` plus failures), and/or exclude
+  known-permanent failures from the consecutive-failure counter.
+  Content chunking / summarize-then-embed is explicitly NOT in scope
+  (a different, bigger feature). Until fixed: a deployment whose
+  corpus contains over-length rows will show `degraded` — a stable
+  `stale` count with `last_failure_op: backfill` distinguishes this
+  from a real outage.
+
 - **Replace the pin-float with a pinned-ness ranking prior**
   (direction ratified by the operator 2026-08-29; found by the
   embedding-provider benchmark). The defect: `DEFAULT_PINNED_LIMIT`
