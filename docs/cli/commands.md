@@ -164,7 +164,9 @@ output format to relieve nothing.
 
 ### `oc show-project PROJECT_ID`
 
-Project metadata. `--json` for structured output.
+Project name, id, and creation time. `--json` for structured output.
+(The project's `metadata` field is not shown — `oc update-project --json`
+echoes it back after a write.)
 
 ### `oc update-project PROJECT_ID`
 
@@ -182,12 +184,13 @@ is no soft-delete; `oc db backup` is the only recovery path.
 
 ### `oc db info`
 
-File sizes, row counts (projects / memory_items / memory_embeddings),
-SQLite pragmas, integrity check.
+File sizes, row counts (projects / memory_items / memory_embeddings /
+schema_version), SQLite pragmas, integrity check.
 
 ### `oc db vacuum`
 
-`PRAGMA wal_checkpoint(TRUNCATE)` + `VACUUM`. Note: this command does
+`VACUUM` + `PRAGMA wal_checkpoint(TRUNCATE)`, in that order. Note: this
+command does
 NOT auto-backup; the maintenance loop's `db_vacuum` job DOES. Take a
 manual backup first if you're running this ad-hoc.
 
@@ -239,13 +242,14 @@ Job names: `db_backup`, `db_vacuum`, `db_integrity_check`,
 ### `oc init`
 
 Create the runtime directory tree. The command is idempotent and does
-not create or overwrite configuration templates. Add the global
-`--json` flag for machine-readable output.
+not create or overwrite configuration templates. Add `--json` for
+machine-readable output.
 
 ### `oc config show [--json]`
 
-Print effective configuration: paths, `core.json` contents, and masked
-`OC_*` secret env vars. Names containing KEY/SECRET/TOKEN/PASSWORD are
+Print effective configuration: paths, whether `core.json` was loaded,
+and masked `OC_*` secret env vars. `--json` additionally emits the
+parsed `core.json` contents. Names containing KEY/SECRET/TOKEN/PASSWORD are
 masked in both human and JSON output.
 
 ### `oc version [--json]`

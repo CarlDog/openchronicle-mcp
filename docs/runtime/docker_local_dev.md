@@ -22,6 +22,7 @@ inside the container.
 ```bash
 docker run --rm \
   -p 8000:8000 \
+  -e OC_API_HOST=0.0.0.0 \
   -v "$(pwd)/data:/app/data" \
   -v "$(pwd)/config:/app/config" \
   -e OC_API_KEY=dev-key \
@@ -33,8 +34,8 @@ docker run --rm \
 ## Run a one-off command
 
 ```bash
-docker run --rm openchronicle:dev oc version
-docker run --rm openchronicle:dev oc memory search hello
+docker run --rm openchronicle:dev version
+docker run --rm openchronicle:dev memory search hello
 ```
 
 The entrypoint passes positional args through to the `oc` CLI.
@@ -46,6 +47,7 @@ To enable hybrid semantic search:
 ```bash
 docker run --rm \
   -p 8000:8000 \
+  -e OC_API_HOST=0.0.0.0 \
   -e OC_EMBEDDING_PROVIDER=openai \
   -e OC_EMBEDDING_MODEL=text-embedding-3-small \
   -e OPENAI_API_KEY=$OPENAI_API_KEY \
@@ -58,6 +60,7 @@ Or for Ollama running on the host:
 ```bash
 docker run --rm \
   -p 8000:8000 \
+  -e OC_API_HOST=0.0.0.0 \
   --add-host host.docker.internal:host-gateway \
   -e OC_EMBEDDING_PROVIDER=ollama \
   -e OC_EMBEDDING_MODEL=nomic-embed-text \

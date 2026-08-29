@@ -93,8 +93,9 @@ above.
   protection against accidentally placing the WAL on a filesystem
   that doesn't fsync correctly (the lesson from the 2026-04-29
   bind-mount WAL incident).
-- Backups go to `${OC_DATA_DIR}/backups/auto/` (also inside the
-  volume). The backup module uses `sqlite3.Connection.backup()` with
+- Backups go to the resolved DB path's directory + `/backups/auto/`
+  (`/data/backups/auto/` on the NAS deployment, which sets
+  `OC_DB_PATH=/data/openchronicle.db`; also inside the volume). The backup module uses `sqlite3.Connection.backup()` with
   atomic `.tmp`→rename, so no half-written backup files exist on
   disk.
 
@@ -211,8 +212,9 @@ that is the part that matters, and it is handled.
 
 - DB corruption: the maintenance loop's `db_integrity_check` job
   detects it on a 7-day cadence, takes an emergency backup, and flips
-  `/health` to `maintenance_degraded: true`. Operators restore from
-  `${OC_DATA_DIR}/backups/auto/` (or a manual `oc db backup` taken
+  `/api/v1/health` to `maintenance_degraded: true`. Operators restore
+  from the resolved DB path's `backups/auto/` directory
+  (`/data/backups/auto/` on the NAS; or a manual `oc db backup` taken
   earlier).
 - Embedding provider compromise: rotate the relevant API key and
   redeploy. The degradation policy keeps search working

@@ -23,11 +23,19 @@ enforces parity.
   `v3/develop` at the 2026-05-06 cutover. v2 is frozen at
   `archive/openchronicle.v2` (`bb217d9`), and v1 lives at
   `archive/openchronicle.v1`.
-- **Post-CI redeploy convention.** Once v3 is live on the NAS, pushes
-  to `main` that change anything shipping in the runtime image
-  (`src/`, `pyproject.toml`, `Dockerfile`, `docker-compose.nas.yml`)
-  trigger a redeploy via `portainer-mcp` once the `build-and-push` job
-  in `.github/workflows/test.yml` goes green. That job itself only
+- **Post-CI redeploy convention.** The stack is TAG-PINNED, so a green
+  build is not by itself a reason to redeploy. `docker-compose.nas.yml`
+  resolves `image: ...:${OC_TAG:-latest}`, and stack 151 sets
+  `OC_TAG=v3.0.0`; a push to `main` refreshes only `:latest`, which that
+  stack does not pull. **Code goes live when `OC_TAG` moves — a push
+  alone deploys nothing.** So runtime changes (`src/`, `pyproject.toml`,
+  `Dockerfile`, `docker-compose.nas.yml`) ship with the next tagged
+  release, and a `portainer-mcp` redeploy is warranted only when you are
+  moving `OC_TAG` to a new tag. (An UNPINNED deployment still behaves the
+  old way — falling back to `:latest`, it would pick up every green main
+  build. The tag pin is what makes the old convention wrong here, not the
+  mechanism.) The `build-and-push` job in `.github/workflows/test.yml`
+  gates that image: it only
   runs `needs: [test, quality]`, so one green check is a stronger
   signal than the old two-workflow setup: a red pytest/quality run
   now can't ship `:latest` at all (fixed 2026-07-30, standards-gap
@@ -44,8 +52,13 @@ enforces parity.
   ```
 
   Verify with `mcp__openchronicle__health`: `package_version` is the
-  signal — it reports the real release since rc6, so an unchanged value
-  means the new image is not running. Do **not** use `db_modified_utc`
+  signal **when the released version actually changed** — it reports the
+  real release since rc6, so a value that has not moved to the expected
+  new version means the new image is not running. It CANNOT verify a
+  same-version redeploy: two images built from the same version both
+  report it, so an unchanged reading is the expected result either way.
+  For that case compare the container's `org.opencontainers.image.revision`
+  label against HEAD instead. Do **not** use `db_modified_utc`
   for this. The store opens `PRAGMA journal_mode = WAL`
   (`sqlite_store.py`), so writes land in the `-wal` sidecar and the main
   DB's mtime only advances on checkpoint — observed 2026-08-28, a memory
@@ -68,7 +81,7 @@ does differently.
   reach) while certainly destroying ~1,700 commit SHAs, the
   `archive/*` frozen-branch guarantee, and every SHA reference in our own
   docs and OC memories. Full reasoning:
-  [security_posture.md](configuration/security_posture.md).
+  [security_posture.md](docs/configuration/security_posture.md).
   The pre-commit identity hook prevents recurrence and is verified
   working. **If an audit surfaces this, the correct action is to close it
   citing this entry — not to re-analyse it, not to ask the operator

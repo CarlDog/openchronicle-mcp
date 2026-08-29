@@ -13,7 +13,7 @@ was overkill.
 |---|---|---|
 | `db_backup` | 1 day | Online backup via `sqlite3.Connection.backup()` to `${OC_DATA_DIR}/backups/auto/`; retention keeps the union of the 7 newest files and the newest file per day for the 7 most recent days with backups (a same-day burst can't evict older days) |
 | `db_vacuum` | 7 days | Runs `db_backup` first (backup-before-destructive policy enforced in code), then `PRAGMA wal_checkpoint(FULL)` and `VACUUM` |
-| `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup`, sets `container.maintenance_degraded = True` (surfaces via `/health`), raises so the loop counts it. On success: clears any prior degraded flag. |
+| `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup`, sets `container.maintenance_degraded = True` (surfaces via `/api/v1/health` and the MCP `health` tool), raises so the loop counts it. On success: clears any prior degraded flag. |
 | `embedding_backfill` | 6 hours | Equivalent to `oc memory embed`; no-op when the embedding service is unset or nothing is missing |
 | `git_onboard_resync` | 1 hour, OFF by default | Placeholder. Full implementation lands when the tracked-repo list spec is finalized. |
 
@@ -51,16 +51,21 @@ leaves `db_vacuum`, `db_integrity_check`, `embedding_backfill` and
 **Omitting a job does NOT disable it.** Set `"enabled": false` explicitly
 — the same way the example expresses "off" for `git_onboard_resync`.
 
-Ordering always follows the table above, not the file, so the status
-surface is stable however the JSON is arranged. Unknown job names are
+Ordering always follows `_DEFAULT_JOBS` in code — `db_vacuum`,
+`db_integrity_check`, `embedding_backfill`, `db_backup`,
+`git_onboard_resync` — not the file, and not the reading order of the
+table above, which groups by topic. So the status surface is stable
+however the JSON is arranged. Unknown job names are
 skipped with a warning (typo-safe); a missing `maintenance` section falls
 back to the defaults.
 
 This was a total replacement until 2026-08-28, which cost jobs two ways:
 tuning one interval meant hand-copying every other job or losing it
 (including `db_backup`), and because the entrypoint seeds `/config` from
-`core.json.example` with `cp -rn`, a stale seeded file would have dropped
-every job added in any later release — silently, since the loop only ever
+the image's `core.json.example` ONCE — `cp -rn` plus a `.bootstrapped`
+marker mean it is never refreshed on upgrade — an operator who
+bootstrapped `core.json` from that example would have dropped every job
+added in any later release — silently, since the loop only ever
 warned about *unknown* names, never missing ones.
 
 `OC_MAINTENANCE_DISABLED=1` (or `true`/`yes`/`on`) short-circuits the

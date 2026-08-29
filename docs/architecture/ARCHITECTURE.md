@@ -27,7 +27,7 @@ stack is gone. Look in `archive/openchronicle.v2` if you need it.
 
 Pure business types. No imports of `application/` or `infrastructure/`.
 
-- `models/`: `MemoryItem`, `Project`, `GitCommit` / `CommitCluster`
+- `models/`: `MemoryItem`, `Project`, `ScoredMemory`, `GitCommit` / `CommitCluster`
 - `ports/`: `MemoryStorePort`, `StoragePort`, `EmbeddingPort`
 - `exceptions.py`: `NotFoundError`, `ValidationError`, `ConfigError`,
   `ProviderError`
@@ -60,7 +60,7 @@ imports — anything reaching outside the process goes through a port.
   schedule persisted to `maintenance_state.json`).
 - `use_cases/`: `add_memory`, `delete_memory`, `list_memory`,
   `pin_memory`, `search_memory`, `update_memory`, `show_memory`,
-  `stats_memory`, `create_project`, `list_projects`, `update_project`,
+  `stats_memory`, `embed_memory`, `create_project`, `list_projects`, `update_project`,
   `delete_project`, `delete_projects`, `init_runtime`,
   `diagnose_runtime`, `export_memory`, `import_memory`
 - `config/`: runtime path resolution (`paths.py`), embedding settings,
@@ -193,7 +193,7 @@ CREATE TABLE memory_embeddings (
 );
 ```
 
-`memory_fts` is an FTS5 contentless virtual table mirroring
+`memory_fts` is an FTS5 external-content virtual table mirroring
 `memory_items.content` and `tags`, kept in sync via triggers. FTS5
 support is runtime-detected; SqliteStore degrades to a
 keyword-fallback path if the SQLite build lacks FTS5.

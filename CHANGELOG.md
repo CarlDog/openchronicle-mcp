@@ -20,6 +20,17 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
   `mcp.server.mcpserver.MCPServer`. The cap is still correct; the reason
   was not, and the wrong reason made migration look like a third-party
   dependency swap rather than a first-party rename.
+- **The MCP tool signatures are now actually enforced.** `STABILITY.md` has
+  bound since the v3.0.0 tag — a breaking change to a tool signature is a
+  MAJOR event — and nothing checked it. All 18 schemas are snapshotted to a
+  committed fixture, with a test that fails on any change and names the tool.
+  Descriptions are deliberately excluded: they are the LLM-facing contract
+  and worth getting right, but they are documentation, not signature, and a
+  guard that fails on every reworded docstring gets regenerated reflexively
+  until it guards nothing. Verified in both directions — a required-ness
+  change fails, a description-only edit passes. It doubles as the
+  pre-migration baseline: the only way to later prove lifting the `mcp<2`
+  pin was schema-invisible is to diff against a snapshot taken before it.
 - **Three MCP baselines, so a future migration can be proved
   schema-invisible rather than asserted.** The tool-schema snapshot now
   covers `outputSchema` as well as `inputSchema`; the client-visible
@@ -43,17 +54,6 @@ than "the surface as designed".
 
 Everything below shipped between rc8 (2026-08-17) and this tag.
 
-- **The MCP tool signatures are now actually enforced.** `STABILITY.md` has
-  bound since the v3.0.0 tag — a breaking change to a tool signature is a
-  MAJOR event — and nothing checked it. All 18 schemas are snapshotted to a
-  committed fixture, with a test that fails on any change and names the tool.
-  Descriptions are deliberately excluded: they are the LLM-facing contract
-  and worth getting right, but they are documentation, not signature, and a
-  guard that fails on every reworded docstring gets regenerated reflexively
-  until it guards nothing. Verified in both directions — a required-ness
-  change fails, a description-only edit passes. It doubles as the
-  pre-migration baseline: the only way to later prove lifting the `mcp<2`
-  pin was schema-invisible is to diff against a snapshot taken before it.
 - **`cluster_commits` no longer hangs forever on a non-positive cap.** With
   `max_clusters <= 0` the merge loop never terminated: once the list was down
   to one entry, `smallest_idx` was 0, the `len(merged) > 1` arm was false, so

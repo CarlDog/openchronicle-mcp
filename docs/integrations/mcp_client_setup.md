@@ -6,6 +6,22 @@ transport is mounted at `/mcp` on the same port as the HTTP REST API
 (default `:8000`, host-mapped to `:18000` in the NAS Docker compose).
 Any MCP-aware client speaks streamable-HTTP to that endpoint.
 
+## Prerequisite for a non-loopback server
+
+If clients reach OpenChronicle by anything other than `localhost` /
+`127.0.0.1`, the server must allow that hostname or **every request
+returns 421**. The MCP transport validates the `Host` header as a
+DNS-rebinding defense, and an operator allowlist **replaces** the
+default loopback set rather than adding to it — so keep the loopback
+entries or you trade a 421 for remote clients for a 421 on localhost
+(which also breaks the container healthcheck):
+
+```bash
+OC_MCP_ALLOWED_HOSTS=your-nas:*,127.0.0.1:*,localhost:*
+```
+
+See [env_vars.md](../configuration/env_vars.md) for the matching rules.
+
 ## Claude Code
 
 User-scope (recommended, available in every session):
