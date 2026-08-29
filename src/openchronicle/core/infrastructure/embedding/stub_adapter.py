@@ -44,3 +44,6 @@ class StubEmbeddingAdapter(EmbeddingPort):
 
     def model_name(self) -> str:
         return "stub"
+
+    def provider_name(self) -> str:
+        return "stub"

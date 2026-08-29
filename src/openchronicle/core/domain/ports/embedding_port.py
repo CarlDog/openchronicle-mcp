@@ -23,3 +23,13 @@ class EmbeddingPort(ABC):
     @abstractmethod
     def model_name(self) -> str:
         """Return the name of the embedding model."""
+
+    @abstractmethod
+    def provider_name(self) -> str:
+        """Return the adapter kind ("openai", "ollama", "stub").
+
+        Half of the embedding-space identity (ADR 0005): two providers
+        can share a model label while producing incompatible vector
+        spaces, so the model string alone under-determines the space a
+        stored vector lives in.
+        """

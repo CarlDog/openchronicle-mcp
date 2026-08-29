@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from tests.helpers.vectors import save_vec
 
 
 def _make_store() -> SqliteStore:
@@ -36,7 +37,7 @@ def test_save_and_retrieve_embedding() -> None:
     store = _make_store()
     _add_memory(store, "mem-1")
     vec = [0.1, 0.2, 0.3, 0.4, 0.5]
-    store.save_embedding("mem-1", vec, model="test-model")
+    save_vec(store, "mem-1", vec, model="test-model")
 
     retrieved = store.get_embedding("mem-1")
     assert retrieved is not None
@@ -54,7 +55,7 @@ def test_cascade_delete() -> None:
     """Deleting memory should remove its embedding via CASCADE."""
     store = _make_store()
     _add_memory(store, "mem-1")
-    store.save_embedding("mem-1", [0.1, 0.2, 0.3], model="test")
+    save_vec(store, "mem-1", [0.1, 0.2, 0.3], model="test")
     store.delete_memory("mem-1")
     assert store.get_embedding("mem-1") is None
 
@@ -63,16 +64,18 @@ def test_count_embeddings() -> None:
     store = _make_store()
     _add_memory(store, "mem-1")
     assert store.count_embeddings() == 0
-    store.save_embedding("mem-1", [0.1, 0.2], model="test")
+    save_vec(store, "mem-1", [0.1, 0.2], model="test")
     assert store.count_embeddings() == 1
 
 
 def test_count_stale_embeddings() -> None:
     store = _make_store()
     _add_memory(store, "mem-1")
-    store.save_embedding("mem-1", [0.1], model="old-model")
-    assert store.count_stale_embeddings("new-model") == 1
-    assert store.count_stale_embeddings("old-model") == 0
+    save_vec(store, "mem-1", [0.1], model="old-model")
+    counts = store.stale_embedding_counts("test-provider", "new-model")
+    assert counts == {"space_mismatch": 1, "content_mismatch": 0}
+    same_space = store.stale_embedding_counts("test-provider", "old-model")
+    assert same_space == {"space_mismatch": 0, "content_mismatch": 0}
 
 
 def test_list_embeddings_subset() -> None:
@@ -92,7 +95,7 @@ def test_list_embeddings_subset() -> None:
             project_id="proj-1",
         )
         store.add_memory(item)
-        store.save_embedding(mid, [float(i)], model="test")
+        save_vec(store, mid, [float(i)], model="test")
 
     result = store.list_embeddings(["mem-0", "mem-2"])
     assert len(result) == 2
@@ -104,8 +107,8 @@ def test_list_embeddings_subset() -> None:
 def test_overwrite_existing_embedding() -> None:
     store = _make_store()
     _add_memory(store, "mem-1")
-    store.save_embedding("mem-1", [0.1, 0.2], model="v1")
-    store.save_embedding("mem-1", [0.9, 0.8], model="v2")
+    save_vec(store, "mem-1", [0.1, 0.2], model="v1")
+    save_vec(store, "mem-1", [0.9, 0.8], model="v2")
 
     retrieved = store.get_embedding("mem-1")
     assert retrieved is not None
@@ -121,7 +124,7 @@ def test_dimensions_column_records_actual_vector_length() -> None:
     """
     store = _make_store()
     _add_memory(store, "mem-1")
-    store.save_embedding("mem-1", [0.1, 0.2, 0.3], model="test")
+    save_vec(store, "mem-1", [0.1, 0.2, 0.3], model="test")
     row = store._conn.execute("SELECT dimensions FROM memory_embeddings WHERE memory_id = 'mem-1'").fetchone()
     assert row["dimensions"] == 3
 
@@ -133,7 +136,7 @@ def test_reads_heal_a_row_with_a_lying_dimensions_column() -> None:
     """
     store = _make_store()
     _add_memory(store, "mem-1")
-    store.save_embedding("mem-1", [0.1, 0.2, 0.3], model="test")
+    save_vec(store, "mem-1", [0.1, 0.2, 0.3], model="test")
     # Poison the claim the way the old write path could (configured 768,
     # actual 3).
     store._conn.execute("UPDATE memory_embeddings SET dimensions = 768 WHERE memory_id = 'mem-1'")
@@ -167,7 +170,7 @@ def test_list_embeddings_model_filter() -> None:
                 project_id="proj-2",
             )
         )
-        store.save_embedding(mid, [float(i), 1.0], model=model)
+        save_vec(store, mid, [float(i), 1.0], model=model)
 
     only_a = store.list_embeddings(model="model-a")
     assert set(only_a) == {"mem-0", "mem-1"}

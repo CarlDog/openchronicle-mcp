@@ -27,6 +27,7 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from tests.helpers.vectors import save_vec
 
 
 @pytest.fixture()
@@ -64,7 +65,7 @@ class TestDeleteProject:
                 source="manual",
             )
         )
-        store.save_embedding("mem-A", embedding=[0.1, 0.2, 0.3], model="m")
+        save_vec(store, "mem-A", [0.1, 0.2, 0.3], model="m")
 
         result = delete_project.execute(
             store=store,

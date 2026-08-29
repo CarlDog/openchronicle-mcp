@@ -18,6 +18,9 @@ class _BrokenEmbeddingPort(EmbeddingPort):
     def model_name(self) -> str:
         return "broken"
 
+    def provider_name(self) -> str:
+        return "test-provider"
+
     def dimensions(self) -> int:
         return 4
 

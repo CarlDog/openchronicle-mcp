@@ -190,11 +190,20 @@ Landed so far, one focused commit per item:
 verified via `health.package_version` AND `health.build_revision`
 (`93a65636…`, the tag commit). A push alone deploys nothing.
 
-Since the tag: **0002 batch B shipped** (rev 129, 758 → 763 tests) —
-`memory_list` gained `tags`/`exclude_tags`/`order_by="created_at"`
-(pure chronology, no pin float) on every surface; ships with the next
-tagged release. Open next: the embedding-identity ADR (gates 0003
-Phase C/D) and cloud-backup Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
+Since the tag: **0002 batch B shipped** (rev 129) — `memory_list`
+gained `tags`/`exclude_tags`/`order_by="created_at"`; **`OC_LOG_FILE`**
+(rev 132) and the **bounded `memory_stats.by_tag`** (rev 131) landed;
+and **ADR 0005 was adversarially reviewed (three critics, rev 1
+rewritten), ACCEPTED, and Phase B implemented** (rev 134, tests now
+778): schema v2 `provider`+`content_hash`, CAS publication, full
+space-identity search filtering, disjoint stale buckets. **Deploy note
+for the next release:** after the redeploy, run
+`oc maintenance run-once embedding_backfill` — the migration marks all
+pre-existing vectors stale and the reindex takes minutes (FTS5-only
+semantic degradation until it finishes, `stale` counts down in
+health). Open next: 0003 Phase C (Ollama adapter contract +
+`model_revision`/`settings_fingerprint`), Phase D (`embed_batch`),
+and cloud-backup Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

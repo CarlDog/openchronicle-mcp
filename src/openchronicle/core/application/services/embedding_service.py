@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
@@ -89,6 +90,23 @@ class EmbeddingService:
         self._failure_count = 0
         self._last_failure_op = None
 
+    def _is_current(self, memory_id: str, content: str) -> bool:
+        """ADR 0005 freshness: stored identity matches the active space
+        AND the stored content hash matches this content.
+
+        Dimensions are deliberately not compared here — pre-embed, only
+        the port's *claimed* dimensions exist (unreliable per 0003); the
+        measured check happens at search time via list_embeddings.
+        """
+        identity = self._store.get_embedding_identity(memory_id)
+        if identity is None:
+            return False
+        return bool(
+            identity["provider"] == self._port.provider_name()
+            and identity["model"] == self._port.model_name()
+            and identity["content_hash"] == hash_content(content)
+        )
+
     def generate_for_memory(
         self,
         memory_id: str,
@@ -98,13 +116,14 @@ class EmbeddingService:
     ) -> None:
         """Generate and store embedding for a single memory item.
 
-        Skips generation if an embedding already exists with the same model,
-        unless ``force`` is True (used when content changes).
+        Skips generation when the stored vector is current (same space
+        identity, same content hash — ADR 0005), unless ``force``.
+        Publication is compare-and-swap: a refusal (content moved on, or
+        the memory was deleted mid-flight) is logged and NOT a provider
+        failure — the row stays a backfill candidate.
         """
-        if not force:
-            existing_model = self._store.get_embedding_model(memory_id)
-            if existing_model == self._port.model_name():
-                return
+        if not force and self._is_current(memory_id, content):
+            return
 
         try:
             vec = self._port.embed(content)
@@ -115,7 +134,15 @@ class EmbeddingService:
             # the caller (update_memory logs and continues).
             self._record_failure("save")
             raise
-        self._store.save_embedding(memory_id, vec, model=self._port.model_name())
+        published = self._store.save_embedding(
+            memory_id,
+            vec,
+            model=self._port.model_name(),
+            provider=self._port.provider_name(),
+            content_hash=hash_content(content),
+        )
+        if not published:
+            logger.info("embedding for memory %s not published (content changed or memory deleted)", memory_id)
         self._record_success()
 
     def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> BackfillResult:
@@ -132,10 +159,12 @@ class EmbeddingService:
 
         candidates = []
         for item in items:
-            if not force:
-                existing_model = self._store.get_embedding_model(item.id)
-                if existing_model == self._port.model_name():
-                    continue
+            # Currency, not mere existence (ADR 0005): a row in the
+            # wrong space or with a stale content hash — including the
+            # '' migration sentinels — is a candidate. This is what
+            # makes the post-migration reindex just "the next backfill".
+            if not force and self._is_current(item.id, item.content):
+                continue
             candidates.append(item)
 
         if not candidates:
@@ -155,8 +184,20 @@ class EmbeddingService:
         for item in candidates:
             try:
                 vec = self._port.embed(item.content)
-                self._store.save_embedding(item.id, vec, model=self._port.model_name())
-                count += 1
+                published = self._store.save_embedding(
+                    item.id,
+                    vec,
+                    model=self._port.model_name(),
+                    provider=self._port.provider_name(),
+                    content_hash=hash_content(item.content),
+                )
+                if published:
+                    count += 1
+                else:
+                    # CAS refusal: the memory changed or vanished while
+                    # this batch ran. Not a provider failure — the next
+                    # backfill sees the row as a candidate again.
+                    logger.info("backfill: embedding for %s not published (content moved on)", item.id)
                 self._record_success()
             except Exception:
                 failed += 1
@@ -173,15 +214,27 @@ class EmbeddingService:
         return BackfillResult(generated=count, failed=failed, elapsed_ms=elapsed_ms)
 
     def embedding_status(self) -> dict[str, int]:
-        """Return embedding coverage stats."""
+        """Return embedding coverage stats.
+
+        ``stale`` is the sum of two DISJOINT buckets (ADR 0005):
+        ``space_mismatch`` (wrong provider/model, migration sentinels
+        included) + ``content_mismatch`` (right space, stale content
+        hash). The old model-string-only predicate under-counted —
+        this refinement is the field's documented MINOR change.
+        """
         total_memories = self._store.count_memory()
         embedded = self._store.count_embeddings()
-        stale = self._store.count_stale_embeddings(self._port.model_name())
+        buckets = self._store.stale_embedding_counts(
+            self._port.provider_name(),
+            self._port.model_name(),
+        )
         return {
             "total_memories": total_memories,
             "embedded": embedded,
             "missing": total_memories - embedded,
-            "stale": stale,
+            "space_mismatch": buckets["space_mismatch"],
+            "content_mismatch": buckets["content_mismatch"],
+            "stale": buckets["space_mismatch"] + buckets["content_mismatch"],
         }
 
     def search_hybrid(
@@ -384,10 +437,15 @@ class EmbeddingService:
         import numpy as np
 
         query_vec = self._port.embed(query)
-        # Model-scoped: vectors from other models live in other spaces —
-        # a stale row after a model switch either crashed the matmul
-        # (different dims) or silently corrupted ranking (same dims).
-        all_embeddings = self._store.list_embeddings(model=self._port.model_name())
+        # Space-scoped (ADR 0005): provider + model + MEASURED query
+        # dimensions. A row from another provider under the same label,
+        # a migration sentinel, or a different-dims row is invisible to
+        # ranking — never mixed in.
+        all_embeddings = self._store.list_embeddings(
+            model=self._port.model_name(),
+            provider=self._port.provider_name(),
+            dimensions=len(query_vec),
+        )
 
         if not all_embeddings:
             return []

@@ -15,6 +15,7 @@ from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 from openchronicle.interfaces.serializers import memory_to_dict
+from tests.helpers.vectors import save_vec
 
 
 def _setup(tmp_path: Path) -> tuple[SqliteStore, str]:
@@ -191,6 +192,9 @@ class _FailingPort(EmbeddingPort):
     def model_name(self) -> str:
         return "test-model"
 
+    def provider_name(self) -> str:
+        return "test-provider"
+
     def dimensions(self) -> int:
         return 2
 
@@ -199,7 +203,7 @@ def _store_with_embedded_memory(tmp_path: Path) -> SqliteStore:
     store = SqliteStore(str(tmp_path / "inv.db"))
     store.init_schema()
     store.add_memory(MemoryItem(id="m1", content="original content"))
-    store.save_embedding("m1", [1.0, 0.0], model="test-model")
+    save_vec(store, "m1", [1.0, 0.0], model="test-model")
     return store
 
 
@@ -257,7 +261,7 @@ def test_delete_embedding_is_idempotent(tmp_path: Path) -> None:
     store.init_schema()
     store.add_memory(MemoryItem(id="m1", content="x"))
     store.delete_embedding("m1")  # nothing stored — must not raise
-    store.save_embedding("m1", [1.0], model="test-model")
+    save_vec(store, "m1", [1.0], model="test-model")
     store.delete_embedding("m1")
     store.delete_embedding("m1")  # second call — still fine
     assert store.get_embedding_model("m1") is None

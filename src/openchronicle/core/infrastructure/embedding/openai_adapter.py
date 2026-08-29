@@ -85,3 +85,6 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
 
     def model_name(self) -> str:
         return self._model
+
+    def provider_name(self) -> str:
+        return "openai"

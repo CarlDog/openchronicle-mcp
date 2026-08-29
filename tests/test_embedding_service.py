@@ -15,6 +15,7 @@ from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from tests.helpers.vectors import save_vec
 
 
 def _make_service() -> tuple[EmbeddingService, SqliteStore, StubEmbeddingAdapter]:
@@ -72,7 +73,7 @@ def test_generate_for_memory_regenerates_on_model_change() -> None:
     service, store, _ = _make_service()
     _add_memory(store, "m1", "hello")
     # Manually save with a different model
-    store.save_embedding("m1", [0.0] * 32, model="old-model")
+    save_vec(store, "m1", [0.0] * 32, model="old-model", provider="stub")
     service.generate_for_memory("m1", "hello")
     assert store.get_embedding_model("m1") == "stub"
 
@@ -119,6 +120,9 @@ def test_generate_missing_counts_failures() -> None:
 
         def model_name(self) -> str:
             return "broken"
+
+        def provider_name(self) -> str:
+            return "test-provider"
 
         def dimensions(self) -> int:
             return 32
@@ -261,7 +265,7 @@ def test_search_hybrid_ignores_different_dims_stale_model_rows() -> None:
     _add_memory(store, "m1", "python programming")
     service.generate_for_memory("m1", "python programming")
     _add_memory(store, "m2", "zzz unrelated stale")
-    store.save_embedding("m2", [0.5] * 8, model="old-model")  # 8 dims vs 32
+    save_vec(store, "m2", [0.5] * 8, model="old-model", provider="stub")  # 8 dims vs 32
 
     results = service.search_hybrid("python programming", top_k=5)
 
@@ -279,7 +283,7 @@ def test_search_hybrid_excludes_same_dims_stale_model_rows() -> None:
     _add_memory(store, "m1", "alpha topic")
     service.generate_for_memory("m1", "alpha topic")
     _add_memory(store, "m2", "zzz qqq xxx")  # no keyword overlap with query
-    store.save_embedding("m2", adapter.embed("alpha topic"), model="old-model")
+    save_vec(store, "m2", adapter.embed("alpha topic"), model="old-model", provider="stub")
 
     results = service.search_hybrid("alpha topic", top_k=5)
 
@@ -349,6 +353,9 @@ class _FixedQueryPort(EmbeddingPort):
     def model_name(self) -> str:
         return "fixed-test-model"
 
+    def provider_name(self) -> str:
+        return "test-provider"
+
     def dimensions(self) -> int:
         return 2
 
@@ -372,9 +379,9 @@ def test_semantic_window_is_scope_aware() -> None:
     for i in range(20):
         mid = f"out-{i:02d}"
         store.add_memory(MemoryItem(id=mid, content="perfect match elsewhere", project_id="proj-out"))
-        store.save_embedding(mid, [1.0, 0.0], model=port.model_name())  # similarity 1.0
+        save_vec(store, mid, [1.0, 0.0], model=port.model_name(), provider=port.provider_name())  # similarity 1.0
     store.add_memory(MemoryItem(id="in-scope", content="the one that counts", project_id="proj-in"))
-    store.save_embedding("in-scope", [0.6, 0.8], model=port.model_name())  # similarity 0.6
+    save_vec(store, "in-scope", [0.6, 0.8], model=port.model_name(), provider=port.provider_name())  # similarity 0.6
 
     ranked = service._semantic_search("query", project_id="proj-in", limit=2)  # noqa: SLF001
     assert [mid for mid, _sim in ranked] == ["in-scope"]
@@ -391,9 +398,9 @@ def test_semantic_window_is_tag_aware() -> None:
     for i in range(20):
         mid = f"untagged-{i:02d}"
         store.add_memory(MemoryItem(id=mid, content="noise", tags=[], project_id="proj-1"))
-        store.save_embedding(mid, [1.0, 0.0], model=port.model_name())
+        save_vec(store, mid, [1.0, 0.0], model=port.model_name(), provider=port.provider_name())
     store.add_memory(MemoryItem(id="tagged", content="target", tags=["wanted"], project_id="proj-1"))
-    store.save_embedding("tagged", [0.6, 0.8], model=port.model_name())
+    save_vec(store, "tagged", [0.6, 0.8], model=port.model_name(), provider=port.provider_name())
 
     ranked = service._semantic_search("query", tags=["wanted"], limit=2)  # noqa: SLF001
     assert [mid for mid, _sim in ranked] == ["tagged"]
@@ -427,6 +434,9 @@ class _DeadPort(EmbeddingPort):
 
     def model_name(self) -> str:
         return "dead-model"
+
+    def provider_name(self) -> str:
+        return "test-provider"
 
     def dimensions(self) -> int:
         return 2

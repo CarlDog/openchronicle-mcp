@@ -22,6 +22,21 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
   default 25, param on MCP + REST) with an `other_tags` rollup count —
   an unscoped call used to return the corpus's entire tag tail
   (~700 entries, mostly count-1) regardless of what the caller wanted.
+- **Composite embedding identity — ADR 0005 Phase B** (accepted after
+  a three-critic adversarial review of the design). Schema v2 adds
+  `provider` + `content_hash` to `memory_embeddings`; vector
+  publication is compare-and-swap on the memory's current content
+  (closing the slow-older-writer race); semantic search filters the
+  full space identity — a wrong-provider row under the same model
+  label, a wrong-dimensions row, or a pre-migration sentinel is
+  invisible to ranking, never mixed or crashed. Health's `stale`
+  becomes the sum of disjoint `space_mismatch` + `content_mismatch`
+  buckets (a strictly more truthful refinement of the old
+  model-string-only count — documented MINOR). **Deploy note:** the
+  migration marks every pre-existing vector stale; run
+  `oc maintenance run-once embedding_backfill` after the redeploy —
+  semantic search serves FTS5-only for the few minutes the reindex
+  takes, observable in health as `stale` counts down to 0.
 - **`memory_list` gains filtered chronological enumeration** (design
   0002, batch B — the demonstrated Mnemosyne consumer). Additive on
   every surface (MCP, REST, use case, port): `tags` (require-all),

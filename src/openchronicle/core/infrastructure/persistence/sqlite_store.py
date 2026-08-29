@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Concatenate, Literal
 
+from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -519,7 +520,25 @@ class SqliteStore(StoragePort, MemoryStorePort):
         memory_id: str,
         embedding: list[float],
         model: str,
-    ) -> None:
+        provider: str,
+        content_hash: str,
+    ) -> bool:
+        # Compare-and-swap publication (ADR 0005): persist only if the
+        # memory's CURRENT content still hashes to what the caller
+        # embedded. The whole read-compare-upsert runs under the store
+        # lock, so it is atomic against every other store call — the
+        # provider call happened OUTSIDE the lock, which is exactly why
+        # a slow older writer could otherwise publish last. A refusal is
+        # a normal outcome (the row stays a backfill candidate), never
+        # an error; a memory deleted between embed and save is likewise
+        # refuse-and-drop, not an IntegrityError.
+        row = self._conn.execute("SELECT content FROM memory_items WHERE id = ?", (memory_id,)).fetchone()
+        if row is None:
+            _logger.info("save_embedding refused: memory %s no longer exists", memory_id)
+            return False
+        if hash_content(row["content"]) != content_hash:
+            _logger.info("save_embedding refused: memory %s content changed since it was embedded", memory_id)
+            return False
         # The dimensions column records the FACT (length of the stored
         # vector), never a caller-supplied claim. Adapters can't always
         # control actual output length (Ollama returns whatever the model
@@ -529,17 +548,21 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur = self._conn.cursor()
         cur.execute(
             """
-            INSERT INTO memory_embeddings (memory_id, embedding, model, dimensions, generated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO memory_embeddings (memory_id, embedding, model, dimensions, generated_at,
+                                           provider, content_hash)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(memory_id) DO UPDATE SET
                 embedding = excluded.embedding,
                 model = excluded.model,
                 dimensions = excluded.dimensions,
-                generated_at = excluded.generated_at
+                generated_at = excluded.generated_at,
+                provider = excluded.provider,
+                content_hash = excluded.content_hash
             """,
-            (memory_id, blob, model, len(embedding), utc_now().isoformat()),
+            (memory_id, blob, model, len(embedding), utc_now().isoformat(), provider, content_hash),
         )
         self._commit_if_needed()
+        return True
 
     @_locked
     def get_embedding(self, memory_id: str) -> list[float] | None:
@@ -559,13 +582,19 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self,
         memory_ids: list[str] | None = None,
         model: str | None = None,
+        provider: str | None = None,
+        dimensions: int | None = None,
     ) -> dict[str, list[float]]:
-        """List embeddings, optionally filtered by memory ids and/or model.
+        """List embeddings, optionally filtered by ids and/or space identity.
 
-        Semantic search MUST pass ``model`` — vectors from different
-        models live in different spaces, so mixing them either crashes
-        the matmul (different dims) or silently corrupts ranking (same
-        dims, meaningless cross-space similarities).
+        Semantic search MUST pass the full space identity — ``model``,
+        ``provider``, and ``dimensions`` (ADR 0005): vectors from
+        different spaces either crash the matmul (different dims) or
+        silently corrupt ranking (same dims, meaningless cross-space
+        similarities), and a migration-sentinel row (``provider = ''``)
+        must never rank. All three columns are NOT NULL, so plain
+        equality is safe here; when the nullable ``model_revision``
+        lands (Phase C) its predicate must use ``IS``, never ``=``.
         """
         cur = self._conn.cursor()
         clauses: list[str] = []
@@ -577,6 +606,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         if model is not None:
             clauses.append("model = ?")
             params.append(model)
+        if provider is not None:
+            clauses.append("provider = ?")
+            params.append(provider)
+        if dimensions is not None:
+            clauses.append("dimensions = ?")
+            params.append(dimensions)
         sql = "SELECT memory_id, embedding FROM memory_embeddings"
         if clauses:
             sql += f" WHERE {' AND '.join(clauses)}"
@@ -593,13 +628,37 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return row["cnt"] if row else 0
 
     @_locked
-    def count_stale_embeddings(self, current_model: str) -> int:
+    def stale_embedding_counts(self, provider: str, model: str) -> dict[str, int]:
+        """Disjoint staleness buckets against the active space (ADR 0005).
+
+        ``space_mismatch`` — wrong provider/model (sentinel rows
+        included). ``content_mismatch`` — right space, but the stored
+        ``content_hash`` no longer matches the memory's current content;
+        counted ONLY among space-matching rows so the two buckets are
+        disjoint and their sum equals the row count backfill will
+        regenerate. Content hashes are compared in Python (SQLite has no
+        sha256) — a full-join scan, milliseconds at this corpus size.
+        """
         cur = self._conn.cursor()
         row = cur.execute(
-            "SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE model != ?",
-            (current_model,),
+            "SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE provider != ? OR model != ?",
+            (provider, model),
         ).fetchone()
-        return row["cnt"] if row else 0
+        space_mismatch = row["cnt"] if row else 0
+
+        content_mismatch = 0
+        rows = cur.execute(
+            """
+            SELECT m.content AS content, e.content_hash AS content_hash
+            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
+            WHERE e.provider = ? AND e.model = ?
+            """,
+            (provider, model),
+        ).fetchall()
+        for r in rows:
+            if hash_content(r["content"]) != r["content_hash"]:
+                content_mismatch += 1
+        return {"space_mismatch": space_mismatch, "content_mismatch": content_mismatch}
 
     @_locked
     def delete_embedding(self, memory_id: str) -> None:
@@ -615,6 +674,28 @@ class SqliteStore(StoragePort, MemoryStorePort):
             (memory_id,),
         ).fetchone()
         return row["model"] if row else None
+
+    @_locked
+    def get_embedding_identity(self, memory_id: str) -> dict[str, Any] | None:
+        """The stored identity of a memory's vector, or None when absent.
+
+        Keys: ``provider``, ``model``, ``dimensions``, ``content_hash``.
+        This is what freshness checks compare against the active port
+        and the memory's current content (ADR 0005).
+        """
+        cur = self._conn.cursor()
+        row = cur.execute(
+            "SELECT provider, model, dimensions, content_hash FROM memory_embeddings WHERE memory_id = ?",
+            (memory_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "provider": row["provider"],
+            "model": row["model"],
+            "dimensions": row["dimensions"],
+            "content_hash": row["content_hash"],
+        }
 
     # ── Search ──────────────────────────────────────────────────────
 
