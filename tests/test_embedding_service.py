@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import pytest
 
 from openchronicle.core.application.services.embedding_service import (
+    BackfillResult,
     EmbeddingService,
     _cosine_similarity,
 )
@@ -196,6 +197,43 @@ def test_backfill_provider_errors_log_one_line_not_tracebacks(
     for record in warnings:
         assert not record.exc_info, "known ProviderError must not carry a traceback at WARNING"
         assert "context length" in record.getMessage() or "retrying per item" in record.getMessage()
+
+
+def test_background_backfill_guard_and_restart() -> None:
+    """One background backfill at a time; done tasks don't block a restart.
+
+    The started-job path exists because a full reindex outlives any MCP
+    host tool timeout (v3.2.0 cutover); the guard keeps a double-click
+    from running two reindexes at once.
+    """
+    import asyncio
+    import threading
+
+    service, store, _ = _make_service()
+    release = threading.Event()
+    seen_force: list[bool] = []
+
+    def slow_backfill(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
+        seen_force.append(force)
+        release.wait(5)
+        return BackfillResult(generated=0, failed=0, elapsed_ms=0)
+
+    service.generate_missing = slow_backfill  # type: ignore[method-assign]
+
+    async def scenario() -> None:
+        assert service.backfill_running is False
+        assert service.start_background_backfill(force=True) is True
+        assert service.backfill_running is True
+        assert service.start_background_backfill() is False  # refused, not queued
+        release.set()
+        assert service._background_backfill is not None
+        await service._background_backfill
+        assert service.backfill_running is False
+        assert service.start_background_backfill() is True  # restartable after completion
+        await service._background_backfill
+
+    asyncio.run(scenario())
+    assert seen_force == [True, False]
 
 
 # ── search_hybrid ───────────────────────────────────────────────────

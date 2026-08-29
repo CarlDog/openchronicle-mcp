@@ -5,6 +5,23 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## Unreleased
+
+Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
+`:v3.2.0`.
+
+- **`memory_embed` gains `background=true` — started-job semantics for
+  full reindexes** (additive/MINOR, MCP + REST). The synchronous
+  default remains for incremental backfills; the background path
+  returns `started`/`already_running` immediately and progress is
+  observed in health (`stale`/`missing` count down). Exists because
+  the v3.2.0 cutover's own reindex (~20 min on the NAS) outlived every
+  interactive transport: the MCP tool would have timed out, and even
+  even the stopgap background REST call's connection dropped mid-run.
+  One background backfill per service at a time (a second start is
+  refused, not queued); overlap with the maintenance loop's periodic
+  backfill remains safe via CAS publication.
+
 ## v3.2.0 — 2026-08-29
 
 The embedding-identity release: ADR 0005 end-to-end (schema v2+v3

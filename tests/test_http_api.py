@@ -814,6 +814,37 @@ class TestMemoryEmbedRoute:
         assert data["embedded"] == 3
         assert service.generate_missing.call_args.kwargs["force"] is True
 
+    def test_background_returns_started_without_waiting(self, client: TestClient) -> None:
+        """background=true is the full-reindex path: a corpus-wide backfill
+        runs tens of minutes, past any MCP host timeout, so the surfaces
+        need started-job semantics (found executing the v3.2.0 cutover).
+        """
+        service = MagicMock()
+        service.start_background_backfill.return_value = True
+        service.embedding_status.return_value = {"embedded": 0, "missing": 0, "stale": 870}
+        _get_container(client).embedding_service = service
+
+        resp = client.post("/api/v1/memory/embed", json={"background": True, "force": True})
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "started"
+        assert data["force"] is True
+        assert data["stale"] == 870
+        service.start_background_backfill.assert_called_once_with(force=True)
+        service.generate_missing.assert_not_called()
+
+    def test_background_refuses_concurrent_start(self, client: TestClient) -> None:
+        service = MagicMock()
+        service.start_background_backfill.return_value = False
+        service.embedding_status.return_value = {"embedded": 1, "missing": 0, "stale": 0}
+        _get_container(client).embedding_service = service
+
+        resp = client.post("/api/v1/memory/embed", json={"background": True})
+
+        assert resp.status_code == 200
+        assert resp.json()["status"] == "already_running"
+
 
 class TestMemoryGetRoute:
     def test_happy_path(self, client: TestClient) -> None:

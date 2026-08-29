@@ -404,17 +404,31 @@ def register(mcp: FastMCP) -> None:
     async def memory_embed(
         ctx: Context,
         force: bool = False,
+        background: bool = False,
     ) -> dict[str, Any]:
         """Generate embeddings for memories that lack them (or regenerate all).
 
         Embeddings power the semantic half of `memory_search`'s hybrid
         retrieval. Run after migrating from a config without embeddings,
-        or with `force=true` after switching embedding model. The
-        maintenance loop also backfills periodically — manual invocation
-        is for explicit control, not normal operation.
+        or after switching embedding model/provider (the identity
+        machinery marks every old vector stale; a plain backfill picks
+        them up — `force` is only for re-embedding rows that are
+        already current). The maintenance loop also backfills
+        periodically — manual invocation is for explicit control.
+
+        USE `background=true` FOR FULL REINDEXES: a corpus-wide backfill
+        runs tens of minutes, far past MCP tool timeouts. It returns
+        `status="started"` (or `"already_running"`) immediately; watch
+        `health.embedding_status` — `stale` and `missing` count down
+        to 0. The synchronous default is for small incremental backfills
+        only.
 
         Args:
             force: Regenerate every embedding from scratch (default False).
+            background: Start the backfill and return immediately
+                (default False).
         """
         container = _get_container(ctx)
+        if background:
+            return embed_memory.execute_background(container.embedding_service, force=force)
         return await asyncio.to_thread(embed_memory.execute, container.embedding_service, force=force)

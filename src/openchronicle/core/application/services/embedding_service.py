@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -64,6 +65,33 @@ class EmbeddingService:
         self._failure_count: int = 0
         self._last_failure_at: str | None = None
         self._last_failure_op: str | None = None
+        # Handle for an operator-started background backfill (the MCP/REST
+        # `background=true` path). One at a time per service: a second
+        # start while one runs is refused, not queued. Overlap with the
+        # maintenance loop's own periodic backfill stays safe regardless —
+        # CAS publication makes concurrent runs correct, merely wasteful.
+        self._background_backfill: asyncio.Task[BackfillResult] | None = None
+
+    @property
+    def backfill_running(self) -> bool:
+        """True while an operator-started background backfill is in flight."""
+        return self._background_backfill is not None and not self._background_backfill.done()
+
+    def start_background_backfill(self, *, force: bool = False) -> bool:
+        """Start ``generate_missing`` on a worker thread; False if one runs.
+
+        Must be called from a running event loop (the MCP tool and the
+        REST route both are). Exists because a real reindex takes tens of
+        minutes — far past any MCP host tool timeout — so the interactive
+        surfaces need started-job semantics; progress is observable in
+        health (`stale`/`missing` count down) rather than in this call.
+        """
+        if self.backfill_running:
+            return False
+        self._background_backfill = asyncio.get_running_loop().create_task(
+            asyncio.to_thread(self.generate_missing, force=force)
+        )
+        return True
 
     @property
     def port(self) -> EmbeddingPort:

@@ -7,6 +7,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Body, Depends, Path, Query
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 
 from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
@@ -241,12 +242,27 @@ def memory_update(
 
 class MemoryEmbedRequest(BaseModel):
     force: bool = Field(default=False, description="Regenerate all embeddings")
+    background: bool = Field(
+        default=False,
+        description=(
+            "Start the backfill and return immediately with status='started' "
+            "(or 'already_running'). Recommended for full reindexes, which "
+            "run tens of minutes; progress is visible in health "
+            "(stale/missing count down). Default false preserves the "
+            "synchronous wait-for-result behavior."
+        ),
+    )
 
 
 @router.post("/embed")
-def memory_embed(
+async def memory_embed(
     container: ContainerDep,
     body: MemoryEmbedRequest = Body(default=MemoryEmbedRequest()),  # noqa: B008
 ) -> dict[str, Any]:
     """Generate embeddings for memories that don't have them."""
-    return embed_memory.execute(container.embedding_service, force=body.force)
+    if body.background:
+        return embed_memory.execute_background(container.embedding_service, force=body.force)
+    # The synchronous path blocks a worker thread for the duration —
+    # fine for incremental backfills, wrong for full reindexes (use
+    # background=true there).
+    return await run_in_threadpool(embed_memory.execute, container.embedding_service, force=body.force)

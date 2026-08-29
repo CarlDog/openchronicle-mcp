@@ -86,6 +86,11 @@
   "memory_embed": {
     "input": {
       "properties": {
+        "background": {
+          "default": false,
+          "title": "Background",
+          "type": "boolean"
+        },
         "force": {
           "default": false,
           "title": "Force",

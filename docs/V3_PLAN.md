@@ -916,20 +916,25 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   default then means for existing fingerprints (a fingerprint change
   triggers a reindex under ADR 0005 — plan the migration note).
 
-- **`memory_embed` is synchronous, so a real reindex can't be driven
+- ✅ **SHIPPED 2026-08-29 (rev 148, same day it was filed):
+  `memory_embed` is synchronous, so a real reindex can't be driven
   over MCP.** Found 2026-08-29 executing the v3.2.0 LAN-local cutover:
   the tool's own description says "run with force=true after switching
   embedding model," but that exact operation — 870 rows on the NAS CPU
   — takes ~20 minutes, past any MCP host tool timeout (the fleet's
   chained-call-timeout lesson, on our own tool). The cutover had to
   dodge it with a background REST call and a 50-minute client timeout.
-  Fix shape (scheduled as step-1 work, 2026-08-29): make the backfill
-  a started-job — the MCP/REST surfaces kick it off and return
-  immediately with a `started` status, progress is already observable
-  in health (`stale`/`missing` count down), and overlap with the
-  maintenance loop's own `embedding_backfill` job is prevented by
-  reusing its skip-on-overlap locking rather than spawning a rival
-  runner.
+  Shipped as `background=true` (additive/MINOR) on both surfaces:
+  started-job semantics with `started`/`already_running` payloads,
+  progress via health. One deviation from the fix shape as filed,
+  deliberate: a direct one-at-a-time guarded task on the service, NOT
+  a reuse of the maintenance loop's job locking — reaching the loop
+  from the interfaces couples them to the app lifecycle and would
+  need force-plumbing through job handlers, while ADR 0005's CAS
+  publication already makes an overlap with the periodic job correct
+  (merely wasteful). The connection-drop the stopgap REST call
+  suffered (curl exit 52 mid-reindex, server thread survived) doubled
+  the evidence.
   Found 2026-08-28 while capturing the MCP error-shape baseline
   (`tests/test_mcp_error_shape.py`). Domain exceptions carry a structured
   code — `NotFoundError(..., code=MEMORY_NOT_FOUND)`,
