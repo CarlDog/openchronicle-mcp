@@ -91,6 +91,20 @@ does differently.
   citing this entry — not to re-analyse it, not to ask the operator
   again.**
 
+- **The internal NAS hostname appearing in tracked files.** The 2026-07-25
+  repo-wide scrub convention (`your-nas` placeholder, f483ec3d) is
+  **retired for this repo — decided 2026-08-29** after the hostname was
+  reintroduced (revs 141-142), a remediation shipped (bb558436), and the
+  operator chose full rollback (31c3f331) as overcaution: it is a
+  non-routable LAN NetBIOS label, permanently retrievable from 79
+  never-rewritten pre-scrub history occurrences, and enforcement
+  machinery cost more than the HEAD-discoverability it bought. The
+  hostname MAY appear in tracked files here; do not scrub it, do not
+  flag it, do not re-raise the convention — close any finding citing
+  this entry (OC memory `46bb58cc` has the full sequence). The generic
+  PII guards (user-home paths, personal-email domains, author identity)
+  are unchanged and still binding.
+
 - **Splitting `sqlite_store.py`, `git_onboard.py`, or
   `tests/test_http_api.py` on size.** Assessed 2026-08-28 and rejected:
   all three are one concern expressed at length, and the "300-400 line
