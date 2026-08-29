@@ -873,24 +873,33 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
-- **Pin-float can consume the ENTIRE search response on a pin-heavy
-  corpus.** Found 2026-08-29 by the embedding-provider benchmark
-  (operator-directed flag): `DEFAULT_PINNED_LIMIT` (10) equals the
-  default `top_k` (10), and floated pins lead the one combined stream
-  that `top_k` bounds (the rev-123 total-budget decision). On the live
-  corpus — 149 pinned of 868 memories — any broad query that
-  keyword-matches ≥10 pins therefore returns ONLY floated pins: zero
-  relevance-ranked results survive, from either channel. The benchmark
-  hit this as a confound (12 different embedding models scored
-  byte-identically because the top-10 was pins for every one of them),
-  but it is equally a production behavior on `memory_search` today.
-  Options when picked up: drop `DEFAULT_PINNED_LIMIT` well below
-  `top_k` (e.g. 3) so ranked results always keep a majority of the
-  budget; or scale the float cap to a fraction of the effective
-  `top_k`. Either changes documented response composition — a
-  MINOR-at-least call under `docs/api/STABILITY.md`. Whether pins
-  *should* dominate broad queries is the operator decision this item
-  exists to force before any code moves.
+- **Replace the pin-float with a pinned-ness ranking prior**
+  (direction ratified by the operator 2026-08-29; found by the
+  embedding-provider benchmark). The defect: `DEFAULT_PINNED_LIMIT`
+  (10) equals the default `top_k` (10), and floated pins lead the one
+  combined stream that `top_k` bounds (rev-123 total-budget decision)
+  — so on the live corpus (149 pinned of 868), any broad query that
+  keyword-matches ≥10 pins returns ONLY floated pins; zero
+  relevance-ranked results survive from either channel (the benchmark
+  saw 12 different embedding models score byte-identically because
+  every top-10 was the same pin set; it is equally live
+  `memory_search` behavior). A smaller fixed cap was considered and
+  REJECTED as a band-aid on the wrong layer: pins only accumulate, so
+  under any fixed cap "pins are guaranteed visibility" decays into
+  "the N pins FTS5 happens to rank highest squat in the float slots
+  forever" — the float is keyword-gated only, doesn't age, and never
+  consults the semantic channel. **Chosen direction: retire the float
+  entirely and make `pinned=true` a score boost inside the RRF
+  fusion** (a weighted extra channel or a multiplicative bump on the
+  fused score): relevance always gates, a relevant pin reliably
+  outranks an equally-relevant unpinned row, it scales with pin count,
+  and both channels reach pins. Build shape when picked up: its own
+  ADR (weight semantics, what happens to `channel: "pinned"` and
+  `pinned_limit` in responses/signatures — MINOR-at-least under
+  `docs/api/STABILITY.md`), with the gold-set benchmark
+  (`scripts/benchmark_embeddings.py`) as the tuning instrument for the
+  boost weight instead of guesswork. Not a quick fix; schedule as a
+  proper stage.
 
 - **The openai adapter always sends `dimensions`; strict
   OpenAI-compat hosts reject the request outright.** Live-confirmed
