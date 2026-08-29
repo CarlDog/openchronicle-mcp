@@ -86,6 +86,55 @@ FTS5 degradation. Neither direction wins outright.
    like the auth decision would be), OR a benchmark showing a local
    model within tolerance on the gold set, OR OpenAI API terms/pricing
    moving materially.
-4. Bookkeeping: the quarterly Ollama Cloud re-check continues; the
-   fleet NAS rules' MoE caveat does not apply to the small dense
-   embedding models in play here.
+4. Bookkeeping: the quarterly Ollama Cloud re-check continues — as one
+   leg of the recurring sweep below; the fleet NAS rules' MoE caveat
+   does not apply to the small dense embedding models in play here.
+
+## Recurring cadence — the quarterly embedding-provider sweep
+
+**Operator-directed (2026-08-29): evaluating new Ollama models for the
+embedding provider is a standing quarterly practice, not a one-off.**
+It runs with the quarterly items in the phase-end audit (the AGENTS.md
+project checklist carries the line) and absorbs the previously separate
+Ollama Cloud re-check so there is one clock, not two.
+
+The sweep, in order — each step is a diff against a recorded baseline,
+never a re-derivation:
+
+1. **Ollama library**: fetch <https://ollama.com/search?c=embedding>
+   and diff against the baseline below. A new family or a new
+   variant/size of a shortlisted family is a candidate.
+2. **Ollama Cloud**: the V3_PLAN re-check (baseline 2026-08-28: 19
+   hosted models, zero with `embedding` capability). The moment it
+   lists one, it becomes an immediately usable provider — with the same
+   benchmark gate and the same privacy posture as OpenAI.
+3. **Candidates found**: pull locally, run the gold-set benchmark
+   (until that benchmark exists, record the candidate here with a date
+   and hold — a model nobody measured is not a switch argument), and
+   update this document's baseline either way.
+4. **Reopen the provider decision** only on this review's named
+   triggers or a benchmark result within tolerance of the incumbent.
+
+**Ollama library baseline (2026-08-29), 12 families:**
+`qwen3-embedding` (0.6b/4b/8b) · `embeddinggemma` (300m) ·
+`nomic-embed-text` · `nomic-embed-text-v2-moe` · `mxbai-embed-large`
+(335m) · `bge-m3` (567m) · `bge-large` (335m) · `all-minilm`
+(22m/33m) · `snowflake-arctic-embed` (5 sizes) ·
+`snowflake-arctic-embed2` (568m) · `paraphrase-multilingual` (278m) ·
+`granite-embedding` (30m/278m).
+
+**Local test pool (pulled and live-verified 2026-08-29, measured
+native dims):** `qwen3-embedding:0.6b` (1024d) · `qwen3-embedding:4b`
+(2560d) · `qwen3-embedding:8b` (4096d — accuracy ceiling; note the
+query-time search embedding also pays its latency, not just backfill)
+· `embeddinggemma` (768d) · `nomic-embed-text` (768d, the adapter
+default/baseline) · `mxbai-embed-large` (1024d) · `bge-m3` (1024d) ·
+`snowflake-arctic-embed2` (1024d) · `nomic-embed-text-v2-moe` (768d —
+carries the fleet's measured CPU-MoE-underdelivery caveat and must
+prove itself). Excluded as superseded or too weak: `all-minilm`,
+`bge-large`, `snowflake-arctic-embed` v1, `paraphrase-multilingual`,
+`granite-embedding`.
+
+The sweep's cost when nothing changed is minutes; its value is that a
+strong new local model — the kind that flips this review's
+recommendation — is noticed within a quarter instead of by accident.

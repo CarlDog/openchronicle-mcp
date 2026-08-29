@@ -937,9 +937,15 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   from `~/.ollama/id_ed25519` (`server/cloud_proxy.go`) — that path is for
   the daemon, not for a direct HTTP client like ours.
 
-  **Suggested cadence:** with the quarterly items in the phase-end audit.
-  The operator holds an Ollama Cloud API key, so a live confirmation is
-  available the day it becomes worth making.
+  **Cadence (widened 2026-08-29, operator-directed):** this check is now
+  one leg of the **quarterly embedding-provider sweep** defined in
+  [design/0006 §Recurring cadence](design/0006-embedding-provider-review.md)
+  — the Ollama *library* embedding catalog is diffed alongside Ollama
+  Cloud, so a new local candidate model is caught on the same clock as a
+  new cloud host. Runs with the quarterly items in the phase-end audit
+  (the AGENTS.md checklist carries the line). The operator holds an
+  Ollama Cloud API key, so a live confirmation is available the day it
+  becomes worth making.
 
 - **NemoClaw review — operational/recovery hardening (research complete;
   unscheduled).**

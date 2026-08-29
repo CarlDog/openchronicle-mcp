@@ -112,6 +112,16 @@ does differently.
   projects, different close behaviour). Tolerated, per the duplication
   bar.
 
+### Quarterly additions
+
+- **Embedding-provider sweep** (operator-directed 2026-08-29): diff the
+  Ollama library embedding catalog and Ollama Cloud against the
+  baselines in
+  [design/0006 §Recurring cadence](docs/design/0006-embedding-provider-review.md);
+  pull + benchmark any new credible candidate; reopen the provider
+  decision only on 0006's named triggers. Absorbs the former standalone
+  Ollama Cloud re-check — one clock, not two.
+
 ### Cadence relaxations
 
 - The **author-identity audit** (`git log --all --pretty='%ae' | sort -u`)
