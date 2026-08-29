@@ -262,7 +262,7 @@ arrives with the sweep), and the gold set expanded 40 → 50 queries
 itself — proceed on `v4/develop`.
 
 **ADR 0009 implemented end-to-end** (2026-08-29, branch
-`adr-0009-impl`, revs 164-167, tests 804 → 843; ships with the next
+`adr-0009-impl`, revs 164-168, tests 804 → 844; ships with the next
 v3.x tag): `CONTENT_TOO_LONG` at both adapter boundaries — with a
 live capture correcting the assumed OpenAI shape (the real embeddings
 rejection carries `code=None` and says "maximum input length", so the
@@ -274,7 +274,9 @@ emergent candidacy exclusion, all three failure counters exempted,
 additive `unembeddable`, and the row-class partition test. Deploy
 note: the first backfill after the next redeploy writes 9 tombstones,
 reports `ok` with `tombstoned: 9`, and health goes `active` with
-`unembeddable: 9`.
+`unembeddable: 9`. A mutation-review fix pass (rev 168) closed the
+one suite-surviving gap: the tombstone's `model_revision` is now
+pinned under a non-None-revision port (the live Ollama shape).
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

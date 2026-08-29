@@ -40,9 +40,16 @@ class _LimitedContextPort(EmbeddingPort):
     and the per-item call classifies the specific item.
     """
 
-    def __init__(self, *, max_chars: int = 50, fingerprint: str = "test-fp") -> None:
+    def __init__(
+        self,
+        *,
+        max_chars: int = 50,
+        fingerprint: str = "test-fp",
+        revision: str | None = None,
+    ) -> None:
         self.max_chars = max_chars
         self._fingerprint = fingerprint
+        self._revision = revision
         self.batch_calls: list[int] = []
         self.item_calls: list[str] = []
 
@@ -75,7 +82,7 @@ class _LimitedContextPort(EmbeddingPort):
         return "test-provider"
 
     def model_revision(self) -> str | None:
-        return None
+        return self._revision
 
     def settings_fingerprint(self) -> str:
         return self._fingerprint
@@ -298,6 +305,41 @@ def test_current_tombstone_is_not_a_backfill_candidate() -> None:
     port.batch_calls.clear()
     rerun = service.generate_missing()
 
+    assert rerun == BackfillResult(generated=0, failed=0, tombstoned=0, elapsed_ms=0)
+    assert port.batch_calls == [] and port.item_calls == [], "no provider call for a parked row"
+
+
+def test_tombstone_pins_the_ports_model_revision() -> None:
+    """A tombstone carries the PORT's `model_revision` — pinned under a
+    non-None revision, the shape the live Ollama adapter reports.
+
+    Every other port stub reports revision None, so `_write_tombstone`
+    hardcoding/omitting `model_revision` (→ None) is indistinguishable
+    from correct there (None == None reads current). Under a revisioned
+    port that slip makes every tombstone instantly space-stale —
+    `unembeddable: 0`, `space_mismatch: 1`, re-parked every backfill
+    forever, the exact infinite-retry loop ADR 0009 exists to stop.
+    """
+    store = _make_store()
+    port = _LimitedContextPort(revision="sha256:abc123")
+    service = EmbeddingService(port=port, store=store)
+    _add(store, "m1", _OVERLENGTH)
+
+    assert service.generate_missing().tombstoned == 1
+
+    identity = store.get_embedding_identity("m1")
+    assert identity is not None
+    assert identity["model_revision"] == "sha256:abc123", "tombstone must carry the port's revision"
+
+    # Pins `embedding_status`'s own model_revision pass-through too:
+    # `count_unembeddable_embeddings` matches `model_revision IS ?`.
+    status = service.embedding_status()
+    assert status["unembeddable"] == 1, "a right-revision tombstone is CURRENT"
+    assert status["space_mismatch"] == 0, "…not space-stale (the None-slip symptom)"
+
+    port.item_calls.clear()
+    port.batch_calls.clear()
+    rerun = service.generate_missing()
     assert rerun == BackfillResult(generated=0, failed=0, tombstoned=0, elapsed_ms=0)
     assert port.batch_calls == [] and port.item_calls == [], "no provider call for a parked row"
 

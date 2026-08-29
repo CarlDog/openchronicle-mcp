@@ -212,13 +212,14 @@ def test_tombstone_write_shape_full_identity_zero_dimensions_empty_payload() -> 
     empty vector payload — written through the SAME CAS as real saves."""
     store = _make_store()
     _add_memory(store, "mem-1")
-    assert save_tombstone(store, "mem-1", model="m", provider="p", fingerprint="fp")
+    assert save_tombstone(store, "mem-1", model="m", provider="p", fingerprint="fp", model_revision="rev-1")
 
     identity = store.get_embedding_identity("mem-1")
     assert identity is not None
     assert identity["status"] == "content_too_long"
     assert identity["provider"] == "p"
     assert identity["model"] == "m"
+    assert identity["model_revision"] == "rev-1"
     assert identity["settings_fingerprint"] == "fp"
     assert identity["dimensions"] == 0
     assert identity["content_hash"] == hash_content("test memory content")
