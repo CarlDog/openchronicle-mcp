@@ -266,3 +266,47 @@ def test_openai_fingerprint_distinguishes_hosts(monkeypatch: pytest.MonkeyPatch)
     assert default.settings_fingerprint() != voyage.settings_fingerprint(), (
         "a different embeddings host is a different vector space"
     )
+
+
+class TestOllamaHostHandling:
+    """Local connections are first-class over BOTH http and https
+    (operator-directed 2026-08-29)."""
+
+    def test_scheme_less_host_gets_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """OLLAMA_HOST=carldog-nas:11434 used to build a broken URL."""
+        monkeypatch.setenv("OLLAMA_HOST", "carldog-nas:11434")
+        adapter = OllamaEmbeddingAdapter(model="test")
+        assert adapter._host == "http://carldog-nas:11434"
+
+    def test_https_host_is_passed_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OLLAMA_HOST", "https://nas.local:11435/")
+        adapter = OllamaEmbeddingAdapter(model="test")
+        assert adapter._host == "https://nas.local:11435"
+
+    def test_tls_verification_defaults_on_and_is_passed_to_httpx(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OLLAMA_VERIFY_TLS", raising=False)
+        monkeypatch.setenv("OLLAMA_HOST", "https://nas.local:11434")
+        adapter = OllamaEmbeddingAdapter(model="test")
+        ok = httpx.Response(
+            200,
+            json={"embeddings": [[1.0, 0.0]]},
+            request=httpx.Request("POST", "https://nas.local:11434/api/embed"),
+        )
+        with patch("httpx.post", return_value=ok) as mock_post:
+            adapter.embed("hello")
+        assert mock_post.call_args.kwargs["verify"] is True
+
+    def test_verify_tls_can_be_disabled_for_lan_self_signed(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The knob that makes a self-signed LAN https endpoint usable —
+        same shape as the fleet's PORTAINER_VERIFY_TLS."""
+        monkeypatch.setenv("OLLAMA_VERIFY_TLS", "0")
+        monkeypatch.setenv("OLLAMA_HOST", "https://192.168.1.50:11434")
+        adapter = OllamaEmbeddingAdapter(model="test")
+        ok = httpx.Response(
+            200,
+            json={"embeddings": [[1.0, 0.0]]},
+            request=httpx.Request("POST", "https://192.168.1.50:11434/api/embed"),
+        )
+        with patch("httpx.post", return_value=ok) as mock_post:
+            adapter.embed("hello")
+        assert mock_post.call_args.kwargs["verify"] is False

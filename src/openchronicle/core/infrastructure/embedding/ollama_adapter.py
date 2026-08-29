@@ -55,7 +55,18 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
     ) -> None:
         self._model = model
         self._requested_dimensions = dimensions
-        self._host: str = host or os.getenv("OLLAMA_HOST") or os.getenv("OLLAMA_BASE_URL") or "http://localhost:11434"
+        raw_host = host or os.getenv("OLLAMA_HOST") or os.getenv("OLLAMA_BASE_URL") or "http://localhost:11434"
+        self._host = _normalize_host(raw_host)
+        # TLS verification for https hosts. Default ON; OLLAMA_VERIFY_TLS=0
+        # (or false/no/off) disables it for LAN self-signed certs — the
+        # same knob shape the fleet's Portainer client uses. Local
+        # connections are first-class over BOTH http and https
+        # (operator-directed 2026-08-29): the scheme comes from the host
+        # URL, and this switch is what makes a self-signed LAN https
+        # endpoint actually usable.
+        self._verify_tls = os.getenv("OLLAMA_VERIFY_TLS", "").strip().lower() not in ("0", "false", "no", "off")
+        if not self._verify_tls:
+            logger.warning("OLLAMA_VERIFY_TLS disabled — TLS certificates for %s will not be verified", self._host)
         self._timeout = timeout_seconds
         # Lazy, cached, non-fatal capability probe (see _probe). The
         # sentinel distinguishes "never probed" from "probed, no answer".
@@ -80,7 +91,7 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
         if self._requested_dimensions is not None:
             body["dimensions"] = self._requested_dimensions
         try:
-            response = httpx.post(url, json=body, timeout=self._timeout)
+            response = httpx.post(url, json=body, timeout=self._timeout, verify=self._verify_tls)
             response.raise_for_status()
             data = response.json()
             embeddings = data.get("embeddings")
@@ -178,7 +189,7 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
     def _probe_digest(self) -> str | None:
         url = f"{self._host.rstrip('/')}/api/tags"
         try:
-            response = httpx.get(url, timeout=min(self._timeout, 5.0))
+            response = httpx.get(url, timeout=min(self._timeout, 5.0), verify=self._verify_tls)
             response.raise_for_status()
             models = response.json().get("models") or []
         except Exception as exc:
@@ -199,6 +210,22 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
                 "truncate": False,
             }
         )
+
+
+def _normalize_host(raw: str) -> str:
+    """Give a scheme-less host value a scheme instead of a broken URL.
+
+    ``OLLAMA_HOST=carldog-nas:11434`` used to produce
+    ``carldog-nas:11434/api/embed`` — not a URL — and fail with an
+    httpx error pointing nowhere near the cause. A value without
+    ``://`` gets ``http://`` (Ollama's own client does the same);
+    ``https://`` is passed through untouched — both schemes are
+    first-class for local and remote hosts alike.
+    """
+    raw = raw.strip().rstrip("/")
+    if "://" not in raw:
+        return f"http://{raw}"
+    return raw
 
 
 def _upstream_error(response: httpx.Response) -> str:

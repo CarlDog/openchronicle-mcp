@@ -10,6 +10,11 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.1.0`.
 
+- **Local Ollama over HTTPS is first-class.** A scheme-less
+  `OLLAMA_HOST` gets `http://` prepended instead of producing a broken
+  URL; `https://` hosts work end-to-end (embed + capability probe);
+  and `OLLAMA_VERIFY_TLS=0` permits LAN self-signed certs (default:
+  verify, disabling logs a warning).
 - **Content-egress notice for cloud embedding providers.** When the
   configured embedding endpoint is not clearly LAN-local, startup logs
   a WARNING naming the endpoint and the consequence (every save's full

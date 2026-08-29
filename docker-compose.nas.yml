@@ -94,6 +94,8 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
       OLLAMA_HOST: ${OLLAMA_HOST:-}
+      # https:// Ollama hosts are first-class; set 0 for LAN self-signed certs.
+      OLLAMA_VERIFY_TLS: ${OLLAMA_VERIFY_TLS:-1}
       # Search + maintenance kill switches (documented escape hatches;
       # unreachable from Portainer until these lines existed). FTS5
       # defaults to a literal "1", not "" — the stack git-polls compose
