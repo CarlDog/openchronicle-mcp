@@ -5,8 +5,11 @@ default stays 0 until the rollout-step-4 tuning sweep): bounded lift +
 tie-break ordering, the offset-invariant clamp, the FTS5 keyword gate,
 mode parity including the degraded-hybrid fallback, per-mode fetch
 reach, include_pinned=False in every mode, single-channel pagination
-stability, the fused-stream id tie-break, and the inert deprecated
-`pinned_limit` on the CLI. Equality-of-score assertions stay banned —
+stability, the lift's application to the effective ranks RRF consumes
+in the fused stream (per channel and combined — mutation-verified: each
+of these fails if the fusion lift is dropped wholesale, per channel, or
+loses its rank-1 floor), the fused-stream id tie-break, and the inert
+deprecated `pinned_limit` on the CLI. Equality-of-score assertions stay banned —
 these tests assert order, rank, channel, and membership.
 
 Keyword ranks are crafted, not assumed: identical token-shape contents
@@ -419,6 +422,104 @@ def test_hybrid_pin_at_widened_semantic_fetch_boundary_enters_fusion() -> None:
     assert "aaa-pin" in hits_b
     assert hits_b["aaa-pin"].channel == "keyword", "one past the boundary → keyword term only"
     assert hits_b["aaa-pin"].semantic_similarity is None
+
+
+def test_hybrid_fusion_lift_moves_pin_in_fused_order() -> None:
+    """ADR 0008 §1 in the DEFAULT production mode: RRF consumes the
+    COLLIDED effective ranks, so a pin present in both channels gains
+    fused positions versus the lift-0 stream (test-plan clause "a pin
+    gains at most effective_lift positions per channel", applied where
+    it was previously untested — the fused path).
+
+    Both channels rank the same five rows. Keyword ranks (recency
+    tie-break): u1..u3 = 1..3, p4 = 4, u5 = 5. Semantic ranks (first
+    components): u1 = 1, p4 = 2, u2 = 3, u3 = 4, u5 = 5.
+
+    Hand-computed fused scores (K = 60), lift 0:
+    u1 2/61 ≈ .03279 · u2 1/62+1/63 ≈ .03200 · p4 1/64+1/62 ≈ .03175 ·
+    u3 1/63+1/64 ≈ .03150 · u5 2/65 ≈ .03077.
+
+    Lift 2 changes only p4: keyword 4→2, semantic 2→max(1, 0)=1 (the
+    rank-1 floor, inside fusion) → 1/62+1/61 ≈ .03252 — the pin passes
+    u2 in the fused stream. No ties anywhere in either run.
+    """
+    port = _FixedQueryPort()
+    store = _make_store()
+    _seed_keyword_ranked(store, [("u1", False), ("u2", False), ("u3", False), ("p4", True), ("u5", False)])
+    for memory_id, first in (("u1", 0.9), ("p4", 0.8), ("u2", 0.7), ("u3", 0.6), ("u5", 0.5)):
+        save_vec(store, memory_id, [first, 0.0], model=port.model_name(), provider=port.provider_name())
+
+    lift0 = EmbeddingService(port=port, store=store, pin_rank_lift=0)
+    lift2 = EmbeddingService(port=port, store=store, pin_rank_lift=2)
+
+    assert [s.item.id for s in lift0.search_hybrid("omega", top_k=5)] == ["u1", "u2", "p4", "u3", "u5"]
+
+    lifted = lift2.search_hybrid("omega", top_k=5)
+    assert [s.item.id for s in lifted] == ["u1", "p4", "u2", "u3", "u5"], "the reorder is lift-caused"
+    pin = next(s for s in lifted if s.item.id == "p4")
+    assert pin.channel == "hybrid"
+    assert pin.keyword_rank == 4, "the raw keyword rank is reported, not the lifted one"
+    assert pin.semantic_similarity == pytest.approx(0.8, abs=1e-6), "the raw similarity is reported, not rewritten"
+
+
+def test_hybrid_fusion_applies_keyword_channel_lift() -> None:
+    """Keyword-side lift inside fusion, isolated: the pin has no
+    vector, so its only fusion term is keyword — dropping the lift on
+    the keyword term alone is caught here and nowhere else. The lifted
+    pin (5 → 3, 1/63) COLLIDES with u3 (1/63) and the fused tie breaks
+    by memory id ascending (u3 < zzpin) — NOT by the single-channel
+    after-the-holder rule (ADR 0008 §1: RRF consumes collided effective
+    ranks as numbers; fused order is score desc, id asc).
+
+    The pin id is deliberately unhyphenated: FTS5's tokenizer splits on
+    "-", and a fourth token would break the fixture's identical
+    token-shape bm25 tie.
+    """
+    port = _FixedQueryPort()
+    store = _make_store()
+    _seed_keyword_ranked(store, [("u1", False), ("u2", False), ("u3", False), ("u4", False), ("zzpin", True)])
+    store.add_memory(_mem("s-filler", "unrelated filler body"))
+    save_vec(store, "s-filler", [0.9, 0.0], model=port.model_name(), provider=port.provider_name())
+    service = EmbeddingService(port=port, store=store, pin_rank_lift=2)
+
+    results = service.search_hybrid("omega", top_k=6)
+
+    # s-filler (semantic rank 1, 1/61) ties u1 (keyword rank 1, 1/61)
+    # and precedes it on id; zzpin lifts 5 → 3 (1/63), ties u3 and
+    # follows it on id — passing exactly u4.
+    assert [s.item.id for s in results] == ["s-filler", "u1", "u2", "u3", "zzpin", "u4"]
+    pin = next(s for s in results if s.item.id == "zzpin")
+    assert pin.channel == "keyword"
+    assert pin.keyword_rank == 5, "the raw keyword rank is reported, not the lifted one"
+
+
+def test_hybrid_fusion_applies_semantic_channel_lift() -> None:
+    """Semantic-side lift inside fusion, isolated: the pin never
+    keyword-matches, so its only fusion term is semantic — dropping the
+    lift on the semantic term alone is caught here and nowhere else.
+    The lifted pin (5 → 3, 1/63) ties r3 and the fused tie again breaks
+    by id — this time the pin sorts FIRST (aa-pin < r3): the id leg
+    decides, not pin status or original rank (the mirror of the
+    keyword-channel test's tie direction)."""
+    port = _FixedQueryPort()
+    store = _make_store()
+    _seed_semantic_ranked(
+        store,
+        port,
+        [("r1", False, 0.9), ("r2", False, 0.8), ("r3", False, 0.7), ("r4", False, 0.6), ("aa-pin", True, 0.5)],
+    )
+    store.add_memory(_mem("k-filler", "omega note k-filler"))
+    service = EmbeddingService(port=port, store=store, pin_rank_lift=2)
+
+    results = service.search_hybrid("omega", top_k=6)
+
+    # k-filler (keyword rank 1, 1/61) ties r1 (semantic rank 1) and
+    # precedes it on id; aa-pin lifts 5 → 3 (1/63), ties r3 and
+    # precedes it on id — passing r3 and r4.
+    assert [s.item.id for s in results] == ["k-filler", "r1", "r2", "aa-pin", "r3", "r4"]
+    pin = next(s for s in results if s.item.id == "aa-pin")
+    assert pin.channel == "semantic"
+    assert pin.semantic_similarity == pytest.approx(0.5, abs=1e-6), "the raw similarity is reported, not rewritten"
 
 
 def test_fused_score_tie_orders_by_memory_id() -> None:
