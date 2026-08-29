@@ -144,6 +144,60 @@ def test_generate_missing_counts_failures() -> None:
     assert result.elapsed_ms >= 0
 
 
+def test_backfill_provider_errors_log_one_line_not_tracebacks(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A KNOWN ProviderError during backfill logs one WARNING line.
+
+    Operator-ratified 2026-08-29 (found benchmarking): a backfill against
+    a small-context model can hit hundreds of over-length rejections —
+    all categorized ProviderErrors whose message already carries the
+    actionable upstream detail. Logging each with a full traceback at
+    WARNING flooded the log for a fully-handled condition. The stack
+    stays available at DEBUG; unexpected exception types (the previous
+    test's RuntimeError) keep their traceback.
+    """
+    from openchronicle.core.application.services.embedding_service import EmbeddingService
+    from openchronicle.core.domain.exceptions import ProviderError
+    from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+
+    class OverLengthAdapter(EmbeddingPort):
+        def embed(self, text: str) -> list[float]:
+            raise ProviderError("Ollama embedding failed: HTTP 400: the input length exceeds the context length")
+
+        def embed_batch(self, texts: list[str]) -> list[list[float]]:
+            raise ProviderError("Ollama embedding failed: HTTP 400: the input length exceeds the context length")
+
+        def model_name(self) -> str:
+            return "tiny-context"
+
+        def provider_name(self) -> str:
+            return "test-provider"
+
+        def model_revision(self) -> str | None:
+            return None
+
+        def settings_fingerprint(self) -> str:
+            return "test-fp"
+
+        def dimensions(self) -> int:
+            return 32
+
+    _, store, _ = _make_service()
+    _add_memory(store, "m1", "hello")
+    service = EmbeddingService(port=OverLengthAdapter(), store=store)
+
+    with caplog.at_level("WARNING", logger="openchronicle.core.application.services.embedding_service"):
+        result = service.generate_missing()
+
+    assert result.failed == 1
+    warnings = [r for r in caplog.records if r.levelname == "WARNING"]
+    assert warnings, "the failure must still be logged"
+    for record in warnings:
+        assert not record.exc_info, "known ProviderError must not carry a traceback at WARNING"
+        assert "context length" in record.getMessage() or "retrying per item" in record.getMessage()
+
+
 # ── search_hybrid ───────────────────────────────────────────────────
 
 

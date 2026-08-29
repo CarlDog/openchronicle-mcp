@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 
 from openchronicle.core.domain.content_hash import hash_content
+from openchronicle.core.domain.exceptions import ProviderError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
@@ -217,12 +218,24 @@ class EmbeddingService:
                         len(chunk),
                     )
                     vectors = None
-            except Exception:
+            except Exception as exc:
+                # A ProviderError is a KNOWN, categorized failure whose
+                # message already carries the actionable upstream detail
+                # ("input exceeds maximum context length") — one line,
+                # no stack. A backfill against a small-context model can
+                # hit hundreds of these; tracebacks at WARNING flooded
+                # OC_LOG_FILE with noise for a fully-handled condition
+                # (observed 2026-08-29 benchmarking; operator-ratified).
+                # Truly unexpected exceptions keep the full traceback.
+                is_known = isinstance(exc, ProviderError)
                 logger.warning(
-                    "backfill: batch of %d failed; retrying per item to isolate the failure",
+                    "backfill: batch of %d failed (%s); retrying per item to isolate the failure",
                     len(chunk),
-                    exc_info=True,
+                    exc,
+                    exc_info=not is_known,
                 )
+                if is_known:
+                    logger.debug("backfill: batch failure detail", exc_info=True)
                 vectors = None
 
             for i, item in enumerate(chunk):
@@ -245,10 +258,20 @@ class EmbeddingService:
                         # the next backfill sees the row again.
                         logger.info("backfill: embedding for %s not published (content moved on)", item.id)
                     self._record_success()
-                except Exception:
+                except Exception as exc:
                     failed += 1
                     self._record_failure("backfill")
-                    logger.warning("Embedding generation failed for memory %s", item.id, exc_info=True)
+                    # Same split as the batch path: known ProviderError →
+                    # one line with the actionable message, stack at DEBUG.
+                    is_known = isinstance(exc, ProviderError)
+                    logger.warning(
+                        "Embedding generation failed for memory %s: %s",
+                        item.id,
+                        exc,
+                        exc_info=not is_known,
+                    )
+                    if is_known:
+                        logger.debug("backfill: failure detail for %s", item.id, exc_info=True)
 
         elapsed_ms = int((time.monotonic() - t0) * 1000)
         logger.info(
