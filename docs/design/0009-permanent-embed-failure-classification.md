@@ -293,6 +293,28 @@ run succeeds, and health goes `active` with `unembeddable: 9`.
 - Migration 004: applies to a populated DB (`status='ok'` on
   existing rows), re-run no-op.
 
+## Implementation note (2026-08-29): the OpenAI capture falsified the ADR's named code
+
+The mandated live capture ran during implementation and the real
+OpenAI embeddings over-length rejection is: `BadRequestError`, HTTP
+400, **`code: null`**, message `"Invalid 'input[0]': maximum input
+length is 8192 tokens."` — §1's `code == "context_length_exceeded"`
+check and the `context length` substring **never match the live
+endpoint**. Exactly the failure mode this repo's
+verify-against-a-captured-response rule exists for, caught because
+the ADR mandated the capture. Resolution (shipped): both ADR matchers
+are KEPT (they may match compat hosts), and the 4xx-gated fallback's
+marker list adds the captured phrase `"maximum input length"`; the
+captured body is pinned verbatim as the test fixture. Conservative
+bias unchanged. "400-family" was read as 4xx for the OpenAI fallback;
+the Ollama predicate stays `== 400` per its own text.
+
+Implemented on `main` 2026-08-29 (commits `0303d2a6`…`0ad0e50d`,
+804 → 844 tests) — the verification round's one surviving mutation
+(the tombstone's `model_revision` unpinned by any test, a
+None-revision blind spot that would have read every live tombstone as
+space-stale forever) was closed with a non-None-revision kill test.
+
 ## Review history
 
 - **Rev 1 (2026-08-29): two-critic adversarial review** (identity/
