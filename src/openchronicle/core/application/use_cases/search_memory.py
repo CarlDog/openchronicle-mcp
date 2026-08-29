@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from openchronicle.core.application.services import embedding_service as _ranking
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
-from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
-from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
+from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 
 if TYPE_CHECKING:
     from openchronicle.core.application.services.embedding_service import EmbeddingService
@@ -25,7 +25,6 @@ def execute(
     embedding_service: EmbeddingService | None = None,
     mode: str = "hybrid",
     phrase: bool = False,
-    pinned_limit: int = DEFAULT_PINNED_LIMIT,
 ) -> list[ScoredMemory]:
     """Search memory, returning scored results (Q20/Q21, 2026-08-17).
 
@@ -44,24 +43,17 @@ def execute(
     ``phrase`` makes the keyword channel match the whole query as one
     adjacent-token phrase instead of any-token.
 
-    ``top_k`` is a TOTAL response budget (decided 2026-08-28): floated
-    pins and ranked results share one combined stream that ``top_k``
-    bounds and ``offset`` paginates, so a caller asking for 8 never
-    receives more than 8. Before the decision the response was up to
-    ``top_k + pinned_limit`` while the docs called ``top_k`` the
-    maximum — the budget ambiguity the OpenClaw review flagged.
-
-    ``pinned_limit`` bounds the pinned FLOAT — pins that match the query
-    lead the stream, newest-first, capped, each consuming a ``top_k``
-    slot. It is not a visibility switch: a pin that does not win a float
-    slot still ranks on its merits and surfaces with its true channel,
-    and ``pinned_limit=0`` means "do not float" rather than "hide pins".
-    Use ``include_pinned=False`` to hide them, or
-    ``list_memory(pinned_only=True)`` to enumerate standing rules.
+    ``top_k`` bounds the whole response and ``offset`` paginates one
+    ranked stream. Pins are a bounded ranking prior (ADR 0008): a
+    pinned row's rank improves by ``min(PIN_RANK_LIFT, top_k)``
+    positions inside each channel's honest ranking — the pre-0008
+    float (a separate keyword-matched pinned query leading the page,
+    bounded by ``pinned_limit``) is gone in every mode. Visibility is
+    still ``include_pinned``: ``False`` hides pins outright, and
+    ``list_memory(pinned_only=True)`` enumerates standing rules.
     """
     if mode not in VALID_MODES:
         raise DomainValidationError(f"mode must be one of {VALID_MODES}, got {mode!r}")
-    pinned_limit = max(0, pinned_limit)
 
     if mode == "semantic":
         if embedding_service is None:
@@ -76,7 +68,6 @@ def execute(
             include_pinned=include_pinned,
             tags=tags,
             offset=offset,
-            pinned_limit=pinned_limit,
         )
 
     if mode == "hybrid" and embedding_service is not None:
@@ -88,46 +79,30 @@ def execute(
             tags=tags,
             offset=offset,
             phrase=phrase,
-            pinned_limit=pinned_limit,
         )
 
-    # mode == "keyword", or hybrid on a keyword-only deployment.
-    # The float: pins that MATCH the query, capped, scope-with-global.
-    # Computed even when offset > 0 — it is not emitted there, but it is
-    # still the exclusion key, or a pin floated on page 1 would reappear
-    # in page 2's ranking.
-    floated: list[MemoryItem] = []
-    if include_pinned and pinned_limit > 0:
-        floated = store.search_pinned(
-            query,
-            limit=pinned_limit,
-            project_id=project_id,
-            tags=tags,
-            phrase=phrase,
-        )
-    floated_ids = {i.id for i in floated}
-
-    # Pins that did not win a float slot still rank here on their own
-    # merits — that is what keeps them reachable, and it is coupled to
-    # the exclusion above covering ONLY the floated ids. Fetched from
-    # rank 0 through the page's end because the page is sliced from the
-    # COMBINED stream below, not from the ranking alone.
+    # mode == "keyword", or hybrid on a keyword-only deployment. Pins
+    # are the same bounded ranking prior here (ADR 0008 mode parity):
+    # this branch runs precisely when no EmbeddingService exists, so it
+    # reads the module constant directly (module-attribute access, so a
+    # sweep or test overriding the constant is honored).
+    effective_top_k = top_k + offset
+    effective_lift = _ranking.effective_pin_lift(top_k, _ranking.PIN_RANK_LIFT)
+    # ADR 0008 §2 keyword-only fetch: effective_top_k + effective_lift
+    # — this mode had no over-fetch window before the lift, so the
+    # extension is the lift's reach and nothing more.
     items = store.search_memory(
         query,
-        top_k=offset + top_k,
+        top_k=effective_top_k + effective_lift,
         project_id=project_id,
         include_pinned=include_pinned,
         tags=tags,
         phrase=phrase,
-        exclude_ids=floated_ids,
     )
-    # One combined stream — floated pins first, then the ranking —
-    # bounded by top_k as a TOTAL budget and paginated by offset
-    # (decided 2026-08-28; mirrors EmbeddingService._page). A pinned row
-    # inside `items` got there by ranking, so it reports
-    # channel="keyword" with its real rank — the float set is known by
-    # id, never guessed from position.
-    combined: list[ScoredMemory] = [ScoredMemory(item=i, channel="pinned") for i in floated]
-    for rank, item in enumerate(items, start=1):
-        combined.append(ScoredMemory(item=item, channel="keyword", keyword_rank=rank))
-    return combined[offset : offset + top_k]
+    ordered = _ranking.lift_single_channel(list(enumerate(items, start=1)), effective_lift)
+    # keyword_rank reports the raw pre-lift rank — the only honest
+    # per-channel signal; a lifted pin's earlier position is explained
+    # by its `pinned` flag, not by rewriting the rank.
+    return [
+        ScoredMemory(item=item, channel="keyword", keyword_rank=rank) for rank, item in ordered[offset : offset + top_k]
+    ]

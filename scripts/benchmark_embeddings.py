@@ -19,12 +19,12 @@ once: a candidate that can't beat it adds nothing. When the broad-query
 fixture is present, a pin-crowding probe reports pins-in-top-10 per
 candidate at production defaults (see `probe_pin_crowding`).
 
-Gold searches run with `include_pinned=True, pinned_limit=0` — pins
-stay eligible in both ranking channels, but the pin-float policy
-(keyword-matched, provider-independent) can't mask ranking quality
-(the comment in `score_gold` has the full story). The crowding probe
-deliberately uses production defaults instead: the float's real
-behavior is exactly what it measures.
+Gold searches run at production configuration — since ADR 0008 the
+pin-float is gone and pins are a bounded rank lift inside the ranking
+itself (`PIN_RANK_LIFT`, currently 0), so production config IS the
+measurement config; the old `pinned_limit=0` special case died with
+the float. The crowding probe also runs production defaults; the v4
+sweep re-runs both scoring passes per injected lift cell.
 
 The store is built and embedded ONCE per candidate; the scoring passes
 are separate functions so the v4 PIN_RANK_LIFT sweep can re-score many
@@ -216,26 +216,20 @@ def score_gold(service: EmbeddingService, gold: list[dict[str, Any]]) -> tuple[C
     semantic, hybrid = ChannelMetrics(), ChannelMetrics()
     for entry in gold:
         relevant = entry["relevant_ids"]
-        # include_pinned=True + pinned_limit=0 is the measurement
-        # configuration, arrived at the hard way — both defaults are
-        # policy, not relevance, and each one broke a run:
-        #   - include_pinned=False doesn't just skip the pin-float, it
-        #     excludes pinned rows from results entirely → the 10
-        #     pinned gold targets were structurally unreachable and
-        #     every candidate "missed" exactly them.
-        #   - include_pinned=True with the default pinned_limit (10,
-        #     == top_k) floats keyword-matched pins ahead of ALL
-        #     ranked results → with 149 corpus pins, every candidate
-        #     scored byte-identically because the top-10 was pins.
-        # pinned_limit=0 disables the float while leaving pins
-        # eligible in both ranking channels — pure ranking quality.
+        # Production configuration IS the measurement configuration
+        # (ADR 0008): the pin-float that once had to be disabled here
+        # (`pinned_limit=0` — include_pinned=False was tried first and
+        # made every pinned gold target structurally unreachable) is
+        # gone. Pins are a bounded rank lift inside the ranking, and
+        # the v4 sweep injects lift cells via the EmbeddingService
+        # constructor rather than per-call knobs.
         t = time.perf_counter()
-        hits = service.search_semantic(entry["q"], top_k=TOP_K, include_pinned=True, pinned_limit=0)
+        hits = service.search_semantic(entry["q"], top_k=TOP_K, include_pinned=True)
         semantic.results.append(
             QueryResult(best_rank(hits, relevant), time.perf_counter() - t, entry["pinned_target"], entry["split"])
         )
         t = time.perf_counter()
-        hits = service.search_hybrid(entry["q"], top_k=TOP_K, include_pinned=True, pinned_limit=0)
+        hits = service.search_hybrid(entry["q"], top_k=TOP_K, include_pinned=True)
         hybrid.results.append(
             QueryResult(best_rank(hits, relevant), time.perf_counter() - t, entry["pinned_target"], entry["split"])
         )
@@ -245,14 +239,14 @@ def score_gold(service: EmbeddingService, gold: list[dict[str, Any]]) -> tuple[C
 def probe_pin_crowding(service: EmbeddingService, broad_queries: list[str]) -> dict[str, Any]:
     """Pin-crowding probe (ADR 0008 §3) over the broad-query fixture.
 
-    Runs each genuinely-broad query through `search_hybrid` at current
-    production defaults — top_k=10, include_pinned=True, and
-    `pinned_limit` left at its default so the live pin-float engages —
-    and counts pins in the top 10. This measures ABSOLUTE crowding
-    under today's policy; the ADR's tuning gate is a DELTA against the
-    LIFT=0 cell, and that comparison arrives with the v4 sweep, which
-    re-runs this probe per constant cell against the same embedded
-    store.
+    Runs each genuinely-broad query through `search_hybrid` at
+    production defaults — top_k=10, include_pinned=True, the service's
+    own ranking policy (ADR 0008's rank lift at the constructed lift
+    constant) — and counts pins in the top 10. This measures ABSOLUTE
+    crowding under the cell's policy; the ADR's tuning gate is a DELTA
+    against the LIFT=0 cell, and that comparison arrives with the v4
+    sweep, which re-runs this probe per constant cell against the same
+    embedded store.
     """
     per_query = []
     for q in broad_queries:

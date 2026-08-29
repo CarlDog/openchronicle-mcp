@@ -63,8 +63,7 @@ def register(mcp: FastMCP) -> None:
 
         Args:
             query: Keywords or a natural-language question.
-            top_k: Maximum number of results, TOTAL — floated pinned
-                items count against it (1-1000, default 8).
+            top_k: Maximum number of results (1-1000, default 8).
             project_id: Restrict to a specific project (optional, recommended).
             tags: Require ALL listed tags on each result (AND logic).
             offset: Skip the first N results for pagination.
@@ -77,34 +76,35 @@ def register(mcp: FastMCP) -> None:
             phrase: Match the whole query as one adjacent-token phrase
                 on the keyword channel ("does content literally contain
                 this") instead of the default any-token match.
-            pinned_limit: Cap on how many matching pinned items lead the
-                results (default 10, best-matching first), each
-                consuming a `top_k` slot. This bounds the FLOAT, not
-                visibility: 0 means "don't float them", and a pin that
-                doesn't win a slot still ranks normally.
+            pinned_limit: DEPRECATED AND INERT (ADR 0008, v4.0.0) —
+                accepted for wire compatibility, ignored. Pins now rank
+                via a bounded rank lift inside the ranking itself
+                instead of floating; removal no earlier than v5.0.0.
             include_pinned: Visibility switch — false excludes pinned
-                items from the results entirely (no float, no ranking;
-                scope goes strict). Distinct from `pinned_limit=0`,
-                which only stops the float. Use
-                `memory_list(pinned_only=true)` to enumerate every
-                standing rule.
+                items from the results entirely (no ranking; scope
+                goes strict). Use `memory_list(pinned_only=true)` to
+                enumerate every standing rule.
 
         Each result carries a `relevance` object: `channel` says what
-        surfaced it ("pinned" = a standing rule that matched and was
-        floated to the top, no scores);
+        surfaced it ("keyword", "semantic", or "hybrid" = both);
         `semantic_similarity` (unit cosine, 0-1) is the only roughly
         interpretable score — `rrf_score` is a rank-fusion value, NOT
         calibrated confidence; `keyword_rank` is the 1-based keyword
-        position.
+        position. Pinned standing rules rank with a bounded lift (ADR
+        0008, currently 0 positions) rather than leading the page
+        unconditionally; a row's `pinned` field says whether that
+        applied.
         """
         if not query or not query.strip():
             raise DomainValidationError("query must be non-empty")
         top_k = min(max(top_k, 1), 1000)
         offset = max(offset, 0)
-        pinned_limit = min(max(pinned_limit, 0), 1000)
         container = _get_container(ctx)
 
         def _run() -> list[dict[str, Any]]:
+            # `pinned_limit` is deliberately NOT passed through: the
+            # parameter is deprecated and inert (ADR 0008 §4) — it
+            # stays accepted on the wire until at least v5.0.0.
             results = search_memory.execute(
                 store=container.storage,
                 query=query,
@@ -115,7 +115,6 @@ def register(mcp: FastMCP) -> None:
                 embedding_service=container.embedding_service,
                 mode=mode,
                 phrase=phrase,
-                pinned_limit=pinned_limit,
                 include_pinned=include_pinned,
             )
             return [scored_memory_to_dict(s, compact=compact) for s in results]
@@ -259,11 +258,11 @@ def register(mcp: FastMCP) -> None:
     ) -> dict[str, str]:
         """Mark a memory as pinned (or unpin it).
 
-        A pinned memory that MATCHES a `memory_search` query is floated
-        above the ranked results (up to `pinned_limit`); it is not
-        injected into unrelated searches. Use for standing rules,
-        conventions, and project-wide invariants, and
-        `memory_list(pinned_only=true)` to enumerate them all. Use
+        A pinned memory gets a bounded rank lift in `memory_search`
+        (ADR 0008 — currently 0 positions, so pins rank purely on
+        relevance); it is never injected into unrelated searches. Use
+        for standing rules, conventions, and project-wide invariants,
+        and `memory_list(pinned_only=true)` to enumerate them all. Use
         `memory_update` for content/tag edits — pin state is separate.
 
         Args:

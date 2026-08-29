@@ -135,9 +135,10 @@ Every `memory_search` result (and `context_recent` result when a
 `query` is given) carries a `relevance` object explaining *why* it
 surfaced. Fields are omitted when not applicable:
 
-- `channel` (always present) — what produced the hit: `pinned` (a
-  standing rule that matched and was floated to the top, no scores),
-  `keyword`, `semantic`, or `hybrid` (both channels agreed).
+- `channel` (always present) — what produced the hit: `keyword`,
+  `semantic`, or `hybrid` (both channels agreed). (A fourth value,
+  `pinned`, existed while pins were floated by policy; it died with
+  the float in ADR 0008 and no longer occurs.)
 - `semantic_similarity` — unit-cosine similarity (0–1); the only
   roughly interpretable score.
 - `rrf_score` — the Reciprocal Rank Fusion value used for ordering.
@@ -154,31 +155,27 @@ error and a provider failure is a `PROVIDER_ERROR` — never a silent
 keyword fallback). `phrase=true` makes the keyword channel match the
 whole query as one adjacent-token phrase.
 
-The pinned **float** is query-aware and bounded. A pinned item leads the
-results only when it *matches* the query, and at most `pinned_limit` of
-them do (default 10, best-matching first, recency breaking ties).
+Pins are a **bounded ranking prior** (ADR 0008): a pinned row's rank
+inside each channel's honest ranking improves by
+`min(PIN_RANK_LIFT, top_k)` positions before fusion/cut — currently 0
+positions, so pins rank purely on relevance until the tuning sweep
+lands the final constant. There is no float: a pin the ranking did not
+place near the top cannot lead the page, and a page that is pin-heavy
+is relevance deciding, not policy. A result's per-channel signals
+(`keyword_rank`, `semantic_similarity`) stay raw under a lift > 0, so
+the order can disagree with them — the item's `pinned` field is what
+explains a pin-caused reorder.
 
-Two independent questions, deliberately kept separate — conflating them
-produced both of the bugs this replaced:
-
-| | float (policy) | rank (visibility) |
-|---|---|---|
-| `pinned_limit=10` (default) | up to 10 matching pins lead | the rest rank normally |
-| `pinned_limit=0` | none lead | **all pins still rank** |
+`pinned_limit` — the float's cap — is **deprecated and inert** on
+every wire surface (this tool, the REST query parameter, the CLI
+flag): accepted and range-validated for compatibility, ignored,
+removal no earlier than v5.0.0.
 
 Visibility is the `include_pinned` switch, on every surface since
 2026-08-28 (MCP `memory_search`, `GET /api/v1/memory/search`, and the
-CLI): `false` hides pins outright — no float, no ranking, strict
-project scope. Distinct from `pinned_limit=0`, which only stops the
-float. `top_k` is a total response budget: floated pins consume slots.
-
-History, so it isn't reintroduced: until 2026-08-17 the float was a
-blanket prepend of *every* pin regardless of the query (a `top_k=2`
-search answered with 85 pins). Capping that prepend then made pins past
-the cap unreachable by **any** query, because the ranking excluded all
-pinned rows. The float is now a real query and the exclusion covers only
-the pins actually floated. Enumerate every standing rule — matching or
-not — with `memory_list(pinned_only=true)`.
+CLI): `false` hides pins outright — no ranking at all, strict project
+scope. `top_k` bounds the whole response. Enumerate every standing
+rule — matching or not — with `memory_list(pinned_only=true)`.
 
 ## Cut from v2
 

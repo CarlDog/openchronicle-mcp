@@ -213,6 +213,8 @@ class TestMemorySearch:
         mock_search.assert_called_once()
 
     def test_mode_and_phrase_reach_the_use_case(self) -> None:
+        """mode/phrase pass through; `pinned_limit` is accepted on the
+        tool but NEVER forwarded (inert, ADR 0008 §4)."""
         container = _make_container()
         ctx = _make_context(container)
 
@@ -232,7 +234,7 @@ class TestMemorySearch:
 
         assert mock_search.call_args.kwargs["mode"] == "keyword"
         assert mock_search.call_args.kwargs["phrase"] is True
-        assert mock_search.call_args.kwargs["pinned_limit"] == 3
+        assert "pinned_limit" not in mock_search.call_args.kwargs, "deprecated param must stay inert"
 
 
 class TestMemorySave:

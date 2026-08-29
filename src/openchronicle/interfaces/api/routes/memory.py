@@ -44,7 +44,12 @@ def memory_search(
     compact: bool = False,
     mode: str = Query(default="hybrid", pattern="^(hybrid|keyword|semantic)$"),
     phrase: bool = False,
-    pinned_limit: int = Query(default=10, ge=0, le=1000),
+    # DEPRECATED AND INERT (ADR 0008, v4.0.0): pins rank via a bounded
+    # lift instead of floating, so this parameter changes nothing. It
+    # stays accepted — with its ge/le validation deliberately KEPT, so
+    # the wire contract does not silently loosen — and is marked
+    # deprecated in OpenAPI (ADR 0008 §4); removal no earlier than v5.0.0.
+    pinned_limit: int = Query(default=10, ge=0, le=1000, deprecated=True),
     include_pinned: bool = True,
 ) -> list[dict[str, Any]]:
     """Search memory items; each result carries a `relevance` block.
@@ -53,14 +58,15 @@ def memory_search(
     `compact` swaps content for a preview plus its length. `mode`
     selects the retrieval channel (hybrid/keyword/semantic); `phrase`
     makes the keyword channel match the whole query as one
-    adjacent-token phrase. `top_k` is a TOTAL response budget — floated
-    pins count against it. `pinned_limit` caps how many MATCHING pinned
-    items lead the results (best-matching first, each consuming a
-    `top_k` slot; 0 = don't float, which is not the same as hiding them
-    — a pin that doesn't float still ranks). `include_pinned=false`
-    hides pins entirely (no float, no ranking; scope goes strict).
-    Enumerate all pins via `GET /memory?pinned_only=true`.
+    adjacent-token phrase. `top_k` bounds the whole response. Pinned
+    standing rules rank with a bounded lift (ADR 0008, currently 0
+    positions) rather than leading the page; `pinned_limit` is
+    deprecated and inert (accepted, validated, ignored — removal no
+    earlier than v5.0.0). `include_pinned=false` hides pins entirely
+    (no ranking; scope goes strict). Enumerate all pins via
+    `GET /memory?pinned_only=true`.
     """
+    _ = pinned_limit  # inert by design (ADR 0008 §4)
     tag_list = parse_csv_tags(tags)
     results = search_memory.execute(
         store=container.storage,
@@ -72,7 +78,6 @@ def memory_search(
         embedding_service=container.embedding_service,
         mode=mode,
         phrase=phrase,
-        pinned_limit=pinned_limit,
         include_pinned=include_pinned,
     )
     return [scored_memory_to_dict(s, compact=compact) for s in results]

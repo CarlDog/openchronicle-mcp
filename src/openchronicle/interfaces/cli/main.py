@@ -131,7 +131,10 @@ def main(argv: list[str] | None = None) -> int:
         "--pinned-limit",
         type=int,
         default=10,
-        help="Cap how many matching pins float to the top (0 = don't float; they still rank; default 10)",
+        help=(
+            "DEPRECATED, ignored (ADR 0008): pins rank via a bounded lift instead of "
+            "floating. Flag kept for compatibility; removal no earlier than v5.0.0"
+        ),
     )
 
     memory_update_cmd = memory_sub.add_parser("update", help="Update a memory item")

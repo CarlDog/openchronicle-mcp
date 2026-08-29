@@ -984,7 +984,12 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   (pinned-target split derived at load time, stratified 60/40
   tune/validate split, embed-once re-scoring scaffold, broad-query
   pin-crowding probe, gold set 40 → 50 queries / 20 pinned-target) —
-  landed on `main` (assessment rev 157).
+  landed on `main` (assessment rev 157). Rollout step 3 — the lift
+  itself, with `PIN_RANK_LIFT = 0` and the float removed in every
+  mode (`search_pinned`, `channel="pinned"`, and the internal
+  `pinned_limit` plumbing all gone; the wire parameter stays
+  accepted-but-inert) — landed on `v4/develop` (assessment rev 159).
+  Next: step 4, the §3 tuning sweep, then the v4.0.0 tag per §5.
 
 - **The openai adapter always sends `dimensions`; strict
   OpenAI-compat hosts reject the request outright.** Live-confirmed

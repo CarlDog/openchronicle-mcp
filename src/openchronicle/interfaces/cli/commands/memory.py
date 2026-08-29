@@ -123,6 +123,8 @@ def cmd_memory_pin(args: argparse.Namespace, container: CoreContainer) -> int:
 
 def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int:
     tag_list = parse_csv_tags(args.tags)
+    # args.pinned_limit is deliberately unread — deprecated and inert per ADR 0008 §4;
+    # the flag stays accepted until at least v5.0.0.
     try:
         scored = search_memory.execute(
             store=container.storage,
@@ -135,7 +137,6 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
             embedding_service=container.embedding_service,
             mode=args.mode,
             phrase=args.phrase,
-            pinned_limit=args.pinned_limit,
         )
     except DomainValidationError as exc:
         # e.g. --mode semantic on a keyword-only deployment.

@@ -109,30 +109,14 @@ class TestFTS5MemorySearch:
         _add_memory(store, content="Python is great")
         assert store.search_memory("Haskell", include_pinned=False) == []
 
-    def test_search_pinned_returns_only_matching_pins(self, tmp_path: Any) -> None:
-        """`search_pinned` is the float query: which pins match this?
-
-        Was `test_pinned_always_included` until 2026-08-23, when the
-        float stopped being unconditional. The old blanket prepend is
-        exactly why a `top_k=2` search could answer with 85 pins.
-        """
-        store = _store(tmp_path)
-        _add_memory(store, content="Standing rule: pin Python versions", pinned=True)
-        _add_memory(store, content="Standing rule: use black", pinned=True)
-        _add_memory(store, content="Python is great", pinned=False)
-
-        matches = store.search_pinned("Python")
-
-        assert [m.content for m in matches] == ["Standing rule: pin Python versions"]
-        assert store.search_pinned("Haskell") == []
-
     def test_pinned_rows_rank_like_any_other_row(self, tmp_path: Any) -> None:
-        """include_pinned is VISIBILITY, not float.
+        """include_pinned is VISIBILITY, not ranking policy.
 
-        A pin the caller did not float still competes on relevance — that
-        is what keeps pins past the float cap reachable. Until
-        2026-08-23 the ranked query hardcoded `pinned = 0`, so a pin was
-        only ever visible via the prepend.
+        A visible pin competes on relevance in the one ranked query —
+        ADR 0008's rank lift is applied by the caller over these honest
+        ranks. (Until 2026-08-23 the ranked query hardcoded
+        `pinned = 0`, so a pin was only ever visible via the float-era
+        prepend.)
         """
         store = _store(tmp_path)
         _add_memory(store, content="Python rule one", pinned=True)
@@ -140,20 +124,6 @@ class TestFTS5MemorySearch:
 
         assert len(store.search_memory("Python", include_pinned=True)) == 2
         assert [r.pinned for r in store.search_memory("Python", include_pinned=False)] == [False]
-
-    def test_exclude_ids_drops_floated_rows_without_shrinking_the_page(self, tmp_path: Any) -> None:
-        """The caller floats pins and passes their ids here so they cannot
-        also consume a ranking slot. The over-fetch keeps the page full.
-        """
-        store = _store(tmp_path)
-        pin_id = _add_memory(store, content="Python rule one", pinned=True)
-        _add_memory(store, content="Python is great")
-        _add_memory(store, content="Python is also fine")
-
-        results = store.search_memory("Python", top_k=2, exclude_ids={pin_id})
-
-        assert len(results) == 2, "over-fetch compensates for the exclusion"
-        assert pin_id not in {r.id for r in results}
 
     def test_scope_filter_project(self, tmp_path: Any) -> None:
         store = _store(tmp_path)

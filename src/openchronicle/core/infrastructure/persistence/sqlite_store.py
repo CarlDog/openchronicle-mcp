@@ -23,7 +23,7 @@ from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJE
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
-from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
+from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.time_utils import utc_now
 from openchronicle.core.infrastructure.persistence import migrator
@@ -35,28 +35,28 @@ from openchronicle.core.infrastructure.persistence.row_mappers import (
 
 _LIKE_ESCAPE = "\\"
 
-# How a search query treats pinned rows. Search asks two independent
-# questions about a pin — may it FLOAT (policy: standing rules lead) and
-# may it RANK (visibility: does it compete on relevance) — and these
-# three modes are every combination that means anything:
+# How a search query treats pinned rows — the caller's include_pinned
+# VISIBILITY switch, verbatim:
 #
-#   "exclude" — neither. The caller passed include_pinned=False.
-#               Scope is strict, matching list_memory.
-#   "include" — rank but do not float. Pins compete on their merits.
+#   "exclude" — the caller passed include_pinned=False. Pins are not
+#               candidates at all, and scope is strict, matching
+#               list_memory.
+#   "include" — pins compete on their merits like any other row.
 #               Scope is with-global for pinned rows only: a standing
 #               rule belonging to no project still applies inside one.
-#   "only"    — the float query itself: which pins match this query.
-#               Scope is with-global, same reason.
-_PinnedMode = Literal["exclude", "include", "only"]
+#
+# (A third "only" mode — the pin-float query — died with the float:
+# ADR 0008 replaced float-then-exclude with a bounded rank lift the
+# CALLER applies over this ranking. Ranking here stays pin-neutral.)
+_PinnedMode = Literal["exclude", "include"]
 
 
 def _pinned_clauses(mode: _PinnedMode, project_id: str | None, alias: str = "") -> tuple[str, str, list[Any]]:
     """Return (pinned_clause, scope_clause, params) for a search query.
 
-    Centralized because these two clauses have to agree across four
-    call sites (FTS5 + the fallback's two branches + the float query);
-    when they were inlined, the scope rule and the pinned rule drifted
-    apart and pins became unreachable.
+    Centralized because these two clauses have to agree across the
+    FTS5 and fallback branches; when they were inlined, the scope rule
+    and the pinned rule drifted apart and pins became unreachable.
     """
     p = f"{alias}." if alias else ""
     params: list[Any] = []
@@ -68,15 +68,11 @@ def _pinned_clauses(mode: _PinnedMode, project_id: str | None, alias: str = "") 
             params.append(project_id)
         return pinned_clause, scope_clause, params
 
-    pinned_clause = f"AND {p}pinned = 1" if mode == "only" else ""
     scope_clause = ""
     if project_id is not None:
-        if mode == "only":
-            scope_clause = f"AND ({p}project_id = ? OR {p}project_id IS NULL)"
-        else:
-            scope_clause = f"AND ({p}project_id = ? OR ({p}pinned = 1 AND {p}project_id IS NULL))"
+        scope_clause = f"AND ({p}project_id = ? OR ({p}pinned = 1 AND {p}project_id IS NULL))"
         params.append(project_id)
-    return pinned_clause, scope_clause, params
+    return "", scope_clause, params
 
 
 def _exclude_tags_clause(exclude_tags: list[str] | None, alias: str = "") -> tuple[str, list[Any]]:
@@ -860,26 +856,6 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return self._fallback_search_memory(query, limit, project_id, tags=tags, phrase=phrase, pinned_mode=pinned_mode)
 
     @_locked
-    def search_pinned(
-        self,
-        query: str,
-        *,
-        limit: int = DEFAULT_PINNED_LIMIT,
-        project_id: str | None = None,
-        tags: list[str] | None = None,
-        phrase: bool = False,
-    ) -> list[MemoryItem]:
-        """Pinned items that MATCH the query — the float set.
-
-        Distinct from ``pinned_items``, which enumerates every pin
-        regardless of the query. Scope is with-global (see
-        ``_pinned_clauses``).
-        """
-        if limit <= 0:
-            return []
-        return self._ranked_search(query, limit, project_id, tags, phrase, "only")[:limit]
-
-    @_locked
     def eligible_memory_ids(
         self,
         *,
@@ -914,19 +890,15 @@ class SqliteStore(StoragePort, MemoryStorePort):
         tags: list[str] | None = None,
         offset: int = 0,
         phrase: bool = False,
-        exclude_ids: set[str] | None = None,
     ) -> list[MemoryItem]:
-        # Pure ranking. The pinned FLOAT is application policy and lives
-        # in the caller (see search_memory use case / EmbeddingService),
-        # which passes the floated ids as exclude_ids so a floated pin
-        # cannot also consume a slot in the ranking.
+        # Pure ranking, pin-neutral. Pin RANKING policy — ADR 0008's
+        # bounded rank lift — is application policy and lives in the
+        # caller (see the search_memory use case / EmbeddingService),
+        # applied over the honest ranks returned here.
         effective_top_k = top_k + offset
-        # Over-fetch by the exclusion size so removing floated rows
-        # cannot shrink the page below top_k.
-        fetch = effective_top_k + len(exclude_ids or ())
-        ranked = self._ranked_search(query, fetch, project_id, tags, phrase, "include" if include_pinned else "exclude")
-        if exclude_ids:
-            ranked = [i for i in ranked if i.id not in exclude_ids]
+        ranked = self._ranked_search(
+            query, effective_top_k, project_id, tags, phrase, "include" if include_pinned else "exclude"
+        )
         return ranked[offset : offset + top_k]
 
     # ── helpers ─────────────────────────────────────────────────────

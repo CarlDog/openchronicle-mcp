@@ -31,7 +31,7 @@ oc memory add "Decision: use SQLite for storage" \
 
 ### `oc memory list`
 
-Browse memory items newest-first, with pinned items floated to the top.
+Browse memory items newest-first, with pinned items listed first.
 `--limit`, `--offset`, `--pinned-only`, and `--project-id` for filtering.
 
 `--project-id` is strict: it excludes global (project-less) items. Note
@@ -61,13 +61,15 @@ Search-surface v2 (Q20/Q21):
   requires one and fails loudly (exit 1) instead of silently degrading.
 - `--phrase` matches the whole query as one adjacent-token phrase on
   the keyword channel ("does content literally contain this").
-- `--pinned-limit N` caps how many *matching* pins float above the
-  ranked results (best-matching first; default 10). `0` means "don't
-  float" — the pins still rank; `--no-include-pinned` is what hides
-  them. Use `oc memory list --pinned-only` to enumerate every pin.
+- Pins are a bounded ranking prior (ADR 0008): a pinned row's rank
+  improves by `min(PIN_RANK_LIFT, top_k)` positions inside the ranking
+  — currently 0, so pins rank purely on relevance. `--pinned-limit N`
+  (the retired float's cap) is deprecated and inert: still accepted,
+  ignored, removal no earlier than v5.0.0. `--no-include-pinned` hides
+  pins; `oc memory list --pinned-only` enumerates every pin.
 - Each result line carries a bracketed relevance column — the channel
-  that surfaced it (`pinned` / `keyword` / `semantic` / `hybrid`) plus
-  `sim=` cosine similarity when the semantic channel contributed.
+  that surfaced it (`keyword` / `semantic` / `hybrid`) plus `sim=`
+  cosine similarity when the semantic channel contributed.
 
 ### `oc memory update MEMORY_ID`
 

@@ -20,7 +20,18 @@ from tests.helpers.repo_scan import scan_repository  # isort:skip
 # Allowlist for patterns we explicitly accept.
 # Maps relative file path (as string) to list of allowed strings/patterns.
 # EMPTY BY DEFAULT - add only if truly necessary.
-ALLOWLIST: dict[str, list[str]] = {}
+#
+# ADR 0008 §4 is the one sanctioned exception: `pinned_limit` is a
+# REAL, ratified deprecation on a STABILITY-bound wire surface —
+# accepted-but-inert through v4.x, removal no earlier than v5.0.0.
+# That is a hard contract, not a soft-deprecation breadcrumb. Only
+# marker lines that cite the ADR pass; any other deprecation language
+# in these files still fails.
+ALLOWLIST: dict[str, list[str]] = {
+    "src/openchronicle/interfaces/api/routes/memory.py": [r"ADR 0008"],
+    "src/openchronicle/interfaces/cli/commands/memory.py": [r"ADR 0008"],
+    "src/openchronicle/interfaces/mcp/tools/memory.py": [r"ADR 0008"],
+}
 
 
 # Soft deprecation markers - expanded to catch more patterns

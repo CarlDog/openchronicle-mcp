@@ -20,6 +20,30 @@ from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.main import main
 
 
+@pytest.fixture(autouse=True)
+def _scrub_git_hook_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neutralize the git-hook environment for this module.
+
+    When the suite runs under the repo's pre-commit hook, git exports
+    repo-pinning variables (GIT_DIR, GIT_INDEX_FILE, ...) that override
+    ``git -C <path>`` discovery in every child process — observed from
+    a linked worktree's hook run as ``fatal: this operation must be
+    run in a work tree`` inside ``_make_git_repo``. The temp-repo
+    helpers here (and the CLI's own local-path git calls, which
+    inherit ``os.environ``) must operate on THEIR repo, never the one
+    being committed.
+    """
+    for name in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_COMMON_DIR",
+        "GIT_PREFIX",
+        "GIT_OBJECT_DIRECTORY",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.fixture()
 def container(tmp_path: Path) -> Iterator[CoreContainer]:
     db_path = tmp_path / "smoke.db"

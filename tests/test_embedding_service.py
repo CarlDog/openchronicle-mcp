@@ -389,10 +389,11 @@ def test_search_hybrid_excludes_same_dims_stale_model_rows() -> None:
 
 
 def test_search_hybrid_honors_include_pinned_false() -> None:
-    """Regression (2026-08-15 review, verified live): with
-    include_pinned=False the exclusion set was empty, so pinned items
-    re-entered via the semantic channel and ranked first. The store-only
-    path honored the flag; the hybrid path didn't.
+    """Regression (2026-08-15 review, verified live): pinned items once
+    re-entered via the semantic channel and ranked first when hidden.
+    Post-ADR-0008 the guards are the store query's pinned predicate and
+    the RRF loop's visibility gate — the semantic channel has no
+    include_pinned predicate of its own.
     """
     service, store, _ = _make_service()
     _add_memory(store, "m1", "standing rule about deployments", pinned=True)
@@ -419,8 +420,9 @@ def test_search_hybrid_pinned_appears_once_when_included() -> None:
 
 def test_search_hybrid_tag_filtered_pinned_does_not_reenter() -> None:
     """A pinned item failing the tag filter must not sneak back in via
-    the semantic channel — the exclusion set covers ALL pinned rows, not
-    just the ones that survived the prepend's tag filter.
+    the semantic channel — the store query's tag predicate, the
+    semantic eligibility filter, and the RRF loop's tag invariant all
+    have to agree (the float-era exclusion set is gone, ADR 0008).
     """
     service, store, _ = _make_service()
     _add_memory(store, "m1", "gamma content", pinned=True, tags=["other"])

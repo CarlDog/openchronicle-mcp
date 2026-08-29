@@ -63,8 +63,9 @@ def test_search_falls_back_to_fts5_when_provider_raises(tmp_path: Path) -> None:
     # FTS5 alone still finds the matching items.
     assert len(results) >= 1
     assert all("alpha" in r.item.content for r in results)
-    # Degraded results are honest about their channel: keyword-only.
-    assert all(r.channel in ("keyword", "pinned") for r in results)
+    # Degraded results are honest about their channel: keyword-only
+    # (the "pinned" channel value died with the float, ADR 0008).
+    assert all(r.channel == "keyword" for r in results)
     # Counter is bumped, status is degraded.
     assert service.search_failure_count == 1
     assert service.last_failure_at is not None

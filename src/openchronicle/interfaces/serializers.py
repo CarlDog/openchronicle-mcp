@@ -82,9 +82,10 @@ def memory_to_dict(m: MemoryItem, *, compact: bool = False) -> dict[str, Any]:
 def scored_memory_to_dict(scored: ScoredMemory, *, compact: bool = False) -> dict[str, Any]:
     """Memory dict plus a ``relevance`` block (Q20).
 
-    ``channel`` is always present; score fields appear only when the
-    producing channel supplied them (None fields are omitted, never
-    serialized as null).
+    ``channel`` is always present — ``keyword``, ``semantic``, or
+    ``hybrid`` (the ``pinned`` value died with the pin-float, ADR
+    0008); score fields appear only when the producing channel supplied
+    them (None fields are omitted, never serialized as null).
     """
     data = memory_to_dict(scored.item, compact=compact)
     relevance: dict[str, Any] = {"channel": scored.channel}

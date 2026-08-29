@@ -5,6 +5,56 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## Unreleased — v4.0.0 line (`v4/develop`)
+
+The breaking ADR 0008 work. Lives on `v4/develop` only; ships as
+v4.0.0. The v3.x entries below it ship from `main` independently.
+
+- **BREAKING (MAJOR, ADR 0008): pins stop leading search results.**
+  The pin-float — a separate keyword-matched pinned query whose
+  results led every `memory_search` page, capped by `pinned_limit` —
+  is removed in ALL modes (hybrid, semantic, keyword-only, and the
+  degraded-hybrid fallback). In its place, pins are a bounded ranking
+  prior: a pinned row's rank inside each channel's honest ranking
+  improves by `min(PIN_RANK_LIFT, top_k)` positions before fusion/cut.
+  `PIN_RANK_LIFT` ships at `0` (rollout step 3) — at defaults, pins
+  now rank purely on relevance; the step-4 tuning sweep lands the
+  final constant. On a pin-heavy corpus a broad query previously
+  returned pages of nothing but pins; that can no longer happen by
+  policy — only by honest relevance.
+- **BREAKING: the `relevance.channel` value `"pinned"` no longer
+  occurs** on any surface (MCP, REST, CLI). Pins surface through
+  `keyword`/`semantic`/`hybrid` with real scores and ranks; the item's
+  `pinned` field is what explains a lift-caused reorder. The
+  per-channel signals (`keyword_rank`, `semantic_similarity`) stay
+  raw.
+- **BREAKING: `pinned_limit` is accepted but inert** on the MCP tool,
+  the REST query parameter (now marked `deprecated=True` in OpenAPI,
+  with its `ge`/`le` validation deliberately kept), and the CLI
+  `--pinned-limit` flag. Removal no earlier than v5.0.0. Internal
+  signatures (`EmbeddingService.search_*`, `search_memory.execute`)
+  drop the parameter outright.
+- **Deterministic ordering.** Single-channel order is the total tuple
+  `(effective rank, original rank, memory id)`; the fused hybrid
+  stream orders by `(RRF score desc, memory id asc)`. Fused-score
+  ties — previously decided by hash-dependent set-iteration order —
+  are now stable across processes and restarts. This is the one
+  at-defaults ordering change beyond the float removal itself.
+- **Candidate fetch extends by the lift's reach** (ADR 0008 §2):
+  hybrid/semantic channels fetch `2·(top_k+offset) + effective_lift`
+  (was `2·(top_k+offset)`); keyword-only mode fetches
+  `(top_k+offset) + effective_lift` (had no over-fetch window). At
+  `LIFT=0` the extension adds zero rows.
+- **Port surface shrinks:** `MemoryStorePort.search_pinned` (and the
+  SQLite implementation), `DEFAULT_PINNED_LIMIT`, and
+  `search_memory`'s `exclude_ids` parameter are gone — the ordinary
+  ranked query with `include_pinned=True` is the one primitive.
+  `include_pinned` keeps its exact visibility meaning everywhere.
+- **Benchmark realism:** `scripts/benchmark_embeddings.py` drops its
+  `pinned_limit=0` measurement special case — production configuration
+  IS the measurement configuration; the v4 sweep injects lift cells
+  via the new `EmbeddingService(pin_rank_lift=…)` parameter.
+
 ## Unreleased
 
 Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to

@@ -258,8 +258,16 @@ stratified 60/40 tune/validate subset reporting, embed-once with
 re-runnable scoring passes for the v4 sweep, a broad-query
 pin-crowding probe (absolute reading now; the delta-vs-LIFT=0 gate
 arrives with the sweep), and the gold set expanded 40 → 50 queries
-(20 pinned-target, meeting the ADR's ≥20). Steps 3-5 — the lift
-itself — proceed on `v4/develop`.
+(20 pinned-target, meeting the ADR's ≥20). **Step 3 landed on
+`v4/develop`** (rev 159, the first v4-only revision — BREAKING): the
+bounded rank lift with `PIN_RANK_LIFT = 0` replaces the pin-float in
+every mode; `channel="pinned"`, `MemoryStorePort.search_pinned`, and
+the internal `pinned_limit` plumbing are gone, while the wire
+parameter stays accepted-but-inert (REST marks it deprecated in
+OpenAPI) until at least v5.0.0. At the 0 default the ranked stream
+matches the old `pinned_limit=0` behavior except that fused-score
+ties now break deterministically by memory id. Steps 4-5 — the
+tuning sweep and the v4.0.0 tag — remain.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

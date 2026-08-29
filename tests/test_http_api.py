@@ -106,7 +106,6 @@ def _make_mock_container() -> MagicMock:
     # Storage mock — default return values for list operations
     container.storage = MagicMock()
     container.storage.search_memory.return_value = []
-    container.storage.search_pinned.return_value = []
     container.storage.list_memory.return_value = []
     container.storage.list_projects.return_value = []
 
@@ -444,43 +443,56 @@ class TestMemoryRoutes:
 
     def test_memory_search_include_pinned_false_reaches_the_store(self, client: TestClient) -> None:
         """REST exposes the visibility switch (decided 2026-08-28); false
-        must arrive at the store as include_pinned=False and suppress the
-        pinned float query entirely."""
+        must arrive at the store as include_pinned=False."""
         storage = _get_container(client).storage
         storage.search_memory.return_value = []
 
         resp = client.get("/api/v1/memory/search", params={"query": "test", "include_pinned": "false"})
         assert resp.status_code == 200
-        storage.search_pinned.assert_not_called()
         assert storage.search_memory.call_args.kwargs["include_pinned"] is False
 
     def test_memory_search_rejects_negative_pinned_limit(self, client: TestClient) -> None:
+        """The inert `pinned_limit` KEEPS its ge/le validation (ADR
+        0008 §4 — dropping it would be wire-observable validation
+        loosening on a bound surface)."""
         resp = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "-1"})
         assert resp.status_code == 422
 
-    def test_memory_search_pinned_limit_bounds_the_float_query(self, client: TestClient) -> None:
-        """`pinned_limit` caps the float, which is its own store query."""
+    def test_memory_search_pinned_limit_is_accepted_and_inert(self, client: TestClient) -> None:
+        """ADR 0008 §4: `pinned_limit` parses but changes nothing —
+        the store sees identical calls whatever its value, and the
+        response is identical too."""
         storage = _get_container(client).storage
+        storage.search_memory.return_value = [_make_memory()]
 
-        resp = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "2"})
-        assert resp.status_code == 200
-        assert storage.search_pinned.call_args.kwargs["limit"] == 2
+        resp_low = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "2"})
+        kwargs_low = storage.search_memory.call_args.kwargs
+        resp_high = client.get("/api/v1/memory/search", params={"query": "test", "pinned_limit": "900"})
+        kwargs_high = storage.search_memory.call_args.kwargs
 
-    def test_memory_search_floats_by_id_not_by_position(self, client: TestClient) -> None:
-        """Floated pins are identified by the float query, never guessed
-        from position — so a PINNED row that reached the ranking on its
-        own merits is labelled by its rank, not as a float.
+        assert resp_low.status_code == resp_high.status_code == 200
+        assert kwargs_low == kwargs_high
+        assert resp_low.json() == resp_high.json()
+
+    def test_memory_search_openapi_marks_pinned_limit_deprecated(self, client: TestClient) -> None:
+        """STABILITY step 2: the OpenAPI spec itself carries the ADR
+        0008 deprecation marker, with the ge/le bounds still
+        declared."""
+        spec = client.get("/openapi.json").json()
+        search_path = next(p for p in spec["paths"] if p.endswith("/memory/search"))
+        params = spec["paths"][search_path]["get"]["parameters"]
+        entry = next(p for p in params if p["name"] == "pinned_limit")
+        assert entry.get("deprecated") is True
+        schema = entry["schema"]
+        assert schema.get("minimum") == 0
+        assert schema.get("maximum") == 1000
+
+    def test_memory_search_pins_surface_with_ranked_channels(self, client: TestClient) -> None:
+        """ADR 0008: no float — a pinned row that ranks is labelled by
+        its rank like any other row, and the "pinned" channel value
+        never occurs.
         """
         storage = _get_container(client).storage
-        floated = MemoryItem(
-            id="pin-1",
-            content="rule",
-            tags=[],
-            pinned=True,
-            project_id="proj-1",
-            source="api",
-            created_at=_FIXED_DT,
-        )
         ranked_pin = MemoryItem(
             id="pin-2",
             content="another rule",
@@ -490,15 +502,13 @@ class TestMemoryRoutes:
             source="api",
             created_at=_FIXED_DT,
         )
-        storage.search_pinned.return_value = [floated]
         storage.search_memory.return_value = [ranked_pin, _make_memory()]
 
         resp = client.get("/api/v1/memory/search", params={"query": "test"})
         assert resp.status_code == 200
         data = resp.json()
-        assert [r["id"] for r in data] == ["pin-1", "pin-2", "mem-1"]
-        assert [r["relevance"]["channel"] for r in data] == ["pinned", "keyword", "keyword"]
-        assert storage.search_memory.call_args.kwargs["exclude_ids"] == {"pin-1"}
+        assert [r["id"] for r in data] == ["pin-2", "mem-1"]
+        assert [r["relevance"]["channel"] for r in data] == ["keyword", "keyword"]
 
     def test_memory_search_phrase_reaches_the_store(self, client: TestClient) -> None:
         storage = _get_container(client).storage

@@ -11,13 +11,72 @@ from openchronicle.core.domain.exceptions import ProviderError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
-from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
+from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
 
 # RRF constant — standard value from the original RRF paper
 _RRF_K = 60
+
+# ── Pin ranking prior (ADR 0008) ────────────────────────────────────
+# Pins influence search as a bounded RANK lift, not a float: wherever a
+# pinned row appears in a channel's ranked candidate list, its rank
+# improves by `effective_lift = min(PIN_RANK_LIFT, top_k)` positions
+# before fusion/cut. The old float (a separate keyword-matched pinned
+# query leading the page) could consume the entire response on a
+# pin-heavy corpus; the lift is relevance-gated and bounded instead.
+#
+# Deliberately code-only — no env var, no `core.json` key: retuning is
+# a code change by design (ADR 0008 §3). 0 = lift disabled, the
+# rollout-step-3 default until the §3 tuning sweep lands a winning
+# constant (rollout step 4). The benchmark sweep injects other values
+# via the `EmbeddingService` constructor; the keyword-only search path
+# — which runs precisely when no `EmbeddingService` exists — reads
+# this module constant directly.
+PIN_RANK_LIFT = 0
+
+
+def effective_pin_lift(top_k: int, pin_rank_lift: int) -> int:
+    """The per-request lift strength: ``min(pin_rank_lift, top_k)``.
+
+    Clamped on ``top_k``, never on ``top_k + offset`` — the lift must
+    be offset-invariant so one paginated logical query applies one lift
+    (ADR 0008 § Definitions; the rev-3 clamp grew with page depth and
+    broke pagination). A small ``top_k`` shrinks the lift; nothing
+    errors.
+    """
+    return max(0, min(pin_rank_lift, top_k))
+
+
+def lift_single_channel(
+    ranked: list[tuple[int, MemoryItem]],
+    effective_lift: int,
+) -> list[tuple[int, MemoryItem]]:
+    """Order one channel's ranked candidates under the pin lift.
+
+    ``ranked`` is ``(original rank, item)`` pairs — ranks are raw
+    1-based positions in the channel's fetched ranking. They may carry
+    gaps when a caller filtered rows AFTER ranking; the gaps are the
+    honest ranks and must not be re-linearized (see the RRF-merge
+    comment in ``search_hybrid`` — same rule, same reason).
+
+    Returns the pairs in ADR 0008 §1's single-channel total order
+    ``(effective rank, original rank, memory id)``: a lifted pin TIES
+    with the row already holding its target rank and sorts after it
+    (original rank breaks the tie), so it passes only the rows
+    between; pile-ups at the rank-1 floor order by original rank.
+    ``effective_lift=0`` is the identity ordering.
+    """
+    return sorted(
+        ranked,
+        key=lambda entry: (
+            max(1, entry[0] - effective_lift) if entry[1].pinned else entry[0],
+            entry[0],
+            entry[1].id,
+        ),
+    )
+
 
 # Backfill chunk size (ADR 0005 Phase D / 0003 Finding 3). One
 # provider round-trip per chunk instead of per memory — the reliable
@@ -49,9 +108,21 @@ class BackfillResult:
 class EmbeddingService:
     """Coordinates embedding generation and hybrid (FTS5 + semantic) search."""
 
-    def __init__(self, port: EmbeddingPort, store: MemoryStorePort) -> None:
+    def __init__(
+        self,
+        port: EmbeddingPort,
+        store: MemoryStorePort,
+        *,
+        pin_rank_lift: int | None = None,
+    ) -> None:
         self._port = port
         self._store = store
+        # ADR 0008: injectable so the benchmark sweep can score many
+        # lift cells against one embedded store; production wiring
+        # passes nothing and gets the named module default. Resolved at
+        # construction time (not def time) so tests can monkeypatch the
+        # module constant.
+        self._pin_rank_lift = PIN_RANK_LIFT if pin_rank_lift is None else pin_rank_lift
         # Degraded-provider bookkeeping. Two counters on purpose:
         # `_search_failure_count` keeps its original search-only meaning
         # (and its health-payload keys), while `_failure_count` covers
@@ -346,86 +417,60 @@ class EmbeddingService:
         tags: list[str] | None = None,
         offset: int = 0,
         phrase: bool = False,
-        pinned_limit: int = DEFAULT_PINNED_LIMIT,
     ) -> list[ScoredMemory]:
         """Hybrid search: FTS5 keyword + embedding similarity via RRF.
 
         1. Run keyword search (FTS5) for ranked list A
         2. Embed query → cosine similarity → ranked list B
         3. Combine via Reciprocal Rank Fusion
-        4. Return top_k results as ScoredMemory (Q20: the fused score,
-           per-channel signals, and the producing channel travel with
-           each hit instead of being discarded after ordering)
+        4. Return the requested page as ScoredMemory (Q20: the fused
+           score, per-channel signals, and the producing channel travel
+           with each hit instead of being discarded after ordering)
+
+        Pins are a bounded ranking prior (ADR 0008): a pinned row's
+        rank in each channel improves by ``effective_lift`` positions
+        before fusion — no float, no separate pinned query. RRF
+        consumes the collided effective ranks as numbers, and the fused
+        stream's total order is (fused score descending, memory id
+        ascending) — a deterministic tie-break where set-iteration
+        order used to decide.
 
         ``phrase`` applies to the keyword channel only — the query
         embedding already encodes the full phrase on the semantic side.
         """
         effective_top_k = top_k + offset
-
-        # ── Pinned items ────────────────────────────────────────────────
-        # The FLOAT set is pins that MATCH the query, capped — not a
-        # blanket prepend of every pin. The EXCLUSION set is exactly the
-        # floated pins, so an unfloated pin still ranks on its merits
-        # through either channel. These two facts are coupled: widening
-        # the exclusion back to ALL pins (as it was until 2026-08-23)
-        # makes every unfloated pin unreachable by any query, and
-        # floating without excluding duplicates it.
-        pinned_items: list[MemoryItem] = []
-        if include_pinned and pinned_limit > 0:
-            pinned_items = self._store.search_pinned(
-                query,
-                limit=pinned_limit,
-                project_id=project_id,
-                tags=tags,
-                phrase=phrase,
-            )
-
-        # Pinned items have separate budget — don't reduce search/RRF limit
-        # (prevents pinned items from crowding out query-relevant results)
-
-        pinned_ids = {i.id for i in pinned_items}
-
-        def _page(ranked: list[ScoredMemory]) -> list[ScoredMemory]:
-            # The pinned-float pagination rule, in one place for both the
-            # hybrid and degraded return paths: floated pins surface as
-            # channel="pinned" (policy, not relevance — no scores) and
-            # lead ONE combined stream that `top_k` bounds and `offset`
-            # paginates. top_k is a TOTAL response budget (decided
-            # 2026-08-28): a floated pin consumes a slot, so a caller
-            # asking for 8 gets at most 8 — the pre-decision shape
-            # returned top_k ranked hits PLUS up to pinned_limit pins,
-            # and the documented "maximum number of results" was false.
-            combined = [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + ranked
-            return combined[offset : offset + top_k]
+        effective_lift = effective_pin_lift(top_k, self._pin_rank_lift)
+        # ADR 0008 §2: the candidate fetch extends by the lift's reach
+        # so every rank the lift operates on is an honest rank from the
+        # fetch itself. At lift 0 this is exactly the old 2× over-fetch.
+        fetch = 2 * effective_top_k + effective_lift
 
         # ── Keyword search (list A) ─────────────────────────────────────
-        # include_pinned mirrors the CALLER's intent (are pins visible at
-        # all); exclude_ids drops the ones already floated above. Passing
-        # include_pinned=False unconditionally here — as this did until
-        # 2026-08-23 — is what kept every unfloated pin invisible to the
-        # keyword channel.
+        # include_pinned mirrors the CALLER's intent (are pins visible
+        # at all); a visible pin competes in this ranking like any
+        # other row.
         keyword_results = self._store.search_memory(
             query,
-            top_k=effective_top_k * 2,  # over-fetch for RRF merge
+            top_k=fetch,
             project_id=project_id,
             include_pinned=include_pinned,
             tags=tags,
             phrase=phrase,
-            exclude_ids=pinned_ids,
         )
 
         # ── Semantic search (list B) ─────────────────────────────────────
         # Embedding-failure degradation: if the provider raises, log it,
-        # mark the service degraded, and return FTS5-only results. The
-        # caller never sees the exception; /api/v1/health surfaces the
-        # degraded state via the failure counters on the service.
+        # mark the service degraded, and return FTS5-only results — with
+        # the SAME lift and single-channel ordering as keyword mode (ADR
+        # 0008 mode parity). The caller never sees the exception;
+        # /api/v1/health surfaces the degraded state via the failure
+        # counters on the service.
         try:
             semantic_ranked = self._semantic_search(
                 query,
                 project_id=project_id,
                 tags=tags,
-                exclude_ids=pinned_ids,
-                limit=effective_top_k * 2,
+                limit=fetch,
             )
             # Successful call clears any prior degraded marker.
             if self._search_failure_count:
@@ -444,9 +489,19 @@ class EmbeddingService:
                 self._search_failure_count,
                 exc,
             )
-            return _page(_wrap_keyword_ranked(keyword_results))
+            degraded = lift_single_channel(list(enumerate(keyword_results, start=1)), effective_lift)
+            return [
+                ScoredMemory(item=item, channel="keyword", keyword_rank=rank)
+                for rank, item in degraded[offset : offset + top_k]
+            ]
 
         # ── RRF merge ──────────────────────────────────────────────────
+        # Ranks are raw positions in each channel's FETCHED list — NOT
+        # positions after the filters below. Post-filter ranks would
+        # close gaps and change RRF scores whenever a filter drops a
+        # row, breaking the LIFT=0 identity with the pre-ADR-0008
+        # stream (rollout step 3's equivalence claim). Do not "fix"
+        # this to post-filter positions.
         keyword_rank: dict[str, int] = {item.id: rank for rank, item in enumerate(keyword_results, start=1)}
         semantic_rank: dict[str, int] = {mid: rank for rank, (mid, _sim) in enumerate(semantic_ranked, start=1)}
         semantic_sim: dict[str, float] = dict(semantic_ranked)
@@ -462,16 +517,21 @@ class EmbeddingService:
                 if mem:
                     item_map[mid] = mem
 
+        def _effective_rank(rank: int, pinned: bool) -> int:
+            # ADR 0008 §1: a pinned row's rank improves by
+            # effective_lift, floored at 1; RRF consumes the collided
+            # value as a number (never a re-linearized tuple position).
+            return max(1, rank - effective_lift) if pinned else rank
+
         rrf_scores: list[tuple[str, float]] = []
         for mid in all_ids:
             if mid not in item_map:
                 continue
             item = item_map[mid]
-            # A pin is skipped only if it already floated (avoid a
-            # duplicate) or the caller hid pins entirely. An unfloated
-            # pin ranks like any other row — that is what makes pins
-            # past the float cap reachable at all.
-            if item.pinned and (mid in pinned_ids or not include_pinned):
+            # Visibility gate: the semantic channel has no
+            # include_pinned predicate of its own, so a hidden pin is
+            # dropped here before it can enter the fusion.
+            if item.pinned and not include_pinned:
                 continue
             # Apply tag filter to semantic-only results
             if tags and not all(t in item.tags for t in tags):
@@ -487,15 +547,21 @@ class EmbeddingService:
             sr = semantic_rank.get(mid)
             score = 0.0
             if kr is not None:
-                score += 1.0 / (_RRF_K + kr)
+                score += 1.0 / (_RRF_K + _effective_rank(kr, item.pinned))
             if sr is not None:
-                score += 1.0 / (_RRF_K + sr)
+                score += 1.0 / (_RRF_K + _effective_rank(sr, item.pinned))
             rrf_scores.append((mid, score))
 
-        rrf_scores.sort(key=lambda x: x[1], reverse=True)
+        # Fused total order (ADR 0008 §1): score descending, memory id
+        # ascending. Fused-score ties are structural (a keyword-only
+        # row and a semantic-only row at the same effective rank score
+        # identically), so the id leg is load-bearing — and
+        # deterministic where the old set-iteration order was
+        # hash-dependent across restarts.
+        rrf_scores.sort(key=lambda entry: (-entry[1], entry[0]))
 
         merged: list[ScoredMemory] = []
-        for mid, score in rrf_scores[:effective_top_k]:
+        for mid, score in rrf_scores[offset : offset + top_k]:
             kr = keyword_rank.get(mid)
             sim = semantic_sim.get(mid)
             if kr is not None and sim is not None:
@@ -504,6 +570,11 @@ class EmbeddingService:
                 channel = "keyword"
             else:
                 channel = "semantic"
+            # keyword_rank / semantic_similarity report the RAW
+            # per-channel signals (score domains untouched — ADR 0008):
+            # under a lift > 0 the fused order can disagree with them,
+            # and the row's `pinned` flag is what explains a pin-caused
+            # reorder.
             merged.append(
                 ScoredMemory(
                     item=item_map[mid],
@@ -513,7 +584,7 @@ class EmbeddingService:
                     keyword_rank=kr,
                 )
             )
-        return _page(merged)
+        return merged
 
     def _semantic_search(
         self,
@@ -521,7 +592,6 @@ class EmbeddingService:
         *,
         project_id: str | None = None,
         tags: list[str] | None = None,
-        exclude_ids: set[str] | None = None,
         limit: int = 16,
     ) -> list[tuple[str, float]]:
         """Return (memory ID, cosine similarity) ranked by similarity.
@@ -552,7 +622,7 @@ class EmbeddingService:
         if not all_embeddings:
             return []
 
-        ids = [mid for mid in all_embeddings if mid not in exclude_ids] if exclude_ids else list(all_embeddings)
+        ids = list(all_embeddings)
         # Eligibility BEFORE the top-k window: with the filter applied
         # only after selection (as until 2026-08-28), out-of-scope
         # vectors consumed the candidate slots and the best in-scope
@@ -584,38 +654,36 @@ class EmbeddingService:
         include_pinned: bool = True,
         tags: list[str] | None = None,
         offset: int = 0,
-        pinned_limit: int = DEFAULT_PINNED_LIMIT,
     ) -> list[ScoredMemory]:
         """Pure semantic ranking (mode="semantic").
 
         Unlike ``search_hybrid`` there is NO silent degradation: the
         caller explicitly asked for semantic results, so a provider
         failure raises instead of quietly returning keyword matches.
-        """
-        # Same float/rank split as search_hybrid: the float set is pins
-        # that MATCH the query (keyword-matched via the store), and the
-        # exclusion covers only those, so an unfloated pin still ranks
-        # semantically below.
-        pinned_items: list[MemoryItem] = []
-        if include_pinned and pinned_limit > 0:
-            pinned_items = self._store.search_pinned(
-                query,
-                limit=pinned_limit,
-                project_id=project_id,
-                tags=tags,
-            )
-        pinned_ids = {i.id for i in pinned_items}
 
+        Pins get the same bounded rank lift as every other mode (ADR
+        0008). The reported ``semantic_similarity`` stays raw, so under
+        a lift > 0 the order can disagree with it — the row's
+        ``pinned`` flag is what explains a pin-caused reorder.
+        """
+        effective_top_k = top_k + offset
+        effective_lift = effective_pin_lift(top_k, self._pin_rank_lift)
         ranked = self._semantic_search(
             query,
             project_id=project_id,
             tags=tags,
-            exclude_ids=pinned_ids,
-            limit=(top_k + offset) * 2,  # over-fetch: filters below discard
+            # ADR 0008 §2: the over-fetch (filters below discard)
+            # extends by the lift's reach; at lift 0 it is exactly the
+            # old 2× window.
+            limit=2 * effective_top_k + effective_lift,
         )
 
-        results: list[ScoredMemory] = []
-        for mid, sim in ranked:
+        # Original ranks are raw positions in the FETCHED ranking (see
+        # the RRF-merge comment in search_hybrid — same rule, same
+        # reason); rows the filters drop leave honest gaps.
+        sims: dict[str, float] = {}
+        candidates: list[tuple[int, MemoryItem]] = []
+        for rank, (mid, sim) in enumerate(ranked, start=1):
             item = self._store.get_memory(mid)
             if item is None:
                 continue
@@ -626,25 +694,11 @@ class EmbeddingService:
             # Pinned rows are scope-with-global; see search_hybrid.
             if project_id and item.project_id != project_id and not (item.pinned and item.project_id is None):
                 continue
-            results.append(ScoredMemory(item=item, channel="semantic", semantic_similarity=sim))
+            sims[item.id] = sim
+            candidates.append((rank, item))
 
-        # Same combined-stream budget as search_hybrid's _page: top_k is
-        # the total, floated pins consume slots, offset walks the stream.
-        combined = [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + results
-        return combined[offset : offset + top_k]
-
-
-def _wrap_keyword_ranked(items: list[MemoryItem], offset: int = 0) -> list[ScoredMemory]:
-    """Wrap a keyword-ranked item list as ScoredMemory (channel=keyword).
-
-    ``keyword_rank`` is the 1-based position in the keyword ranking —
-    position is the only honest signal the keyword channel has (raw
-    bm25 values are unbounded negatives, not worth surfacing).
-    """
-    return [
-        ScoredMemory(item=item, channel="keyword", keyword_rank=offset + rank)
-        for rank, item in enumerate(items, start=1)
-    ]
+        page = lift_single_channel(candidates, effective_lift)[offset : offset + top_k]
+        return [ScoredMemory(item=item, channel="semantic", semantic_similarity=sims[item.id]) for _rank, item in page]
 
 
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
