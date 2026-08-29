@@ -186,14 +186,13 @@ Landed so far, one focused commit per item:
   persisted evidence so a restart can't clear a failed integrity
   check.
 
-Runtime changes are on `main` but **not deployed**: stack 151 is
-tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
-tagged release. A push alone deploys nothing.
+**v3.1.0 is being cut** to ship this run: version bumped, CHANGELOG
+sectioned, tag + `OC_TAG` move to follow on green CI. A push alone
+deploys nothing.
 
 Open next: 0002 batch B (filtered chronological enumeration — the
 Mnemosyne consumer), the embedding-identity ADR (gates 0003 Phase C/D),
-and cloud-backup Phase 0 (operator runbook). All runtime changes since
-v3.0.0 ship with the next tagged release. Standing V3_PLAN follow-ups (mcp 2.x on its
+and cloud-backup Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

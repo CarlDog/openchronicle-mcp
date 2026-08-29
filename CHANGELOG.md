@@ -5,11 +5,17 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
-## Unreleased
+## v3.1.0 — 2026-08-29
 
-Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
-`:v3.0.0`. The import/export item below is the first runtime change
-since the tag; it ships when `OC_TAG` next moves.
+The comparative-review remediation release. A validation pass first
+re-verified every claim in the four `docs/design/` review documents
+against HEAD (all SHIPPED claims confirmed; ~14 of 16 defect claims
+still held), then every implementation-ready verified defect shipped
+as its own commit — assessment revisions 116-126, 688 → 758 tests.
+MINOR: the surface changes are additive (`build_revision` in
+diagnostics, `include_pinned` and the new provider-health fields), and
+`top_k` becoming a total budget enforces the already-documented
+contract.
 
 - **Provider and maintenance health stop being success-shaped**
   (design 0003 Finding 4 + design 0004 Finding 9). An all-failed
