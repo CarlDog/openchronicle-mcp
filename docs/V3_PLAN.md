@@ -890,12 +890,17 @@ entry (below, or in its design doc):
    against a store, reporting latency percentiles vs N — the
    instrument that turns every 0007 stage trigger into a number.
    Full entry below.
-4. **`dimensions` optional-send in the openai adapter** (full entry
+4. **Permanent-failure classification for over-length rows** (full
+   entry below, filed 2026-08-29): the 9 unembeddable rows keep live
+   health reading `degraded` forever and are retried every backfill
+   cycle. Small, v3-shippable from `main`, and the only queue item
+   actively misleading operators/agents TODAY.
+5. **`dimensions` optional-send in the openai adapter** (full entry
    below) — real, live-confirmed, but demand-gated: pick up when a
    cloud provider is actually wanted again.
-5. **MCP `error_code` gap** (full entry below) — parked against the
+6. **MCP `error_code` gap** (full entry below) — parked against the
    mcp 2.x migration by its own entry.
-6. **Docs parity gates (CLI/MCP/env)** — batch into the next
+7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
 
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
