@@ -604,7 +604,11 @@ class EmbeddingService:
                 # health (ADR 0009): degrade to keyword-only without
                 # touching either failure counter.
                 logger.info("semantic query exceeds the embedding model's context; returning keyword-only results")
-                return _page(_wrap_keyword_ranked(keyword_results))
+                degraded = lift_single_channel(list(enumerate(keyword_results, start=1)), effective_lift)
+                return [
+                    ScoredMemory(item=item, channel="keyword", keyword_rank=rank)
+                    for rank, item in degraded[offset : offset + top_k]
+                ]
             self._search_failure_count += 1
             self._record_failure("search")
             self._last_search_failure_at = self._last_failure_at
