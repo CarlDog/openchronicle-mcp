@@ -481,6 +481,7 @@ class TestHealth:
             running_in_container_hint=False,
             persistence_hint="sqlite",
             package_version="3.0.0.dev0",
+            build_revision="unknown",
         )
 
         # The tool now delegates to the shared build_health_payload, which

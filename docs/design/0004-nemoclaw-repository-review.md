@@ -358,8 +358,18 @@ in the full diagnostic health response. Do not claim an image digest
 unless the runtime can obtain it truthfully. Digest-pinned deployment is
 optional hardening after source revision solves the demonstrated need.
 
-**Disposition:** verified operational gap; suitable for a small,
-independent batch.
+**Disposition:** ~~verified operational gap; suitable for a small,
+independent batch.~~ **✅ SHIPPED 2026-08-28** (assessment rev 118) —
+smaller than scored: the validation pass found the OCI-label sub-claim
+above was wrong at this review's own baseline (CI's
+`docker/metadata-action` already emitted
+`org.opencontainers.image.revision`), so what remained was baking the
+SHA where diagnostics can read it. Landed: CI passes the full SHA as a
+build arg, the Dockerfile writes `/app/build-revision`, health and
+`oc version` report `build_revision` (file-read, not env-assertable;
+`"unknown"` outside an image), and `docker-compose.nas.yml` requires
+an explicit `OC_TAG`. Image-digest pinning stays optional hardening,
+unadopted.
 
 ## Finding 5: duplicated public facts have current drift
 
@@ -633,7 +643,7 @@ implementation.
 | 2 | Strict export/import envelope + atomic private export | Reliability / data safety | 5 | 5 | 2 | 40 | **✅ Shipped 2026-08-28** (rev 116); Finding 2 records the closeout |
 | 3 | Content-bound, post-write-checked live restore | Reliability / data safety | 5 | 5 | 2 | 40 | Before cloud restore ships; the failure consequence is maximum, but no live restore exists yet |
 | 4 | Least-privilege git child environment | Security | 4 | 5 | 2 | 36 | **✅ Shipped 2026-08-28** (rev 117); Finding 3 records the closeout. Destination policy (rank 8) stays open |
-| 5 | Immutable build revision in diagnostics | Operations / provenance | 4 | 4 | 2 | 32 | Now; directly closes ambiguity in the current short-SHA Portainer deployment workflow |
+| 5 | Immutable build revision in diagnostics | Operations / provenance | 4 | 4 | 2 | 32 | **✅ Shipped 2026-08-28** (rev 118); Finding 4 records the closeout |
 | 6 | Idempotent postcondition-checked offline replay | Reliability / feature design | 5 | 5 | 3 | 30 | Before the existing write-behind item ships; prevents duplicates after ambiguous timeout |
 | 7 | Repair public docs + CLI/MCP/env parity checks | Documentation / correctness | 3 | 4 | 2 | 28 | **Docs closed 2026-08-28**; broader inventory gates remain unscheduled |
 | 8 | Outbound clone destination policy | Security / SSRF | 4 | 4 | 3 | 24 | Decide now, implement after naming non-GitHub consumers; arbitrary remote hosts are accepted from a server-side tool |

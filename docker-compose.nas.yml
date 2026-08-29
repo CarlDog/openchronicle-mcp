@@ -34,8 +34,12 @@
 #                           it doesn't repeat).
 #
 #   Optional — deployment shape:
-#     OC_TAG                Image tag (default: latest). Pin to a SHA
-#                           for reproducible deploys.
+#     OC_TAG                Image tag. REQUIRED — deploy fails with an
+#                           explicit error when unset, rather than
+#                           silently falling back to :latest (which
+#                           would make every green main push a
+#                           surprise deploy on the next redeploy).
+#                           Pin to a release tag (v3.0.0) or a SHA.
 #     HOST_HTTP_PORT        Host port for the unified app (default:
 #                           18000 — matches the v2 HTTP port; MCP is
 #                           reachable at the same port at /mcp now).
@@ -56,7 +60,7 @@
 
 services:
   oc:
-    image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:-latest}
+    image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:?set OC_TAG to the release tag this stack should run (e.g. v3.0.0) — no :latest fallback}
     restart: unless-stopped
     network_mode: bridge
     ports:

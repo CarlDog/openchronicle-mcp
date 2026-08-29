@@ -25,16 +25,15 @@ enforces parity.
   `archive/openchronicle.v1`.
 - **Post-CI redeploy convention.** The stack is TAG-PINNED, so a green
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
-  resolves `image: ...:${OC_TAG:-latest}`, and stack 151 sets
-  `OC_TAG=v3.0.0`; a push to `main` refreshes only `:latest`, which that
-  stack does not pull. **Code goes live when `OC_TAG` moves — a push
-  alone deploys nothing.** So runtime changes (`src/`, `pyproject.toml`,
-  `Dockerfile`, `docker-compose.nas.yml`) ship with the next tagged
-  release, and a `portainer-mcp` redeploy is warranted only when you are
-  moving `OC_TAG` to a new tag. (An UNPINNED deployment still behaves the
-  old way — falling back to `:latest`, it would pick up every green main
-  build. The tag pin is what makes the old convention wrong here, not the
-  mechanism.) The `build-and-push` job in `.github/workflows/test.yml`
+  **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
+  with it unset fails loudly instead of silently tracking `:latest`),
+  and stack 151 sets `OC_TAG=v3.0.0`; a push to `main` refreshes only
+  `:latest`, which that stack does not pull. **Code goes live when
+  `OC_TAG` moves — a push alone deploys nothing.** So runtime changes
+  (`src/`, `pyproject.toml`, `Dockerfile`, `docker-compose.nas.yml`)
+  ship with the next tagged release, and a `portainer-mcp` redeploy is
+  warranted only when you are moving `OC_TAG` to a new tag. The
+  `build-and-push` job in `.github/workflows/test.yml`
   gates that image: it only
   runs `needs: [test, quality]`, so one green check is a stronger
   signal than the old two-workflow setup: a red pytest/quality run
@@ -57,8 +56,13 @@ enforces parity.
   new version means the new image is not running. It CANNOT verify a
   same-version redeploy: two images built from the same version both
   report it, so an unchanged reading is the expected result either way.
-  For that case compare the container's `org.opencontainers.image.revision`
-  label against HEAD instead. Do **not** use `db_modified_utc`
+  For that case read `health.build_revision` — since 2026-08-28 the CI
+  build bakes the full git SHA into the image (`/app/build-revision`)
+  and health/`oc version` report it, so a same-version redeploy is
+  verified by comparing it to the expected commit. (Images built before
+  that report `"unknown"`; fall back to the container's
+  `org.opencontainers.image.revision` label for those.) Do **not** use
+  `db_modified_utc`
   for this. The store opens `PRAGMA journal_mode = WAL`
   (`sqlite_store.py`), so writes land in the `-wal` sidecar and the main
   DB's mtime only advances on checkpoint — observed 2026-08-28, a memory
@@ -145,14 +149,19 @@ Landed so far, one focused commit per item:
   never in the child, `GIT_TERMINAL_PROMPT=0`, `--no-checkout`,
   userinfo/query/fragment rejection, stderr token scrubbing. The
   clone *destination policy* is still an open operator decision.
+- **Immutable `build_revision`** (rev 118, 718 → 722 tests): CI bakes
+  the full git SHA to `/app/build-revision`; health, `oc version`, and
+  the REST/MCP diagnostics report it (file-read, not env-assertable);
+  `docker-compose.nas.yml` now *requires* `OC_TAG` — no `:latest`
+  fallback.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
 tagged release. A push alone deploys nothing.
 
-Open next in this sequence: immutable `build_revision`, then 0002
-batch A. The clone destination-policy decision needs the operator to
-name any non-GitHub consumer. Standing V3_PLAN follow-ups (mcp 2.x on its
+Open next in this sequence: 0002 batch A (retrieval correctness). The
+clone destination-policy decision needs the operator to name any
+non-GitHub consumer. Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

@@ -175,5 +175,10 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Baked to /app/build-revision so health/`oc version` can name
+          # the exact build — package_version alone cannot distinguish
+          # two images built from the same version.
+          build-args: |
+            OC_BUILD_REVISION=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

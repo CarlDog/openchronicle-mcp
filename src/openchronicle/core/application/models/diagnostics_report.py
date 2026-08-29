@@ -27,6 +27,7 @@ class DiagnosticsReport:
     running_in_container_hint: bool
     persistence_hint: str
     package_version: str
+    build_revision: str
     # Fields below are populated by interfaces with a CoreContainer in
     # hand. They can't be filled by `diagnose_runtime.execute()`, which
     # deliberately takes no container and (per the hexagonal boundary

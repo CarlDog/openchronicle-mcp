@@ -962,9 +962,11 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   rejection, stderr scrubbing. Remaining right-sized work is the
   explicit server-side clone *destination policy* (an operator decision:
   GitHub-only allowlist vs. address-class rejection — the review
-  requires naming any non-GitHub consumer first); immutable
-  `build_revision` in full diagnostics; and broader CLI/MCP/env
-  documentation parity gates.
+  requires naming any non-GitHub consumer first) and broader CLI/MCP/env
+  documentation parity gates. ~~Immutable `build_revision` in full
+  diagnostics~~ — **✅ SHIPPED 2026-08-28** (rev 118): CI bakes the full
+  SHA to `/app/build-revision`, health/`oc version` report it, and the
+  NAS compose requires an explicit `OC_TAG`.
   The review also makes stable operation identity + postcondition checking
   a prerequisite for the existing offline write-behind idea, and
   content-bound selection + post-swap writeability a prerequisite for the

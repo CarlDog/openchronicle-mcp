@@ -11,11 +11,12 @@ from typing import Any
 from openchronicle.core.application.use_cases import init_runtime
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.commands._helpers import json_envelope, print_json
-from openchronicle.version import package_version
+from openchronicle.version import build_revision, package_version
 
 
 def cmd_version(args: argparse.Namespace) -> int:
     pkg_version = package_version()
+    revision = build_revision()
     python_version = sys.version.split()[0]
 
     if args.json:
@@ -24,6 +25,7 @@ def cmd_version(args: argparse.Namespace) -> int:
             ok=True,
             result={
                 "package_version": pkg_version,
+                "build_revision": revision,
                 "python_version": python_version,
             },
             error=None,
@@ -32,6 +34,8 @@ def cmd_version(args: argparse.Namespace) -> int:
         return 0
 
     print(f"openchronicle {pkg_version}")
+    if revision != "unknown":
+        print(f"build {revision}")
     print(f"Python {python_version}")
     return 0
 

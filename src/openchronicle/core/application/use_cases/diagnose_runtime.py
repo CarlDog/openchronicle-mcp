@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
 from openchronicle.core.domain.time_utils import utc_now
-from openchronicle.version import package_version
+from openchronicle.version import build_revision, package_version
 
 if TYPE_CHECKING:
     from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -81,6 +81,10 @@ def execute() -> DiagnosticsReport:
         running_in_container_hint=running_in_container_hint,
         persistence_hint=persistence_hint,
         package_version=package_version(),
+        # Distinguishes builds that share a package_version (every rc8
+        # image read "3.0.0rc8") — the gap that made a same-version
+        # redeploy unverifiable from health.
+        build_revision=build_revision(),
     )
 
 

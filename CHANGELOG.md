@@ -11,6 +11,15 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **Deploy identity: `build_revision` in health, `OC_TAG` required**
+  (design 0004, Finding 4). CI bakes the full git SHA to
+  `/app/build-revision` (a file, not an ENV — a compose edit cannot
+  assert a revision the image was never built from); the diagnostics
+  payload on both health surfaces and `oc version` report it, so a
+  same-version redeploy is finally verifiable from health alone.
+  Outside an image it honestly reads `"unknown"`.
+  `docker-compose.nas.yml` now *requires* `OC_TAG` (`${OC_TAG:?...}`)
+  instead of silently falling back to `:latest`.
 - **`onboard_git`'s `git clone` child runs least-privilege** (design
   0004, Finding 3, child-env half). The subprocess env was
   `os.environ.copy()` — every server secret crossed the boundary for an

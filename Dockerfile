@@ -34,6 +34,14 @@ RUN /venv/bin/pip install --no-cache-dir --no-deps .
 # ---- runtime stage ----------------------------------------------------------
 FROM python:3.14-slim
 
+# The full git SHA this image was built from, baked to a FILE the app
+# reads (openchronicle/version.py). A file, not an ENV: several commits
+# legitimately share one package_version, and an env var would let a
+# compose edit assert a revision the image was never built from. CI
+# passes the real SHA; a local `docker build` without the arg honestly
+# reports "unknown".
+ARG OC_BUILD_REVISION=unknown
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     OC_DB_PATH=/app/data/openchronicle.db \
@@ -71,7 +79,8 @@ COPY config /config-defaults
 # change (existing NAS deployment's named volumes were populated while the
 # image ran fully as root).
 RUN mkdir -p /app/data /app/config /app/output \
-    && chmod +x /app/entrypoint.sh
+    && chmod +x /app/entrypoint.sh \
+    && printf '%s\n' "$OC_BUILD_REVISION" > /app/build-revision
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=3).status==200 else 1)"
