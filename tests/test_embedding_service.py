@@ -10,6 +10,7 @@ from openchronicle.core.application.services.embedding_service import (
 )
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
+from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
@@ -328,3 +329,85 @@ def test_search_hybrid_tag_filtered_pinned_does_not_reenter() -> None:
     ids = [m.item.id for m in results]
     assert "m1" not in ids
     assert "m2" in ids
+
+
+# ── semantic eligibility precedes the top-N window (0002 batch A) ─────
+
+
+class _FixedQueryPort(EmbeddingPort):
+    """Port whose query embedding is a fixed unit vector; stored vectors
+    are written directly to the store, so similarity is fully controlled."""
+
+    def embed(self, text: str) -> list[float]:
+        return [1.0, 0.0]
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return [self.embed(t) for t in texts]
+
+    def model_name(self) -> str:
+        return "fixed-test-model"
+
+    def dimensions(self) -> int:
+        return 2
+
+
+def test_semantic_window_is_scope_aware() -> None:
+    """Out-of-scope vectors must not consume the similarity top-N.
+
+    Adversarial shape from the review: 20 OTHER-project memories with
+    perfect similarity 1.0 outrank the single in-scope memory (0.6).
+    With eligibility applied after the window (the old shape), a small
+    limit filled entirely with out-of-scope ids and the in-scope match
+    was missed; the window is now filtered to eligible ids first.
+    """
+    store = SqliteStore(db_path=":memory:")
+    store.init_schema()
+    store.add_project(Project(id="proj-in", name="in"))
+    store.add_project(Project(id="proj-out", name="out"))
+    port = _FixedQueryPort()
+    service = EmbeddingService(port=port, store=store)
+
+    for i in range(20):
+        mid = f"out-{i:02d}"
+        store.add_memory(MemoryItem(id=mid, content="perfect match elsewhere", project_id="proj-out"))
+        store.save_embedding(mid, [1.0, 0.0], model=port.model_name())  # similarity 1.0
+    store.add_memory(MemoryItem(id="in-scope", content="the one that counts", project_id="proj-in"))
+    store.save_embedding("in-scope", [0.6, 0.8], model=port.model_name())  # similarity 0.6
+
+    ranked = service._semantic_search("query", project_id="proj-in", limit=2)  # noqa: SLF001
+    assert [mid for mid, _sim in ranked] == ["in-scope"]
+
+
+def test_semantic_window_is_tag_aware() -> None:
+    """Same defect through the tags predicate instead of project scope."""
+    store = SqliteStore(db_path=":memory:")
+    store.init_schema()
+    store.add_project(Project(id="proj-1", name="p"))
+    port = _FixedQueryPort()
+    service = EmbeddingService(port=port, store=store)
+
+    for i in range(20):
+        mid = f"untagged-{i:02d}"
+        store.add_memory(MemoryItem(id=mid, content="noise", tags=[], project_id="proj-1"))
+        store.save_embedding(mid, [1.0, 0.0], model=port.model_name())
+    store.add_memory(MemoryItem(id="tagged", content="target", tags=["wanted"], project_id="proj-1"))
+    store.save_embedding("tagged", [0.6, 0.8], model=port.model_name())
+
+    ranked = service._semantic_search("query", tags=["wanted"], limit=2)  # noqa: SLF001
+    assert [mid for mid, _sim in ranked] == ["tagged"]
+
+
+def test_eligible_ids_scope_includes_global_pins() -> None:
+    """The eligibility set mirrors ranked search's include-mode scope:
+    strict project plus pinned rows belonging to no project."""
+    store = SqliteStore(db_path=":memory:")
+    store.init_schema()
+    store.add_project(Project(id="proj-1", name="p"))
+    store.add_memory(MemoryItem(id="mine", content="x", project_id="proj-1"))
+    store.add_memory(MemoryItem(id="global-pin", content="rule", pinned=True, project_id=None))
+    store.add_memory(MemoryItem(id="global-unpinned", content="loose", project_id=None))
+
+    eligible = store.eligible_memory_ids(project_id="proj-1")
+    assert "mine" in eligible
+    assert "global-pin" in eligible, "a standing rule belonging to no project applies inside one"
+    assert "global-unpinned" not in eligible

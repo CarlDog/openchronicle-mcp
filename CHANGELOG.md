@@ -11,6 +11,13 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **Semantic search filters eligibility before its top-N window**
+  (design 0002, batch A). Similarity ranking used to run over the
+  whole model-scoped embedding table with project/tag filtering
+  applied only after the bounded top-N — unrelated vectors consumed
+  the window and the best in-scope results could be missed. A new
+  `eligible_memory_ids` store primitive (same scope + tags rules as
+  ranked search, by construction) narrows the candidate set first.
 - **Search tag filters apply in SQL, before LIMIT** (design 0002,
   batch A). Both branches used to over-fetch a bounded window
   (`limit * 4` FTS rows, a 200-row recency scan on the fallback) and

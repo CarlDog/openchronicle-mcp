@@ -346,6 +346,14 @@ class EmbeddingService:
             return []
 
         ids = [mid for mid in all_embeddings if mid not in exclude_ids] if exclude_ids else list(all_embeddings)
+        # Eligibility BEFORE the top-k window: with the filter applied
+        # only after selection (as until 2026-08-28), out-of-scope
+        # vectors consumed the candidate slots and the best in-scope
+        # matches could be missed entirely. The callers' post-filters
+        # remain as invariants, but the window itself is now scope-aware.
+        if project_id is not None or tags:
+            eligible = self._store.eligible_memory_ids(project_id=project_id, tags=tags)
+            ids = [mid for mid in ids if mid in eligible]
         if not ids:
             return []
 

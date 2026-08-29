@@ -142,6 +142,27 @@ class MemoryStorePort(ABC):
         ...
 
     @abstractmethod
+    def eligible_memory_ids(
+        self,
+        *,
+        project_id: str | None = None,
+        tags: list[str] | None = None,
+    ) -> set[str]:
+        """Ids of memories eligible for a search scoped by these predicates.
+
+        Semantic search calls this BEFORE selecting its similarity top-N
+        so out-of-scope vectors cannot consume the candidate window (the
+        OpenClaw review's filter-after-limit defect: eligibility applied
+        only after a global top-N could miss the best in-scope results
+        entirely). Scope matches the ranked search's ``include`` mode:
+        strict on ``project_id`` plus global pins
+        (``pinned AND project_id IS NULL``); ``tags`` is all-of, same as
+        ``search_memory``. With neither predicate the answer is "every
+        memory", which callers should short-circuit rather than request.
+        """
+        ...
+
+    @abstractmethod
     def delete_memory(self, memory_id: str) -> None:
         """Delete a memory item.
 

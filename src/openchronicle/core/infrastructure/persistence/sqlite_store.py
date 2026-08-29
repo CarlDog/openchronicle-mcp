@@ -707,6 +707,30 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return self._ranked_search(query, limit, project_id, tags, phrase, "only")[:limit]
 
     @_locked
+    def eligible_memory_ids(
+        self,
+        *,
+        project_id: str | None = None,
+        tags: list[str] | None = None,
+    ) -> set[str]:
+        """See ``MemoryStorePort.eligible_memory_ids``.
+
+        Reuses the ranked search's own clause builders so the scope rule
+        (strict project + global pins) and the tags rule cannot drift
+        from what ``search_memory`` applies.
+        """
+        cur = self._conn.cursor()
+        _pinned, scope_clause, scope_params = _pinned_clauses("include", project_id)
+        tags_clause, tags_params = _tags_clause(tags)
+        sql = f"""
+            SELECT id FROM memory_items
+            WHERE 1=1
+            {scope_clause}
+            {tags_clause}
+        """
+        return {row["id"] for row in cur.execute(sql, [*scope_params, *tags_params]).fetchall()}
+
+    @_locked
     def search_memory(
         self,
         query: str,

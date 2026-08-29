@@ -162,6 +162,10 @@ Landed so far, one focused commit per item:
   tests): tag containment runs inside the query via `json_each` on
   both search branches, before LIMIT — no more `limit * 4` over-fetch
   window a valid tagged row could fall past.
+- **0002 batch A, item 2 — scope-aware semantic window** (rev 121,
+  736 → 739 tests): `eligible_memory_ids` filters the similarity
+  candidate set before top-N, so out-of-scope vectors can no longer
+  crowd out in-scope matches.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
