@@ -1,7 +1,8 @@
 # Long-Term Scale & Resilience Path
 
-**Status:** PROPOSED — staged options with named triggers; no stage is
-scheduled by this document · **Date:** 2026-08-29 · **Requested by the
+**Status:** ACCEPTED (operator, 2026-08-29, same day) — staged options
+with named triggers; Stage 0 items joined the V3_PLAN active queue,
+later stages remain trigger-gated · **Date:** 2026-08-29 · **Requested by the
 operator:** "OC is the backbone of our fleet… how do we handle multiple
 development tasks, Mnemosyne integration, Wobblebot integration, and
 others all interacting at the same time as our needs grow? What about

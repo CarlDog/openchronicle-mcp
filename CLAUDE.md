@@ -232,11 +232,14 @@ pre-existing vectors stale and the batched reindex takes ~a minute
 (FTS5-only semantic degradation until it finishes; `stale` counts down
 in health). The **embedding-provider review ran its
 gold-set benchmark** (rev 145): LAN-local `nomic-embed-text` cleared
-the quality gate at parity with the best cloud models, and 0006's
-recommendation is now *switch, gated on the NAS latency leg* (pull the
-model on NAS Ollama, measure CPU latency/reindex there) and the
-operator's decision. Open next: that NAS leg, and cloud-backup
-Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
+the quality gate at parity with the best cloud models, and the **switch
+executed**: v3.2.0 is live on stack 151 (verified via
+`build_revision`) with `OC_EMBEDDING_PROVIDER=ollama` /
+`nomic-embed-text` — `content_egress: local`. Design 0007 (long-term
+scale & resilience) is ACCEPTED; the V3_PLAN follow-ups section now
+carries the operator-ratified **active queue**: (1) pins-as-ranking-
+prior stage, (2) cloud-backup Phase 0 + restore drill, (3) the 0007
+concurrency load probe, then demand-/trigger-gated items. Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

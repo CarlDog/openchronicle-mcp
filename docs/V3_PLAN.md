@@ -871,7 +871,54 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 ### Post-cutover follow-ups (tech debt)
 
+**Active queue — sorted by need (operator-ratified 2026-08-29).** The
+authoritative order for picking up work; each line points at the full
+entry (below, or in its design doc):
+
+1. **Pins as ranking prior** — the ranking-quality stage (full entry
+   below): retire the pin-float, boost `pinned=true` inside RRF, own
+   ADR, tuned against the gold-set benchmark. The only open item
+   degrading a daily surface.
+2. **Cloud-backup Phase 0** ([design 0001](design/0001-cloud-backup.md),
+   reinforced by [0007](design/0007-long-term-scale-and-resilience.md)
+   Stage 0): the operator-run ~30-min desktop runbook — Dropbox App
+   Folder probe, age keypairs, key escrow, two-key decrypt drill.
+   Needs the operator at a desktop; the only item whose downside is
+   data loss. Per 0007's rule: not done until a restore is drilled.
+3. **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
+   sibling driving N simulated clients (mixed search/save/list)
+   against a store, reporting latency percentiles vs N — the
+   instrument that turns every 0007 stage trigger into a number.
+   Full entry below.
+4. **`dimensions` optional-send in the openai adapter** (full entry
+   below) — real, live-confirmed, but demand-gated: pick up when a
+   cloud provider is actually wanted again.
+5. **MCP `error_code` gap** (full entry below) — parked against the
+   mcp 2.x migration by its own entry.
+6. **Docs parity gates (CLI/MCP/env)** — batch into the next
+   phase-end audit.
+
+Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
+triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+
+pgvector shape); mcp 2.x on its triggers; frozen-lock consumption;
+offline write-behind (shape ratified in 0007: single-primary +
+client-side queue; ADR when scheduled). Calendar: the quarterly
+embedding-provider sweep (baselines refreshed 2026-08-29 — next due
+~2026-11).
+
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
+
+- **Concurrency load probe (0007 Stage 0, filed 2026-08-29).** Nobody
+  has measured OC under concurrent multi-client load, and 0007's
+  stage triggers are meaningless without the instrument. Build a
+  `scripts/`-level probe (sibling of `benchmark_embeddings.py`): N
+  simulated clients issuing a realistic mix (search-heavy, small
+  saves, lists) against a throwaway store seeded from the corpus
+  fixture; report latency percentiles vs N and store-lock wait share.
+  Expected first finding is already named in 0007: the single
+  connection + RLock serializes all access — the probe quantifies at
+  what N it starts to hurt, which is what schedules (or indefinitely
+  defers) Stage 1's read-pool work.
 
 - **Replace the pin-float with a pinned-ness ranking prior**
   (direction ratified by the operator 2026-08-29; found by the
