@@ -215,8 +215,8 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
 def _normalize_host(raw: str) -> str:
     """Give a scheme-less host value a scheme instead of a broken URL.
 
-    ``OLLAMA_HOST=your-nas:11434`` used to produce
-    ``your-nas:11434/api/embed`` — not a URL — and fail with an
+    ``OLLAMA_HOST=carldog-nas:11434`` used to produce
+    ``carldog-nas:11434/api/embed`` — not a URL — and fail with an
     httpx error pointing nowhere near the cause. A value without
     ``://`` gets ``http://`` (Ollama's own client does the same);
     ``https://`` is passed through untouched — both schemes are

@@ -24,7 +24,7 @@ def _looks_private_host(url: str) -> bool:
     remote and warns. Recognized as local: loopback, RFC1918/link-local
     literals, ``host.docker.internal``, ``*.local``/``*.internal``/
     ``*.lan``/``*.home``/``*.localhost`` suffixes, and dot-less
-    single-label hostnames (LAN NetBIOS/mDNS names like ``your-nas``).
+    single-label hostnames (LAN NetBIOS/mDNS names like ``carldog-nas``).
     """
     import ipaddress
     from urllib.parse import urlsplit

@@ -273,10 +273,10 @@ class TestOllamaHostHandling:
     (operator-directed 2026-08-29)."""
 
     def test_scheme_less_host_gets_http(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """OLLAMA_HOST=your-nas:11434 used to build a broken URL."""
-        monkeypatch.setenv("OLLAMA_HOST", "your-nas:11434")
+        """OLLAMA_HOST=carldog-nas:11434 used to build a broken URL."""
+        monkeypatch.setenv("OLLAMA_HOST", "carldog-nas:11434")
         adapter = OllamaEmbeddingAdapter(model="test")
-        assert adapter._host == "http://your-nas:11434"
+        assert adapter._host == "http://carldog-nas:11434"
 
     def test_https_host_is_passed_through(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OLLAMA_HOST", "https://nas.local:11435/")
