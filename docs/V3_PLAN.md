@@ -902,11 +902,17 @@ entry (below, or in its design doc):
    against a store, reporting latency percentiles vs N — the
    instrument that turns every 0007 stage trigger into a number.
    Full entry below.
-4. **Permanent-failure classification for over-length rows** (full
-   entry below, filed 2026-08-29): the 9 unembeddable rows keep live
-   health reading `degraded` forever and are retried every backfill
-   cycle. Small, v3-shippable from `main`, and the only queue item
-   actively misleading operators/agents TODAY.
+4. ✅ **Permanent-failure classification for over-length rows —
+   IMPLEMENTED (2026-08-29, ADR 0009 rev 3, branch `adr-0009-impl`;
+   ships with the next v3.x tag).** `CONTENT_TOO_LONG` at both
+   adapter boundaries (capture-grounded predicates), tombstone rows
+   inside the ADR 0005 identity (migration 004, `excluded.status`
+   resurrection), emergent candidacy exclusion, all three failure
+   counters exempted, `tombstoned` in `BackfillResult` through every
+   consumer, and health's additive `unembeddable`. Deploy note: the
+   first backfill after the redeploy writes the 9 tombstones, reports
+   `ok` with `tombstoned: 9`, and health goes `active` with
+   `unembeddable: 9`.
 5. **`dimensions` optional-send in the openai adapter** (full entry
    below) — real, live-confirmed, but demand-gated: pick up when a
    cloud provider is actually wanted again.
@@ -938,7 +944,12 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   defers) Stage 1's read-pool work.
 
 - **Permanently over-length rows keep provider health `degraded`
-  forever and are retried every backfill cycle.** Found 2026-08-29
+  forever and are retried every backfill cycle.** ✅ RESOLVED by
+  ADR 0009 (rev 3, ACCEPTED and implemented 2026-08-29 on branch
+  `adr-0009-impl`; the entry below is the original filing). The
+  9 rows now park as `content_too_long` tombstones on first contact,
+  health reports `unembeddable: 9` with `status: active`, and no
+  counter moves for a classified outcome. Found 2026-08-29
   finishing the v3.2.0 reindex: 9 corpus rows exceed
   `nomic-embed-text`'s context and fail visibly under
   `truncate:false` — correct, designed behavior — but the backfill

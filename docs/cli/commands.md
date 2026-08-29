@@ -83,8 +83,12 @@ soft-delete recovery; backups are the recovery path.
 ### `oc memory embed`
 
 Generate embeddings for memories that lack them. `--force` regenerates
-all (use after switching `OC_EMBEDDING_MODEL`). `--status` reports
-coverage without doing work.
+all (use after switching `OC_EMBEDDING_MODEL`), and also retries rows
+parked as unembeddable. `--status` reports coverage without doing work,
+including the `Unembeddable` count (ADR 0009). The run summary reports
+`tombstoned` — content the provider rejected as over-length, parked
+rather than retried; a tombstoned-only run exits 0 (it is not a
+failure).
 
 ### `oc memory export [--out FILE] [--project-id ID]`
 

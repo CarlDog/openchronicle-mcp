@@ -22,7 +22,7 @@ stability guarantees see `docs/api/STABILITY.md`.
 | `memory_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`). `confirm` is **required** — omitting it is an error, not a preview. Two-step safety; the preview returns content/tags/project_id/pinned plus `deleted: false` and a `next_step`, without touching the DB. |
 | `memory_pin` | Toggle pin state. |
 | `memory_stats` | Counts + per-tag/per-source breakdown. |
-| `memory_embed` | Generate missing (or all, with `force=true`) embeddings. `background=true` starts the backfill and returns immediately (`started`/`already_running`) — required for full reindexes, which outlive MCP tool timeouts; progress via health's `stale`/`missing`. |
+| `memory_embed` | Generate missing (or all, with `force=true` — which also retries rows parked as unembeddable) embeddings. Over-length content parks as a tombstone and is reported in the additive `tombstoned` count (a tombstoned-only run is `status="ok"`). `background=true` starts the backfill and returns immediately (`started`/`already_running`) — required for full reindexes, which outlive MCP tool timeouts; progress via health's `stale`/`missing` (parked rows stay in `unembeddable` by design). |
 
 The `memory_save` tool's input schema is the canonical "what does an
 LLM need to write a memory" shape:
@@ -151,8 +151,14 @@ degrades to keyword-only on provider failure, per the documented
 degradation policy), `keyword` (never touches the embedding provider),
 or `semantic` (requires a provider; a missing provider is a validation
 error and a provider failure is a `PROVIDER_ERROR` — never a silent
-keyword fallback). `phrase=true` makes the keyword channel match the
-whole query as one adjacent-token phrase.
+keyword fallback). The adapters also classify one failure shape
+specially (ADR 0009): an upstream rejection of over-length content
+raises `CONTENT_TOO_LONG` instead of `PROVIDER_ERROR`. It is consumed
+internally — on save/backfill the row parks as an `unembeddable`
+tombstone, and in `hybrid` mode an over-length *query* degrades to
+keyword-only without marking the provider degraded. `phrase=true`
+makes the keyword channel match the whole query as one adjacent-token
+phrase.
 
 The pinned **float** is query-aware and bounded. A pinned item leads the
 results only when it *matches* the query, and at most `pinned_limit` of

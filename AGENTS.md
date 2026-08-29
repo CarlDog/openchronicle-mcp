@@ -261,6 +261,21 @@ arrives with the sweep), and the gold set expanded 40 → 50 queries
 (20 pinned-target, meeting the ADR's ≥20). Steps 3-5 — the lift
 itself — proceed on `v4/develop`.
 
+**ADR 0009 implemented end-to-end** (2026-08-29, branch
+`adr-0009-impl`, revs 164-167, tests 804 → 843; ships with the next
+v3.x tag): `CONTENT_TOO_LONG` at both adapter boundaries — with a
+live capture correcting the assumed OpenAI shape (the real embeddings
+rejection carries `code=None` and says "maximum input length", so the
+4xx-gated fallback is grounded in the captured phrase) — migration
+004 tombstones with the `excluded.status` resurrection clause,
+emergent candidacy exclusion, all three failure counters exempted,
+`tombstoned` through every consumer (maintenance guard, MCP/REST
+`memory_embed`, CLI + its `--status` `Unembeddable` line), health's
+additive `unembeddable`, and the row-class partition test. Deploy
+note: the first backfill after the next redeploy writes 9 tombstones,
+reports `ok` with `tombstoned: 9`, and health goes `active` with
+`unembeddable: 9`.
+
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
 cut plugin system entirely; MCP tool description quality pass done;

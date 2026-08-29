@@ -10,6 +10,35 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.2.0`.
 
+- **Permanent embed-failure classification (ADR 0009) — over-length
+  content parks instead of poisoning health** (additive/MINOR). Under
+  ADR 0005's `truncate:false` contract, rows exceeding the embedding
+  model's context failed visibly but were retried every backfill cycle
+  and kept `embedding_status.status` reading `degraded` forever on a
+  healthy system (observed live: 9 rows, `failure_count` 36 and
+  climbing). Now the adapters classify the upstream over-length
+  rejection as the new canonical `CONTENT_TOO_LONG` (Ollama: 400 +
+  "context length", grounded in the captured rejection; OpenAI:
+  structured `code` first, then a 4xx-gated message fallback grounded
+  in a live capture of the real endpoint's body — generic
+  OpenAI-compatible hosts that match neither conservatively keep
+  retry-forever), and per-item consumers park the row as a
+  `status='content_too_long'` tombstone inside the ADR 0005 identity
+  (migration 004; empty payload, honest `dimensions=0`, written
+  through the same CAS). A successful later save resurrects the row
+  via `status = excluded.status`. Candidacy exclusion is emergent (a
+  current tombstone reads as current to the status-blind freshness
+  check); the park expires on content edits or space changes, and
+  `force=true` retries. No failure counter moves for a classified
+  outcome — save parks and returns normally (no caller traceback), an
+  over-length query degrades to keyword-only, and backfill reports
+  the additive `tombstoned` count (a tombstoned-only run is `ok` on
+  MCP/REST, a maintenance-job success, and CLI exit 0). Health gains
+  the additive `unembeddable` field (current tombstones);
+  `embedded` refines to `count(status='ok')` — byte-identical on any
+  pre-ADR database. **Deploy note:** the first backfill after the
+  redeploy writes the 9 tombstones, reports `ok` with
+  `tombstoned: 9`, and health goes `active` with `unembeddable: 9`.
 - **`memory_embed` gains `background=true` — started-job semantics for
   full reindexes** (additive/MINOR, MCP + REST). The synchronous
   default remains for incremental backfills; the background path
