@@ -76,6 +76,16 @@ All within SQLite, all behind the ports, all invisible to clients:
 - If semantic-search volume grows: request-coalescing or a second
   Ollama `NUM_PARALLEL` slot — measured against the cache-fragmentation
   caveat in the fleet NAS rules.
+- If the probe shows *threadpool* saturation (stacked embed calls
+  holding worker threads): async HTTP in the embedding adapters
+  (`httpx.AsyncClient`), a bounded behind-the-port change. This is
+  the ONLY async-ification with a real payoff (operator asked
+  2026-08-29): the edges are already async with blocking work
+  thread-offloaded, an async core rewrite just moves queuing around
+  the same serialized store lock while function-color ripples through
+  every sync use case and the CLI — and inline (non-offloaded) work
+  in async handlers is the thing that would stall ALL MCP sessions
+  at once, so the current offload pattern is load-bearing, not debt.
 
 Expected to carry the fleet for a long time: this workload is small
 writes + read-heavy retrieval, which is SQLite's home turf.
