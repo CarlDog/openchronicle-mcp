@@ -540,11 +540,18 @@ per finding, after a validation pass re-confirmed every claim at HEAD):
 
 ### Candidate batch B: read-surface completion
 
-- add tag and exclude-tag filtering to `memory_list`;
-- add pure chronological ordering with no implicit pin float;
-- keep enumeration and relevance search semantically distinct;
-- verify all predicates are applied before pagination;
-- pin the Mnemosyne newest-scenes use case in tests.
+**✅ SHIPPED IN FULL 2026-08-29** (assessment rev 129):
+
+- ~~add tag and exclude-tag filtering to `memory_list`~~ — `tags`
+  (require-all) + `exclude_tags` (drop-any) on MCP/REST/use case/port;
+- ~~add pure chronological ordering with no implicit pin float~~ —
+  `order_by="created_at"`; the default keeps the browsing order;
+- ~~keep enumeration and relevance search semantically distinct~~ —
+  additive on `memory_list` only, no search changes;
+- ~~verify all predicates are applied before pagination~~ — SQL
+  clauses shared with the batch-A search predicates;
+- ~~pin the Mnemosyne newest-scenes use case in tests~~ —
+  `test_list_one_call_recency_window` is the scenario verbatim.
 
 ### Proposed hardening C: embedding identity
 

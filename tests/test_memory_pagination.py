@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path as Path
+
 import pytest
 
 from openchronicle.core.domain.exceptions import NotFoundError
@@ -182,3 +184,99 @@ class TestSearchMemoryOffset:
         _add_items(store, 10)
         result = store.search_memory("Item", top_k=3, include_pinned=False, offset=2)
         assert len(result) == 3
+
+
+# ── batch B: filtered chronological enumeration (0002 F2) ─────────────
+
+
+def _batch_b_store(tmp_path: Path) -> SqliteStore:
+    from datetime import UTC, datetime, timedelta
+
+    store = SqliteStore(str(tmp_path / "batchb.db"))
+    store.init_schema()
+    store.add_project(Project(id="story", name="story"))
+    base = datetime(2026, 1, 1, tzinfo=UTC)
+    # A pinned style rule (newest of all), scenes with and without the
+    # excluded tag, and untagged noise.
+    store.add_memory(
+        MemoryItem(
+            id="pin-style",
+            content="style rule",
+            tags=["rule"],
+            pinned=True,
+            project_id="story",
+            created_at=base + timedelta(days=99),
+        )
+    )
+    for i in range(6):
+        tags = ["scene"]
+        if i % 3 == 0:
+            tags.append("validation:errors")
+        store.add_memory(
+            MemoryItem(
+                id=f"scene-{i}",
+                content=f"scene {i}",
+                tags=tags,
+                project_id="story",
+                created_at=base + timedelta(days=i),
+            )
+        )
+    store.add_memory(
+        MemoryItem(id="noise", content="untagged", tags=[], project_id="story", created_at=base + timedelta(days=50))
+    )
+    return store
+
+
+def test_list_tags_filter_applies_before_pagination(tmp_path: Path) -> None:
+    store = _batch_b_store(tmp_path)
+    results = store.list_memory(project_id="story", tags=["scene"], limit=10)
+    assert {m.id for m in results} == {f"scene-{i}" for i in range(6)}
+    store.close()
+
+
+def test_list_exclude_tags_drops_any_match(tmp_path: Path) -> None:
+    store = _batch_b_store(tmp_path)
+    results = store.list_memory(project_id="story", tags=["scene"], exclude_tags=["validation:errors"], limit=10)
+    assert {m.id for m in results} == {"scene-1", "scene-2", "scene-4", "scene-5"}
+    store.close()
+
+
+def test_list_created_at_order_never_floats_pins(tmp_path: Path) -> None:
+    """The Mnemosyne trap: under the default order a small limit fills
+    with pinned rules before reaching recent rows. Pure chronology must
+    return exactly the newest rows matching the predicates."""
+    store = _batch_b_store(tmp_path)
+
+    default_order = store.list_memory(project_id="story", limit=2)
+    assert default_order[0].id == "pin-style", "default order floats the pin"
+
+    chrono = store.list_memory(project_id="story", limit=3, order_by="created_at")
+    assert [m.id for m in chrono] == ["pin-style", "noise", "scene-5"], "strict created_at DESC, no float"
+    store.close()
+
+
+def test_list_one_call_recency_window(tmp_path: Path) -> None:
+    """The demonstrated consumer, end to end: newest 2 scenes excluding
+    validation errors, one call, no post-filtering."""
+    store = _batch_b_store(tmp_path)
+    results = store.list_memory(
+        project_id="story",
+        tags=["scene"],
+        exclude_tags=["validation:errors"],
+        order_by="created_at",
+        limit=2,
+    )
+    assert [m.id for m in results] == ["scene-5", "scene-4"]
+    store.close()
+
+
+def test_list_rejects_unknown_order_by(tmp_path: Path) -> None:
+    from openchronicle.core.application.use_cases import list_memory as list_memory_uc
+    from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+
+    store = _batch_b_store(tmp_path)
+    with pytest.raises(DomainValidationError, match="order_by must be"):
+        list_memory_uc.execute(store, order_by="cosmic")
+    with pytest.raises(ValueError, match="order_by must be"):
+        store.list_memory(order_by="cosmic")
+    store.close()

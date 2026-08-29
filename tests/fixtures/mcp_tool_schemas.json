@@ -129,6 +129,21 @@
           "title": "Compact",
           "type": "boolean"
         },
+        "exclude_tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude Tags"
+        },
         "limit": {
           "anyOf": [
             {
@@ -146,6 +161,11 @@
           "title": "Offset",
           "type": "integer"
         },
+        "order_by": {
+          "default": "pinned_first",
+          "title": "Order By",
+          "type": "string"
+        },
         "pinned_only": {
           "default": false,
           "title": "Pinned Only",
@@ -162,6 +182,21 @@
           ],
           "default": null,
           "title": "Project Id"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tags"
         }
       },
       "title": "memory_listArguments",

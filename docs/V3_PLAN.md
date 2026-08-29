@@ -991,10 +991,11 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   rule — but composite embedding identity, MMR, supersession,
   provenance, deadlines, and shadow-index publication remain proposed
   or conditional inside the review rather than joining this backlog.
-  **Still open from the review: batch B**, the demonstrated need for
-  one-call filtered chronological enumeration (`memory_list` with
-  tags/exclude-tags/pure-chronology — the Mnemosyne consumer),
-  unscheduled.
+  ~~Still open from the review: batch B~~ — **✅ SHIPPED 2026-08-29**
+  (rev 129): `memory_list` gained `tags`/`exclude_tags`/`order_by`
+  on every surface, predicates in SQL before pagination,
+  `order_by="created_at"` giving pure chronology with no pin float.
+  The review's retrieval findings are now fully dispositioned.
 
 - **Pinned prepend ignored the query.** ✅ Fully fixed 2026-08-23, in
   two passes — the first was incomplete and worth recording as such.

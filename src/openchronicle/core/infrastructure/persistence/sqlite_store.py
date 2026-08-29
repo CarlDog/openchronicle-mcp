@@ -78,6 +78,22 @@ def _pinned_clauses(mode: _PinnedMode, project_id: str | None, alias: str = "") 
     return pinned_clause, scope_clause, params
 
 
+def _exclude_tags_clause(exclude_tags: list[str] | None, alias: str = "") -> tuple[str, list[Any]]:
+    """SQL predicate for "row carries NONE of these tags" (exclude-any).
+
+    The complement of ``_tags_clause``: a row is dropped when its JSON
+    tags array overlaps the excluded set at all. Applied pre-LIMIT for
+    the same reason.
+    """
+    if not exclude_tags:
+        return "", []
+    p = f"{alias}." if alias else ""
+    clause = (
+        f"AND NOT EXISTS (SELECT 1 FROM json_each({p}tags) AS own WHERE own.value IN (SELECT value FROM json_each(?)))"
+    )
+    return clause, [json.dumps(exclude_tags)]
+
+
 def _tags_clause(tags: list[str] | None, alias: str = "") -> tuple[str, list[Any]]:
     """SQL predicate for "row carries ALL of these tags", applied pre-LIMIT.
 
@@ -377,7 +393,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         pinned_only: bool = False,
         offset: int = 0,
         project_id: str | None = None,
+        tags: list[str] | None = None,
+        exclude_tags: list[str] | None = None,
+        order_by: str = "pinned_first",
     ) -> list[MemoryItem]:
+        if order_by not in ("pinned_first", "created_at"):
+            raise ValueError(f"order_by must be 'pinned_first' or 'created_at', got {order_by!r}")
         cur = self._conn.cursor()
         where_clauses: list[str] = []
         params: list[Any] = []
@@ -386,10 +407,27 @@ class SqliteStore(StoragePort, MemoryStorePort):
         if project_id is not None:
             where_clauses.append("project_id = ?")
             params.append(project_id)
+        # Both predicates run in SQL, before LIMIT/OFFSET — the batch-A
+        # rule. The clause builders emit a leading "AND", hence lstrip.
+        tags_clause, tags_params = _tags_clause(tags)
+        if tags_clause:
+            where_clauses.append(tags_clause.removeprefix("AND "))
+            params.extend(tags_params)
+        excl_clause, excl_params = _exclude_tags_clause(exclude_tags)
+        if excl_clause:
+            where_clauses.append(excl_clause.removeprefix("AND "))
+            params.extend(excl_params)
         sql = "SELECT * FROM memory_items"
         if where_clauses:
             sql += f" WHERE {' AND '.join(where_clauses)}"
-        sql += " ORDER BY pinned DESC, created_at DESC, id DESC"
+        # "pinned_first" is the browsing default; "created_at" is PURE
+        # chronology with no pin float — the enumeration the Mnemosyne
+        # recency-window consumer needed, where a pin floating above the
+        # order silently fills a small limit with standing rules.
+        if order_by == "created_at":
+            sql += " ORDER BY created_at DESC, id DESC"
+        else:
+            sql += " ORDER BY pinned DESC, created_at DESC, id DESC"
         if limit is not None:
             sql += " LIMIT ?"
             params.append(limit)

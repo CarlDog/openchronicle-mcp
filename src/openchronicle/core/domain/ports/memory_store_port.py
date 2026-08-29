@@ -45,10 +45,25 @@ class MemoryStorePort(ABC):
         pinned_only: bool = False,
         offset: int = 0,
         project_id: str | None = None,
+        tags: list[str] | None = None,
+        exclude_tags: list[str] | None = None,
+        order_by: str = "pinned_first",
     ) -> list[MemoryItem]:
-        """List memory items, newest first, with pinned items floated to the top.
+        """List memory items — ENUMERATION, deliberately distinct from search.
 
-        Scope-strict when `project_id` is supplied.
+        Scope-strict when ``project_id`` is supplied. ``tags`` requires
+        ALL listed tags; ``exclude_tags`` drops a row carrying ANY of
+        them; both apply in SQL before pagination (a filtered page is a
+        page of the filtered set, never a filtered page). ``order_by``:
+
+        - ``"pinned_first"`` (default): pins float, then newest — the
+          browsing order this method has always had.
+        - ``"created_at"``: pure chronology, NO pin float — "the N most
+          recent rows matching these predicates" means exactly that.
+          The one-call answer to the Mnemosyne recency-window need that
+          previously took a full-project compact scan plus per-row gets.
+
+        Raises ``ValueError`` on an unknown ``order_by``.
         """
         ...
 

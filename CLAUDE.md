@@ -190,9 +190,11 @@ Landed so far, one focused commit per item:
 verified via `health.package_version` AND `health.build_revision`
 (`93a65636…`, the tag commit). A push alone deploys nothing.
 
-Open next: 0002 batch B (filtered chronological enumeration — the
-Mnemosyne consumer), the embedding-identity ADR (gates 0003 Phase C/D),
-and cloud-backup Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
+Since the tag: **0002 batch B shipped** (rev 129, 758 → 763 tests) —
+`memory_list` gained `tags`/`exclude_tags`/`order_by="created_at"`
+(pure chronology, no pin float) on every surface; ships with the next
+tagged release. Open next: the embedding-identity ADR (gates 0003
+Phase C/D) and cloud-backup Phase 0 (operator runbook). Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

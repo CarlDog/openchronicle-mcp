@@ -131,11 +131,17 @@ def memory_list(
     offset: int = Query(default=0, ge=0),
     project_id: str | None = None,
     compact: bool = False,
+    tags: str | None = None,
+    exclude_tags: str | None = None,
+    order_by: str = Query(default="pinned_first", pattern="^(pinned_first|created_at)$"),
 ) -> list[dict[str, Any]]:
-    """List memory items.
+    """List memory items — enumeration, distinct from relevance search.
 
     `project_id` is a strict filter — global (project-less) items are
     excluded. `compact` swaps content for a preview plus its length.
+    `tags`/`exclude_tags` are comma-separated (require-all / drop-any),
+    applied in SQL before pagination. `order_by=created_at` is pure
+    chronology with no pin float — the one-call recency window.
     """
     results = list_memory.execute(
         store=container.storage,
@@ -143,6 +149,9 @@ def memory_list(
         pinned_only=pinned_only,
         offset=offset,
         project_id=project_id,
+        tags=parse_csv_tags(tags),
+        exclude_tags=parse_csv_tags(exclude_tags),
+        order_by=order_by,
     )
     return [memory_to_dict(m, compact=compact) for m in results]
 

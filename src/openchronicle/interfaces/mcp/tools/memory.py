@@ -186,19 +186,28 @@ def register(mcp: FastMCP) -> None:
         offset: int = 0,
         project_id: str | None = None,
         compact: bool = False,
+        tags: list[str] | None = None,
+        exclude_tags: list[str] | None = None,
+        order_by: str = "pinned_first",
     ) -> list[dict[str, Any]]:
-        """Browse memory items newest-first, with pinned items floated to the top.
+        """Browse memory items — enumeration, distinct from relevance search.
 
         Use this for pagination through stored memories — for example,
         "what did I save recently?" or "what is in this project?" Prefer
         `memory_search` when you have keywords. Set `pinned_only=true` to
         enumerate standing rules.
 
-        Ordering note: pinned items sort ahead of everything else, so a
-        small `limit` can return only pinned rows. Ordering is also by
-        `created_at`, which `memory_save` lets callers backdate — items
-        imported from git history will not appear in a "recent" window.
-        Use `project_id` rather than a limit when you want completeness.
+        The one-call recency window: `tags` + `order_by="created_at"` +
+        a small `limit` answers "the N newest rows carrying tag X"
+        exactly — filters apply in SQL before pagination and pure
+        chronology never floats pins into the window.
+
+        Ordering note (default `order_by="pinned_first"`): pinned items
+        sort ahead of everything else, so a small `limit` can return
+        only pinned rows. Ordering is by `created_at`, which
+        `memory_save` lets callers backdate — items imported from git
+        history will not appear in a "recent" window. Use `project_id`
+        rather than a limit when you want completeness.
 
         `project_id` is a strict filter: only items belonging to that
         project, never global ones. That differs from `memory_search`,
@@ -216,6 +225,11 @@ def register(mcp: FastMCP) -> None:
             offset: Skip the first N items for pagination.
             project_id: Restrict to a specific project (strict; excludes global items).
             compact: Return a content preview instead of full content.
+            tags: Require ALL listed tags on each row (AND logic, same
+                semantics as `memory_search`).
+            exclude_tags: Drop any row carrying ANY of these tags.
+            order_by: "pinned_first" (default — pins float, then newest)
+                or "created_at" (pure chronology, no pin float).
         """
         if limit is not None:
             limit = min(max(limit, 1), 10_000)
@@ -229,6 +243,9 @@ def register(mcp: FastMCP) -> None:
                 pinned_only=pinned_only,
                 offset=offset,
                 project_id=project_id,
+                tags=tags,
+                exclude_tags=exclude_tags,
+                order_by=order_by,
             )
             return [memory_to_dict(m, compact=compact) for m in results]
 

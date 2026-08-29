@@ -5,6 +5,21 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## Unreleased
+
+Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
+`:v3.1.0`.
+
+- **`memory_list` gains filtered chronological enumeration** (design
+  0002, batch B — the demonstrated Mnemosyne consumer). Additive on
+  every surface (MCP, REST, use case, port): `tags` (require-all),
+  `exclude_tags` (drop-any), and `order_by` — `"pinned_first"` keeps
+  today's browsing order, `"created_at"` is pure chronology with no
+  pin float. All predicates apply in SQL before pagination, so "the N
+  newest rows carrying tag X but not tag Y" is one bounded call
+  instead of a full-project compact scan plus per-row gets. MINOR;
+  tool-schema snapshot regenerated.
+
 ## v3.1.0 — 2026-08-29
 
 The comparative-review remediation release. A validation pass first

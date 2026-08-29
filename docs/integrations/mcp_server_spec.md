@@ -16,7 +16,7 @@ stability guarantees see `docs/api/STABILITY.md`.
 |---|---|
 | `memory_save` | Persist a memory item that should outlive the current session. `project_id` required. |
 | `memory_search` | Hybrid FTS5 + semantic search via RRF, scoped optionally by `project_id` and `tags`. `compact` returns a content preview. `mode` (`hybrid`/`keyword`/`semantic`) picks the retrieval channel per call; `phrase` makes the keyword channel match the query as one adjacent-token phrase. Every result carries a `relevance` object (see below). |
-| `memory_list` | Browse memory items newest-first (pinned float to the top). `project_id` filters strictly; `compact` returns a content preview. |
+| `memory_list` | Browse memory items newest-first (pinned float to the top by default). `project_id` filters strictly; `compact` returns a content preview. Since 2026-08-29: `tags` (require-all), `exclude_tags` (drop-any), and `order_by` — `"created_at"` gives pure chronology with no pin float; all predicates apply in SQL before pagination, so a filtered recency window is one bounded call. |
 | `memory_get` | Fetch one memory by ID. |
 | `memory_update` | Edit content/tags in place; preserves identity. |
 | `memory_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`). `confirm` is **required** — omitting it is an error, not a preview. Two-step safety; the preview returns content/tags/project_id/pinned plus `deleted: false` and a `next_step`, without touching the DB. |
