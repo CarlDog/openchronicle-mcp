@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import struct
 
+from openchronicle.core.domain.embedding_fingerprint import settings_fingerprint
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
 
@@ -47,3 +48,11 @@ class StubEmbeddingAdapter(EmbeddingPort):
 
     def provider_name(self) -> str:
         return "stub"
+
+    def model_revision(self) -> str | None:
+        return None
+
+    def settings_fingerprint(self) -> str:
+        # dims changes the produced vectors, so it is the stub's one
+        # embedding-affecting setting.
+        return settings_fingerprint({"dimensions": self._dims})

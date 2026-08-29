@@ -21,13 +21,13 @@ def test_apply_pending_creates_schema_version_on_fresh_db(tmp_path: Path) -> Non
     conn = _new_conn(tmp_path)
     try:
         applied = migrator.apply_pending(conn)
-        assert applied == [1, 2], "expected 001 baseline + 002 embedding identity on a fresh DB"
+        assert applied == [1, 2, 3], "001 baseline + 002/003 embedding identity on a fresh DB"
 
         version = migrator.current_version(conn)
-        assert version == 2
+        assert version == 3
 
         rows = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert [r["version"] for r in rows] == [1, 2]
+        assert [r["version"] for r in rows] == [1, 2, 3]
     finally:
         conn.close()
 
@@ -37,9 +37,9 @@ def test_apply_pending_is_idempotent(tmp_path: Path) -> None:
     try:
         first = migrator.apply_pending(conn)
         second = migrator.apply_pending(conn)
-        assert first == [1, 2]
+        assert first == [1, 2, 3]
         assert second == [], "second pass should be a no-op"
-        assert migrator.current_version(conn) == 2
+        assert migrator.current_version(conn) == 3
     finally:
         conn.close()
 

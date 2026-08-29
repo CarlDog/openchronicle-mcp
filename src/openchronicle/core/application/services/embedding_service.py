@@ -104,6 +104,8 @@ class EmbeddingService:
         return bool(
             identity["provider"] == self._port.provider_name()
             and identity["model"] == self._port.model_name()
+            and identity["settings_fingerprint"] == self._port.settings_fingerprint()
+            and identity["model_revision"] == self._port.model_revision()
             and identity["content_hash"] == hash_content(content)
         )
 
@@ -140,6 +142,8 @@ class EmbeddingService:
             model=self._port.model_name(),
             provider=self._port.provider_name(),
             content_hash=hash_content(content),
+            model_revision=self._port.model_revision(),
+            settings_fingerprint=self._port.settings_fingerprint(),
         )
         if not published:
             logger.info("embedding for memory %s not published (content changed or memory deleted)", memory_id)
@@ -190,6 +194,8 @@ class EmbeddingService:
                     model=self._port.model_name(),
                     provider=self._port.provider_name(),
                     content_hash=hash_content(item.content),
+                    model_revision=self._port.model_revision(),
+                    settings_fingerprint=self._port.settings_fingerprint(),
                 )
                 if published:
                     count += 1
@@ -227,6 +233,8 @@ class EmbeddingService:
         buckets = self._store.stale_embedding_counts(
             self._port.provider_name(),
             self._port.model_name(),
+            settings_fingerprint=self._port.settings_fingerprint(),
+            model_revision=self._port.model_revision(),
         )
         return {
             "total_memories": total_memories,
@@ -445,6 +453,9 @@ class EmbeddingService:
             model=self._port.model_name(),
             provider=self._port.provider_name(),
             dimensions=len(query_vec),
+            settings_fingerprint=self._port.settings_fingerprint(),
+            model_revision=self._port.model_revision(),
+            match_revision=True,
         )
 
         if not all_embeddings:

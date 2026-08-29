@@ -202,12 +202,17 @@ def test_embedding_status_dict_active() -> None:
     container = MagicMock(spec=CoreContainer)
     container.embedding_settings = EmbeddingSettings(provider="stub")
     container.embedding_service = service
+    container.storage = store
 
     result = CoreContainer.embedding_status_dict(container)
     assert result["status"] == "active"
     assert result["provider"] == "stub"
     assert result["model"] == "stub"
     assert result["dimensions"] == 32
+    # The dimensions-truth trio (0003 F2): request, claim, measured fact.
+    assert result["configured_dimensions"] is None
+    assert result["stored_dimensions"] == [32]
+    assert result["model_revision"] is None
     assert result["total_memories"] == 1
     assert result["embedded"] == 1
     assert result["missing"] == 0

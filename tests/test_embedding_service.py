@@ -124,6 +124,12 @@ def test_generate_missing_counts_failures() -> None:
         def provider_name(self) -> str:
             return "test-provider"
 
+        def model_revision(self) -> str | None:
+            return None
+
+        def settings_fingerprint(self) -> str:
+            return "test-fp"
+
         def dimensions(self) -> int:
             return 32
 
@@ -356,6 +362,12 @@ class _FixedQueryPort(EmbeddingPort):
     def provider_name(self) -> str:
         return "test-provider"
 
+    def model_revision(self) -> str | None:
+        return None
+
+    def settings_fingerprint(self) -> str:
+        return "test-fp"
+
     def dimensions(self) -> int:
         return 2
 
@@ -437,6 +449,12 @@ class _DeadPort(EmbeddingPort):
 
     def provider_name(self) -> str:
         return "test-provider"
+
+    def model_revision(self) -> str | None:
+        return None
+
+    def settings_fingerprint(self) -> str:
+        return "test-fp"
 
     def dimensions(self) -> int:
         return 2

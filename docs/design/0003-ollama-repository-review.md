@@ -203,9 +203,12 @@ has the content identity embedded. Search should exclude identity
 mismatches, and maintenance should count them as stale and regenerate
 them.
 
-**Disposition:** promote the existing composite-identity proposal for an
-ADR. Do not implement a digest-only Ollama special case; the migration
-should establish one provider-independent freshness model.
+**Disposition:** ~~promote the existing composite-identity proposal for an
+ADR.~~ **✅ ADR 0005 accepted (rev 2, post-adversarial-review) and
+Phases B+C SHIPPED 2026-08-29** (assessment revs 134-135): one
+provider-independent freshness model — provider + model + nullable
+`model_revision` (IS-matched) + `settings_fingerprint` + `content_hash`,
+CAS publication, one reindex. No Ollama special case, as required.
 
 ## Finding 2: the Ollama request contract is not truthful
 
@@ -301,9 +304,15 @@ maximum context length" is actionable, while "HTTP 400" is not.
   providers. See the
   [official embedding guide](https://docs.ollama.com/capabilities/embeddings).
 
-**Disposition:** verified optional-adapter defects. Correct them together
+**Disposition:** ~~verified optional-adapter defects. Correct them together
 with the embedding-identity design so a dimension or input-policy change
-cannot mix vector spaces.
+cannot mix vector spaces.~~ **✅ SHIPPED 2026-08-29** (rev 135), inside
+the identity migration exactly as required: `truncate=false` fail-visible,
+`dimensions` sent-when-configured and validated, full boundary
+validation, structured errors (300-char bound), empty-batch
+short-circuit, unit normalization kept, arbitrary `options` still not
+exposed. The defect-codifying tests were replaced with two-direction
+contract tests.
 
 ## Finding 3: backfill bypasses the existing batch capability
 
@@ -721,13 +730,13 @@ style OpenChronicle should copy.
 
 | Candidate | Status after review | Evidence needed to change status |
 |---|---|---|
-| Explicit dimensions/truncation and response validation | Verified adapter defect | Implementation batch approval |
-| Structured Ollama errors | Verified adapter defect | Implementation batch approval |
+| Explicit dimensions/truncation and response validation | **✅ Shipped 2026-08-29** (rev 135) | Finding 2 records the closeout |
+| Structured Ollama errors | **✅ Shipped 2026-08-29** (rev 135) | Bounded to 300 chars; no credential-bearing URL |
 | Boundary-wide provider health and all-failed backfill outcome | **✅ Shipped 2026-08-28** (rev 126) | Finding 4 records the closeout; the Ollama capability probe rides Phase C |
-| Composite embedding identity plus content revision | Proposed hardening; promote to ADR | ADR approval and migration/reindex plan |
+| Composite embedding identity plus content revision | **✅ ADR 0005 accepted; Phases B+C shipped 2026-08-29** (revs 134-135) | Phase D (batch backfill) remains |
 | Bounded batch backfill | Proportionate improvement | Preferably lands with an identity-driven reindex |
 | Staged backup validation | **✅ Shipped 2026-08-28** (rev 125) | Finding 5 records the closeout |
-| Cached capability probe | Proposed component of provider-health work | Provider-health design approval |
+| Cached capability probe | **✅ Shipped 2026-08-29** (rev 135) | Lazy `/api/tags` digest probe, cached, non-fatal |
 | Persistent HTTP client | Conditional implementation detail | Adapter lifecycle work or measured connection cost |
 | Provider admission | Conditional | Observed overlap, queueing, or saturation |
 | Query-vector cache/singleflight | Benchmark only | Repeated-query and latency measurements |

@@ -227,6 +227,8 @@ class MemoryStorePort(ABC):
         model: str,
         provider: str,
         content_hash: str,
+        model_revision: str | None = None,
+        settings_fingerprint: str = "",
     ) -> bool:
         """Compare-and-swap upsert of a memory's vector (ADR 0005).
 
@@ -260,6 +262,12 @@ class MemoryStorePort(ABC):
         ...
 
     @abstractmethod
+    def stored_embedding_dimensions(self) -> list[int]:
+        """Distinct stored vector lengths, ascending — measured fact for
+        health's dimensions-truth display (0003 Finding 2)."""
+        ...
+
+    @abstractmethod
     def delete_embedding(self, memory_id: str) -> None:
         """Remove the stored embedding for a memory item, if any. Idempotent.
 
@@ -279,7 +287,13 @@ class MemoryStorePort(ABC):
         ...
 
     @abstractmethod
-    def stale_embedding_counts(self, provider: str, model: str) -> dict[str, int]:
+    def stale_embedding_counts(
+        self,
+        provider: str,
+        model: str,
+        settings_fingerprint: str = "",
+        model_revision: str | None = None,
+    ) -> dict[str, int]:
         """Disjoint staleness buckets against the active space (ADR 0005).
 
         ``space_mismatch`` (wrong provider/model, migration sentinels
@@ -296,6 +310,9 @@ class MemoryStorePort(ABC):
         model: str | None = None,
         provider: str | None = None,
         dimensions: int | None = None,
+        settings_fingerprint: str | None = None,
+        model_revision: str | None = None,
+        match_revision: bool = False,
     ) -> dict[str, list[float]]:
         """Map memory_id → vector, optionally filtered by ids and/or space.
 

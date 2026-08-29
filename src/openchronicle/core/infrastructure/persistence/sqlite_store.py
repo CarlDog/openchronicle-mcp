@@ -522,6 +522,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
         model: str,
         provider: str,
         content_hash: str,
+        model_revision: str | None = None,
+        settings_fingerprint: str = "",
     ) -> bool:
         # Compare-and-swap publication (ADR 0005): persist only if the
         # memory's CURRENT content still hashes to what the caller
@@ -549,17 +551,29 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur.execute(
             """
             INSERT INTO memory_embeddings (memory_id, embedding, model, dimensions, generated_at,
-                                           provider, content_hash)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+                                           provider, content_hash, model_revision, settings_fingerprint)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(memory_id) DO UPDATE SET
                 embedding = excluded.embedding,
                 model = excluded.model,
                 dimensions = excluded.dimensions,
                 generated_at = excluded.generated_at,
                 provider = excluded.provider,
-                content_hash = excluded.content_hash
+                content_hash = excluded.content_hash,
+                model_revision = excluded.model_revision,
+                settings_fingerprint = excluded.settings_fingerprint
             """,
-            (memory_id, blob, model, len(embedding), utc_now().isoformat(), provider, content_hash),
+            (
+                memory_id,
+                blob,
+                model,
+                len(embedding),
+                utc_now().isoformat(),
+                provider,
+                content_hash,
+                model_revision,
+                settings_fingerprint,
+            ),
         )
         self._commit_if_needed()
         return True
@@ -584,6 +598,9 @@ class SqliteStore(StoragePort, MemoryStorePort):
         model: str | None = None,
         provider: str | None = None,
         dimensions: int | None = None,
+        settings_fingerprint: str | None = None,
+        model_revision: str | None = None,
+        match_revision: bool = False,
     ) -> dict[str, list[float]]:
         """List embeddings, optionally filtered by ids and/or space identity.
 
@@ -612,6 +629,15 @@ class SqliteStore(StoragePort, MemoryStorePort):
         if dimensions is not None:
             clauses.append("dimensions = ?")
             params.append(dimensions)
+        if settings_fingerprint is not None:
+            clauses.append("settings_fingerprint = ?")
+            params.append(settings_fingerprint)
+        if match_revision:
+            # IS, never `=`: most providers have no revision, and
+            # `model_revision = NULL` matches ZERO rows — the blackout
+            # the ADR 0005 adversarial review caught.
+            clauses.append("model_revision IS ?")
+            params.append(model_revision)
         sql = "SELECT memory_id, embedding FROM memory_embeddings"
         if clauses:
             sql += f" WHERE {' AND '.join(clauses)}"
@@ -628,7 +654,13 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return row["cnt"] if row else 0
 
     @_locked
-    def stale_embedding_counts(self, provider: str, model: str) -> dict[str, int]:
+    def stale_embedding_counts(
+        self,
+        provider: str,
+        model: str,
+        settings_fingerprint: str = "",
+        model_revision: str | None = None,
+    ) -> dict[str, int]:
         """Disjoint staleness buckets against the active space (ADR 0005).
 
         ``space_mismatch`` — wrong provider/model (sentinel rows
@@ -641,8 +673,9 @@ class SqliteStore(StoragePort, MemoryStorePort):
         """
         cur = self._conn.cursor()
         row = cur.execute(
-            "SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE provider != ? OR model != ?",
-            (provider, model),
+            "SELECT COUNT(*) AS cnt FROM memory_embeddings"
+            " WHERE provider != ? OR model != ? OR settings_fingerprint != ? OR model_revision IS NOT ?",
+            (provider, model, settings_fingerprint, model_revision),
         ).fetchone()
         space_mismatch = row["cnt"] if row else 0
 
@@ -651,14 +684,26 @@ class SqliteStore(StoragePort, MemoryStorePort):
             """
             SELECT m.content AS content, e.content_hash AS content_hash
             FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
-            WHERE e.provider = ? AND e.model = ?
+            WHERE e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
             """,
-            (provider, model),
+            (provider, model, settings_fingerprint, model_revision),
         ).fetchall()
         for r in rows:
             if hash_content(r["content"]) != r["content_hash"]:
                 content_mismatch += 1
         return {"space_mismatch": space_mismatch, "content_mismatch": content_mismatch}
+
+    @_locked
+    def stored_embedding_dimensions(self) -> list[int]:
+        """Distinct vector lengths actually stored, ascending.
+
+        The truth surface for 0003 Finding 2's dimensions gap: health
+        used to display only the adapter's CLAIM, which could disagree
+        with every stored row.
+        """
+        cur = self._conn.cursor()
+        rows = cur.execute("SELECT DISTINCT dimensions FROM memory_embeddings ORDER BY dimensions").fetchall()
+        return [row["dimensions"] for row in rows]
 
     @_locked
     def delete_embedding(self, memory_id: str) -> None:
@@ -685,7 +730,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
         """
         cur = self._conn.cursor()
         row = cur.execute(
-            "SELECT provider, model, dimensions, content_hash FROM memory_embeddings WHERE memory_id = ?",
+            "SELECT provider, model, dimensions, content_hash, model_revision, settings_fingerprint"
+            " FROM memory_embeddings WHERE memory_id = ?",
             (memory_id,),
         ).fetchone()
         if row is None:
@@ -695,6 +741,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
             "model": row["model"],
             "dimensions": row["dimensions"],
             "content_hash": row["content_hash"],
+            "model_revision": row["model_revision"],
+            "settings_fingerprint": row["settings_fingerprint"],
         }
 
     # ── Search ──────────────────────────────────────────────────────

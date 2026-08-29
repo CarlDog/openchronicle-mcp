@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Any
 
+from openchronicle.core.domain.embedding_fingerprint import settings_fingerprint
 from openchronicle.core.domain.errors.error_codes import MISSING_PACKAGE, PROVIDER_ERROR
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
@@ -88,3 +89,12 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
 
     def provider_name(self) -> str:
         return "openai"
+
+    def model_revision(self) -> str | None:
+        # OpenAI exposes no per-model revision; rows match by IS NULL.
+        return None
+
+    def settings_fingerprint(self) -> str:
+        # `dimensions` is always sent (see embed_batch) — it is the one
+        # request-side setting that changes the vector space.
+        return settings_fingerprint({"dimensions": self._dimensions})

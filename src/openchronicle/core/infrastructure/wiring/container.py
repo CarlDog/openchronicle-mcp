@@ -110,7 +110,14 @@ class CoreContainer:
             "status": status,
             "provider": settings.provider,
             "model": port.model_name(),
+            # Three dimension facts, deliberately separate (0003 F2):
+            # the operator's request, the adapter's claim, and what the
+            # store actually holds — the old single field let health
+            # display 768 while every stored row measured 384.
             "dimensions": port.dimensions(),
+            "configured_dimensions": settings.dimensions,
+            "stored_dimensions": self.storage.stored_embedding_dimensions(),
+            "model_revision": port.model_revision(),
             "timeout_seconds": settings.timeout,
             "failure_count": failure_count,
             "last_failure_at": self.embedding_service.last_failure_at,

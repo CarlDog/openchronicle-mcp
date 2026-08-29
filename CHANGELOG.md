@@ -22,6 +22,19 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
   default 25, param on MCP + REST) with an `other_tags` rollup count —
   an unscoped call used to return the corpus's entire tag tail
   (~700 entries, mostly count-1) regardless of what the caller wanted.
+- **Truthful Ollama adapter contract + full space identity — ADR 0005
+  Phase C** (design 0003, Findings 1+2). Schema v3 adds
+  `model_revision` (nullable, `IS`-matched) and `settings_fingerprint`
+  (one shared canonical-JSON hash, never per-adapter). The Ollama
+  adapter now sends `truncate: false` (an over-length input fails
+  visibly with Ollama's own actionable message rather than silently
+  embedding a prefix), sends `dimensions` only when configured and
+  validates the response against it, validates every returned vector
+  (cardinality, emptiness, finiteness, batch consistency), surfaces
+  structured error bodies, short-circuits empty batches, and derives
+  `model_revision` from a cached non-fatal `/api/tags` probe. Health
+  gains the dimensions-truth trio (`configured_dimensions` /
+  `dimensions` / `stored_dimensions`) plus `model_revision`.
 - **Composite embedding identity — ADR 0005 Phase B** (accepted after
   a three-critic adversarial review of the design). Schema v2 adds
   `provider` + `content_hash` to `memory_embeddings`; vector

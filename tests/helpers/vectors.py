@@ -19,6 +19,8 @@ def save_vec(
     *,
     model: str = "test-model",
     provider: str = "test-provider",
+    fingerprint: str = "test-fp",
+    model_revision: str | None = None,
 ) -> bool:
     """CAS-save ``vec`` for ``memory_id``, hashing its stored content."""
     item = store.get_memory(memory_id)
@@ -29,4 +31,6 @@ def save_vec(
         model=model,
         provider=provider,
         content_hash=hash_content(item.content),
+        settings_fingerprint=fingerprint,
+        model_revision=model_revision,
     )

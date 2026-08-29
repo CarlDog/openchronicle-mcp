@@ -72,9 +72,9 @@ def test_count_stale_embeddings() -> None:
     store = _make_store()
     _add_memory(store, "mem-1")
     save_vec(store, "mem-1", [0.1], model="old-model")
-    counts = store.stale_embedding_counts("test-provider", "new-model")
+    counts = store.stale_embedding_counts("test-provider", "new-model", settings_fingerprint="test-fp")
     assert counts == {"space_mismatch": 1, "content_mismatch": 0}
-    same_space = store.stale_embedding_counts("test-provider", "old-model")
+    same_space = store.stale_embedding_counts("test-provider", "old-model", settings_fingerprint="test-fp")
     assert same_space == {"space_mismatch": 0, "content_mismatch": 0}
 
 

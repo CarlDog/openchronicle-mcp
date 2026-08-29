@@ -33,3 +33,26 @@ class EmbeddingPort(ABC):
         spaces, so the model string alone under-determines the space a
         stored vector lives in.
         """
+
+    @abstractmethod
+    def model_revision(self) -> str | None:
+        """Provider revision behind the model label, when one exists.
+
+        Ollama supplies a manifest digest (a mutable tag can be
+        re-pulled with different weights under the same name); OpenAI
+        and stub have none and return None. Persisted with every
+        vector; predicates over the stored column MUST use ``IS``
+        matching — ``= NULL`` matches nothing (ADR 0005 rev 2).
+        """
+
+    @abstractmethod
+    def settings_fingerprint(self) -> str:
+        """Canonical hash of every embedding-affecting setting.
+
+        Computed via the ONE shared helper
+        (``domain.embedding_fingerprint.settings_fingerprint``) over a
+        plain options dict — never a per-adapter serialization, which
+        would drift. Any option that changes vector semantics
+        (requested dimensions, truncation policy) must be in the dict;
+        adding one stales every stored vector by design.
+        """

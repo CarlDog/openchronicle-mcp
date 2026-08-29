@@ -30,6 +30,12 @@ class _BrokenPort(EmbeddingPort):
     def provider_name(self) -> str:
         return "test-provider"
 
+    def model_revision(self) -> str | None:
+        return None
+
+    def settings_fingerprint(self) -> str:
+        return "test-fp"
+
     def dimensions(self) -> int:
         return 32
 

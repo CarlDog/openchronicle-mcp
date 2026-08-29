@@ -37,6 +37,12 @@ class _Port(EmbeddingPort):
     def provider_name(self) -> str:
         return self._provider
 
+    def model_revision(self) -> str | None:
+        return None
+
+    def settings_fingerprint(self) -> str:
+        return "test-fp"
+
     def dimensions(self) -> int:
         return 2
 
@@ -85,7 +91,12 @@ def test_content_mismatch_stays_rankable_until_replaced() -> None:
     store.add_memory(MemoryItem(id="m1", content="new content", project_id="p"))
     # Vector recorded against the OLD content's hash — right space.
     published = store.save_embedding(
-        "m1", [1.0, 0.0], model="test-model", provider="test-provider", content_hash=hash_content("new content")
+        "m1",
+        [1.0, 0.0],
+        model="test-model",
+        provider="test-provider",
+        content_hash=hash_content("new content"),
+        settings_fingerprint="test-fp",
     )
     assert published
     # Simulate the content moving on afterwards (store-level update).
@@ -115,11 +126,23 @@ def test_cas_refuses_a_late_save_after_content_moved_on() -> None:
 
     store.update_memory("m1", content="v2")
     ok_b = store.save_embedding(
-        "m1", [0.0, 1.0], model="test-model", provider="test-provider", content_hash=hash_content("v2")
+        "m1",
+        [0.0, 1.0],
+        model="test-model",
+        provider="test-provider",
+        content_hash=hash_content("v2"),
+        settings_fingerprint="test-fp",
     )
     assert ok_b
 
-    ok_a = store.save_embedding("m1", [1.0, 0.0], model="test-model", provider="test-provider", content_hash=hash_v1)
+    ok_a = store.save_embedding(
+        "m1",
+        [1.0, 0.0],
+        model="test-model",
+        provider="test-provider",
+        content_hash=hash_v1,
+        settings_fingerprint="test-fp",
+    )
     assert ok_a is False, "the older writer's save must be refused"
     assert store.get_embedding("m1") == [0.0, 1.0], "B's vector survives"
 
@@ -132,7 +155,9 @@ def test_cas_refuses_when_memory_was_deleted_mid_flight() -> None:
     h = hash_content("doomed")
     store.delete_memory("m1")
 
-    ok = store.save_embedding("m1", [1.0, 0.0], model="test-model", provider="test-provider", content_hash=h)
+    ok = store.save_embedding(
+        "m1", [1.0, 0.0], model="test-model", provider="test-provider", content_hash=h, settings_fingerprint="test-fp"
+    )
     assert ok is False
     assert store.count_embeddings() == 0
 
@@ -212,6 +237,8 @@ def test_fresh_save_is_current_and_skipped_by_backfill() -> None:
         "model": "test-model",
         "dimensions": 2,
         "content_hash": hash_content("alpha"),
+        "model_revision": None,
+        "settings_fingerprint": "test-fp",
     }
     assert service.generate_missing().generated == 0, "a current row is not a candidate"
 
