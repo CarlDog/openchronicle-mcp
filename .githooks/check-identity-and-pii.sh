@@ -51,6 +51,22 @@ PII_PATTERNS=(
   "$PERSONAL_EMAIL_PATTERN"
 )
 
+# Operator-local extra patterns (one extended regex per line). The committed
+# patterns above are deliberately generic — this file is public, so a specific
+# value (an internal hostname, a real name) can never appear here without
+# publishing the thing it guards. Machine-specific literals therefore live in
+# an UNTRACKED per-clone file that the hook merges in when present. Added
+# 2026-08-29 after the internal NAS hostname (scrubbed repo-wide in f483ec3d)
+# was reintroduced and sailed through: hostnames were never in the generic
+# patterns' scope. Blank lines and #-comments are skipped; absent file = no-op.
+LOCAL_PATTERNS_FILE="$(git rev-parse --git-dir)/pii-local-patterns"
+if [ -f "$LOCAL_PATTERNS_FILE" ]; then
+  while IFS= read -r extra; do
+    case "$extra" in ''|'#'*) continue ;; esac
+    PII_PATTERNS+=("$extra")
+  done < "$LOCAL_PATTERNS_FILE"
+fi
+
 # ACMR (not AM): renamed/copied files must be PII-scanned too. A `git mv` of a
 # file containing a home path / personal email would otherwise bypass this scan.
 STAGED=$(git diff --cached --name-only --diff-filter=ACMR)

@@ -248,7 +248,7 @@ class TestContentEgressNotice:
             "http://host.docker.internal:11434",
             "http://192.168.1.50:11434",
             "http://10.0.0.5:11434",
-            "http://carldog-nas:11434",  # single-label LAN name
+            "http://your-nas:11434",  # single-label LAN name
             "http://nas.local:11434",
             "http://ollama.internal:11434",
         ]
