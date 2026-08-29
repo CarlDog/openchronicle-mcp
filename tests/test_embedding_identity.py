@@ -239,6 +239,7 @@ def test_fresh_save_is_current_and_skipped_by_backfill() -> None:
         "content_hash": hash_content("alpha"),
         "model_revision": None,
         "settings_fingerprint": "test-fp",
+        "status": "ok",
     }
     assert service.generate_missing().generated == 0, "a current row is not a candidate"
 

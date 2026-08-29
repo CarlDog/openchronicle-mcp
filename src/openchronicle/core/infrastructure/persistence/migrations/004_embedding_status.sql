@@ -1,0 +1,21 @@
+-- ADR 0009: permanent embed-failure classification — the row status.
+--
+-- 'ok'               — a real vector
+-- 'content_too_long' — a tombstone: no usable vector; this content,
+--                      in this space, is known unembeddable
+--
+-- A tombstone carries the full ADR 0005 identity plus the hash OF THE
+-- CONTENT THAT FAILED, an empty vector payload, and dimensions = 0
+-- (the honest fact of the stored payload). Expiry is EMERGENT, never
+-- coded: a current-identity, current-hash tombstone reads as current
+-- to the freshness check (which consults no status), a content edit
+-- re-candidates via the existing row deletion on update, and a space
+-- change re-candidates via identity mismatch. Adding an explicit
+-- "tombstone → not current" branch would reintroduce the infinite
+-- retry this ADR exists to stop.
+--
+-- Idempotency note: SQLite has no ADD COLUMN IF NOT EXISTS. Re-run
+-- safety lives in the migrator itself — the schema_version gate skips
+-- applied migrations, and the per-migration savepoint rolls back a
+-- partial failure — not in this statement.
+ALTER TABLE memory_embeddings ADD COLUMN status TEXT NOT NULL DEFAULT 'ok';

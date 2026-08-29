@@ -229,6 +229,7 @@ class MemoryStorePort(ABC):
         content_hash: str,
         model_revision: str | None = None,
         settings_fingerprint: str = "",
+        status: str = "ok",
     ) -> bool:
         """Compare-and-swap upsert of a memory's vector (ADR 0005).
 
@@ -243,6 +244,14 @@ class MemoryStorePort(ABC):
         Implementations record the ACTUAL vector length, never a
         caller-supplied claim — a mismatched claim made every read fail
         (the 2026-08-16 dimensions fix).
+
+        ``status`` (ADR 0009): ``"ok"`` for a real vector;
+        ``"content_too_long"`` writes a tombstone (empty vector, so the
+        recorded dimensions are honestly 0) through the SAME CAS — a
+        tombstone for content that moved on mid-run is refused like any
+        other stale save. Implementations MUST apply ``status`` on the
+        update branch too, so a later successful save onto a tombstoned
+        row resurrects it to ``"ok"`` in the same statement.
         """
         ...
 
@@ -257,14 +266,22 @@ class MemoryStorePort(ABC):
 
         None when the memory has no vector. Freshness (ADR 0005) is
         judged by comparing this against the active port and the
-        memory's current content hash.
+        memory's current content hash. The ``status`` key rides along
+        for diagnostics/tests only — candidacy must NEVER consult it
+        (ADR 0009: a current tombstone reading as current IS the
+        emergent exclusion; an explicit branch would reintroduce the
+        infinite retry).
         """
         ...
 
     @abstractmethod
     def stored_embedding_dimensions(self) -> list[int]:
         """Distinct stored vector lengths, ascending — measured fact for
-        health's dimensions-truth display (0003 Finding 2)."""
+        health's dimensions-truth display (0003 Finding 2).
+
+        ``status='ok'`` rows only (ADR 0009): a tombstone's factual 0 is
+        payload truth, not vector truth, and must not read as drift.
+        """
         ...
 
     @abstractmethod
@@ -282,8 +299,30 @@ class MemoryStorePort(ABC):
         ...
 
     @abstractmethod
-    def count_embeddings(self) -> int:
-        """Total stored embeddings (SQL COUNT, not a row load)."""
+    def count_embeddings(self, status: str | None = None) -> int:
+        """Stored embedding rows (SQL COUNT, not a row load).
+
+        ``status`` narrows to one row status (ADR 0009): ``None`` counts
+        every row including tombstones (the ``missing = total memories −
+        all rows`` invariant needs that); ``"ok"`` counts real vectors
+        (health's ``embedded``).
+        """
+        ...
+
+    @abstractmethod
+    def count_unembeddable_embeddings(
+        self,
+        provider: str,
+        model: str,
+        settings_fingerprint: str = "",
+        model_revision: str | None = None,
+    ) -> int:
+        """CURRENT tombstones — space identity AND content hash match.
+
+        Health's additive ``unembeddable`` count (ADR 0009). Non-current
+        tombstones are genuine backfill candidates and belong to the
+        stale buckets instead; no row is in both.
+        """
         ...
 
     @abstractmethod
@@ -320,6 +359,7 @@ class MemoryStorePort(ABC):
         ``provider``, ``dimensions``): vectors from different spaces
         either crash the similarity computation (different dims) or
         silently corrupt ranking (same dims), and migration-sentinel
-        rows must never rank.
+        rows must never rank. Only ``status='ok'`` rows return (ADR
+        0009) — a tombstone has no usable vector and must never rank.
         """
         ...

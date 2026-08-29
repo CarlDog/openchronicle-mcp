@@ -12,6 +12,35 @@ from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
 
+def save_tombstone(
+    store: SqliteStore,
+    memory_id: str,
+    *,
+    model: str = "test-model",
+    provider: str = "test-provider",
+    fingerprint: str = "test-fp",
+    model_revision: str | None = None,
+) -> bool:
+    """CAS-write an ADR 0009 tombstone for ``memory_id``'s current content.
+
+    Empty vector payload (so the stored dimensions are honestly 0), full
+    identity, ``status='content_too_long'`` — the same shape the service
+    writes when the provider classifies the content as over-length.
+    """
+    item = store.get_memory(memory_id)
+    assert item is not None, f"save_tombstone: memory {memory_id!r} must exist"
+    return store.save_embedding(
+        memory_id,
+        [],
+        model=model,
+        provider=provider,
+        content_hash=hash_content(item.content),
+        settings_fingerprint=fingerprint,
+        model_revision=model_revision,
+        status="content_too_long",
+    )
+
+
 def save_vec(
     store: SqliteStore,
     memory_id: str,
