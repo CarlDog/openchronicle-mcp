@@ -339,6 +339,33 @@ def _validate_repo_url(repo_url: str) -> None:
         raise RuntimeError("Unsupported repo URL: query strings and fragments are not allowed in a clone URL.")
 
 
+# owner/repo path segments as GitHub itself constrains them; optional .git
+# and trailing slash. Deliberately no ports, no subdomains, no deeper paths.
+_GITHUB_HTTPS_RE = re.compile(r"^https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+?(\.git)?/?$")
+
+
+def validate_server_repo_url(repo_url: str) -> None:
+    """Destination policy for the *server* surface: https://github.com only.
+
+    The MCP `onboard_git` tool lets a caller point the server's own
+    `git clone` at an arbitrary host — which on a container that can
+    reach `host.docker.internal` includes loopback, RFC1918, and
+    metadata addresses (design 0004, Finding 3). Decided 2026-08-28:
+    every repo this deployment onboards lives on github.com, so the
+    server surface allows exactly that, and the SSRF class closes
+    outright instead of via address-class filtering. The CLI's
+    local-path onboarding is not routed through this gate. Widen only
+    with a named non-GitHub consumer — and then via address-class
+    rejection, not by deleting this check.
+    """
+    _validate_repo_url(repo_url)
+    if not _GITHUB_HTTPS_RE.match(repo_url):
+        raise RuntimeError(
+            "This server only onboards https://github.com/<owner>/<repo> URLs. "
+            "For repos hosted elsewhere (or unpushed local history), run `oc onboard git` on the machine that has them."
+        )
+
+
 # Conservative subset of valid git ref names: no leading dash (option
 # injection), no leading dot/slash, none of git's forbidden characters.
 _BRANCH_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/\-]*$")

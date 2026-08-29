@@ -154,14 +154,19 @@ Landed so far, one focused commit per item:
   the REST/MCP diagnostics report it (file-read, not env-assertable);
   `docker-compose.nas.yml` now *requires* `OC_TAG` — no `:latest`
   fallback.
+- **GitHub-only server-side clones** (rev 119, 722 → 734 tests):
+  operator decision landed — MCP `onboard_git` accepts only
+  `https://github.com/<owner>/<repo>`, closing the SSRF class; CLI
+  local-path onboarding unaffected.
 
 Runtime changes are on `main` but **not deployed**: stack 151 is
 tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
 tagged release. A push alone deploys nothing.
 
-Open next in this sequence: 0002 batch A (retrieval correctness). The
-clone destination-policy decision needs the operator to name any
-non-GitHub consumer. Standing V3_PLAN follow-ups (mcp 2.x on its
+Open next in this sequence: 0002 batch A (retrieval correctness), with
+two contracts already decided by the operator: `top_k` becomes a TOTAL
+response budget (floated pins count against it), and `include_pinned`
+is exposed on MCP + REST (additive, MINOR under STABILITY.md). Standing V3_PLAN follow-ups (mcp 2.x on its
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 

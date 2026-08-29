@@ -11,6 +11,15 @@ Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
 `:v3.0.0`. The import/export item below is the first runtime change
 since the tag; it ships when `OC_TAG` next moves.
 
+- **MCP `onboard_git` clones from github.com only** (design 0004,
+  Finding 3, destination-policy half; decided 2026-08-28 — no
+  non-GitHub consumer exists). The server-side tool used to point its
+  own `git clone` at any HTTPS/SSH host, including loopback, RFC1918,
+  and cloud-metadata addresses. `repo_url` is now gated to
+  `https://github.com/<owner>/<repo>` before the worker thread runs;
+  other hosts and local paths remain available through the
+  `oc onboard git` CLI. Widening path, if a non-GitHub consumer ever
+  appears: address-class rejection, not deleting the gate.
 - **Deploy identity: `build_revision` in health, `OC_TAG` required**
   (design 0004, Finding 4). CI bakes the full git SHA to
   `/app/build-revision` (a file, not an ENV — a compose edit cannot

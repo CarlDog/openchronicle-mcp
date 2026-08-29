@@ -321,8 +321,14 @@ batch.~~ **✅ Child-environment half SHIPPED 2026-08-28** (assessment rev
 sentinel-secret regression test, raw `OC_GIT_TOKEN` never in the child,
 `GIT_TERMINAL_PROMPT=0`, `--no-checkout`, https userinfo and
 query/fragment rejection, and clone-stderr scrubbing of token material.
-Destination policy remains as written: a medium-high decision requiring
-the actual non-GitHub consumer to be named.
+~~Destination policy remains as written: a medium-high decision requiring
+the actual non-GitHub consumer to be named.~~ **✅ DECIDED AND SHIPPED
+2026-08-28** (rev 119): the operator confirmed every onboarded repo
+lives on github.com, so the server surface takes the review's first
+option — `validate_server_repo_url` allows exactly
+`https://github.com/<owner>/<repo>` and the CLI keeps broader/local
+paths. The address-class-rejection design remains the documented
+widening path should a non-GitHub consumer appear.
 
 ## Finding 4: release version is not deploy identity
 
@@ -646,7 +652,7 @@ implementation.
 | 5 | Immutable build revision in diagnostics | Operations / provenance | 4 | 4 | 2 | 32 | **✅ Shipped 2026-08-28** (rev 118); Finding 4 records the closeout |
 | 6 | Idempotent postcondition-checked offline replay | Reliability / feature design | 5 | 5 | 3 | 30 | Before the existing write-behind item ships; prevents duplicates after ambiguous timeout |
 | 7 | Repair public docs + CLI/MCP/env parity checks | Documentation / correctness | 3 | 4 | 2 | 28 | **Docs closed 2026-08-28**; broader inventory gates remain unscheduled |
-| 8 | Outbound clone destination policy | Security / SSRF | 4 | 4 | 3 | 24 | Decide now, implement after naming non-GitHub consumers; arbitrary remote hosts are accepted from a server-side tool |
+| 8 | Outbound clone destination policy | Security / SSRF | 4 | 4 | 3 | 24 | **✅ Decided + shipped 2026-08-28** (rev 119): github.com-only on the server surface; Finding 3 records the closeout |
 | 9 | Lock consumed by CI/Docker + dependency audit | Build / supply chain | 4 | 4 | 3 | 24 | Existing backlog; a prior fresh resolve would have produced a startup-broken image |
 | 10 | Durable integrity outcome + truthful backfill success | Operations / reliability | 4 | 4 | 3 | 24 | Combine with existing maintenance/provider-health debt; restart currently clears the visible degraded boolean |
 | 11 | Built artifact/container contract smoke | Testing / packaging | 3 | 3 | 2 | 24 | Bounded experiment; current CI tests editable source but never starts the image it publishes |

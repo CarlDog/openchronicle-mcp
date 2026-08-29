@@ -17,6 +17,7 @@ from openchronicle.core.application.services.git_onboard import (
     cluster_to_summary,
     extract_commits_from_url,
     onboard_git_prepare,
+    validate_server_repo_url,
 )
 from openchronicle.core.domain.errors.error_codes import PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
@@ -72,7 +73,9 @@ def register(mcp: FastMCP) -> None:
 
         Args:
             project_id: Project to attach memories to.
-            repo_url: Cloneable URL (HTTPS or SSH).
+            repo_url: An https://github.com/<owner>/<repo> URL — the only
+                host this server-side tool clones from. Other hosts and
+                local paths: use the `oc onboard git` CLI where they live.
             max_commits: Cap on commits walked (default 500).
             max_clusters: Cap on clusters/memories produced (default 15).
             force: Wipe prior git-onboard memories and re-run from scratch.
@@ -86,6 +89,12 @@ def register(mcp: FastMCP) -> None:
         # keeps the tool's contract honest at the boundary rather than relying
         # on a downstream guard to paper over a value we accepted.
         max_clusters = max(1, max_clusters)
+        # Server-surface destination policy: this tool points the
+        # server's own `git clone` at a caller-chosen host, so it is
+        # gated to github.com (see validate_server_repo_url). Checked
+        # here, before the worker thread, so a rejected URL never costs
+        # a clone attempt.
+        validate_server_repo_url(repo_url)
         container = _get_container(ctx)
         return await asyncio.to_thread(
             _onboard_git_sync,

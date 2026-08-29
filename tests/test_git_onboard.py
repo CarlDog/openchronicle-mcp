@@ -26,6 +26,7 @@ from openchronicle.core.application.services.git_onboard import (
     extract_commits_from_git,
     extract_commits_from_url,
     filter_commits,
+    validate_server_repo_url,
 )
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 
@@ -461,3 +462,37 @@ def test_invalid_branch_rejected_before_clone(branch: str) -> None:
     ):
         extract_commits_from_url("https://github.com/foo/bar", branch=branch)
     mock_run.assert_not_called()
+
+
+# ── server-surface destination policy (github.com only) ────────────
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://github.com/CarlDog/openchronicle-mcp",
+        "https://github.com/CarlDog/openchronicle-mcp.git",
+        "https://github.com/CarlDog/openchronicle-mcp/",
+    ],
+)
+def test_server_policy_accepts_github_https(url: str) -> None:
+    validate_server_repo_url(url)  # must not raise
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://gitlab.com/foo/bar",  # different host
+        "https://github.com.evil.example/foo/bar",  # prefix-spoofed host
+        "https://github.com/foo",  # no repo segment
+        "https://github.com/foo/bar/tree/main",  # deeper path
+        "https://127.0.0.1/foo/bar",  # loopback — the SSRF class the gate closes
+        "https://169.254.169.254/latest/meta-data",  # metadata endpoint
+        "https://github.com:8443/foo/bar",  # port smuggling
+        "ssh://git@github.com/foo/bar.git",  # ssh stays CLI-territory
+        "git@github.com:CarlDog/openchronicle-mcp.git",
+    ],
+)
+def test_server_policy_rejects_non_github_destinations(url: str) -> None:
+    with pytest.raises(RuntimeError):
+        validate_server_repo_url(url)

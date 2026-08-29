@@ -959,11 +959,12 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   environment~~ — **✅ SHIPPED 2026-08-28** (rev 117): allowlisted clone
   env with a sentinel test, raw token never in the child,
   `GIT_TERMINAL_PROMPT=0`, `--no-checkout`, userinfo/query/fragment
-  rejection, stderr scrubbing. Remaining right-sized work is the
-  explicit server-side clone *destination policy* (an operator decision:
-  GitHub-only allowlist vs. address-class rejection — the review
-  requires naming any non-GitHub consumer first) and broader CLI/MCP/env
-  documentation parity gates. ~~Immutable `build_revision` in full
+  rejection, stderr scrubbing. ~~Explicit server-side clone
+  *destination policy*~~ — **✅ DECIDED AND SHIPPED 2026-08-28** (rev
+  119): the operator named no non-GitHub consumer, so the MCP surface
+  clones `https://github.com/<owner>/<repo>` only; widening later means
+  address-class rejection, not deleting the gate. Remaining right-sized
+  work is the broader CLI/MCP/env documentation parity gates. ~~Immutable `build_revision` in full
   diagnostics~~ — **✅ SHIPPED 2026-08-28** (rev 118): CI bakes the full
   SHA to `/app/build-revision`, health/`oc version` report it, and the
   NAS compose requires an explicit `OC_TAG`.
