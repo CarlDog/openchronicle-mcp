@@ -1,8 +1,9 @@
 # ADR 0009 — Permanent Embed-Failure Classification
 
-**Status:** PROPOSED (rev 2 — rev 1 took a two-critic adversarial
-review: 2 BLOCKING, 8 MAJOR-tier, 5 MINOR sustained; every finding
-dispositioned below; see Review history) · **Date:** 2026-08-29 ·
+**Status:** PROPOSED (rev 3 — rev 2 was re-verified by both original
+critics: all rev-1 findings confirmed resolved against code; the
+residual findings, one shared MAJOR and six MINORs, are amended in
+this rev; see Review history) · **Date:** 2026-08-29 ·
 **Queue:** V3_PLAN active queue item 4 · **Ships:** v3.x from `main`
 (additive) — independent of the v4 line.
 
@@ -50,8 +51,10 @@ is the over-length one:
   adapter stringifies bare `Exception` and preserves no SDK
   structure. It will inspect the SDK error's structured attributes
   and classify when `code == "context_length_exceeded"`, with a
-  conservative message-substring fallback (`context length`) for
-  responses carrying no code. **Caveat, accepted and documented:** on
+  conservative message-substring fallback (`context length`) —
+  **gated, like the Ollama predicate, to 400-family SDK errors
+  only** (rev-2 review: an ungated fallback would classify any error
+  whose stringification happens to contain the substring). **Caveat, accepted and documented:** on
   generic OpenAI-compatible hosts (`OPENAI_BASE_URL` — Voyage,
   Gemini, Mistral) neither may match; the conservative bias means
   those deployments keep today's retry-forever behavior rather than
@@ -101,15 +104,23 @@ tombstone write compares the failed content's hash against the
 memory's current content and is refused if the content moved mid-run
 — the row simply remains a candidate.
 
-**Overwrite trade-off, dispositioned (rev-1 MAJOR):** the table is
-one row per memory, so a tombstone REPLACES an old-space vector row
-— e.g. the 9 rows' intact OpenAI vectors, which today would make a
-provider *rollback* instantly free. Accepted deliberately: the
-rollback cost is 9 re-embeds (~cents, ~seconds) and a brief
-FTS5-only window for those rows, while preserving dead vectors as
-rollback insurance would require abandoning one-row-per-memory. The
-cheap insurance is disproportionate machinery; the trade is recorded
-here so a future rollback isn't surprised.
+**Overwrite trade-off, dispositioned (rev-1 MAJOR; same-space branch
+added per rev-2 review):** the table is one row per memory, so a
+tombstone REPLACES whatever row sat there — two branches:
+
+- *Old-space vector* (e.g. the 9 rows' intact OpenAI vectors, which
+  today would make a provider rollback instantly free): accepted —
+  the rollback cost is 9 re-embeds (~cents, ~seconds) and a brief
+  FTS5-only window, while preserving dead vectors as rollback
+  insurance would require abandoning one-row-per-memory.
+- *Same-space serving vector*: a `force=true` re-embed against a
+  provider whose limits drifted (same model label, revision NULL)
+  can replace a valid, currently-serving vector with a tombstone —
+  pre-ADR, a failed force wrote nothing and the vector kept serving.
+  Accepted: `force` is an explicit operator override, the trigger is
+  provider-side drift on unchanged content (exotic), the INFO line
+  names the remedy, and recovery is one successful re-embed. Both
+  branches recorded so neither surprises a future operator.
 
 **Expiry (mechanism named, per review):** candidacy exclusion is
 EMERGENT — a current-identity, current-hash tombstone already reads
@@ -133,14 +144,27 @@ similarity.
   special-casing).
 - **All THREE `_record_failure` sites** (rev-1 MAJOR — rev 1 covered
   one): a `CONTENT_TOO_LONG` outcome records neither failure nor
-  success at the backfill per-item handler, the save/update path
-  (`generate_for_memory`'s blanket handler learns to exempt it), and
-  the search-query path (an over-length *query* is caller content,
-  not provider health). The save/update path ALSO writes the
-  tombstone — `generate_for_memory` classifies and parks exactly like
-  the backfill, so an edit that stays over-length re-parks
+  success at the backfill per-item handler, the save/update path,
+  and the search-query path (an over-length *query* is caller
+  content, not provider health). The save/update path ALSO writes
+  the tombstone, so an edit that stays over-length re-parks
   immediately instead of poisoning health until the next 6-hourly
   backfill.
+- **Save-path contract, decided (rev-2 review's one MAJOR):**
+  `generate_for_memory` treats a classified `CONTENT_TOO_LONG` as a
+  HANDLED outcome — it writes the tombstone, logs the one INFO line,
+  and **returns normally; it does not raise**. Transient failures
+  keep the existing raise-on-failure contract unchanged, so the
+  callers' warning blocks (`add_memory`/`update_memory`) still fire
+  for genuine failures and never emit a traceback for a parked,
+  designed outcome (the rev-144 log-noise class). **Caller-visible
+  semantics, decided: silent by design at the response level.** The
+  save itself SUCCEEDED — the memory is stored and FTS5-searchable —
+  and embedding outcomes have never been part of the save response;
+  health (`unembeddable`) and the INFO line are the surfaces. If
+  operator experience later wants the remedy at save time, an
+  additive response hint is a one-line follow-up, not smuggled in
+  here.
 - **`BackfillResult` grows a third count (rev-1 BLOCKING #2):**
   `BackfillResult(generated, failed, tombstoned, elapsed_ms)`.
   Tombstone writes count in `tombstoned` ONLY. Consumers updated in
@@ -172,16 +196,39 @@ similarity.
   `total − all rows` (a tombstone is known, not missing). Expected
   live reading post-deploy: `embedded: 863, missing: 0, stale: 0,
   unembeddable: 9, status: active`. The health test asserts the
-  PARTITION (every row in exactly one bucket; sum matches), not
-  mere disjointness — review showed disjointness is trivially
-  satisfied by a row in zero buckets.
+  PARTITION **over row classes** — every `memory_embeddings` row is
+  exactly one of {`status='ok'`, current tombstone, non-current
+  tombstone} and the class counts sum to the row count — NOT over
+  the health FIELDS, which legitimately overlay (an ok-but-stale row
+  is in `embedded` AND a stale bucket, exactly as today; the rev-2
+  review caught a field-level partition test as self-contradictory;
+  rev 1's disjointness test was trivially satisfiable by a row in
+  zero buckets). **Cross-field relationships, stated so nobody
+  re-derives them wrong (rev-2 review):** `stale ⊆ embedded` no
+  longer holds — a non-current tombstone is in a stale bucket but
+  not in `embedded` (after a future provider switch the live corpus
+  would read `embedded: 863, stale: 872`); the invariants that DO
+  hold are `embedded + tombstones = total rows` and
+  `missing = total memories − total rows`, and `stale` counts
+  regeneration work regardless of row status. `MAINTENANCE.md`'s
+  health notes carry these relationships (docs checklist).
 - **Logging:** tombstone write = one INFO line with the memory id and
   the remedy (shorten the content, or use a larger-context model).
-- **Docs checklist:** `env_vars.md`/`MAINTENANCE.md`/
+- **Docs + rendering checklist:** `env_vars.md`/`MAINTENANCE.md`/
   `mcp_client_setup.md` wherever `embedding_status` fields are
-  enumerated; the `memory_embed` tool description (`force` retries
-  tombstones; `tombstoned` in the response); CLI `oc memory embed`
-  summary line; `error_codes.py` `__all__` + canonical test.
+  enumerated (MAINTENANCE.md also gains the cross-field
+  relationships above); **`mcp_server_spec.md`** (the `memory_embed`
+  row's progress-via-health text gains `unembeddable`/`tombstoned`,
+  and the error-semantics prose that names `PROVIDER_ERROR` as the
+  adapters' code learns of `CONTENT_TOO_LONG`) — rev-2 review caught
+  its omission; the `memory_embed` tool description (`force` retries
+  tombstones; `tombstoned` in the response); the CLI `oc memory
+  embed` run-summary line AND the `--status` human rendering, which
+  prints Total/Embedded/Missing/Stale and would otherwise leave the
+  9 parked rows visible in NO printed field — it gains an
+  `Unembeddable` line; the maintenance guard's message names all
+  three counts (its "all N failed" wording goes stale in mixed
+  runs); `error_codes.py` `__all__` + canonical test.
 
 ### 4. Out of scope
 
@@ -234,7 +281,10 @@ run succeeds, and health goes `active` with `unembeddable: 9`.
   mixed runs report all three counts.
 - Search: tombstones never in `list_embeddings`;
   `stored_embedding_dimensions` never contains 0 from a tombstone.
-- Health: the PARTITION asserted (every row exactly one bucket;
+- Save-path contract: an over-length save/update RETURNS normally
+  (no raise), callers emit no traceback, the response is unchanged;
+  a transient save failure still raises and still warns.
+- Health: the row-class PARTITION asserted (every row exactly one class;
   invariant sum); `unembeddable` counts only current tombstones;
   non-current tombstones appear in the stale buckets; counters
   unchanged by classified outcomes; transient failures still count.
@@ -279,3 +329,23 @@ run succeeds, and health goes `active` with `unembeddable: 9`.
   migration feasibility, single-source health assembly, and the
   batch-level counter (the observed 36 was purely per-item — the
   fix does stop the climb once the save path is covered).
+- **Rev 2 (2026-08-29): re-verified by both original critics.** All
+  rev-1 findings confirmed RESOLVED against code (the resurrection
+  clause closes every write path including delete-then-INSERT under
+  CAS; the stated partition matches the real bucket SQL with no
+  status predicate needed; the maintenance guard, `embed_memory`
+  mapping, and CLI exit all hold with zero expression changes;
+  `dimensions=0` creates no third mismatch class — the bucket SQL
+  never consults dimensions). Residuals fixed in rev 3 — the shared
+  MAJOR: the save-path park's exception contract and caller-visible
+  semantics were implementer-inventable (→ decided: handled outcome,
+  returns normally, no traceback, response silent by design with
+  health as the surface). MINORs: field-level partition test was
+  self-contradictory (→ row-class partition + cross-field
+  relationships stated, `stale ⊆ embedded` breakage named); OpenAI
+  fallback lacked the 400 gate (→ gated); `mcp_server_spec.md` and
+  the CLI `--status` human rendering were missing from the checklist
+  (→ added, `Unembeddable` line specified); the same-space
+  force-overwrite branch was undispositioned (→ accepted, recorded);
+  the maintenance guard's "all N failed" message wording (→ names
+  all three counts).
