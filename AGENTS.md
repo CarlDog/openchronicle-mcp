@@ -250,6 +250,17 @@ concurrency load probe, then demand-/trigger-gated items. Standing V3_PLAN follo
 triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
 consumption, quarterly Ollama Cloud re-check) are unchanged.
 
+**ADR 0008 rollout step 2 landed on `main`** (rev 157 — the §3
+harness + fixture upgrades, the slice the ADR carves out as
+v3-compatible; no `src/` change): pinned-target status derived at
+load time from the corpus fixture, per-channel pinned/unpinned and
+stratified 60/40 tune/validate subset reporting, embed-once with
+re-runnable scoring passes for the v4 sweep, a broad-query
+pin-crowding probe (absolute reading now; the delta-vs-LIFT=0 gate
+arrives with the sweep), and the gold set expanded 40 → 50 queries
+(20 pinned-target, meeting the ADR's ≥20). Steps 3-5 — the lift
+itself — proceed on `v4/develop`.
+
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
 cut plugin system entirely; MCP tool description quality pass done;

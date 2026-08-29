@@ -975,7 +975,16 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   `docs/api/STABILITY.md`), with the gold-set benchmark
   (`scripts/benchmark_embeddings.py`) as the tuning instrument for the
   boost weight instead of guesswork. Not a quick fix; schedule as a
-  proper stage.
+  proper stage. **Status (2026-08-29):**
+  [ADR 0008](design/0008-pins-as-ranking-prior.md) governs this item —
+  ACCEPTED at rev 4 after three review rounds, with the mechanism
+  revised from a fused-score boost to a bounded, clamped rank lift
+  (`PIN_RANK_LIFT`). Implementation proceeds on `v4/develop` (v4.0.0
+  per its §5); rollout step 2 — the §3 harness + fixture upgrades
+  (pinned-target split derived at load time, stratified 60/40
+  tune/validate split, embed-once re-scoring scaffold, broad-query
+  pin-crowding probe, gold set 40 → 50 queries / 20 pinned-target) —
+  landed on `main` (assessment rev 157).
 
 - **The openai adapter always sends `dimensions`; strict
   OpenAI-compat hosts reject the request outright.** Live-confirmed
