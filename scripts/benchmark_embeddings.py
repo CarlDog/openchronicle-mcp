@@ -30,10 +30,21 @@ The store is built and embedded ONCE per candidate; the scoring passes
 are separate functions so the v4 PIN_RANK_LIFT sweep can re-score many
 constant cells against the same live store without re-embedding.
 
+`--sweep` IS that sweep (ADR 0008 §3, rollout step 4): ONE candidate,
+one embed, seven scored cells — `PIN_RANK_LIFT ∈ {0, 2, 4, 8}` plus a
+window-only ablation per nonzero lift (fetch extended by the paired
+cell's effective lift, lift itself disabled) so the §2 fetch-depth side
+effect and the lift's own effect are separately attributable. The
+tuning gates (delta crowding, held-out regression veto, unpinned
+non-regression, tune-split deltas) are computed from exact hit counts
+and PRINTED, but no winner is chosen — adjudication is the operator's.
+
 Usage:
     python scripts/benchmark_embeddings.py \
         --models nomic-embed-text,embeddinggemma,... \
         [--openai-model text-embedding-3-small]   # needs OPENAI_API_KEY
+    python scripts/benchmark_embeddings.py --sweep \
+        [--models nomic-embed-text] [--out .../sweep_results.json]
 
 Latency caveat: numbers measured on the authoring machine are
 indicative only — the deploy target is the NAS CPU. Accuracy is the
@@ -116,6 +127,7 @@ class ChannelMetrics:
         out["validate_pinned_target"] = _rank_summary(
             [r for r in self.results if r.split == "validate" and r.pinned_target]
         )
+        out["tune_pinned_target"] = _rank_summary([r for r in self.results if r.split == "tune" and r.pinned_target])
         return out
 
 
@@ -307,6 +319,300 @@ def run_fts5_baseline(corpus: list[dict[str, Any]], gold: list[dict[str, Any]]) 
             store.close()
 
 
+# ── ADR 0008 §3 tuning sweep (rollout step 4) ───────────────────────
+
+SWEEP_CELLS: tuple[tuple[str, str, int, int | None], ...] = (
+    # (cell, role, pin_rank_lift, fetch_extension)
+    ("lift0", "baseline", 0, None),
+    ("lift2", "candidate", 2, None),
+    ("ablate2", "ablation", 0, 2),
+    ("lift4", "candidate", 4, None),
+    ("ablate4", "ablation", 0, 4),
+    ("lift8", "candidate", 8, None),
+    ("ablate8", "ablation", 0, 8),
+)
+
+
+class _QueryCachingPort(EmbeddingPort):
+    """Delegating wrapper that memoizes ``embed()`` by exact text.
+
+    Sweep-only: all seven cells re-run the same gold + broad queries,
+    so caching guarantees every cell scores IDENTICAL query vectors —
+    cross-cell deltas are pure ranking policy, never provider jitter —
+    and saves ~6/7 of the query-embedding round-trips. Every identity
+    method delegates: a divergent identity would silently empty the
+    semantic channel (space-scoped ``list_embeddings``) and the run
+    would look valid while measuring nothing.
+    """
+
+    def __init__(self, inner: EmbeddingPort) -> None:
+        self._inner = inner
+        self._cache: dict[str, list[float]] = {}
+
+    def embed(self, text: str) -> list[float]:
+        if text not in self._cache:
+            self._cache[text] = self._inner.embed(text)
+        return self._cache[text]
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        return self._inner.embed_batch(texts)
+
+    def dimensions(self) -> int:
+        return self._inner.dimensions()
+
+    def model_name(self) -> str:
+        return self._inner.model_name()
+
+    def provider_name(self) -> str:
+        return self._inner.provider_name()
+
+    def model_revision(self) -> str | None:
+        return self._inner.model_revision()
+
+    def settings_fingerprint(self) -> str:
+        return self._inner.settings_fingerprint()
+
+
+def _subset(
+    results: list[QueryResult],
+    *,
+    split: str | None = None,
+    pinned_target: bool | None = None,
+) -> list[QueryResult]:
+    out = results
+    if split is not None:
+        out = [r for r in out if r.split == split]
+    if pinned_target is not None:
+        out = [r for r in out if r.pinned_target is pinned_target]
+    return out
+
+
+def _hits_at(results: list[QueryResult], k: int) -> int:
+    return sum(1 for r in results if r.rank is not None and r.rank <= k)
+
+
+def _mrr(results: list[QueryResult]) -> float:
+    return sum(1.0 / r.rank for r in results if r.rank is not None) / len(results) if results else 0.0
+
+
+def _r1_delta(cell: list[QueryResult], base: list[QueryResult]) -> dict[str, Any]:
+    """Exact R@1 delta over one query subset, in whole queries.
+
+    Computed from raw hit COUNTS, never the rounded summary rates — the
+    gates must be exact. ``noise`` labels a delta at or under one
+    query's granularity (ADR 0008 §3); the validate veto deliberately
+    ignores the label — any negative validated delta rejects.
+    """
+    n = len(cell)
+    if n != len(base):
+        raise SystemExit(f"subset size mismatch: {n} vs {len(base)} — cells scored different query sets")
+    hits_cell, hits_base = _hits_at(cell, 1), _hits_at(base, 1)
+    delta = hits_cell - hits_base
+    return {
+        "n": n,
+        "baseline_hits": hits_base,
+        "cell_hits": hits_cell,
+        "delta_queries": delta,
+        "delta_rate": round(delta / n, 4) if n else 0.0,
+        "granularity": round(1 / n, 4) if n else None,
+        "noise": abs(delta) <= 1,
+    }
+
+
+def _crowding_gate(cell_probe: dict[str, Any], base_probe: dict[str, Any]) -> dict[str, Any]:
+    """The ADR §3 crowding gate, as a DELTA over the LIFT=0 cell.
+
+    Mean pins-in-top-10 minus the baseline's mean ≤ 1.0 AND max
+    per-query increase ≤ 2 — both from exact integer counts (the
+    mean condition is evaluated as ``sum_delta <= n``, no floats).
+    """
+    cell_counts = [int(p["pins_in_top_10"]) for p in cell_probe["per_query"]]
+    base_counts = [int(p["pins_in_top_10"]) for p in base_probe["per_query"]]
+    increases = [c - b for c, b in zip(cell_counts, base_counts, strict=True)]
+    sum_delta = sum(increases)
+    n = len(increases)
+    return {
+        "mean_delta": round(sum_delta / n, 4),
+        "max_per_query_increase": max(increases),
+        "per_query_increase": increases,
+        "pass": bool(sum_delta <= n and max(increases) <= 2),
+    }
+
+
+def compute_gates(
+    cell_name: str,
+    role: str,
+    hybrid: ChannelMetrics,
+    semantic: ChannelMetrics,
+    probe: dict[str, Any],
+    base_hybrid: ChannelMetrics,
+    base_semantic: ChannelMetrics,
+    base_probe: dict[str, Any],
+) -> dict[str, Any]:
+    """Every ADR 0008 §3 tuning gate for one cell, vs the LIFT=0 cell.
+
+    Verdicts are computed and printed only — `eligible` means "no gate
+    rejects this cell", never "this cell wins". The LIFT=0 cell passes
+    by construction (all deltas are zero against itself).
+    """
+    hy, base_hy = hybrid.results, base_hybrid.results
+    crowding = _crowding_gate(probe, base_probe)
+    veto = _r1_delta(
+        _subset(hy, split="validate", pinned_target=True),
+        _subset(base_hy, split="validate", pinned_target=True),
+    )
+    veto["verdict"] = "REJECTED" if veto["delta_queries"] < 0 else "pass"
+    unpinned = _r1_delta(_subset(hy, pinned_target=False), _subset(base_hy, pinned_target=False))
+    unpinned["pass"] = bool(unpinned["delta_queries"] >= 0)
+    un_cell, un_base = _subset(hy, pinned_target=False), _subset(base_hy, pinned_target=False)
+
+    failed = []
+    if not crowding["pass"]:
+        failed.append("crowding")
+    if veto["verdict"] == "REJECTED":
+        failed.append("validate_veto")
+    if not unpinned["pass"]:
+        failed.append("unpinned_nonregression")
+    return {
+        "cell": cell_name,
+        "role": role,
+        "crowding_delta_gate": crowding,
+        "validate_pinned_hybrid_r1_veto": veto,
+        "tune_pinned_hybrid_r1": _r1_delta(
+            _subset(hy, split="tune", pinned_target=True),
+            _subset(base_hy, split="tune", pinned_target=True),
+        ),
+        "tune_overall_hybrid_r1": _r1_delta(_subset(hy, split="tune"), _subset(base_hy, split="tune")),
+        "unpinned_hybrid_r1_nonregression": unpinned,
+        "unpinned_informational": {
+            "hybrid_r5_delta_queries": _hits_at(un_cell, 5) - _hits_at(un_base, 5),
+            "hybrid_mrr10_delta": round(_mrr(un_cell) - _mrr(un_base), 4),
+            "semantic_r1_delta_queries": _hits_at(_subset(semantic.results, pinned_target=False), 1)
+            - _hits_at(_subset(base_semantic.results, pinned_target=False), 1),
+        },
+        "failed_gates": failed,
+        "eligible": not failed,
+    }
+
+
+def _print_gate_table(gates: list[dict[str, Any]]) -> None:
+    print(
+        f"\n{'cell':<9}{'role':<11}{'crowd mean_d':>13}{'crowd max_inc':>14}"
+        f"{'veto dR@1':>11}{'tune-pin dR@1':>15}{'unpin dR@1':>12}  verdict",
+        flush=True,
+    )
+    for g in gates:
+        verdict = "eligible" if g["eligible"] else "FAILED: " + ",".join(g["failed_gates"])
+        print(
+            f"{g['cell']:<9}{g['role']:<11}"
+            f"{g['crowding_delta_gate']['mean_delta']:>13}{g['crowding_delta_gate']['max_per_query_increase']:>14}"
+            f"{g['validate_pinned_hybrid_r1_veto']['delta_queries']:>11}"
+            f"{g['tune_pinned_hybrid_r1']['delta_queries']:>15}"
+            f"{g['unpinned_hybrid_r1_nonregression']['delta_queries']:>12}  {verdict}",
+            flush=True,
+        )
+
+
+def run_sweep(
+    args: argparse.Namespace,
+    corpus: list[dict[str, Any]],
+    gold: list[dict[str, Any]],
+    broad_queries: list[str],
+) -> None:
+    """ADR 0008 §3 tuning sweep: embed once, score all seven cells."""
+    models = [m.strip() for m in args.models.split(",") if m.strip()] or ["nomic-embed-text"]
+    if len(models) != 1:
+        raise SystemExit("--sweep scores exactly ONE candidate; pass a single --models entry")
+    if not broad_queries:
+        raise SystemExit("--sweep requires the broad-query fixture: the crowding gate is a delta over LIFT=0")
+    model = models[0]
+    from openchronicle.core.infrastructure.embedding.ollama_adapter import OllamaEmbeddingAdapter
+
+    adapter = _QueryCachingPort(OllamaEmbeddingAdapter(model=model, timeout_seconds=args.timeout))
+    doc: dict[str, Any] = {
+        "sweep": "PIN_RANK_LIFT (ADR 0008 §3, rollout step 4)",
+        "candidate": f"ollama/{model}",
+        "top_k": TOP_K,
+        "counts": {
+            "corpus": len(corpus),
+            "corpus_pinned": sum(1 for m in corpus if m.get("pinned")),
+            "gold": len(gold),
+            "gold_pinned_target": sum(1 for e in gold if e["pinned_target"]),
+            "validate_pinned_target": sum(1 for e in gold if e["split"] == "validate" and e["pinned_target"]),
+            "broad": len(broad_queries),
+        },
+        "gate_policy": {
+            "crowding": "hybrid top_k=10 over the broad fixture: mean pins-in-top-10 delta vs lift0 <= 1.0 "
+            "AND max per-query increase <= 2 (ADR 0008 §3)",
+            "validate_veto": "hybrid R@1 over validate∩pinned-target vs lift0: ANY negative delta rejects "
+            "(deliberately strict — the noise label does not apply)",
+            "unpinned_nonregression": "hybrid R@1 over ALL unpinned-target queries vs lift0 must not drop. "
+            "ADR ambiguity resolved here: the gate's metric/subset is unstated, so R@1 over the full "
+            "unpinned subset gates; R@5/MRR@10/semantic-R@1 deltas are reported informationally",
+            "noise_label": "|delta| <= one query's granularity is labeled noise (ADR 0008 §3)",
+            "adjudication": "gates computed and printed only — the winning cell is the operator's decision",
+        },
+        "cells": [],
+        "gates": [],
+    }
+
+    with tempfile.TemporaryDirectory() as tmp:
+        store = build_store(corpus, db_path=str(Path(tmp) / "bench.db"))
+        try:
+            print(f"\n=== sweep candidate ollama/{model}: embedding once ===", flush=True)
+            _service, backfill_stats = embed_corpus(adapter, store)
+            doc["backfill"] = backfill_stats
+            print(json.dumps(backfill_stats), flush=True)
+
+            base: tuple[ChannelMetrics, ChannelMetrics, dict[str, Any]] | None = None
+            for cell_name, role, lift, extension in SWEEP_CELLS:
+                print(f"\n=== cell {cell_name} (pin_rank_lift={lift}, fetch_extension={extension}) ===", flush=True)
+                service = EmbeddingService(adapter, store, pin_rank_lift=lift, fetch_extension=extension)
+                semantic, hybrid = score_gold(service, gold)
+                probe = probe_pin_crowding(service, broad_queries)
+                doc["cells"].append(
+                    {
+                        "cell": cell_name,
+                        "role": role,
+                        "pin_rank_lift": lift,
+                        "fetch_extension": extension,
+                        "semantic": semantic.summarize(),
+                        "hybrid": hybrid.summarize(),
+                        "pin_crowding": probe,
+                    }
+                )
+                if base is None:
+                    # lift0 anchors every delta; a dead semantic channel
+                    # here would zero all cells' semantic terms silently.
+                    if doc["cells"][0]["semantic"].get("recall@10", 0) == 0:
+                        raise SystemExit("lift0 semantic recall@10 is 0 — space-identity mismatch, not a measurement")
+                    base = (semantic, hybrid, probe)
+                gates = compute_gates(cell_name, role, hybrid, semantic, probe, base[1], base[0], base[2])
+                doc["gates"].append(gates)
+                print(
+                    json.dumps(
+                        {
+                            k: gates[k]
+                            for k in (
+                                "crowding_delta_gate",
+                                "validate_pinned_hybrid_r1_veto",
+                                "unpinned_hybrid_r1_nonregression",
+                                "failed_gates",
+                                "eligible",
+                            )
+                        }
+                    ),
+                    flush=True,
+                )
+                # Incremental write: a crash at cell N keeps cells 1..N-1.
+                Path(args.out).write_text(json.dumps(doc, indent=2), encoding="utf-8")
+        finally:
+            store.close()
+
+    _print_gate_table(doc["gates"])
+    print(f"\nsweep results written to {args.out}", flush=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     root = Path(__file__).resolve().parents[1]
@@ -329,6 +635,12 @@ def main() -> None:
     )
     parser.add_argument("--timeout", type=float, default=600.0, help="per-request adapter timeout")
     parser.add_argument("--out", default=str(root / "data/embedding_benchmark/results.json"))
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        help="ADR 0008 §3 PIN_RANK_LIFT sweep: ONE candidate (--models, default nomic-embed-text), embed once, "
+        "score lift cells {0,2,4,8} plus window-only ablations with delta gates vs LIFT=0",
+    )
     args = parser.parse_args()
 
     # Provider keys come from the DPAPI vault (scripts/env_vault.py) when
@@ -358,6 +670,10 @@ def main() -> None:
         print(f"broad-query fixture: {len(broad_queries)} queries (pin-crowding probe on)", flush=True)
     else:
         print(f"broad-query fixture not found at {broad_path} — pin-crowding probe skipped", flush=True)
+
+    if args.sweep:
+        run_sweep(args, corpus, gold, broad_queries)
+        return
 
     results: list[dict[str, Any]] = [run_fts5_baseline(corpus, gold)]
     print(json.dumps(results[0], indent=None), flush=True)

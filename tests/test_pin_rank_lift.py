@@ -578,6 +578,61 @@ def test_constructor_injection_and_module_default(monkeypatch: pytest.MonkeyPatc
     assert EmbeddingService(port=port, store=store)._pin_rank_lift == 5
 
 
+def test_fetch_extension_widens_the_window_without_lifting() -> None:
+    """ADR 0008 §3's window-only ablation knob: with ``pin_rank_lift=0``
+    and ``fetch_extension`` set, the candidate fetch widens exactly as
+    if the paired lift were active — fusion MEMBERSHIP extends — while
+    no rank moves, and the extension clamps on top_k like the lift."""
+    port = _FixedQueryPort()
+
+    def _boundary_store(unpinned_semantic: int) -> SqliteStore:
+        """N unpinned semantic rows, then a keyword-matching pin at
+        semantic rank N+1 (first components strictly descending)."""
+        store = _make_store()
+        _seed_semantic_ranked(
+            store,
+            port,
+            [(f"r{i}", False, 0.9 - 0.05 * i) for i in range(1, unpinned_semantic + 1)],
+        )
+        store.add_memory(_mem("aaa-pin", "zulu findme rule", pinned=True))
+        save_vec(
+            store,
+            "aaa-pin",
+            [0.9 - 0.05 * (unpinned_semantic + 1), 0.0],
+            model=port.model_name(),
+            provider=port.provider_name(),
+        )
+        return store
+
+    def _pin_channel(service: EmbeddingService) -> str:
+        hits = {s.item.id: s for s in service.search_hybrid("zulu findme", top_k=2)}
+        return str(hits["aaa-pin"].channel)
+
+    # Membership: top_k=2, extension 2 → semantic fetch 2·2+2 = 6; the
+    # pin at semantic rank 6 gains a semantic fusion term ONLY under
+    # the extension (without it the fetch stops at 4).
+    store_a = _boundary_store(unpinned_semantic=5)
+    assert _pin_channel(EmbeddingService(port=port, store=store_a, pin_rank_lift=0)) == "keyword"
+    assert _pin_channel(EmbeddingService(port=port, store=store_a, pin_rank_lift=0, fetch_extension=2)) == "hybrid"
+
+    # Clamp mirror: at top_k=2 an extension of 8 clamps to 2 (fetch 6,
+    # not 12) — a pin at semantic rank 7 stays out of the fusion.
+    store_b = _boundary_store(unpinned_semantic=6)
+    assert _pin_channel(EmbeddingService(port=port, store=store_b, pin_rank_lift=0, fetch_extension=8)) == "keyword"
+
+    # No lift: the semantic-mode order is the raw ranking — contrast
+    # test_semantic_mode_applies_the_same_lift, where lift 2 over the
+    # same seeding moves p4 ahead of r3.
+    store_c = _make_store()
+    _seed_semantic_ranked(
+        store_c,
+        port,
+        [("r1", False, 0.9), ("r2", False, 0.8), ("r3", False, 0.7), ("p4", True, 0.6), ("r5", False, 0.5)],
+    )
+    ablated = EmbeddingService(port=port, store=store_c, pin_rank_lift=0, fetch_extension=2)
+    assert [s.item.id for s in ablated.search_semantic("anything", top_k=5)] == ["r1", "r2", "r3", "p4", "r5"]
+
+
 def test_cli_pinned_limit_flag_is_accepted_and_inert(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The inert --pinned-limit flag still parses and changes nothing
     (ADR 0008 §4 deprecation window; removal no earlier than

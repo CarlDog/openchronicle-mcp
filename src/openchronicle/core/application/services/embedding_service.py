@@ -114,6 +114,7 @@ class EmbeddingService:
         store: MemoryStorePort,
         *,
         pin_rank_lift: int | None = None,
+        fetch_extension: int | None = None,
     ) -> None:
         self._port = port
         self._store = store
@@ -123,6 +124,14 @@ class EmbeddingService:
         # construction time (not def time) so tests can monkeypatch the
         # module constant.
         self._pin_rank_lift = PIN_RANK_LIFT if pin_rank_lift is None else pin_rank_lift
+        # Harness-facing (ADR 0008 §3): the sweep's window-only ablation
+        # cells extend the candidate fetch by the paired lift cell's
+        # effective_lift while disabling the lift itself. When set, the
+        # fetch extension follows THIS value (clamped exactly like the
+        # lift: min(value, top_k)) while the rank lift keeps following
+        # pin_rank_lift. None — production wiring — means the fetch
+        # extension follows the lift (ADR 0008 §2).
+        self._fetch_extension = fetch_extension
         # Degraded-provider bookkeeping. Two counters on purpose:
         # `_search_failure_count` keeps its original search-only meaning
         # (and its health-payload keys), while `_failure_count` covers
@@ -142,6 +151,19 @@ class EmbeddingService:
         # maintenance loop's own periodic backfill stays safe regardless —
         # CAS publication makes concurrent runs correct, merely wasteful.
         self._background_backfill: asyncio.Task[BackfillResult] | None = None
+
+    def _fetch_lift(self, top_k: int, effective_lift: int) -> int:
+        """The fetch-extension term of ADR 0008 §2's widened window.
+
+        Equal to the lift itself in production (``fetch_extension``
+        unset); the sweep's window-only ablation cells override it so
+        the fetch widens exactly as if the paired lift were active
+        while no rank moves — the §2 fetch-depth side effect and the
+        lift's own effect stay separately attributable.
+        """
+        if self._fetch_extension is None:
+            return effective_lift
+        return effective_pin_lift(top_k, self._fetch_extension)
 
     @property
     def backfill_running(self) -> bool:
@@ -443,7 +465,7 @@ class EmbeddingService:
         # ADR 0008 §2: the candidate fetch extends by the lift's reach
         # so every rank the lift operates on is an honest rank from the
         # fetch itself. At lift 0 this is exactly the old 2× over-fetch.
-        fetch = 2 * effective_top_k + effective_lift
+        fetch = 2 * effective_top_k + self._fetch_lift(top_k, effective_lift)
 
         # ── Keyword search (list A) ─────────────────────────────────────
         # include_pinned mirrors the CALLER's intent (are pins visible
@@ -675,7 +697,7 @@ class EmbeddingService:
             # ADR 0008 §2: the over-fetch (filters below discard)
             # extends by the lift's reach; at lift 0 it is exactly the
             # old 2× window.
-            limit=2 * effective_top_k + effective_lift,
+            limit=2 * effective_top_k + self._fetch_lift(top_k, effective_lift),
         )
 
         # Original ranks are raw positions in the FETCHED ranking (see

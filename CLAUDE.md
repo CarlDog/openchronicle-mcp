@@ -266,8 +266,19 @@ the internal `pinned_limit` plumbing are gone, while the wire
 parameter stays accepted-but-inert (REST marks it deprecated in
 OpenAPI) until at least v5.0.0. At the 0 default the ranked stream
 matches the old `pinned_limit=0` behavior except that fused-score
-ties now break deterministically by memory id. Steps 4-5 — the
-tuning sweep and the v4.0.0 tag — remain.
+ties now break deterministically by memory id. **Step 4's tuning
+sweep has RUN** (rev 161): `--sweep` in the benchmark script embeds
+once and scores all seven cells (LIFT 0/2/4/8 + window-only
+ablations via a harness-facing `fetch_extension` constructor knob),
+computing every §3 gate from exact hit counts as deltas vs LIFT=0.
+Result: EVERY nonzero lift is vetoed — validated pinned-target
+hybrid R@1 drops 3-4 of 8 queries at every lift (the rank-1 floor
+collides top pins and the fused id tie-break becomes an id lottery
+on a 149-pin corpus), while the ablations sit at noise — so LIFT=0
+is the only eligible cell (an ADR-admissible outcome). Full table in
+`data/embedding_benchmark/sweep_results.json` (untracked).
+Adjudication (winning-cell record in the ADR) and step 5 — the
+v4.0.0 tag — remain.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
