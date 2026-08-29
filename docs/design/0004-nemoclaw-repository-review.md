@@ -240,8 +240,20 @@ many truncation cases, while the planned encrypted cloud artifact already
 has cryptographic integrity. Add a digest only if a consumer needs to
 select and re-verify an unencrypted envelope independently.
 
-**Disposition:** verified correctness defect in a disaster-recovery
-surface; suitable for a focused implementation batch.
+**Disposition:** ~~verified correctness defect in a disaster-recovery
+surface; suitable for a focused implementation batch.~~ **✅ SHIPPED
+2026-08-28** (assessment rev 116) after a validation pass re-confirmed
+every sub-claim at HEAD — and found the defect had *accreted*: the
+content-cap work added a third unguarded `raw_memory["id"]` after this
+review's snapshot. Landed as proposed: version dispatch, required
+arrays, whole-envelope row validation before the transaction with
+errors naming collection/index/id, project references checked against
+store ∪ envelope (closing an untranslated `IntegrityError` this review
+had not named), duplicate in-envelope ids rejected, and `mkstemp` +
+`os.replace` export publication. Point 1d above was overstated: the
+loop was already one transaction at this review's own baseline, so the
+pre-validation gain is diagnostics quality, not atomicity. The optional
+payload digest stays unadopted, as specified.
 
 ## Finding 3: `onboard_git` crosses two avoidable trust boundaries
 
@@ -613,7 +625,7 @@ implementation.
 | Rank | Work item | Category | I | R | E | Score | Eligibility and business justification |
 |---:|---|---|---:|---:|---:|---:|---|
 | 1 | Canonical agent-instruction source | Documentation / operations | 4 | 5 | 1 | 45 | **Closed 2026-08-28**; exact mirror plus regression test |
-| 2 | Strict export/import envelope + atomic private export | Reliability / data safety | 5 | 5 | 2 | 40 | Now; this is a disaster-recovery surface that accepts unknown formats and malformed structure |
+| 2 | Strict export/import envelope + atomic private export | Reliability / data safety | 5 | 5 | 2 | 40 | **✅ Shipped 2026-08-28** (rev 116); Finding 2 records the closeout |
 | 3 | Content-bound, post-write-checked live restore | Reliability / data safety | 5 | 5 | 2 | 40 | Before cloud restore ships; the failure consequence is maximum, but no live restore exists yet |
 | 4 | Least-privilege git child environment | Security | 4 | 5 | 2 | 36 | Now; unrelated server secrets cross a child-process boundary with no consumer need |
 | 5 | Immutable build revision in diagnostics | Operations / provenance | 4 | 4 | 2 | 32 | Now; directly closes ambiguity in the current short-SHA Portainer deployment workflow |

@@ -281,10 +281,25 @@ def cmd_memory_export(args: argparse.Namespace, container: CoreContainer) -> int
     raw = _json.dumps(payload, indent=2, sort_keys=True)
     out_path = getattr(args, "out", None)
     if out_path:
+        import os
+        import tempfile
         from pathlib import Path
 
-        Path(out_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(out_path).write_text(raw, encoding="utf-8")
+        # Write-temp-then-rename, never truncate-in-place: this file IS
+        # the operator's backup, and a plain write_text that dies mid-way
+        # leaves a partial envelope exactly where the previous good one
+        # was. mkstemp also creates the file 0600 where the platform
+        # supports it — the envelope carries the full memory corpus.
+        dest = Path(out_path)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(dir=dest.parent, prefix=dest.name + ".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(raw)
+            os.replace(tmp_name, dest)
+        except BaseException:
+            Path(tmp_name).unlink(missing_ok=True)
+            raise
         print(
             f"Exported {len(payload['projects'])} project(s), "
             f"{len(payload['memory_items'])} memory item(s) to {out_path}"

@@ -8,8 +8,26 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 ## Unreleased
 
 Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
-`:v3.0.0`. Nothing here changes runtime behaviour.
+`:v3.0.0`. The import/export item below is the first runtime change
+since the tag; it ships when `OC_TAG` next moves.
 
+- **The portable JSON envelope is a real versioned contract, and export
+  publication is atomic.** First implementation batch from the
+  comparative reviews (design 0004, Finding 2). Import used to check
+  only that `format_version` existed: `format_version: 999` imported
+  "successfully", an envelope missing its arrays read as a legitimate
+  empty restore, rows without an `id` leaked `KeyError`, and an unknown
+  project reference or duplicate in-envelope id died as a raw
+  `sqlite3.IntegrityError`. The whole envelope is now validated before
+  the write transaction opens — version dispatch, required arrays,
+  per-row types, project references against store ∪ envelope, duplicate
+  ids — with every rejection a `ValidationError` naming the failing
+  collection, index, and row id. Id *shape* and unknown keys are
+  deliberately not validated (restore must not fail on data the store
+  already held; newer-build envelopes must import). `oc memory export
+  --out` now writes to a `mkstemp` sibling (0600 where supported) and
+  publishes with `os.replace`, so a failed export can no longer
+  truncate the previous good backup. 688 → 708 tests.
 - **MCP migration readiness.** An mcp 2.x migration was assessed and
   deferred on named triggers rather than on a premise that turned out to
   be false. `pyproject.toml`, `.github/dependabot.yml` and

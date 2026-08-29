@@ -949,8 +949,13 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   scope. The 2026-08-28 closeout completed two documentation findings:
   `AGENTS.md` is canonical with a byte-identical `CLAUDE.md` mirror and
   regression test, and all six verified public-fact errors were repaired.
-  Remaining right-sized work is strict version dispatch and whole-envelope
-  validation for portable JSON plus atomic private export; a
+  ~~Strict version dispatch and whole-envelope validation for portable
+  JSON plus atomic private export~~ — **✅ SHIPPED 2026-08-28** (rev 116,
+  first batch of the review's Phase B): import validates the entire
+  envelope before the write transaction (version dispatch, required
+  arrays, per-row types, project references, duplicate ids; rejections
+  name collection/index/id) and `oc memory export --out` publishes via
+  `mkstemp` + `os.replace`. Remaining right-sized work is a
   least-privilege `onboard_git` child environment and explicit server-side
   destination policy; immutable `build_revision` in full diagnostics; and
   broader CLI/MCP/env documentation parity gates.

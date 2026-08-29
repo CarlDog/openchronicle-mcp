@@ -587,3 +587,206 @@ def test_import_does_not_warn_when_all_content_is_within_cap(tmp_path: Path, cap
 
     assert result["oversized_content"] == 0, "at the cap is not over it"
     assert not any("exceeds" in r.getMessage() for r in caplog.records)
+
+
+# --- Envelope contract (strict validation before any write) ---------------
+
+
+def _empty_store(tmp_path: Path) -> SqliteStore:
+    store = SqliteStore(str(tmp_path / "dest.db"))
+    store.init_schema()
+    return store
+
+
+def _assert_untouched(store: SqliteStore) -> None:
+    """A rejected envelope must leave the store byte-for-byte empty."""
+    assert store.list_projects() == []
+    assert store.list_memory() == []
+
+
+def test_import_rejects_unsupported_format_version(tmp_path: Path) -> None:
+    """format_version: 999 used to import 'successfully' as an empty restore."""
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=r"unsupported format_version 999.*version 1"):
+        import_memory.execute(
+            storage=dest, memory_store=dest, payload={"format_version": 999, "projects": [], "memory_items": []}
+        )
+    _assert_untouched(dest)
+    dest.close()
+
+
+@pytest.mark.parametrize("bad_version", ["1", True, 1.0, None])
+def test_import_rejects_non_integer_format_version(tmp_path: Path, bad_version: object) -> None:
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match="unsupported format_version"):
+        import_memory.execute(
+            storage=dest,
+            memory_store=dest,
+            payload={"format_version": bad_version, "projects": [], "memory_items": []},
+        )
+    dest.close()
+
+
+@pytest.mark.parametrize("missing_key", ["projects", "memory_items"])
+def test_import_rejects_missing_arrays(tmp_path: Path, missing_key: str) -> None:
+    """A truncated envelope must not masquerade as a legitimate empty restore."""
+    payload = _envelope(memory_ids=("mem-a",))
+    del payload[missing_key]
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=f"missing required '{missing_key}'"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    _assert_untouched(dest)
+    dest.close()
+
+
+@pytest.mark.parametrize("bad_value", [{"a": 1}, "not-a-list", 7])
+def test_import_rejects_non_list_arrays(tmp_path: Path, bad_value: object) -> None:
+    payload = _envelope(memory_ids=())
+    payload["memory_items"] = bad_value
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match="'memory_items' must be an array"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    dest.close()
+
+
+def test_import_rejects_non_object_payload(tmp_path: Path) -> None:
+    """json.loads can yield a list; that must be a ValidationError, not a TypeError."""
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match="payload must be a JSON object"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=[1, 2, 3])  # type: ignore[arg-type]
+    dest.close()
+
+
+def test_import_row_missing_id_is_validation_error_not_keyerror(tmp_path: Path) -> None:
+    """The old shape read row['id'] before its try block and leaked KeyError."""
+    payload = _envelope(memory_ids=("mem-a",))
+    del payload["memory_items"][0]["id"]
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=r"memory_items\[0\].*'id'"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    _assert_untouched(dest)
+    dest.close()
+
+
+def test_import_row_error_names_collection_index_and_id(tmp_path: Path) -> None:
+    payload = _envelope(memory_ids=("mem-a", "mem-b"))
+    payload["memory_items"][1]["created_at"] = "not-a-date"
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=r"memory_items\[1\] \(id='mem-b'\).*created_at"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    _assert_untouched(dest)
+    dest.close()
+
+
+def test_import_rejects_unknown_project_reference_before_any_write(tmp_path: Path) -> None:
+    """Used to surface as a raw sqlite3.IntegrityError from the FK constraint."""
+    payload = _envelope(memory_ids=("mem-a",))
+    payload["memory_items"][0]["project_id"] = "no-such-project"
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=r"references project 'no-such-project'"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    _assert_untouched(dest)
+    dest.close()
+
+
+def test_import_accepts_project_reference_satisfied_by_the_store(tmp_path: Path) -> None:
+    """The reference check must union store + envelope, not envelope alone."""
+    dest = _empty_store(tmp_path)
+    dest.add_project(Project(id="already-here", name="Existing"))
+    payload = _envelope(memory_ids=("mem-a",))
+    payload["projects"] = []
+    payload["memory_items"][0]["project_id"] = "already-here"
+    result = import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    assert result["memory_added"] == 1
+    dest.close()
+
+
+def test_import_rejects_duplicate_memory_id_within_envelope(tmp_path: Path) -> None:
+    """Used to surface as a raw sqlite3.IntegrityError on the second insert."""
+    payload = _envelope(memory_ids=("mem-a", "mem-a"))
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=r"memory_items\[1\].*duplicate memory id"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    _assert_untouched(dest)
+    dest.close()
+
+
+def test_import_rejects_bad_tags_shape(tmp_path: Path) -> None:
+    payload = _envelope(memory_ids=("mem-a",))
+    payload["memory_items"][0]["tags"] = ["ok", 42]
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match="'tags' must be an array of strings"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    dest.close()
+
+
+def test_import_validates_every_row_before_the_first_write(tmp_path: Path) -> None:
+    """A bad LAST row must reject the envelope with zero rows written.
+
+    The transaction already guaranteed rollback; this pins the stronger
+    contract that validation completes before mutation begins at all.
+    """
+    payload = _envelope(memory_ids=("mem-a", "mem-b", "mem-c"))
+    del payload["memory_items"][2]["created_at"]
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=r"memory_items\[2\]"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    _assert_untouched(dest)
+    dest.close()
+
+
+# --- Atomic export publication (CLI) --------------------------------------
+
+
+def _export_args(out: Path) -> object:
+    import argparse
+
+    return argparse.Namespace(project_id=None, out=str(out), json=False)
+
+
+def _cli_container(store: SqliteStore) -> object:
+    from types import SimpleNamespace
+
+    # cmd_memory_export touches only container.storage.
+    return SimpleNamespace(storage=store)
+
+
+def test_cli_export_writes_atomically_and_cleans_temp(tmp_path: Path) -> None:
+    from openchronicle.interfaces.cli.commands.memory import cmd_memory_export
+
+    store = _seeded(tmp_path)
+    out = tmp_path / "backup" / "envelope.json"
+    rc = cmd_memory_export(_export_args(out), _cli_container(store))  # type: ignore[arg-type]
+    store.close()
+
+    assert rc == 0
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert payload["format_version"] == 1
+    leftovers = [p for p in out.parent.iterdir() if p.name != out.name]
+    assert leftovers == [], f"temp files left beside the export: {leftovers}"
+
+
+def test_cli_export_failure_preserves_previous_backup(tmp_path: Path) -> None:
+    """An interrupted export must not truncate the operator's last good envelope.
+
+    The old shape was Path.write_text straight onto the destination —
+    truncate-in-place, so a failure left a partial file where the backup
+    had been. Publication is now temp + os.replace; a failure at the
+    rename leaves the previous file byte-identical and no temp behind.
+    """
+    from unittest.mock import patch
+
+    from openchronicle.interfaces.cli.commands.memory import cmd_memory_export
+
+    store = _seeded(tmp_path)
+    out = tmp_path / "envelope.json"
+    previous = '{"format_version": 1, "the previous good backup": true}'
+    out.write_text(previous, encoding="utf-8")
+
+    with patch("os.replace", side_effect=OSError("disk full")), pytest.raises(OSError, match="disk full"):
+        cmd_memory_export(_export_args(out), _cli_container(store))  # type: ignore[arg-type]
+    store.close()
+
+    assert out.read_text(encoding="utf-8") == previous, "previous backup must survive a failed export"
+    leftovers = [p for p in out.parent.iterdir() if p.suffix == ".tmp"]
+    assert leftovers == [], f"temp files left behind: {leftovers}"

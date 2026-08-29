@@ -118,57 +118,39 @@ does differently.
 
 ## Current Sprint
 
-**2026-08-28 — MCP migration readiness (the pin stays; the reasoning was
-rebuilt).** v3.0.0 is live on stack 151 and `docs/api/STABILITY.md`
-BINDS: `/api/v1/*` schemas, MCP tool signatures and the `core.json`
-schema are under semver.
+**2026-08-28 (late) — working the validated comparative-review findings,
+one batch at a time.** v3.0.0 is live on stack 151 and
+`docs/api/STABILITY.md` BINDS: `/api/v1/*` schemas, MCP tool signatures
+and the `core.json` schema are under semver.
 
-An mcp 2.x migration was assessed and **deferred, not rejected**. The
-deferral now rests on triggers rather than on a false premise. Three
-files — `pyproject.toml`, `.github/dependabot.yml`, `docs/V3_PLAN.md` —
-had justified the `mcp<2` cap by claiming 2.0 "moved FastMCP to the
-standalone `fastmcp` package." Verified against the 2.1.1 wheel, that is
-wrong: `mcp.server.fastmcp` is a tombstone raising `ModuleNotFoundError`,
-and FastMCP was **renamed in-tree** to `mcp.server.mcpserver.MCPServer`.
-The cap is still right; only its reason was wrong — and the wrong reason
-made migration look like a third-party dependency swap rather than a
-first-party rename, which had been an unexamined input to deferring it.
+A validation pass first re-verified every claim in the four
+`docs/design/` review documents against HEAD (OC memory `19842001`):
+all 8 SHIPPED claims confirmed, ~14 of 16 defect claims still held —
+and the import-envelope defect had *accreted* since the review snapshot
+(the content-cap work added a third unguarded `raw_memory["id"]`).
+Agreed sequencing: (1) 0004 Phase B — envelope/export, git child env,
+build_revision; (2) 0002 batch A retrieval correctness; (3) the
+embedding-identity ADR gating 0003's adapter work; (4) cloud-backup
+Phase 0 (operator runbook) whenever convenient.
 
-Measured scope: `lifespan` survives on the constructor;
-`streamable_http_path`, `stateless_http` and `transport_security` move to
-the transport methods. Four named revisit triggers and a one-command
-re-check are recorded in V3_PLAN.
+Landed so far, one focused commit per item:
 
-Four readiness items shipped so a future migration can be *proved*
-schema-invisible rather than asserted:
+- **Strict import envelope + atomic export** (rev 116, 688 → 708
+  tests): whole-envelope validation before the write transaction —
+  version dispatch, required arrays, per-row types, project references,
+  duplicate ids, rejections naming collection/index/id — and
+  `oc memory export --out` publishes via `mkstemp` + `os.replace`.
 
-- forged-Host rejection through the mounted `/mcp` — mutation showed
-  `enable_dns_rebinding_protection=False` left all 681 tests green while
-  a forged Host reached the transport
-- the tool-schema snapshot extended to `outputSchema` — mutation showed
-  an output-only change is caught by that test alone
-- the client-visible MCP error envelope pinned on 1.29.0, which had zero
-  coverage; no test referenced `isError`
-- floor raised `mcp>=1.0` → `>=1.29`, the version those baselines were
-  captured on
+Runtime changes are on `main` but **not deployed**: stack 151 is
+tag-pinned to `:v3.0.0` via `OC_TAG`, so this work ships with the next
+tagged release. A push alone deploys nothing.
 
-Filed not fixed: domain exceptions carry a structured `.code` that the
-MCP path drops, so the error-code convention is REST-only in practice.
-Fixing it would reshape the surface the new baseline exists to pin, so
-the baseline landed first.
-
-Test baseline 688. `pyproject.toml` changed, so CI rebuilt `:latest` —
-but **no redeploy**: stack 151 is tag-pinned to `:v3.0.0` via `OC_TAG`,
-the floor bump resolves to the identical dependency set (1.29.0 satisfied
-the old specifier too), and nothing here changes runtime behaviour. A
-same-version bounce could not even be verified, since
-`health.package_version` would read `3.0.0` either way. This batch ships
-with the next tagged release.
-
-Open next: the accepted V3_PLAN follow-ups (mcp 2.x migration on a
-trigger, the `error_code` gap, sqlite-vec ceiling, frozen lock
-consumption, the quarterly Ollama Cloud re-check) and the unscheduled
-comparative-review findings.
+Open next in this sequence: least-privilege `onboard_git` child
+environment (+ the destination-policy decision, which needs the
+operator to name any non-GitHub consumer), immutable `build_revision`,
+then 0002 batch A. Standing V3_PLAN follow-ups (mcp 2.x on its
+triggers, the `error_code` gap, sqlite-vec ceiling, frozen lock
+consumption, quarterly Ollama Cloud re-check) are unchanged.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
