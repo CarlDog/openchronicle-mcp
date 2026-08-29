@@ -5,11 +5,32 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
-## Unreleased
+## v3.2.0 — 2026-08-29
 
-Not yet tagged, so not yet deployed — stack 151 stays tag-pinned to
-`:v3.1.0`.
+The embedding-identity release: ADR 0005 end-to-end (schema v2+v3
+migrations, CAS publication, space-filtered search, truthful Ollama
+contract, batched backfill), the generic cloud-provider path, and the
+provider-benchmark hardening that cleared LAN-local `nomic-embed-text`
+for the cutover this release deploys.
 
+**Deploy note:** the migrations mark all pre-existing vectors stale;
+run `oc maintenance run-once embedding_backfill` (or the `memory_embed`
+MCP tool) after the redeploy — semantic search degrades to FTS5-only
+until the reindex finishes (`stale` counts down in health).
+
+- **The generic cloud-provider path is safe by construction.** The
+  `openai` adapter's `settings_fingerprint` now includes `base_url`,
+  so the same model label on different OpenAI-compatible hosts (Voyage,
+  Gemini, Mistral, Together, ...) is a different vector space — a host
+  switch triggers the standard reindex instead of silently mixing
+  vectors. `OPENAI_BASE_URL` is Portainer-wired; the provider matrix
+  lives in design/0006.
+- **Backfill logs known provider failures as one line.** A categorized
+  `ProviderError` (e.g. a `truncate:false` over-length rejection)
+  already carries the actionable upstream message; it no longer emits
+  a full traceback at WARNING — hundreds of them flooded the log
+  during benchmarking. Stacks move to DEBUG; unexpected exception
+  types keep theirs.
 - **Local Ollama over HTTPS is first-class.** A scheme-less
   `OLLAMA_HOST` gets `http://` prepended instead of producing a broken
   URL; `https://` hosts work end-to-end (embed + capability probe);
