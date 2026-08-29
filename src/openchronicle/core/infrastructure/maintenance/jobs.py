@@ -130,7 +130,7 @@ async def embedding_backfill(container: CoreContainer) -> None:
 
     def _run() -> dict[str, int]:
         result = service.generate_missing(force=False)
-        return {"generated": result.generated, "failed": result.failed}
+        return {"generated": result.generated, "failed": result.failed, "tombstoned": result.tombstoned}
 
     summary = await asyncio.to_thread(_run)
     # A total failure must FAIL the job: returning normally here let the
@@ -138,17 +138,28 @@ async def embedding_backfill(container: CoreContainer) -> None:
     # zero vectors were generated — a dead provider produced "backfill
     # succeeded" every night (the Ollama review's success-shaped health
     # defect). Partial success stays a completed-but-degraded run with
-    # exact counts; zero candidates stays a clean no-op.
+    # exact counts; zero candidates stays a clean no-op. Tombstoned rows
+    # (ADR 0009) are classified permanent outcomes, not failures — a
+    # tombstoned-only run is a SUCCESS, and this guard expression
+    # deliberately doesn't see them.
     if summary["failed"] and not summary["generated"]:
-        raise RuntimeError(f"embedding_backfill: all {summary['failed']} candidate(s) failed — provider down?")
+        raise RuntimeError(
+            f"embedding_backfill: 0 generated, {summary['failed']} failed, "
+            f"{summary['tombstoned']} tombstoned — provider down?"
+        )
     if summary["failed"]:
         _logger.warning(
-            "embedding_backfill: partial failure — generated=%d failed=%d",
+            "embedding_backfill: partial failure — generated=%d failed=%d tombstoned=%d",
             summary["generated"],
             summary["failed"],
+            summary["tombstoned"],
         )
-    elif summary["generated"]:
-        _logger.info("embedding_backfill: generated=%d", summary["generated"])
+    elif summary["generated"] or summary["tombstoned"]:
+        _logger.info(
+            "embedding_backfill: generated=%d tombstoned=%d",
+            summary["generated"],
+            summary["tombstoned"],
+        )
 
 
 async def git_onboard_resync(container: CoreContainer) -> None:

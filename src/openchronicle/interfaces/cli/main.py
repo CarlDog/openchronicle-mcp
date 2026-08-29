@@ -140,7 +140,11 @@ def main(argv: list[str] | None = None) -> int:
     memory_update_cmd.add_argument("--tags", default=None, help="New tags, comma-separated (replaces existing)")
 
     memory_embed_cmd = memory_sub.add_parser("embed", help="Generate embeddings for memory items")
-    memory_embed_cmd.add_argument("--force", action="store_true", help="Regenerate all embeddings (model change)")
+    memory_embed_cmd.add_argument(
+        "--force",
+        action="store_true",
+        help="Regenerate all embeddings (model change); also retries rows parked as unembeddable",
+    )
     memory_embed_cmd.add_argument("--status", action="store_true", help="Show embedding coverage stats")
     memory_embed_cmd.add_argument("--json", action="store_true", help="Emit JSON output")
 

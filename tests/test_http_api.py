@@ -799,7 +799,7 @@ class TestMemoryEmbedRoute:
         from openchronicle.core.application.services.embedding_service import BackfillResult
 
         service = MagicMock()
-        service.generate_missing.return_value = BackfillResult(generated=3, failed=1, elapsed_ms=5)
+        service.generate_missing.return_value = BackfillResult(generated=3, failed=1, tombstoned=0, elapsed_ms=5)
         service.embedding_status.return_value = {"embedded": 3, "missing": 1}
         _get_container(client).embedding_service = service
 

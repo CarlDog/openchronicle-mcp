@@ -810,8 +810,10 @@ def test_embedding_backfill_all_failed_raises(tmp_path: Path) -> None:
     from openchronicle.core.application.services.embedding_service import BackfillResult
 
     container = MagicMock()
-    container.embedding_service.generate_missing.return_value = BackfillResult(generated=0, failed=7, elapsed_ms=1)
-    with pytest.raises(RuntimeError, match="all 7 candidate"):
+    container.embedding_service.generate_missing.return_value = BackfillResult(
+        generated=0, failed=7, tombstoned=0, elapsed_ms=1
+    )
+    with pytest.raises(RuntimeError, match="0 generated, 7 failed, 0 tombstoned"):
         asyncio.run(maintenance_jobs.embedding_backfill(container))
 
 
@@ -821,7 +823,9 @@ def test_embedding_backfill_partial_failure_completes(tmp_path: Path) -> None:
     from openchronicle.core.application.services.embedding_service import BackfillResult
 
     container = MagicMock()
-    container.embedding_service.generate_missing.return_value = BackfillResult(generated=3, failed=2, elapsed_ms=1)
+    container.embedding_service.generate_missing.return_value = BackfillResult(
+        generated=3, failed=2, tombstoned=1, elapsed_ms=1
+    )
     asyncio.run(maintenance_jobs.embedding_backfill(container))  # must not raise
 
 
