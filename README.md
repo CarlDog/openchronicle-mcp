@@ -1,8 +1,10 @@
 # OpenChronicle
 
+<!-- markdownlint-disable MD033 -->
 <!-- fleet-confidence -->
-![code confidence](https://img.shields.io/badge/code_confidence-fair-orange) <sub>· claude-fable-5 · 2026-07-06 · [details](https://github.com/CarlDog/openchronicle-mcp/issues/14)</sub>
+![code confidence](https://img.shields.io/badge/code_confidence-fair-orange) <sub>· claude-fable-5 · 2026-08-30 · [details](../../issues/27)</sub>
 <!-- /fleet-confidence -->
+<!-- markdownlint-enable MD033 -->
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-ghcr.io%2Fcarldog%2Fopenchronicle--mcp-blue?logo=docker)](https://ghcr.io/carldog/openchronicle-mcp)
