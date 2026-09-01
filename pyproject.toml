@@ -3,7 +3,7 @@
 # base image (setuptools PYSEC-2025-49 + CVE-2024-6345,
 # wheel CVE-2026-24049). The Dockerfile also upgrades pip/setuptools/
 # wheel ahead of the package install for the same reason.
-requires = ["setuptools>=84.0.0", "wheel>=0.46.2"]
+requires = ["setuptools>=84.0.0", "wheel>=0.48.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
