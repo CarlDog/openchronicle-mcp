@@ -27,7 +27,14 @@ updates:
       npm-major:
         update-types: [major]
 
-  - package-ecosystem: pip
+  # `uv`, not `pip`: this repo resolves through uv.lock, and the pip
+  # ecosystem does not manage that lockfile. Under pip, Dependabot fell back
+  # to widening the `>=` ranges in pyproject.toml and never touched uv.lock —
+  # so every PR raised a floor that nothing actually installs against, while
+  # the resolved versions stayed frozen. Those are "update requirement" PRs
+  # rather than version updates, which is also why none of them ever landed
+  # in a group (fixed 2026-09-01; five such PRs were closed as no-ops).
+  - package-ecosystem: uv
     directory: /
     schedule:
       interval: weekly
@@ -39,19 +46,19 @@ updates:
       - dependencies
       - python
     groups:
-      # Mirrors the npm block's dev/runtime/major split. Previously a single
-      # python-minor-and-patch group covered both dev and production deps
-      # with no dependency-type distinction, so the fleet auto-merge
-      # script's ALLOWED_GROUPS prefix match (which requires "pip-dev")
-      # never matched anything in this repo — pip is this repo's primary
-      # ecosystem, so no pip PR could ever auto-merge (standards-gap PY-04).
-      pip-dev:
+      # Mirrors the npm block's dev/runtime/major split. The group NAMES are
+      # load-bearing: fleet/scripts/auto-merge-dependabot.py matches
+      # ALLOWED_GROUPS by prefix, so `uv-dev` must exist in both files or
+      # auto-merge silently stops. Renaming here without updating that list
+      # is how this repo previously ended up with no auto-mergeable pip PRs
+      # at all (standards-gap PY-04).
+      uv-dev:
         dependency-type: development
         update-types: [minor, patch]
-      pip-runtime:
+      uv-runtime:
         dependency-type: production
         update-types: [minor, patch]
-      pip-major:
+      uv-major:
         update-types: [major]
     ignore:
       # In mcp 2.x `mcp.server.fastmcp` is a tombstone that raises
