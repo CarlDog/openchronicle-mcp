@@ -229,10 +229,10 @@ contracts, and both recovery paths preserving candidate-created data. Stack
 remain off. All 897 tests passed for the candidate.
 
 **Active queue after this release** (V3_PLAN carries the full
-entries): (1) performance-measurement 4C recovery plan
-(4A/4B and 4D checks are complete; the 4C run finished, but its saved report
-needs replacement and the overhead gate remains unresolved; recovery,
-calibration, and the targeted patch are verified, with final acceptance next),
+entries): (1) performance-measurement disposition
+(the bounded 4C recovery cycle is finished with trustworthy evidence; overhead
+and final responsiveness gates remain unresolved/failed and require a new
+scoped decision; 4D evidence remains applicable after impact review),
 (2) cloud-backup Phase 0 + restore drill (operator at a desktop; 0007 Stage 0),
 then demand-/trigger-gated items. Design 0007 (long-term scale & resilience)
 is ACCEPTED with its staged trigger-gated path. Open operator decision: the
@@ -268,8 +268,21 @@ metric-child cache patch. NAS calibration completed 41,441 requests without
 failures and met every control budget. A final CPU-mask validator type check
 was corrected; measurement logic and the checksummed data are unchanged.
 The operator approved calibration reuse on 2026-09-05 as an explicit
-validation-only exception to the frozen-harness rule. Candidate freeze,
-non-release publication, and one final acceptance cycle are now active.
+validation-only exception to the frozen-harness rule. Frozen candidate
+`ddd21dee` was published as the non-release `phase4-recovery-20260905-ddd21dee`
+image. The final NAS suite completed all twelve cases: 75,786 successes, no
+failures/timeouts, and nine successful C scrapes. Checksums and independent
+arithmetic verified the report. B/A and C/A remain inconclusive, with median
+throughput losses of 0.399%/6.392%; the final repeated baseline slowed 53.339%
+as NAS load rose from 1.73 to 15.10. All three observed C throughput losses
+exceeded 5%, but the unchanged noise veto prevents a definitive classification.
+Final full-cardinality responsiveness did not pass: REST list p99 +9.086 ms
+exceeds 5 ms; MCP list samples 733/736 are insufficient. Scrape duration, ASGI
+lag and overlap/cancellation checks passed. Explicit source/configuration
+comparison supports reuse of the passed 4D evidence. New NAS/local test
+containers are removed, observation history is preserved, and production is
+unchanged. This cycle is finished; release/enabling remain blocked and no
+automatic retest or optimization follows it.
 The full suite passed 932 tests before that final validation-only correction;
 49 artifact/validator tests passed afterward. Runtime metrics remain off.
 

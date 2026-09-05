@@ -1,10 +1,11 @@
 # Application Performance Measurement
 
-**Status:** PHASE 4D COMPLETE — the Phase 1–3 implementation and local
-controlled-host verification are complete; the frozen 4C A/B/C overhead gate
-remains inconclusive and blocks release/enabling. Phase 4D collection, access,
-idle/outage, and disposable rollback evidence passed on CARLDOG-NAS. Live
-release/deployment observation has not started.
+**Status:** 4C RECOVERY CYCLE COMPLETE; RELEASE/ENABLEMENT BLOCKED — the final
+NAS B/A and C/A overhead comparisons remain inconclusive, and the final
+maximum-cardinality responsiveness gate did not pass. Phase 1–3 implementation
+is complete. Passed 4D collection/access/recovery evidence is explicitly reused
+after source/configuration impact review. Production is unchanged; 4E/4F have
+not started. Further investigation requires a new scoped decision.
 **Date:** 2026-09-05.
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
@@ -16,9 +17,10 @@ throttling, corpus drift, disabled-path overhead and rollback, scrape
 responsiveness, all-attempt scrape-duration retention, and backfill failure
 classification), the Phase 3 local collector configuration, the Phase 4
 controlled-host gate and retest results, and the Phase 4D NAS collection,
-access, and rollback evidence. Metrics remain disabled by default; local
-responsiveness and 4D passed, while the 4C overhead gate remains inconclusive
-and live release/deployment observation is pending.
+access, and rollback evidence, followed by the bounded 4C recovery cycle.
+Metrics remain disabled by default. The earlier responsiveness result is
+superseded for the final candidate by the full-cardinality result below;
+4D evidence remains applicable and live release/deployment observation is pending.
 
 **Resolution plan:** [Phase 4 remaining-work plan](#phase-4-remaining-work-plan)
 records the proposed sequence, evidence, and stop conditions following commit
@@ -27,8 +29,9 @@ The [4C recovery plan](#4c-recovery-plan) adds the next bounded sequence after
 4D: evidence integrity, baseline repeatability, enabled-cost diagnosis, a
 targeted patch, and a new frozen comparison. Recovery execution is recorded in
 the [execution checkpoint](#4c-recovery-execution-checkpoint): trustworthy
-calibration evidence and a locally verified candidate are available, with a
-validation-only harness correction awaiting explicit disposition.
+calibration reuse was explicitly approved after the validation-only correction.
+The [final disposition](#4c-recovery-final-disposition) records the published
+candidate, verified acceptance report, responsiveness limitations, and stop.
 
 ## Recommendation and intended outcome
 
@@ -868,13 +871,14 @@ reconsider the acceptance policy. No threshold change or exception is implied.
 
 ### 4C recovery plan
 
-**Status: execution checkpoint reached, 2026-09-05.** This plan closes the specific
+**Status: bounded cycle finished with blockers, 2026-09-05.** This plan addresses the specific
 remaining evidence and overhead problems. Its deliverable is a trustworthy
 report classifying B/A and C/A separately, plus either a verified candidate or
 a concrete unresolved limitation. A passing result is an outcome to establish,
 not a promised result. The existing 4D evidence is retained, with affected
 checks repeated if the candidate changes. The operator authorized execution;
-publication and final acceptance remain pending. No release is implied.
+publication and final acceptance are complete, but the gates did not pass.
+No release is implied and no automatic rerun is authorized.
 
 The starting evidence has three distinct limitations:
 
@@ -1147,9 +1151,85 @@ future report with `python -m scripts.probe_artifact --logs <logs> --out <new-re
 the output path must not already exist. Both disposable stacks (217/218) were
 removed only after evidence retrieval. Production remains healthy on v3.3.0,
 build `7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`; the stopped 4D stack/history
-remains untouched. Runtime metrics stay off by default. New image publication,
-the frozen comparison, applicable responsiveness/4D rechecks, and 4E/4F remain
-pending; the candidate is not released.
+remains untouched. Runtime metrics stay off by default. Publication and final
+comparison were pending at this checkpoint; their completed disposition follows.
+The candidate is not released and 4E/4F remain gated.
+
+### 4C recovery final disposition
+
+**2026-09-05 — this single bounded cycle is finished; release and enabled
+collection remain blocked.** The operator approved reuse of the intact passing
+calibration after the validation-only CPU-mask correction. Candidate commit
+`ddd21dee87c647d6693368099b19b1d14da66c74` was frozen locally and published only as
+`ghcr.io/carldog/openchronicle-mcp:phase4-recovery-20260905-ddd21dee`, digest
+`sha256:84687ea06ddae1603d8a21c0c9efa0b3a993c6d393884ce528fd20f56def4240`.
+The registry manifest, amd64 platform, embedded source/harness hashes, and common
+dependency image were verified. No Git push, release tag, `latest` movement,
+production deployment, or runtime enablement occurred.
+
+Disposable NAS stack 219 ran the unchanged `ABCR / BCAR / CABR` protocol from
+22:09:24 to 22:31:51 UTC (1,346.8 seconds, below the 1,800-second cap). Its
+pre-harness inspection delay was outside measurement. All twelve cases were
+eligible: 75,786 successful requests, zero errors/timeouts, identical corpora,
+305–673 list samples per case, and all nine scheduled C scrapes completed.
+The container exited 0 without OOM or restart. All 145 transport chunks yielded
+294,930 bytes matching producer SHA-256
+`883a1649965d9a8b4ede89d568c1503d4760bc3ce8768a9eb350db237497b290`.
+Semantic validation and separate arithmetic matched the saved assessment;
+source, harness, runtime, protocol and timing identities matched the freeze.
+
+| Comparison | Median throughput loss | Median search p95 delta | Median list p95 delta | Median RSS delta | Decision |
+| --- | ---: | ---: | ---: | ---: | --- |
+| B/A — disabled | 0.399% | +0.786 ms | +0.554 ms | -0.203 MiB | Inconclusive |
+| C/A — enabled/scraped | 6.392% | +8.327 ms | +0.181 ms | +2.133 MiB | Inconclusive |
+
+The final repeated baseline fell from 76.200 to 35.556 requests/second:
+53.339% loss, +175.427 ms search p95, and +78.091 ms list p95. The maximum
+control-noise fractions were 10.668/25.556/78.091 for throughput/search/list;
+RSS remained within budget. The first two baseline controls stayed within
+budget. No block was discarded. The last R case's one-minute NAS load reading
+rose from 1.73 to 15.10; this supports a host-interference concern without
+identifying its cause. CPUs 0–1 were unchanged (sibling threads on one core),
+not exclusive CPU ownership; CPU/I/O pressure counters were unavailable.
+
+All three observed C throughput losses (8.475%, 6.392%, 5.716%) exceeded 5%,
+and all three C search-p95 deltas exceeded their budgets. These observed
+breaches are retained even though the repeated-baseline veto classifies those
+metrics as **inconclusive**, not a validated fail. B's first block also crossed
+both p95 budgets. Neither comparison is release evidence under the unchanged
+policy; targeted recorder CPU savings do not establish acceptable app overhead.
+
+The final local full-cardinality responsiveness invocation completed in
+545.8 seconds, with 3,648 series, eight clients, and one-second stress scrapes.
+Its four matched REST/MCP cases completed 37,174 requests and 250 scrapes with
+zero failures. REST list p99 increased **9.086 ms against a 5-ms budget**;
+MCP list samples were only **733/736**, below the required 1,000, so their p99
+comparison is inconclusive. Search p99, scrape duration (maximum 102.943 ms),
+and actual ASGI-loop lag deltas (REST +1.074 ms, MCP +6.134 ms) passed.
+Gzip was unsupported; identity/gzip requests both returned uncompressed 200s.
+A separate bounded full-cardinality overlap/cancellation check passed.
+These results are not pooled with NAS overhead evidence. The earlier local
+responsiveness pass does not clear this final candidate's failed/incomplete gate.
+
+4D reuse is explicit: only normalized recorder-child caching changed from the
+passed candidate. AST/source comparison confirmed unchanged registry labels,
+buckets, exporter/worker ownership, error/health bookkeeping, access guards,
+storage/schema, dependency declarations, and collector/rollback configuration.
+The changed recorder paths have exact-count, concurrency, bounded-cache and
+recovery tests plus the final runtime checks. No new history/restart/rollback
+experiment is claimed. Stack 216 remains stopped with its history preserved.
+
+Evidence is retained under `data/performance/phase4-20260904/recovery-20260905/`:
+`acceptance-freeze.json`, `acceptance-report.json`, `acceptance-independent.json`,
+`acceptance-closeout.json`, `responsiveness-verdict.json`, the raw stress reports,
+and `phase4d-impact.md`. NAS stack 219 and both local diagnostic containers were
+removed only after verification. Production remained healthy on v3.3.0, build
+`7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`, with metrics off.
+
+**Stop condition:** defer the instrumentation release. Repeatability under NAS
+load, residual enabled-path cost, the REST list-tail breach, and sufficient MCP
+tail sampling require a new scoped decision. No automatic calibration, retest,
+optimization batch, deployment, or monitoring task follows this cycle.
 
 ### 4D — close NAS collection, access, and rollback evidence
 

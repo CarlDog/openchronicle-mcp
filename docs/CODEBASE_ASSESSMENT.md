@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-05 · **Revision:** 185 (working tree)
+**Snapshot date:** 2026-09-05 · **Revision:** 186
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 933 in the working tree; full suite 932 passed before the final validator-only correction, then 49 artifact/validator tests passed (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 933; full suite 932 passed before the final validator-only correction, then 49 artifact/validator tests passed (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -147,9 +147,16 @@ drivers in `interfaces/`), enforced by tests — see
   operator approved calibration reuse on 2026-09-05 as an explicit
   validation-only frozen-harness exception. A bounded recorder cache patch has passed local
   correctness tests and reduced targeted recorder-cycle CPU by 42.857%; this
-  is not an application overhead claim. Candidate freeze, non-release
-  publication, and the single final acceptance cycle are active; no release
-  or production change is authorized. Evidence: `data/performance/phase4-20260904/recovery-20260905/`.
+  is not an application overhead claim. The bounded cycle is now finished:
+  candidate `ddd21dee` was published as a uniquely tagged non-release image;
+  all twelve NAS cases completed 75,786 requests without failures. Verified
+  B/A and C/A remain inconclusive (median throughput losses 0.399%/6.392%)
+  because the last repeated baseline slowed 53.339% while NAS load rose sharply.
+  Full-cardinality responsiveness also did not pass: REST list p99 exceeded
+  its budget by 4.086 ms, and MCP list samples were insufficient. Unchanged 4D
+  evidence was reused after source/configuration review. All new disposable
+  containers were removed, production is unchanged, and release/enabling remain
+  blocked pending a new scoped decision. Evidence: `data/performance/phase4-20260904/recovery-20260905/`.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
   local retrieval/embedding integrity defects plus one demonstrated
   filtered-recency need; the same review benchmark-gates MMR and keeps
@@ -184,6 +191,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 186 | 2026-09-05 | **4C recovery cycle finished with verified blockers.** Published frozen `ddd21dee` benchmark image only; 12-case NAS run: 75,786 successes, no failures/timeouts, all nine C scrapes, checksummed artifact and independent arithmetic verified. B/A and C/A remain inconclusive (0.399%/6.392% median throughput loss); final repeated baseline lost 53.339% with a NAS load spike. Full-cardinality stress: 37,174 successes, 250 scrapes; REST list p99 +9.086 ms exceeds 5 ms, MCP list samples 733/736 are insufficient. Duration, ASGI lag and overlap/cancellation checks passed. Explicit unchanged-source/configuration 4D reuse; new test containers removed, old observation history preserved, production unchanged. README now labels metrics unreleased. No Git push, release, enabling or automatic retest. |
 | 185 (working tree) | 2026-09-05 | **4C calibration reuse approved.** The operator explicitly accepted the validator-only frozen-harness exception for the intact passing calibration. Freeze and publish the optimized non-release candidate, then run one acceptance suite and required responsiveness/affected 4D checks; no repeated calibration, relaxed budgets, release, or production change. |
 | 184 (working tree) | 2026-09-05 | **4C recovery execution checkpoint.** Added integrity-checked artifact transport, strict report contracts, measured-only scraping/RSS, and the v2 baseline/acceptance runner. NAS calibration: 41,441 successes, zero failures, all three control pairs within budget. The producer's final validator rejected hexadecimal CPU-mask metadata; fixed with a real-probe contract test, preserving the original checksummed report. Only validator AST changed; calibration reuse versus a fresh run awaits explicit decision. Bounded metric-child caches reduce targeted recorder-cycle CPU by 42.857%, not established application overhead. Full 932 tests passed, then 49 validator/artifact tests passed after the final correction; 933 tests now collected. Both disposable jobs removed, evidence retained, production unchanged. No final acceptance/publication/release. |
 | 183 (working tree) | 2026-09-05 | **Proposed 4C recovery plan and retained-evidence correction.** Planning inspection found a log timestamp embedded in one condition value and two metric keys in the saved 4C JSON; the current assessor returns `condition state mismatch` and no comparisons. The original artifact is preserved. Design 0010 now specifies six bounded steps: evidence recovery and checked retrieval, one longer baseline calibration, enabled-cost diagnosis, one targeted patch batch, one frozen comparison, and explicit disposition. Proposed warm-up/measurement are 15/90 seconds with 900/1,800-second calibration/full-suite caps; existing performance budgets and noise rules stay unchanged. No implementation, new benchmark, release, or deployment ran in this planning turn. |

@@ -1011,9 +1011,19 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   bounded recorder-cache patch. The post-run CPU-mask validator was corrected
   without changing measurement logic or data. On 2026-09-05 the operator
   explicitly approved reuse of the verified calibration as a validation-only
-  frozen-harness exception. Candidate freeze, non-release publication, and the
-  single final acceptance cycle are now active. All performance
-  budgets and metrics-disabled defaults remain unchanged. The
+  frozen-harness exception. The bounded cycle is now finished: `ddd21dee`
+  was frozen and published as a uniquely tagged non-release benchmark image;
+  the twelve-case NAS suite completed 75,786 requests without failures. The
+  checksummed report and independent arithmetic classify B/A and C/A as
+  inconclusive (0.399%/6.392% median throughput loss) because the last repeated
+  baseline slowed 53.339% during a NAS load spike. Full-cardinality stress also
+  did not pass: REST list p99 +9.086 ms exceeds its 5-ms budget, and MCP list
+  samples 733/736 cannot establish p99. Unchanged 4D evidence is explicitly
+  reused after source/configuration review. New disposable containers are
+  removed; old observation history and production are unchanged. Release and
+  enablement remain blocked; further investigation needs a new scoped decision,
+  not an automatic rerun. All budgets and metrics-disabled defaults remain
+  unchanged. See the [final disposition](design/0010-performance-measurement.md#4c-recovery-final-disposition). The
   delivered `scripts/`-level probe (sibling of
   `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
   mix (search-heavy, small saves, lists) against a throwaway store seeded from

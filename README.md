@@ -34,9 +34,11 @@ MCP from a single ASGI process. Runs on your hardware.
   degraded state via `/api/v1/health` and the MCP `health` tool.
   Backfill catches up when the provider returns; the static `/health`
   endpoint remains a minimal liveness probe.
-- **Optional operational metrics.** The standard image includes the bounded
-  Prometheus recorder and guarded `/metrics` endpoint. Enable it explicitly
-  with `OC_METRICS_ENABLED=true`; it remains off by default. See the
+- **Optional operational metrics (unreleased).** Development and benchmark
+  builds include the bounded Prometheus recorder and guarded `/metrics`
+  endpoint; the released v3.3.0 image does not. Release and enabled collection
+  remain subject to the [performance gates](docs/design/0010-performance-measurement.md).
+  Eligible builds opt in with `OC_METRICS_ENABLED=true`; the default stays off. See the
   [metrics configuration](docs/configuration/env_vars.md) and the optional
   [local monitoring runbook](docs/monitoring/runbook.md).
 - **Schema migration framework.** Versioned `.sql` migrations with
