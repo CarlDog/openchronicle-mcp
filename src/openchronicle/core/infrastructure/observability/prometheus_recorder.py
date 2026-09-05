@@ -6,7 +6,10 @@ import asyncio
 import logging
 import threading
 from collections.abc import Callable
-from typing import Final
+from typing import TYPE_CHECKING, Final
+
+if TYPE_CHECKING:
+    from prometheus_client import Gauge, Histogram
 
 from openchronicle.core.application.observability.exporter import (
     MetricsScrapeBusyError,
@@ -75,6 +78,8 @@ _JOB_NAMES: Final[frozenset[str]] = frozenset(
 )
 _JOB_OUTCOMES: Final[frozenset[str]] = frozenset({"success", "partial", "failure", "cancel", "overlap"})
 _BACKFILL_OUTCOMES: Final[frozenset[str]] = frozenset({"generated", "failed", "tombstoned"})
+_SURFACES: Final[frozenset[str]] = frozenset({"rest", "mcp"})
+_LOCK_KINDS: Final[frozenset[str]] = frozenset({"read", "write", "maintenance"})
 
 
 def _bounded(value: str, allowed: frozenset[str]) -> str:
@@ -261,6 +266,14 @@ class PrometheusMetricsRecorder:
         self._build_info.labels(version=package_version(), revision=build_revision()).set(1)
         self._recorder_healthy.set(1)
 
+        # Per-recorder, lazy caches contain normalized labels only: at most
+        # 3 surfaces, 4 lock kinds, and 5 stages (including __unknown__).
+        # Concurrent first use may repeat labels(), whose own lock returns
+        # the same child; no observations are batched, skipped, or cached.
+        self._inflight_children: dict[str, Gauge] = {}
+        self._lock_children: dict[str, tuple[Histogram, Histogram]] = {}
+        self._stage_children: dict[str, Histogram] = {}
+
         # The event loop acquires this slot before dispatching serialization
         # to a worker. Therefore a second scrape returns 503 instead of
         # waiting in an executor queue. The worker owns the release, even if
@@ -294,14 +307,17 @@ class PrometheusMetricsRecorder:
             self._mark_error(operation)
 
     def inflight_inc(self, surface: MetricsSurface) -> None:
-        self._safe(
-            "inflight_inc", lambda: self._inflight.labels(surface=_bounded(surface, frozenset({"rest", "mcp"}))).inc()
-        )
+        self._safe("inflight_inc", lambda: self._inflight_child(_bounded(surface, _SURFACES)).inc())
 
     def inflight_dec(self, surface: MetricsSurface) -> None:
-        self._safe(
-            "inflight_dec", lambda: self._inflight.labels(surface=_bounded(surface, frozenset({"rest", "mcp"}))).dec()
-        )
+        self._safe("inflight_dec", lambda: self._inflight_child(_bounded(surface, _SURFACES)).dec())
+
+    def _inflight_child(self, surface: str) -> Gauge:
+        child = self._inflight_children.get(surface)
+        if child is None:
+            child = self._inflight.labels(surface=surface)
+            self._inflight_children[surface] = child
+        return child
 
     def observe_http(
         self,
@@ -339,13 +355,17 @@ class PrometheusMetricsRecorder:
         self._safe("mcp", record)
 
     def observe_store_lock(self, *, kind: LockKind, wait_seconds: float, hold_seconds: float) -> None:
-        bounded_kind = _bounded(kind, frozenset({"read", "write", "maintenance"}))
+        bounded_kind = _bounded(kind, _LOCK_KINDS)
         wait = _duration(wait_seconds)
         hold = _duration(hold_seconds)
 
         def record() -> None:
-            self._lock_wait.labels(kind=bounded_kind).observe(wait)
-            self._lock_hold.labels(kind=bounded_kind).observe(hold)
+            children = self._lock_children.get(bounded_kind)
+            if children is None:
+                children = self._lock_wait.labels(kind=bounded_kind), self._lock_hold.labels(kind=bounded_kind)
+                self._lock_children[bounded_kind] = children
+            children[0].observe(wait)
+            children[1].observe(hold)
 
         self._safe("store_lock", record)
 
@@ -373,12 +393,15 @@ class PrometheusMetricsRecorder:
         self._safe("embedding", record)
 
     def observe_search_stage(self, *, stage: str, duration_seconds: float) -> None:
-        self._safe(
-            "search_stage",
-            lambda: self._search_stage_duration.labels(stage=_bounded(stage, _SEARCH_STAGES)).observe(
-                _duration(duration_seconds)
-            ),
-        )
+        def record() -> None:
+            bounded_stage = _bounded(stage, _SEARCH_STAGES)
+            child = self._stage_children.get(bounded_stage)
+            if child is None:
+                child = self._search_stage_duration.labels(stage=bounded_stage)
+                self._stage_children[bounded_stage] = child
+            child.observe(_duration(duration_seconds))
+
+        self._safe("search_stage", record)
 
     def observe_search_fallback(self, *, reason: str) -> None:
         self._safe(

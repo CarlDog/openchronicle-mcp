@@ -6,6 +6,7 @@ import asyncio
 import builtins
 import re
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
@@ -132,6 +133,85 @@ def test_each_recorder_owns_an_independent_registry() -> None:
 
     assert 'route="/api/v1/project"' in _text(first)
     assert "oc_http_requests_total{" not in _text(second)
+
+
+def test_hot_metric_children_are_reused_after_first_observation(monkeypatch: pytest.MonkeyPatch) -> None:
+    recorder = PrometheusMetricsRecorder()
+    recorder.observe_store_lock(kind="read", wait_seconds=0.001, hold_seconds=0.01)
+    recorder.observe_search_stage(stage="keyword_lookup", duration_seconds=0.01)
+    recorder.inflight_inc("rest")
+
+    def unexpected_labels(*args: Any, **kwargs: Any) -> Any:
+        raise AssertionError("cached observation must not repeat labels()")
+
+    for metric in (recorder._lock_wait, recorder._lock_hold, recorder._search_stage_duration, recorder._inflight):
+        monkeypatch.setattr(metric, "labels", unexpected_labels)
+    recorder.observe_store_lock(kind="read", wait_seconds=0.001, hold_seconds=0.01)
+    recorder.observe_search_stage(stage="keyword_lookup", duration_seconds=0.01)
+    recorder.inflight_dec("rest")
+    assert recorder.registry.get_sample_value("oc_metrics_recorder_healthy") == 1
+    assert recorder.registry.get_sample_value("oc_store_lock_wait_seconds_count", {"kind": "read"}) == 2
+    assert (
+        recorder.registry.get_sample_value("oc_search_stage_duration_seconds_count", {"stage": "keyword_lookup"}) == 2
+    )
+    assert recorder.registry.get_sample_value("oc_requests_inflight", {"surface": "rest"}) == 0
+
+
+def test_child_caches_are_bounded_normalized_and_recorder_local() -> None:
+    first = PrometheusMetricsRecorder()
+    second = PrometheusMetricsRecorder()
+    for index in range(100):
+        first.observe_store_lock(kind=cast(Any, f"unknown-{index}"), wait_seconds=0, hold_seconds=0)
+        first.observe_search_stage(stage=f"unknown-{index}", duration_seconds=0)
+        first.inflight_inc(cast(Any, f"unknown-{index}"))
+        first.inflight_dec(cast(Any, f"unknown-{index}"))
+    assert set(first._lock_children) == set(first._stage_children) == set(first._inflight_children) == {"__unknown__"}
+    assert not second._lock_children and not second._stage_children and not second._inflight_children
+    assert second.registry.get_sample_value("oc_store_lock_wait_seconds_count", {"kind": "__unknown__"}) is None
+    assert "unknown-99" not in _text(first)
+
+
+def test_concurrent_first_use_keeps_exact_counts_and_gauges() -> None:
+    recorder = PrometheusMetricsRecorder()
+    barrier = threading.Barrier(8)
+
+    def work(_: int) -> None:
+        barrier.wait(timeout=5)
+        for _ in range(100):
+            recorder.inflight_inc("rest")
+            recorder.observe_store_lock(kind="read", wait_seconds=0.001, hold_seconds=0.01)
+            recorder.observe_search_stage(stage="keyword_lookup", duration_seconds=0.01)
+            recorder.inflight_dec("rest")
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(work, range(8)))
+    registry = recorder.registry
+    assert registry.get_sample_value("oc_store_lock_wait_seconds_count", {"kind": "read"}) == 800
+    assert registry.get_sample_value("oc_store_lock_wait_seconds_sum", {"kind": "read"}) == pytest.approx(0.8)
+    assert registry.get_sample_value("oc_store_lock_hold_seconds_count", {"kind": "read"}) == 800
+    assert registry.get_sample_value("oc_store_lock_hold_seconds_sum", {"kind": "read"}) == pytest.approx(8)
+    assert registry.get_sample_value("oc_search_stage_duration_seconds_count", {"stage": "keyword_lookup"}) == 800
+    assert registry.get_sample_value("oc_requests_inflight", {"surface": "rest"}) == 0
+    assert registry.get_sample_value("oc_metrics_recorder_healthy") == 1
+
+
+def test_cached_observation_failure_is_visible_and_recovers(monkeypatch: pytest.MonkeyPatch) -> None:
+    recorder = PrometheusMetricsRecorder()
+    recorder.observe_store_lock(kind="read", wait_seconds=0, hold_seconds=0)
+    child = recorder._lock_children["read"][0]
+    observe = child.observe
+
+    def fail(value: float) -> None:
+        raise RuntimeError("synthetic recorder failure")
+
+    monkeypatch.setattr(child, "observe", fail)
+    recorder.observe_store_lock(kind="read", wait_seconds=0, hold_seconds=0)
+    assert recorder.registry.get_sample_value("oc_metrics_recorder_healthy") == 0
+    assert recorder.registry.get_sample_value("oc_metrics_recorder_errors_total", {"operation": "store_lock"}) == 1
+    monkeypatch.setattr(child, "observe", observe)
+    recorder.observe_store_lock(kind="read", wait_seconds=0, hold_seconds=0)
+    assert recorder.registry.get_sample_value("oc_metrics_recorder_healthy") == 1
+    assert recorder.registry.get_sample_value("oc_store_lock_wait_seconds_count", {"kind": "read"}) == 2
 
 
 def test_sqlite_lock_observation_is_reentrant_aware() -> None:

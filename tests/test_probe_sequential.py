@@ -8,7 +8,17 @@ from typing import Any
 
 import pytest
 
-from scripts.probe_sequential import ORDERS, STATES, assess, case_result, deltas, source_digest
+from scripts.probe_sequential import (
+    ORDERS,
+    PROTOCOL,
+    STATES,
+    assess,
+    assess_calibration,
+    case_result,
+    deltas,
+    source_digest,
+    validate_report,
+)
 
 
 def _runs() -> list[dict[str, Any]]:
@@ -168,3 +178,132 @@ def test_source_digest_includes_resources_not_generated_caches(tmp_path: Path) -
     assert source_digest(tmp_path) == original
     (source / "migration.sql").write_text("SELECT 1;\n")
     assert source_digest(tmp_path) != original
+
+
+def _report(*, calibration: bool = False) -> dict[str, Any]:
+    runs = [run for run in _runs() if not calibration or run["label"] in ("A", "R")]
+    for run in runs:
+        metadata = run["report"]
+        metadata.update(warmup_seconds=15, duration_seconds=90, cpu_affinity_mask="0x3")
+        case = case_result(metadata)
+        case.update(attempted=9000, completed=9000)
+        for name, count in (("search", 8100), ("list", 900)):
+            case["operations"][name].update(
+                sample_count=count, completed=count, throughput_completed_per_second=count / 90
+            )
+        if run["label"] == "C":
+            case["scrapes"] = {
+                "attempted": 3,
+                "completed": 3,
+                "failed": 0,
+                "scheduled_offsets_seconds": [0, 30, 60],
+                "attempts": [
+                    {"offset_seconds": offset, "duration_seconds": 0.01, "completed": True} for offset in (0, 30, 60)
+                ],
+            }
+        metadata["result"]["client_counts"][0] = case
+        run["source_sha256"] = ("a" if run["label"] in ("A", "R") else "b") * 64
+    return {
+        "method": "sequential-ABC-repeated-A-v2",
+        "suite_mode": "calibration" if calibration else "acceptance",
+        "protocol": deepcopy(PROTOCOL),
+        "source_sha256": {"A": "a" * 64, "B_C": "b" * 64},
+        "probe_sha256": dict.fromkeys(("probe_artifact.py", "probe_sequential.py", "probe_performance.py"), "c" * 64),
+        "python_version": "test",
+        "dependency_versions": {"fastapi": "same"},
+        "cpu_affinity": [0, 1],
+        "maximum_runtime_seconds": 900 if calibration else 1800,
+        "started_utc": "2026-09-05T00:00:00+00:00",
+        "finished_utc": "2026-09-05T00:15:00+00:00",
+        "runs": runs,
+        "assessment": assess_calibration(runs) if calibration else assess(runs),
+    }
+
+
+@pytest.mark.parametrize("calibration", [False, True])
+def test_valid_report_recalculates(calibration: bool) -> None:
+    report = _report(calibration=calibration)
+    validate_report(report)
+    assert report["assessment"]["status"] == "pass"
+
+
+def test_validator_accepts_the_real_probe_cpu_mask_contract(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts import probe_performance as probe
+
+    monkeypatch.setattr(probe.subprocess, "check_output", lambda *args, **kwargs: "")
+    mask = probe._metadata(probe.ProbeConfig(cpu_affinity_mask=3))["cpu_affinity_mask"]
+    assert mask == "0x3"
+    report = _report(calibration=True)
+    for run in report["runs"]:
+        run["report"]["cpu_affinity_mask"] = mask
+    validate_report(report)
+
+
+@pytest.mark.parametrize(
+    "problem",
+    ["state", "key", "assessment", "counts", "source", "harness", "cpu", "protocol", "scrapes", "nan", "order"],
+)
+def test_report_validation_rejects_malformed_evidence(problem: str) -> None:
+    report = _report()
+    case = report["runs"][2]["report"]["result"]["client_counts"][0]
+    if problem == "state":
+        report["runs"][4]["report"]["instrumentation_state"] = "2026-09-05T16:28:37.791171084Z disabled"
+    elif problem == "key":
+        values = case["operations"]["search"]
+        values["throughput_comp2026-09-05T16:28:37.791171084Z leted_per_second"] = values.pop(
+            "throughput_completed_per_second"
+        )
+    elif problem == "assessment":
+        report["assessment"]["comparisons"]["C/A"]["metrics"]["search_p95_delta_ms"]["median_delta"] = 999
+    elif problem == "counts":
+        case["attempted"] += 1
+    elif problem == "source":
+        report["runs"][0]["source_sha256"] = "b" * 64
+    elif problem == "harness":
+        report["probe_sha256"].pop("probe_artifact.py")
+    elif problem == "cpu":
+        report["runs"][0]["report"]["cpu_affinity_mask"] = 7
+    elif problem == "protocol":
+        report["protocol"]["duration_seconds"] = 30
+    elif problem == "scrapes":
+        case["scrapes"]["attempted"] = 1
+    elif problem == "nan":
+        case["operations"]["search"]["p95_seconds"] = float("nan")
+    else:
+        report["runs"].reverse()
+    with pytest.raises(ValueError):
+        validate_report(report)
+
+
+def test_baseline_calibration_requires_every_pair_within_budget() -> None:
+    report = _report(calibration=True)
+    runs = report["runs"]
+    assert assess_calibration(runs)["status"] == "pass"
+    case = runs[3]["report"]["result"]["client_counts"][0]
+    case["throughput_completed_per_second"] = 106
+    result = assess_calibration(runs)
+    assert result["status"] == "inconclusive"
+    assert result["max_control_noise_budget_fraction"]["throughput_loss_percent"] == pytest.approx(1.2)
+    assert assess_calibration(runs[:-1])["status"] == "inconclusive"
+
+
+def test_measured_scrape_missing_or_finishing_late_vetoes_eligibility() -> None:
+    report = _report()
+    case = report["runs"][2]["report"]["result"]["client_counts"][0]
+    case["scrapes"]["attempts"][2]["duration_seconds"] = 31
+    assert assess(report["runs"])["status"] == "inconclusive"
+    case["scrapes"]["attempts"].pop()
+    assert assess(report["runs"])["status"] == "inconclusive"
+
+
+def test_failed_metric_remains_visible_when_aggregate_is_inconclusive() -> None:
+    runs = _runs()
+    for run in runs:
+        case = run["report"]["result"]["client_counts"][0]
+        if run["label"] == "C":
+            case["throughput_completed_per_second"] = 90
+        elif run["label"] == "R":
+            case["operations"]["list"]["p95_seconds"] = 0.12
+    comparison = assess(runs)["comparisons"]["C/A"]
+    assert comparison["status"] == "inconclusive"
+    assert comparison["metrics"]["throughput_loss_percent"]["status"] == "fail"

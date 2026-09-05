@@ -1,5 +1,6 @@
 # One-shot sequential comparison. No access to the live OC network or volumes.
-# Fetch OC_BENCHMARK_REPORT from container logs before removing this stack.
+# Verify OC_BENCHMARK_ARTIFACT_V1 log chunks with scripts.probe_artifact
+# before removing this stack. /tmp does not survive stopping the container.
 services:
   benchmark:
     image: ${OC_BENCHMARK_IMAGE:?set the immutable benchmark image digest}

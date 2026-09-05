@@ -229,10 +229,10 @@ contracts, and both recovery paths preserving candidate-created data. Stack
 remain off. All 897 tests passed for the candidate.
 
 **Active queue after this release** (V3_PLAN carries the full
-entries): (1) performance-measurement Phase 4 release/observation gate
-(4A profiling, 4A NAS calibration, 4B disabled-path patch, frozen unprofiled
-4C run, and 4D collection/access/recovery evidence are complete; both
-overhead comparisons remain inconclusive; 4E/4F remain gated),
+entries): (1) performance-measurement 4C recovery plan
+(4A/4B and 4D checks are complete; the 4C run finished, but its saved report
+needs replacement and the overhead gate remains unresolved; recovery,
+calibration, and the targeted patch are verified, with final acceptance next),
 (2) cloud-backup Phase 0 + restore drill (operator at a desktop; 0007 Stage 0),
 then demand-/trigger-gated items. Design 0007 (long-term scale & resilience)
 is ACCEPTED with its staged trigger-gated path. Open operator decision: the
@@ -254,6 +254,24 @@ sanitized report is retained under
 `data/performance/phase4-20260904/phase4d-20260905/`. Runtime metrics remain
 off by default and production is unchanged; 4E/4F remain gated by the
 inconclusive 4C result and release authorization.
+
+Forward-planning inspection found log timestamp contamination in the retained
+4C JSON, including its disabled-state value; the current assessor returns a
+condition mismatch and no comparisons. The earlier saved-report verification
+claim is unconfirmed. The adopted
+[4C recovery plan](docs/design/0010-performance-measurement.md#4c-recovery-plan)
+starts with evidence integrity, then baseline calibration, enabled-cost
+diagnosis, one targeted patch batch, one frozen comparison, and disposition.
+It preserves the existing budgets. Recovery now has checksummed report
+transport, measured-only scrape/RSS sampling, and a locally verified bounded
+metric-child cache patch. NAS calibration completed 41,441 requests without
+failures and met every control budget. A final CPU-mask validator type check
+was corrected; measurement logic and the checksummed data are unchanged.
+The operator approved calibration reuse on 2026-09-05 as an explicit
+validation-only exception to the frozen-harness rule. Candidate freeze,
+non-release publication, and one final acceptance cycle are now active.
+The full suite passed 932 tests before that final validation-only correction;
+49 artifact/validator tests passed afterward. Runtime metrics remain off.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

@@ -7,7 +7,7 @@ ENV BENCHMARK_BASE_REVISION=${BENCHMARK_BASE_REVISION}
 WORKDIR /benchmark
 COPY baseline/src /benchmark/baseline/src
 COPY candidate/src /benchmark/candidate/src
-COPY scripts/probe_performance.py scripts/probe_sequential.py /benchmark/scripts/
+COPY scripts/probe_performance.py scripts/probe_sequential.py scripts/probe_artifact.py /benchmark/scripts/
 USER 1000:1000
 HEALTHCHECK NONE
 ENTRYPOINT ["python", "/benchmark/scripts/probe_sequential.py"]

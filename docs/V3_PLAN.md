@@ -999,7 +999,21 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   `data/performance/phase4-20260904/phase4d-20260905/`; observation stack 216
   is stopped with its Prometheus history volume preserved. Release and
   enabling remain blocked by the inconclusive 4C gate; 4E/4F remain pending.
-  The
+  Planning inspection subsequently found timestamp contamination in the
+  saved 4C JSON; the current assessor rejects its condition state and returns
+  no comparisons. The earlier saved-report verification claim is therefore
+  unconfirmed. The adopted
+  [4C recovery plan](design/0010-performance-measurement.md#4c-recovery-plan)
+  sequences evidence integrity, baseline calibration, enabled-cost diagnosis,
+  a targeted patch, one frozen comparison, and a stopping decision. Recovery
+  now has checksummed artifacts, measured-only resource sampling, a passing
+  six-case NAS calibration (41,441 successful requests), and a locally verified
+  bounded recorder-cache patch. The post-run CPU-mask validator was corrected
+  without changing measurement logic or data. On 2026-09-05 the operator
+  explicitly approved reuse of the verified calibration as a validation-only
+  frozen-harness exception. Candidate freeze, non-release publication, and the
+  single final acceptance cycle are now active. All performance
+  budgets and metrics-disabled defaults remain unchanged. The
   delivered `scripts/`-level probe (sibling of
   `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
   mix (search-heavy, small saves, lists) against a throwaway store seeded from

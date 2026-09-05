@@ -4,14 +4,17 @@ from __future__ import annotations
 
 from argparse import ArgumentTypeError
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from scripts.probe_performance import (
+    MetricsScraper,
     OperationResult,
     OperationSummary,
     ProbeConfig,
     ProbeError,
+    ProcessMemorySampler,
     ScrapeSummary,
     _memory_payload,
     _same_run_affinity_masks,
@@ -100,6 +103,47 @@ def test_scrape_summary_retains_every_attempt_duration() -> None:
     assert payload["max_attempt_seconds"] == 0.25
     assert payload["completed"] == 1
     assert payload["failed"] == 1
+
+
+def test_scraper_uses_measured_offsets_without_sleeping(monkeypatch: pytest.MonkeyPatch) -> None:
+    from scripts import probe_performance as probe
+
+    clock = [100.0]
+    monkeypatch.setattr(probe.time, "perf_counter", lambda: clock[0])
+    scraper = MetricsScraper("http://127.0.0.1:8000", 30, 5)
+    scraper._started_at = 100.0
+    scraper._duration_seconds = 90
+
+    def wait(seconds: float) -> bool:
+        clock[0] += seconds
+        return False
+
+    class Response:
+        status = 200
+
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(self, *_: Any) -> None:
+            pass
+
+        def read(self) -> bytes:
+            clock[0] += 0.01
+            return b"metric 1\n"
+
+    monkeypatch.setattr(scraper._stop_event, "wait", wait)
+    monkeypatch.setattr(scraper._opener, "open", lambda *_args, **_kwargs: Response())
+    scraper._run()
+    report = scraper.snapshot()
+    assert report["scheduled_offsets_seconds"] == [0, 30, 60]
+    assert [item["offset_seconds"] for item in report["attempts"]] == [0, 30, 60]
+    assert report["completed"] == report["attempted"] == 3
+    assert all(item["started_utc"] for item in report["attempts"])
+
+
+def test_unstarted_resource_workers_can_be_cleaned_up() -> None:
+    MetricsScraper("http://127.0.0.1:8000", 30, 5).stop()
+    ProcessMemorySampler(1).stop()
 
 
 def test_fixed_seed_payload_is_deterministic_and_bounded() -> None:

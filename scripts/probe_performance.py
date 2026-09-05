@@ -26,6 +26,7 @@ import hashlib
 import http.client
 import importlib.metadata
 import json
+import math
 import os
 import platform
 import random
@@ -180,10 +181,27 @@ class ScrapeSummary:
     failed: int = 0
     durations: list[float] = field(default_factory=list)
     all_durations: list[float] = field(default_factory=list)
+    attempts: list[dict[str, Any]] = field(default_factory=list)
 
-    def record(self, duration_seconds: float, completed: bool) -> None:
+    def record(
+        self,
+        duration_seconds: float,
+        completed: bool,
+        *,
+        offset_seconds: float | None = None,
+        started_utc: str | None = None,
+    ) -> None:
         self.attempted += 1
         self.all_durations.append(duration_seconds)
+        if offset_seconds is not None:
+            self.attempts.append(
+                {
+                    "offset_seconds": offset_seconds,
+                    "started_utc": started_utc,
+                    "duration_seconds": duration_seconds,
+                    "completed": completed,
+                }
+            )
         if completed:
             self.completed += 1
             self.durations.append(duration_seconds)
@@ -199,6 +217,7 @@ class ScrapeSummary:
             "completion_rate": round(self.completed / self.attempted, 4) if self.attempted else None,
             "sample_count": self.completed,
             "all_durations_seconds": [round(duration, 6) for duration in self.all_durations],
+            "attempts": list(self.attempts),
             "p50_seconds": _quantile(durations, 0.50),
             "p95_seconds": _quantile(durations, 0.95) if self.completed >= 100 else None,
             "max_seconds": round(max(durations), 6) if durations else None,
@@ -217,14 +236,24 @@ class MetricsScraper:
         self._stop_event = threading.Event()
         self._lock = threading.Lock()
         self._summary = ScrapeSummary()
+        self._started_at = 0.0
+        self._duration_seconds: float | None = None
         self._thread = threading.Thread(target=self._run, name="oc-probe-scraper", daemon=False)
 
-    def start(self) -> None:
+    def start(self, started_at: float | None = None, duration_seconds: float | None = None) -> None:
+        self._started_at = time.perf_counter() if started_at is None else started_at
+        self._duration_seconds = duration_seconds
         self._thread.start()
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
-            return self._summary.as_dict()
+            result = self._summary.as_dict()
+            if self._duration_seconds is not None:
+                result["scheduled_offsets_seconds"] = [
+                    index * self._interval_seconds
+                    for index in range(math.ceil(self._duration_seconds / self._interval_seconds))
+                ]
+            return result
 
     def reset(self) -> None:
         with self._lock:
@@ -232,14 +261,20 @@ class MetricsScraper:
 
     def stop(self) -> None:
         self._stop_event.set()
+        if self._thread.ident is None:
+            return
         self._thread.join(timeout=max(5.0, self._timeout_seconds + 1.0))
         if self._thread.is_alive():
             raise ProbeError("scrape_shutdown", "scrape worker did not stop within the cleanup bound")
 
     def _run(self) -> None:
-        next_run = time.monotonic()
-        while not self._stop_event.wait(max(0.0, next_run - time.monotonic())):
+        next_run = self._started_at
+        end = self._started_at + self._duration_seconds if self._duration_seconds is not None else math.inf
+        while next_run < end and not self._stop_event.wait(max(0.0, next_run - time.perf_counter())):
             started = time.perf_counter()
+            if started >= end:
+                break
+            started_utc = datetime.now(UTC).isoformat()
             completed = False
             try:
                 with self._opener.open(self._url, timeout=self._timeout_seconds) as response:
@@ -249,11 +284,12 @@ class MetricsScraper:
                 completed = False
             duration = time.perf_counter() - started
             with self._lock:
-                self._summary.record(duration, completed)
+                self._summary.record(
+                    duration, completed, offset_seconds=started - self._started_at, started_utc=started_utc
+                )
             next_run += self._interval_seconds
-            now = time.monotonic()
-            if next_run <= now:
-                next_run = now + self._interval_seconds
+            # Keep the declared schedule. A delayed attempt is retained rather
+            # than silently changing the cadence; missing/late attempts veto eligibility.
 
 
 def _process_rss_bytes(pid: int) -> int | None:
@@ -321,9 +357,12 @@ class ProcessMemorySampler:
         self._peak_rss_bytes: int | None = None
         self._sample_count = 0
         self._supported: bool | None = None
+        self._end = math.inf
         self._thread = threading.Thread(target=self._run, name="oc-probe-memory", daemon=False)
 
-    def start(self) -> None:
+    def start(self, started_at: float | None = None, duration_seconds: float | None = None) -> None:
+        if started_at is not None and duration_seconds is not None:
+            self._end = started_at + duration_seconds
         self._thread.start()
 
     def reset_peak(self) -> None:
@@ -341,12 +380,14 @@ class ProcessMemorySampler:
 
     def stop(self) -> None:
         self._stop_event.set()
+        if self._thread.ident is None:
+            return
         self._thread.join(timeout=5.0)
         if self._thread.is_alive():
             raise ProbeError("memory_shutdown", "memory sampler did not stop within the cleanup bound")
 
     def _run(self) -> None:
-        while not self._stop_event.is_set():
+        while not self._stop_event.is_set() and time.perf_counter() < self._end:
             rss = _process_rss_bytes(self._pid)
             with self._lock:
                 self._sample_count += 1
@@ -1058,6 +1099,7 @@ async def _run_clients(
     duration_seconds: float,
     collect: bool,
     max_runtime_deadline: float,
+    on_start: Callable[[float], None] | None = None,
 ) -> tuple[list[OperationResult], float, list[OperationResult]]:
     """Run closed-loop clients for a bounded duration."""
     result_lock = asyncio.Lock()
@@ -1131,12 +1173,19 @@ async def _run_clients(
         remaining_runtime = max_runtime_deadline - time.perf_counter()
         await asyncio.wait_for(ready_event.wait(), timeout=min(30.0, remaining_runtime))
         measurement_start = time.perf_counter()
+        if on_start is not None:
+            on_start(measurement_start)
         start_event.set()
     except TimeoutError:
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
         raise ProbeError("client_start_timeout", "clients did not reach the bounded start barrier") from None
+    except BaseException:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        raise
     try:
         remaining_runtime = max_runtime_deadline - time.perf_counter()
         if remaining_runtime <= 0:
@@ -1218,6 +1267,7 @@ async def run_client_count(
     deadline: float,
     *,
     start_barrier: tuple[Path, str] | None = None,
+    on_measurement_start: Callable[[float], None] | None = None,
 ) -> dict[str, Any]:
     if time.perf_counter() >= deadline:
         raise ProbeError("runtime_cap", "probe reached its maximum runtime before the case started")
@@ -1243,6 +1293,7 @@ async def run_client_count(
             duration_seconds=config.duration_seconds,
             collect=True,
             max_runtime_deadline=deadline,
+            on_start=on_measurement_start,
         )
     finally:
         await event_loop_lag.stop()
@@ -1393,7 +1444,7 @@ def _running_server(
         str,
         Callable[[], None],
         int,
-        Callable[[], None],
+        Callable[[float], None],
         Callable[[], dict[str, Any]],
     ]
 ]:
@@ -1444,26 +1495,26 @@ def _running_server(
                 config.scrape_interval_seconds,
                 min(config.request_timeout_seconds, 5.0),
             )
-        memory_sampler.start()
-        if scraper is not None:
-            scraper.start()
 
         def enable_measured_provider_delay() -> None:
             if fake_provider is not None:
                 fake_provider.set_delay(0.4)
 
-        def reset_measurement_resources() -> None:
-            memory_sampler.reset_peak()
+        def start_measurement_resources(started_at: float) -> None:
+            memory_sampler.start(started_at, config.duration_seconds)
             if scraper is not None:
-                scraper.reset()
+                scraper.start(started_at, config.duration_seconds)
 
         def resource_snapshot() -> dict[str, Any]:
+            memory_sampler.stop()
+            if scraper is not None:
+                scraper.stop()
             return {
                 "scrapes": scraper.snapshot() if scraper is not None else None,
                 "process_memory": memory_sampler.snapshot(),
             }
 
-        yield base_url, enable_measured_provider_delay, health_requests, reset_measurement_resources, resource_snapshot
+        yield base_url, enable_measured_provider_delay, health_requests, start_measurement_resources, resource_snapshot
     finally:
         try:
             if scraper is not None:
@@ -1556,7 +1607,7 @@ async def _run_case(config: ProbeConfig, data_dir: Path, deadline: float) -> dic
             base_url,
             enable_measured_provider_delay,
             _,
-            reset_measurement_resources,
+            start_measurement_resources,
             resource_snapshot,
         ):
             client = WorkloadClient(config, base_url)
@@ -1564,13 +1615,19 @@ async def _run_case(config: ProbeConfig, data_dir: Path, deadline: float) -> dic
             # Seeding uses zero-delay local embeddings; only measured
             # operations pay the simulated 400 ms provider delay.
             enable_measured_provider_delay()
-            reset_measurement_resources()
             start_barrier = (
                 (config.start_barrier_dir, config.start_barrier_label)
                 if config.start_barrier_dir is not None and config.start_barrier_label is not None
                 else None
             )
-            result = await run_client_count(client, config, client_count, deadline, start_barrier=start_barrier)
+            result = await run_client_count(
+                client,
+                config,
+                client_count,
+                deadline,
+                start_barrier=start_barrier,
+                on_measurement_start=start_measurement_resources,
+            )
             resources = resource_snapshot()
             if resources["scrapes"] is not None:
                 result["scrapes"] = resources["scrapes"]

@@ -23,6 +23,12 @@ and live release/deployment observation is pending.
 **Resolution plan:** [Phase 4 remaining-work plan](#phase-4-remaining-work-plan)
 records the proposed sequence, evidence, and stop conditions following commit
 `682c68f0`. The implementation is committed; production rollout is pending.
+The [4C recovery plan](#4c-recovery-plan) adds the next bounded sequence after
+4D: evidence integrity, baseline repeatability, enabled-cost diagnosis, a
+targeted patch, and a new frozen comparison. Recovery execution is recorded in
+the [execution checkpoint](#4c-recovery-execution-checkpoint): trustworthy
+calibration evidence and a locally verified candidate are available, with a
+validation-only harness correction awaiting explicit disposition.
 
 ## Recommendation and intended outcome
 
@@ -659,7 +665,8 @@ mutations remain operator-authorized operations.
 
 ## Phase 4 remaining-work plan
 
-**Status: in execution; 4A–4D are complete, and 4E–4F remain.**
+**Status: 4A/4B and 4D are complete; the 4C run finished but its gate is
+unresolved and retained-report integrity needs recovery. 4E/4F remain blocked.**
 The implementation and tests landed in `682c68f0`; the original uninstrumented
 comparator remains `527f2294`. The latest NAS measurements remain inconclusive.
 Prior passing tests establish a starting point; they do not certify a future
@@ -792,6 +799,14 @@ below. Runtime metrics remain off by default and production remains unchanged.
 
 ### Phase 4C execution checkpoint — 2026-09-05
 
+**Evidence correction, found during forward planning on 2026-09-05:** the
+retained JSON contains log timestamp text inside one condition value and two
+metric keys. The current assessor rejects it with `condition state mismatch`
+and returns no comparisons. The figures and independent-recalculation claim
+below describe the earlier checkpoint; the saved artifact does not currently
+reproduce that claim. Preserve it and recover verified evidence through
+[4C.1](#4c-recovery-plan) before treating it as machine-verifiable evidence.
+
 After explicit operator authorization, the committed 4B candidate
 (`553a6e0b333574f716b783d90ca34419f3d90aae`) was published as a non-release
 amd64 benchmark image. The immutable image reference used by Portainer was
@@ -850,6 +865,291 @@ and production capacity as unmeasured; a passing result does not establish them.
 If the suite remains inconclusive, deliver the evidence and a concrete decision:
 defer rollout, undertake a separately scoped investigation, or explicitly
 reconsider the acceptance policy. No threshold change or exception is implied.
+
+### 4C recovery plan
+
+**Status: execution checkpoint reached, 2026-09-05.** This plan closes the specific
+remaining evidence and overhead problems. Its deliverable is a trustworthy
+report classifying B/A and C/A separately, plus either a verified candidate or
+a concrete unresolved limitation. A passing result is an outcome to establish,
+not a promised result. The existing 4D evidence is retained, with affected
+checks repeated if the candidate changes. The operator authorized execution;
+publication and final acceptance remain pending. No release is implied.
+
+The starting evidence has three distinct limitations:
+
+- The retained `phase4c-20260905-4b-report.json` parses as JSON but has timestamp
+  contamination in `runs[4].report.instrumentation_state`, the search-throughput
+  key in `runs[8]`, and the C/A search-p95 median key. Re-running `assess()` against
+  its cases returns `inconclusive` with no comparisons. Syntactic JSON validity
+  alone is insufficient evidence integrity.
+- The earlier B/A summary reports 0.129% median throughput loss, but a repeated
+  A list-p95 delta of 1.540 ms exceeds its 1-ms budget. There are only 201–228
+  list samples per case. Sampling precision and shared-host interference are
+  hypotheses to investigate; the file does not establish which caused the
+  variation. B/A also crossed the list-p95 budget in one block.
+- The earlier C/A summary reports 7.769% median throughput loss, with all three
+  reported block losses above 5%, and +9.367 ms median search p95. The aggregate
+  was inconclusive, but its throughput metric was classified as failing; that
+  distinction must survive report recovery. A noisy latency metric cannot be
+  used to dismiss the observed throughput regression. RSS was within budget.
+
+| Step | Work and evidence | Exit / bound |
+| --- | --- | --- |
+| 4C.1 Evidence and report transport | Preserve the original; validate or replace it; prove report retrieval round-trips without corruption | One bounded recovery attempt and a tested artifact path; unavailable originals are explicitly unverified |
+| 4C.2 Baseline repeatability | Freeze revised timing and run three fresh A/R pairs on CARLDOG-NAS | One calibration, 900-second total cap; failing controls block the final comparison |
+| 4C.3 Enabled-cost diagnosis | Reuse profiles, then compare disabled, enabled-unscraped, and enabled-scraped request paths | One profile set and one paired scrape diagnostic, each at most 600 seconds |
+| 4C.4 Targeted candidate | Optimize only the evidenced instrumentation cost; verify observable contracts | One patch batch and one before/after diagnostic; no improvement means no speculative patch |
+| 4C.5 Frozen acceptance | Run the revised twelve-case A/B/C/R protocol and independently validate all evidence | One suite, 1,800-second total cap; every attempted case retained |
+| 4C.6 Disposition | Record per-metric results, release eligibility, evidence reuse, and remaining limitations | Stop with a release-ready candidate or an explicit blocker; no automatic rerun |
+
+#### 4C.1 — establish evidence integrity first
+
+Hash and preserve the original report and companion summary unchanged. Attempt
+recovery from independently retained raw case records, original runner output,
+or another authoritative copy. The old benchmark container has been removed;
+do not assume its logs are still available. If recovery needs timestamp removal,
+write a separate derived file and retain the exact transformation, provenance,
+and before/after hashes. Never repair fields solely to match the expected
+performance figures. If no independent source or verifiable framing survives,
+label the old artifact unverified and supersede it with the next valid run.
+
+For subsequent runs, retrieve the report as bytes with a producer SHA-256 and
+length. Prefer a direct file/archive retrieval from the stopped disposable
+container, using a dedicated output location that survives process exit until
+retrieval. If the available Portainer MCP surface only supports logs, use
+bounded, numbered encoded chunks with total count, length, and checksum, and
+verify the complete round trip before measurement. Never concatenate presumed
+JSON log fragments or strip timestamp-looking text globally. Remove disposable
+resources only after artifact validation.
+
+Validate the report schema, exact condition states/order, required numeric
+fields, finite values, counts, corpus identity, source/probe hashes, interpreter,
+dependencies, CPU placement, timing, and measured scrape evidence. Recompute
+the gate from cases, independently cross-check its arithmetic, and compare the
+saved assessment. Add deterministic regression cases for the observed embedded
+timestamp, split/missing/duplicate chunks, checksum mismatch, malformed state,
+and an assessment that disagrees with cases. Preserve the existing aggregation
+rule; present failed metrics even when the comparison is inconclusive overall.
+
+#### 4C.2 — calibrate one amended measurement protocol
+
+Predeclare a versioned protocol before looking at new performance results.
+Keep the original uninstrumented `527f2294` source, the 1,000-memory fixture,
+eight keep-alive clients, REST hybrid/stub profile, seeded 90% search / 10% list
+mix, CPU set `0-1`, common dependencies, and fresh process/database per case.
+Retain actual operation counts and query mix. Use the same final harness for
+every condition. Document any necessary harness correction before calibration;
+do not pool old 30-second cases with the amended runs.
+
+Proposed timing: 15-second warm-up and 90 seconds measured per case, with a
+180-second case cap including setup/drain/cleanup. Three A/R pairs have a
+900-second suite cap; the final twelve cases have a 1,800-second suite cap.
+These explicitly replace the original five/30-second timing and 600-second
+suite limit only for this proposed protocol. They require parameterized runner
+timings and parent/child deadlines; the current runner hardcodes the old values.
+Add a baseline-only calibration mode to `scripts/probe_sequential.py` that
+runs A/R pairs through the same case launcher and report checks as acceptance.
+Retain cleanup time in every deadline and mark unstarted cases after a timeout.
+Do not extend a case dynamically to obtain more favorable samples.
+
+The longer window is intended to increase list observations and capture several
+30-second scrape cycles. It cannot guarantee lower host noise. Keep the existing
+minimum 100 samples per operation and existing uncertainty rules; report actual
+counts and do not claim confidence intervals from the empirical veto. Align
+scrape accounting with the measured interval, record timestamps/durations for
+every attempt, and exclude setup/warm-up activity from measured scrape success.
+For C schedule scrapes at measured offsets 0, 30, and 60 seconds; all must
+complete successfully. Apply identical lightweight resource sampling in A/R/B/C.
+
+Use read-only pre/post host observations for CPU topology, available frequency,
+load, context switches, and I/O; identify unsupported readings explicitly.
+CPU pinning is not exclusive CPU ownership, as the
+[pyperf system guidance](https://pyperf.readthedocs.io/en/latest/system.html)
+distinguishes. Avoid OC tracking writes, builds, deployments, and active remote
+polling during measured intervals; buffer results locally until each bounded
+job ends. Production workloads continue normally. Kernel tuning, service
+stoppage, new monitoring agents, or different hardware are not prerequisites.
+
+Every calibration pair must be eligible, and the maximum absolute A/R change
+for each metric must remain within that metric's existing budget. Retain all
+pairs. If calibration fails, stop the NAS acceptance path and report the
+measurement limitation; 4C.3/4C.4 can still produce useful diagnostic work.
+A passing calibration only permits the final comparison; that comparison must
+independently pass its own repeated-baseline and block-variation rules.
+Changing the common harness, dependencies, baseline, CPU placement, or timing
+after calibration invalidates its readiness evidence. Record the need for a
+new protocol decision instead of silently using the old calibration.
+
+#### 4C.3 — attribute enabled instrumentation cost
+
+Start from `diagnostics-after-4b/` and the committed 4B candidate. The retained
+C profile includes 44,693 `_safe` calls and 31,128 `observe_store_lock` calls;
+these are leads, not isolated CPU-cost estimates. Check profiling coverage of
+the ASGI thread and worker threads, normalize counts/self time by completed
+operations, and avoid adding overlapping cumulative timings together. Local
+profiling guides changes; Linux/NAS evidence must establish deployment impact.
+
+Use B (disabled), U (enabled without scheduled scrapes), and C (enabled with
+30-second scrapes) for diagnosis. U is additional diagnostic evidence; A stays
+the release comparator. Reuse existing profiles where sufficient; collect at
+most one additional profile set. If scrape cost remains unresolved, use one
+unprofiled U/C/C/U diagnostic with the proposed timing, capped at 600 seconds.
+It does not replace the A/B/C/R acceptance run.
+
+Identify the contribution of repeated label lookup, allocation of callbacks
+and bounded sets, histogram updates, recorder-health bookkeeping, observed
+lock wait/hold paths, and exporter serialization. The source performs these
+operations repeatedly, but their materiality must be measured. Caching known
+label children is a candidate consistent with
+[Prometheus inner-loop guidance](https://prometheus.io/docs/practices/instrumentation/#inner-loops).
+If evidence cannot isolate a tractable cost, retain that limitation and stop
+optimization at this checkpoint.
+
+#### 4C.4 — implement and verify one targeted patch
+
+Prefer bounded reuse of metric children and immutable label sets, or removal
+of proven redundant allocation/bookkeeping. Keep caches per recorder and bound
+keys after normalization; account for any startup/RSS/cardinality effects.
+Preserve exact counts, buckets, units, failure/outcome labels, health/error
+visibility, lock semantics, and disabled-path bypass. Reducing sample frequency,
+dropping metrics, changing lock duration boundaries, or relaxing access checks
+changes the feature contract and is outside this optimization batch.
+
+Test exact concurrent increments, nested transactions, final in-flight gauges,
+error-to-recovery health transitions, unknown-label normalization, registry
+isolation, bounded cache growth, and scrape overlap/cancellation. Use deterministic
+fixtures to prove semantics rather than timing assertions in shared CI.
+Require a same-method before/after diagnostic showing the targeted cost reduced,
+then run the repository correctness, lint, type, Markdown, and pre-commit gates.
+Use native Windows Python/Git Bash locally; WSL is not required.
+
+Start with `pytest tests/test_metrics.py tests/test_probe_performance.py
+tests/test_probe_sequential.py`; once the candidate is stable, run `pytest`,
+`ruff check src tests scripts`, `ruff format --check src tests scripts`,
+`mypy src tests --config-file=pyproject.toml`, `npm run lint:md`, and
+`pre-commit run --all-files`. Record outcomes and avoid duplicating an unchanged
+check already covered by the final hook run.
+
+#### 4C.5 — perform one frozen comparison
+
+Proceed only after evidence retrieval works, calibration passes, and any
+candidate change passes correctness checks with a credible diagnostic benefit.
+If no patch is warranted, record that decision and the justification for
+remeasuring the unchanged candidate under the amended protocol. Freeze the
+application/probe commits, source and artifact hashes, image digest, dependencies,
+timing, and settings before execution. Publish a uniquely identified non-release
+amd64 image through the established GHCR workflow and deploy the disposable
+job through Portainer MCP using the existing session authorization.
+
+Run `ABCR`, `BCAR`, `CABR` sequentially under the amended timing. Retrieve and
+validate all twelve cases and the complete report before deleting the job.
+Independently calculate each within-block delta, the three-block median, the
+control-noise fraction, and pass/fail/inconclusive result. Keep throughput loss
+at most 5%, added p95 at most max(1 ms, 5% of A), and added OC RSS at most
+10 MiB. Do not drop the list endpoint, exclude a slow block, pool results from
+other candidates, or weaken the baseline veto.
+
+Recorder/exporter/locking changes also require the existing maximum-cardinality
+scrape-responsiveness gate: at least 30 successful scrapes, at least 1,000
+successful samples per operation for p99, and the original duration/lag/p99
+budgets, within one 600-second invocation. Failure or insufficient samples
+remain explicit. Assess the impact on 4D and repeat affected access, history,
+and recovery checks on the final candidate; unchanged evidence may be reused
+with an explicit source/configuration comparison.
+
+#### 4C.6 — decide and stop
+
+| Verified result | Next step |
+| --- | --- |
+| B/A and C/A pass; responsiveness and applicable 4D checks pass | Continue the existing 4E release workflow, then 4F observation when the selected deployment has collection enabled |
+| B/A passes; C/A fails or remains inconclusive | A metrics-disabled release is eligible under the existing policy; enabled collection and full Phase 4 completion remain blocked |
+| B/A fails or remains inconclusive, or report integrity cannot be established | Defer the instrumentation release and retain the exact blocker |
+
+End after this single recovery/calibration/diagnostic/patch/acceptance cycle.
+Further architecture changes, benchmark redesign, or reconsideration of the
+acceptance policy require a new scoped decision. Runtime metrics remain false
+by default. Update the same OpenChronicle work record with the disposition,
+verification, artifacts, and verified commit references; issue status remains
+separate. No automatic rerun or seven-day monitoring task is created here.
+
+### 4C recovery execution checkpoint
+
+The original damaged report and summary were preserved and hashed. One bounded
+recovery attempt found no complete independent source; they remain unverified.
+`scripts/probe_artifact.py` now transports short numbered base64 records with
+byte length and a producer SHA-256. Retrieval rejects missing, duplicate, split,
+mixed, or corrupted chunks, duplicate JSON keys, and non-finite numbers. The
+consumer validates case identities/counts, source/harness/runtime metadata, the
+measurement protocol, and the recalculated assessment. The runner retains every
+scheduled case, including explicit errors/skips, and emits evidence before its
+final validation so a validator failure does not erase the report.
+
+The v2 runner implements `--suite-mode calibration|acceptance`, with the
+15/90-second timing and 900/1,800-second caps above. Scrapes and RSS sampling now
+start at the measured client barrier, after warm-up; C schedules scrapes at
+0/30/60 seconds and retains every attempt's time/duration. Unavailable host
+observations are explicit. An end-to-end Portainer smoke verified checksums,
+persisted Compose, source identities, and isolation before measurement.
+
+The single NAS calibration completed all six cases in approximately 674 seconds:
+41,441 requests, zero failures/timeouts, matching corpora, and 672–685 list
+samples per case. Independent arithmetic confirmed every A/R control within its
+unchanged budget:
+
+| Pair | R/A throughput loss | Added search p95 | Added list p95 | Added RSS |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | -0.318% | +1.367 ms | +0.303 ms | -0.578 MiB |
+| 2 | -0.509% | -1.703 ms | +0.249 ms | +0.164 MiB |
+| 3 | -1.284% | -2.683 ms | -0.765 ms | -0.266 MiB |
+
+**Validation correction and decision:** the job exited 1 after writing the
+complete report because the new validator compared the probe's hexadecimal CPU
+mask string (`"0x3"`) with an integer. The probe and inspected container both
+used CPUs 0–1. The corrected check accepts the actual probe contract; a
+regression test now obtains that field from the real metadata builder. The
+unchanged 143,559-byte report verifies against producer SHA-256
+`5ce3b6eb8065aece821203fa60d1bc521fed5708e816eef2c6490be917551af9` and passes
+semantic validation/recalculation. AST comparison confirms only `validate_report`
+changed; launch, workload, sampling, assessment arithmetic, and the other two
+harness files are unchanged. **Operator decision, 2026-09-05:** reuse this
+verified calibration for final acceptance. This is an explicit validation-only
+exception to the frozen-harness rule, not a change to measurement or acceptance
+budgets. No repeat calibration is authorized or needed. The corrected harness
+and optimized candidate will be frozen before the single final comparison.
+
+Enabled-cost work reused the earlier profile without treating overlapping
+cumulative times as additive CPU estimates. Its 79,256 label lookups included
+62,256 from lock observations; the profile includes warm-up, so its 1,806 recorded
+HTTP completions are distinct from the 1,472 measured requests. No exporter
+serialization was captured. One local U/C/C/U diagnostic completed 47,713
+requests with zero failures and all six scheduled C scrapes; its 8.388% U/U
+throughput drift prevents attributing the apparent 4.623% C/U loss to scraping.
+It is diagnostic only and is not pooled with NAS evidence.
+
+One targeted patch lazily reuses normalized lock, search-stage, and in-flight
+metric children per recorder, with fixed bounds of 4/5/3 cache entries.
+Exact observations, histogram buckets, error/health behavior, and disabled paths
+are retained. A paired recorder-only diagnostic reduced median CPU time from
+0.328125 to 0.1875 seconds per 5,000 synthetic cycles (42.857%); its profiled
+cycles had 40,000 label lookups before and zero after priming the new caches.
+This establishes a targeted cost reduction, **not whole-application overhead**.
+Concurrency, counts, gauge balance, cache bounds/isolation, and error recovery
+have regression coverage. The full suite passed 932 tests before the final
+validator-only correction; 49 artifact/validator tests passed afterward, with
+Ruff and mypy clean. The working tree contains 933 tests.
+
+Evidence and reproduction inputs are retained under
+`data/performance/phase4-20260904/recovery-20260905/`, including
+`calibration-report.json`, `validation-correction.json`, `recorder-cost.json`,
+the four enabled-cost reports, and both disposable Compose files. Retrieve a
+future report with `python -m scripts.probe_artifact --logs <logs> --out <new-report>`;
+the output path must not already exist. Both disposable stacks (217/218) were
+removed only after evidence retrieval. Production remains healthy on v3.3.0,
+build `7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`; the stopped 4D stack/history
+remains untouched. Runtime metrics stay off by default. New image publication,
+the frozen comparison, applicable responsiveness/4D rechecks, and 4E/4F remain
+pending; the candidate is not released.
 
 ### 4D — close NAS collection, access, and rollback evidence
 
@@ -981,6 +1281,9 @@ a finite checkpoint; follow the repository's retry limits. Do not repeat an
 unchanged matrix or automatically begin another optimization cycle. If a cap,
 failed gate, or unresolved limitation prevents completion, retain the artifacts
 and hand off the specific blocker and smallest next decision.
+The adopted [4C recovery plan](#4c-recovery-plan) explicitly amends calibration
+and full-suite timing/caps for its next cycle; the existing protocol and its
+historical results are not retrospectively changed.
 
 ## Completion and subsequent decisions
 
@@ -1022,8 +1325,10 @@ change requires separate evidence that application CPU is the relevant limit.
 Per-query SQL tracing, distributed tracing/OTel, cross-host availability
 monitoring, new dashboards/services beyond the collector, and performance
 optimizations remain subsequent decisions. The sequential CARLDOG-NAS test is
-complete; profiling the disabled/enabled paths is a possible next authorized
-step before another overhead comparison. The
+complete as an attempted run; the [4C recovery plan](#4c-recovery-plan) now
+specifies evidence recovery, repeatability, enabled-cost attribution, and one
+bounded candidate comparison. The recovery checkpoint above records the work
+and pending calibration-disposition decision. The
 post-reboot non-isolated same-run barrier was invalidated by concurrent
 transport saturation, and the equal-CPU-partition follow-up remained noisy and
 over budget; process affinity on this host was already insufficient. Do not

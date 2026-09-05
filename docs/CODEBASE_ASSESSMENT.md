@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-05 · **Revision:** 182 (working tree)
+**Snapshot date:** 2026-09-05 · **Revision:** 185 (working tree)
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 897 in the current working tree (844 at revision 170; pytest; per-commit via pre-commit hook and CI) |
+| Tests | 933 in the working tree; full suite 932 passed before the final validator-only correction, then 49 artifact/validator tests passed (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -133,6 +133,23 @@ drivers in `interfaces/`), enforced by tests — see
   with its Prometheus history volume preserved. Subphase 4D passed; 4E/4F
   remain gated by the inconclusive 4C result. Runtime metrics remain off by
   default and no release/deployment has occurred.
+  Forward-planning inspection found timestamp contamination in the retained
+  4C report: the current assessor rejects a condition-state mismatch and
+  produces no comparisons, so the earlier saved-report verification claim
+  needs correction. The adopted
+  [4C recovery plan](design/0010-performance-measurement.md#4c-recovery-plan)
+  starts with report integrity, then one longer A/R calibration, enabled-cost
+  diagnosis, a targeted patch if justified, and one frozen comparison under
+  unchanged budgets. Recovery implemented checksummed report transport and
+  measured-only resource sampling. The six-case NAS calibration completed
+  41,441 requests without failures and passed every control budget. A post-run
+  CPU-mask type check was corrected; the unchanged report validates. The
+  operator approved calibration reuse on 2026-09-05 as an explicit
+  validation-only frozen-harness exception. A bounded recorder cache patch has passed local
+  correctness tests and reduced targeted recorder-cycle CPU by 42.857%; this
+  is not an application overhead claim. Candidate freeze, non-release
+  publication, and the single final acceptance cycle are active; no release
+  or production change is authorized. Evidence: `data/performance/phase4-20260904/recovery-20260905/`.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
   local retrieval/embedding integrity defects plus one demonstrated
   filtered-recency need; the same review benchmark-gates MMR and keeps
@@ -167,6 +184,9 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 185 (working tree) | 2026-09-05 | **4C calibration reuse approved.** The operator explicitly accepted the validator-only frozen-harness exception for the intact passing calibration. Freeze and publish the optimized non-release candidate, then run one acceptance suite and required responsiveness/affected 4D checks; no repeated calibration, relaxed budgets, release, or production change. |
+| 184 (working tree) | 2026-09-05 | **4C recovery execution checkpoint.** Added integrity-checked artifact transport, strict report contracts, measured-only scraping/RSS, and the v2 baseline/acceptance runner. NAS calibration: 41,441 successes, zero failures, all three control pairs within budget. The producer's final validator rejected hexadecimal CPU-mask metadata; fixed with a real-probe contract test, preserving the original checksummed report. Only validator AST changed; calibration reuse versus a fresh run awaits explicit decision. Bounded metric-child caches reduce targeted recorder-cycle CPU by 42.857%, not established application overhead. Full 932 tests passed, then 49 validator/artifact tests passed after the final correction; 933 tests now collected. Both disposable jobs removed, evidence retained, production unchanged. No final acceptance/publication/release. |
+| 183 (working tree) | 2026-09-05 | **Proposed 4C recovery plan and retained-evidence correction.** Planning inspection found a log timestamp embedded in one condition value and two metric keys in the saved 4C JSON; the current assessor returns `condition state mismatch` and no comparisons. The original artifact is preserved. Design 0010 now specifies six bounded steps: evidence recovery and checked retrieval, one longer baseline calibration, enabled-cost diagnosis, one targeted patch batch, one frozen comparison, and explicit disposition. Proposed warm-up/measurement are 15/90 seconds with 900/1,800-second calibration/full-suite caps; existing performance budgets and noise rules stay unchanged. No implementation, new benchmark, release, or deployment ran in this planning turn. |
 | 182 (working tree) | 2026-09-05 | **Performance measurement Phase 4D collection/access/recovery evidence passed.** Disposable NAS observation stack 216 retained fixed Prometheus history across the OC target restart and rollback; the outage produced 12 consecutive down samples with zero scraped samples and the target recovered with healthy scrapes. The REST/MCP/metrics access matrix matched the documented `200`/`421`/`401`/`403` contracts, and both recovery paths preserved candidate-created data. The sanitized report and summary are retained under `data/performance/phase4-20260904/phase4d-20260905/`; both disposable containers are stopped and the Prometheus history volume is preserved. Production stack 151 remained healthy and unchanged at v3.3.0; runtime metrics remain off by default. The 4C overhead gate remains inconclusive, so 4E/4F and any release/enabling decision stay gated. |
 | 181 (working tree) | 2026-09-05 | **Performance measurement Phase 4C completed as an inconclusive frozen NAS evidence run.** The committed 4B candidate was published as the non-release amd64 image `phase4-4b-20260905-553a6e0b` at manifest digest `sha256:a925745f4bf1c8645284276872b92adc83c70536c46c1e21b633ec5af8af2d2e`; Portainer stack 212 ran the unprofiled ABCR/BCAR/CABR suite with 27,272 successful requests, zero failures/timeouts, unchanged corpora, and successful enabled scrapes. Independent recalculation matched the runner: B/A median throughput loss 0.129% but inconclusive due repeated-A list-p95 noise; C/A median loss 7.769% and inconclusive under the same veto. The disposable stack was removed, production remained v3.3.0/unchanged, and runtime metrics remain off by default. The report and summary are retained under `data/performance/phase4-20260904/nas-sequential/`; 4D collection/access/recovery evidence is next. |
 | 180 (working tree) | 2026-09-05 | **Performance measurement Phase 4A/4B execution checkpoint.** A corrected server-side cProfile run identified REST metrics middleware and SQLite observed-lock bookkeeping in the pre-patch disabled path; dominant vector/search work was unchanged. Three fresh uninstrumented A/R calibration pairs on CARLDOG-NAS completed with zero failures and identical corpora; R/A throughput losses were 1.433%, 1.486%, and 5.708%, so the predeclared variability veto remains inconclusive. The narrow candidate bypasses disabled REST/MCP wrappers and SQLite observation timing/depth bookkeeping while preserving enabled metrics and RLock/transaction behavior. Focused metrics tests, Ruff, formatting, and mypy pass; post-patch profiling shows the disabled instrumentation entries removed from the retained top-time list. The candidate is not yet released or deployed; the frozen 4C gate is next. |
