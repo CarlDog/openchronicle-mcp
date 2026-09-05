@@ -210,19 +210,23 @@ eligible blocks, but corrected B/C median throughput losses were 1.351%/10.867%
 with reversed order effects; earlier prose incorrectly used maxima as medians.
 The overhead gate remains inconclusive. The operator approved sequential runs
 on CARLDOG-NAS with repeated baseline controls; dedicated hardware is not an
-application requirement. After upload approval, all twelve sequential NAS
-cases completed: 25,995 successful requests, zero failures/timeouts, matching
-corpora and successful enabled scrapes. Median B/C throughput losses were
-4.678%/8.344%, but the final repeated A slowed by 5.331% and latency controls
-also breached budget; both gates remain inconclusive. Evidence is retained
-under data/performance/phase4-20260904/nas-sequential/. The one-shot benchmark
-stack was removed; production and the observation stack are healthy and
-unchanged. Normal runtime metrics remain off. All 895 tests passed.
+application requirement. The first twelve-case run completed with 25,995
+successful requests and remained inconclusive. The committed 4B candidate was
+then published as the non-release benchmark image and the frozen unprofiled
+4C run completed all twelve cases with 27,272 successful requests, zero
+failures/timeouts, matching corpora, and successful enabled scrapes. B/A's
+median throughput loss was 0.129% but remained inconclusive because repeated-A
+list-p95 noise reached 1.540 budget fractions; C/A's median throughput loss
+was 7.769% and remained inconclusive under the same veto. Evidence is retained
+under data/performance/phase4-20260904/nas-sequential/. Disposable stack 212
+was removed; production and the observation stack are healthy and unchanged.
+Normal runtime metrics remain off. All 897 tests passed for the candidate.
 
 **Active queue after this release** (V3_PLAN carries the full
-entries): (1) performance-measurement Phase 4 overhead gate (4A profiling and
-NAS baseline calibration completed; a targeted 4B disabled-path patch is under
-verification, with the frozen unprofiled 4C gate next),
+entries): (1) performance-measurement Phase 4 collection/access/recovery gate
+(4A profiling, 4A NAS calibration, 4B disabled-path patch, and the frozen
+unprofiled 4C run are complete; both overhead comparisons remain inconclusive;
+4D is next),
 (2) cloud-backup Phase 0 + restore drill (operator at a desktop; 0007 Stage 0),
 then demand-/trigger-gated items. Design 0007 (long-term scale & resilience)
 is ACCEPTED with its staged trigger-gated path. Open operator decision: the
@@ -235,8 +239,11 @@ acceptance evidence, and finite stop conditions. Subphase 4A completed
 server-side profiling and three fresh NAS A/R calibration pairs; one control
 breached the predeclared variability budget. Subphase 4B completed locally
 with a narrow disabled-path instrumentation bypass and passing focused
-metrics tests, Ruff, formatting, and mypy. The frozen unprofiled 4C gate is
-next; runtime metrics remain off by default and production is unchanged.
+metrics tests, Ruff, formatting, and mypy. Subphase 4C then completed the
+frozen unprofiled sequential NAS run with 27,272 successful requests and zero
+failures/timeouts; B/A and C/A remain inconclusive under the existing
+repeated-baseline veto. Runtime metrics remain off by default and production
+is unchanged; 4D collection/access/recovery evidence is next.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

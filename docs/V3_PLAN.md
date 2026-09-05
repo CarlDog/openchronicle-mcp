@@ -982,9 +982,17 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   remain inconclusive. The report was independently recalculated and retained
   under `data/performance/phase4-20260904/nas-sequential/`; only the one-shot
   benchmark stack was removed. No automatic rerun is planned. A separate observation
-  stack has verified NAS test scrapes; retained restart history and production
-  release/deployment remain unverified. The next step is the frozen-candidate
-  unprofiled 4C sequential A/B/C/R gate; the
+  stack has verified NAS test scrapes; retained restart history remains for 4D
+  verification. The frozen-candidate unprofiled 4C sequential A/B/C/R gate
+  then completed all twelve cases with 27,272 successful requests, zero
+  failures/timeouts, matching corpora, and successful enabled scrapes. B/A's
+  median throughput loss was 0.129% and C/A's was 7.769%; B/A was inconclusive
+  because repeated-A list-p95 noise reached 1.540 budget fractions, and C/A
+  was inconclusive overall under the same veto. The complete report and
+  independent recalculation are retained under
+  `data/performance/phase4-20260904/nas-sequential/`; disposable stack 212
+  was removed and production remained unchanged. Release and enabling remain
+  blocked; 4D collection/access/recovery evidence is next. The
   delivered `scripts/`-level probe (sibling of
   `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
   mix (search-heavy, small saves, lists) against a throwaway store seeded from

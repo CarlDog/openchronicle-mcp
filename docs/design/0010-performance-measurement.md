@@ -659,7 +659,7 @@ mutations remain operator-authorized operations.
 
 ## Phase 4 remaining-work plan
 
-**Status: in execution; 4A and 4B are complete locally, and 4C–4F remain.**
+**Status: in execution; 4A–4C are complete locally, and 4D–4F remain.**
 The implementation and tests landed in `682c68f0`; the original uninstrumented
 comparator remains `527f2294`. The latest NAS measurements remain inconclusive.
 Prior passing tests establish a starting point; they do not certify a future
@@ -786,9 +786,40 @@ metrics contracts (14 tests), Ruff, formatting, and mypy pass. A post-patch
 server profile completed; the retained top-time B list no longer includes the
 REST metrics middleware or `_observed_lock`, while C retains its expected
 enabled recorder work. This diagnostic result does not clear the NAS gate.
-The next step is the frozen, unprofiled 4C sequential A/B/C/R run after the
-candidate commit and full repository verification. Runtime metrics remain off
-by default and production remains unchanged.
+The next step was the frozen, unprofiled 4C sequential A/B/C/R run after the
+candidate commit and full repository verification; its outcome is recorded
+below. Runtime metrics remain off by default and production remains unchanged.
+
+### Phase 4C execution checkpoint — 2026-09-05
+
+After explicit operator authorization, the committed 4B candidate
+(`553a6e0b333574f716b783d90ca34419f3d90aae`) was published as a non-release
+amd64 benchmark image. The immutable image reference used by Portainer was
+`ghcr.io/carldog/openchronicle-mcp:phase4-4b-20260905-553a6e0b@sha256:a925745f4bf1c8645284276872b92adc83c70536c46c1e21b633ec5af8af2d2e`.
+The candidate source hash was
+`452d36e48cf7019b98f193a7f7e82e70fab8ae276f49015339582bb29ae920c9` and the
+baseline hash was
+`9d03ef95759d6b1f86d4b726aa4d1b062d775f15d2f133280fe9a63572c6f9ad`.
+
+Portainer MCP created disposable stack 212 on CARLDOG-NAS with the frozen
+security and placement settings: CPU set `0-1`, network none, user
+`1000:1000`, read-only root, all capabilities dropped, no-new-privileges, no
+volumes, and no ports. The unprofiled `ABCR`/`BCAR`/`CABR` suite completed all
+12 cases with 27,272 successful requests, zero failures/timeouts, one
+identical 1,000-memory/vector corpus fingerprint, and successful enabled
+scrape checks. The container exited zero without OOM. The complete report was
+reconstructed from Portainer logs, independently recalculated, and retained
+with its summary under `data/performance/phase4-20260904/nas-sequential/`.
+
+The independent result matched the runner: B/A median throughput loss was
+0.129% with +0.121 MiB RSS, but B/A remained inconclusive because repeated-A
+list-p95 noise reached 1.540 budget fractions. C/A median throughput loss was
+7.769% with +2.258 MiB RSS, +9.367 ms search p95, and -1.182 ms list p95;
+C/A was inconclusive overall under the existing veto. No threshold was
+relaxed. Stack 212 was deleted and independently absent afterward; production
+stack 151 remained pinned to `v3.3.0` with build revision
+`7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`. Runtime metrics remain disabled
+by default, and release/enabling remain blocked pending 4D and later gates.
 
 ### 4C — evaluate the frozen candidate on CARLDOG-NAS
 
