@@ -109,6 +109,10 @@ drivers in `interfaces/`), enforced by tests — see
   `data/performance/phase4-20260904/nas-sequential/`. Only the one-shot benchmark
   stack was removed afterward. Production and the observation stack remain
   healthy and unchanged; no release or production deployment was performed.
+  Implementation was committed in `682c68f0`. A proposed
+  [Phase 4 remaining-work plan](design/0010-performance-measurement.md#phase-4-remaining-work-plan)
+  now specifies diagnosis, targeted changes, gate evaluation, NAS recovery
+  evidence, release, and observation; plan execution has not started.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
   local retrieval/embedding integrity defects plus one demonstrated
   filtered-recency need; the same review benchmark-gates MMR and keeps

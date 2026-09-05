@@ -937,7 +937,10 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   implementation are documented in
   [design 0010](design/0010-performance-measurement.md); the standard image
   includes the metrics dependency but `OC_METRICS_ENABLED=false` remains the
-  runtime default. The optional local Prometheus profile includes the
+  runtime default. Implementation was committed in `682c68f0`. The proposed
+  [Phase 4 remaining-work plan](design/0010-performance-measurement.md#phase-4-remaining-work-plan)
+  defines subphases 4A–4F and their evidence/stop conditions; execution has not
+  started. The optional local Prometheus profile includes the
   30-second scrape, 5-second timeout, retention settings, query catalog, and
   runbook. The source-root probe now verifies the actual child instrumentation
   state and can record working-set, event-loop-lag, and every attempted

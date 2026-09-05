@@ -21,6 +21,10 @@ results, including the post-reboot same-run harness attempts. Metrics remain
 disabled by default; local responsiveness passed, while the overhead gate
 remains inconclusive and live release/deployment observation is pending.
 
+**Resolution plan:** [Phase 4 remaining-work plan](#phase-4-remaining-work-plan)
+records the proposed sequence, evidence, and stop conditions following commit
+`682c68f0`. The implementation is committed; production rollout is pending.
+
 ## Recommendation and intended outcome
 
 Add opt-in, bounded operational metrics to OC, implement the concurrency
@@ -635,9 +639,9 @@ dedicated hardware is not required. Metrics remain
 disabled by default, and no release, deployment, rollback, or issue/PR
 mutation was run.
 
-Release, tag movement, NAS deployment, and rollback mutations were not run.
-The working tree remains uncommitted, and the runtime switch remains disabled
-by default.
+At that milestone, release, tag movement, NAS deployment, and rollback mutations
+were not run. The implementation was subsequently committed and pushed as
+`682c68f0`; the runtime switch remains disabled by default.
 
 Before deployment, record and retain the previous known-good image tag, digest,
 build revision, and compatible configuration; rehearse both recovery paths on
@@ -653,10 +657,216 @@ memory-database migration; rollback must not require restoring an older database
 or discarding memories written since deployment. Actual deployment/rollback
 mutations remain operator-authorized operations.
 
+## Phase 4 remaining-work plan
+
+**Status: proposed; execution has not started.** The requested deliverable is
+this plan. The implementation and tests landed in `682c68f0`; the original
+uninstrumented comparator remains `527f2294`. The latest NAS measurements
+above remain inconclusive. Prior passing tests establish a starting point;
+they do not certify a future changed candidate or its CI run.
+
+The objective is to resolve the overhead evidence, close the remaining NAS
+collection/recovery checks, and produce a verified release and observation
+report. CARLDOG-NAS remains the measurement/deployment host. Runtime metrics
+remain off by default, including after release; enabling the operator's
+deployment is a separate configuration choice. Work is limited to this
+instrumentation and its validation. Broader search/storage changes, a language
+rewrite, new dashboards, alert routing, and new runtime dependencies are outside
+this plan.
+
+| Subphase | Work and deliverable | Exit condition | Planning allowance |
+| --- | --- | --- | --- |
+| 4A. Identify cost and noise | Source/profile comparison and NAS baseline repeatability report | Specific instrumentation cost or interference is evidenced, or a documented measurement limitation remains | One investigation session |
+| 4B. Address evidenced cost | Small candidate patch and regression evidence, if justified by 4A | Correctness preserved and targeted cost reduced; otherwise record why no patch is warranted | One implementation session |
+| 4C. Re-evaluate overhead | One complete sequential A/B/C/R report for a frozen candidate | B/A and C/A independently pass, fail, or remain inconclusive under existing rules | One 600-second suite plus setup/retrieval |
+| 4D. Prove collection and recovery | NAS query evidence, access checks, and two rollback rehearsals on disposable targets | Retained history, error/idle distinctions, and recovery with data preserved are demonstrated | One verification session |
+| 4E. Release and deploy | MINOR release, CI evidence, pinned deployment, and branch reconciliation | Applicable gates pass and running package/build identity and smoke checks match the release | One release session plus CI |
+| 4F. Observe and close | Initial seven-day report, remaining unknowns, and final tracker state | Observation recorded honestly; unresolved failures or missing evidence remain explicit | Seven elapsed days plus one review |
+
+The critical sequence is 4A → 4B when justified → 4C → 4E → 4F. Subphase 4D
+can proceed independently, but NAS restarts, recovery drills, and tracking writes
+must occur outside performance measurement intervals. Release also depends on
+4D. Session allowances are checkpoints, not promises of completion or permission
+for unlimited iterations.
+
+### 4A — identify instrumentation cost and baseline variability
+
+1. Verify the current repository/CI state and preserve the original NAS report.
+   Record the baseline/candidate commits, source hashes, common dependencies,
+   interpreter, probe settings, and image digest for every new diagnostic.
+2. Inspect and profile the actual disposable OC request/worker paths for A, B,
+   and C, with equivalent work. Include SQLite lock acquisition and nesting,
+   search-stage timing, HTTP/MCP wrappers, histogram updates, label lookup, and
+   recorder health updates. Existing code does timing and thread-local depth
+   bookkeeping in `_observed_lock` even without recording; this is an
+   investigation lead, not proof that it explains the measured regression.
+   Profile the server workers, not just the load generator or its parent.
+3. Keep profiler results diagnostic. Use bounded existing/standard-library
+   tooling and report call counts and CPU/allocation evidence; profiled latency
+   must never be substituted for an unprofiled acceptance measurement.
+4. Before testing another candidate, run one baseline-only NAS calibration
+   with three fresh A/R pairs using the existing workload and CPU placement.
+   Retain every pair and apply the existing per-metric variability budgets.
+   Record container resource limits and available host load/CPU/I/O evidence.
+   Observe normal NAS services; avoid OC memory writes, deployments, builds,
+   and active polling that adds workload during measurements. Buffer tracking
+   updates until the interval ends.
+
+**Exit:** a short attribution report names the next targeted change and the
+evidence supporting it. If baseline variability still exceeds the budget,
+retain the result and defer a full gate run until a concrete cause or protocol
+change is identified. A quiet calibration is a readiness check, not acceptance;
+the full suite must still pass its own repeated-baseline controls. Do not select
+the best subset of pairs or repeatedly wait/run until one happens to pass.
+
+### 4B — make only evidence-supported changes
+
+First consider bypassing instrumentation-specific clocks, wrapper allocation,
+and nesting bookkeeping when metrics are disabled, while retaining the original
+RLock/transaction behavior. For enabled collection, consider bounded reuse of
+label children or fewer redundant recorder operations only if the profiles
+identify them as material. Preserve metric definitions, privacy limits, outcome
+classification, failure visibility, and scrape cancellation/overlap guarantees.
+Do not remove observations, sample events, or change histogram meanings merely
+to meet the performance budget.
+
+Use focused deterministic tests for each affected contract: disabled-path
+bypass, nested transactions and concurrent writes, error/cancellation behavior,
+exact enabled counts, and bounded labels. Run relevant tests after each patch;
+run the full repository checks once the candidate is stable. Reuse unaffected
+evidence, and rerun the responsiveness stress gate if exporter/recorder,
+locking, request handling, or other changes could alter its result. Follow the
+existing maximum-cardinality, p99-sample, overlap, and one-second scrape limits.
+Use native Windows Python and Git Bash for local checks; WSL is not required.
+
+**Exit:** a small reviewable patch with before/after diagnostic evidence and
+passing correctness checks, or a documented no-patch conclusion. A local
+microbenchmark improvement alone cannot clear B/A or C/A. Broader architecture
+work requires a separate scope decision if targeted changes are insufficient.
+
+### 4C — evaluate the frozen candidate on CARLDOG-NAS
+
+Reuse `scripts/probe_sequential.py` and `docker-compose.phase4-benchmark.yml`.
+Freeze the candidate, probe, source hashes, dependency set, image digest, and
+measurement protocol before looking at results. Compare against the original
+uninstrumented A, even if several candidate edits have occurred. Keep the
+existing twelve cases (ABCR/BCAR/CABR), 1,000-memory corpus, eight clients,
+hybrid/stub reads, warm-up, measurement duration, scrape interval, and CPU
+placement. Any necessary protocol amendment must be documented before running
+and must preserve the acceptance thresholds and comparable controls.
+
+Run without profiling, retrieve all case records and the complete report,
+verify corpus identity and application/scrape outcomes, and independently
+recalculate the assessment. The existing limits remain: throughput loss at
+most 5%, added per-operation p95 at most max(1 ms, 5% of A), and added OC RSS
+at most 10 MiB. Apply the repeated-baseline veto and retain all attempted cases.
+Exit zero from the container is not a passing performance gate.
+
+| Evidence | Permitted next outcome |
+| --- | --- |
+| B/A and C/A pass | Proceed toward release and enabled collection after 4D and applicable responsiveness checks |
+| B/A passes; C/A fails or is inconclusive | A metrics-disabled release may proceed after 4D; enabling and full Phase 4 closeout remain blocked |
+| B/A fails or is inconclusive | Release of this instrumentation remains blocked, even with metrics disabled |
+
+This remains a synthetic read-overhead gate. Report writes, real Ollama latency,
+and production capacity as unmeasured; a passing result does not establish them.
+If the suite remains inconclusive, deliver the evidence and a concrete decision:
+defer rollout, undertake a separately scoped investigation, or explicitly
+reconsider the acceptance policy. No threshold change or exception is implied.
+
+### 4D — close NAS collection, access, and rollback evidence
+
+Discover the observation stack dynamically through Portainer MCP and confirm
+its current identity/configuration before operating on it. First inspect any
+retained samples and restart timestamps: existing evidence may close the gap
+without repeating a restart. If insufficient, record a fresh pre-restart sample,
+restart only the disposable OC service, and query a fixed time range spanning
+the restart. Retain actual sample timestamps before and after the restart,
+`up`, build identity, and counter-reset/process-start evidence. Target recovery
+alone does not establish historical retention. Preserve the Prometheus volume.
+
+Demonstrate healthy idle traffic separately from an unavailable target: use a
+bounded outage long enough for at least two scheduled scrapes, then restore
+the test service and confirm recovery. Check scrape-failure visibility and
+missing-series behavior. Verify REST/MCP and metrics allowed/rejected Host
+behavior; exercise valid/missing/invalid bearer credentials on a disposable
+authenticated configuration with a throwaway secret. Store only sanitized
+results. Reuse checks tied to the final candidate when unchanged; repeat affected
+checks if the candidate or deployment configuration changes.
+
+Rehearse both documented recovery paths on disposable data: disable metrics on
+the candidate and stop its scrape target; then restore the previous known-good
+image/configuration for a fault that persists when metrics are disabled. Record
+the previous tag, digest, and build revision beforehand. Confirm REST/MCP
+read/write behavior and retain a synthetic memory created under the candidate
+through rollback. Require no database migration or old-database restore.
+
+**Exit:** a compact evidence checklist passes history, idle/outage, access, and
+both recovery checks. Retain reports before removing only disposable resources
+created for these checks; identify any observation stack retained for later use.
+
+### 4E — release and verify the selected deployment
+
+Recheck the final candidate's gates and CI. Run `pytest`,
+`ruff check src tests scripts`, `ruff format --check src tests scripts`,
+`mypy src tests --config-file=pyproject.toml`, `npm run lint:md`, and the
+repository pre-commit checks as required for the final changed files. Update
+release/version/changelog, stability, plan, status, and sprint documentation
+together, maintaining AGENTS/CLAUDE parity. Merge forward into `v4/develop`
+through the existing workflow and verify its tests without changing the planned
+v4 release decision. Changes after measurement need an impact review and a new
+gate run if they affect the measured code, dependencies, or launch behavior.
+
+Prepare the MINOR tag and concrete rollout record, including image digest,
+selected metrics configuration, previous image/configuration, and rollback
+triggers. Execute release/deployment when authorized, using existing session
+authorization where applicable. Wait for the tagged image's required CI gates
+before changing `OC_TAG`; independently verify the deployed package/build
+revision, REST/MCP smoke, Host/access behavior, and collection state. Runtime
+defaults stay false. An enabled deployment additionally requires C/A and scrape
+responsiveness to pass. Correctness, startup, access-control, or persistent
+performance failures trigger the rehearsed recovery procedure.
+
+### 4F — observe, report, and close
+
+After verified deployment with collection enabled, start the initial seven-day
+window and record its exact bounds. Observation follows deployment; it is not
+a prerequisite that must somehow be accumulated before enabling collection.
+Review request counts/mix, latency with sample counts, scrape health/gaps,
+recorder errors, process resources/restarts, and available maintenance outcomes.
+Do not create live errors or writes merely to populate charts. Report low-volume
+or missing outcomes as unknown; they cannot validate percentiles or job reliability.
+
+If scheduled follow-up is requested, use one thread heartbeat daily, limited to
+seven days with a final review and stop condition. Keep unchanged/non-actionable
+state quiet; report actionable failure, completion, or a required decision. If
+no follow-up is requested, record the review date and end the interactive work.
+Day seven provides an initial baseline; a full week-over-week comparison needs
+two populated, comparable seven-day windows and is not a day-seven exit gate.
+
+Close Phase 4 only when the applicable engineering gates, deployment/recovery
+checks, and initial observation report are evidenced. A disabled-only release
+or an observation period not yet accumulated is partial completion. Update the
+same OpenChronicle work record with scope, verification, commit/release references,
+remaining limitations, and work status; issue status changes only if explicitly
+requested and verified.
+
+### Execution bounds and handoff
+
+Each diagnostic invocation has a 600-second cap; the calibration and full gate
+are separate bounded invocations. The proposed initial investigation allows
+one calibration, one profile set, one targeted patch batch when warranted, and
+one full gate after readiness is established. Every command/external wait has
+a finite checkpoint; follow the repository's retry limits. Do not repeat an
+unchanged matrix or automatically begin another optimization cycle. If a cap,
+failed gate, or unresolved limitation prevents completion, retain the artifacts
+and hand off the specific blocker and smallest next decision.
+
 ## Completion and subsequent decisions
 
 The planning deliverable is complete, Phases 1–3 are implemented, and Phase 4
-has been evaluated and retested in the working tree. The current verification covers the
+has been evaluated and retested; implementation was committed in `682c68f0`.
+The proposed remaining-work sequence is above. The current verification covers the
 dependency, disabled default, exporter guards, bounded labels, registry
 isolation, reentrant lock timing, REST/MCP instrumentation, embedding/search
 stages, maintenance events, scrape cancellation/overlap behavior, Prometheus
@@ -693,5 +903,6 @@ step before another overhead comparison. The
 post-reboot non-isolated same-run barrier was invalidated by concurrent
 transport saturation, and the equal-CPU-partition follow-up remained noisy and
 over budget; process affinity on this host was already insufficient. Do not
-enable the runtime switch in a deployment until the Phase 4 release and
-observation gates are completed.
+enable the runtime switch in the operator's deployment until the overhead,
+responsiveness, and release-readiness gates pass. The initial observation
+window then follows the verified deployment.

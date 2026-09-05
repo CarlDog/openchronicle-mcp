@@ -228,6 +228,12 @@ is ACCEPTED with its staged trigger-gated path. Open operator decision: the
 **v4.0.0 tag** from
 `v4/develop`.
 
+The proposed Phase 4 remaining-work plan is recorded in
+`docs/design/0010-performance-measurement.md` with subphases 4A–4F,
+acceptance evidence, and finite stop conditions. Execution starts with
+instrumentation profiling and baseline calibration; the plan is not yet
+executed.
+
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
 cut plugin system entirely; MCP tool description quality pass done;
