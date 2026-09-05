@@ -112,7 +112,13 @@ drivers in `interfaces/`), enforced by tests — see
   Implementation was committed in `682c68f0`. A proposed
   [Phase 4 remaining-work plan](design/0010-performance-measurement.md#phase-4-remaining-work-plan)
   now specifies diagnosis, targeted changes, gate evaluation, NAS recovery
-  evidence, release, and observation; plan execution has not started.
+  evidence, release, and observation. Subphase 4A completed server-side
+  profiling and three fresh NAS A/R calibration pairs; the third control
+  exceeded the predeclared variability budget, so readiness remains
+  inconclusive. Subphase 4B completed locally with a narrow disabled-path
+  instrumentation bypass; focused metrics tests, Ruff, formatting, and mypy
+  pass. The frozen unprofiled 4C gate is next; runtime metrics remain off by
+  default and no release/deployment has occurred.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
   local retrieval/embedding integrity defects plus one demonstrated
   filtered-recency need; the same review benchmark-gates MMR and keeps
@@ -147,6 +153,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 180 (working tree) | 2026-09-05 | **Performance measurement Phase 4A/4B execution checkpoint.** A corrected server-side cProfile run identified REST metrics middleware and SQLite observed-lock bookkeeping in the pre-patch disabled path; dominant vector/search work was unchanged. Three fresh uninstrumented A/R calibration pairs on CARLDOG-NAS completed with zero failures and identical corpora; R/A throughput losses were 1.433%, 1.486%, and 5.708%, so the predeclared variability veto remains inconclusive. The narrow candidate bypasses disabled REST/MCP wrappers and SQLite observation timing/depth bookkeeping while preserving enabled metrics and RLock/transaction behavior. Focused metrics tests, Ruff, formatting, and mypy pass; post-patch profiling shows the disabled instrumentation entries removed from the retained top-time list. The candidate is not yet released or deployed; the frozen 4C gate is next. |
 | 179 (working tree) | 2026-09-04 | **Sequential NAS benchmark completed, gate inconclusive.** After the operator cleared the image-upload pause, Portainer ran twelve sequential cases with repeated A/A controls and unchanged budgets. All 25,995 requests succeeded; corpora matched and C scrapes passed. B/C median throughput losses 4.678%/8.344%; the last baseline control lost 5.331%, with excessive latency variability as well. Report independently recalculated and retained; only disposable benchmark stack 204 was removed. Production and observation stack unchanged. Full suite: 895 passed; lint/types/Compose checks passed. No release/production deployment. |
 | 178 | 2026-09-04 | **Performance measurement Phase 4 resource-isolated same-run follow-up remained inconclusive.** Three rotated A/B/C matrices used equal eight-logical-CPU partitions and per-worker keep-alive REST connections; all conditions completed with zero application failures/timeouts, unchanged corpora, and successful C scrapes. Corrected raw-report medians: B throughput loss 1.351%, C 10.867%; search-p95 deltas +1.853/+11.204 ms. Earlier prose incorrectly used maxima. Signs reversed across blocks; B medians were within budget but noisy, while C exceeded throughput/search budgets. No release or enabling approval. Reports: `data/performance/phase4-20260904/same-run/isolated-*.json`; no release or deployment at that milestone. |
 | 177 | 2026-09-04 | **Performance measurement Phase 4 same-run harness attempt was ineligible.** After reboot, the serialized-setup process harness passed ruff, mypy, 15 focused probe tests, and a short zero-failure pilot. Its full A/B/C run at corpus 1,000 and eight clients recorded 2,438/2,488/2,285 failed operations (mostly connection failures), and C's only scrape failed; an isolated clean-base A control at the same workload was clean. The concurrent three-probe method saturated this host, so it supplied no overhead evidence and was not repeated. The sanitized report is retained under `data/performance/phase4-20260904/same-run/`; a dedicated host or explicitly authorized resource-isolated method is now required. Release/enabling remain blocked; no release or deployment was run. |

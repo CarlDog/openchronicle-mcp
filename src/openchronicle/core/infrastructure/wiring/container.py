@@ -97,7 +97,10 @@ class CoreContainer:
 
         file_configs = load_config_files(config_dir_resolved)
 
-        self.storage = SqliteStore(db_path=str(db_path_resolved), metrics=self.metrics)
+        self.storage = SqliteStore(
+            db_path=str(db_path_resolved),
+            metrics=self.metrics if self.metrics.enabled else None,
+        )
         self.storage.init_schema()
         try:
             self.embedding_settings = load_embedding_settings(file_configs.get("embedding"))

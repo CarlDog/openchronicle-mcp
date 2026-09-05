@@ -659,11 +659,11 @@ mutations remain operator-authorized operations.
 
 ## Phase 4 remaining-work plan
 
-**Status: proposed; execution has not started.** The requested deliverable is
-this plan. The implementation and tests landed in `682c68f0`; the original
-uninstrumented comparator remains `527f2294`. The latest NAS measurements
-above remain inconclusive. Prior passing tests establish a starting point;
-they do not certify a future changed candidate or its CI run.
+**Status: in execution; 4A and 4B are complete locally, and 4C–4F remain.**
+The implementation and tests landed in `682c68f0`; the original uninstrumented
+comparator remains `527f2294`. The latest NAS measurements remain inconclusive.
+Prior passing tests establish a starting point; they do not certify a future
+changed candidate or its CI run.
 
 The objective is to resolve the overhead evidence, close the remaining NAS
 collection/recovery checks, and produce a verified release and observation
@@ -743,6 +743,52 @@ Use native Windows Python and Git Bash for local checks; WSL is not required.
 passing correctness checks, or a documented no-patch conclusion. A local
 microbenchmark improvement alone cannot clear B/A or C/A. Broader architecture
 work requires a separate scope decision if targeted changes are insufficient.
+
+### Phase 4A/4B execution checkpoint — 2026-09-05
+
+The first local profile harness attempt was invalid because a reused stop
+marker stopped the profiled server before measurement; it was excluded. After
+the marker was corrected, a bounded server-side cProfile run covered A, B, and
+C with fixed 1,000-memory corpora and zero request failures. Before the patch,
+the retained top-time B entries included the REST metrics middleware
+(`metrics.py:23 __call__`, 15,164 calls and about 1.000 seconds cumulative),
+SQLite `_observed_lock` (74,566 calls and about 1.224 seconds cumulative), and
+the SQLite instrumentation wrapper (37,283 calls and about 0.188 seconds
+self time). Vector unpacking and hybrid search remained the dominant work, so
+the evidence supported a narrow disabled-path change rather than broad
+storage/search refactoring. Profiled throughput remains diagnostic and was
+not used as acceptance evidence.
+
+Before testing another candidate, Portainer MCP ran three fresh uninstrumented
+A/R calibration pairs on CARLDOG-NAS. Every case used the immutable benchmark
+image digest `sha256:d8e73c42c37d70630786d9ff71bd523b776e359e5acd940e2ef79f12789ae800`,
+CPU placement `0-1`, network none, read-only/unprivileged execution, REST
+hybrid/stub, eight clients, five seconds of warm-up, 30 seconds measured, and
+seed `20260904`. All six cases completed with zero failures and the same
+1,000-memory/vector corpus fingerprint.
+
+| Pair | A req/s | R req/s | R/A loss | Search p95 delta | List p95 delta |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 1 | 76.7667 | 75.6667 | 1.433% | -2.826 ms | +0.938 ms |
+| 2 | 76.2667 | 75.1333 | 1.486% | +0.474 ms | +1.036 ms |
+| 3 | 74.1667 | 69.9333 | 5.708% | +27.078 ms | +3.597 ms |
+
+The third repeated baseline exceeds the predeclared variability budget, so
+calibration is inconclusive/readiness evidence only. No pair was selected or
+repeated. The retained sanitized pair reports and timestamped logs are under
+`data/performance/phase4-20260904/calibration/`.
+
+The 4B candidate now skips the REST metrics middleware and MCP handler wrapper
+when metrics are disabled, normalizes disabled SQLite recorders to no metrics,
+and uses the original RLock without instrumentation timing/depth bookkeeping.
+Enabled recording and RLock/transaction semantics are preserved. Focused
+metrics contracts (14 tests), Ruff, formatting, and mypy pass. A post-patch
+server profile completed; the retained top-time B list no longer includes the
+REST metrics middleware or `_observed_lock`, while C retains its expected
+enabled recorder work. This diagnostic result does not clear the NAS gate.
+The next step is the frozen, unprofiled 4C sequential A/B/C/R run after the
+candidate commit and full repository verification. Runtime metrics remain off
+by default and production remains unchanged.
 
 ### 4C — evaluate the frozen candidate on CARLDOG-NAS
 

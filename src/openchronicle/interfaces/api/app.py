@@ -56,7 +56,8 @@ def create_app(
         mcp_server = create_server(container, mcp_config)
 
     metrics_candidate = getattr(container, "metrics", None)
-    metrics_recorder = metrics_candidate if isinstance(getattr(metrics_candidate, "enabled", None), bool) else None
+    metrics_enabled = getattr(metrics_candidate, "enabled", None)
+    metrics_recorder = metrics_candidate if metrics_enabled is True else None
     exporter_candidate = getattr(container, "metrics_exporter", None)
     metrics_exporter = (
         exporter_candidate

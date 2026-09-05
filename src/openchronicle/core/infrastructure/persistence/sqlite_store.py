@@ -185,6 +185,11 @@ def _lock_kind(method_name: str) -> Literal["read", "write", "maintenance"]:
 @contextmanager
 def _observed_lock(store: SqliteStore, *, kind: Literal["read", "write", "maintenance"]) -> Iterator[None]:
     """Acquire the RLock and publish only the outermost wait/hold pair."""
+    if store._metrics is None:
+        with store._lock:
+            yield
+        return
+
     depths: dict[int, int] = getattr(_LOCK_STATE, "depths", {})
     _LOCK_STATE.depths = depths
     lock_key = id(store._lock)
@@ -226,6 +231,9 @@ def _locked[**P, R](method: Callable[Concatenate[SqliteStore, P], R]) -> Callabl
 
     @functools.wraps(method)
     def wrapper(self: SqliteStore, *args: P.args, **kwargs: P.kwargs) -> R:
+        if self._metrics is None:
+            with self._lock:
+                return method(self, *args, **kwargs)
         with _observed_lock(self, kind=_lock_kind(method.__name__)):
             return method(self, *args, **kwargs)
 
@@ -253,7 +261,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         # _transaction_depth and prevents cross-thread statement
         # interleaving inside an open transaction. See _locked.
         self._lock = threading.RLock()
-        self._metrics = metrics
+        self._metrics = metrics if metrics is not None and metrics.enabled else None
         self._transaction_depth = 0
         self._configure_connection()
         # Empty means unset (compose ${VAR:-} injects "" for blank stack

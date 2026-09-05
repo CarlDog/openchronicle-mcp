@@ -220,19 +220,23 @@ stack was removed; production and the observation stack are healthy and
 unchanged. Normal runtime metrics remain off. All 895 tests passed.
 
 **Active queue after this release** (V3_PLAN carries the full
-entries): (1) performance-measurement Phase 4 overhead gate (sequential NAS
-measurement completed; profiling/optimization needs a separate next step),
+entries): (1) performance-measurement Phase 4 overhead gate (4A profiling and
+NAS baseline calibration completed; a targeted 4B disabled-path patch is under
+verification, with the frozen unprofiled 4C gate next),
 (2) cloud-backup Phase 0 + restore drill (operator at a desktop; 0007 Stage 0),
 then demand-/trigger-gated items. Design 0007 (long-term scale & resilience)
 is ACCEPTED with its staged trigger-gated path. Open operator decision: the
 **v4.0.0 tag** from
 `v4/develop`.
 
-The proposed Phase 4 remaining-work plan is recorded in
+The Phase 4 remaining-work plan is recorded in
 `docs/design/0010-performance-measurement.md` with subphases 4A–4F,
-acceptance evidence, and finite stop conditions. Execution starts with
-instrumentation profiling and baseline calibration; the plan is not yet
-executed.
+acceptance evidence, and finite stop conditions. Subphase 4A completed
+server-side profiling and three fresh NAS A/R calibration pairs; one control
+breached the predeclared variability budget. Subphase 4B completed locally
+with a narrow disabled-path instrumentation bypass and passing focused
+metrics tests, Ruff, formatting, and mypy. The frozen unprofiled 4C gate is
+next; runtime metrics remain off by default and production is unchanged.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

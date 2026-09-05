@@ -76,6 +76,9 @@ class MetricsFastMCP(FastMCP):
         )
 
     def _wrap_handler(self, fn: AnyFunction, tool_name: str) -> AnyFunction:
+        if not self._metrics.enabled:
+            return fn
+
         if inspect.iscoroutinefunction(fn):
 
             @functools.wraps(fn)

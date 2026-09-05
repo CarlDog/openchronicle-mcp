@@ -939,8 +939,13 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   includes the metrics dependency but `OC_METRICS_ENABLED=false` remains the
   runtime default. Implementation was committed in `682c68f0`. The proposed
   [Phase 4 remaining-work plan](design/0010-performance-measurement.md#phase-4-remaining-work-plan)
-  defines subphases 4A–4F and their evidence/stop conditions; execution has not
-  started. The optional local Prometheus profile includes the
+  defines subphases 4A–4F and their evidence/stop conditions. Subphase 4A is
+  complete: server-side profiling identified disabled-path middleware and
+  SQLite lock-observation work, while three fresh NAS A/R calibration pairs
+  retained one variability-budget breach, so the readiness result remains
+  inconclusive. Subphase 4B is complete locally with a narrow disabled-path
+  bypass; focused metrics tests, Ruff, formatting, and mypy pass. The optional
+  local Prometheus profile includes the
   30-second scrape, 5-second timeout, retention settings, query catalog, and
   runbook. The source-root probe now verifies the actual child instrumentation
   state and can record working-set, event-loop-lag, and every attempted
@@ -978,7 +983,8 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   under `data/performance/phase4-20260904/nas-sequential/`; only the one-shot
   benchmark stack was removed. No automatic rerun is planned. A separate observation
   stack has verified NAS test scrapes; retained restart history and production
-  release/deployment remain unverified. The
+  release/deployment remain unverified. The next step is the frozen-candidate
+  unprofiled 4C sequential A/B/C/R gate; the
   delivered `scripts/`-level probe (sibling of
   `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
   mix (search-heavy, small saves, lists) against a throwaway store seeded from

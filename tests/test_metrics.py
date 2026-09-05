@@ -27,6 +27,7 @@ from openchronicle.core.infrastructure.observability.prometheus_recorder import 
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 from openchronicle.interfaces.api.app import create_app
 from openchronicle.interfaces.api.config import HTTPConfig
+from openchronicle.interfaces.api.middleware.metrics import MetricsMiddleware
 from openchronicle.interfaces.mcp.server import MetricsFastMCP
 
 
@@ -152,10 +153,28 @@ def test_sqlite_lock_observation_is_reentrant_aware() -> None:
         store.close()
 
 
+def test_disabled_sqlite_metrics_bypass_observation_wrapper(monkeypatch: pytest.MonkeyPatch) -> None:
+    import openchronicle.core.infrastructure.persistence.sqlite_store as sqlite_store_module
+
+    store = SqliteStore(":memory:", metrics=NullMetricsRecorder())
+    try:
+
+        def unexpected_observation(*args: Any, **kwargs: Any) -> Any:
+            raise AssertionError("disabled metrics must not enter the observation wrapper")
+
+        monkeypatch.setattr(sqlite_store_module, "_observed_lock", unexpected_observation)
+        store.init_schema()
+        store.list_projects()
+    finally:
+        store.close()
+
+
 def test_http_metrics_route_is_opt_in_and_guarded(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
     disabled_container = _mock_container(recorder=NullMetricsRecorder(), exporter=None)
-    with TestClient(create_app(disabled_container, HTTPConfig(), mount_mcp=False)) as client:
+    disabled_app = create_app(disabled_container, HTTPConfig(), mount_mcp=False)
+    assert not any(cast(Any, middleware.cls) is MetricsMiddleware for middleware in disabled_app.user_middleware)
+    with TestClient(disabled_app) as client:
         assert client.get("/metrics").status_code == 404
 
     recorder = PrometheusMetricsRecorder()
@@ -174,6 +193,16 @@ def test_http_metrics_route_is_opt_in_and_guarded(monkeypatch: pytest.MonkeyPatc
     with TestClient(create_app(enabled_container, guarded_config, mount_mcp=False)) as client:
         assert client.get("/metrics").status_code in {401, 403}
         assert client.get("/metrics", headers={"Authorization": "Bearer test-key"}).status_code == 200
+
+
+def test_disabled_mcp_metrics_keep_original_handler() -> None:
+    recorder = NullMetricsRecorder()
+    server = MetricsFastMCP("test", metrics=recorder)
+
+    async def probe() -> dict[str, str]:
+        return {"status": "ok"}
+
+    assert server._wrap_handler(probe, "probe") is probe
 
 
 @pytest.mark.asyncio
