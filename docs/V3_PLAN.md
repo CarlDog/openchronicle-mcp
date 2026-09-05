@@ -981,9 +981,12 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   slowed by 5.331% and latency controls also breached budget, so both gates
   remain inconclusive. The report was independently recalculated and retained
   under `data/performance/phase4-20260904/nas-sequential/`; only the one-shot
-  benchmark stack was removed. No automatic rerun is planned. A separate observation
-  stack has verified NAS test scrapes; retained restart history remains for 4D
-  verification. The frozen-candidate unprofiled 4C sequential A/B/C/R gate
+  benchmark stack was removed. No automatic rerun is planned. Phase 4D then
+  completed on disposable NAS observation stack 216: fixed Prometheus queries
+  retained history across target restart and rollback, idle and outage states
+  were distinguished, the access matrix matched the documented contracts, and
+  both recovery paths passed with candidate-created data preserved. The
+  frozen-candidate unprofiled 4C sequential A/B/C/R gate
   then completed all twelve cases with 27,272 successful requests, zero
   failures/timeouts, matching corpora, and successful enabled scrapes. B/A's
   median throughput loss was 0.129% and C/A's was 7.769%; B/A was inconclusive
@@ -991,8 +994,12 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   was inconclusive overall under the same veto. The complete report and
   independent recalculation are retained under
   `data/performance/phase4-20260904/nas-sequential/`; disposable stack 212
-  was removed and production remained unchanged. Release and enabling remain
-  blocked; 4D collection/access/recovery evidence is next. The
+  was removed and production remained unchanged. The sanitized 4D report and
+  summary are retained under
+  `data/performance/phase4-20260904/phase4d-20260905/`; observation stack 216
+  is stopped with its Prometheus history volume preserved. Release and
+  enabling remain blocked by the inconclusive 4C gate; 4E/4F remain pending.
+  The
   delivered `scripts/`-level probe (sibling of
   `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
   mix (search-heavy, small saves, lists) against a throwaway store seeded from

@@ -1,25 +1,24 @@
 # Application Performance Measurement
 
-**Status:** PHASE 4 EVALUATED — the Phase 1–3 implementation and local
-controlled-host verification are complete; the A/B/C overhead gate is
-inconclusive and blocks release/enabling. A post-reboot same-run harness
-attempt without resource isolation was ineligible because three concurrent
-full probes saturated the local transport; a resource-isolated follow-up
-completed three eligible but noisy blocks. Live deployment observation has
-not started.
-**Date:** 2026-09-04.
+**Status:** PHASE 4D COMPLETE — the Phase 1–3 implementation and local
+controlled-host verification are complete; the frozen 4C A/B/C overhead gate
+remains inconclusive and blocks release/enabling. Phase 4D collection, access,
+idle/outage, and disposable rollback evidence passed on CARLDOG-NAS. Live
+release/deployment observation has not started.
+**Date:** 2026-09-05.
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
 This identifies the planning work, not a GitHub issue or an approved build.
 
-**Revision:** 2026-09-04 — incorporates the five adversarial-review findings,
+**Revision:** 2026-09-05 — incorporates the five adversarial-review findings,
 records the Phase 1 implementation, the Phase 2 implementation (probe
 throttling, corpus drift, disabled-path overhead and rollback, scrape
-responsiveness, all-attempt scrape-duration retention, and backfill failure classification), the Phase 3 local
-collector configuration, and the Phase 4 controlled-host gate and retest
-results, including the post-reboot same-run harness attempts. Metrics remain
-disabled by default; local responsiveness passed, while the overhead gate
-remains inconclusive and live release/deployment observation is pending.
+responsiveness, all-attempt scrape-duration retention, and backfill failure
+classification), the Phase 3 local collector configuration, the Phase 4
+controlled-host gate and retest results, and the Phase 4D NAS collection,
+access, and rollback evidence. Metrics remain disabled by default; local
+responsiveness and 4D passed, while the 4C overhead gate remains inconclusive
+and live release/deployment observation is pending.
 
 **Resolution plan:** [Phase 4 remaining-work plan](#phase-4-remaining-work-plan)
 records the proposed sequence, evidence, and stop conditions following commit
@@ -91,8 +90,9 @@ decision: the standard image and development environment include the metrics
 extra, while the runtime default remains `OC_METRICS_ENABLED=false`. Phase 3
 was continued on 2026-09-04: the repository now carries a profile-gated local
 Prometheus configuration, retention settings, saved queries, and an operator
-runbook. Phase 4 probe verification was then run locally; it does not authorize
-release, deployment observation, or enabling the runtime switch.
+runbook. Phase 4 probe verification was then run locally, followed by the
+disposable NAS 4D collection/access/recovery checks recorded below; neither
+authorizes release, deployment observation, or enabling the runtime switch.
 
 ### Phase 1 — controlled workload and baseline
 
@@ -322,8 +322,8 @@ lost. A scraper on the same NAS cannot observe a whole-NAS outage from outside
 that failure domain. Treat historical metrics as disposable operational
 evidence, separate from OC's memory backups. A disposable Docker smoke check
 validated target-up state, query results, and a pre-restart sample retained
-after the OC restart. Live NAS scrape/restart behavior remains a Phase 4
-verification gate.
+after the OC restart. Live NAS scrape/restart behavior was verified in Phase
+4D below; release/deployment observation remains a later gate.
 
 ### Phase 4 — verification, release, and observation
 
@@ -474,8 +474,8 @@ cases were excluded. No more automatic repetitions or new-hardware requirement
 follow from this result. Further profiling or optimization is a separate step.
 
 The report was retained before deleting only the one-shot benchmark stack;
-independent checks confirmed its removal and that production and the existing
-observation stack remained healthy and unchanged. Standard runtime metrics
+independent checks confirmed its removal and that production remained healthy
+and unchanged at that checkpoint. Standard runtime metrics
 remain off by default. No release, tag, or production deployment occurred.
 
 #### Original local execution
@@ -659,15 +659,15 @@ mutations remain operator-authorized operations.
 
 ## Phase 4 remaining-work plan
 
-**Status: in execution; 4A–4C are complete locally, and 4D–4F remain.**
+**Status: in execution; 4A–4D are complete, and 4E–4F remain.**
 The implementation and tests landed in `682c68f0`; the original uninstrumented
 comparator remains `527f2294`. The latest NAS measurements remain inconclusive.
 Prior passing tests establish a starting point; they do not certify a future
 changed candidate or its CI run.
 
-The objective is to resolve the overhead evidence, close the remaining NAS
-collection/recovery checks, and produce a verified release and observation
-report. CARLDOG-NAS remains the measurement/deployment host. Runtime metrics
+The objective is to resolve the overhead evidence and produce a verified
+release and observation report. CARLDOG-NAS remains the measurement/deployment
+host. Runtime metrics
 remain off by default, including after release; enabling the operator's
 deployment is a separate configuration choice. Work is limited to this
 instrumentation and its validation. Broader search/storage changes, a language
@@ -882,6 +882,49 @@ through rollback. Require no database migration or old-database restore.
 both recovery checks. Retain reports before removing only disposable resources
 created for these checks; identify any observation stack retained for later use.
 
+### Phase 4D execution checkpoint — 2026-09-05
+
+After reboot, dynamic Portainer inventory showed no retained observation
+stack, so a new disposable observation stack was created as stack `216` with
+separate data/config/output volumes, a throwaway authenticated configuration,
+and Prometheus v3.14.0. The OC target used the published non-release 4C
+benchmark image by immutable digest, with the candidate source tree selected
+explicitly for the candidate checks. The Prometheus container and its named
+history volume were kept unchanged across the target restart and rollback.
+
+The candidate passed authenticated REST and streamable-HTTP MCP initialize,
+read, search, pin, and write checks. The bounded access matrix observed the
+documented contracts for both REST and MCP/metrics paths: valid credentials
+with an allowed Host returned `200`, an allowed Host with missing credentials
+returned `401`, invalid credentials returned `403`, and a rejected Host
+returned `421`. The idle target produced healthy scrapes and recorder-health
+samples. During a bounded disposable-target outage, Prometheus retained
+`up=0` and zero scraped samples for 12 consecutive five-second samples, and
+`absent_over_time(oc_metrics_recorder_healthy[25s])` returned `1`; after
+restart, `up=1`, samples resumed, and recorder health returned. A fixed query
+range retained pre-outage, post-restart, and post-rollback history, with
+process-start changes providing the restart identity.
+
+Both recovery paths passed. Disabling metrics made the metrics route return
+`404` while REST/MCP reads and writes continued, and stopping the disposable
+target produced the expected Prometheus gap. Restoring the known-good
+`v3.3.0` image/configuration removed the candidate source override; the
+candidate-created synthetic memories remained readable and subsequent
+REST/MCP read/write smoke checks passed. No database migration or old-database
+restore was used.
+
+The sanitized report and summary are retained under
+`data/performance/phase4-20260904/phase4d-20260905/`. Both disposable
+containers were explicitly stopped after verification; stack `216` and the
+Prometheus history volume remain for later inspection. Production stack `151`
+remained on `v3.3.0`, healthy and unchanged, and runtime metrics remain off
+by default. The 4C overhead gate is still inconclusive, so no release,
+production deployment, or metrics-enabling decision follows from this check.
+
+**Exit:** 4D collection, access, idle/outage, and both recovery checks passed;
+4E/4F remain gated by the inconclusive 4C overhead result and explicit release
+authorization.
+
 ### 4E — release and verify the selected deployment
 
 Recheck the final candidate's gates and CI. Run `pytest`,
@@ -953,11 +996,15 @@ scrape-responsiveness run, the six valid matched retest blocks, and the three
 valid two-CPU-affinity follow-up blocks, the post-reboot same-run pilot plus
 its ineligible full matrix, and the three eligible resource-isolated same-run
 blocks. The A/B/C overhead gate remains inconclusive and blocks
-release/enabling. The separate NAS observation stack has verified live test
-scrapes and target recovery after an OC restart; retained history across that
-restart has not been independently queried on the NAS. The sequential NAS
-benchmark completed with an inconclusive overhead gate and retained evidence.
-No production release or release-tag
+release/enabling. Phase 4D then passed on disposable NAS stack `216`: fixed
+Prometheus queries retained history across an OC restart and rollback, idle
+and outage states were distinguished, the REST/MCP/metrics access matrix
+matched the documented `200`/`421`/`401`/`403` contracts, and both recovery
+paths preserved data and restored service. The sanitized report and summary
+are retained under
+`data/performance/phase4-20260904/phase4d-20260905/`; both disposable
+containers are stopped and the history volume is preserved. Production stack
+`151` remained healthy and unchanged. No production release or release-tag
 performance observation window is claimed.
 
 After adoption, implementation completion requires the Phase 1–4 engineering
@@ -982,4 +1029,5 @@ transport saturation, and the equal-CPU-partition follow-up remained noisy and
 over budget; process affinity on this host was already insufficient. Do not
 enable the runtime switch in the operator's deployment until the overhead,
 responsiveness, and release-readiness gates pass. The initial observation
-window then follows the verified deployment.
+window then follows the verified deployment. Phase 4E/4F remain pending and
+are gated by the inconclusive 4C result and explicit release authorization.

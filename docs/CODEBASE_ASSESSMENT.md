@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-05 · **Revision:** 181 (working tree)
+**Snapshot date:** 2026-09-05 · **Revision:** 182 (working tree)
 
 ## Current state
 
@@ -97,9 +97,12 @@ drivers in `interfaces/`), enforced by tests — see
   produced three eligible blocks, but B/C median throughput losses were
   1.351%/10.867% with reversed order effects (corrected from raw reports; the
   previous narrative confused maxima with medians). Release/enabling remain
-  blocked. A separate NAS observation stack is deployed with successful
-  scrapes; restart-history retention is not yet verified there. The operator
-  approved sequential testing on CARLDOG-NAS; dedicated hardware is not an
+  blocked. Phase 4D then passed on disposable NAS observation stack 216:
+  fixed Prometheus queries retained history across target restart and
+  rollback, idle and outage states were distinguished, the access matrix
+  matched the documented contracts, and both recovery paths passed with
+  candidate-created data preserved. The operator approved sequential testing
+  on CARLDOG-NAS; dedicated hardware is not an
   application requirement. After upload approval, the twelve-case sequential
   NAS run completed in 505.56 seconds: 25,995 successful requests, zero
   failures/timeouts, unchanged corpora and successful enabled scrapes. B/C
@@ -107,8 +110,8 @@ drivers in `interfaces/`), enforced by tests — see
   by 5.331% and latency controls also exceeded budget; both comparisons remain
   inconclusive. Evidence is retained under
   `data/performance/phase4-20260904/nas-sequential/`. Only the one-shot benchmark
-  stack was removed afterward. Production and the observation stack remain
-  healthy and unchanged; no release or production deployment was performed.
+  stack was removed afterward. Production remained healthy and unchanged at
+  that checkpoint; no release or production deployment was performed.
   Implementation was committed in `682c68f0`. A proposed
   [Phase 4 remaining-work plan](design/0010-performance-measurement.md#phase-4-remaining-work-plan)
   now specifies diagnosis, targeted changes, gate evaluation, NAS recovery
@@ -124,8 +127,12 @@ drivers in `interfaces/`), enforced by tests — see
   repeated-A list-p95 noise reached 1.540 budget fractions, and C/A remained
   inconclusive overall under the existing veto. The report and summary are
   retained under `data/performance/phase4-20260904/nas-sequential/`; disposable
-  stack 212 was removed and production remained unchanged. Subphase 4D is next;
-  runtime metrics remain off by default and no release/deployment has occurred.
+  stack 212 was removed and production remained unchanged. The sanitized 4D
+  report and summary are retained under
+  `data/performance/phase4-20260904/phase4d-20260905/`; stack 216 is stopped
+  with its Prometheus history volume preserved. Subphase 4D passed; 4E/4F
+  remain gated by the inconclusive 4C result. Runtime metrics remain off by
+  default and no release/deployment has occurred.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
   local retrieval/embedding integrity defects plus one demonstrated
   filtered-recency need; the same review benchmark-gates MMR and keeps
@@ -160,6 +167,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 182 (working tree) | 2026-09-05 | **Performance measurement Phase 4D collection/access/recovery evidence passed.** Disposable NAS observation stack 216 retained fixed Prometheus history across the OC target restart and rollback; the outage produced 12 consecutive down samples with zero scraped samples and the target recovered with healthy scrapes. The REST/MCP/metrics access matrix matched the documented `200`/`421`/`401`/`403` contracts, and both recovery paths preserved candidate-created data. The sanitized report and summary are retained under `data/performance/phase4-20260904/phase4d-20260905/`; both disposable containers are stopped and the Prometheus history volume is preserved. Production stack 151 remained healthy and unchanged at v3.3.0; runtime metrics remain off by default. The 4C overhead gate remains inconclusive, so 4E/4F and any release/enabling decision stay gated. |
 | 181 (working tree) | 2026-09-05 | **Performance measurement Phase 4C completed as an inconclusive frozen NAS evidence run.** The committed 4B candidate was published as the non-release amd64 image `phase4-4b-20260905-553a6e0b` at manifest digest `sha256:a925745f4bf1c8645284276872b92adc83c70536c46c1e21b633ec5af8af2d2e`; Portainer stack 212 ran the unprofiled ABCR/BCAR/CABR suite with 27,272 successful requests, zero failures/timeouts, unchanged corpora, and successful enabled scrapes. Independent recalculation matched the runner: B/A median throughput loss 0.129% but inconclusive due repeated-A list-p95 noise; C/A median loss 7.769% and inconclusive under the same veto. The disposable stack was removed, production remained v3.3.0/unchanged, and runtime metrics remain off by default. The report and summary are retained under `data/performance/phase4-20260904/nas-sequential/`; 4D collection/access/recovery evidence is next. |
 | 180 (working tree) | 2026-09-05 | **Performance measurement Phase 4A/4B execution checkpoint.** A corrected server-side cProfile run identified REST metrics middleware and SQLite observed-lock bookkeeping in the pre-patch disabled path; dominant vector/search work was unchanged. Three fresh uninstrumented A/R calibration pairs on CARLDOG-NAS completed with zero failures and identical corpora; R/A throughput losses were 1.433%, 1.486%, and 5.708%, so the predeclared variability veto remains inconclusive. The narrow candidate bypasses disabled REST/MCP wrappers and SQLite observation timing/depth bookkeeping while preserving enabled metrics and RLock/transaction behavior. Focused metrics tests, Ruff, formatting, and mypy pass; post-patch profiling shows the disabled instrumentation entries removed from the retained top-time list. The candidate is not yet released or deployed; the frozen 4C gate is next. |
 | 179 (working tree) | 2026-09-04 | **Sequential NAS benchmark completed, gate inconclusive.** After the operator cleared the image-upload pause, Portainer ran twelve sequential cases with repeated A/A controls and unchanged budgets. All 25,995 requests succeeded; corpora matched and C scrapes passed. B/C median throughput losses 4.678%/8.344%; the last baseline control lost 5.331%, with excessive latency variability as well. Report independently recalculated and retained; only disposable benchmark stack 204 was removed. Production and observation stack unchanged. Full suite: 895 passed; lint/types/Compose checks passed. No release/production deployment. |

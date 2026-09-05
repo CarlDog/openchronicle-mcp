@@ -198,9 +198,11 @@ gates remain inconclusive because host/order noise is larger than the measured
 effect; the enabled retest median also exceeded the 5% throughput-loss limit.
 The affinity follow-up still showed 0.18–14.08% disabled and 8.69–16.18%
 enabled throughput loss, with the enabled median at 11.62%. One retest case
-had connection failures and was excluded. The separate NAS observation stack
-has verified test scrapes; retained restart history and production release
-remain unverified. After
+had connection failures and was excluded. Phase 4D then passed on disposable
+NAS observation stack 216: retained Prometheus history across target restart
+and rollback, distinct idle/outage signals, documented REST/MCP/metrics access
+behavior, and both recovery paths with candidate-created data preserved.
+Production release observation remains unstarted. After
 the reboot, the serialized-setup same-run pilot passed, but the full
 three-probe matrix was ineligible with 2,438/2,488/2,285 failed operations
 (mostly connection failures); an isolated clean-base control was clean, so
@@ -219,14 +221,18 @@ median throughput loss was 0.129% but remained inconclusive because repeated-A
 list-p95 noise reached 1.540 budget fractions; C/A's median throughput loss
 was 7.769% and remained inconclusive under the same veto. Evidence is retained
 under data/performance/phase4-20260904/nas-sequential/. Disposable stack 212
-was removed; production and the observation stack are healthy and unchanged.
-Normal runtime metrics remain off. All 897 tests passed for the candidate.
+was removed; production remained unchanged. Phase 4D then passed on
+disposable observation stack 216 with retained Prometheus history across
+target restart/rollback, distinct idle/outage signals, documented access
+contracts, and both recovery paths preserving candidate-created data. Stack
+216 is stopped with its history volume preserved. Normal runtime metrics
+remain off. All 897 tests passed for the candidate.
 
 **Active queue after this release** (V3_PLAN carries the full
-entries): (1) performance-measurement Phase 4 collection/access/recovery gate
-(4A profiling, 4A NAS calibration, 4B disabled-path patch, and the frozen
-unprofiled 4C run are complete; both overhead comparisons remain inconclusive;
-4D is next),
+entries): (1) performance-measurement Phase 4 release/observation gate
+(4A profiling, 4A NAS calibration, 4B disabled-path patch, frozen unprofiled
+4C run, and 4D collection/access/recovery evidence are complete; both
+overhead comparisons remain inconclusive; 4E/4F remain gated),
 (2) cloud-backup Phase 0 + restore drill (operator at a desktop; 0007 Stage 0),
 then demand-/trigger-gated items. Design 0007 (long-term scale & resilience)
 is ACCEPTED with its staged trigger-gated path. Open operator decision: the
@@ -242,8 +248,12 @@ with a narrow disabled-path instrumentation bypass and passing focused
 metrics tests, Ruff, formatting, and mypy. Subphase 4C then completed the
 frozen unprofiled sequential NAS run with 27,272 successful requests and zero
 failures/timeouts; B/A and C/A remain inconclusive under the existing
-repeated-baseline veto. Runtime metrics remain off by default and production
-is unchanged; 4D collection/access/recovery evidence is next.
+repeated-baseline veto. Phase 4D then passed on disposable stack 216 with
+fixed-range history, access, outage/recovery, and rollback evidence; its
+sanitized report is retained under
+`data/performance/phase4-20260904/phase4d-20260905/`. Runtime metrics remain
+off by default and production is unchanged; 4E/4F remain gated by the
+inconclusive 4C result and release authorization.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
