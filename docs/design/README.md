@@ -13,6 +13,7 @@ as shipped.
 | [0004 — NemoClaw repository review](0004-nemoclaw-repository-review.md) | Comparative review | Findings ranked 1-5, 8, 10 shipped (revs 116-119, 126); remainder trigger-gated |
 | [0005 — Composite embedding identity](0005-embedding-identity.md) | ADR | **Accepted 2026-08-29** (rev 2, post-adversarial-review); fully implemented — Phases B/C/D shipped (revs 134-136) |
 | [0006 — Embedding provider review](0006-embedding-provider-review.md) | Review | Complete 2026-08-29 — stay on OpenAI 3-small; local Ollama is the benchmark-gated challenger; the 0003 gold-set benchmark is the named decision instrument |
+| [0010 — Application performance measurement](0010-performance-measurement.md) | Design | Phase 4 evaluated, retested, process-affinity follow-up, and post-reboot resource-isolated same-run follow-up run 2026-09-04; responsiveness passed, but the A/B/C overhead gate remains inconclusive because host/order noise persists and the full non-isolated method saturated this host; release/enabling remain blocked; no live deployment |
 
 The numbering is chronological, not a priority ranking. Current backlog
 status lives in `docs/V3_PLAN.md`; release history lives in

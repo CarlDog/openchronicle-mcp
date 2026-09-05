@@ -4,7 +4,7 @@ OpenChronicle v3 reads configuration from environment variables and an
 optional `core.json` file. Env vars always win, then `core.json` keys,
 then dataclass defaults.
 
-The total surface is small (~25 vars, all listed below). v2's LLM
+The total surface is small (~26 vars, all listed below). v2's LLM
 provider keys, MoE pool config, Discord settings, and routing knobs are
 gone with the subsystems they configured.
 
@@ -68,6 +68,37 @@ relationships).
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
 | `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset, so one stack variable protects both surfaces. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
 | `OC_API_CORS_ORIGINS` | CSV of allowed CORS origins; the CORS middleware is only registered when this is non-empty | — |
+
+## Metrics
+
+| Var | Purpose | Default |
+|---|---|---|
+| `OC_METRICS_ENABLED` | Enable bounded Prometheus metrics and the authenticated/Host-guarded `/metrics` endpoint. The standard Docker image and development extra already contain `prometheus-client`; ordinary installs that enable this must install the `[metrics]` extra. | `false` |
+
+Metrics are available in the standard image without changing the default
+runtime behavior. When disabled, the application uses a no-op recorder and
+does not register `/metrics`. When enabled, observations remain in the
+process registry until the process exits; collector history is a separate
+phase. Health, documentation, and metrics requests are not included in the
+application HTTP traffic series. Do not put content, query text, project or
+memory identifiers, client/IP data, URLs, headers, exception messages, or
+credentials in metric labels.
+
+The NAS compose file adds a profile-gated `prometheus` service. Start it only
+with `--profile metrics` and set `OC_METRICS_ENABLED=true` explicitly. Its
+compose-level controls are:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `HOST_PROMETHEUS_PORT` | Loopback-only Prometheus UI port on the NAS | `19090` |
+| `HOST_PROMETHEUS_DATA_DIR` | Local host directory for Prometheus history; leave unset to use the named `prometheus-data` volume | `prometheus-data` |
+| `HOST_PROMETHEUS_SECRETS_DIR` | Local directory containing `oc-api-key` for authenticated scrapes | `prometheus-secrets` |
+| `PROMETHEUS_CONFIG_FILE` | Container config path; use `/etc/prometheus/openchronicle-auth.yml` when `OC_API_KEY` is set | `/etc/prometheus/openchronicle.yml` |
+
+Keep the collector data on a local filesystem with at least 2 GiB available;
+do not use NFS. The checked-in collector is pinned to
+`prom/prometheus:v3.14.0`. See the [metrics history runbook](../monitoring/runbook.md)
+and [PromQL catalog](../monitoring/promql.md) for activation and queries.
 
 Five paths are exempt from auth even when `OC_API_KEY` is set:
 `/health`, `/api/v1/health`, `/docs`, `/redoc`, and `/openapi.json`

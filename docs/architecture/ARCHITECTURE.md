@@ -28,7 +28,7 @@ stack is gone. Look in `archive/openchronicle.v2` if you need it.
 Pure business types. No imports of `application/` or `infrastructure/`.
 
 - `models/`: `MemoryItem`, `Project`, `ScoredMemory`, `GitCommit` / `CommitCluster`
-- `ports/`: `MemoryStorePort`, `StoragePort`, `EmbeddingPort`
+- `ports/`: `MemoryStorePort`, `StoragePort`, `EmbeddingPort`, `MetricsRecorder`
 - `exceptions.py`: `NotFoundError`, `ValidationError`, `ConfigError`,
   `ProviderError`
 - `errors/error_codes.py`: SCREAMING_SNAKE_CASE error codes
@@ -106,7 +106,8 @@ HTTP clients, the wiring container).
   loop's job registry (db_backup, db_vacuum, db_integrity_check,
   embedding_backfill, git_onboard_resync).
 - `wiring/container.py`: composition root. Builds the SQLite store,
-  optional embedding service, runtime paths. The container lifecycle
+  optional embedding service, per-container no-op or Prometheus metrics
+  recorder/exporter, and runtime paths. The container lifecycle
   (`__enter__`/`__exit__`/`close`) closes the DB connection cleanly.
 - `config/config_loader.py`: `core.json` reader.
 
@@ -117,8 +118,11 @@ Driver-side adapters: HTTP, MCP, CLI.
 - `api/`: FastAPI app with FastMCP mounted at `/mcp`. Lifespan starts
   FastMCP's session manager and the maintenance loop together.
   - Routes: `system` (health, maintenance/status), `project`, `memory`
-  - Middleware: Host allowlist (DNS-rebinding defense), API key auth,
-    rate limit, optional CORS
+  - Middleware: metrics observer, Host allowlist (DNS-rebinding defense),
+    API key auth, rate limit, optional CORS
+  - `/metrics` is registered only when `OC_METRICS_ENABLED=true`; its
+    bounded registry is serialized by one worker at a time and remains
+    behind the same Host/auth/rate-limit guards as other non-exempt routes.
 - `mcp/`: FastMCP server + tool modules (18 tools)
   - Tools: `memory_save`, `memory_search`, `memory_list`, `memory_get`,
     `memory_update`, `memory_delete`, `memory_pin`, `memory_stats`,
@@ -158,6 +162,21 @@ async with AsyncExitStack() as stack:
 ```
 
 uvicorn shutdown drains both cleanly.
+
+## Metrics history (optional)
+
+The application metrics registry is process-local. Phase 3 adds an optional
+Prometheus collector in `monitoring/prometheus/`, activated only through the
+`metrics` profile in `docker-compose.nas.yml`. The collector reaches `oc` over
+the private `oc-observability` network, scrapes every 30 seconds with a
+5-second timeout, and stores history in a separate local volume with the
+configured 14-day/1-GB starting retention. The authenticated config reads the
+OC bearer token from an operator-managed file; no secret is tracked here.
+
+Collector history is operational evidence, not application state: it is not
+written to SQLite, does not participate in memory backups, and may contain a
+gap around an OC or NAS outage. The runtime exporter and collector profile are
+both opt-in; the default OC runtime remains `OC_METRICS_ENABLED=false`.
 
 ## Schema
 

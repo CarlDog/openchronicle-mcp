@@ -7,11 +7,14 @@ from openchronicle.core.application.config.settings import (
     EmbeddingSettings,
     load_embedding_settings,
 )
+from openchronicle.core.application.observability.exporter import MetricsExporter
 from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.domain.errors.error_codes import CONFIG_ERROR
 from openchronicle.core.domain.exceptions import ConfigError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.core.infrastructure.config.config_loader import load_config_files
+from openchronicle.core.infrastructure.observability.factory import create_metrics
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
 
@@ -60,6 +63,8 @@ class CoreContainer:
         output_dir: str | None = None,
         *,
         paths: RuntimePaths | None = None,
+        metrics: MetricsRecorder | None = None,
+        metrics_exporter: MetricsExporter | None = None,
     ) -> None:
         if paths is None:
             paths = RuntimePaths.resolve(
@@ -72,6 +77,11 @@ class CoreContainer:
         # health endpoints. A declared attribute (not setattr/getattr
         # conjuring) so mypy actually checks the four call sites.
         self.maintenance_degraded: bool = False
+
+        if metrics is None:
+            metrics, metrics_exporter = create_metrics()
+        self.metrics: MetricsRecorder = metrics
+        self.metrics_exporter: MetricsExporter | None = metrics_exporter
 
         db_path_resolved = paths.db_path
         config_dir_resolved = paths.config_dir
@@ -87,13 +97,15 @@ class CoreContainer:
 
         file_configs = load_config_files(config_dir_resolved)
 
-        self.storage = SqliteStore(db_path=str(db_path_resolved))
+        self.storage = SqliteStore(db_path=str(db_path_resolved), metrics=self.metrics)
         self.storage.init_schema()
         try:
             self.embedding_settings = load_embedding_settings(file_configs.get("embedding"))
             self.embedding_port: EmbeddingPort | None = self._build_embedding_port()
             self.embedding_service: EmbeddingService | None = (
-                EmbeddingService(self.embedding_port, self.storage) if self.embedding_port is not None else None
+                EmbeddingService(self.embedding_port, self.storage, metrics=self.metrics)
+                if self.embedding_port is not None
+                else None
             )
 
             self.file_configs = file_configs

@@ -1,0 +1,22 @@
+# Local-only Prometheus configuration for the opt-in metrics profile.
+#
+# The target is reachable by service name on the private compose network.
+# `oc:*` is included in the NAS compose REST Host allowlist for this target;
+# keep that entry if OC_API_ALLOWED_HOSTS is overridden.
+
+global:
+  scrape_interval: 30s
+  scrape_timeout: 5s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: openchronicle
+    scheme: http
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 5s
+    static_configs:
+      - targets:
+          - oc:8000
+        labels:
+          service: openchronicle

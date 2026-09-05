@@ -1,0 +1,25 @@
+# Authenticated variant of prometheus.yml.
+#
+# Select this file with PROMETHEUS_CONFIG_FILE when OC_API_KEY is set. The
+# mounted file must contain only the bearer token, without the "Bearer "
+# prefix. Keep it outside the repository and on a local filesystem.
+
+global:
+  scrape_interval: 30s
+  scrape_timeout: 5s
+  evaluation_interval: 30s
+
+scrape_configs:
+  - job_name: openchronicle
+    scheme: http
+    metrics_path: /metrics
+    scrape_interval: 30s
+    scrape_timeout: 5s
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/oc-api-key
+    static_configs:
+      - targets:
+          - oc:8000
+        labels:
+          service: openchronicle

@@ -25,7 +25,7 @@ RUN python -m venv /venv \
     # cache could never serve it.
     && mkdir -p src/openchronicle \
     && touch src/openchronicle/__init__.py \
-    && /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp]" \
+	&& /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp,metrics]" \
     && /venv/bin/pip uninstall -y openchronicle-mcp
 
 COPY src ./src
@@ -47,6 +47,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     OC_DB_PATH=/app/data/openchronicle.db \
     OC_CONFIG_DIR=/app/config \
     OC_OUTPUT_DIR=/app/output \
+    OC_METRICS_ENABLED=false \
     PATH=/venv/bin:$PATH
 
 # git is required by onboard_git (clones repos shallow into a tmpdir to

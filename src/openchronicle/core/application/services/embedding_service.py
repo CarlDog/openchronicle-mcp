@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from dataclasses import dataclass
 
+from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
 from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
 from openchronicle.core.domain.exceptions import ProviderError
@@ -13,6 +15,7 @@ from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
+from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.core.domain.time_utils import utc_now
 
 logger = logging.getLogger(__name__)
@@ -57,9 +60,10 @@ class BackfillResult:
 class EmbeddingService:
     """Coordinates embedding generation and hybrid (FTS5 + semantic) search."""
 
-    def __init__(self, port: EmbeddingPort, store: MemoryStorePort) -> None:
+    def __init__(self, port: EmbeddingPort, store: MemoryStorePort, *, metrics: MetricsRecorder | None = None) -> None:
         self._port = port
         self._store = store
+        self._metrics = metrics or NullMetricsRecorder()
         # Degraded-provider bookkeeping. Two counters on purpose:
         # `_search_failure_count` keeps its original search-only meaning
         # (and its health-payload keys), while `_failure_count` covers
@@ -95,11 +99,27 @@ class EmbeddingService:
         health (`stale`/`missing` count down) rather than in this call.
         """
         if self.backfill_running:
+            self._safe_observe_job(name="operator_backfill", outcome="overlap")
             return False
-        self._background_backfill = asyncio.get_running_loop().create_task(
-            asyncio.to_thread(self.generate_missing, force=force)
-        )
+        self._background_backfill = asyncio.get_running_loop().create_task(self._run_operator_backfill(force=force))
         return True
+
+    async def _run_operator_backfill(self, *, force: bool) -> BackfillResult:
+        started = time.monotonic()
+        outcome = "failure"
+        try:
+            result = await asyncio.to_thread(self.generate_missing, force=force)
+            outcome = "partial" if result.failed else "success"
+            return result
+        except asyncio.CancelledError:
+            outcome = "cancel"
+            raise
+        finally:
+            self._safe_observe_job(
+                name="operator_backfill",
+                outcome=outcome,
+                duration_seconds=time.monotonic() - started,
+            )
 
     @property
     def port(self) -> EmbeddingPort:
@@ -137,6 +157,73 @@ class EmbeddingService:
             logger.info("embedding provider recovered after %d failure(s)", self._failure_count)
         self._failure_count = 0
         self._last_failure_op = None
+
+    def _safe_observe_embedding(self, *, operation: str, outcome: str, started: float) -> None:
+        try:
+            self._metrics.observe_embedding(
+                provider=self._port.provider_name(),
+                operation=operation,
+                outcome=outcome,
+                duration_seconds=time.monotonic() - started,
+            )
+        except Exception:  # metrics must never replace an embedding result
+            logger.warning("metrics recorder failed while observing embedding operation", exc_info=False)
+
+    def _safe_observe_stage(self, *, stage: str, started: float) -> None:
+        try:
+            self._metrics.observe_search_stage(stage=stage, duration_seconds=time.monotonic() - started)
+        except Exception:  # metrics must never replace a search result
+            logger.warning("metrics recorder failed while observing search stage", exc_info=False)
+
+    def _safe_observe_fallback(self, *, reason: str) -> None:
+        try:
+            self._metrics.observe_search_fallback(reason=reason)
+        except Exception:  # metrics must never replace a search result
+            logger.warning("metrics recorder failed while observing search fallback", exc_info=False)
+
+    def _safe_observe_job(self, *, name: str, outcome: str, duration_seconds: float | None = None) -> None:
+        try:
+            self._metrics.observe_job(name=name, outcome=outcome, duration_seconds=duration_seconds)
+        except Exception:  # metrics must never replace a backfill result
+            logger.warning("metrics recorder failed while observing backfill job", exc_info=False)
+
+    def _safe_observe_backfill_item(self, outcome: str) -> None:
+        try:
+            self._metrics.observe_backfill_item(outcome=outcome)
+        except Exception:  # metrics must never replace a backfill result
+            logger.warning("metrics recorder failed while observing backfill item", exc_info=False)
+
+    def _embed_single(self, content: str) -> list[float]:
+        started = time.monotonic()
+        try:
+            vector = self._port.embed(content)
+        except Exception as exc:
+            if self._is_content_too_long(exc):
+                outcome = "permanent_rejection"
+            elif isinstance(exc, ProviderError):
+                outcome = "transient_failure"
+            else:
+                outcome = "other_error"
+            self._safe_observe_embedding(operation="single", outcome=outcome, started=started)
+            raise
+        self._safe_observe_embedding(operation="single", outcome="success", started=started)
+        return vector
+
+    def _embed_batch(self, contents: list[str]) -> list[list[float]]:
+        started = time.monotonic()
+        try:
+            vectors = self._port.embed_batch(contents)
+        except Exception as exc:
+            if self._is_content_too_long(exc):
+                outcome = "permanent_rejection"
+            elif isinstance(exc, ProviderError):
+                outcome = "transient_failure"
+            else:
+                outcome = "other_error"
+            self._safe_observe_embedding(operation="batch", outcome=outcome, started=started)
+            raise
+        self._safe_observe_embedding(operation="batch", outcome="success", started=started)
+        return vectors
 
     @staticmethod
     def _is_content_too_long(exc: Exception) -> bool:
@@ -227,7 +314,7 @@ class EmbeddingService:
             return
 
         try:
-            vec = self._port.embed(content)
+            vec = self._embed_single(content)
         except Exception as exc:
             if self._is_content_too_long(exc):
                 self._write_tombstone(memory_id, content)
@@ -298,7 +385,7 @@ class EmbeddingService:
             chunk = candidates[start : start + _BACKFILL_CHUNK_SIZE]
             vectors: list[list[float]] | None
             try:
-                vectors = self._port.embed_batch([item.content for item in chunk])
+                vectors = self._embed_batch([item.content for item in chunk])
                 if len(vectors) != len(chunk):
                     # Boundary distrust at the service too: a wrong
                     # cardinality means per-vector attribution would be
@@ -331,7 +418,7 @@ class EmbeddingService:
 
             for i, item in enumerate(chunk):
                 try:
-                    vec = vectors[i] if vectors is not None else self._port.embed(item.content)
+                    vec = vectors[i] if vectors is not None else self._embed_single(item.content)
                     published = self._store.save_embedding(
                         item.id,
                         vec,
@@ -343,6 +430,7 @@ class EmbeddingService:
                     )
                     if published:
                         count += 1
+                        self._safe_observe_backfill_item("generated")
                     else:
                         # CAS refusal: the memory changed or vanished
                         # while this batch ran. Not a provider failure —
@@ -357,10 +445,26 @@ class EmbeddingService:
                         # CAS-refused tombstone (content moved mid-run)
                         # counts nothing — the row stays a candidate,
                         # mirroring the ok-path refusal.
-                        if self._write_tombstone(item.id, item.content):
-                            tombstoned += 1
+                        try:
+                            if self._write_tombstone(item.id, item.content):
+                                tombstoned += 1
+                                self._safe_observe_backfill_item("tombstoned")
+                        except Exception as tombstone_exc:
+                            # Parking is persistence work. If it fails, the
+                            # item is a generic failed outcome, not a provider
+                            # rejection that was successfully classified.
+                            failed += 1
+                            self._safe_observe_backfill_item("failed")
+                            self._record_failure("backfill")
+                            logger.warning(
+                                "Embedding tombstone write failed for memory %s: %s",
+                                item.id,
+                                tombstone_exc,
+                                exc_info=True,
+                            )
                         continue
                     failed += 1
+                    self._safe_observe_backfill_item("failed")
                     self._record_failure("backfill")
                     # Same split as the batch path: known ProviderError →
                     # one line with the actionable message, stack at DEBUG.
@@ -500,15 +604,19 @@ class EmbeddingService:
         # include_pinned=False unconditionally here — as this did until
         # 2026-08-23 — is what kept every unfloated pin invisible to the
         # keyword channel.
-        keyword_results = self._store.search_memory(
-            query,
-            top_k=effective_top_k * 2,  # over-fetch for RRF merge
-            project_id=project_id,
-            include_pinned=include_pinned,
-            tags=tags,
-            phrase=phrase,
-            exclude_ids=pinned_ids,
-        )
+        keyword_started = time.monotonic()
+        try:
+            keyword_results = self._store.search_memory(
+                query,
+                top_k=effective_top_k * 2,  # over-fetch for RRF merge
+                project_id=project_id,
+                include_pinned=include_pinned,
+                tags=tags,
+                phrase=phrase,
+                exclude_ids=pinned_ids,
+            )
+        finally:
+            self._safe_observe_stage(stage="keyword_lookup", started=keyword_started)
 
         # ── Semantic search (list B) ─────────────────────────────────────
         # Embedding-failure degradation: if the provider raises, log it,
@@ -536,11 +644,13 @@ class EmbeddingService:
                 # An over-length QUERY is caller content, not provider
                 # health (ADR 0009): degrade to keyword-only without
                 # touching either failure counter.
+                self._safe_observe_fallback(reason="over_length_query")
                 logger.info("semantic query exceeds the embedding model's context; returning keyword-only results")
                 return _page(_wrap_keyword_ranked(keyword_results))
             self._search_failure_count += 1
             self._record_failure("search")
             self._last_search_failure_at = self._last_failure_at
+            self._safe_observe_fallback(reason="provider_failure")
             logger.warning(
                 "embedding search failed (%d total); degrading to FTS5-only: %s",
                 self._search_failure_count,
@@ -549,6 +659,7 @@ class EmbeddingService:
             return _page(_wrap_keyword_ranked(keyword_results))
 
         # ── RRF merge ──────────────────────────────────────────────────
+        fusion_started = time.monotonic()
         keyword_rank: dict[str, int] = {item.id: rank for rank, item in enumerate(keyword_results, start=1)}
         semantic_rank: dict[str, int] = {mid: rank for rank, (mid, _sim) in enumerate(semantic_ranked, start=1)}
         semantic_sim: dict[str, float] = dict(semantic_ranked)
@@ -615,7 +726,9 @@ class EmbeddingService:
                     keyword_rank=kr,
                 )
             )
-        return _page(merged)
+        result = _page(merged)
+        self._safe_observe_stage(stage="fusion_materialization", started=fusion_started)
+        return result
 
     def _semantic_search(
         self,
@@ -637,23 +750,28 @@ class EmbeddingService:
         """
         import numpy as np
 
-        query_vec = self._port.embed(query)
+        query_vec = self._embed_single(query)
         # Space-scoped (ADR 0005): provider + model + MEASURED query
         # dimensions. A row from another provider under the same label,
         # a migration sentinel, or a different-dims row is invisible to
         # ranking — never mixed in.
-        all_embeddings = self._store.list_embeddings(
-            model=self._port.model_name(),
-            provider=self._port.provider_name(),
-            dimensions=len(query_vec),
-            settings_fingerprint=self._port.settings_fingerprint(),
-            model_revision=self._port.model_revision(),
-            match_revision=True,
-        )
+        vector_load_started = time.monotonic()
+        try:
+            all_embeddings = self._store.list_embeddings(
+                model=self._port.model_name(),
+                provider=self._port.provider_name(),
+                dimensions=len(query_vec),
+                settings_fingerprint=self._port.settings_fingerprint(),
+                model_revision=self._port.model_revision(),
+                match_revision=True,
+            )
+        finally:
+            self._safe_observe_stage(stage="vector_loading", started=vector_load_started)
 
         if not all_embeddings:
             return []
 
+        candidate_started = time.monotonic()
         ids = [mid for mid in all_embeddings if mid not in exclude_ids] if exclude_ids else list(all_embeddings)
         # Eligibility BEFORE the top-k window: with the filter applied
         # only after selection (as until 2026-08-28), out-of-scope
@@ -664,6 +782,7 @@ class EmbeddingService:
             eligible = self._store.eligible_memory_ids(project_id=project_id, tags=tags)
             ids = [mid for mid in ids if mid in eligible]
         if not ids:
+            self._safe_observe_stage(stage="candidate_prep_scoring", started=candidate_started)
             return []
 
         matrix = np.asarray([all_embeddings[mid] for mid in ids], dtype=np.float32)
@@ -675,7 +794,9 @@ class EmbeddingService:
         top_unsorted = np.argpartition(-scores, k - 1)[:k] if k < scores.shape[0] else np.arange(scores.shape[0])
         top_sorted = top_unsorted[np.argsort(-scores[top_unsorted])]
         # float() — np.float32 is not JSON-serializable downstream.
-        return [(ids[i], float(scores[i])) for i in top_sorted]
+        result = [(ids[i], float(scores[i])) for i in top_sorted]
+        self._safe_observe_stage(stage="candidate_prep_scoring", started=candidate_started)
+        return result
 
     def search_semantic(
         self,

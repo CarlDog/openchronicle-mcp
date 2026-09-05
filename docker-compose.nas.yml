@@ -1,8 +1,10 @@
 # OpenChronicle v3 — NAS deployment (Portainer stack)
 #
-# Single service. The unified ASGI process serves the HTTP REST surface
+# The unified ASGI service serves the HTTP REST surface
 # at /api/v1/* and the MCP streamable-HTTP transport at /mcp on the same
-# port. v2's three-service split (serve / mcp / discord) is gone with
+# port. The optional `metrics` profile adds a local Prometheus collector; it
+# is not started by the default compose invocation. v2's three-service split
+# (serve / mcp / discord) is gone with
 # the conversation/Discord/separate-MCP subsystems on
 # `archive/openchronicle.v2`.
 #
@@ -55,6 +57,16 @@
 #                           private repos (fine-grained, contents:read
 #                           scope). Public repos work without it.
 #
+#   Optional — metrics profile (off unless explicitly selected):
+#     OC_METRICS_ENABLED       Set true before starting the `metrics` profile.
+#     HOST_PROMETHEUS_PORT     Loopback UI port (default: 19090).
+#     HOST_PROMETHEUS_DATA_DIR Local filesystem for collector data; the
+#                              default is the named `prometheus-data` volume.
+#     HOST_PROMETHEUS_SECRETS_DIR Local directory containing `oc-api-key`
+#                              when authenticated scraping is used.
+#     PROMETHEUS_CONFIG_FILE   `/etc/prometheus/openchronicle.yml` by default;
+#                              use `openchronicle-auth.yml` with OC_API_KEY.
+#
 # Image: ghcr.io/carldog/openchronicle-mcp (linux/amd64, published by
 # GitHub Actions on every push to main).
 
@@ -62,7 +74,8 @@ services:
   oc:
     image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:?set OC_TAG to the release tag this stack should run (e.g. v3.0.0) — no :latest fallback}
     restart: unless-stopped
-    network_mode: bridge
+    networks:
+      - oc-observability
     ports:
       - "${HOST_HTTP_PORT:-18000}:8000"
     environment:
@@ -76,15 +89,18 @@ services:
       # Bind the unified ASGI to all interfaces inside the container.
       OC_API_HOST: 0.0.0.0
       OC_API_PORT: "8000"
+      # Runtime collection remains off unless the operator explicitly enables
+      # it together with the optional Prometheus profile.
+      OC_METRICS_ENABLED: ${OC_METRICS_ENABLED:-false}
       # Auth + CORS (Portainer stack env):
       OC_API_KEY: ${OC_API_KEY:-}
       OC_API_CORS_ORIGINS: ${OC_API_CORS_ORIGINS:-}
       # Rate limit ceiling — the var behind the mnemosyne Phase C
       # incident; must be Portainer-tunable without a compose edit:
       OC_API_RATE_LIMIT_RPM: ${OC_API_RATE_LIMIT_RPM:-}
-      # REST Host allowlist; empty falls back to OC_MCP_ALLOWED_HOSTS
-      # so the one stack var below protects both surfaces:
-      OC_API_ALLOWED_HOSTS: ${OC_API_ALLOWED_HOSTS:-}
+      # REST Host allowlist. The default includes the private `oc` service
+      # alias for the profile-gated collector; retain it when overriding.
+      OC_API_ALLOWED_HOSTS: ${OC_API_ALLOWED_HOSTS:-127.0.0.1:*,localhost:*,[::1]:*,oc:*}
       # Embeddings (Portainer stack env; default 'none' = FTS5-only):
       OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
       OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
@@ -138,7 +154,35 @@ services:
       retries: 3
       start_period: 30s
 
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    profiles: [metrics]
+    restart: unless-stopped
+    networks:
+      - oc-observability
+    depends_on:
+      oc:
+        condition: service_healthy
+    command:
+      - --config.file=${PROMETHEUS_CONFIG_FILE:-/etc/prometheus/openchronicle.yml}
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=14d
+      - --storage.tsdb.retention.size=1GB
+    ports:
+      - "127.0.0.1:${HOST_PROMETHEUS_PORT:-19090}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/openchronicle.yml:ro
+      - ./monitoring/prometheus/prometheus-auth.yml:/etc/prometheus/openchronicle-auth.yml:ro
+      - ${HOST_PROMETHEUS_DATA_DIR:-prometheus-data}:/prometheus
+      - ${HOST_PROMETHEUS_SECRETS_DIR:-prometheus-secrets}:/etc/prometheus/secrets:ro
+
 volumes:
   oc-data:
   oc-config:
   oc-output:
+  prometheus-data:
+  prometheus-secrets:
+
+networks:
+  oc-observability:
+    driver: bridge

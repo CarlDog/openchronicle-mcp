@@ -141,6 +141,15 @@ Hardened 2026-07-30 (the review-driven CI batch):
   `18000:8000`). Set `HOST_HTTP_PORT` to relocate.
 - `extra_hosts: host.docker.internal:host-gateway` lets the container
   reach Ollama running on the NAS host. No reverse direction.
+- The optional `metrics` compose profile puts OC and Prometheus on a private
+  `oc-observability` network. Prometheus UI port `19090` is bound to NAS
+  loopback only by default; it is not a LAN service. Its history volume is
+  separate from OC's memory, config, and output volumes.
+- When `OC_API_KEY` is set, use the authenticated Prometheus config and mount
+  the token through the operator-managed `oc-api-key` file. The default
+  collector config intentionally contains no secret. Keep `oc:*` in
+  `OC_API_ALLOWED_HOSTS` when overriding the NAS compose default so the
+  private collector target passes the REST Host allowlist.
 - **DNS-rebinding defense: Host-header allowlists on both surfaces.**
   A containerized service can't be secured by its bind address (it
   binds `0.0.0.0` to be reachable at all), and a malicious web page

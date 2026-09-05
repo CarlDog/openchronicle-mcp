@@ -25,6 +25,9 @@ services:
       OC_OUTPUT_DIR: /output
       OC_API_HOST: 0.0.0.0
       OC_API_PORT: "8000"
+      # Runtime metrics are available in the image but remain disabled by
+      # default. Set OC_METRICS_ENABLED=true explicitly to expose /metrics.
+      OC_METRICS_ENABLED: ${OC_METRICS_ENABLED:-false}
       # Set OC_API_KEY to require auth on /api/v1/* and /mcp.
       OC_API_KEY: ${OC_API_KEY:-}
       # Embeddings: set OC_EMBEDDING_PROVIDER to one of stub/openai/ollama

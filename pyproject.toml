@@ -50,6 +50,12 @@ ollama = [
 	"httpx>=0.25.0",
 	"numpy>=1.24",
 ]
+metrics = [
+	# Kept as an extra so local installs can remain dependency-free when
+	# OC_METRICS_ENABLED is false. The standard image and dev extra include
+	# it, so enabling metrics is an environment-only switch there.
+	"prometheus-client>=0.23.1",
+]
 mcp = [
 	# Floor 1.29: the version the MCP surface baselines were captured on
 	# (tests/test_mcp_tool_schema_snapshot.py, tests/test_mcp_error_shape.py).
@@ -83,6 +89,7 @@ dev = [
 	# version they were never captured on.
 	"mcp>=1.29.1,<2",
 	"numpy>=1.24",
+	"prometheus-client>=0.23.1",
 ]
 
 [tool.pytest.ini_options]

@@ -34,6 +34,11 @@ MCP from a single ASGI process. Runs on your hardware.
   degraded state via `/api/v1/health` and the MCP `health` tool.
   Backfill catches up when the provider returns; the static `/health`
   endpoint remains a minimal liveness probe.
+- **Optional operational metrics.** The standard image includes the bounded
+  Prometheus recorder and guarded `/metrics` endpoint. Enable it explicitly
+  with `OC_METRICS_ENABLED=true`; it remains off by default. See the
+  [metrics configuration](docs/configuration/env_vars.md) and the optional
+  [local monitoring runbook](docs/monitoring/runbook.md).
 - **Schema migration framework.** Versioned `.sql` migrations with
   savepoint atomicity. Re-runs are idempotent. Future schema changes
   drop in as `NNN_<slug>.sql` files.

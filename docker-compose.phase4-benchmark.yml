@@ -1,0 +1,23 @@
+# One-shot sequential comparison. No access to the live OC network or volumes.
+# Fetch OC_BENCHMARK_REPORT from container logs before removing this stack.
+services:
+  benchmark:
+    image: ${OC_BENCHMARK_IMAGE:?set the immutable benchmark image digest}
+    restart: "no"
+    network_mode: none
+    # Equal placement for every case, not exclusive CPUs or a CFS quota.
+    cpuset: ${OC_BENCHMARK_CPUSET:-0-1}
+    user: "1000:1000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=512m,uid=1000,gid=1000
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "1"

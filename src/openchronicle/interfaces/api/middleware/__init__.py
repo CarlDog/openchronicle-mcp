@@ -6,9 +6,11 @@ import os
 
 from fastapi import FastAPI
 
+from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.interfaces.api.middleware.auth import APIKeyMiddleware
 from openchronicle.interfaces.api.middleware.host_allowlist import HostAllowlistMiddleware
+from openchronicle.interfaces.api.middleware.metrics import MetricsMiddleware
 from openchronicle.interfaces.api.middleware.rate_limit import RateLimitMiddleware
 
 # Paths that are always exempt from authentication.
@@ -18,11 +20,11 @@ from openchronicle.interfaces.api.middleware.rate_limit import RateLimitMiddlewa
 _AUTH_EXEMPT_PATHS = ("/health", "/api/v1/health")
 
 
-def register_middleware(app: FastAPI, config: HTTPConfig) -> None:
+def register_middleware(app: FastAPI, config: HTTPConfig, *, metrics: MetricsRecorder | None = None) -> None:
     """Register all middleware on the FastAPI app.
 
     Middleware executes in reverse registration order (last registered = outermost).
-    Order: host_allowlist (outermost) → rate_limit → CORS → auth → handler.
+    Order: metrics → host_allowlist → rate_limit → CORS → auth → handler.
     """
     # Auth middleware — skipped if no API key configured
     if config.api_key:
@@ -51,3 +53,9 @@ def register_middleware(app: FastAPI, config: HTTPConfig) -> None:
     # rate-limit/auth ever see the request. DNS-rebinding defense for
     # the REST surface; /mcp is skipped (FastMCP guards it itself).
     app.add_middleware(HostAllowlistMiddleware, allowed_hosts=config.allowed_hosts)
+
+    # Metrics is outermost so early access-guard responses and abnormal
+    # terminations are measured once. Its recorder excludes health, docs,
+    # and the scrape endpoint from application-traffic series.
+    if metrics is not None:
+        app.add_middleware(MetricsMiddleware, recorder=metrics)

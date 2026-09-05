@@ -13,9 +13,13 @@ from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.requests import Request
 
+from openchronicle.core.application.observability.exporter import (
+    MetricsScrapeBusyError,
+    MetricsScrapeError,
+)
 from openchronicle.core.domain.errors.error_codes import FILE_NOT_FOUND, INTERNAL_ERROR
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.config import HTTPConfig
@@ -50,6 +54,16 @@ def create_app(
 
         mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"))
         mcp_server = create_server(container, mcp_config)
+
+    metrics_candidate = getattr(container, "metrics", None)
+    metrics_recorder = metrics_candidate if isinstance(getattr(metrics_candidate, "enabled", None), bool) else None
+    exporter_candidate = getattr(container, "metrics_exporter", None)
+    metrics_exporter = (
+        exporter_candidate
+        if isinstance(getattr(exporter_candidate, "content_type", None), str)
+        and callable(getattr(exporter_candidate, "render", None))
+        else None
+    )
 
     # Build the maintenance loop unless explicitly disabled. The loop
     # itself is started inside the lifespan so it shares the asyncio
@@ -99,7 +113,7 @@ def create_app(
 
     from openchronicle.interfaces.api.middleware import register_middleware
 
-    register_middleware(app, config)
+    register_middleware(app, config, metrics=metrics_recorder)
 
     from openchronicle.core.domain.exceptions import (
         NotFoundError,
@@ -170,5 +184,17 @@ def create_app(
     @app.get("/health", include_in_schema=False)
     def liveness() -> dict[str, str]:
         return {"status": "ok"}
+
+    if metrics_exporter is not None:
+
+        @app.get("/metrics", include_in_schema=False)
+        async def metrics() -> Response:
+            try:
+                body = await metrics_exporter.render()
+            except MetricsScrapeBusyError:
+                return Response(status_code=503, headers={"Retry-After": "1"})
+            except MetricsScrapeError:
+                return Response(status_code=503)
+            return Response(content=body, media_type=metrics_exporter.content_type)
 
     return app

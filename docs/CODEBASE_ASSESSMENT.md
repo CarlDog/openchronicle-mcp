@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-08-29 · **Revision:** 170
+**Snapshot date:** 2026-09-04 · **Revision:** 179
 
 ## Current state
 
@@ -19,13 +19,13 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | **`v3.2.0`** (2026-08-29), image tag `v3.2.0`, Portainer stack 151, endpoint 2, port `18000`. Verified live: `health.package_version` reports `3.2.0` AND `health.build_revision` reports `d783f11f…` — the tag commit exactly. Embedding provider LAN-local `ollama/nomic-embed-text`, `content_egress: local`, 863/872 embedded (9 over-length rows pending ADR 0009) |
+| Deployed release | **`v3.3.0`**, verified 2026-09-04: Portainer stack 151, endpoint 2, port `18000`; `health.package_version=3.3.0`, `health.build_revision=7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`. Embedding provider LAN-local `ollama/nomic-embed-text`, `content_egress: local`, active with no missing/stale embeddings. Production container unchanged by this work |
 | Deploy verification | `health.package_version` for a version change; `health.build_revision` for a same-version redeploy — since rev 118 CI bakes the full git SHA into the image and health/`oc version` report it (images built earlier read `"unknown"`; fall back to the `org.opencontainers.image.revision` label for those). Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | **Main is ahead**: 0002 batch B (`memory_list` filters, rev 129) landed after the `v3.1.0` tag and ships with the next tagged release. Stack 151 is tag-pinned via `OC_TAG`; code goes live only when it moves — a push alone deploys nothing |
+| Main vs deployed | Local `main` contains the performance instrumentation; production remains the tagged `v3.3.0` image. Stack 151 is tag-pinned via `OC_TAG`; code goes live only when it moves — a push alone deploys nothing |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
-| Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs `openai` embeddings |
+| Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 844 (pytest; per-commit via pre-commit hook and CI) |
+| Tests | 895 in the current working tree (844 at revision 170; pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -75,6 +75,40 @@ drivers in `interfaces/`), enforced by tests — see
   re-check is a diff).
   Every
   code-level finding from the 2026-08-15 review is now closed.
+- **Application performance measurement (design 0010)** — Phases 1–3 are
+  implemented and verified in the working tree, and Phase 4 has been
+  evaluated and retested on a controlled host, including a two-CPU process-
+  affinity follow-up. The standard image and development extra
+  contain `prometheus-client`; runtime collection remains off by default
+  (`OC_METRICS_ENABLED=false`). The optional local Prometheus profile, saved
+  query catalog, runbook, source-root probe, direct scrape loop with complete
+  attempt-duration retention, working-set sampler, and event-loop-lag sampler
+  are present. The matched scrape-
+  responsiveness gate passed, but the rotated A/B/C overhead gate is
+  inconclusive because the disabled and enabled runs are noisy and the enabled
+  retest median exceeded the 5% throughput-loss limit; the affinity follow-up
+  still produced an 11.62% enabled median loss and a 0.18–14.08% disabled /
+  8.69–16.18% enabled spread. Process affinity was insufficient; release and
+  enabling are blocked. A post-reboot serialized-setup same-run pilot passed,
+  but its full three-probe matrix was ineligible with 2,438/2,488/2,285
+  failures (mostly connection failures); an isolated clean-base control was
+  clean, so the concurrent method saturated this host. A follow-up using
+  equal rotating eight-CPU partitions and per-worker keep-alive connections
+  produced three eligible blocks, but B/C median throughput losses were
+  1.351%/10.867% with reversed order effects (corrected from raw reports; the
+  previous narrative confused maxima with medians). Release/enabling remain
+  blocked. A separate NAS observation stack is deployed with successful
+  scrapes; restart-history retention is not yet verified there. The operator
+  approved sequential testing on CARLDOG-NAS; dedicated hardware is not an
+  application requirement. After upload approval, the twelve-case sequential
+  NAS run completed in 505.56 seconds: 25,995 successful requests, zero
+  failures/timeouts, unchanged corpora and successful enabled scrapes. B/C
+  median throughput losses were 4.678%/8.344%, but a repeated A control slowed
+  by 5.331% and latency controls also exceeded budget; both comparisons remain
+  inconclusive. Evidence is retained under
+  `data/performance/phase4-20260904/nas-sequential/`. Only the one-shot benchmark
+  stack was removed afterward. Production and the observation stack remain
+  healthy and unchanged; no release or production deployment was performed.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
   local retrieval/embedding integrity defects plus one demonstrated
   filtered-recency need; the same review benchmark-gates MMR and keeps
@@ -109,6 +143,15 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 179 (working tree) | 2026-09-04 | **Sequential NAS benchmark completed, gate inconclusive.** After the operator cleared the image-upload pause, Portainer ran twelve sequential cases with repeated A/A controls and unchanged budgets. All 25,995 requests succeeded; corpora matched and C scrapes passed. B/C median throughput losses 4.678%/8.344%; the last baseline control lost 5.331%, with excessive latency variability as well. Report independently recalculated and retained; only disposable benchmark stack 204 was removed. Production and observation stack unchanged. Full suite: 895 passed; lint/types/Compose checks passed. No release/production deployment. |
+| 178 | 2026-09-04 | **Performance measurement Phase 4 resource-isolated same-run follow-up remained inconclusive.** Three rotated A/B/C matrices used equal eight-logical-CPU partitions and per-worker keep-alive REST connections; all conditions completed with zero application failures/timeouts, unchanged corpora, and successful C scrapes. Corrected raw-report medians: B throughput loss 1.351%, C 10.867%; search-p95 deltas +1.853/+11.204 ms. Earlier prose incorrectly used maxima. Signs reversed across blocks; B medians were within budget but noisy, while C exceeded throughput/search budgets. No release or enabling approval. Reports: `data/performance/phase4-20260904/same-run/isolated-*.json`; no release or deployment at that milestone. |
+| 177 | 2026-09-04 | **Performance measurement Phase 4 same-run harness attempt was ineligible.** After reboot, the serialized-setup process harness passed ruff, mypy, 15 focused probe tests, and a short zero-failure pilot. Its full A/B/C run at corpus 1,000 and eight clients recorded 2,438/2,488/2,285 failed operations (mostly connection failures), and C's only scrape failed; an isolated clean-base A control at the same workload was clean. The concurrent three-probe method saturated this host, so it supplied no overhead evidence and was not repeated. The sanitized report is retained under `data/performance/phase4-20260904/same-run/`; a dedicated host or explicitly authorized resource-isolated method is now required. Release/enabling remain blocked; no release or deployment was run. |
+| 176 | 2026-09-04 | **Performance measurement Phase 4 affinity follow-up remained inconclusive.** Three rotated A/B/C blocks ran with the probe and its disposable server confined to the same two logical CPUs; all cases completed without application failures or timeouts. B (metrics disabled) had 3.91% median throughput loss, +5.119 ms search p95, and +0.243 ms list p95; C (enabled/scraped) had 11.62% loss, +10.192 ms search p95, and +2.919 ms list p95. The A baseline still ranged 150.83–163.83 requests/sec, with loss spreads of 0.18–14.08% (B) and 8.69–16.18% (C), so process affinity did not remove host/order noise. Release/enabling remain blocked; no tag, deployment, rollback, or commit was performed. |
+| 175 | 2026-09-04 | **Performance probe scrape reporting hardened.** Every direct scrape attempt now retains its sanitized duration, including failures; the scraper bypasses ambient proxies and rejects sub-10-ms intervals to keep the bounded report from becoming an unbounded memory sink. Focused probe tests passed 14/14 and the full suite passed 873/873 under disposable Git-template isolation; no release or deployment was run. |
+| 174 | 2026-09-04 | **Performance measurement Phase 4 retest remained inconclusive.** Three additional rotated blocks were attempted under the original fixed workload; one clean-base case had 564 connection failures and was excluded, leaving six valid matched blocks. Their within-block medians were B (metrics disabled) 3.92% throughput loss, +1.223 ms search p95, +1.252 ms list p95, and 0.000 MiB RSS; C (enabled/scraped) 5.90% throughput loss, +5.202 ms search p95, +2.143 ms list p95, and 0.000 MiB RSS. The valid block spread (B −3.62% to +8.33%; C −36.82% to +12.90%) and a large A baseline speed shift show run-order/resource-state noise, so release/enabling remain blocked. Reports are retained under `data/performance/phase4-20260904/retest/`; no code release or deployment was run. |
+| 173 | 2026-09-04 | **Performance measurement Phase 4 evaluated in the working tree.** The disposable probe now launches a validated source root, controls the child metrics state, records process working-set peaks and event-loop lag, and can apply bounded direct `/metrics` scrapes. Three rotated fixed-workload A/B/C blocks made latency and RSS gates pass but were inconclusive on throughput: metrics-disabled B lost 5.20% and metrics-enabled/scraped C lost 6.22% against the 5% limit, with block spread treated as noise. A matched 150-second scrape-responsiveness stress run passed (1,555/1,555 scrapes; 85.383 ms max scrape duration; p99 deltas within the responsiveness budget). Release/enabling remains blocked; no tag, deployment, rollback, or commit was performed. Tests: 871. |
+| 172 | 2026-09-04 | **Performance measurement Phase 3 implemented in the working tree.** Added the profile-gated Prometheus v3.14.0 collector configuration on a private compose network with 30-second scrapes, 5-second timeout, 14-day/1-GB retention, separate local data/secrets mounts, and an authenticated config variant; added the saved PromQL catalog, operator runbook, and static contracts. Runtime metrics remain disabled by default. A disposable Docker scrape/restart smoke check passed; live NAS verification, release, and deployment are not included. Tests: 869. |
+| 171 | 2026-09-04 | **Performance measurement Phases 1–2 implemented in the working tree.** Phase 1's disposable REST/MCP concurrency probe remains verified. Phase 2 adds the optional `prometheus-client` extra (included in the standard Docker image and dev extra while `OC_METRICS_ENABLED=false` remains the runtime default), one per-container no-op or Prometheus recorder, guarded `/metrics` with single-worker off-loop serialization and cancellation ownership, REST/MCP/SQLite-lock/embedding/search/maintenance/backfill instrumentation, fixed-cardinality/privacy bounds, and 10 contract tests. Local history, release, and deployment are not included. |
 | 170 | 2026-08-29 | **v3.3.0 tagged — the health-honesty release.** Carries ADR 0009 end-to-end (permanent embed-failure classification: tombstones, `unembeddable` bucket, `tombstoned` accounting, `CONTENT_TOO_LONG` at both adapters with the live-captured OpenAI shape) plus `memory_embed background=true` (started-job reindexes) and the sweep-era harness tooling. Docs swept for release: Current Sprint rewritten in place (the 2026-08-28 narrative head was stale), CHANGELOG rolled to v3.3.0 with the deploy note, version bumped. Deploy sequence: tag green → `OC_TAG` → verify `build_revision` → one backfill parks the 9 over-length rows → live health flips `degraded`/`stale: 9` → `active`/`unembeddable: 9` |
 | 169 | 2026-08-29 | **ADR 0009 implementation merged to `main` (fast-forward to `0ad0e50d`, 844 tests) + the ADR's implementation note recorded.** The mandated live OpenAI capture FALSIFIED the ADR's named error shape — the real endpoint sends `code: null` with "maximum input length is 8192 tokens", so both spec'd matchers alone would never classify it; the shipped fallback adds the captured phrase and pins the body verbatim (the verify-against-a-captured-response rule earning its keep). The verification round's one surviving mutation (tombstone `model_revision` unpinned — a None-revision blind spot that would have read every live tombstone as space-stale forever) was closed with a non-None-revision kill test. Queue item 4 closed. Deploy note stands: the next v3.x tag flips the live NAS from `degraded`/`stale: 9` to `active`/`unembeddable: 9` after one backfill |
 | 168 | 2026-08-29 | **ADR 0009 mutation-review fix pass** (branch `adr-0009-impl`; tests only — zero `src/` change). The review's mutation pass found ONE suite-surviving mutation: hardcoding `model_revision=None` in `_write_tombstone` (equivalent to omitting the optional kwarg) passed all 843 tests, because every test port reports `model_revision() → None` — a wrong-revision tombstone reads current (None == None) and the write-shape test never asserted the field. Live consequence of the undetectable slip: the NAS Ollama port reports a non-None manifest digest, so every tombstone would be instantly space-stale — `unembeddable: 0`, `space_mismatch: 9`, re-parked every backfill forever, the exact loop ADR 0009 exists to stop. Fix: `_LimitedContextPort` gains a `revision` ctor param (default None, behavior-preserving); new kill-test `test_tombstone_pins_the_ports_model_revision` parks under `revision="sha256:abc123"` and pins the stored `model_revision`, `unembeddable == 1` / `space_mismatch == 0` (which also pins `embedding_status`'s revision pass-through into `count_unembeddable_embeddings`, matched `IS ?`), and the zero-candidate re-run; the storage write-shape test now passes and asserts a non-None `model_revision`, completing the ADR §2 identity it checks. Kill verified: the mutation was re-applied, fails the new test, and was reverted. 843 → 844 tests |

@@ -28,7 +28,14 @@ repos:
       - id: mypy
         name: Type check with Mypy
         args: [src, tests, --config-file=pyproject.toml]
-        additional_dependencies: [pytest, "fastapi>=0.110.0", "uvicorn[standard]>=0.27.0", "mcp>=1.0.0"]
+        additional_dependencies:
+          [
+            pytest,
+            "fastapi>=0.110.0",
+            "uvicorn[standard]>=0.27.0",
+            "mcp>=1.29.1,<2",
+            "prometheus-client>=0.23.1",
+          ]
         pass_filenames: false
 
   # Markdown Linting

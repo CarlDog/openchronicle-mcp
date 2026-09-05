@@ -26,6 +26,7 @@ import asyncio
 import json
 import logging
 import os
+import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -41,7 +42,7 @@ _logger = logging.getLogger(__name__)
 
 # Handler signature: async function that takes the container and returns
 # nothing. Failures must raise; the loop catches and counts.
-JobHandler = Callable[["CoreContainer"], Awaitable[None]]
+JobHandler = Callable[["CoreContainer"], Awaitable[object]]
 
 
 @dataclass
@@ -94,6 +95,22 @@ class MaintenanceLoop:
         self._global_lock: asyncio.Lock = asyncio.Lock()
         self._inflight: set[asyncio.Task[None]] = set()
 
+    def _safe_observe_job(self, *, name: str, outcome: str, duration_seconds: float | None = None) -> None:
+        try:
+            self._container.metrics.observe_job(
+                name=name,
+                outcome=outcome,
+                duration_seconds=duration_seconds,
+            )
+        except Exception:  # metrics must never stop maintenance
+            _logger.warning("metrics recorder failed while observing maintenance job", exc_info=False)
+
+    def _safe_set_last_success(self, *, name: str, timestamp: datetime) -> None:
+        try:
+            self._container.metrics.set_job_last_success(name=name, timestamp_seconds=timestamp.timestamp())
+        except Exception:  # metrics must never stop maintenance
+            _logger.warning("metrics recorder failed while seeding maintenance success", exc_info=False)
+
     def status(self) -> list[dict[str, Any]]:
         """Snapshot of every job's runtime state, JSON-safe."""
         out: list[dict[str, Any]] = []
@@ -119,6 +136,9 @@ class MaintenanceLoop:
         if self._task is not None:
             return
         self._load_state()
+        for job in self._jobs.values():
+            if job.last_success_at is not None:
+                self._safe_set_last_success(name=job.name, timestamp=job.last_success_at)
         self._stop_event.clear()
         self._task = asyncio.create_task(self._run(), name="oc-maintenance")
         _logger.info(
@@ -180,6 +200,7 @@ class MaintenanceLoop:
                     if job._lock.locked():
                         job.runs_skipped_overlap += 1
                         job.last_outcome = "skipped_overlap"
+                        self._safe_observe_job(name=job.name, outcome="overlap")
                         _logger.warning(
                             "maintenance job %s skipped: previous run still in progress",
                             job.name,
@@ -204,6 +225,8 @@ class MaintenanceLoop:
     async def _invoke(self, job: JobState) -> None:
         # job._lock = next-tick overlap detection. self._global_lock =
         # process-wide mutex so two jobs never run simultaneously.
+        started = time.monotonic()
+        metric_outcome = "failure"
         async with job._lock, self._global_lock:
             handler = self._handlers.get(job.name)
             if handler is None:
@@ -213,21 +236,31 @@ class MaintenanceLoop:
                 job.runs_failed += 1
                 job.runs_total += 1
                 job.last_run_at = utc_now()
+                self._safe_observe_job(
+                    name=job.name,
+                    outcome="failure",
+                    duration_seconds=time.monotonic() - started,
+                )
                 return
 
             _logger.info("maintenance job %s: running", job.name)
             succeeded = False
             try:
-                await handler(self._container)
+                result = await handler(self._container)
                 job.last_outcome = "ok"
                 job.last_error = None
                 job.runs_ok += 1
                 succeeded = True
+                metric_outcome = "partial" if _job_result_is_partial(result) else "success"
             except Exception as exc:
                 _logger.exception("maintenance job %s failed", job.name)
                 job.last_outcome = "failed"
                 job.last_error = str(exc)
                 job.runs_failed += 1
+                metric_outcome = "failure"
+            except asyncio.CancelledError:
+                metric_outcome = "cancel"
+                raise
             finally:
                 job.runs_total += 1
                 # One timestamp for both, so a successful run reads
@@ -238,6 +271,12 @@ class MaintenanceLoop:
                 job.last_run_at = now
                 if succeeded:
                     job.last_success_at = now
+                    self._safe_set_last_success(name=job.name, timestamp=now)
+                self._safe_observe_job(
+                    name=job.name,
+                    outcome=metric_outcome,
+                    duration_seconds=time.monotonic() - started,
+                )
                 await asyncio.to_thread(self._persist_state)
 
     @staticmethod
@@ -341,6 +380,11 @@ def _is_due(job: JobState, now: datetime) -> bool:
     if job.last_run_at is None:
         return True
     return now - job.last_run_at >= timedelta(seconds=job.interval_seconds)
+
+
+def _job_result_is_partial(result: object) -> bool:
+    """Recognize the one built-in handler result that carries partial counts."""
+    return isinstance(result, Mapping) and bool(result.get("failed"))
 
 
 # ─────────────────────────────────────────────────────────────────────

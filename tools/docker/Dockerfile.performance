@@ -1,0 +1,14 @@
+# Build with a curated context containing baseline/src, candidate/src, scripts.
+# Both application trees use exactly the same existing Python/dependency image.
+ARG OC_BENCHMARK_BASE_IMAGE
+FROM ${OC_BENCHMARK_BASE_IMAGE}
+ARG BENCHMARK_BASE_REVISION
+ENV BENCHMARK_BASE_REVISION=${BENCHMARK_BASE_REVISION}
+WORKDIR /benchmark
+COPY baseline/src /benchmark/baseline/src
+COPY candidate/src /benchmark/candidate/src
+COPY scripts/probe_performance.py scripts/probe_sequential.py /benchmark/scripts/
+USER 1000:1000
+HEALTHCHECK NONE
+ENTRYPOINT ["python", "/benchmark/scripts/probe_sequential.py"]
+CMD ["--baseline-root", "/benchmark/baseline", "--candidate-root", "/benchmark/candidate", "--out", "/tmp/sequential-report.json"]

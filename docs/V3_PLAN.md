@@ -931,17 +931,59 @@ embedding-provider sweep (baselines refreshed 2026-08-29 — next due
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
-- **Concurrency load probe (0007 Stage 0, filed 2026-08-29).** Nobody
-  has measured OC under concurrent multi-client load, and 0007's
-  stage triggers are meaningless without the instrument. Build a
-  `scripts/`-level probe (sibling of `benchmark_embeddings.py`): N
-  simulated clients issuing a realistic mix (search-heavy, small
-  saves, lists) against a throwaway store seeded from the corpus
-  fixture; report latency percentiles vs N and store-lock wait share.
-  Expected first finding is already named in 0007: the single
-  connection + RLock serializes all access — the probe quantifies at
-  what N it starts to hurt, which is what schedules (or indefinitely
-  defers) Stage 1's read-pool work.
+- **Concurrency load probe (0007 Stage 0, filed 2026-08-29).** ✅ Phases 1–3
+  implemented and verified in the working tree 2026-09-04; Phase 4 was
+  evaluated and retested locally the same day. The probe and bounded metrics
+  implementation are documented in
+  [design 0010](design/0010-performance-measurement.md); the standard image
+  includes the metrics dependency but `OC_METRICS_ENABLED=false` remains the
+  runtime default. The optional local Prometheus profile includes the
+  30-second scrape, 5-second timeout, retention settings, query catalog, and
+  runbook. The source-root probe now verifies the actual child instrumentation
+  state and can record working-set, event-loop-lag, and every attempted
+  direct-scrape duration; scrape frequency is bounded at a 10-ms minimum.
+  The matched scrape-responsiveness gate passed, but the original and retest
+  A/B/C overhead gates remain inconclusive. Across six valid matched blocks,
+  B's median throughput loss was 3.92% and C's was 5.90%; B spread from
+  −3.62% to +8.33%, while C spread from −36.82% to +12.90%. One additional
+  clean-base case had 564 connection failures and was excluded. The A baseline
+  also shifted between distinct host-speed regimes, so release and enabling
+  remain blocked. A separate three-block two-CPU process-affinity follow-up
+  also completed without application failures, but retained the host/order
+  effect: B median throughput loss was 3.91% with +5.119 ms search p95, while
+  C median loss was 11.62% with +10.192 ms search p95 and +2.919 ms list p95;
+  B's loss ranged 0.18–14.08% and C's 8.69–16.18%. Process affinity was
+  insufficient. After the reboot, the serialized-setup same-run process
+  harness passed a short pilot but its full A/B/C matrix was ineligible: A/B/C
+  had 2,438/2,488/2,285 failed operations, mostly connection failures, and C's
+  only scrape failed. An isolated clean-base A control at the same corpus and
+  client count was clean, so the concurrent three-probe method saturated this
+  host; its sanitized report is retained under
+  `data/performance/phase4-20260904/same-run/`. A follow-up with equal rotating
+  eight-CPU partitions and per-worker keep-alive connections produced three
+  eligible blocks with zero failures, but B/C median throughput losses were
+  1.351%/10.867% and search-p95 deltas were +1.853/+11.204 ms (corrected
+  from retained JSON; earlier prose confused maxima with medians); order signs
+  reversed, so the result remained noisy and over budget. Reports are retained
+  under `data/performance/phase4-20260904/same-run/isolated-*.json`. The next
+  gate will use operator-approved sequential runs on CARLDOG-NAS with repeated
+  A/A controls; dedicated hardware is not required. After upload approval, all
+  twelve NAS cases completed with 25,995 successful requests and zero failures.
+  Median B/C throughput losses were 4.678%/8.344%, but the last repeated A
+  slowed by 5.331% and latency controls also breached budget, so both gates
+  remain inconclusive. The report was independently recalculated and retained
+  under `data/performance/phase4-20260904/nas-sequential/`; only the one-shot
+  benchmark stack was removed. No automatic rerun is planned. A separate observation
+  stack has verified NAS test scrapes; retained restart history and production
+  release/deployment remain unverified. The
+  delivered `scripts/`-level probe (sibling of
+  `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
+  mix (search-heavy, small saves, lists) against a throwaway store seeded from
+  the corpus fixture; report latency percentiles versus N and store-lock wait
+  share. The expected first finding is already named in 0007: the single
+  connection + RLock serializes all access — the probe quantifies at what N it
+  starts to hurt, which is what schedules (or indefinitely defers) Stage 1's
+  read-pool work.
 
 - **Permanently over-length rows keep provider health `degraded`
   forever and are retried every backfill cycle.** ✅ RESOLVED by

@@ -121,12 +121,12 @@ async def db_integrity_check(container: CoreContainer) -> None:
         _logger.info("db_integrity_check: previously-degraded flag cleared")
 
 
-async def embedding_backfill(container: CoreContainer) -> None:
+async def embedding_backfill(container: CoreContainer) -> dict[str, int] | None:
     """Generate embeddings for memories that lack them. No-op when none."""
     service = container.embedding_service
     if service is None:
         _logger.debug("embedding_backfill: no embedding service configured; skipping")
-        return
+        return None
 
     def _run() -> dict[str, int]:
         result = service.generate_missing(force=False)
@@ -160,6 +160,7 @@ async def embedding_backfill(container: CoreContainer) -> None:
             summary["generated"],
             summary["tombstoned"],
         )
+    return summary
 
 
 async def git_onboard_resync(container: CoreContainer) -> None:

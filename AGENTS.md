@@ -182,12 +182,50 @@ pushed:
   tombstones and the live NAS health flips
   `degraded`/`stale: 9` → `active`/`unembeddable: 9`.
 
+**Performance measurement (design 0010, operator-adopted 2026-09-04):**
+Phases 1–3 are implemented and verified in the working tree, and Phase 4 has
+been evaluated and retested on a controlled host, including a two-CPU process-affinity
+follow-up. The standard image and development extra
+include `prometheus-client`, but runtime metrics remain off by default
+(`OC_METRICS_ENABLED=false`). Phase 1's disposable REST/MCP probe, Phase 2's
+bounded recorder/exporter and instrumentation, and Phase 3's profile-gated
+local Prometheus configuration, saved query catalog, and runbook are complete;
+a disposable Docker scrape/restart smoke check also passed. The probe now
+retains every attempted direct-scrape duration and enforces a 10-ms minimum
+interval. The local
+scrape-responsiveness gate passed, but the original and retest A/B/C overhead
+gates remain inconclusive because host/order noise is larger than the measured
+effect; the enabled retest median also exceeded the 5% throughput-loss limit.
+The affinity follow-up still showed 0.18–14.08% disabled and 8.69–16.18%
+enabled throughput loss, with the enabled median at 11.62%. One retest case
+had connection failures and was excluded. The separate NAS observation stack
+has verified test scrapes; retained restart history and production release
+remain unverified. After
+the reboot, the serialized-setup same-run pilot passed, but the full
+three-probe matrix was ineligible with 2,438/2,488/2,285 failed operations
+(mostly connection failures); an isolated clean-base control was clean, so
+that concurrent method saturated this host. A follow-up with equal rotating
+eight-CPU partitions and per-worker keep-alive connections produced three
+eligible blocks, but corrected B/C median throughput losses were 1.351%/10.867%
+with reversed order effects; earlier prose incorrectly used maxima as medians.
+The overhead gate remains inconclusive. The operator approved sequential runs
+on CARLDOG-NAS with repeated baseline controls; dedicated hardware is not an
+application requirement. After upload approval, all twelve sequential NAS
+cases completed: 25,995 successful requests, zero failures/timeouts, matching
+corpora and successful enabled scrapes. Median B/C throughput losses were
+4.678%/8.344%, but the final repeated A slowed by 5.331% and latency controls
+also breached budget; both gates remain inconclusive. Evidence is retained
+under data/performance/phase4-20260904/nas-sequential/. The one-shot benchmark
+stack was removed; production and the observation stack are healthy and
+unchanged. Normal runtime metrics remain off. All 895 tests passed.
+
 **Active queue after this release** (V3_PLAN carries the full
-entries): (2) cloud-backup Phase 0 + restore drill (operator at a
-desktop; 0007 Stage 0), (3) the concurrency load probe (0007 Stage 0,
-self-contained), then demand-/trigger-gated items. Design 0007
-(long-term scale & resilience) is ACCEPTED with its staged
-trigger-gated path. Open operator decision: the **v4.0.0 tag** from
+entries): (1) performance-measurement Phase 4 overhead gate (sequential NAS
+measurement completed; profiling/optimization needs a separate next step),
+(2) cloud-backup Phase 0 + restore drill (operator at a desktop; 0007 Stage 0),
+then demand-/trigger-gated items. Design 0007 (long-term scale & resilience)
+is ACCEPTED with its staged trigger-gated path. Open operator decision: the
+**v4.0.0 tag** from
 `v4/develop`.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):

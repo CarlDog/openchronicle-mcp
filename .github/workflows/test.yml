@@ -72,7 +72,7 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -e ".[dev,mcp,openai,ollama]"
+        run: pip install -e ".[dev,mcp,openai,ollama,metrics]"
 
       - name: Test
         # Integration tests require live provider keys and the
@@ -94,7 +94,7 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: pip install -e ".[dev,mcp,openai,ollama]"
+        run: pip install -e ".[dev,mcp,openai,ollama,metrics]"
 
       - name: Ruff lint
         run: ruff check src tests scripts

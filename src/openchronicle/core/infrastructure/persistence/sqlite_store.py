@@ -24,6 +24,7 @@ from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
+from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.core.domain.ports.storage_port import StoragePort
 from openchronicle.core.domain.time_utils import utc_now
 from openchronicle.core.infrastructure.persistence import migrator
@@ -156,6 +157,59 @@ _MEMORY_SEARCH_LIMIT = 200
 # Application-level retry for BEGIN IMMEDIATE write-lock contention.
 _BEGIN_MAX_RETRIES = 3
 _BEGIN_BASE_DELAY = 0.5  # seconds
+_LOCK_STATE = threading.local()
+_WRITE_LOCK_METHODS = frozenset(
+    {
+        "add_project",
+        "delete_project",
+        "update_project",
+        "add_memory",
+        "set_pinned",
+        "update_memory",
+        "delete_memory",
+        "save_embedding",
+        "delete_embedding",
+    }
+)
+_MAINTENANCE_LOCK_METHODS = frozenset({"init_schema", "vacuum", "integrity_check", "backup_to"})
+
+
+def _lock_kind(method_name: str) -> Literal["read", "write", "maintenance"]:
+    if method_name in _MAINTENANCE_LOCK_METHODS:
+        return "maintenance"
+    if method_name in _WRITE_LOCK_METHODS:
+        return "write"
+    return "read"
+
+
+@contextmanager
+def _observed_lock(store: SqliteStore, *, kind: Literal["read", "write", "maintenance"]) -> Iterator[None]:
+    """Acquire the RLock and publish only the outermost wait/hold pair."""
+    depths: dict[int, int] = getattr(_LOCK_STATE, "depths", {})
+    _LOCK_STATE.depths = depths
+    lock_key = id(store._lock)
+    outermost = depths.get(lock_key, 0) == 0
+    waited_from = time.monotonic()
+    store._lock.acquire()
+    acquired_at = time.monotonic()
+    depths[lock_key] = depths.get(lock_key, 0) + 1
+    try:
+        yield
+    finally:
+        depths[lock_key] -= 1
+        if depths[lock_key] == 0:
+            del depths[lock_key]
+        hold_seconds = time.monotonic() - acquired_at
+        store._lock.release()
+        if outermost and store._metrics is not None:
+            try:
+                store._metrics.observe_store_lock(
+                    kind=kind,
+                    wait_seconds=acquired_at - waited_from,
+                    hold_seconds=hold_seconds,
+                )
+            except Exception:  # metrics must never replace a storage result
+                _logger.warning("metrics recorder failed while observing store lock", exc_info=False)
 
 
 def _locked[**P, R](method: Callable[Concatenate[SqliteStore, P], R]) -> Callable[Concatenate[SqliteStore, P], R]:
@@ -172,7 +226,7 @@ def _locked[**P, R](method: Callable[Concatenate[SqliteStore, P], R]) -> Callabl
 
     @functools.wraps(method)
     def wrapper(self: SqliteStore, *args: P.args, **kwargs: P.kwargs) -> R:
-        with self._lock:
+        with _observed_lock(self, kind=_lock_kind(method.__name__)):
             return method(self, *args, **kwargs)
 
     return wrapper
@@ -189,7 +243,7 @@ def _fts5_available(conn: sqlite3.Connection) -> bool:
 
 
 class SqliteStore(StoragePort, MemoryStorePort):
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: str, *, metrics: MetricsRecorder | None = None) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False, isolation_level=None)
@@ -199,6 +253,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         # _transaction_depth and prevents cross-thread statement
         # interleaving inside an open transaction. See _locked.
         self._lock = threading.RLock()
+        self._metrics = metrics
         self._transaction_depth = 0
         self._configure_connection()
         # Empty means unset (compose ${VAR:-} injects "" for blank stack
@@ -241,12 +296,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
                 time.sleep(total)
 
     @contextmanager
-    def transaction(self) -> Iterator[sqlite3.Connection]:
+    def transaction(self, *, kind: Literal["read", "write", "maintenance"] = "write") -> Iterator[sqlite3.Connection]:
         # The lock is held for the WHOLE transaction (not just BEGIN), so a
         # second thread blocks until COMMIT/ROLLBACK instead of nesting a
         # BEGIN or landing statements inside this transaction. Same-thread
         # nesting re-enters the RLock and takes the savepoint path.
-        with self._lock:
+        with _observed_lock(self, kind=kind):
             is_outer = self._transaction_depth == 0
             savepoint_name = None
             if is_outer:
