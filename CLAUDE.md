@@ -10,6 +10,13 @@ enforces parity.
 
 ## Project-Specific Notes
 
+- **Development priorities (operator, 2026-09-08).** Accuracy comes first;
+  speed and responsiveness are second only to accuracy. Evaluate new
+  features and architectural changes against both before expanding scope.
+  For runtime-affecting work, use proportionate evidence of request latency,
+  tail latency and responsiveness under relevant load; throughput alone is
+  not enough. Preserve existing acceptance/noise budgets. This priority
+  does not itself authorize a benchmark, release, deployment or enablement.
 - **Docs + memories before every commit.** Standing rule (2026-05-05).
   Before any `git commit` on this repo, update the affected docs (at
   minimum `docs/CODEBASE_ASSESSMENT.md`; for in-flight work also
@@ -285,6 +292,52 @@ unchanged. This cycle is finished; release/enabling remain blocked and no
 automatic retest or optimization follows it.
 The full suite passed 932 tests before that final validation-only correction;
 49 artifact/validator tests passed afterward. Runtime metrics remain off.
+
+The subsequent operator-authorized diagnostic phase is complete; see
+[4C attribution and recorder patch](docs/design/0010-4c-attribution.md).
+Retained host counters show 85.005% busy CPU during the bad control, but the
+competing process remains unidentified. Validated single-thread diagnostics
+target redundant recorder health writes, HTTP/embedding child lookup and
+exposition formatting; mixed-thread profiler durations are rejected. The
+operator subsequently approved recorder-only Patch 1: ordered health transitions
+skip redundant healthy writes, and bounded HTTP/embedding child caches preserve
+exact observations and lazy failure handling. All 951 tests passed across the
+full run and a two-test Git-fixture-isolated retry; Ruff, format and mypy passed.
+Implementation is included in the source checkpoint below. Patch 2's local exporter prototype
+passed 53 separate contract tests, and the
+full-matrix single-thread Windows diagnostic showed 41.799% median paired CPU
+reduction with about 1.94 MiB retained traced allocations (not RSS). The
+subsequent authorized local integration now instantiates one bounded prefix
+cache per enabled recorder. Fresh values, standard fallback, disabled dependency
+isolation and scrape ownership are preserved; regression tests correct unusual
+string cache hits and whole-scrape encoding error behavior. Linux contracts
+passed 106 tests on both Prometheus 0.26.0 and the 0.23.1 floor, including native
+process collection. Final full Windows suite: 1,020 passed, one Linux-only skip;
+Ruff, formatting, mypy and Markdown passed. The corrected integration has not been timed. No new NAS
+test, publication, release, deployment, enablement, commit or push occurred.
+Host readiness and unchanged 4C gates remain unresolved; prior 4D reuse applies
+to the old frozen candidate. Affected live 4D checks for the changed health and
+exporter paths are recorded in the integration checkpoint and remain pending.
+
+The subsequent bounded read-only NAS readiness snapshot is complete: all stats
+and process-list requests for 42 containers succeeded; host busy CPU was 8.852%
+and niced CPU zero. No heavy Docker workload was identified to pause. One
+ambiguous process pair was excluded from coarse process-time deltas, with raw
+evidence/container accounting retained. This short observation does not explain
+the earlier spike, prove future quietness or pass baseline controls. Production
+identity remained unchanged; no NAS load test, publication, service/privilege
+change, enablement, commit or push occurred. Agree the next benchmark window and
+retain contemporaneous host checks and all existing acceptance/noise budgets.
+
+**Source checkpoint — 2026-09-09 UTC:** the operator authorized committing
+and pushing all current OpenChronicle changes, including the recorder/exporter
+implementation and tests, attribution/readiness evidence and comparative reviews
+0011/0012. The configured commit hooks remain required. Earlier no-commit/no-push
+statements describe those historical checkpoints. Live readback confirms the
+detached stack remains pinned to `v3.3.0`, build `7349f94`; pushing `main` does
+not move that tag. Metrics remain off by default, the corrected integration
+remains untimed, and existing 4C/affected 4D gates remain unresolved. See
+[assessment rev 194](docs/CODEBASE_ASSESSMENT.md#source-checkpoint--2026-09-09-utc).
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

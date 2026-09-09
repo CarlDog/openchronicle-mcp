@@ -1024,7 +1024,37 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   enablement remain blocked; further investigation needs a new scoped decision,
   not an automatic rerun. All budgets and metrics-disabled defaults remain
   unchanged. See the [final disposition](design/0010-performance-measurement.md#4c-recovery-final-disposition). The
-  delivered `scripts/`-level probe (sibling of
+  subsequent authorized [attribution phase](design/0010-4c-attribution.md) is
+  complete: competing host CPU work is evidenced but its process is unidentified;
+  validated isolated profiles target redundant recorder work and exposition
+  formatting. Mixed-thread profiler durations are rejected. Operator-approved
+  recorder Patch 1 is implemented locally with ordered health transitions and
+  bounded HTTP/embedding child caches. All 951 tests passed across the full run
+  and a two-test Git-fixture-isolated retry; Ruff, format and mypy passed.
+  Patch 2's local exporter prototype passed 53 separate contract tests; the
+  full-matrix single-thread CPU diagnostic showed a 41.799% median paired
+  reduction with about 1.94 MiB retained traced allocations, not measured RSS.
+  A subsequent scoped integration now uses one bounded prefix cache per enabled
+  recorder, with fresh values and the existing scrape guard. Maintained tests
+  correct unusual-string cache hits and whole-scrape encoding error behavior.
+  Linux contracts passed 106 tests on both Prometheus 0.26.0 and the 0.23.1 floor,
+  including native process metrics; Windows floor contracts passed 105 with one
+  platform skip. Final full Windows suite: 1,020 passed, one Linux-only skip;
+  Ruff, formatting, mypy and Markdown passed. These checks do not measure the corrected candidate's cost.
+  No new NAS acceptance, publication or production change occurred; metrics
+  remain off. Host readiness/performance gates and affected live 4D verification
+  remain unresolved. See the [integration checkpoint](design/0010-4c-attribution.md#local-integration-checkpoint). The
+  next read-only [readiness snapshot](design/0010-4c-attribution.md#nas-readiness-snapshot--completed-not-a-baseline-control-pass)
+  completed: host CPU 8.852%, niced CPU zero, no heavy Docker workload identified
+  among 42 containers. This is not a baseline-control pass or evidence about the
+  old spike. No workload was paused or benchmark started; an agreed quiet window
+  and contemporaneous controls remain necessary for the fixed acceptance run.
+  **Source checkpoint, 2026-09-09 UTC:** the operator authorized committing and
+  pushing all current code, tests and documentation. Earlier no-publication
+  statements describe their historical checkpoints; source publication clears
+  no performance gate and leaves the pinned live build unchanged. See
+  [assessment rev 194](CODEBASE_ASSESSMENT.md#source-checkpoint--2026-09-09-utc).
+  The delivered `scripts/`-level probe (sibling of
   `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
   mix (search-heavy, small saves, lists) against a throwaway store seeded from
   the corpus fixture; report latency percentiles versus N and store-lock wait
@@ -1205,6 +1235,21 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   (the AGENTS.md checklist carries the line). The operator holds an
   Ollama Cloud API key, so a live confirmation is available the day it
   becomes worth making.
+
+- **Memory ecosystem review — research retained, implementation unscheduled
+  (2026-09-08).** [Design 0011](design/0011-memory-ecosystem-review.md)
+  compares Basic Memory, Graphiti, Hindsight, Mem0, Cognee and LangMem,
+  plus the MCP reference server and LongMemEval evaluation sources.
+  The operator's standing priority is accuracy first, then speed and
+  responsiveness; proposed features must justify their costs against both.
+  Proposed research order: public reproducible evaluation, predictable
+  replay/concurrent writes, source-linked history/supersession, context
+  budgets, and a human-facing inspector. Existing release/durability work
+  retains its own priority and acceptance gates. History would revise a
+  deferred v3 decision; replay identity and frozen-lock consumption
+  strengthen existing entries rather than create duplicate commitments.
+  Recording the findings does not schedule implementation, reopen a
+  performance cycle, or authorize release/deployment.
 
 - **NemoClaw review — operational/recovery hardening (research complete;
   unscheduled).**
@@ -1584,7 +1629,20 @@ OC exists to be the best version of itself: a memory MCP server that runs on you
 
 We are not chasing market share, benchmark wins, or feature parity with VC-backed products. We are building something we use, that we can trust, that will still work when we open it in three months. That's the standard.
 
+**Standing development priority (operator, 2026-09-08): accuracy first;
+speed and responsiveness second only to accuracy.** Feature breadth is
+subordinate to both. Runtime changes need proportionate quality and
+latency/responsiveness evidence; throughput alone is insufficient. Existing
+acceptance/noise budgets and benchmark/release authorization boundaries
+remain unchanged. See the canonical AGENTS.md rule and its application in
+[design 0011](design/0011-memory-ecosystem-review.md#standing-development-priority-accuracy-then-responsiveness).
+
 ### Competitive landscape (as of May 2026)
+
+This section preserves its May 2026 context. The later source-based
+[memory ecosystem review (2026-09-08)](design/0011-memory-ecosystem-review.md)
+records a bounded comparison and proposed development hypotheses; it is
+not a refresh of every product claim below or an accepted roadmap change.
 
 The agent-memory category is mature and crowded. Knowing what exists helps us make architectural decisions; it does not pressure us to feature-match.
 

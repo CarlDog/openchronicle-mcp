@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-05 · **Revision:** 186
+**Snapshot date:** 2026-09-09 UTC · **Revision:** 194
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | 933; full suite 932 passed before the final validator-only correction, then 49 artifact/validator tests passed (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,020 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -39,6 +39,26 @@ drivers in `interfaces/`), enforced by tests — see
 [architecture/MAINTENANCE.md](architecture/MAINTENANCE.md).
 
 ## Where things live
+
+### Source checkpoint — 2026-09-09 UTC
+
+The operator authorized committing and pushing all current OpenChronicle
+changes: recorder/exporter optimizations and contracts, attribution/readiness
+documentation, and comparative reviews 0011/0012. The recorded regression
+baseline is 1,020 Windows passes with one Linux-only skip; the assembled commit
+must pass the configured pre-commit checks, including the full pytest suite.
+Source publication does not clear the unresolved 4C or affected live 4D gates.
+The corrected integration remains untimed and metrics remain off by default.
+
+Read-only verification at 02:08 UTC found stack 151 detached from Git and pinned
+to `OC_TAG=v3.3.0`; health reported build
+`7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`. A `main` push can trigger CI and
+publish its development image without changing that pinned runtime. This
+checkpoint includes no release tag, deployment, enablement or new benchmark.
+Earlier revision entries describe their original local-only checkpoints;
+their no-commit/no-push statements are historical, not the current scope.
+
+### Documentation map
 
 - **This file** — current state only. If it isn't true today, it
   doesn't belong here.
@@ -157,6 +177,39 @@ drivers in `interfaces/`), enforced by tests — see
   evidence was reused after source/configuration review. All new disposable
   containers were removed, production is unchanged, and release/enabling remain
   blocked pending a new scoped decision. Evidence: `data/performance/phase4-20260904/recovery-20260905/`.
+  The subsequently authorized diagnostic phase is complete. Retained counters
+  show 85.005% host CPU activity during the bad control, but available logs do
+  not identify the competing process. Validated single-thread diagnostics target
+  redundant healthy-gauge writes, HTTP/embedding label lookup, and exposition
+  formatting. Mixed-run profiler durations are explicitly rejected because of
+  cross-thread clock errors. The [attribution report and recorder patch](design/0010-4c-attribution.md)
+  record evidence and limitations. Operator-approved Patch 1 is now implemented
+  locally: ordered health transitions skip redundant healthy writes, and
+  bounded HTTP/embedding child caches preserve exact and partial observations.
+  Patch 1 verified all 951 tests across the full run and a two-test fixture-isolated
+  retry; Ruff, formatting and mypy passed. Patch 2's local bounded-prefix exporter
+  experiment then passed 53 separate contract tests and completed a 9.702-second
+  CPU diagnostic: full-cardinality median scrape CPU 17.50 → 10.3125 ms, median
+  paired reduction 41.799%, with about 1.94 MiB traced retained allocations.
+  The subsequent operator-approved integration now instantiates one bounded
+  prefix cache per enabled recorder and preserves fresh collection, standard
+  fallback, scrape ownership and disabled dependency isolation. Maintained
+  regressions correct warm-cache string-subclass and whole-scrape encoding-error
+  edge cases. Linux contracts passed with Prometheus 0.26.0 and the 0.23.1 floor,
+  including native process metrics. Final Windows suite: 1,020 passed, one
+  Linux-only skip; Ruff, formatting, mypy and Markdown passed. The corrected integration has not been
+  timed; prototype CPU/allocation results do not clear NAS overhead, RSS or
+  responsiveness gates. Implementation is included in the source checkpoint
+  above. No new NAS acceptance or production action followed. Host readiness and
+  unchanged performance gates remain unresolved; affected live 4D checks are
+  recorded in the integration checkpoint, not claimed passed for this candidate.
+  A subsequent bounded read-only [NAS readiness snapshot](design/0010-4c-attribution.md#nas-readiness-snapshot--completed-not-a-baseline-control-pass)
+  completed all stats/process reads for 42 containers. Host busy CPU was 8.852%,
+  niced CPU zero; the largest container share was 0.660% of eight-CPU host
+  capacity. No heavy Docker workload was identified to pause. The sample does
+  not explain the old spike or pass baseline variability controls; agree a quiet
+  window and retain all controls before acceptance. Production identity remained
+  unchanged. No benchmark, publication, pause, new privilege or commit occurred.
 - **OpenClaw comparative assessment (2026-08-27)** — identified four
   local retrieval/embedding integrity defects plus one demonstrated
   filtered-recency need; the same review benchmark-gates MMR and keeps
@@ -183,6 +236,26 @@ drivers in `interfaces/`), enforced by tests — see
   [design/0004-nemoclaw-repository-review.md](design/0004-nemoclaw-repository-review.md);
   no implementation batch is authorized by the review.
 
+- **Memory ecosystem comparative assessment (2026-09-08)** — research
+  retained in [design/0011-memory-ecosystem-review.md](design/0011-memory-ecosystem-review.md).
+  Basic Memory, Graphiti and Hindsight are the strongest references;
+  Mem0, Cognee and LangMem offer narrower lessons. The review records
+  source evidence, public-evaluation, replay/concurrency, provenance/history,
+  context-budget and inspector proposals, plus existing release/durability
+  obligations. The operator's standing priority is recorded in the review,
+  V3_PLAN and AGENTS/CLAUDE: accuracy first, speed/responsiveness second.
+  Documentation is complete; recommendations remain unscheduled.
+  The review adds no runtime change, acceptance evidence or deployment;
+  its documentation is included in the source checkpoint above.
+
+- **FreeToken comparative review (2026-09-09 UTC)** —
+  [design/0012-freetoken-repository-review.md](design/0012-freetoken-repository-review.md)
+  records the missing embedding-provider fit and a measurement-gated
+  exact-query embedding cache/singleflight candidate. Research is complete;
+  recommendations remain unratified and unscheduled. Accuracy remains the
+  first gate. Existing embedding configuration, exporter work, memory
+  ecosystem review, and performance/live acceptance gates are unchanged.
+
 ## Revision history
 
 Revisions 1-63 belong to the v2 era — see the
@@ -191,6 +264,14 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 194 | 2026-09-09 | **Operator-authorized source checkpoint.** Assemble all current recorder/exporter code, maintained tests, attribution/readiness documentation and reviews 0011/0012 for commit and push to main under mandatory repository hooks. Preserve the recorded 1,020-pass/one-skip Windows baseline and 106-pass Linux contracts on both supported Prometheus versions. Live readback confirms detached stack 151 remains pinned to v3.3.0, build 7349f94. Source publication does not clear 4C/affected 4D gates or authorize a release, deployment, metrics enabling or benchmark. |
+| 193 (working tree) | 2026-09-09 | **FreeToken comparative research recorded.** Review 0012 documents the generation/embedding mismatch, source findings, explicit non-adoptions, and a measurement-gated exact-query cache/singleflight candidate, subordinate to the accuracy-first priority. Recommendations remain unratified and unscheduled. Documentation only; no runtime tests rerun, provider switch, metrics change, performance acceptance, release, deployment, commit or push. Existing rev190-192 work and evidence preserved. |
+| 192 (working tree) | 2026-09-08 | **Memory ecosystem research documented.** Added design 0011 with six repository assessments, MCP reference-server disposition, LongMemEval sources, local capability evidence, proposed priorities and acceptance criteria, source limitations, and reconciliation with existing decisions. Linked the design index and V3_PLAN; recorded the operator's accuracy-first, speed/responsiveness-second priority in the review, plan and byte-identical AGENTS/CLAUDE instructions. Documentation only; no runtime implementation or benchmark, no change to performance acceptance or deployment. |
+| 191 (working tree) | 2026-09-05 | **Bounded NAS readiness snapshot complete, not performance acceptance.** Two resource/process snapshots of 42 containers, 53.267-second observation, no API errors. Host CPU 8.852%, no niced CPU; top container 0.660% of host capacity. Arithmetic independently reproduced; one ambiguous process pair excluded while raw/container data retained. No heavy Docker workload to pause identified, but old spike and future stability remain unproven. Production unchanged; no load test, publication, service/privilege change, commit or push. Application verification from rev190 remains current. |
+| 190 (working tree) | 2026-09-05 | **Cached-prefix exporter integrated and verified locally, metrics still off by default.** Per-enabled-recorder bounded cache preserves fresh values, standard fallback and scrape ownership. Promoted contracts plus regressions cover unusual string cache hits, whole-body encoding errors and native Linux process collection. Final full Windows suite: 1,020 passed, one Linux-only skip; Linux focused contracts: 106 passed on each of Prometheus 0.26.0 and 0.23.1. Ruff/format/mypy/Markdown clean. Existing prototype timings do not measure the corrected candidate. Affected 4D/live readiness, overhead, RSS and responsiveness gates remain pending; no publication, deployment, commit or push. |
+| 189 (working tree) | 2026-09-05 | **Local exporter prototype retained, not integrated.** 53 separate contract tests passed over the 3,648-series matrix, updated values, escaping, errors, cache bounds and scrape ownership. Finite single-thread Windows diagnostic: full median CPU 17.50 → 10.3125 ms/scrape, 41.799% median paired reduction, approximately 1.94 MiB retained traced allocations (not RSS). Six fixed-order blocks retained; input/report hashes and arithmetic independently verified. Fixture correction and one under-resolved timer recovery recorded. Standard application exporter, 951-test baseline and all performance budgets unchanged. No NAS test, publication, deployment, enablement, commit or push. |
+| 188 (working tree) | 2026-09-05 | **Recorder-only Patch 1 implemented and verified locally.** Ordered health transitions avoid redundant healthy-gauge writes; failures remain counted and recover on successful recording, not scraping. Bounded HTTP/embedding counter and histogram caches retain exact observations and lazy partial-failure behavior. Deterministic concurrency, failure and cache regressions pass. All 951 tests passed across the full run (949) and an isolated two-test CLI fixture retry; Ruff, format and mypy passed. No exporter change, NAS test, publication, release, deployment, enablement, commit or push. Existing 4C gates remain unresolved. |
+| 187 (working tree) | 2026-09-05 | **Bounded 4C attribution complete; patch proposal only.** Recomputed host CPU rise to 85.005%, competing process unidentified. Corrected local mixed diagnostic: 4,929 requests and 30 scrapes without failures; reject its detailed profiler durations due to cross-thread clock errors. Validated single-thread costs identify redundant health writes, remaining HTTP/embedding child lookups and sample formatting. Attribution report separates evidence, hypotheses and proposed patches. No application change, acceptance rerun, release or deployment; existing gates remain blocked. |
 | 186 | 2026-09-05 | **4C recovery cycle finished with verified blockers.** Published frozen `ddd21dee` benchmark image only; 12-case NAS run: 75,786 successes, no failures/timeouts, all nine C scrapes, checksummed artifact and independent arithmetic verified. B/A and C/A remain inconclusive (0.399%/6.392% median throughput loss); final repeated baseline lost 53.339% with a NAS load spike. Full-cardinality stress: 37,174 successes, 250 scrapes; REST list p99 +9.086 ms exceeds 5 ms, MCP list samples 733/736 are insufficient. Duration, ASGI lag and overlap/cancellation checks passed. Explicit unchanged-source/configuration 4D reuse; new test containers removed, old observation history preserved, production unchanged. README now labels metrics unreleased. No Git push, release, enabling or automatic retest. |
 | 185 (working tree) | 2026-09-05 | **4C calibration reuse approved.** The operator explicitly accepted the validator-only frozen-harness exception for the intact passing calibration. Freeze and publish the optimized non-release candidate, then run one acceptance suite and required responsiveness/affected 4D checks; no repeated calibration, relaxed budgets, release, or production change. |
 | 184 (working tree) | 2026-09-05 | **4C recovery execution checkpoint.** Added integrity-checked artifact transport, strict report contracts, measured-only scraping/RSS, and the v2 baseline/acceptance runner. NAS calibration: 41,441 successes, zero failures, all three control pairs within budget. The producer's final validator rejected hexadecimal CPU-mask metadata; fixed with a real-probe contract test, preserving the original checksummed report. Only validator AST changed; calibration reuse versus a fresh run awaits explicit decision. Bounded metric-child caches reduce targeted recorder-cycle CPU by 42.857%, not established application overhead. Full 932 tests passed, then 49 validator/artifact tests passed after the final correction; 933 tests now collected. Both disposable jobs removed, evidence retained, production unchanged. No final acceptance/publication/release. |

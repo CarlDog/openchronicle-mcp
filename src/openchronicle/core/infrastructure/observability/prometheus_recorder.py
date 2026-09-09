@@ -6,10 +6,11 @@ import asyncio
 import logging
 import threading
 from collections.abc import Callable
+from contextlib import suppress
 from typing import TYPE_CHECKING, Final
 
 if TYPE_CHECKING:
-    from prometheus_client import Gauge, Histogram
+    from prometheus_client import Counter, Gauge, Histogram
 
 from openchronicle.core.application.observability.exporter import (
     MetricsScrapeBusyError,
@@ -140,10 +141,12 @@ class PrometheusMetricsRecorder:
     def __init__(self) -> None:
         # Imports stay in the enabled-only factory path. A normal install with
         # metrics disabled never imports prometheus-client.
-        from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
+        from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
         from prometheus_client.process_collector import ProcessCollector
 
-        self._generate_latest: Callable[..., bytes] = generate_latest
+        from openchronicle.core.infrastructure.observability.cached_exporter import CachedPrefixExporter
+
+        self._generate_latest: Callable[..., bytes] = CachedPrefixExporter()
         self.registry = CollectorRegistry(auto_describe=True)
         # Register only the standard process collector explicitly. On
         # platforms without /proc it simply contributes no process samples.
@@ -265,14 +268,21 @@ class PrometheusMetricsRecorder:
         )
         self._build_info.labels(version=package_version(), revision=build_revision()).set(1)
         self._recorder_healthy.set(1)
+        self._healthy = True
+        self._health_lock = threading.Lock()
 
         # Per-recorder, lazy caches contain normalized labels only: at most
-        # 3 surfaces, 4 lock kinds, and 5 stages (including __unknown__).
+        # 3 surfaces, 4 lock kinds, 5 stages, 432 HTTP counters / 72 histograms,
+        # and 75 embedding counters / 15 histograms (including unknown labels).
         # Concurrent first use may repeat labels(), whose own lock returns
         # the same child; no observations are batched, skipped, or cached.
         self._inflight_children: dict[str, Gauge] = {}
         self._lock_children: dict[str, tuple[Histogram, Histogram]] = {}
         self._stage_children: dict[str, Histogram] = {}
+        self._http_request_children: dict[tuple[str, str, str], Counter] = {}
+        self._http_duration_children: dict[tuple[str, str], Histogram] = {}
+        self._embedding_operation_children: dict[tuple[str, str, str], Counter] = {}
+        self._embedding_duration_children: dict[tuple[str, str], Histogram] = {}
 
         # The event loop acquires this slot before dispatching serialization
         # to a worker. Therefore a second scrape returns 503 instead of
@@ -289,20 +299,32 @@ class PrometheusMetricsRecorder:
         return CONTENT_TYPE_LATEST
 
     def _mark_error(self, operation: str) -> None:
-        try:
-            self._recorder_healthy.set(0)
+        # Health publications, not callback start times, order overlapping
+        # successes/failures. Keep the gauge and cached state under one lock;
+        # observations themselves must never run under this lock.
+        with self._health_lock:
+            # Even if publishing zero fails, the next successful recording
+            # must attempt recovery instead of trusting the previous state.
+            self._healthy = False
+            with suppress(Exception):  # metrics must not break the application
+                self._recorder_healthy.set(0)
+        with suppress(Exception):  # attempt the counter even if health publication failed
             self._recorder_errors.labels(operation=operation).inc()
-        except Exception:  # pragma: no cover - defensive against exporter failure
-            pass
         with self._warning_lock:
             if not self._warning_emitted:
                 logger.warning("metrics recorder failure; metric samples may be incomplete")
                 self._warning_emitted = True
 
+    def _mark_success(self) -> None:
+        with self._health_lock:
+            if not self._healthy:
+                self._recorder_healthy.set(1)
+                self._healthy = True
+
     def _safe(self, operation: str, callback: Callable[[], None]) -> None:
         try:
             callback()
-            self._recorder_healthy.set(1)
+            self._mark_success()
         except Exception:  # pragma: no cover - prometheus-client is defensive, but metrics must never break OC
             self._mark_error(operation)
 
@@ -334,12 +356,20 @@ class PrometheusMetricsRecorder:
         duration = _duration(duration_seconds)
 
         def record() -> None:
-            self._http_requests.labels(
-                route=route,
-                method=bounded_method,
-                status_class=_status_class(status_code),
-            ).inc()
-            self._http_duration.labels(route=route, method=bounded_method).observe(duration)
+            counter_key = (route, bounded_method, _status_class(status_code))
+            counter = self._http_request_children.get(counter_key)
+            if counter is None:
+                counter = self._http_requests.labels(*counter_key)
+                self._http_request_children[counter_key] = counter
+            counter.inc()
+            # Resolve lazily after inc(): a histogram lookup failure must not
+            # erase the counter observation that has already succeeded.
+            duration_key = (route, bounded_method)
+            histogram = self._http_duration_children.get(duration_key)
+            if histogram is None:
+                histogram = self._http_duration.labels(*duration_key)
+                self._http_duration_children[duration_key] = histogram
+            histogram.observe(duration)
 
         self._safe("http", record)
 
@@ -383,12 +413,18 @@ class PrometheusMetricsRecorder:
         duration = _duration(duration_seconds)
 
         def record() -> None:
-            self._embedding_operations.labels(
-                provider=bounded_provider,
-                operation=bounded_operation,
-                outcome=bounded_outcome,
-            ).inc()
-            self._embedding_duration.labels(provider=bounded_provider, operation=bounded_operation).observe(duration)
+            counter_key = (bounded_provider, bounded_operation, bounded_outcome)
+            counter = self._embedding_operation_children.get(counter_key)
+            if counter is None:
+                counter = self._embedding_operations.labels(*counter_key)
+                self._embedding_operation_children[counter_key] = counter
+            counter.inc()
+            duration_key = (bounded_provider, bounded_operation)
+            histogram = self._embedding_duration_children.get(duration_key)
+            if histogram is None:
+                histogram = self._embedding_duration.labels(*duration_key)
+                self._embedding_duration_children[duration_key] = histogram
+            histogram.observe(duration)
 
         self._safe("embedding", record)
 

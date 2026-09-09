@@ -3,9 +3,11 @@
 **Status:** 4C RECOVERY CYCLE COMPLETE; RELEASE/ENABLEMENT BLOCKED — the final
 NAS B/A and C/A overhead comparisons remain inconclusive, and the final
 maximum-cardinality responsiveness gate did not pass. Phase 1–3 implementation
-is complete. Passed 4D collection/access/recovery evidence is explicitly reused
-after source/configuration impact review. Production is unchanged; 4E/4F have
-not started. Further investigation requires a new scoped decision.
+is complete. Passed 4D collection/access/recovery evidence was explicitly reused
+for the frozen recovery candidate after source/configuration impact review.
+Production is unchanged; 4E/4F have not started. The subsequent recorder and
+cached-prefix exporter patches are locally implemented; further NAS validation
+requires a scoped decision.
 **Date:** 2026-09-05.
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
@@ -20,7 +22,8 @@ controlled-host gate and retest results, and the Phase 4D NAS collection,
 access, and rollback evidence, followed by the bounded 4C recovery cycle.
 Metrics remain disabled by default. The earlier responsiveness result is
 superseded for the final candidate by the full-cardinality result below;
-4D evidence remains applicable and live release/deployment observation is pending.
+4D evidence was applicable to that frozen candidate. Any newer candidate needs
+an affected-path impact review; live release/deployment observation is pending.
 
 **Resolution plan:** [Phase 4 remaining-work plan](#phase-4-remaining-work-plan)
 records the proposed sequence, evidence, and stop conditions following commit
@@ -33,7 +36,40 @@ calibration reuse was explicitly approved after the validation-only correction.
 The [final disposition](#4c-recovery-final-disposition) records the published
 candidate, verified acceptance report, responsiveness limitations, and stop.
 
+The subsequent operator-authorized diagnostic phase is recorded in the
+[4C attribution report](0010-4c-attribution.md). It identifies shared-host CPU
+interference and specific recorder/exporter work, rejects invalid mixed-thread
+profile timings, and proposes patches. The operator subsequently approved
+recorder-only Patch 1: ordered health transitions and bounded HTTP/embedding
+child caches are implemented and verified locally (951 tests passed across
+the full run and two-test fixture-isolated retry; quality checks passed).
+Patch 2's local exporter prototype passed 53 contracts; full-matrix median scrape CPU fell
+17.50 → 10.3125 ms in the single-thread Windows diagnostic. This is not a NAS
+application-performance result. The subsequently authorized local integration
+now uses one bounded prefix cache per enabled recorder, with fresh values,
+standard fallback and unchanged scrape ownership. Regressions correct unusual
+string cache hits and whole-scrape encoding errors; maintained Linux contracts
+passed 106 tests on both Prometheus 0.26.0 and the 0.23.1 floor. This corrected
+candidate has not been timed. The [integration checkpoint](0010-4c-attribution.md#local-integration-checkpoint)
+records verification and the affected 4D checks still required. No new NAS
+acceptance, publication or production action followed. Release/enabling remain
+blocked; metrics are off by default.
+
+A subsequent [read-only NAS readiness snapshot](0010-4c-attribution.md#nas-readiness-snapshot--completed-not-a-baseline-control-pass)
+completed for all 42 running containers: 8.852% host busy CPU, no niced CPU, and
+no heavy Docker workload identified to pause. Production was unchanged. The
+53.267-second observation is not a baseline-control pass or historical spike
+attribution; an agreed quiet window and unchanged control/noise gates still
+precede a new acceptance decision. No load test or publication followed.
+
 ## Recommendation and intended outcome
+
+**Source checkpoint, 2026-09-09 UTC:** commit/push of all current source and
+documentation is operator-authorized. See the
+[assessment checkpoint](../CODEBASE_ASSESSMENT.md#source-checkpoint--2026-09-09-utc).
+This source publication leaves the pinned live build, default-off metrics and
+the unresolved acceptance gates unchanged; earlier no-publication statements
+describe their original checkpoints.
 
 Add opt-in, bounded operational metrics to OC, implement the concurrency
 probe already accepted in [design 0007](0007-long-term-scale-and-resilience.md),
