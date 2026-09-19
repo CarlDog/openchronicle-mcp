@@ -1,4 +1,4 @@
-"""Tests validating Phase 1 to 4 core remediations.
+"""Tests validating Phase 1 to 6 core remediations.
 
 Covers:
 1. Ollama adapter probe failure retry cooldown and recovery.
@@ -12,6 +12,9 @@ Covers:
 9. SQLite thread-local reader connection cleanup on close.
 10. Background vector embedding scheduling and asynchronous execution.
 11. Background embed parameter support on API routes and MCP tools.
+12. Context budget enforcement and omission reporting (max_chars).
+13. Identity-scoped query LRU embedding cache.
+14. In-flight singleflight request coalescing and failure isolation.
 """
 
 from __future__ import annotations
@@ -382,3 +385,161 @@ def test_background_embed_api_schema() -> None:
         background_embed=True,
     )
     assert req.background_embed is True
+
+
+def test_context_budget_enforcement() -> None:
+    from openchronicle.core.domain.context_budget import apply_char_budget
+
+    items = ["short", "a much longer string", "tail"]
+    # 1. None or 0 max_chars retains everything
+    retained, total, truncated, omitted = apply_char_budget(items, lambda s: s, None)
+    assert retained == items
+    assert total == sum(len(s) for s in items)
+    assert not truncated
+    assert omitted == 0
+
+    # 2. Budget limits items
+    # "short" (5) + "a much longer string" (20) = 25
+    retained, total, truncated, omitted = apply_char_budget(items, lambda s: s, 10)
+    assert retained == ["short"]
+    assert total == 5
+    assert truncated is True
+    assert omitted == 2
+
+    # 3. Oversized first item is retained to prevent empty context
+    retained, total, truncated, omitted = apply_char_budget(items, lambda s: s, 3)
+    assert retained == ["short"]
+    assert total == 5
+    assert truncated is True
+    assert omitted == 2
+
+
+def test_search_memory_max_chars_budget() -> None:
+    from openchronicle.core.application.use_cases import search_memory
+
+    store = _make_store()
+    item1 = _make_item("mem-budget-1", "alpha keyword text " + "x" * 100)
+    item2 = _make_item("mem-budget-2", "alpha second entry " + "y" * 100)
+    store.add_memory(item1)
+    store.add_memory(item2)
+
+    # Without max_chars, both match keyword search
+    results = search_memory.execute(store, "alpha", mode="keyword")
+    assert len(results) == 2
+
+    # With tight max_chars, results are truncated to 1 item
+    budgeted = search_memory.execute(store, "alpha", mode="keyword", max_chars=130)
+    assert len(budgeted) == 1
+    assert budgeted[0].item.id in ("mem-budget-1", "mem-budget-2")
+
+
+def test_query_embedding_lru_cache() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=4)
+    call_count = 0
+    orig_embed = adapter.embed
+
+    def counting_embed(text: str) -> list[float]:
+        nonlocal call_count
+        call_count += 1
+        return orig_embed(text)
+
+    adapter.embed = counting_embed  # type: ignore[method-assign]
+    service = EmbeddingService(port=adapter, store=store)
+
+    assert service.query_cache_size == 0
+
+    # First search: query embedding generated and cached
+    vec1 = service._embed_query("test query")
+    assert service.query_cache_size == 1
+    assert call_count == 1
+
+    # Second search with same query: cache hit, adapter not called again
+    vec2 = service._embed_query("test query")
+    assert vec1 == vec2
+    assert service.query_cache_size == 1
+    assert call_count == 1
+
+    # Search with different query: cache miss
+    service._embed_query("another query")
+    assert service.query_cache_size == 2
+    assert call_count == 2
+
+    # Clear cache
+    service.clear_query_cache()
+    assert service.query_cache_size == 0
+
+
+def test_query_embedding_singleflight_concurrency() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=4)
+
+    # Slow down embed to ensure concurrent calls overlap
+    original_embed = adapter.embed
+    call_count = 0
+    lock = threading.Lock()
+
+    def slow_embed(text: str) -> list[float]:
+        nonlocal call_count
+        with lock:
+            call_count += 1
+        time.sleep(0.05)
+        return original_embed(text)
+
+    adapter.embed = slow_embed  # type: ignore[method-assign]
+    service = EmbeddingService(port=adapter, store=store)
+
+    results: list[list[float]] = []
+    threads = []
+
+    def worker() -> None:
+        v = service._embed_query("concurrent query")
+        results.append(v)
+
+    for _ in range(5):
+        t = threading.Thread(target=worker)
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join()
+
+    assert len(results) == 5
+    # All threads got identical vectors
+    assert all(r == results[0] for r in results)
+    # But only a single provider call was dispatched!
+    assert call_count == 1
+
+
+def test_query_embedding_singleflight_failure_isolation() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=4)
+
+    def failing_embed(text: str) -> list[float]:
+        time.sleep(0.02)
+        raise RuntimeError("simulated provider crash")
+
+    adapter.embed = failing_embed  # type: ignore[method-assign]
+    service = EmbeddingService(port=adapter, store=store)
+
+    exceptions: list[Exception] = []
+    threads = []
+
+    def worker() -> None:
+        try:
+            service._embed_query("failing query")
+        except Exception as e:
+            exceptions.append(e)
+
+    for _ in range(3):
+        t = threading.Thread(target=worker)
+        threads.append(t)
+        t.start()
+
+    for t in threads:
+        t.join()
+
+    assert len(exceptions) == 3
+    assert all("simulated provider crash" in str(e) for e in exceptions)
+    # Cache was not poisoned with failed result
+    assert service.query_cache_size == 0

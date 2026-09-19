@@ -48,6 +48,7 @@ def register(mcp: FastMCP) -> None:
         phrase: bool = False,
         pinned_limit: int = 10,
         include_pinned: bool = True,
+        max_chars: int | None = None,
     ) -> list[dict[str, Any]]:
         """Find memory items relevant to a query (hybrid semantic + keyword).
 
@@ -88,6 +89,9 @@ def register(mcp: FastMCP) -> None:
                 which only stops the float. Use
                 `memory_list(pinned_only=true)` to enumerate every
                 standing rule.
+            max_chars: Maximum cumulative character budget for returned
+                items' content (optional). Truncates results once cumulative
+                content length reaches this limit.
 
         Each result carries a `relevance` object: `channel` says what
         surfaced it ("pinned" = a standing rule that matched and was
@@ -117,6 +121,7 @@ def register(mcp: FastMCP) -> None:
                 phrase=phrase,
                 pinned_limit=pinned_limit,
                 include_pinned=include_pinned,
+                max_chars=max_chars,
             )
             return [scored_memory_to_dict(s, compact=compact) for s in results]
 

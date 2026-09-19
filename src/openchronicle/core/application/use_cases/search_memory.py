@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from openchronicle.core.domain.context_budget import apply_char_budget
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
@@ -26,6 +27,7 @@ def execute(
     mode: str = "hybrid",
     phrase: bool = False,
     pinned_limit: int = DEFAULT_PINNED_LIMIT,
+    max_chars: int | None = None,
 ) -> list[ScoredMemory]:
     """Search memory, returning scored results (Q20/Q21, 2026-08-17).
 
@@ -77,6 +79,7 @@ def execute(
             tags=tags,
             offset=offset,
             pinned_limit=pinned_limit,
+            max_chars=max_chars,
         )
 
     if mode == "hybrid" and embedding_service is not None:
@@ -89,6 +92,7 @@ def execute(
             offset=offset,
             phrase=phrase,
             pinned_limit=pinned_limit,
+            max_chars=max_chars,
         )
 
     # mode == "keyword", or hybrid on a keyword-only deployment.
@@ -130,4 +134,8 @@ def execute(
     combined: list[ScoredMemory] = [ScoredMemory(item=i, channel="pinned") for i in floated]
     for rank, item in enumerate(items, start=1):
         combined.append(ScoredMemory(item=item, channel="keyword", keyword_rank=rank))
-    return combined[offset : offset + top_k]
+    paged = combined[offset : offset + top_k]
+    if max_chars is not None and max_chars > 0:
+        budgeted, _, _, _ = apply_char_budget(paged, lambda s: s.item.content, max_chars)
+        return budgeted
+    return paged

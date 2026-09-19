@@ -6,11 +6,13 @@ import asyncio
 import logging
 import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Any
 
 from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
 from openchronicle.core.domain.content_hash import hash_content
+from openchronicle.core.domain.context_budget import apply_char_budget
 from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
 from openchronicle.core.domain.exceptions import ProviderError
 from openchronicle.core.domain.models.memory_item import MemoryItem
@@ -59,6 +61,15 @@ class BackfillResult:
     elapsed_ms: int
 
 
+class _InFlightQuery:
+    __slots__ = ("event", "result", "exception")
+
+    def __init__(self) -> None:
+        self.event = threading.Event()
+        self.result: list[float] | None = None
+        self.exception: Exception | None = None
+
+
 class EmbeddingService:
     """Coordinates embedding generation and hybrid (FTS5 + semantic) search."""
 
@@ -79,6 +90,12 @@ class EmbeddingService:
         self._failure_count: int = 0
         self._last_failure_at: str | None = None
         self._last_failure_op: str | None = None
+        # In-memory exact-query LRU cache and singleflight in-flight tracking (Design 0012).
+        # Scoped strictly to composite embedding identity; caches query vectors only.
+        self._query_cache_lock = threading.Lock()
+        self._query_cache: OrderedDict[tuple[str, str, str | None, str, str], list[float]] = OrderedDict()
+        self._query_cache_maxsize: int = 256
+        self._inflight_queries: dict[tuple[str, str, str | None, str, str], _InFlightQuery] = {}
         # Handle for an operator-started background backfill (the MCP/REST
         # `background=true` path). One at a time per service: a second
         # start while one runs is refused, not queued. Overlap with the
@@ -227,6 +244,76 @@ class EmbeddingService:
             raise
         self._safe_observe_embedding(operation="batch", outcome="success", started=started)
         return vectors
+
+    @property
+    def query_cache_size(self) -> int:
+        """Number of query vectors currently cached in memory."""
+        with self._query_cache_lock:
+            return len(self._query_cache)
+
+    def clear_query_cache(self) -> None:
+        """Clear all entries in the query embedding cache."""
+        with self._query_cache_lock:
+            self._query_cache.clear()
+
+    def _embed_query(self, query: str) -> list[float]:
+        """Embed a search query with identity-scoped LRU caching and singleflight coalescing.
+
+        Caches query vectors only — never search results or mutable memory items.
+        Key incorporates provider, model, model revision, settings fingerprint,
+        and the normalized query text. Concurrent identical queries coalesce to
+        a single in-flight provider call.
+        """
+        normalized = query.strip()
+        if not normalized:
+            return self._embed_single(query)
+
+        key = (
+            self._port.provider_name(),
+            self._port.model_name(),
+            self._port.model_revision(),
+            self._port.settings_fingerprint(),
+            normalized,
+        )
+
+        with self._query_cache_lock:
+            cached = self._query_cache.get(key)
+            if cached is not None:
+                self._query_cache.move_to_end(key)
+                return cached
+
+            flight = self._inflight_queries.get(key)
+            if flight is None:
+                flight = _InFlightQuery()
+                self._inflight_queries[key] = flight
+                is_leader = True
+            else:
+                is_leader = False
+
+        if not is_leader:
+            flight.event.wait()
+            if flight.exception is not None:
+                raise flight.exception
+            if flight.result is not None:
+                return flight.result
+            return self._embed_single(query)
+
+        try:
+            vector = self._embed_single(query)
+            flight.result = vector
+            with self._query_cache_lock:
+                self._query_cache[key] = vector
+                self._query_cache.move_to_end(key)
+                if len(self._query_cache) > self._query_cache_maxsize:
+                    self._query_cache.popitem(last=False)
+            return vector
+        except Exception as exc:
+            flight.exception = exc
+            raise
+        finally:
+            with self._query_cache_lock:
+                self._inflight_queries.pop(key, None)
+            flight.event.set()
 
     @staticmethod
     def _is_content_too_long(exc: Exception) -> bool:
@@ -577,6 +664,7 @@ class EmbeddingService:
         offset: int = 0,
         phrase: bool = False,
         pinned_limit: int = DEFAULT_PINNED_LIMIT,
+        max_chars: int | None = None,
     ) -> list[ScoredMemory]:
         """Hybrid search: FTS5 keyword + embedding similarity via RRF.
 
@@ -626,7 +714,11 @@ class EmbeddingService:
             # returned top_k ranked hits PLUS up to pinned_limit pins,
             # and the documented "maximum number of results" was false.
             combined = [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + ranked
-            return combined[offset : offset + top_k]
+            paged = combined[offset : offset + top_k]
+            if max_chars is not None and max_chars > 0:
+                budgeted, _, _, _ = apply_char_budget(paged, lambda s: s.item.content, max_chars)
+                return budgeted
+            return paged
 
         # ── Keyword search (list A) ─────────────────────────────────────
         # include_pinned mirrors the CALLER's intent (are pins visible at
@@ -778,7 +870,7 @@ class EmbeddingService:
         """
         import numpy as np
 
-        query_vec = self._embed_single(query)
+        query_vec = self._embed_query(query)
         # Space-scoped (ADR 0005): provider + model + MEASURED query
         # dimensions. A row from another provider under the same label,
         # a migration sentinel, or a different-dims row is invisible to
@@ -848,6 +940,7 @@ class EmbeddingService:
         tags: list[str] | None = None,
         offset: int = 0,
         pinned_limit: int = DEFAULT_PINNED_LIMIT,
+        max_chars: int | None = None,
     ) -> list[ScoredMemory]:
         """Pure semantic ranking (mode="semantic").
 
@@ -897,7 +990,11 @@ class EmbeddingService:
         # Same combined-stream budget as search_hybrid's _page: top_k is
         # the total, floated pins consume slots, offset walks the stream.
         combined = [ScoredMemory(item=i, channel="pinned") for i in pinned_items] + results
-        return combined[offset : offset + top_k]
+        paged = combined[offset : offset + top_k]
+        if max_chars is not None and max_chars > 0:
+            budgeted, _, _, _ = apply_char_budget(paged, lambda s: s.item.content, max_chars)
+            return budgeted
+        return paged
 
 
 def _wrap_keyword_ranked(items: list[MemoryItem], offset: int = 0) -> list[ScoredMemory]:

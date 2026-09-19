@@ -452,6 +452,33 @@ class TestContextRecent:
         ids = {m["id"] for m in result["memories"]}
         assert ids == {"mem-0", "mem-1", "mem-2"}
 
+    def test_with_max_chars_budget(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.context import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        mem1 = _sample_memory(id="mem-1", content="first note text")
+        mem2 = _sample_memory(id="mem-2", content="second note text")
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.context.list_memory.execute",
+            return_value=[mem1, mem2],
+        ):
+            tool_fn = mcp._tool_manager._tools["context_recent"].fn
+            result = asyncio.run(tool_fn(ctx=ctx, max_chars=len(mem1.content) + 2))
+
+        assert len(result["memories"]) == 1
+        assert result["memories"][0]["id"] == "mem-1"
+        assert result["truncated"] is True
+        assert result["omitted_count"] == 1
+        assert result["total_chars"] == len(mem1.content)
+
 
 class TestHealth:
     def test_returns_diagnostics(self) -> None:

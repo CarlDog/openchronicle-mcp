@@ -88,6 +88,11 @@ storage/data/*.db
 storage/backups/
 
 
+# SQLite databases and WAL sidecars
+*.db
+*.db-wal
+*.db-shm
+
 # Test artifacts - comprehensive exclusion
 test_cleanup_*
 temp_test*

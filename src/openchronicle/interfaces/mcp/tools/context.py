@@ -12,6 +12,7 @@ from typing import Any
 from mcp.server.fastmcp import Context, FastMCP
 
 from openchronicle.core.application.use_cases import list_memory, search_memory
+from openchronicle.core.domain.context_budget import apply_char_budget
 from openchronicle.interfaces.mcp.tools._context import get_container as _get_container
 from openchronicle.interfaces.serializers import memory_to_dict, scored_memory_to_dict
 
@@ -26,6 +27,7 @@ def register(mcp: FastMCP) -> None:
         project_id: str | None = None,
         memory_limit: int = 5,
         compact: bool = False,
+        max_chars: int | None = None,
     ) -> dict[str, Any]:
         """Catch up on prior context for a project: returns recent memory items.
 
@@ -38,6 +40,9 @@ def register(mcp: FastMCP) -> None:
             project_id: Project to scope to (optional).
             memory_limit: Max memory items to return (default 5).
             compact: Return a content preview instead of full content.
+            max_chars: Maximum cumulative character budget for returned
+                items' content (optional). Truncates results once cumulative
+                content length reaches this limit.
         """
         memory_limit = min(max(memory_limit, 1), 1000)
         container = _get_container(ctx)
@@ -50,8 +55,15 @@ def register(mcp: FastMCP) -> None:
                 top_k=memory_limit,
                 project_id=project_id,
                 embedding_service=container.embedding_service,
+                max_chars=max_chars,
             )
-            return {"memories": [scored_memory_to_dict(s, compact=compact) for s in scored]}
+            retained, total_chars, truncated, omitted = apply_char_budget(scored, lambda s: s.item.content, max_chars)
+            return {
+                "memories": [scored_memory_to_dict(s, compact=compact) for s in retained],
+                "total_chars": total_chars,
+                "truncated": truncated,
+                "omitted_count": omitted,
+            }
         # "Omitted = recent overall" must not route through search:
         # FTS5 MATCH returns nothing for an empty query, so on
         # FTS5-active deployments the search path degrades to pinned
@@ -63,4 +75,10 @@ def register(mcp: FastMCP) -> None:
             limit=memory_limit,
             project_id=project_id,
         )
-        return {"memories": [memory_to_dict(m, compact=compact) for m in memories]}
+        retained_memories, total_chars, truncated, omitted = apply_char_budget(memories, lambda m: m.content, max_chars)
+        return {
+            "memories": [memory_to_dict(m, compact=compact) for m in retained_memories],
+            "total_chars": total_chars,
+            "truncated": truncated,
+            "omitted_count": omitted,
+        }

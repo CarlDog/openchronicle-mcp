@@ -7,6 +7,18 @@
           "title": "Compact",
           "type": "boolean"
         },
+        "max_chars": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Chars"
+        },
         "memory_limit": {
           "default": 5,
           "title": "Memory Limit",
@@ -326,6 +338,18 @@
           "default": true,
           "title": "Include Pinned",
           "type": "boolean"
+        },
+        "max_chars": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Chars"
         },
         "mode": {
           "default": "hybrid",

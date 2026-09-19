@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-18 UTC · **Revision:** 195
+**Snapshot date:** 2026-09-18 UTC · **Revision:** 196
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,033 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,039 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.12+** compatibility — `requires-python = ">=3.12"`, PEP 758 syntax standardized with parenthesized exception tuples, ruff target `py312`, CI matrix (ubuntu + windows) testing against Python 3.14 |
 | Dependency resolution | Deterministic `uv.lock` consumption enforced across Dockerfile and CI workflows (`uv sync --frozen`), guaranteeing reproducible builds and eliminating unpinned transitive dependency drift |
@@ -40,9 +40,9 @@ drivers in `interfaces/`), enforced by tests — see
 
 ## Where things live
 
-### Remediation checkpoint (Phases 1–4) — 2026-09-18 UTC
+### Remediation checkpoint (Phases 1–6) — 2026-09-18 UTC
 
-Phases 1–4 of the Codebase Remediation Plan (Design 0013) were implemented and verified
+Phases 1–6 of the Codebase Remediation Plan (Design 0013) were implemented and verified
 on branch `gemini-3.8.flash/remediation-core`:
 
 1. Ollama probe retry cooldown (30.0s) and persistent HTTP connection pooling in `OllamaEmbeddingAdapter`.
@@ -53,7 +53,10 @@ on branch `gemini-3.8.flash/remediation-core`:
 6. Background vector embedding (`background_embed` option across MCP `memory_save`, REST `POST /memory`, and `add_memory` use case).
 7. Standardized PEP 758 exception syntax to parenthesized tuples, lowering runtime floor to Python `>=3.12` and configuring ruff target to `py312`.
 8. Enforced deterministic lockfile consumption via `uv sync --frozen` in Dockerfile builder and GitHub Actions CI.
-Regression baseline: 1,033 passed, 1 skipped on Windows. All ruff lint, ruff format, mypy, and boundary/hygiene tests passing.
+9. Workspace repository hygiene: added root-level `.gitignore` exclusions for `*.db`, `*.db-wal`, `*.db-shm`.
+10. Query singleflight request coalescing and bounded LRU query embedding cache (`maxsize=256`) in `EmbeddingService` scoped to composite embedding identity (`provider`, `model`, `revision`, `settings_fingerprint`, `normalized_query`).
+11. Context-budget-bounded retrieval: implemented `apply_char_budget` domain utility and added optional `max_chars` budget enforcement across `search_memory`, `EmbeddingService` (`search_hybrid`, `search_semantic`), MCP tools (`memory_search`, `context_recent`), and REST routes with explicit omission tracking (`omitted_count`, `truncated`, `total_chars`).
+Regression baseline: 1,039 passed, 1 skipped on Windows. All ruff lint, ruff format, mypy, and boundary/hygiene tests passing.
 
 ### Source checkpoint — 2026-09-09 UTC
 
@@ -279,6 +282,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 196 | 2026-09-18 | **Codebase Remediation Phases 5–6 & Hygiene complete (Design 0011/0012/0013).** Implemented and verified on branch `gemini-3.8.flash/remediation-core`: Workspace repository hygiene with root-level `.gitignore` exclusions for database sidecars (`*.db`, `*.db-wal`, `*.db-shm`); query singleflight request coalescing and bounded exact-query embedding LRU cache (`maxsize=256`) in `EmbeddingService` scoped to composite embedding identity; context-budget-bounded retrieval with `apply_char_budget` domain utility and `max_chars` budget enforcement across `search_memory`, `EmbeddingService` (`search_hybrid`, `search_semantic`), MCP tools (`memory_search`, `context_recent`), and REST `GET /memory/search` with explicit omission metadata (`omitted_count`, `truncated`, `total_chars`). 1,033 → 1,039 tests passed, 1 skipped. |
 | 195 | 2026-09-18 | **Codebase Remediation Phases 1–4 complete (Design 0013).** Implemented and verified on branch `gemini-3.8.flash/remediation-core`: Ollama probe retry cooldown (30s) & persistent HTTP pooling; SQLite empty-list syntax safety & parameter chunking; SQL vector scope join & batch candidate hydration; rate limiter decoupled sweep; SQLite thread-local reader connections with non-blocking WAL reads & read-your-own-writes consistency; background vector embedding (`background_embed` on MCP/REST/add_memory); PEP 758 exception syntax standardized to `except (A, B):` with Python runtime floor broadened to `>=3.12`; deterministic `uv.lock` consumption across Dockerfile and CI workflows. 1,020 → 1,033 tests passed, 1 skipped. |
 | 194 | 2026-09-09 | **Operator-authorized source checkpoint.** Assemble all current recorder/exporter code, maintained tests, attribution/readiness documentation and reviews 0011/0012 for commit and push to main under mandatory repository hooks. Preserve the recorded 1,020-pass/one-skip Windows baseline and 106-pass Linux contracts on both supported Prometheus versions. Live readback confirms detached stack 151 remains pinned to v3.3.0, build 7349f94. Source publication does not clear 4C/affected 4D gates or authorize a release, deployment, metrics enabling or benchmark. |
 | 193 (working tree) | 2026-09-09 | **FreeToken comparative research recorded.** Review 0012 documents the generation/embedding mismatch, source findings, explicit non-adoptions, and a measurement-gated exact-query cache/singleflight candidate, subordinate to the accuracy-first priority. Recommendations remain unratified and unscheduled. Documentation only; no runtime tests rerun, provider switch, metrics change, performance acceptance, release, deployment, commit or push. Existing rev190-192 work and evidence preserved. |

@@ -46,6 +46,7 @@ def memory_search(
     phrase: bool = False,
     pinned_limit: int = Query(default=10, ge=0, le=1000),
     include_pinned: bool = True,
+    max_chars: int | None = Query(default=None, ge=1, le=1_000_000),
 ) -> list[dict[str, Any]]:
     """Search memory items; each result carries a `relevance` block.
 
@@ -74,6 +75,7 @@ def memory_search(
         phrase=phrase,
         pinned_limit=pinned_limit,
         include_pinned=include_pinned,
+        max_chars=max_chars,
     )
     return [scored_memory_to_dict(s, compact=compact) for s in results]
 

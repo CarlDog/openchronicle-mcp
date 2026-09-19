@@ -337,10 +337,10 @@ statements describe those historical checkpoints. Live readback confirms the
 detached stack remains pinned to `v3.3.0`, build `7349f94`; pushing `main` does
 not move that tag. Metrics remain off by default, the corrected integration
 remains untimed, and existing 4C/affected 4D gates remain unresolved. See
-[assessment rev 195](docs/CODEBASE_ASSESSMENT.md#remediation-checkpoint-phases-14--2026-09-18-utc).
+[assessment rev 196](docs/CODEBASE_ASSESSMENT.md#remediation-checkpoint-phases-16--2026-09-18-utc).
 
-**Codebase Remediation (Design 0013, 2026-09-18):**
-Phases 1–4 of the architectural and code-quality remediation plan are complete
+**Codebase Remediation (Design 0011/0012/0013, 2026-09-18):**
+Phases 1–6 of the architectural and code-quality remediation plan are complete
 and verified in the working tree on branch `gemini-3.8.flash/remediation-core`.
 Phase 1 resolved permanent failure caching in the Ollama adapter probe with a
 30-second backoff cooldown, added empty-list SQL syntax guards, and enforced safe
@@ -352,9 +352,16 @@ mode concurrency with thread-local read connections (`PRAGMA query_only = ON;`),
 preserving read-your-own-writes consistency, and introduced configurable background
 vector generation (`background_embed=True`) across MCP, REST, and application use
 cases. Phase 4 standardized PEP 758 exception syntax to parenthesized tuples,
-broadening runtime portability to Python `>=3.12`, and enforced deterministic
-`uv.lock` consumption across Dockerfile and CI workflows (`uv sync --frozen`).
-The full test suite passed: 1,033 passed, 1 skipped.
+broadening runtime portability to Python `>=3.12`, enforced deterministic
+`uv.lock` consumption across Dockerfile and CI workflows (`uv sync --frozen`),
+and added root-level `.gitignore` exclusions for database sidecars (`*.db`, `*.db-wal`, `*.db-shm`).
+Phase 5 implemented `_InFlightQuery` singleflight request coalescing and bounded
+LRU query embedding cache (`maxsize=256`) in `EmbeddingService` scoped to composite
+embedding identity. Phase 6 implemented the `apply_char_budget` domain utility and
+integrated `max_chars` context-budget-bounded retrieval across `search_memory`,
+`EmbeddingService` (`search_hybrid`, `search_semantic`), MCP tools (`memory_search`, `context_recent`),
+and REST `GET /memory/search` with explicit omission metadata (`omitted_count`, `truncated`, `total_chars`).
+The full test suite passed: 1,039 passed, 1 skipped.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
