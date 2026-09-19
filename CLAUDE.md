@@ -360,7 +360,7 @@ LRU query embedding cache (`maxsize=256`) in `EmbeddingService` scoped to compos
 embedding identity. Phase 6 implemented the `apply_char_budget` domain utility and
 integrated `max_chars` context-budget-bounded retrieval across `search_memory`,
 `EmbeddingService` (`search_hybrid`, `search_semantic`), MCP tools (`memory_search`, `context_recent`),
-and REST `GET /memory/search` with explicit omission metadata (`omitted_count`, `truncated`, `total_chars`).
+and REST `GET /memory/search` with explicit omission metadata on `context_recent` (`omitted_count`, `truncated`, `total_chars`).
 Batch 4 implemented optional-send `dimensions` in `OpenAIEmbeddingAdapter` (preserving 1536
 default/fallback and exact `settings_fingerprint` equality) to unblock strict OpenAI-compatible
 cloud hosts (e.g. Mistral/Voyage), background vector generation on memory updates (`background_embed=True`
@@ -371,7 +371,11 @@ batch memory insertion (`add_memories(items, *, chunk_size=100)`) preventing SQL
 Batch 6 established CLI parameter parity (`oc memory add --id --background-embed`,
 `oc memory search --max-chars`, `oc memory update --background-embed --expected-updated-at`),
 automated smoke tests, and documentation parity across CLI and environment variable references.
-The full test suite passed: 1,059 passed, 1 skipped.
+Adversarial hardening resolved `context_recent` double-truncation masking, added concurrent `UNIQUE`
+idempotent replay defense in `add_memory`, added bounded timeouts to singleflight waiters, protected
+`OllamaEmbeddingAdapter` client instantiation with a mutex and lifecycle `close()`, capped rate limit
+tracking to 10,000 clients, and added a Python 3.12 CI test matrix leg.
+The full test suite passed: 1,062 passed, 1 skipped.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

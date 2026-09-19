@@ -119,6 +119,12 @@ class CoreContainer:
 
     def close(self) -> None:
         """Close managed resources."""
+        if (
+            hasattr(self, "embedding_port")
+            and self.embedding_port is not None
+            and hasattr(self.embedding_port, "close")
+        ):
+            self.embedding_port.close()
         self.storage.close()
 
     def __enter__(self) -> CoreContainer:

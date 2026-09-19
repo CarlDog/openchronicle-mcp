@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import threading
 import time
 from typing import Any
 
@@ -77,12 +78,20 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
             logger.warning("OLLAMA_VERIFY_TLS disabled — TLS certificates for %s will not be verified", self._host)
         self._timeout = timeout_seconds
         self._client = client
+        self._client_lock = threading.Lock()
         self._owned_client: httpx.Client | None = None
         # Lazy, non-fatal capability probe (see _probe_digest). The
         # sentinel distinguishes "never probed" from "probed, no answer".
         self._probed_revision: str | None | object = _UNPROBED
         self._probe_failed: bool = False
         self._last_probe_failed_at: float = 0.0
+
+    def _get_owned_client(self) -> httpx.Client:
+        if self._owned_client is None:
+            with self._client_lock:
+                if self._owned_client is None:
+                    self._owned_client = httpx.Client(timeout=self._timeout, verify=self._verify_tls)
+        return self._owned_client
 
     def _send_post(self, url: str, body: dict[str, Any]) -> httpx.Response:
         if self._client is not None:
@@ -94,9 +103,7 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
                 return httpx.post(url, json=body, timeout=self._timeout, verify=self._verify_tls)
         except ImportError:
             pass
-        if self._owned_client is None:
-            self._owned_client = httpx.Client(timeout=self._timeout, verify=self._verify_tls)
-        return self._owned_client.post(url, json=body)
+        return self._get_owned_client().post(url, json=body)
 
     def _send_get(self, url: str, timeout: float) -> httpx.Response:
         if self._client is not None:
@@ -108,15 +115,14 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
                 return httpx.get(url, timeout=timeout, verify=self._verify_tls)
         except ImportError:
             pass
-        if self._owned_client is None:
-            self._owned_client = httpx.Client(timeout=self._timeout, verify=self._verify_tls)
-        return self._owned_client.get(url, timeout=timeout)
+        return self._get_owned_client().get(url, timeout=timeout)
 
     def close(self) -> None:
         """Close the persistent HTTP client if owned by this adapter."""
-        if self._owned_client is not None:
-            self._owned_client.close()
-            self._owned_client = None
+        with self._client_lock:
+            if self._owned_client is not None:
+                self._owned_client.close()
+                self._owned_client = None
 
     def __del__(self) -> None:
         self.close()

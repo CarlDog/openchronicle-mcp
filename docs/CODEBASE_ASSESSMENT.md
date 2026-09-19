@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-19 UTC · **Revision:** 200
+**Snapshot date:** 2026-09-19 UTC · **Revision:** 201
 
 ## Current state
 
@@ -25,11 +25,11 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,059 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,062 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
-| Toolchain | Python **3.12+** compatibility — `requires-python = ">=3.12"`, PEP 758 syntax standardized with parenthesized exception tuples, ruff target `py312`, CI matrix (ubuntu + windows) testing against Python 3.14 |
+| Toolchain | Python **3.12+** compatibility — `requires-python = ">=3.12"`, PEP 758 syntax standardized with parenthesized exception tuples, ruff target `py312`, CI matrix (ubuntu + windows) testing across Python 3.12 and Python 3.14 |
 | Dependency resolution | Deterministic `uv.lock` consumption enforced across Dockerfile and CI workflows (`uv sync --frozen`), guaranteeing reproducible builds and eliminating unpinned transitive dependency drift |
-| CI | One workflow, three jobs: test matrix → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only) |
+| CI | One workflow, three jobs: test matrix (OS x Python 3.12/3.14) → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only) |
 | Canonical OC project | `fe2ef898-0152-40a4-af97-ed97cc86ca45` on the NAS deployment |
 | Coverage measurement | None (deliberate; the test count and per-commit gates are the regression signal) |
 
@@ -39,6 +39,19 @@ drivers in `interfaces/`), enforced by tests — see
 [architecture/MAINTENANCE.md](architecture/MAINTENANCE.md).
 
 ## Where things live
+
+### Remediation checkpoint (Adversarial Hardening) — 2026-09-19 UTC
+
+Adversarial analysis findings on branch `gemini-3.8.flash/remediation-core` were implemented and verified:
+
+1. **`context_recent` Double-Truncation Elimination:** Resolved double-truncation defect where `search_memory.execute` pre-filtered results before `apply_char_budget` ran in `context_recent`, restoring honest omission reporting (`truncated=True`, `omitted_count > 0`) when filtering with `query` and `max_chars`.
+2. **Concurrent Idempotent Replay Defense in `add_memory`:** Handled `sqlite3.IntegrityError` `UNIQUE` collisions gracefully in `SqliteStore.add_memory` for concurrent duplicate `id` submissions, preventing unhandled 500 crashes and returning idempotent matches cleanly.
+3. **Singleflight Waiter Timeout Fallback:** Added bounded timeout `self._port.timeout + 5.0` to `EmbeddingService._embed_query` follower wait loops, falling back to direct embedding if a leader thread hangs, preventing AnyIO threadpool starvation.
+4. **Ollama Adapter Thread-Safe HTTP Client & Teardown:** Protected lazy `httpx.Client` instantiation with `_client_lock` mutex and wired `embedding_port.close()` into `CoreContainer.close()`.
+5. **Rate Limiting Memory Bound:** Capped tracked client IPs to `_MAX_CLIENTS = 10_000` with oldest-entry eviction to prevent memory exhaustion under spoofed request floods.
+6. **CI Python 3.12 Matrix Validation:** Added `python-version: ["3.12", "3.14"]` to GitHub Actions `test` job, actively validating Python 3.12+ portability on both Ubuntu and Windows runners.
+7. **Documentation Contract Reconciliation:** Clarified across docs and assessments that explicit omission envelopes belong to `context_recent`, preserving the stable bare-array contract on `GET /memory/search` and MCP `memory_search`.
+Regression baseline: 1,062 passed, 1 skipped on Windows (1,063 items). All ruff lint, ruff format, mypy, and boundary/hygiene tests passing.
 
 ### Remediation checkpoint (Batch 6) — 2026-09-19 UTC
 

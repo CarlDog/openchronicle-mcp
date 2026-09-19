@@ -24,7 +24,13 @@ from openchronicle.core.domain.errors.error_codes import (
     MEMORY_NOT_FOUND,
     PROJECT_NOT_FOUND,
 )
-from openchronicle.core.domain.exceptions import ConflictError, NotFoundError
+from openchronicle.core.domain.exceptions import (
+    ConflictError,
+    NotFoundError,
+)
+from openchronicle.core.domain.exceptions import (
+    ValidationError as DomainValidationError,
+)
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
@@ -490,6 +496,19 @@ class SqliteStore(StoragePort, MemoryStorePort):
                     f"Project not found: {item.project_id}",
                     code=PROJECT_NOT_FOUND,
                 ) from exc
+            exc_str = str(exc).upper()
+            if "UNIQUE" in exc_str and "MEMORY_ITEMS.ID" in exc_str:
+                existing = self.get_memory(item.id)
+                if existing is not None:
+                    if (
+                        existing.project_id == item.project_id
+                        and existing.content == item.content
+                        and set(existing.tags) == set(item.tags)
+                    ):
+                        return
+                    raise DomainValidationError(
+                        f"Memory already exists with id {item.id!r} and different content"
+                    ) from exc
             raise
         self._commit_if_needed()
 

@@ -549,6 +549,48 @@ def test_query_embedding_singleflight_failure_isolation() -> None:
     assert service.query_cache_size == 0
 
 
+def test_query_embedding_singleflight_waiter_timeout_fallback() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=4)
+    setattr(adapter, "_timeout", -4.95)  # wait timeout becomes 0.05s
+
+    service = EmbeddingService(port=adapter, store=store)
+
+    leader_started = threading.Event()
+    follower_done = threading.Event()
+    results: dict[str, list[float]] = {}
+
+    def slow_leader_embed(text: str) -> list[float]:
+        leader_started.set()
+        time.sleep(0.2)
+        return [0.1, 0.2, 0.3, 0.4]
+
+    def follower_worker() -> None:
+        leader_started.wait()
+        res = service._embed_query("timeout query")
+        results["follower"] = res
+        follower_done.set()
+
+    adapter.embed = slow_leader_embed  # type: ignore[method-assign]
+    t_follower = threading.Thread(target=follower_worker)
+
+    # Leader starts and holds flight
+    def leader_worker() -> None:
+        res = service._embed_query("timeout query")
+        results["leader"] = res
+
+    t_leader = threading.Thread(target=leader_worker)
+    t_leader.start()
+    t_follower.start()
+
+    t_follower.join(timeout=1.0)
+    t_leader.join(timeout=1.0)
+
+    assert "follower" in results
+    assert "leader" in results
+    assert len(results["follower"]) == 4
+
+
 def test_add_memory_idempotency_identical_replay() -> None:
     store = _make_store()
     item = _make_item("idemp-1", "idempotent content", tags=["alpha", "beta"])
@@ -791,3 +833,35 @@ def test_memory_update_request_expected_updated_at() -> None:
     )
     assert req.content == "occ payload"
     assert req.expected_updated_at == "2026-09-19T06:00:00+00:00"
+
+
+def test_concurrent_idempotent_add_memory(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    from openchronicle.core.application.use_cases import add_memory
+    from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+    db_path = tmp_path / "concurrent_idempotent.db"
+    store = SqliteStore(str(db_path))
+    store.init_schema()
+    store.add_project(Project(id="proj-1", name="Project 1"))
+
+    item = _make_item("shared-concurrent-id", "idempotent content", tags=["a", "b"])
+
+    def _insert() -> MemoryItem:
+        return add_memory.execute(store, item)
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(_insert) for _ in range(4)]
+        results = [f.result() for f in futures]
+
+    assert len(results) == 4
+    for res in results:
+        assert res.id == "shared-concurrent-id"
+        assert res.content == "idempotent content"
+
+    # Conflicting insert on existing id raises DomainValidationError
+    conflicting = _make_item("shared-concurrent-id", "different content", tags=["a", "b"])
+    with pytest.raises(DomainValidationError, match="different content"):
+        add_memory.execute(store, conflicting)

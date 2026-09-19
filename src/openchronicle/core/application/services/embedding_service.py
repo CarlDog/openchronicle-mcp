@@ -291,7 +291,13 @@ class EmbeddingService:
                 is_leader = False
 
         if not is_leader:
-            flight.event.wait()
+            timeout = float(getattr(self._port, "_timeout", 30.0)) + 5.0
+            signaled = flight.event.wait(timeout=timeout)
+            if not signaled:
+                logger.warning(
+                    "Singleflight waiter timed out waiting for query embedding; falling back to direct embed",
+                )
+                return self._embed_single(query)
             if flight.exception is not None:
                 raise flight.exception
             if flight.result is not None:

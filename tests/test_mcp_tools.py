@@ -479,6 +479,40 @@ class TestContextRecent:
         assert result["omitted_count"] == 1
         assert result["total_chars"] == len(mem1.content)
 
+    def test_context_recent_query_max_chars_omission_metadata(self) -> None:
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.context import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        container = _make_container()
+        ctx = _make_context(container)
+
+        mem1 = _sample_memory(id="mem-1", content="first matching note")
+        mem2 = _sample_memory(id="mem-2", content="second matching note")
+        scored = [
+            ScoredMemory(item=mem1, channel="keyword", keyword_rank=1),
+            ScoredMemory(item=mem2, channel="keyword", keyword_rank=2),
+        ]
+
+        with patch(
+            "openchronicle.interfaces.mcp.tools.context.search_memory.execute",
+            return_value=scored,
+        ) as mock_search:
+            tool_fn = mcp._tool_manager._tools["context_recent"].fn
+            result = asyncio.run(tool_fn(ctx=ctx, query="matching", max_chars=len(mem1.content) + 2))
+
+        # Verified search_memory receives max_chars=None to prevent double-truncation
+        mock_search.assert_called_once()
+        assert mock_search.call_args.kwargs.get("max_chars") is None
+        assert len(result["memories"]) == 1
+        assert result["memories"][0]["id"] == "mem-1"
+        assert result["truncated"] is True
+        assert result["omitted_count"] == 1
+        assert result["total_chars"] == len(mem1.content)
+
 
 class TestHealth:
     def test_returns_diagnostics(self) -> None:

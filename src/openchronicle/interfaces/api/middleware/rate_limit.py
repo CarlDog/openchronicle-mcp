@@ -15,6 +15,7 @@ from openchronicle.core.application.config.env_helpers import parse_int_env
 # Defaults — configurable via env vars
 _DEFAULT_RPM = 600  # requests per minute per client
 _DEFAULT_WINDOW_SECONDS = 60
+_MAX_CLIENTS = 10_000  # maximum distinct client IPs tracked simultaneously
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -61,6 +62,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 )
 
             timestamps.append(now)
+            if client_ip not in self._requests and len(self._requests) >= _MAX_CLIENTS:
+                # Evict arbitrary oldest tracked client to bound memory under high-cardinality spoofing
+                oldest_key = next(iter(self._requests))
+                del self._requests[oldest_key]
             self._requests[client_ip] = timestamps
             remaining = max(0, self._rpm - len(timestamps))
 

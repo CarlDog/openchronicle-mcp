@@ -55,7 +55,6 @@ def register(mcp: FastMCP) -> None:
                 top_k=memory_limit,
                 project_id=project_id,
                 embedding_service=container.embedding_service,
-                max_chars=max_chars,
             )
             retained, total_chars, truncated, omitted = apply_char_budget(scored, lambda s: s.item.content, max_chars)
             return {
