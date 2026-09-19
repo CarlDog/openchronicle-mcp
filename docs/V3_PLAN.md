@@ -920,6 +920,19 @@ entry (below, or in its design doc):
    mcp 2.x migration by its own entry.
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
+8. ✅ **Codebase Remediation & Modernization (Design 0013 / 0011 §4 / 0012) —
+   IMPLEMENTED (2026-09-18, branch `gemini-3.8.flash/remediation-core`).**
+   All 6 phases completed: Ollama probe backoff, empty-list SQL guard,
+   parameter chunking, SQL vector scope pushdown (`eligible_memory_ids`),
+   batch candidate hydration (`get_memories`), persistent HTTP pooling in
+   Ollama adapter, decoupled rate limiter pruning, SQLite WAL reader
+   concurrency (`PRAGMA query_only = ON;`), background vector generation
+   (`background_embed=True`), PEP 758 parenthesized exception syntax for
+   Python `>=3.12` floor, deterministic `uv sync --frozen` builds, root
+   `.gitignore` database sidecar exclusions, query singleflight request
+   coalescing and LRU query embedding cache (`maxsize=256`), and context-
+   budget-bounded retrieval (`apply_char_budget[T]`, `max_chars`).
+   1,039 tests passed.
 
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
 triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+

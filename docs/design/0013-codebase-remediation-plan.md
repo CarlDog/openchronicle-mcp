@@ -1,9 +1,9 @@
 # 0013 — Codebase Remediation and Modernization Plan
 
-**Status:** PROPOSED · **Date:** 2026-09-18
+**Status:** IMPLEMENTED · **Date:** 2026-09-18
 **Author / Prepared by:** Antigravity (Google DeepMind)
 **Target Repository:** `openchronicle-mcp` (OpenChronicle v3 / v4 line)
-**Related Documents:** [0005](0005-embedding-identity.md), [0007](0007-long-term-scale-and-resilience.md), [0008](0008-pins-as-ranking-prior.md), [0009](0009-permanent-embed-failure-classification.md), [0010](0010-performance-measurement.md)
+**Related Documents:** [0005](0005-embedding-identity.md), [0007](0007-long-term-scale-and-resilience.md), [0008](0008-pins-as-ranking-prior.md), [0009](0009-permanent-embed-failure-classification.md), [0010](0010-performance-measurement.md), [0011](0011-memory-ecosystem-review.md), [0012](0012-freetoken-repository-review.md)
 
 ---
 
@@ -191,3 +191,20 @@ However, several architectural bottlenecks and subtle edge-case risks limit thro
 | **4.1** | Python Runtime Compatibility | `pyproject.toml`, codebase | Exception syntax standardized to `except (A, B):`, enabling Python >=3.12 support. |
 | **4.2** | Deterministic Lockfile Builds | `Dockerfile`, `test.yml`, `uv.lock` | Enforce `uv sync --frozen` across Dockerfile builder and CI workflows. |
 | **4.3** | Repository Hygiene | `.gitignore`, test suites | Enforced zero-tolerance checks for prohibited debt tokens and unmocked clocks. |
+| **5.1** | Query Singleflight & LRU Cache | `embedding_service.py` | Unit test validates coalescing identical concurrent requests and exact-query LRU cache hits. |
+| **6.1** | Context-Budget-Bounded Retrieval | `context_budget.py`, search use cases, MCP tools, REST API | Enforce `max_chars` budget across retrieval surfaces with explicit `BudgetResult` omission metadata. |
+
+---
+
+## 7. Implementation Note (2026-09-18)
+
+All six phases of this remediation plan have been implemented and verified in the working tree on branch `gemini-3.8.flash/remediation-core`:
+
+1. **Phase 1 (1.1, 1.2, 1.3):** Ollama capability probe retry cooldown (30.0s), empty memory ID collection syntax guard, and parameter chunking in `SqliteStore`.
+2. **Phase 2 (2.1, 2.2, 2.3, 2.4):** SQL vector scope pushdown (`eligible_memory_ids`), batched candidate hydration (`get_memories`), persistent HTTP connection pooling in `OllamaEmbeddingAdapter`, and decoupled rate limiter pruning in `RateLimitMiddleware`.
+3. **Phase 3 (3.1, 3.2, 3.3):** SQLite thread-local reader connections (`PRAGMA query_only = ON;`) unlocking non-blocking WAL reads with read-your-own-writes consistency, background vector embedding (`background_embed=True`) across MCP, REST, and application use cases, and lock observation bypass for concurrent readers.
+4. **Phase 4 (4.1, 4.2, 4.3):** Python `>=3.12` compatibility floor with standardized PEP 758 parenthesized exception syntax, deterministic `uv sync --frozen` consumption in Dockerfile and CI workflows, and root `.gitignore` exclusions for database sidecars (`*.db`, `*.db-wal`, `*.db-shm`).
+5. **Phase 5 (Design 0012):** Query singleflight request coalescing (`_InFlightQuery`) and bounded identity-scoped LRU query embedding cache (`maxsize=256`) in `EmbeddingService`.
+6. **Phase 6 (Design 0011 §4):** Domain utility `apply_char_budget` in `context_budget.py` and `max_chars` parameter integration across search application use cases, MCP tools (`memory_search`, `context_recent`), and REST APIs with explicit envelope omission metadata (`omitted_count`, `truncated`, `total_chars`).
+
+Regression baseline: 1,039 passed, 1 skipped across the complete test suite.
