@@ -913,26 +913,27 @@ entry (below, or in its design doc):
    first backfill after the redeploy writes the 9 tombstones, reports
    `ok` with `tombstoned: 9`, and health goes `active` with
    `unembeddable: 9`.
-5. **`dimensions` optional-send in the openai adapter** (full entry
-   below) — real, live-confirmed, but demand-gated: pick up when a
-   cloud provider is actually wanted again.
+5. ✅ **`dimensions` optional-send in the openai adapter — IMPLEMENTED (2026-09-19, Batch 4, branch `gemini-3.8.flash/remediation-core`).**
+   Sends `"dimensions"` only when explicitly configured (via parameter or `OC_EMBEDDING_DIMENSIONS`), unblocking strict OpenAI-compatible cloud hosts (e.g. Mistral 422, Voyage AI 400); preserves 1536 default/fallback and exact `settings_fingerprint` equality.
 6. **MCP `error_code` gap** (full entry below) — parked against the
    mcp 2.x migration by its own entry.
-7. **Docs parity gates (CLI/MCP/env)** — batch into the next
-   phase-end audit.
-8. ✅ **Codebase Remediation & Modernization (Design 0013 / 0011 §4 / 0012) —
-   IMPLEMENTED (2026-09-18, branch `gemini-3.8.flash/remediation-core`).**
-   All 6 phases completed: Ollama probe backoff, empty-list SQL guard,
+7. ✅ **Docs parity gates (CLI/MCP/env) — IMPLEMENTED (2026-09-19, Batch 6, branch `gemini-3.8.flash/remediation-core`).**
+   Added `--id` and `--background-embed` to `oc memory add`, `--max-chars` to `oc memory search`, and `--background-embed` & `--expected-updated-at` to `oc memory update` with conflict error reporting. Reconciled CLI reference and environment variable docs.
+8. ✅ **Codebase Remediation & Modernization (Design 0013 / 0011 §2, §4 / 0012) —
+   IMPLEMENTED (2026-09-18/19, branch `gemini-3.8.flash/remediation-core`).**
+   All 6 phases and Batches 4, 5, and 6 completed: Ollama probe backoff, empty-list SQL guard,
    parameter chunking, SQL vector scope pushdown (`eligible_memory_ids`),
    batch candidate hydration (`get_memories`), persistent HTTP pooling in
    Ollama adapter, decoupled rate limiter pruning, SQLite WAL reader
    concurrency (`PRAGMA query_only = ON;`), background vector generation
-   (`background_embed=True`), PEP 758 parenthesized exception syntax for
+   (`background_embed=True`) on creation and updates, PEP 758 parenthesized exception syntax for
    Python `>=3.12` floor, deterministic `uv sync --frozen` builds, root
    `.gitignore` database sidecar exclusions, query singleflight request
-   coalescing and LRU query embedding cache (`maxsize=256`), and context-
-   budget-bounded retrieval (`apply_char_budget[T]`, `max_chars`).
-   1,039 tests passed.
+   coalescing and LRU query embedding cache (`maxsize=256`), context-
+   budget-bounded retrieval (`apply_char_budget[T]`, `max_chars`), OpenAI optional dimensions,
+   write idempotency/replay, OCC on updates (`expected_updated_at`, `ConflictError` / HTTP 409),
+   bounded batch write chunking (`add_memories`), and CLI parameter parity.
+   1,059 tests passed.
 
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
 triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+
@@ -1142,20 +1143,19 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   pin-crowding probe, gold set 40 → 50 queries / 20 pinned-target) —
   landed on `main` (assessment rev 157).
 
-- **The openai adapter always sends `dimensions`; strict
-  OpenAI-compat hosts reject the request outright.** Live-confirmed
-  2026-08-29 by the embedding benchmark: Mistral 422s
+- ✅ **SHIPPED 2026-09-19 (Batch 4): The openai adapter always sends
+  `dimensions`; strict OpenAI-compat hosts reject the request outright.**
+  Live-confirmed 2026-08-29 by the embedding benchmark: Mistral 422s
   (`extra_forbidden`) and Voyage 400s ("Argument 'dimensions' is not
   supported") on the param `OpenAIEmbeddingAdapter.embed_batch`
   unconditionally includes — the fleet's strict-upstream lesson
   (build request bodies by adding only supplied fields) applied to our
-  own adapter. Blocks the operator-directed "all major cloud
-  providers" path for those two. Fix shape when picked up: make
-  `dimensions` optional-send (send only when explicitly configured,
-  like the ollama adapter), keeping the value in the
-  settings-fingerprint either way; decide what the OpenAI-native
-  default then means for existing fingerprints (a fingerprint change
-  triggers a reindex under ADR 0005 — plan the migration note).
+  own adapter. Shipped in Batch 4: `dimensions` is now optional-send
+  (omitted from request payload unless explicitly configured or
+  customized, while preserving fallback 1536 and exact
+  `settings_fingerprint` parity), unblocking strict OpenAI-compatible
+  providers like Mistral and Voyage without triggering unnecessary
+  reindexing under ADR 0005.
 
 - ✅ **SHIPPED 2026-08-29 (rev 148, same day it was filed):
   `memory_embed` is synchronous, so a real reindex can't be driven

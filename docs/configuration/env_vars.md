@@ -31,7 +31,7 @@ The four-layer precedence (constructor arg > per-path env > `OC_DATA_DIR`-derive
 |---|---|---|
 | `OC_EMBEDDING_PROVIDER` | `none` (FTS5-only), `stub`, `openai`, `ollama` | `none` |
 | `OC_EMBEDDING_MODEL` | Provider-specific model name | *(provider default)* |
-| `OC_EMBEDDING_DIMENSIONS` | Override dimensions (must match the model) | *(provider default)* |
+| `OC_EMBEDDING_DIMENSIONS` | Override dimensions (must match the model). Sent to the upstream provider only when explicitly set, unblocking strict OpenAI-compatible cloud hosts (Mistral, Voyage AI) | *(provider default)* |
 | `OC_EMBEDDING_API_KEY` | Explicit override; falls back to provider-specific env | — |
 | `OC_EMBEDDING_TIMEOUT` | Per-request timeout in seconds | `30.0` |
 | `OPENAI_API_KEY` | Used by the OpenAI embedding adapter | — |

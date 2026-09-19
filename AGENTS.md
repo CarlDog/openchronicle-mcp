@@ -365,9 +365,13 @@ Batch 4 implemented optional-send `dimensions` in `OpenAIEmbeddingAdapter` (pres
 default/fallback and exact `settings_fingerprint` equality) to unblock strict OpenAI-compatible
 cloud hosts (e.g. Mistral/Voyage), background vector generation on memory updates (`background_embed=True`
 in `update_memory`, MCP `memory_update`, and REST `PUT /memory/{id}`), and write idempotency/replay handling
-in `add_memory` with optional explicit `id` support. MCP tool schema snapshot regenerated.
-Design 0013 is marked IMPLEMENTED; design index in `docs/design/README.md` and active
-queue in `docs/V3_PLAN.md` are reconciled. The full test suite passed: 1,048 passed, 1 skipped.
+in `add_memory` with optional explicit `id` support. Batch 5 implemented optimistic concurrency
+control (`expected_updated_at`) with canonical `ConflictError` / HTTP 409 Conflict, and chunked
+batch memory insertion (`add_memories(items, *, chunk_size=100)`) preventing SQLite lock starvation.
+Batch 6 established CLI parameter parity (`oc memory add --id --background-embed`,
+`oc memory search --max-chars`, `oc memory update --background-embed --expected-updated-at`),
+automated smoke tests, and documentation parity across CLI and environment variable references.
+The full test suite passed: 1,059 passed, 1 skipped.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

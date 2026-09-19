@@ -208,3 +208,95 @@ class TestOnboardGitCli:
         rc, out = _run(container, ["onboard", "git", "--project-id", project_id, "--repo-path", str(repo)])
         assert rc == 0
         assert "Up to date" in out
+
+
+class TestCliParameterParity:
+    """Validate CLI parity for id, background_embed, max_chars, and expected_updated_at."""
+
+    def test_memory_add_with_id_and_background_embed(self, container: CoreContainer) -> None:
+        rc, out = _run(container, ["init-project", "parity-proj"])
+        assert rc == 0
+        project_id = out.strip().splitlines()[-1].strip()
+
+        rc, out = _run(
+            container,
+            [
+                "memory",
+                "add",
+                "parity test content",
+                "--project-id",
+                project_id,
+                "--id",
+                "custom-parity-id-1",
+                "--background-embed",
+            ],
+        )
+        assert rc == 0
+        assert "custom-parity-id-1" in out
+        item = container.storage.get_memory("custom-parity-id-1")
+        assert item is not None
+        assert item.content == "parity test content"
+
+    def test_memory_search_with_max_chars(self, container: CoreContainer) -> None:
+        rc, out = _run(container, ["init-project", "search-budget-proj"])
+        project_id = out.strip().splitlines()[-1].strip()
+
+        _run(
+            container,
+            ["memory", "add", "short memory", "--project-id", project_id],
+        )
+        _run(
+            container,
+            ["memory", "add", "another memory with more text content", "--project-id", project_id],
+        )
+
+        rc, out = _run(
+            container,
+            ["memory", "search", "memory", "--project-id", project_id, "--max-chars", "20"],
+        )
+        assert rc == 0
+        lines = [line for line in out.strip().splitlines() if line]
+        assert len(lines) == 1
+
+    def test_memory_update_with_expected_updated_at_and_conflict(self, container: CoreContainer) -> None:
+        rc, out = _run(container, ["init-project", "occ-cli-proj"])
+        project_id = out.strip().splitlines()[-1].strip()
+
+        rc, out = _run(
+            container,
+            ["memory", "add", "initial occ content", "--project-id", project_id, "--id", "occ-cli-mem-1"],
+        )
+        assert rc == 0
+
+        # Successful update matching initial un-updated state
+        rc, out = _run(
+            container,
+            [
+                "memory",
+                "update",
+                "occ-cli-mem-1",
+                "--content",
+                "updated revision 2",
+                "--expected-updated-at",
+                "initial",
+                "--background-embed",
+            ],
+        )
+        assert rc == 0
+        assert "occ-cli-mem-1" in out
+
+        # Conflicting stale update using initial expectation must fail (exit 1)
+        rc, out = _run(
+            container,
+            [
+                "memory",
+                "update",
+                "occ-cli-mem-1",
+                "--content",
+                "stale overwrite",
+                "--expected-updated-at",
+                "initial",
+            ],
+        )
+        assert rc == 1
+        assert "update conflict" in out

@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-19 UTC · **Revision:** 199
+**Snapshot date:** 2026-09-19 UTC · **Revision:** 200
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,056 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,059 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.12+** compatibility — `requires-python = ">=3.12"`, PEP 758 syntax standardized with parenthesized exception tuples, ruff target `py312`, CI matrix (ubuntu + windows) testing against Python 3.14 |
 | Dependency resolution | Deterministic `uv.lock` consumption enforced across Dockerfile and CI workflows (`uv sync --frozen`), guaranteeing reproducible builds and eliminating unpinned transitive dependency drift |
@@ -39,6 +39,22 @@ drivers in `interfaces/`), enforced by tests — see
 [architecture/MAINTENANCE.md](architecture/MAINTENANCE.md).
 
 ## Where things live
+
+### Remediation checkpoint (Batch 6) — 2026-09-19 UTC
+
+Batch 6 of the architectural and code-quality remediation plan was implemented and verified
+on branch `gemini-3.8.flash/remediation-core`:
+
+1. **CLI Parameter Parity Across All CRUD and Search Surfaces:**
+   - `oc memory add`: added `--id` (explicit UUID/id support with idempotent replay) and `--background-embed` (asynchronous embedding generation).
+   - `oc memory search`: added `--max-chars` (context-budget-bounded retrieval).
+   - `oc memory update`: added `--background-embed` and `--expected-updated-at` (optimistic concurrency control / revision validation with graceful conflict reporting and exit code 1).
+2. **CLI Automated Smoke & Parity Test Suite:** Added `TestCliParameterParity` in `tests/test_cli_smoke.py` validating CLI execution of all new flags (`--id`, `--background-embed`, `--max-chars`, `--expected-updated-at`), including conflict exit behavior.
+3. **Documentation Parity & Backlog Reconciliation:**
+   - `docs/cli/commands.md`: Updated `oc memory add`, `search`, and `update` command specifications and examples.
+   - `docs/configuration/env_vars.md`: Documented `OC_EMBEDDING_DIMENSIONS` optional-send behavior for strict cloud providers (Mistral/Voyage).
+   - `docs/V3_PLAN.md`: Marked active backlog follow-up item 5 (`dimensions` optional-send) as shipped in Batch 4, item 7 (optimistic concurrency control) as shipped in Batch 5, and item 8 (chunked batch insertion) as shipped in Batch 5.
+Regression baseline: 1,059 passed, 1 skipped on Windows (1,060 items). All ruff lint, ruff format, mypy, and boundary/hygiene tests passing.
 
 ### Remediation checkpoint (Batch 5) — 2026-09-19 UTC
 

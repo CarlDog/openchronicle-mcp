@@ -22,12 +22,18 @@ oc serve --host 0.0.0.0 --port 8000
 ### `oc memory add CONTENT`
 
 Save a memory item. `--project-id` is required. `--tags`, `--pin`,
-`--source` map to MemoryItem fields.
+`--source`, `--id`, and `--background-embed` map to MemoryItem fields
+and use case behaviors.
 
 ```bash
 oc memory add "Decision: use SQLite for storage" \
     --project-id $PROJECT_ID --tags decision,architecture --pin
 ```
+
+Options:
+
+- `--id ID`: Explicit ID for operation replay and idempotent creation.
+- `--background-embed`: Generate vector embeddings asynchronously in the background.
 
 ### `oc memory list`
 
@@ -52,7 +58,7 @@ Toggle pin state.
 Hybrid FTS5 + semantic search via Reciprocal Rank Fusion. `--top-k`,
 `--project-id`, `--tags` (comma-separated, AND logic),
 `--include-pinned`/`--no-include-pinned`, `--offset`, `--full` (print
-full content for context injection).
+full content for context injection), `--max-chars` (content budget).
 
 Search-surface v2 (Q20/Q21):
 
@@ -65,6 +71,8 @@ Search-surface v2 (Q20/Q21):
   ranked results (best-matching first; default 10). `0` means "don't
   float" — the pins still rank; `--no-include-pinned` is what hides
   them. Use `oc memory list --pinned-only` to enumerate every pin.
+- `--max-chars N` caps the cumulative character budget of returned
+  memory items, truncating results once the limit is reached.
 - Each result line carries a bracketed relevance column — the channel
   that surfaced it (`pinned` / `keyword` / `semantic` / `hybrid`) plus
   `sim=` cosine similarity when the semantic channel contributed.
@@ -73,6 +81,11 @@ Search-surface v2 (Q20/Q21):
 
 Edit content or tags in place. `--content NEW`, `--tags "a,b,c"`.
 Preserves identity (id, created_at), bumps `updated_at`.
+
+Options:
+
+- `--background-embed`: Regenerate vector embeddings asynchronously in background.
+- `--expected-updated-at TIMESTAMP`: Verify prior revision (updated_at timestamp or "initial") before applying update; exits 1 with conflict error on stale revision.
 
 ### `oc memory delete MEMORY_ID [--confirm]`
 

@@ -73,6 +73,12 @@ def main(argv: list[str] | None = None) -> int:
     memory_add_cmd.add_argument("--pin", action="store_true", help="Pin this memory item")
     memory_add_cmd.add_argument("--source", default="manual", help="Source label")
     memory_add_cmd.add_argument("--project-id", default=None, help="Associated project id")
+    memory_add_cmd.add_argument("--id", default=None, help="Explicit memory ID (for idempotent retries)")
+    memory_add_cmd.add_argument(
+        "--background-embed",
+        action="store_true",
+        help="Generate vector embeddings asynchronously in background",
+    )
 
     memory_list_cmd = memory_sub.add_parser("list", help="List memory items")
     memory_list_cmd.add_argument("--limit", type=int, default=None, help="Limit number of memories shown")
@@ -133,11 +139,27 @@ def main(argv: list[str] | None = None) -> int:
         default=10,
         help="Cap how many matching pins float to the top (0 = don't float; they still rank; default 10)",
     )
+    memory_search_cmd.add_argument(
+        "--max-chars",
+        type=int,
+        default=None,
+        help="Cumulative character budget for search results",
+    )
 
     memory_update_cmd = memory_sub.add_parser("update", help="Update a memory item")
     memory_update_cmd.add_argument("memory_id")
     memory_update_cmd.add_argument("--content", default=None, help="New content (replaces existing)")
     memory_update_cmd.add_argument("--tags", default=None, help="New tags, comma-separated (replaces existing)")
+    memory_update_cmd.add_argument(
+        "--background-embed",
+        action="store_true",
+        help="Generate vector embeddings asynchronously in background",
+    )
+    memory_update_cmd.add_argument(
+        "--expected-updated-at",
+        default=None,
+        help="Expected prior revision timestamp for optimistic concurrency control",
+    )
 
     memory_embed_cmd = memory_sub.add_parser("embed", help="Generate embeddings for memory items")
     memory_embed_cmd.add_argument(

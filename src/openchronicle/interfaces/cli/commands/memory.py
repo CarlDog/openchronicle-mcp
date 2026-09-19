@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
 from openchronicle.core.application.config.env_helpers import parse_csv_tags
 from openchronicle.core.application.use_cases import (
@@ -16,7 +17,7 @@ from openchronicle.core.application.use_cases import (
     show_memory,
     update_memory,
 )
-from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import ConflictError, NotFoundError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -51,22 +52,23 @@ def cmd_memory_add(args: argparse.Namespace, container: CoreContainer) -> int:
     if args.project_id is None:
         print("--project-id is required when adding memory")
         return 1
+    kwargs: dict[str, Any] = {
+        "content": args.content,
+        "tags": tags,
+        "pinned": args.pin,
+        "project_id": args.project_id,
+        "source": args.source,
+    }
+    if getattr(args, "id", None) is not None:
+        kwargs["id"] = args.id
     try:
         item = add_memory.execute(
             store=container.storage,
-            item=MemoryItem(
-                content=args.content,
-                tags=tags,
-                pinned=args.pin,
-                project_id=args.project_id,
-                source=args.source,
-            ),
+            item=MemoryItem(**kwargs),
             embedding_service=container.embedding_service,
+            background_embed=getattr(args, "background_embed", False),
         )
     except (ValueError, NotFoundError, DomainValidationError) as exc:
-        # The content cap raises here now that it lives in the use case.
-        # Without this the CLI would answer an over-long memory with a raw
-        # traceback — cmd_memory_update has caught the same class all along.
         print(str(exc))
         return 1
 
@@ -136,6 +138,7 @@ def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int
             mode=args.mode,
             phrase=args.phrase,
             pinned_limit=args.pinned_limit,
+            max_chars=getattr(args, "max_chars", None),
         )
     except DomainValidationError as exc:
         # e.g. --mode semantic on a keyword-only deployment.
@@ -216,8 +219,10 @@ def cmd_memory_update(args: argparse.Namespace, container: CoreContainer) -> int
             content=content,
             tags=tags,
             embedding_service=container.embedding_service,
+            background_embed=getattr(args, "background_embed", False),
+            expected_updated_at=getattr(args, "expected_updated_at", None),
         )
-    except (ValueError, NotFoundError, DomainValidationError) as exc:
+    except (ValueError, NotFoundError, DomainValidationError, ConflictError) as exc:
         print(str(exc))
         return 1
 
