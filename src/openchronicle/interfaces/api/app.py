@@ -117,6 +117,7 @@ def create_app(
     register_middleware(app, config, metrics=metrics_recorder)
 
     from openchronicle.core.domain.exceptions import (
+        ConflictError,
         NotFoundError,
         ProviderError,
     )
@@ -128,6 +129,13 @@ def create_app(
     async def not_found_handler(_request: Request, exc: NotFoundError) -> JSONResponse:
         return JSONResponse(
             status_code=404,
+            content={"detail": str(exc), "code": exc.code},
+        )
+
+    @app.exception_handler(ConflictError)
+    async def conflict_error_handler(_request: Request, exc: ConflictError) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
             content={"detail": str(exc), "code": exc.code},
         )
 

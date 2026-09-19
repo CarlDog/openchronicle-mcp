@@ -229,6 +229,10 @@ class MemoryUpdateRequest(BaseModel):
     content: str | None = Field(default=None, min_length=1, max_length=MAX_CONTENT_CHARS)
     tags: list[str] | None = Field(default=None, max_length=50)
     background_embed: bool = False
+    expected_updated_at: str | None = Field(
+        default=None,
+        description="Optional expected revision timestamp for optimistic concurrency control.",
+    )
 
 
 @router.put("/{memory_id}")
@@ -245,6 +249,7 @@ def memory_update(
         tags=body.tags,
         embedding_service=container.embedding_service,
         background_embed=body.background_embed,
+        expected_updated_at=body.expected_updated_at,
     )
     return memory_to_dict(updated)
 

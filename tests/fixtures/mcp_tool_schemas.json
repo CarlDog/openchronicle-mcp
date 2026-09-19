@@ -494,6 +494,18 @@
           "default": null,
           "title": "Content"
         },
+        "expected_updated_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Updated At"
+        },
         "memory_id": {
           "title": "Memory Id",
           "type": "string"

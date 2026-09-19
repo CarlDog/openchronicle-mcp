@@ -37,6 +37,16 @@ class MemoryStorePort(ABC):
     def add_memory(self, item: MemoryItem) -> None: ...
 
     @abstractmethod
+    def add_memories(self, items: list[MemoryItem], *, chunk_size: int = 100) -> None:
+        """Add multiple memory items in bounded write transactions.
+
+        Slices the items into chunks of `chunk_size` and commits each chunk
+        within a distinct transaction to avoid holding the store write lock
+        unbounded during large batch insertions.
+        """
+        ...
+
+    @abstractmethod
     def get_memory(self, memory_id: str) -> MemoryItem | None: ...
 
     @abstractmethod
@@ -98,10 +108,15 @@ class MemoryStorePort(ABC):
         memory_id: str,
         content: str | None = None,
         tags: list[str] | None = None,
+        *,
+        expected_updated_at: str | None = None,
     ) -> MemoryItem:
         """Update a memory item's content and/or tags.
 
-        Sets updated_at. Raises ValueError if not found.
+        Sets updated_at. Raises NotFoundError if not found.
+        If expected_updated_at is provided, verifies that the memory's
+        current revision matches before applying changes; raises ConflictError
+        if the memory has been modified since that revision.
         """
         ...
 

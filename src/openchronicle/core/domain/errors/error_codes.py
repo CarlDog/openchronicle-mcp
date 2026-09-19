@@ -14,6 +14,7 @@ from __future__ import annotations
 # Request / validation
 INVALID_ARGUMENT = "INVALID_ARGUMENT"
 INVALID_HOST = "INVALID_HOST"
+CONFLICT = "CONFLICT"
 
 # Not-found / file-system
 NOT_FOUND = "NOT_FOUND"
@@ -39,6 +40,7 @@ CONTENT_TOO_LONG = "CONTENT_TOO_LONG"
 
 __all__ = [
     "CONFIG_ERROR",
+    "CONFLICT",
     "CONNECTION_ERROR",
     "CONTENT_TOO_LONG",
     "FILE_NOT_FOUND",

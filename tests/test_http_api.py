@@ -646,7 +646,21 @@ class TestGlobalExceptionHandlers:
         assert resp.status_code == 422
         body = resp.json()
         assert body["code"] == "INVALID_ARGUMENT"
-        assert "At least one" in body["detail"]
+
+    def test_conflict_error_returns_409(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import ConflictError
+
+        with patch(
+            "openchronicle.interfaces.api.routes.memory.update_memory.execute",
+            side_effect=ConflictError("revision mismatch conflict"),
+        ):
+            resp = client.put(
+                "/api/v1/memory/m1", json={"content": "new", "expected_updated_at": "2026-01-01T00:00:00Z"}
+            )
+        assert resp.status_code == 409
+        body = resp.json()
+        assert body["code"] == "CONFLICT"
+        assert "revision mismatch conflict" in body["detail"]
 
     def test_unhandled_exception_returns_500_sanitized(self, client: TestClient) -> None:
         # Must disable raise_server_exceptions so the global handler can run

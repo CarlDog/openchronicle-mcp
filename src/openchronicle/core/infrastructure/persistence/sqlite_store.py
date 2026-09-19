@@ -19,8 +19,12 @@ from pathlib import Path
 from typing import Any, Concatenate, Literal
 
 from openchronicle.core.domain.content_hash import hash_content
-from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
-from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.errors.error_codes import (
+    CONFLICT,
+    MEMORY_NOT_FOUND,
+    PROJECT_NOT_FOUND,
+)
+from openchronicle.core.domain.exceptions import ConflictError, NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
@@ -489,6 +493,43 @@ class SqliteStore(StoragePort, MemoryStorePort):
             raise
         self._commit_if_needed()
 
+    @_locked
+    def add_memories(self, items: list[MemoryItem], *, chunk_size: int = 100) -> None:
+        if not items:
+            return
+        chunk_size = max(1, chunk_size)
+        for i in range(0, len(items), chunk_size):
+            chunk = items[i : i + chunk_size]
+            with self.transaction():
+                cur = self._conn.cursor()
+                try:
+                    cur.executemany(
+                        """
+                        INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        [
+                            (
+                                item.id,
+                                item.content,
+                                json.dumps(item.tags, sort_keys=True),
+                                item.created_at.isoformat(),
+                                1 if item.pinned else 0,
+                                item.project_id,
+                                item.source,
+                                item.updated_at.isoformat() if item.updated_at else None,
+                            )
+                            for item in chunk
+                        ],
+                    )
+                except sqlite3.IntegrityError as exc:
+                    if "FOREIGN KEY" in str(exc).upper():
+                        raise NotFoundError(
+                            f"Foreign key constraint failed during batch insert: {exc}",
+                            code=PROJECT_NOT_FOUND,
+                        ) from exc
+                    raise
+
     def get_memory(self, memory_id: str) -> MemoryItem | None:
         with self._read_connection() as conn:
             cur = conn.cursor()
@@ -606,9 +647,48 @@ class SqliteStore(StoragePort, MemoryStorePort):
         memory_id: str,
         content: str | None = None,
         tags: list[str] | None = None,
+        *,
+        expected_updated_at: str | None = None,
     ) -> MemoryItem:
-        now_iso = utc_now().isoformat()
         cur = self._conn.cursor()
+        if expected_updated_at is not None:
+            row = cur.execute(
+                "SELECT updated_at, created_at FROM memory_items WHERE id = ?",
+                (memory_id,),
+            ).fetchone()
+            if row is None:
+                raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
+            curr_updated_at, curr_created_at = row[0], row[1]
+            matches = False
+            if curr_updated_at is not None:
+                if expected_updated_at == curr_updated_at:
+                    matches = True
+                else:
+                    try:
+                        matches = datetime.fromisoformat(expected_updated_at) == datetime.fromisoformat(curr_updated_at)
+                    except ValueError:
+                        matches = False
+            else:
+                if (
+                    expected_updated_at.strip().lower() in ("", "null", "none", "initial")
+                    or expected_updated_at == curr_created_at
+                ):
+                    matches = True
+                else:
+                    try:
+                        matches = datetime.fromisoformat(expected_updated_at) == datetime.fromisoformat(curr_created_at)
+                    except ValueError:
+                        matches = False
+
+            if not matches:
+                curr_rev = curr_updated_at or curr_created_at
+                raise ConflictError(
+                    f"Memory '{memory_id}' update conflict: expected revision '{expected_updated_at}', "
+                    f"but current revision is '{curr_rev}'",
+                    code=CONFLICT,
+                )
+
+        now_iso = utc_now().isoformat()
         set_clauses: list[str] = ["updated_at = ?"]
         params: list[Any] = [now_iso]
         if content is not None:

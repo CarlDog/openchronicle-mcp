@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from openchronicle.core.domain.errors.error_codes import (
     CONFIG_ERROR,
+    CONFLICT,
     INVALID_ARGUMENT,
     NOT_FOUND,
     PROVIDER_ERROR,
@@ -19,6 +20,14 @@ class NotFoundError(Exception):
     """Raised when a requested entity does not exist."""
 
     def __init__(self, message: str, *, code: str = NOT_FOUND) -> None:
+        self.code = code
+        super().__init__(message)
+
+
+class ConflictError(Exception):
+    """Raised when an update conflicts with a concurrent modification or stale revision."""
+
+    def __init__(self, message: str, *, code: str = CONFLICT) -> None:
         self.code = code
         super().__init__(message)
 

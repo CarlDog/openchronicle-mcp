@@ -844,8 +844,13 @@ def materialize_clusters(
             source="git-onboard",
             created_at=latest_date,
         )
-        store.add_memory(item)
         memories.append(item)
+
+    if hasattr(store, "add_memories"):
+        store.add_memories(memories, chunk_size=50)
+    else:
+        for m in memories:
+            store.add_memory(m)
 
     return memories
 

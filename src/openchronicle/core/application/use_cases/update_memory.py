@@ -23,6 +23,7 @@ def execute(
     *,
     embedding_service: EmbeddingService | None = None,
     background_embed: bool = False,
+    expected_updated_at: str | None = None,
 ) -> MemoryItem:
     if content is None and tags is None:
         raise DomainValidationError("At least one of content or tags must be provided")
@@ -31,7 +32,12 @@ def execute(
             f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters (got {len(content):,})"
         )
 
-    updated = store.update_memory(memory_id, content=content, tags=tags)
+    updated = store.update_memory(
+        memory_id,
+        content=content,
+        tags=tags,
+        expected_updated_at=expected_updated_at,
+    )
 
     if content is not None:
         # Invalidate BEFORE attempting regeneration, and regardless of

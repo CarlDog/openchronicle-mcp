@@ -298,6 +298,7 @@ def register(mcp: FastMCP) -> None:
         content: str | None = None,
         tags: list[str] | None = None,
         background_embed: bool = False,
+        expected_updated_at: str | None = None,
     ) -> dict[str, Any]:
         """Edit an existing memory's content or tags in place.
 
@@ -312,6 +313,7 @@ def register(mcp: FastMCP) -> None:
             content: New content (replaces existing). Omit to keep current.
             tags: New tags (replaces existing). Omit to keep current.
             background_embed: Generate vector embeddings asynchronously in background.
+            expected_updated_at: Expected prior revision timestamp for optimistic concurrency control.
         """
         if content is not None and len(content) > MAX_CONTENT_CHARS:
             raise DomainValidationError(f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters")
@@ -325,6 +327,7 @@ def register(mcp: FastMCP) -> None:
                 tags=tags,
                 embedding_service=container.embedding_service,
                 background_embed=background_embed,
+                expected_updated_at=expected_updated_at,
             )
             return memory_to_dict(updated)
 

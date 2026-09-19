@@ -1,4 +1,4 @@
-"""Tests validating Phase 1 to 6 core remediations.
+"""Tests validating Phase 1 to 6 and Batch 4/5 core remediations.
 
 Covers:
 1. Ollama adapter probe failure retry cooldown and recovery.
@@ -15,6 +15,10 @@ Covers:
 12. Context budget enforcement and omission reporting (max_chars).
 13. Identity-scoped query LRU embedding cache.
 14. In-flight singleflight request coalescing and failure isolation.
+15. OpenAI adapter optional-send dimensions and empty batch handling.
+16. Write idempotency and replay safety in add_memory.
+17. Optimistic concurrency control (OCC) and expected revisions on memory updates.
+18. Bounded write-transaction chunking for batch memory insertions (add_memories).
 """
 
 from __future__ import annotations
@@ -647,3 +651,143 @@ def test_memory_save_and_update_api_schema() -> None:
     )
     assert update_req.content == "update text"
     assert update_req.background_embed is True
+
+
+def test_update_memory_occ_success_and_advances_revision() -> None:
+    from openchronicle.core.application.use_cases import update_memory
+
+    store = _make_store()
+    item = _make_item("occ-test-1", "initial content")
+    add_memory.execute(store, item)
+
+    initial_rev = item.created_at.isoformat()
+
+    # Successful update with initial created_at revision
+    up1 = update_memory.execute(
+        store,
+        memory_id="occ-test-1",
+        content="content revision 2",
+        expected_updated_at=initial_rev,
+    )
+    assert up1.content == "content revision 2"
+    assert up1.updated_at is not None
+    rev2 = up1.updated_at.isoformat()
+
+    # Subsequent update with rev2
+    up2 = update_memory.execute(
+        store,
+        memory_id="occ-test-1",
+        content="content revision 3",
+        expected_updated_at=rev2,
+    )
+    assert up2.content == "content revision 3"
+    assert up2.updated_at is not None
+    assert up2.updated_at != up1.updated_at
+
+
+def test_update_memory_occ_conflict_rejection() -> None:
+    from openchronicle.core.application.use_cases import update_memory
+    from openchronicle.core.domain.exceptions import ConflictError
+
+    store = _make_store()
+    item = _make_item("occ-conflict-1", "base content")
+    add_memory.execute(store, item)
+
+    initial_rev = item.created_at.isoformat()
+
+    # First update succeeds and moves revision forward
+    update_memory.execute(
+        store,
+        memory_id="occ-conflict-1",
+        content="stolen content",
+        expected_updated_at=initial_rev,
+    )
+
+    # Stale second editor using initial_rev must fail with ConflictError
+    with pytest.raises(ConflictError, match="update conflict: expected revision"):
+        update_memory.execute(
+            store,
+            memory_id="occ-conflict-1",
+            content="stale overwrite attempt",
+            expected_updated_at=initial_rev,
+        )
+
+
+def test_update_memory_occ_initial_tokens_and_unconditional() -> None:
+    from openchronicle.core.application.use_cases import update_memory
+
+    store = _make_store()
+    item1 = _make_item("occ-token-1", "raw content 1")
+    item2 = _make_item("occ-token-2", "raw content 2")
+    add_memory.execute(store, item1)
+    add_memory.execute(store, item2)
+
+    # "null", "none", or "initial" matches an un-updated memory
+    up1 = update_memory.execute(
+        store,
+        memory_id="occ-token-1",
+        content="updated via initial token",
+        expected_updated_at="initial",
+    )
+    assert up1.content == "updated via initial token"
+
+    # Unconditional update when expected_updated_at is None
+    up2 = update_memory.execute(
+        store,
+        memory_id="occ-token-2",
+        content="updated unconditionally",
+        expected_updated_at=None,
+    )
+    assert up2.content == "updated unconditionally"
+
+
+def test_update_memory_occ_not_found() -> None:
+    from openchronicle.core.application.use_cases import update_memory
+    from openchronicle.core.domain.exceptions import NotFoundError
+
+    store = _make_store()
+    with pytest.raises(NotFoundError, match="Memory not found"):
+        update_memory.execute(
+            store,
+            memory_id="nonexistent-mem",
+            content="text",
+            expected_updated_at="2026-01-01T00:00:00Z",
+        )
+
+
+def test_add_memories_chunked_batch() -> None:
+    store = _make_store()
+    items = [_make_item(f"batch-item-{i}", f"content {i}") for i in range(25)]
+
+    # Slices into 5 chunks of 5 items
+    store.add_memories(items, chunk_size=5)
+
+    assert store.count_memory("proj-1") == 25
+    fetched = store.get_memories([f"batch-item-{i}" for i in range(25)])
+    assert len(fetched) == 25
+    assert fetched["batch-item-0"].content == "content 0"
+    assert fetched["batch-item-24"].content == "content 24"
+
+
+def test_add_memories_empty_and_foreign_key_guard() -> None:
+    from openchronicle.core.domain.exceptions import NotFoundError
+
+    store = _make_store()
+    # Empty batch is no-op
+    store.add_memories([], chunk_size=10)
+
+    # Invalid project ID raises NotFoundError
+    bad_item = _make_item("bad-proj-item", "text", project_id="unknown-project")
+    with pytest.raises(NotFoundError, match="Foreign key constraint failed"):
+        store.add_memories([bad_item], chunk_size=10)
+
+
+def test_memory_update_request_expected_updated_at() -> None:
+    from openchronicle.interfaces.api.routes.memory import MemoryUpdateRequest
+
+    req = MemoryUpdateRequest(
+        content="occ payload",
+        expected_updated_at="2026-09-19T06:00:00+00:00",
+    )
+    assert req.content == "occ payload"
+    assert req.expected_updated_at == "2026-09-19T06:00:00+00:00"
