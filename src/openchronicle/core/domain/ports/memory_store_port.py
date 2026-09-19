@@ -40,6 +40,15 @@ class MemoryStorePort(ABC):
     def get_memory(self, memory_id: str) -> MemoryItem | None: ...
 
     @abstractmethod
+    def get_memories(self, memory_ids: list[str]) -> dict[str, MemoryItem]:
+        """Fetch multiple memory items by ID in batch.
+
+        Returns a mapping of memory_id to MemoryItem for all IDs found.
+        Missing IDs are omitted from the returned mapping.
+        """
+        ...
+
+    @abstractmethod
     def list_memory(
         self,
         limit: int | None = None,

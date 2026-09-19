@@ -451,6 +451,24 @@ class SqliteStore(StoragePort, MemoryStorePort):
         return row_to_memory_item(row) if row else None
 
     @_locked
+    def get_memories(self, memory_ids: list[str]) -> dict[str, MemoryItem]:
+        if not memory_ids:
+            return {}
+        cur = self._conn.cursor()
+        result: dict[str, MemoryItem] = {}
+        unique_ids = list(dict.fromkeys(memory_ids))
+        chunk_size = 500
+        for i in range(0, len(unique_ids), chunk_size):
+            chunk = unique_ids[i : i + chunk_size]
+            placeholders = ",".join("?" for _ in chunk)
+            sql = f"SELECT * FROM memory_items WHERE id IN ({placeholders})"
+            rows = cur.execute(sql, chunk).fetchall()
+            for r in rows:
+                item = row_to_memory_item(r)
+                result[item.id] = item
+        return result
+
+    @_locked
     def list_memory(
         self,
         limit: int | None = None,
@@ -693,38 +711,56 @@ class SqliteStore(StoragePort, MemoryStorePort):
         ``dimensions = 0`` already fails the dimension filter on the
         search path; the status predicate is the stated guard.)
         """
+        if memory_ids is not None and not memory_ids:
+            return {}
+
         cur = self._conn.cursor()
-        clauses: list[str] = ["status = 'ok'"]
-        params: list[Any] = []
-        if memory_ids is not None:
-            placeholders = ",".join("?" for _ in memory_ids)
-            clauses.append(f"memory_id IN ({placeholders})")
-            params.extend(memory_ids)
+        base_clauses: list[str] = ["status = 'ok'"]
+        base_params: list[Any] = []
         if model is not None:
-            clauses.append("model = ?")
-            params.append(model)
+            base_clauses.append("model = ?")
+            base_params.append(model)
         if provider is not None:
-            clauses.append("provider = ?")
-            params.append(provider)
+            base_clauses.append("provider = ?")
+            base_params.append(provider)
         if dimensions is not None:
-            clauses.append("dimensions = ?")
-            params.append(dimensions)
+            base_clauses.append("dimensions = ?")
+            base_params.append(dimensions)
         if settings_fingerprint is not None:
-            clauses.append("settings_fingerprint = ?")
-            params.append(settings_fingerprint)
+            base_clauses.append("settings_fingerprint = ?")
+            base_params.append(settings_fingerprint)
         if match_revision:
             # IS, never `=`: most providers have no revision, and
             # `model_revision = NULL` matches ZERO rows — the blackout
             # the ADR 0005 adversarial review caught.
-            clauses.append("model_revision IS ?")
-            params.append(model_revision)
-        sql = "SELECT memory_id, embedding FROM memory_embeddings"
-        if clauses:
-            sql += f" WHERE {' AND '.join(clauses)}"
-        rows = cur.execute(sql, params).fetchall()
+            base_clauses.append("model_revision IS ?")
+            base_params.append(model_revision)
+
         result: dict[str, list[float]] = {}
-        for row in rows:
-            result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
+        if memory_ids is not None:
+            unique_ids = list(dict.fromkeys(memory_ids))
+            chunk_size = 500
+            for i in range(0, len(unique_ids), chunk_size):
+                chunk = unique_ids[i : i + chunk_size]
+                clauses = list(base_clauses)
+                params = list(base_params)
+                placeholders = ",".join("?" for _ in chunk)
+                clauses.append(f"memory_id IN ({placeholders})")
+                params.extend(chunk)
+                sql = "SELECT memory_id, embedding FROM memory_embeddings"
+                if clauses:
+                    sql += f" WHERE {' AND '.join(clauses)}"
+                rows = cur.execute(sql, params).fetchall()
+                for row in rows:
+                    result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
+        else:
+            sql = "SELECT memory_id, embedding FROM memory_embeddings"
+            if base_clauses:
+                sql += f" WHERE {' AND '.join(base_clauses)}"
+            rows = cur.execute(sql, base_params).fetchall()
+            for row in rows:
+                result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
+
         return result
 
     @_locked

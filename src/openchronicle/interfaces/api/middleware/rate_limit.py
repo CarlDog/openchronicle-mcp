@@ -34,6 +34,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._lock = threading.Lock()
         # client_ip -> list of request timestamps
         self._requests: dict[str, list[float]] = {}
+        self._last_sweep = 0.0
+        self._sweep_interval = 30.0
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if self._rpm <= 0:
@@ -46,7 +48,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         with self._lock:
             timestamps = self._requests.get(client_ip, [])
-            # Prune expired entries
+            # Prune expired entries for active client
             timestamps = [t for t in timestamps if t > cutoff]
 
             if len(timestamps) >= self._rpm:
@@ -62,20 +64,18 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             self._requests[client_ip] = timestamps
             remaining = max(0, self._rpm - len(timestamps))
 
-            # Sweep every client's expired windows. The old eviction only
-            # checked for already-empty lists, but a list was only ever
-            # pruned when ITS client made a request — so idle client keys
-            # lived forever (slow leak on a weeks-running server;
-            # 2026-08-15 review). O(clients) per request is nothing at
-            # this deployment's scale.
-            for key in list(self._requests):
-                if key == client_ip:
-                    continue
-                pruned = [t for t in self._requests[key] if t > cutoff]
-                if pruned:
-                    self._requests[key] = pruned
-                else:
-                    del self._requests[key]
+            # Periodically sweep idle client windows to release inactive memory
+            # without per-request O(clients) iteration under the lock.
+            if now - self._last_sweep >= self._sweep_interval:
+                self._last_sweep = now
+                for key in list(self._requests):
+                    if key == client_ip:
+                        continue
+                    pruned = [t for t in self._requests[key] if t > cutoff]
+                    if pruned:
+                        self._requests[key] = pruned
+                    else:
+                        del self._requests[key]
 
         response = await call_next(request)
         response.headers["X-RateLimit-Limit"] = str(self._rpm)

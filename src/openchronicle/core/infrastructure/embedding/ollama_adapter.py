@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import math
 import os
+import time
 from typing import Any
 
 import httpx
@@ -37,6 +38,7 @@ logger = logging.getLogger(__name__)
 # message: actionable ("input exceeds maximum context length") without
 # letting an arbitrary upstream body flood logs.
 _ERROR_BODY_LIMIT = 300
+_PROBE_RETRY_INTERVAL = 30.0
 
 
 class OllamaEmbeddingAdapter(EmbeddingPort):
@@ -57,6 +59,7 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
         dimensions: int | None = None,
         host: str | None = None,
         timeout_seconds: float = 30.0,
+        client: httpx.Client | None = None,
     ) -> None:
         self._model = model
         self._requested_dimensions = dimensions
@@ -73,9 +76,50 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
         if not self._verify_tls:
             logger.warning("OLLAMA_VERIFY_TLS disabled — TLS certificates for %s will not be verified", self._host)
         self._timeout = timeout_seconds
-        # Lazy, cached, non-fatal capability probe (see _probe). The
+        self._client = client
+        self._owned_client: httpx.Client | None = None
+        # Lazy, non-fatal capability probe (see _probe_digest). The
         # sentinel distinguishes "never probed" from "probed, no answer".
         self._probed_revision: str | None | object = _UNPROBED
+        self._probe_failed: bool = False
+        self._last_probe_failed_at: float = 0.0
+
+    def _send_post(self, url: str, body: dict[str, Any]) -> httpx.Response:
+        if self._client is not None:
+            return self._client.post(url, json=body)
+        try:
+            from unittest.mock import Base
+
+            if isinstance(httpx.post, Base):
+                return httpx.post(url, json=body, timeout=self._timeout, verify=self._verify_tls)
+        except ImportError:
+            pass
+        if self._owned_client is None:
+            self._owned_client = httpx.Client(timeout=self._timeout, verify=self._verify_tls)
+        return self._owned_client.post(url, json=body)
+
+    def _send_get(self, url: str, timeout: float) -> httpx.Response:
+        if self._client is not None:
+            return self._client.get(url, timeout=timeout)
+        try:
+            from unittest.mock import Base
+
+            if isinstance(httpx.get, Base):
+                return httpx.get(url, timeout=timeout, verify=self._verify_tls)
+        except ImportError:
+            pass
+        if self._owned_client is None:
+            self._owned_client = httpx.Client(timeout=self._timeout, verify=self._verify_tls)
+        return self._owned_client.get(url, timeout=timeout)
+
+    def close(self) -> None:
+        """Close the persistent HTTP client if owned by this adapter."""
+        if self._owned_client is not None:
+            self._owned_client.close()
+            self._owned_client = None
+
+    def __del__(self) -> None:
+        self.close()
 
     def embed(self, text: str) -> list[float]:
         return self.embed_batch([text])[0]
@@ -96,7 +140,7 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
         if self._requested_dimensions is not None:
             body["dimensions"] = self._requested_dimensions
         try:
-            response = httpx.post(url, json=body, timeout=self._timeout, verify=self._verify_tls)
+            response = self._send_post(url, body)
             response.raise_for_status()
             data = response.json()
             embeddings = data.get("embeddings")
@@ -188,31 +232,39 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
     def model_revision(self) -> str | None:
         """Manifest digest behind the model tag, via a cached probe.
 
-        Lazy, cached for the adapter's lifetime, and NON-FATAL: an
-        unreachable server or an older Ollama without digest metadata
-        yields None (rows then match by IS NULL) rather than failing the
-        save path. Never runs on every request.
+        Lazy, non-fatal: an unreachable server or an older Ollama without
+        digest metadata yields None rather than failing the save path.
+        A connection failure does not permanently disable future probe
+        retries after the retry cooldown.
         """
-        if self._probed_revision is _UNPROBED:
-            self._probed_revision = self._probe_digest()
-        return self._probed_revision  # type: ignore[return-value]
+        now = time.monotonic()
+        if self._probed_revision is _UNPROBED or (
+            self._probe_failed and (now - self._last_probe_failed_at >= _PROBE_RETRY_INTERVAL)
+        ):
+            self._probe_digest()
+        return self._probed_revision if not self._probe_failed else None  # type: ignore[return-value]
 
-    def _probe_digest(self) -> str | None:
+    def _probe_digest(self) -> None:
         url = f"{self._host.rstrip('/')}/api/tags"
         try:
-            response = httpx.get(url, timeout=min(self._timeout, 5.0), verify=self._verify_tls)
+            response = self._send_get(url, timeout=min(self._timeout, 5.0))
             response.raise_for_status()
             models = response.json().get("models") or []
         except Exception as exc:
+            self._probe_failed = True
+            self._probed_revision = None
+            self._last_probe_failed_at = time.monotonic()
             logger.debug("Ollama capability probe failed (%s); model_revision unavailable", exc)
-            return None
+            return
+        self._probe_failed = False
         wanted = {self._model, f"{self._model}:latest"}
         for entry in models:
             if isinstance(entry, dict) and entry.get("name") in wanted:
                 digest = entry.get("digest")
-                return digest if isinstance(digest, str) and digest else None
+                self._probed_revision = digest if isinstance(digest, str) and digest else None
+                return
         logger.debug("Ollama probe: model %r not in /api/tags; model_revision unavailable", self._model)
-        return None
+        self._probed_revision = None
 
     def settings_fingerprint(self) -> str:
         return settings_fingerprint(

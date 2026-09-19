@@ -669,11 +669,9 @@ class EmbeddingService:
         item_map: dict[str, MemoryItem] = {i.id: i for i in keyword_results}
 
         # For semantic-only results, fetch MemoryItem from store
-        for mid in semantic_rank:
-            if mid not in item_map:
-                mem = self._store.get_memory(mid)
-                if mem:
-                    item_map[mid] = mem
+        missing_ids = [mid for mid in semantic_rank if mid not in item_map]
+        if missing_ids:
+            item_map.update(self._store.get_memories(missing_ids))
 
         rrf_scores: list[tuple[str, float]] = []
         for mid in all_ids:
@@ -755,9 +753,26 @@ class EmbeddingService:
         # dimensions. A row from another provider under the same label,
         # a migration sentinel, or a different-dims row is invisible to
         # ranking — never mixed in.
+        candidate_started = time.monotonic()
+        target_ids: list[str] | None = None
+        # Eligibility BEFORE the top-k window: with the filter applied
+        # only after selection (as until 2026-08-28), out-of-scope
+        # vectors consumed the candidate slots and the best in-scope
+        # matches could be missed entirely. The callers' post-filters
+        # remain as invariants, but the window itself is now scope-aware.
+        if project_id is not None or tags:
+            eligible = self._store.eligible_memory_ids(project_id=project_id, tags=tags)
+            if exclude_ids:
+                eligible -= exclude_ids
+            if not eligible:
+                self._safe_observe_stage(stage="candidate_prep_scoring", started=candidate_started)
+                return []
+            target_ids = list(eligible)
+
         vector_load_started = time.monotonic()
         try:
             all_embeddings = self._store.list_embeddings(
+                memory_ids=target_ids,
                 model=self._port.model_name(),
                 provider=self._port.provider_name(),
                 dimensions=len(query_vec),
@@ -771,16 +786,11 @@ class EmbeddingService:
         if not all_embeddings:
             return []
 
-        candidate_started = time.monotonic()
-        ids = [mid for mid in all_embeddings if mid not in exclude_ids] if exclude_ids else list(all_embeddings)
-        # Eligibility BEFORE the top-k window: with the filter applied
-        # only after selection (as until 2026-08-28), out-of-scope
-        # vectors consumed the candidate slots and the best in-scope
-        # matches could be missed entirely. The callers' post-filters
-        # remain as invariants, but the window itself is now scope-aware.
-        if project_id is not None or tags:
-            eligible = self._store.eligible_memory_ids(project_id=project_id, tags=tags)
-            ids = [mid for mid in ids if mid in eligible]
+        ids = (
+            [mid for mid in all_embeddings if mid not in exclude_ids]
+            if exclude_ids and target_ids is None
+            else list(all_embeddings)
+        )
         if not ids:
             self._safe_observe_stage(stage="candidate_prep_scoring", started=candidate_started)
             return []
@@ -837,9 +847,12 @@ class EmbeddingService:
             limit=(top_k + offset) * 2,  # over-fetch: filters below discard
         )
 
+        candidate_ids = [mid for mid, _ in ranked]
+        items_by_id = self._store.get_memories(candidate_ids) if candidate_ids else {}
+
         results: list[ScoredMemory] = []
         for mid, sim in ranked:
-            item = self._store.get_memory(mid)
+            item = items_by_id.get(mid)
             if item is None:
                 continue
             if item.pinned and not include_pinned:

@@ -16,6 +16,7 @@ as shipped.
 | [0010 — Application performance measurement](0010-performance-measurement.md), [attribution and integration](0010-4c-attribution.md) | Design and implementation evidence | Recorder/exporter optimizations locally verified and included in the 2026-09-09 source checkpoint; corrected integration untimed. Final 4C overhead remains inconclusive, REST list-tail gate failed, MCP samples insufficient, affected live 4D checks pending; metrics off by default, release/enabling blocked |
 | [0011 — Memory ecosystem review](0011-memory-ecosystem-review.md) | Comparative review | Research recorded 2026-09-08; Basic Memory, Graphiti, Hindsight, Mem0, Cognee, LangMem, MCP reference and evaluation sources; recommendations unscheduled, existing decisions and acceptance gates unchanged |
 | [0012 — FreeToken repository review](0012-freetoken-repository-review.md) | Comparative review | Recorded 2026-09-09 UTC; no compatible embedding endpoint at the reviewed snapshot; query-cache measurement candidate remains unratified and unscheduled; no provider or performance-acceptance change |
+| [0013 — Codebase remediation and modernization plan](0013-codebase-remediation-plan.md) | Remediation plan | Proposed 2026-09-18 by Antigravity; prioritized actionable specifications for correctness, vector search pushdown, N+1 query elimination, connection pooling, and concurrency scaling |
 
 The numbering is chronological, not a priority ranking. Current backlog
 status lives in `docs/V3_PLAN.md`; release history lives in
