@@ -72,7 +72,7 @@ class CachedPrefixExporter:
                 raise _UseStandard
             key = (sample.name, labels)
             prefix = self._prefixes.get(key)
-        except TypeError, AttributeError:
+        except (TypeError, AttributeError):
             raise _UseStandard from None
         if prefix is not None:
             return prefix

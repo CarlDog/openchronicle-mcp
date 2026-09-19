@@ -113,7 +113,7 @@ def eligibility(report: dict[str, Any], corpus_size: int) -> list[str]:
                 ):
                     reasons.append("missing or late measured scrape")
         return reasons
-    except KeyError, IndexError, TypeError, ValueError:
+    except (KeyError, IndexError, TypeError, ValueError):
         return ["missing or malformed case evidence"]
 
 
@@ -504,7 +504,7 @@ def main(argv: list[str] | None = None) -> int:
                     if code == 0 and out.exists():
                         try:
                             run["report"] = load_json(out.read_bytes())
-                        except OSError, ValueError:
+                        except (OSError, ValueError):
                             run["error"] = "invalid child report"
                             aborted = True
                     else:

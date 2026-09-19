@@ -1,4 +1,4 @@
-"""Tests validating Phase 1 and 2 core remediations.
+"""Tests validating Phase 1 to 4 core remediations.
 
 Covers:
 1. Ollama adapter probe failure retry cooldown and recovery.
@@ -7,11 +7,19 @@ Covers:
 4. SQLite store batch memory retrieval and parameter chunking.
 5. Embedding service batch candidate hydration and project scope filtering.
 6. API rate limit middleware periodic sweep efficiency.
+7. SQLite WAL concurrent reads during active write transactions.
+8. SQLite read-your-own-writes consistency in open transactions.
+9. SQLite thread-local reader connection cleanup on close.
+10. Background vector embedding scheduling and asynchronous execution.
+11. Background embed parameter support on API routes and MCP tools.
 """
 
 from __future__ import annotations
 
+import threading
+import time
 from datetime import UTC, datetime
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -20,6 +28,7 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from openchronicle.core.application.services.embedding_service import EmbeddingService
+from openchronicle.core.application.use_cases import add_memory
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.embedding.ollama_adapter import (
@@ -257,3 +266,119 @@ async def test_rate_limit_periodic_sweep_cleans_idle_clients() -> None:
     # Idle client should be pruned by the periodic sweep
     assert "192.168.1.100" not in middleware._requests
     assert "192.168.1.200" in middleware._requests
+
+
+# ── Phase 3: SQLite Concurrency & Background Embedding Tests ─────────
+
+
+def test_sqlite_wal_concurrent_reads_during_write_transaction(tmp_path: Path) -> None:
+    db_file = tmp_path / "concurrent.db"
+    store = SqliteStore(db_path=str(db_file))
+    store.init_schema()
+    store.add_project(Project(id="p1", name="Project 1"))
+    store.add_memory(_make_item("m1", "initial content", project_id="p1"))
+
+    write_started = threading.Event()
+    read_finished = threading.Event()
+    read_result: dict[str, str | None] = {"content": None}
+
+    def writer_worker() -> None:
+        with store.transaction():
+            store.add_memory(_make_item("m2", "uncommitted content", project_id="p1"))
+            write_started.set()
+            # Hold write transaction open until reader completes
+            assert read_finished.wait(timeout=5.0)
+
+    def reader_worker() -> None:
+        assert write_started.wait(timeout=5.0)
+        # In WAL mode, readers do not block on writers and read committed snapshot
+        item = store.get_memory("m1")
+        if item:
+            read_result["content"] = item.content
+        read_finished.set()
+
+    t_writer = threading.Thread(target=writer_worker)
+    t_reader = threading.Thread(target=reader_worker)
+
+    t_writer.start()
+    t_reader.start()
+
+    t_reader.join(timeout=6.0)
+    t_writer.join(timeout=6.0)
+
+    assert read_result["content"] == "initial content"
+    assert store.get_memory("m2") is not None
+    store.close()
+
+
+def test_sqlite_read_your_own_writes_in_transaction(tmp_path: Path) -> None:
+    db_file = tmp_path / "read_own.db"
+    store = SqliteStore(db_path=str(db_file))
+    store.init_schema()
+    store.add_project(Project(id="p1", name="Project 1"))
+
+    with store.transaction():
+        item = _make_item("tx-1", "in transaction content", project_id="p1")
+        store.add_memory(item)
+        # Read-your-own-writes: must be visible within the transaction
+        read_back = store.get_memory("tx-1")
+        assert read_back is not None
+        assert read_back.content == "in transaction content"
+
+    store.close()
+
+
+def test_sqlite_reader_connections_cleaned_up_on_close(tmp_path: Path) -> None:
+    db_file = tmp_path / "readers.db"
+    store = SqliteStore(db_path=str(db_file))
+    store.init_schema()
+    store.add_project(Project(id="p1", name="Project 1"))
+    store.add_memory(_make_item("m1", "content", project_id="p1"))
+
+    def read_op() -> None:
+        _ = store.get_memory("m1")
+
+    threads = [threading.Thread(target=read_op) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len(store._reader_conns) > 0
+    store.close()
+    assert len(store._reader_conns) == 0
+
+
+def test_background_embedding_scheduling_and_execution() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=4)
+    service = EmbeddingService(port=adapter, store=store)
+
+    item = _make_item("bg-mem-1", "background content to embed")
+    saved = add_memory.execute(store, item, embedding_service=service, background_embed=True)
+
+    # Item is persisted in store immediately
+    assert store.get_memory(saved.id) is not None
+
+    # Wait for the background worker thread to generate vector
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        emb = store.get_embedding("bg-mem-1")
+        if emb is not None:
+            break
+        time.sleep(0.05)
+
+    emb = store.get_embedding("bg-mem-1")
+    assert emb is not None
+    assert len(emb) == 4
+
+
+def test_background_embed_api_schema() -> None:
+    from openchronicle.interfaces.api.routes.memory import MemorySaveRequest
+
+    req = MemorySaveRequest(
+        content="test content",
+        project_id="proj-1",
+        background_embed=True,
+    )
+    assert req.background_embed is True

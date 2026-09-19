@@ -186,3 +186,8 @@ However, several architectural bottlenecks and subtle edge-case risks limit thro
 | **2.3** | Persistent HTTP Client | `ollama_adapter.py` | Assert single `httpx.Client` instance reused across multiple batch embeddings. |
 | **2.4** | Rate Limiter Pruning | `rate_limit.py` | Micro-benchmark shows $O(1)$ dispatch time independent of total client count. |
 | **3.1** | Reader/Writer Split | `sqlite_store.py` | Concurrent read test executes while a write transaction is in progress without blocking. |
+| **3.2** | Background Vector Embedding | `add_memory.py`, `memory.py`, `embedding_service.py` | Async vector generation scheduled in background with immediate memory persistence. |
+| **3.3** | Metric Overhead Reduction | `sqlite_store.py` | Thread-local readers bypass writer lock observation on disk databases. |
+| **4.1** | Python Runtime Compatibility | `pyproject.toml`, codebase | Exception syntax standardized to `except (A, B):`, enabling Python >=3.12 support. |
+| **4.2** | Deterministic Lockfile Builds | `Dockerfile`, `test.yml`, `uv.lock` | Enforce `uv sync --frozen` across Dockerfile builder and CI workflows. |
+| **4.3** | Repository Hygiene | `.gitignore`, test suites | Enforced zero-tolerance checks for prohibited debt tokens and unmocked clocks. |

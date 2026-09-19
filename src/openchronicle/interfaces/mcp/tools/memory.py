@@ -130,6 +130,7 @@ def register(mcp: FastMCP) -> None:
         tags: list[str] | None = None,
         pinned: bool = False,
         created_at: str | None = None,
+        background_embed: bool = False,
     ) -> dict[str, Any]:
         """Persist a memory item that should outlive the current session.
 
@@ -145,6 +146,7 @@ def register(mcp: FastMCP) -> None:
             tags: Tags for categorization and `memory_search` filtering.
             pinned: True for standing rules; pinned items always surface.
             created_at: ISO datetime to backdate (e.g. for git-onboard imports).
+            background_embed: Generate vector embeddings asynchronously in background.
         """
         if not content or not content.strip():
             raise DomainValidationError("content must be non-empty")
@@ -173,6 +175,7 @@ def register(mcp: FastMCP) -> None:
                 store=container.storage,
                 item=item,
                 embedding_service=container.embedding_service,
+                background_embed=background_embed,
             )
             return memory_to_dict(saved)
 

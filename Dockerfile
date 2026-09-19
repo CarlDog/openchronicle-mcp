@@ -6,30 +6,26 @@
 FROM python:3.14-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    VIRTUAL_ENV=/venv \
+    PATH="/venv/bin:$PATH"
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+# Install uv from official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-RUN python -m venv /venv \
-    # Upgrade install tooling first to dodge CVEs that ship with the base
-    # image (pip 24.0, setuptools 68.1.2, wheel 0.42.0 all flagged by
-    # pip-audit at the time this was pinned). v3 only needs MCP + the
-    # embedding providers (OpenAI / Ollama).
-    && /venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
-    # Dependency layer: install against a stub package so source edits
-    # don't invalidate this slow, network-bound layer. Before this split,
-    # COPY src preceded the install and every code push re-resolved and
-    # re-downloaded the full dependency set from PyPI — the CI build
-    # cache could never serve it.
-    && mkdir -p src/openchronicle \
-    && touch src/openchronicle/__init__.py \
-	&& /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp,metrics]" \
-    && /venv/bin/pip uninstall -y openchronicle-mcp
+COPY pyproject.toml uv.lock README.md ./
+
+# Dependency layer: install against the lockfile without project source
+# so source edits don't invalidate this slow, network-bound layer.
+RUN uv venv /venv \
+    && uv sync --frozen --no-dev --no-install-project --extra openai --extra ollama --extra mcp --extra metrics
 
 COPY src ./src
-RUN /venv/bin/pip install --no-cache-dir --no-deps .
+RUN uv sync --frozen --no-dev --extra openai --extra ollama --extra mcp --extra metrics
 
 # ---- runtime stage ----------------------------------------------------------
 FROM python:3.14-slim

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
 from openchronicle.core.domain.content_hash import hash_content
@@ -83,6 +85,7 @@ class EmbeddingService:
         # maintenance loop's own periodic backfill stays safe regardless —
         # CAS publication makes concurrent runs correct, merely wasteful.
         self._background_backfill: asyncio.Task[BackfillResult] | None = None
+        self._background_tasks: set[asyncio.Task[Any]] = set()
 
     @property
     def backfill_running(self) -> bool:
@@ -337,6 +340,33 @@ class EmbeddingService:
         if not published:
             logger.info("embedding for memory %s not published (content changed or memory deleted)", memory_id)
         self._record_success()
+
+    def _safe_generate_for_memory(self, memory_id: str, content: str) -> None:
+        """Run generate_for_memory, logging failures without raising."""
+        try:
+            self.generate_for_memory(memory_id, content)
+        except Exception:
+            logger.warning("Failed to generate background embedding for memory %s", memory_id, exc_info=True)
+
+    def schedule_generate_for_memory(self, memory_id: str, content: str) -> None:
+        """Schedule embedding generation in the background without blocking the caller."""
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop is not None and loop.is_running():
+            task = loop.create_task(asyncio.to_thread(self._safe_generate_for_memory, memory_id, content))
+            self._background_tasks.add(task)
+            task.add_done_callback(self._background_tasks.discard)
+        else:
+            worker = threading.Thread(
+                target=self._safe_generate_for_memory,
+                args=(memory_id, content),
+                daemon=True,
+                name=f"embed-{memory_id[:8]}",
+            )
+            worker.start()
 
     def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> BackfillResult:
         """Backfill embeddings for memories that don't have one.

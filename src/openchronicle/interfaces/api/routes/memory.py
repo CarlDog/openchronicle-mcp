@@ -98,6 +98,7 @@ class MemorySaveRequest(BaseModel):
     tags: list[str] | None = Field(default=None, max_length=50)
     pinned: bool = False
     created_at: str | None = None
+    background_embed: bool = False
 
 
 @router.post("")
@@ -125,6 +126,7 @@ def memory_save(
         store=container.storage,
         item=item,
         embedding_service=container.embedding_service,
+        background_embed=body.background_embed,
     )
     return memory_to_dict(saved)
 

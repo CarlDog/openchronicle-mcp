@@ -153,7 +153,7 @@ class MaintenanceLoop:
         self._stop_event.set()
         try:
             await asyncio.wait_for(self._task, timeout=5.0)
-        except TimeoutError, asyncio.CancelledError:
+        except (TimeoutError, asyncio.CancelledError):
             self._task.cancel()
         # Drain any in-flight job tasks (cancel rather than wait for
         # potentially long-running jobs).
@@ -455,7 +455,7 @@ def load_jobs(file_config: dict[str, Any] | None = None) -> list[JobState]:
         interval_raw = entry.get("interval_seconds", 3600)
         try:
             interval = int(interval_raw)
-        except TypeError, ValueError:
+        except (TypeError, ValueError):
             _logger.warning("invalid interval_seconds %r for job %s; using 3600", interval_raw, name)
             interval = 3600
         if interval <= 0:

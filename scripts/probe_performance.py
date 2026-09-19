@@ -280,7 +280,7 @@ class MetricsScraper:
                 with self._opener.open(self._url, timeout=self._timeout_seconds) as response:
                     response.read()
                     completed = 200 <= response.status < 300
-            except OSError, TimeoutError, urllib.error.URLError:
+            except (OSError, TimeoutError, urllib.error.URLError):
                 completed = False
             duration = time.perf_counter() - started
             with self._lock:
@@ -341,7 +341,7 @@ def _process_rss_bytes(pid: int) -> int | None:
         for line in status_path.read_text(encoding="ascii").splitlines():
             if line.startswith("VmRSS:"):
                 return int(line.split()[1]) * 1024
-    except OSError, ValueError, IndexError:
+    except (OSError, ValueError, IndexError):
         return None
     return None
 
@@ -608,7 +608,7 @@ class RestTransport:
             )
         try:
             decoded: Any = json.loads(response_body.decode("utf-8")) if response_body else None
-        except UnicodeDecodeError, json.JSONDecodeError:
+        except (UnicodeDecodeError, json.JSONDecodeError):
             return (
                 OperationResult(
                     operation="transport",
@@ -657,7 +657,7 @@ class SimulatedEmbeddingServer:
                     if not isinstance(inputs, list) or not all(isinstance(item, str) for item in inputs):
                         self.send_error(400)
                         return
-                except ValueError, UnicodeDecodeError, json.JSONDecodeError:
+                except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
                     self.send_error(400)
                     return
                 # HTTPServer, deliberately not ThreadingHTTPServer, serializes
@@ -1545,7 +1545,7 @@ def _wait_for_health(base_url: str, timeout_seconds: float, process: subprocess.
             if result.completed and body == {"status": "ok"}:
                 return 1
             last_error = "health response was not ready"
-        except ProbeError, OSError, urllib.error.URLError:
+        except (ProbeError, OSError, urllib.error.URLError):
             last_error = "health request failed"
         time.sleep(0.05)
     raise ProbeError("startup_timeout", last_error or "health did not become ready")
@@ -1833,7 +1833,7 @@ def _metadata(config: ProbeConfig) -> dict[str, Any]:
             stderr=subprocess.DEVNULL,
             timeout=2,
         ).strip()
-    except OSError, subprocess.SubprocessError:
+    except (OSError, subprocess.SubprocessError):
         commit = "unknown"
     with suppress(OSError, subprocess.SubprocessError):
         working_tree_dirty = bool(

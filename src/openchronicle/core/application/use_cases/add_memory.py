@@ -18,6 +18,7 @@ def execute(
     item: MemoryItem,
     *,
     embedding_service: EmbeddingService | None = None,
+    background_embed: bool = False,
 ) -> MemoryItem:
     if item.project_id is None:
         raise DomainValidationError("project_id is required")
@@ -30,8 +31,11 @@ def execute(
         )
     store.add_memory(item)
     if embedding_service is not None:
-        try:
-            embedding_service.generate_for_memory(item.id, item.content)
-        except Exception:
-            logger.warning("Failed to generate embedding for memory %s", item.id, exc_info=True)
+        if background_embed:
+            embedding_service.schedule_generate_for_memory(item.id, item.content)
+        else:
+            try:
+                embedding_service.generate_for_memory(item.id, item.content)
+            except Exception:
+                logger.warning("Failed to generate embedding for memory %s", item.id, exc_info=True)
     return item

@@ -255,6 +255,11 @@
   "memory_save": {
     "input": {
       "properties": {
+        "background_embed": {
+          "default": false,
+          "title": "Background Embed",
+          "type": "boolean"
+        },
         "content": {
           "title": "Content",
           "type": "string"

@@ -44,4 +44,13 @@ The full design and verification specification is recorded in:
 - **Workspace Cleanliness:** Exclude root `.db` artifacts across predecessor directories.
 
 ---
+
+## Implementation Status (2026-09-18)
+
+- **Phase 1 (Correctness & Reliability):** Complete. Ollama probe retry cooldown (30s), empty-list SQL guard, and parameter chunking implemented and verified.
+- **Phase 2 (Core Data Access & Latency Optimization):** Complete. SQL vector scope pushdown, batch candidate hydration, persistent HTTP pooling for Ollama, and decoupled rate limiter pruning implemented and verified.
+- **Phase 3 (Concurrency & Throughput Scaling):** Complete. SQLite thread-local reader connections with query_only=ON unlocking concurrent WAL reads, read-your-own-writes consistency, and background vector embedding (`background_embed=True`) implemented and verified.
+- **Phase 4 (Portability & Toolchain Modernization):** Complete. Standardized PEP 758 exception syntax to parenthesized tuples, broadened Python runtime compatibility to >=3.12, and enforced deterministic `uv.lock` consumption across Dockerfile and CI workflows (`uv sync --frozen`).
+
+---
 *For full technical details, schema considerations, and verification matrices, refer to [Design 0013](design/0013-codebase-remediation-plan.md).*

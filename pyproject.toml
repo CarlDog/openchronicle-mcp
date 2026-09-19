@@ -14,13 +14,15 @@ authors = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 maintainers = [{name = "CarlDog", email = "carldog@users.noreply.github.com"}]
 license = {text = "AGPL-3.0-only"}
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 keywords = ["llm", "ai", "memory", "mcp", "embeddings", "fts5", "sqlite"]
 classifiers = [
 	"Development Status :: 4 - Beta",
 	"Intended Audience :: Developers",
 	"License :: OSI Approved :: GNU Affero General Public License v3",
 	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
 	"Programming Language :: Python :: 3.14",
 	"Topic :: Scientific/Engineering :: Artificial Intelligence",
 	"Typing :: Typed",
@@ -123,7 +125,7 @@ where = ["src"]
 openchronicle = ["**/*.sql"]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py312"
 line-length = 120
 
 [tool.ruff.lint]

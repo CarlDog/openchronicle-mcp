@@ -13,7 +13,7 @@ import struct
 import threading
 import time
 from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Concatenate, Literal
@@ -253,16 +253,22 @@ def _fts5_available(conn: sqlite3.Connection) -> bool:
 class SqliteStore(StoragePort, MemoryStorePort):
     def __init__(self, db_path: str, *, metrics: MetricsRecorder | None = None) -> None:
         self.db_path = Path(db_path)
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._is_memory = str(db_path) == ":memory:" or str(self.db_path) == ":memory:"
+        if not self._is_memory:
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False, isolation_level=None)
         self._conn.row_factory = sqlite3.Row
-        # Serializes ALL use of the shared connection across threads
+        # Serializes ALL use of the shared writer connection across threads
         # (request threadpool + maintenance workers). Guards
         # _transaction_depth and prevents cross-thread statement
         # interleaving inside an open transaction. See _locked.
         self._lock = threading.RLock()
         self._metrics = metrics if metrics is not None and metrics.enabled else None
         self._transaction_depth = 0
+        self._local = threading.local()
+        self._reader_conns: set[sqlite3.Connection] = set()
+        self._reader_lock = threading.Lock()
+        self._closed = False
         self._configure_connection()
         # Empty means unset (compose ${VAR:-} injects "" for blank stack
         # env) — without the `or "1"` an empty var silently disabled FTS5.
@@ -270,8 +276,44 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._fts5_user_enabled = fts5_env.lower() in {"1", "true", "yes", "on"}
         self._fts5_active: bool = False
 
+    def _get_read_conn(self) -> sqlite3.Connection:
+        if self._closed:
+            raise sqlite3.ProgrammingError("Cannot operate on a closed database.")
+        if self._is_memory or getattr(self._local, "in_write_tx", False):
+            return self._conn
+        conn = getattr(self._local, "read_conn", None)
+        if conn is None:
+            conn = sqlite3.connect(self.db_path, check_same_thread=False, isolation_level=None)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA query_only = ON;")
+            conn.execute("PRAGMA busy_timeout = 5000;")
+            self._local.read_conn = conn
+            with self._reader_lock:
+                self._reader_conns.add(conn)
+        return conn
+
+    @contextmanager
+    def _read_connection(self) -> Iterator[sqlite3.Connection]:
+        if self._is_memory:
+            if self._metrics is not None:
+                with _observed_lock(self, kind="read"):
+                    yield self._conn
+            else:
+                with self._lock:
+                    yield self._conn
+        elif getattr(self._local, "in_write_tx", False):
+            yield self._conn
+        else:
+            yield self._get_read_conn()
+
     @_locked
     def close(self) -> None:
+        self._closed = True
+        with self._reader_lock:
+            for r_conn in list(self._reader_conns):
+                with suppress(Exception):
+                    r_conn.close()
+            self._reader_conns.clear()
         self._conn.close()
 
     @_locked
@@ -318,6 +360,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
                 savepoint_name = f"sp_{self._transaction_depth + 1}"
                 self._conn.execute(f"SAVEPOINT {savepoint_name}")
             self._transaction_depth += 1
+            prev_in_tx = getattr(self._local, "in_write_tx", False)
+            self._local.in_write_tx = True
             try:
                 yield self._conn
                 if is_outer:
@@ -332,6 +376,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
                     self._conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
                 raise
             finally:
+                self._local.in_write_tx = prev_in_tx
                 self._transaction_depth -= 1
 
     # ── Projects ────────────────────────────────────────────────────
@@ -345,23 +390,23 @@ class SqliteStore(StoragePort, MemoryStorePort):
         )
         self._commit_if_needed()
 
-    @_locked
     def list_projects(self, name_contains: str | None = None) -> list[Project]:
-        cur = self._conn.cursor()
-        if name_contains is not None:
-            rows = cur.execute(
-                "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC",
-                (f"%{_escape_like(name_contains)}%", _LIKE_ESCAPE),
-            ).fetchall()
-        else:
-            rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
-        return [row_to_project(r) for r in rows]
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            if name_contains is not None:
+                rows = cur.execute(
+                    "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC",
+                    (f"%{_escape_like(name_contains)}%", _LIKE_ESCAPE),
+                ).fetchall()
+            else:
+                rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+            return [row_to_project(r) for r in rows]
 
-    @_locked
     def get_project(self, project_id: str) -> Project | None:
-        cur = self._conn.cursor()
-        row = cur.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
-        return row_to_project(row) if row else None
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            row = cur.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+            return row_to_project(row) if row else None
 
     @_locked
     def delete_project(self, project_id: str) -> int:
@@ -444,31 +489,30 @@ class SqliteStore(StoragePort, MemoryStorePort):
             raise
         self._commit_if_needed()
 
-    @_locked
     def get_memory(self, memory_id: str) -> MemoryItem | None:
-        cur = self._conn.cursor()
-        row = cur.execute("SELECT * FROM memory_items WHERE id=?", (memory_id,)).fetchone()
-        return row_to_memory_item(row) if row else None
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            row = cur.execute("SELECT * FROM memory_items WHERE id=?", (memory_id,)).fetchone()
+            return row_to_memory_item(row) if row else None
 
-    @_locked
     def get_memories(self, memory_ids: list[str]) -> dict[str, MemoryItem]:
         if not memory_ids:
             return {}
-        cur = self._conn.cursor()
-        result: dict[str, MemoryItem] = {}
-        unique_ids = list(dict.fromkeys(memory_ids))
-        chunk_size = 500
-        for i in range(0, len(unique_ids), chunk_size):
-            chunk = unique_ids[i : i + chunk_size]
-            placeholders = ",".join("?" for _ in chunk)
-            sql = f"SELECT * FROM memory_items WHERE id IN ({placeholders})"
-            rows = cur.execute(sql, chunk).fetchall()
-            for r in rows:
-                item = row_to_memory_item(r)
-                result[item.id] = item
-        return result
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            result: dict[str, MemoryItem] = {}
+            unique_ids = list(dict.fromkeys(memory_ids))
+            chunk_size = 500
+            for i in range(0, len(unique_ids), chunk_size):
+                chunk = unique_ids[i : i + chunk_size]
+                placeholders = ",".join("?" for _ in chunk)
+                sql = f"SELECT * FROM memory_items WHERE id IN ({placeholders})"
+                rows = cur.execute(sql, chunk).fetchall()
+                for r in rows:
+                    item = row_to_memory_item(r)
+                    result[item.id] = item
+            return result
 
-    @_locked
     def list_memory(
         self,
         limit: int | None = None,
@@ -481,68 +525,69 @@ class SqliteStore(StoragePort, MemoryStorePort):
     ) -> list[MemoryItem]:
         if order_by not in ("pinned_first", "created_at"):
             raise ValueError(f"order_by must be 'pinned_first' or 'created_at', got {order_by!r}")
-        cur = self._conn.cursor()
-        where_clauses: list[str] = []
-        params: list[Any] = []
-        if pinned_only:
-            where_clauses.append("pinned = 1")
-        if project_id is not None:
-            where_clauses.append("project_id = ?")
-            params.append(project_id)
-        # Both predicates run in SQL, before LIMIT/OFFSET — the batch-A
-        # rule. The clause builders emit a leading "AND", hence lstrip.
-        tags_clause, tags_params = _tags_clause(tags)
-        if tags_clause:
-            where_clauses.append(tags_clause.removeprefix("AND "))
-            params.extend(tags_params)
-        excl_clause, excl_params = _exclude_tags_clause(exclude_tags)
-        if excl_clause:
-            where_clauses.append(excl_clause.removeprefix("AND "))
-            params.extend(excl_params)
-        sql = "SELECT * FROM memory_items"
-        if where_clauses:
-            sql += f" WHERE {' AND '.join(where_clauses)}"
-        # "pinned_first" is the browsing default; "created_at" is PURE
-        # chronology with no pin float — the enumeration the Mnemosyne
-        # recency-window consumer needed, where a pin floating above the
-        # order silently fills a small limit with standing rules.
-        if order_by == "created_at":
-            sql += " ORDER BY created_at DESC, id DESC"
-        else:
-            sql += " ORDER BY pinned DESC, created_at DESC, id DESC"
-        if limit is not None:
-            sql += " LIMIT ?"
-            params.append(limit)
-        if offset > 0:
-            if limit is None:
-                sql += " LIMIT -1"
-            sql += " OFFSET ?"
-            params.append(offset)
-        rows = cur.execute(sql, params).fetchall()
-        return [row_to_memory_item(r) for r in rows]
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            where_clauses: list[str] = []
+            params: list[Any] = []
+            if pinned_only:
+                where_clauses.append("pinned = 1")
+            if project_id is not None:
+                where_clauses.append("project_id = ?")
+                params.append(project_id)
+            # Both predicates run in SQL, before LIMIT/OFFSET — the batch-A
+            # rule. The clause builders emit a leading "AND", hence lstrip.
+            tags_clause, tags_params = _tags_clause(tags)
+            if tags_clause:
+                where_clauses.append(tags_clause.removeprefix("AND "))
+                params.extend(tags_params)
+            excl_clause, excl_params = _exclude_tags_clause(exclude_tags)
+            if excl_clause:
+                where_clauses.append(excl_clause.removeprefix("AND "))
+                params.extend(excl_params)
+            sql = "SELECT * FROM memory_items"
+            if where_clauses:
+                sql += f" WHERE {' AND '.join(where_clauses)}"
+            # "pinned_first" is the browsing default; "created_at" is PURE
+            # chronology with no pin float — the enumeration the Mnemosyne
+            # recency-window consumer needed, where a pin floating above the
+            # order silently fills a small limit with standing rules.
+            if order_by == "created_at":
+                sql += " ORDER BY created_at DESC, id DESC"
+            else:
+                sql += " ORDER BY pinned DESC, created_at DESC, id DESC"
+            if limit is not None:
+                sql += " LIMIT ?"
+                params.append(limit)
+            if offset > 0:
+                if limit is None:
+                    sql += " LIMIT -1"
+                sql += " OFFSET ?"
+                params.append(offset)
+            rows = cur.execute(sql, params).fetchall()
+            return [row_to_memory_item(r) for r in rows]
 
-    @_locked
     def count_memory(self, project_id: str | None = None) -> int:
-        cur = self._conn.cursor()
-        if project_id is not None:
-            row = cur.execute(
-                "SELECT COUNT(*) AS cnt FROM memory_items WHERE project_id = ?",
-                (project_id,),
-            ).fetchone()
-        else:
-            row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_items").fetchone()
-        return row["cnt"] if row else 0
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            if project_id is not None:
+                row = cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM memory_items WHERE project_id = ?",
+                    (project_id,),
+                ).fetchone()
+            else:
+                row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_items").fetchone()
+            return row["cnt"] if row else 0
 
-    @_locked
     def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
-        cur = self._conn.cursor()
-        if project_id is not None:
-            sql = "SELECT * FROM memory_items WHERE source = ? AND project_id = ? ORDER BY created_at DESC"
-            rows = cur.execute(sql, (source, project_id)).fetchall()
-        else:
-            sql = "SELECT * FROM memory_items WHERE source = ? ORDER BY created_at DESC"
-            rows = cur.execute(sql, (source,)).fetchall()
-        return [row_to_memory_item(r) for r in rows]
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            if project_id is not None:
+                sql = "SELECT * FROM memory_items WHERE source = ? AND project_id = ? ORDER BY created_at DESC"
+                rows = cur.execute(sql, (source, project_id)).fetchall()
+            else:
+                sql = "SELECT * FROM memory_items WHERE source = ? ORDER BY created_at DESC"
+                rows = cur.execute(sql, (source,)).fetchall()
+            return [row_to_memory_item(r) for r in rows]
 
     @_locked
     def set_pinned(self, memory_id: str, pinned: bool) -> None:
@@ -671,20 +716,19 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._commit_if_needed()
         return True
 
-    @_locked
     def get_embedding(self, memory_id: str) -> list[float] | None:
-        cur = self._conn.cursor()
-        row = cur.execute(
-            "SELECT embedding FROM memory_embeddings WHERE memory_id = ?",
-            (memory_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        # Unpack from the blob's own length, not the dimensions column —
-        # heals any pre-existing row whose recorded claim disagrees.
-        return self._unpack_embedding(row["embedding"])
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            row = cur.execute(
+                "SELECT embedding FROM memory_embeddings WHERE memory_id = ?",
+                (memory_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            # Unpack from the blob's own length, not the dimensions column —
+            # heals any pre-existing row whose recorded claim disagrees.
+            return self._unpack_embedding(row["embedding"])
 
-    @_locked
     def list_embeddings(
         self,
         memory_ids: list[str] | None = None,
@@ -714,56 +758,56 @@ class SqliteStore(StoragePort, MemoryStorePort):
         if memory_ids is not None and not memory_ids:
             return {}
 
-        cur = self._conn.cursor()
-        base_clauses: list[str] = ["status = 'ok'"]
-        base_params: list[Any] = []
-        if model is not None:
-            base_clauses.append("model = ?")
-            base_params.append(model)
-        if provider is not None:
-            base_clauses.append("provider = ?")
-            base_params.append(provider)
-        if dimensions is not None:
-            base_clauses.append("dimensions = ?")
-            base_params.append(dimensions)
-        if settings_fingerprint is not None:
-            base_clauses.append("settings_fingerprint = ?")
-            base_params.append(settings_fingerprint)
-        if match_revision:
-            # IS, never `=`: most providers have no revision, and
-            # `model_revision = NULL` matches ZERO rows — the blackout
-            # the ADR 0005 adversarial review caught.
-            base_clauses.append("model_revision IS ?")
-            base_params.append(model_revision)
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            base_clauses: list[str] = ["status = 'ok'"]
+            base_params: list[Any] = []
+            if model is not None:
+                base_clauses.append("model = ?")
+                base_params.append(model)
+            if provider is not None:
+                base_clauses.append("provider = ?")
+                base_params.append(provider)
+            if dimensions is not None:
+                base_clauses.append("dimensions = ?")
+                base_params.append(dimensions)
+            if settings_fingerprint is not None:
+                base_clauses.append("settings_fingerprint = ?")
+                base_params.append(settings_fingerprint)
+            if match_revision:
+                # IS, never `=`: most providers have no revision, and
+                # `model_revision = NULL` matches ZERO rows — the blackout
+                # the ADR 0005 adversarial review caught.
+                base_clauses.append("model_revision IS ?")
+                base_params.append(model_revision)
 
-        result: dict[str, list[float]] = {}
-        if memory_ids is not None:
-            unique_ids = list(dict.fromkeys(memory_ids))
-            chunk_size = 500
-            for i in range(0, len(unique_ids), chunk_size):
-                chunk = unique_ids[i : i + chunk_size]
-                clauses = list(base_clauses)
-                params = list(base_params)
-                placeholders = ",".join("?" for _ in chunk)
-                clauses.append(f"memory_id IN ({placeholders})")
-                params.extend(chunk)
+            result: dict[str, list[float]] = {}
+            if memory_ids is not None:
+                unique_ids = list(dict.fromkeys(memory_ids))
+                chunk_size = 500
+                for i in range(0, len(unique_ids), chunk_size):
+                    chunk = unique_ids[i : i + chunk_size]
+                    clauses = list(base_clauses)
+                    params = list(base_params)
+                    placeholders = ",".join("?" for _ in chunk)
+                    clauses.append(f"memory_id IN ({placeholders})")
+                    params.extend(chunk)
+                    sql = "SELECT memory_id, embedding FROM memory_embeddings"
+                    if clauses:
+                        sql += f" WHERE {' AND '.join(clauses)}"
+                    rows = cur.execute(sql, params).fetchall()
+                    for row in rows:
+                        result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
+            else:
                 sql = "SELECT memory_id, embedding FROM memory_embeddings"
-                if clauses:
-                    sql += f" WHERE {' AND '.join(clauses)}"
-                rows = cur.execute(sql, params).fetchall()
+                if base_clauses:
+                    sql += f" WHERE {' AND '.join(base_clauses)}"
+                rows = cur.execute(sql, base_params).fetchall()
                 for row in rows:
                     result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
-        else:
-            sql = "SELECT memory_id, embedding FROM memory_embeddings"
-            if base_clauses:
-                sql += f" WHERE {' AND '.join(base_clauses)}"
-            rows = cur.execute(sql, base_params).fetchall()
-            for row in rows:
-                result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
 
-        return result
+            return result
 
-    @_locked
     def count_embeddings(self, status: str | None = None) -> int:
         """Stored embedding rows; ``status`` narrows to one row status.
 
@@ -771,14 +815,16 @@ class SqliteStore(StoragePort, MemoryStorePort):
         ``missing = total memories − all rows`` invariant needs that);
         ``"ok"`` counts real vectors (health's ``embedded``).
         """
-        cur = self._conn.cursor()
-        if status is None:
-            row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings").fetchone()
-        else:
-            row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE status = ?", (status,)).fetchone()
-        return row["cnt"] if row else 0
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            if status is None:
+                row = cur.execute("SELECT COUNT(*) AS cnt FROM memory_embeddings").fetchone()
+            else:
+                row = cur.execute(
+                    "SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE status = ?", (status,)
+                ).fetchone()
+            return row["cnt"] if row else 0
 
-    @_locked
     def count_unembeddable_embeddings(
         self,
         provider: str,
@@ -795,19 +841,19 @@ class SqliteStore(StoragePort, MemoryStorePort):
         verified, per the ADR). Content hashes are compared in Python,
         same as the content-mismatch bucket.
         """
-        cur = self._conn.cursor()
-        rows = cur.execute(
-            """
-            SELECT m.content AS content, e.content_hash AS content_hash
-            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
-            WHERE e.status = 'content_too_long'
-              AND e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
-            """,
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchall()
-        return sum(1 for r in rows if hash_content(r["content"]) == r["content_hash"])
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            rows = cur.execute(
+                """
+                SELECT m.content AS content, e.content_hash AS content_hash
+                FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
+                WHERE e.status = 'content_too_long'
+                  AND e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
+                """,
+                (provider, model, settings_fingerprint, model_revision),
+            ).fetchall()
+            return sum(1 for r in rows if hash_content(r["content"]) == r["content_hash"])
 
-    @_locked
     def stale_embedding_counts(
         self,
         provider: str,
@@ -825,29 +871,29 @@ class SqliteStore(StoragePort, MemoryStorePort):
         regenerate. Content hashes are compared in Python (SQLite has no
         sha256) — a full-join scan, milliseconds at this corpus size.
         """
-        cur = self._conn.cursor()
-        row = cur.execute(
-            "SELECT COUNT(*) AS cnt FROM memory_embeddings"
-            " WHERE provider != ? OR model != ? OR settings_fingerprint != ? OR model_revision IS NOT ?",
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchone()
-        space_mismatch = row["cnt"] if row else 0
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            row = cur.execute(
+                "SELECT COUNT(*) AS cnt FROM memory_embeddings"
+                " WHERE provider != ? OR model != ? OR settings_fingerprint != ? OR model_revision IS NOT ?",
+                (provider, model, settings_fingerprint, model_revision),
+            ).fetchone()
+            space_mismatch = row["cnt"] if row else 0
 
-        content_mismatch = 0
-        rows = cur.execute(
-            """
-            SELECT m.content AS content, e.content_hash AS content_hash
-            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
-            WHERE e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
-            """,
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchall()
-        for r in rows:
-            if hash_content(r["content"]) != r["content_hash"]:
-                content_mismatch += 1
-        return {"space_mismatch": space_mismatch, "content_mismatch": content_mismatch}
+            content_mismatch = 0
+            rows = cur.execute(
+                """
+                SELECT m.content AS content, e.content_hash AS content_hash
+                FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
+                WHERE e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
+                """,
+                (provider, model, settings_fingerprint, model_revision),
+            ).fetchall()
+            for r in rows:
+                if hash_content(r["content"]) != r["content_hash"]:
+                    content_mismatch += 1
+            return {"space_mismatch": space_mismatch, "content_mismatch": content_mismatch}
 
-    @_locked
     def stored_embedding_dimensions(self) -> list[int]:
         """Distinct vector lengths actually stored, ascending.
 
@@ -857,11 +903,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         tombstone's factual ``0`` is payload truth, not vector truth —
         surfacing ``stored_dimensions: [0, 768]`` would read as drift.
         """
-        cur = self._conn.cursor()
-        rows = cur.execute(
-            "SELECT DISTINCT dimensions FROM memory_embeddings WHERE status = 'ok' ORDER BY dimensions"
-        ).fetchall()
-        return [row["dimensions"] for row in rows]
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            rows = cur.execute(
+                "SELECT DISTINCT dimensions FROM memory_embeddings WHERE status = 'ok' ORDER BY dimensions"
+            ).fetchall()
+            return [row["dimensions"] for row in rows]
 
     @_locked
     def delete_embedding(self, memory_id: str) -> None:
@@ -869,16 +916,15 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (memory_id,))
         self._commit_if_needed()
 
-    @_locked
     def get_embedding_model(self, memory_id: str) -> str | None:
-        cur = self._conn.cursor()
-        row = cur.execute(
-            "SELECT model FROM memory_embeddings WHERE memory_id = ?",
-            (memory_id,),
-        ).fetchone()
-        return row["model"] if row else None
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            row = cur.execute(
+                "SELECT model FROM memory_embeddings WHERE memory_id = ?",
+                (memory_id,),
+            ).fetchone()
+            return row["model"] if row else None
 
-    @_locked
     def get_embedding_identity(self, memory_id: str) -> dict[str, Any] | None:
         """The stored identity of a memory's vector, or None when absent.
 
@@ -891,47 +937,48 @@ class SqliteStore(StoragePort, MemoryStorePort):
         emergent exclusion works, and an explicit "tombstone → not
         current" branch would reintroduce the infinite retry.
         """
-        cur = self._conn.cursor()
-        row = cur.execute(
-            "SELECT provider, model, dimensions, content_hash, model_revision, settings_fingerprint, status"
-            " FROM memory_embeddings WHERE memory_id = ?",
-            (memory_id,),
-        ).fetchone()
-        if row is None:
-            return None
-        return {
-            "provider": row["provider"],
-            "model": row["model"],
-            "dimensions": row["dimensions"],
-            "content_hash": row["content_hash"],
-            "model_revision": row["model_revision"],
-            "settings_fingerprint": row["settings_fingerprint"],
-            "status": row["status"],
-        }
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            row = cur.execute(
+                "SELECT provider, model, dimensions, content_hash, model_revision, settings_fingerprint, status"
+                " FROM memory_embeddings WHERE memory_id = ?",
+                (memory_id,),
+            ).fetchone()
+            if row is None:
+                return None
+            return {
+                "provider": row["provider"],
+                "model": row["model"],
+                "dimensions": row["dimensions"],
+                "content_hash": row["content_hash"],
+                "model_revision": row["model_revision"],
+                "settings_fingerprint": row["settings_fingerprint"],
+                "status": row["status"],
+            }
 
     # ── Search ──────────────────────────────────────────────────────
 
-    @_locked
     def pinned_items(
         self,
         project_id: str | None = None,
     ) -> list[MemoryItem]:
-        cur = self._conn.cursor()
-        params: list[Any] = []
-        if project_id is not None:
-            sql = """
-                SELECT * FROM memory_items
-                WHERE pinned=1 AND (project_id=? OR project_id IS NULL)
-                ORDER BY created_at DESC, id DESC
-            """
-            params = [project_id]
-        else:
-            sql = """
-                SELECT * FROM memory_items
-                WHERE pinned=1
-                ORDER BY created_at DESC, id DESC
-            """
-        return [row_to_memory_item(r) for r in cur.execute(sql, params).fetchall()]
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            params: list[Any] = []
+            if project_id is not None:
+                sql = """
+                    SELECT * FROM memory_items
+                    WHERE pinned=1 AND (project_id=? OR project_id IS NULL)
+                    ORDER BY created_at DESC, id DESC
+                """
+                params = [project_id]
+            else:
+                sql = """
+                    SELECT * FROM memory_items
+                    WHERE pinned=1
+                    ORDER BY created_at DESC, id DESC
+                """
+            return [row_to_memory_item(r) for r in cur.execute(sql, params).fetchall()]
 
     def _fts5_search_memory(
         self,
@@ -941,11 +988,13 @@ class SqliteStore(StoragePort, MemoryStorePort):
         tags: list[str] | None = None,
         phrase: bool = False,
         pinned_mode: _PinnedMode = "exclude",
+        conn: sqlite3.Connection | None = None,
     ) -> list[MemoryItem]:
         escaped = self._fts5_escape(query, phrase=phrase)
         if not escaped:
             return []
-        cur = self._conn.cursor()
+        target_conn = conn if conn is not None else self._get_read_conn()
+        cur = target_conn.cursor()
         pinned_clause, scope_clause, scope_params = _pinned_clauses(pinned_mode, project_id, alias="m")
         tags_clause, tags_params = _tags_clause(tags, alias="m")
         params: list[Any] = [escaped, *scope_params, *tags_params, limit]
@@ -969,9 +1018,11 @@ class SqliteStore(StoragePort, MemoryStorePort):
         tags: list[str] | None = None,
         phrase: bool = False,
         pinned_mode: _PinnedMode = "exclude",
+        conn: sqlite3.Connection | None = None,
     ) -> list[MemoryItem]:
         q_tokens = self._normalize_tokens(query)
-        cur = self._conn.cursor()
+        target_conn = conn if conn is not None else self._get_read_conn()
+        cur = target_conn.cursor()
         pinned_clause, scope_clause, scope_params = _pinned_clauses(pinned_mode, project_id)
         tags_clause, tags_params = _tags_clause(tags)
         params: list[Any] = [*scope_params, *tags_params, _MEMORY_SEARCH_LIMIT]
@@ -1012,18 +1063,17 @@ class SqliteStore(StoragePort, MemoryStorePort):
         tags: list[str] | None,
         phrase: bool,
         pinned_mode: _PinnedMode,
+        conn: sqlite3.Connection | None = None,
     ) -> list[MemoryItem]:
-        """Dispatch to FTS5 or the fallback scorer.
-
-        Deliberately NOT ``@_locked``: every caller already holds the
-        store lock. Calling a locked method from inside another would
-        rely on the lock being reentrant.
-        """
+        """Dispatch to FTS5 or the fallback scorer."""
         if self._fts5_active:
-            return self._fts5_search_memory(query, limit, project_id, tags=tags, phrase=phrase, pinned_mode=pinned_mode)
-        return self._fallback_search_memory(query, limit, project_id, tags=tags, phrase=phrase, pinned_mode=pinned_mode)
+            return self._fts5_search_memory(
+                query, limit, project_id, tags=tags, phrase=phrase, pinned_mode=pinned_mode, conn=conn
+            )
+        return self._fallback_search_memory(
+            query, limit, project_id, tags=tags, phrase=phrase, pinned_mode=pinned_mode, conn=conn
+        )
 
-    @_locked
     def search_pinned(
         self,
         query: str,
@@ -1041,9 +1091,9 @@ class SqliteStore(StoragePort, MemoryStorePort):
         """
         if limit <= 0:
             return []
-        return self._ranked_search(query, limit, project_id, tags, phrase, "only")[:limit]
+        with self._read_connection() as conn:
+            return self._ranked_search(query, limit, project_id, tags, phrase, "only", conn=conn)[:limit]
 
-    @_locked
     def eligible_memory_ids(
         self,
         *,
@@ -1056,18 +1106,18 @@ class SqliteStore(StoragePort, MemoryStorePort):
         (strict project + global pins) and the tags rule cannot drift
         from what ``search_memory`` applies.
         """
-        cur = self._conn.cursor()
-        _pinned, scope_clause, scope_params = _pinned_clauses("include", project_id)
-        tags_clause, tags_params = _tags_clause(tags)
-        sql = f"""
-            SELECT id FROM memory_items
-            WHERE 1=1
-            {scope_clause}
-            {tags_clause}
-        """
-        return {row["id"] for row in cur.execute(sql, [*scope_params, *tags_params]).fetchall()}
+        with self._read_connection() as conn:
+            cur = conn.cursor()
+            _pinned, scope_clause, scope_params = _pinned_clauses("include", project_id)
+            tags_clause, tags_params = _tags_clause(tags)
+            sql = f"""
+                SELECT id FROM memory_items
+                WHERE 1=1
+                {scope_clause}
+                {tags_clause}
+            """
+            return {row["id"] for row in cur.execute(sql, [*scope_params, *tags_params]).fetchall()}
 
-    @_locked
     def search_memory(
         self,
         query: str,
@@ -1088,7 +1138,10 @@ class SqliteStore(StoragePort, MemoryStorePort):
         # Over-fetch by the exclusion size so removing floated rows
         # cannot shrink the page below top_k.
         fetch = effective_top_k + len(exclude_ids or ())
-        ranked = self._ranked_search(query, fetch, project_id, tags, phrase, "include" if include_pinned else "exclude")
+        with self._read_connection() as conn:
+            ranked = self._ranked_search(
+                query, fetch, project_id, tags, phrase, "include" if include_pinned else "exclude", conn=conn
+            )
         if exclude_ids:
             ranked = [i for i in ranked if i.id not in exclude_ids]
         return ranked[offset : offset + top_k]
@@ -1169,10 +1222,10 @@ class SqliteStore(StoragePort, MemoryStorePort):
         """Run PRAGMA integrity_check; returns 'ok' when healthy."""
         return str(self._conn.execute("PRAGMA integrity_check").fetchone()[0])
 
-    @_locked
     def schema_version(self) -> int:
         """Highest applied migration version."""
-        return migrator.current_version(self._conn)
+        with self._read_connection() as conn:
+            return migrator.current_version(conn)
 
     @property
     def fts5_active(self) -> bool:
