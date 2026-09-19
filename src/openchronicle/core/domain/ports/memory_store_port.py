@@ -376,6 +376,9 @@ class MemoryStorePort(ABC):
         settings_fingerprint: str | None = None,
         model_revision: str | None = None,
         match_revision: bool = False,
+        *,
+        project_id: str | None = None,
+        tags: list[str] | None = None,
     ) -> dict[str, list[float]]:
         """Map memory_id → vector, optionally filtered by ids and/or space.
 

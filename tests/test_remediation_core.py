@@ -60,7 +60,7 @@ def _make_item(
     item_id: str,
     content: str,
     *,
-    project_id: str = "proj-1",
+    project_id: str | None = "proj-1",
     pinned: bool = False,
     tags: list[str] | None = None,
 ) -> MemoryItem:
@@ -88,7 +88,7 @@ def test_ollama_probe_retries_after_network_failure() -> None:
     t0 = 1000.0
     with (
         patch("time.monotonic", return_value=t0),
-        patch("httpx.get", side_effect=httpx.ConnectError("refused")),
+        patch.object(httpx.Client, "get", side_effect=httpx.ConnectError("refused")),
     ):
         assert adapter.model_revision() is None
         assert adapter._probe_failed is True
@@ -96,7 +96,7 @@ def test_ollama_probe_retries_after_network_failure() -> None:
     # Immediate subsequent call before cooldown expires should not re-query
     with (
         patch("time.monotonic", return_value=t0 + 5.0),
-        patch("httpx.get") as mock_get,
+        patch.object(httpx.Client, "get") as mock_get,
     ):
         assert adapter.model_revision() is None
         mock_get.assert_not_called()
@@ -109,7 +109,7 @@ def test_ollama_probe_retries_after_network_failure() -> None:
     )
     with (
         patch("time.monotonic", return_value=t0 + _PROBE_RETRY_INTERVAL + 1.0),
-        patch("httpx.get", return_value=tags_resp) as mock_get_recovered,
+        patch.object(httpx.Client, "get", return_value=tags_resp) as mock_get_recovered,
     ):
         assert adapter.model_revision() == "sha256:recovered"
         assert adapter._probe_failed is False
@@ -230,9 +230,9 @@ def test_embedding_service_semantic_batch_hydration_and_scoping() -> None:
         assert results[0].item.id == "m1"
         assert mock_get_memories.called
 
-        # Verify that list_embeddings received memory_ids filtered to proj-1's eligible items
+        # Verify that list_embeddings received project_id for SQL scope pushdown
         call_kwargs = mock_list_embeddings.call_args.kwargs
-        assert call_kwargs.get("memory_ids") == ["m1"]
+        assert call_kwargs.get("project_id") == "proj-1"
 
 
 # ── Rate Limit Middleware Tests ────────────────────────────────────────
@@ -865,3 +865,143 @@ def test_concurrent_idempotent_add_memory(tmp_path: Path) -> None:
     conflicting = _make_item("shared-concurrent-id", "different content", tags=["a", "b"])
     with pytest.raises(DomainValidationError, match="different content"):
         add_memory.execute(store, conflicting)
+
+
+def test_add_memories_batch_idempotent_replay(tmp_path: Path) -> None:
+    from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+    db_path = tmp_path / "batch_replay.db"
+    store = SqliteStore(str(db_path))
+    store.init_schema()
+    store.add_project(Project(id="proj-1", name="Project 1"))
+
+    items = [_make_item(f"batch-m-{i}", f"batch content {i}", project_id="proj-1", tags=["t1"]) for i in range(5)]
+    store.add_memories(items, chunk_size=2)
+    assert store.count_memory("proj-1") == 5
+
+    # Replay entire batch: must succeed idempotently without UNIQUE constraint error
+    store.add_memories(items, chunk_size=2)
+    assert store.count_memory("proj-1") == 5
+
+    # Conflicting item inside a batch raises DomainValidationError
+    conflicting_batch = [
+        _make_item("batch-m-0", "conflicting content", project_id="proj-1", tags=["t1"]),
+    ]
+    with pytest.raises(DomainValidationError, match="different content"):
+        store.add_memories(conflicting_batch)
+
+
+def test_sqlite_list_embeddings_sql_join_scoping(tmp_path: Path) -> None:
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+    db_path = tmp_path / "join_scoping.db"
+    store = SqliteStore(str(db_path))
+    store.init_schema()
+    store.add_project(Project(id="proj-1", name="Project 1"))
+    store.add_project(Project(id="proj-2", name="Project 2"))
+
+    m1 = _make_item("m1", "p1 item", project_id="proj-1", tags=["docs"])
+    m2 = _make_item("m2", "p2 item", project_id="proj-2", tags=["code"])
+    m3 = _make_item("m3", "global pinned", project_id=None, pinned=True, tags=["docs"])
+    store.add_memory(m1)
+    store.add_memory(m2)
+    store.add_memory(m3)
+
+    save_vec(store, "m1", model="test-model", provider="test", vec=[1.0, 0.0])
+    save_vec(store, "m2", model="test-model", provider="test", vec=[0.0, 1.0])
+    save_vec(store, "m3", model="test-model", provider="test", vec=[0.5, 0.5])
+
+    # Filter by project_id in SQL join (includes project items + global pins)
+    res_p1 = store.list_embeddings(
+        project_id="proj-1",
+        model="test-model",
+        provider="test",
+        dimensions=2,
+    )
+    assert "m1" in res_p1
+    assert "m3" in res_p1
+    assert "m2" not in res_p1
+
+    # Filter by tags in SQL join
+    res_tags = store.list_embeddings(
+        tags=["code"],
+        model="test-model",
+        provider="test",
+        dimensions=2,
+    )
+    assert "m2" in res_tags
+    assert "m1" not in res_tags
+    assert "m3" not in res_tags
+
+
+def test_update_memory_occ_timezone_normalization(tmp_path: Path) -> None:
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+    db_path = tmp_path / "occ_tz.db"
+    store = SqliteStore(str(db_path))
+    store.init_schema()
+    store.add_project(Project(id="proj-1", name="Project 1"))
+
+    item = _make_item("occ-tz-1", "original content", project_id="proj-1")
+    store.add_memory(item)
+
+    # Stored created_at has timezone
+    created = store.get_memory("occ-tz-1")
+    assert created is not None
+    created_str = created.created_at.isoformat()
+
+    # Pass equivalent Z representation
+    z_str = created_str.replace("+00:00", "Z")
+    updated = store.update_memory("occ-tz-1", content="updated v1", expected_updated_at=z_str)
+    assert updated.content == "updated v1"
+
+    # Pass equivalent naive representation of updated_at
+    assert updated.updated_at is not None
+    naive_str = updated.updated_at.isoformat().replace("+00:00", "").replace("Z", "")
+    updated_v2 = store.update_memory("occ-tz-1", content="updated v2", expected_updated_at=naive_str)
+    assert updated_v2.content == "updated v2"
+
+
+def test_embedding_service_bounded_threadpool_and_close() -> None:
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=4)
+    service = EmbeddingService(port=adapter, store=store)
+
+    item = _make_item("sync-bg-1", "sync background content")
+    store.add_memory(item)
+
+    # Schedule in sync context (no running event loop)
+    service.schedule_generate_for_memory(item.id, item.content)
+    assert service._sync_executor is not None
+
+    time.sleep(0.1)
+    service.close()
+    assert service._sync_executor is None
+
+
+def test_sqlite_reader_dead_thread_pruning(tmp_path: Path) -> None:
+    from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+
+    db_path = tmp_path / "pruning.db"
+    store = SqliteStore(str(db_path))
+    store.init_schema()
+    store.add_project(Project(id="p1", name="Project 1"))
+    store.add_memory(_make_item("m1", "content", project_id="p1"))
+
+    def read_op() -> None:
+        _ = store.get_memory("m1")
+
+    # Run short-lived threads
+    threads = [threading.Thread(target=read_op) for _ in range(3)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    # Active threads have joined and terminated. Running a new read triggers dead thread pruning.
+    _ = store.get_memory("m1")
+    # Only the main/current thread remains in _reader_conns
+    assert len(store._reader_conns) == 1
+    store.close()
+    assert len(store._reader_conns) == 0

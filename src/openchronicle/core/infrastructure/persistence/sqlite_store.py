@@ -14,7 +14,7 @@ import threading
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager, suppress
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Concatenate, Literal
 
@@ -276,7 +276,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._metrics = metrics if metrics is not None and metrics.enabled else None
         self._transaction_depth = 0
         self._local = threading.local()
-        self._reader_conns: set[sqlite3.Connection] = set()
+        self._reader_conns: dict[int, sqlite3.Connection] = {}
         self._reader_lock = threading.Lock()
         self._closed = False
         self._configure_connection()
@@ -298,8 +298,17 @@ class SqliteStore(StoragePort, MemoryStorePort):
             conn.execute("PRAGMA query_only = ON;")
             conn.execute("PRAGMA busy_timeout = 5000;")
             self._local.read_conn = conn
+            tid = threading.get_ident()
             with self._reader_lock:
-                self._reader_conns.add(conn)
+                # Prune dead threads to prevent connection / file descriptor accumulation
+                active_tids = {t.ident for t in threading.enumerate() if t.ident is not None}
+                dead_tids = [i for i in self._reader_conns if i not in active_tids]
+                for dead_tid in dead_tids:
+                    dead_conn = self._reader_conns.pop(dead_tid, None)
+                    if dead_conn is not None:
+                        with suppress(Exception):
+                            dead_conn.close()
+                self._reader_conns[tid] = conn
         return conn
 
     @contextmanager
@@ -320,7 +329,7 @@ class SqliteStore(StoragePort, MemoryStorePort):
     def close(self) -> None:
         self._closed = True
         with self._reader_lock:
-            for r_conn in list(self._reader_conns):
+            for r_conn in list(self._reader_conns.values()):
                 with suppress(Exception):
                     r_conn.close()
             self._reader_conns.clear()
@@ -512,42 +521,49 @@ class SqliteStore(StoragePort, MemoryStorePort):
             raise
         self._commit_if_needed()
 
-    @_locked
     def add_memories(self, items: list[MemoryItem], *, chunk_size: int = 100) -> None:
         if not items:
             return
         chunk_size = max(1, chunk_size)
         for i in range(0, len(items), chunk_size):
             chunk = items[i : i + chunk_size]
-            with self.transaction():
-                cur = self._conn.cursor()
+            with self._lock:
                 try:
-                    cur.executemany(
-                        """
-                        INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source, updated_at)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        [
-                            (
-                                item.id,
-                                item.content,
-                                json.dumps(item.tags, sort_keys=True),
-                                item.created_at.isoformat(),
-                                1 if item.pinned else 0,
-                                item.project_id,
-                                item.source,
-                                item.updated_at.isoformat() if item.updated_at else None,
-                            )
-                            for item in chunk
-                        ],
-                    )
+                    with self.transaction():
+                        cur = self._conn.cursor()
+                        cur.executemany(
+                            """
+                            INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            [
+                                (
+                                    item.id,
+                                    item.content,
+                                    json.dumps(item.tags, sort_keys=True),
+                                    item.created_at.isoformat(),
+                                    1 if item.pinned else 0,
+                                    item.project_id,
+                                    item.source,
+                                    item.updated_at.isoformat() if item.updated_at else None,
+                                )
+                                for item in chunk
+                            ],
+                        )
                 except sqlite3.IntegrityError as exc:
-                    if "FOREIGN KEY" in str(exc).upper():
+                    exc_str = str(exc).upper()
+                    if "FOREIGN KEY" in exc_str:
                         raise NotFoundError(
                             f"Foreign key constraint failed during batch insert: {exc}",
                             code=PROJECT_NOT_FOUND,
                         ) from exc
-                    raise
+                    if "UNIQUE" in exc_str and "MEMORY_ITEMS.ID" in exc_str:
+                        # Fall back to per-item insertion so idempotent replays
+                        # succeed and conflicting content raises DomainValidationError.
+                        for item in chunk:
+                            self.add_memory(item)
+                    else:
+                        raise
 
     def get_memory(self, memory_id: str) -> MemoryItem | None:
         with self._read_connection() as conn:
@@ -678,14 +694,21 @@ class SqliteStore(StoragePort, MemoryStorePort):
             if row is None:
                 raise NotFoundError(f"Memory not found: {memory_id}", code=MEMORY_NOT_FOUND)
             curr_updated_at, curr_created_at = row[0], row[1]
+
+            def _parse_utc(val: str) -> datetime:
+                dt = datetime.fromisoformat(val)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=UTC)
+                return dt
+
             matches = False
             if curr_updated_at is not None:
                 if expected_updated_at == curr_updated_at:
                     matches = True
                 else:
                     try:
-                        matches = datetime.fromisoformat(expected_updated_at) == datetime.fromisoformat(curr_updated_at)
-                    except ValueError:
+                        matches = _parse_utc(expected_updated_at) == _parse_utc(curr_updated_at)
+                    except (ValueError, TypeError):
                         matches = False
             else:
                 if (
@@ -695,8 +718,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
                     matches = True
                 else:
                     try:
-                        matches = datetime.fromisoformat(expected_updated_at) == datetime.fromisoformat(curr_created_at)
-                    except ValueError:
+                        matches = _parse_utc(expected_updated_at) == _parse_utc(curr_created_at)
+                    except (ValueError, TypeError):
                         matches = False
 
             if not matches:
@@ -837,8 +860,11 @@ class SqliteStore(StoragePort, MemoryStorePort):
         settings_fingerprint: str | None = None,
         model_revision: str | None = None,
         match_revision: bool = False,
+        *,
+        project_id: str | None = None,
+        tags: list[str] | None = None,
     ) -> dict[str, list[float]]:
-        """List embeddings, optionally filtered by ids and/or space identity.
+        """List embeddings, optionally filtered by ids, project scope, and/or space identity.
 
         Semantic search MUST pass the full space identity — ``model``,
         ``provider``, and ``dimensions`` (ADR 0005): vectors from
@@ -897,6 +923,25 @@ class SqliteStore(StoragePort, MemoryStorePort):
                     rows = cur.execute(sql, params).fetchall()
                     for row in rows:
                         result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
+            elif project_id is not None or tags:
+                _pinned, scope_clause, scope_params = _pinned_clauses("include", project_id, alias="m")
+                tags_clause, tags_params = _tags_clause(tags, alias="m")
+                clauses = [f"e.{c}" for c in base_clauses]
+                params = list(base_params)
+                if scope_clause:
+                    clauses.append(scope_clause.removeprefix("AND "))
+                    params.extend(scope_params)
+                if tags_clause:
+                    clauses.append(tags_clause.removeprefix("AND "))
+                    params.extend(tags_params)
+                sql = (
+                    "SELECT e.memory_id, e.embedding FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id"
+                )
+                if clauses:
+                    sql += f" WHERE {' AND '.join(clauses)}"
+                rows = cur.execute(sql, params).fetchall()
+                for row in rows:
+                    result[row["memory_id"]] = self._unpack_embedding(row["embedding"])
             else:
                 sql = "SELECT memory_id, embedding FROM memory_embeddings"
                 if base_clauses:

@@ -78,7 +78,7 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
             logger.warning("OLLAMA_VERIFY_TLS disabled — TLS certificates for %s will not be verified", self._host)
         self._timeout = timeout_seconds
         self._client = client
-        self._client_lock = threading.Lock()
+        self._client_lock = threading.RLock()
         self._owned_client: httpx.Client | None = None
         # Lazy, non-fatal capability probe (see _probe_digest). The
         # sentinel distinguishes "never probed" from "probed, no answer".
@@ -96,25 +96,11 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
     def _send_post(self, url: str, body: dict[str, Any]) -> httpx.Response:
         if self._client is not None:
             return self._client.post(url, json=body)
-        try:
-            from unittest.mock import Base
-
-            if isinstance(httpx.post, Base):
-                return httpx.post(url, json=body, timeout=self._timeout, verify=self._verify_tls)
-        except ImportError:
-            pass
         return self._get_owned_client().post(url, json=body)
 
     def _send_get(self, url: str, timeout: float) -> httpx.Response:
         if self._client is not None:
             return self._client.get(url, timeout=timeout)
-        try:
-            from unittest.mock import Base
-
-            if isinstance(httpx.get, Base):
-                return httpx.get(url, timeout=timeout, verify=self._verify_tls)
-        except ImportError:
-            pass
         return self._get_owned_client().get(url, timeout=timeout)
 
     def close(self) -> None:
@@ -247,7 +233,12 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
         if self._probed_revision is _UNPROBED or (
             self._probe_failed and (now - self._last_probe_failed_at >= _PROBE_RETRY_INTERVAL)
         ):
-            self._probe_digest()
+            with self._client_lock:
+                now = time.monotonic()
+                if self._probed_revision is _UNPROBED or (
+                    self._probe_failed and (now - self._last_probe_failed_at >= _PROBE_RETRY_INTERVAL)
+                ):
+                    self._probe_digest()
         return self._probed_revision if not self._probe_failed else None  # type: ignore[return-value]
 
     def _probe_digest(self) -> None:

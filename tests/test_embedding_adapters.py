@@ -191,7 +191,7 @@ class TestOllamaEmbeddingAdapter:
 
     def test_returns_normalized_vector(self) -> None:
         adapter = self._make_adapter()
-        with patch("httpx.post", return_value=self._ok([[0.5, 0.5, 0.5]])):
+        with patch.object(httpx.Client, "post", return_value=self._ok([[0.5, 0.5, 0.5]])):
             vec = adapter.embed("hello")
             assert len(vec) == 3
             assert abs(_magnitude(vec) - 1.0) < 1e-6
@@ -200,7 +200,7 @@ class TestOllamaEmbeddingAdapter:
         """Silent prefix embedding is Ollama's default; ours is fail-visible.
         And a dimensions value the operator never configured is not sent."""
         adapter = self._make_adapter()
-        with patch("httpx.post", return_value=self._ok([[1.0, 0.0]])) as mock_post:
+        with patch.object(httpx.Client, "post", return_value=self._ok([[1.0, 0.0]])) as mock_post:
             adapter.embed("hello")
         body = mock_post.call_args.kwargs["json"]
         assert body["truncate"] is False
@@ -208,38 +208,38 @@ class TestOllamaEmbeddingAdapter:
 
     def test_configured_dimensions_are_sent_and_validated(self) -> None:
         adapter = self._make_adapter(dimensions=2)
-        with patch("httpx.post", return_value=self._ok([[1.0, 0.0]])) as mock_post:
+        with patch.object(httpx.Client, "post", return_value=self._ok([[1.0, 0.0]])) as mock_post:
             adapter.embed("hello")
         assert mock_post.call_args.kwargs["json"]["dimensions"] == 2
 
         # A response that ignores the request (Ollama silently ignores
         # values above the native length) must FAIL, not persist.
         adapter768 = self._make_adapter(dimensions=768)
-        with patch("httpx.post", return_value=self._ok([[0.5, 0.5, 0.5]])):
+        with patch.object(httpx.Client, "post", return_value=self._ok([[0.5, 0.5, 0.5]])):
             with pytest.raises(LLMProviderError, match="requested 768 dimensions, got 3"):
                 adapter768.embed("hello")
 
     def test_batch_returns_correct_count(self) -> None:
         adapter = self._make_adapter()
-        with patch("httpx.post", return_value=self._ok([[0.1, 0.2], [0.4, 0.5], [0.7, 0.8]])):
+        with patch.object(httpx.Client, "post", return_value=self._ok([[0.1, 0.2], [0.4, 0.5], [0.7, 0.8]])):
             results = adapter.embed_batch(["a", "b", "c"])
             assert len(results) == 3
 
     def test_empty_batch_never_calls_the_provider(self) -> None:
         adapter = self._make_adapter()
-        with patch("httpx.post") as mock_post:
+        with patch.object(httpx.Client, "post") as mock_post:
             assert adapter.embed_batch([]) == []
         mock_post.assert_not_called()
 
     def test_response_cardinality_must_match_input(self) -> None:
         adapter = self._make_adapter()
-        with patch("httpx.post", return_value=self._ok([[1.0, 0.0]])):
+        with patch.object(httpx.Client, "post", return_value=self._ok([[1.0, 0.0]])):
             with pytest.raises(LLMProviderError, match="expected 2 vector"):
                 adapter.embed_batch(["a", "b"])
 
     def test_empty_and_nonfinite_vectors_are_rejected(self) -> None:
         adapter = self._make_adapter()
-        with patch("httpx.post", return_value=self._ok([[]])):
+        with patch.object(httpx.Client, "post", return_value=self._ok([[]])):
             with pytest.raises(LLMProviderError, match="empty or not a list"):
                 adapter.embed("a")
         # httpx can't json-serialize NaN; hand-craft the body the way a
@@ -250,19 +250,19 @@ class TestOllamaEmbeddingAdapter:
             headers={"content-type": "application/json"},
             request=httpx.Request("POST", "http://localhost:11434/api/embed"),
         )
-        with patch("httpx.post", return_value=nan_response):
+        with patch.object(httpx.Client, "post", return_value=nan_response):
             with pytest.raises(LLMProviderError, match="non-finite"):
                 adapter.embed("a")
 
     def test_inconsistent_batch_dimensions_are_rejected(self) -> None:
         adapter = self._make_adapter()
-        with patch("httpx.post", return_value=self._ok([[1.0, 0.0], [1.0, 0.0, 0.0]])):
+        with patch.object(httpx.Client, "post", return_value=self._ok([[1.0, 0.0], [1.0, 0.0, 0.0]])):
             with pytest.raises(LLMProviderError, match="inconsistent dimensions"):
                 adapter.embed_batch(["a", "b"])
 
     def test_handles_connection_error(self) -> None:
         adapter = self._make_adapter()
-        with patch("httpx.post", side_effect=httpx.ConnectError("refused")):
+        with patch.object(httpx.Client, "post", side_effect=httpx.ConnectError("refused")):
             with pytest.raises(LLMProviderError, match="Ollama connection failed"):
                 adapter.embed("hello")
 
@@ -288,7 +288,7 @@ class TestOllamaEmbeddingAdapter:
             json={"error": "input exceeds maximum context length"},
             request=httpx.Request("POST", "http://localhost:11434/api/embed"),
         )
-        with patch("httpx.post", return_value=response):
+        with patch.object(httpx.Client, "post", return_value=response):
             with pytest.raises(LLMProviderError, match="input exceeds maximum context length"):
                 adapter.embed("hello")
 
@@ -299,13 +299,13 @@ class TestOllamaEmbeddingAdapter:
             json={"models": [{"name": "nomic-embed-text:latest", "digest": "sha256:abc123"}]},
             request=httpx.Request("GET", "http://localhost:11434/api/tags"),
         )
-        with patch("httpx.get", return_value=tags) as mock_get:
+        with patch.object(httpx.Client, "get", return_value=tags) as mock_get:
             assert adapter.model_revision() == "sha256:abc123"
             assert adapter.model_revision() == "sha256:abc123"
         mock_get.assert_called_once()  # cached — never probed per request
 
         down = self._make_adapter()
-        with patch("httpx.get", side_effect=httpx.ConnectError("refused")):
+        with patch.object(httpx.Client, "get", side_effect=httpx.ConnectError("refused")):
             assert down.model_revision() is None, "an unreachable server must not fail the save path"
 
     def test_settings_fingerprint_is_stable_and_setting_sensitive(self) -> None:
@@ -372,21 +372,21 @@ class TestOllamaContextLengthClassification:
 
     def test_captured_rejection_raises_content_too_long(self) -> None:
         response = self._error_response(400, {"error": "input exceeds maximum context length"})
-        with patch("httpx.post", return_value=response):
+        with patch.object(httpx.Client, "post", return_value=response):
             with pytest.raises(LLMProviderError, match="input exceeds maximum context length") as excinfo:
                 self._adapter().embed("hello")
         assert excinfo.value.error_code == CONTENT_TOO_LONG
 
     def test_other_400_bodies_stay_provider_error(self) -> None:
         response = self._error_response(400, {"error": 'model "nope" not found'})
-        with patch("httpx.post", return_value=response):
+        with patch.object(httpx.Client, "post", return_value=response):
             with pytest.raises(LLMProviderError) as excinfo:
                 self._adapter().embed("hello")
         assert excinfo.value.error_code == PROVIDER_ERROR
 
     def test_500_with_the_phrase_stays_provider_error(self) -> None:
         response = self._error_response(500, {"error": "internal: context length probe failed"})
-        with patch("httpx.post", return_value=response):
+        with patch.object(httpx.Client, "post", return_value=response):
             with pytest.raises(LLMProviderError) as excinfo:
                 self._adapter().embed("hello")
         assert excinfo.value.error_code == PROVIDER_ERROR
@@ -487,14 +487,16 @@ class TestOllamaHostHandling:
         monkeypatch.delenv("OLLAMA_VERIFY_TLS", raising=False)
         monkeypatch.setenv("OLLAMA_HOST", "https://nas.local:11434")
         adapter = OllamaEmbeddingAdapter(model="test")
-        ok = httpx.Response(
+        assert adapter._verify_tls is True
+        mock_instance = MagicMock()
+        mock_instance.post.return_value = httpx.Response(
             200,
             json={"embeddings": [[1.0, 0.0]]},
             request=httpx.Request("POST", "https://nas.local:11434/api/embed"),
         )
-        with patch("httpx.post", return_value=ok) as mock_post:
+        with patch("httpx.Client", return_value=mock_instance) as mock_client_cls:
             adapter.embed("hello")
-        assert mock_post.call_args.kwargs["verify"] is True
+        mock_client_cls.assert_called_once_with(timeout=adapter._timeout, verify=True)
 
     def test_verify_tls_can_be_disabled_for_lan_self_signed(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The knob that makes a self-signed LAN https endpoint usable —
@@ -502,11 +504,13 @@ class TestOllamaHostHandling:
         monkeypatch.setenv("OLLAMA_VERIFY_TLS", "0")
         monkeypatch.setenv("OLLAMA_HOST", "https://192.168.1.50:11434")
         adapter = OllamaEmbeddingAdapter(model="test")
-        ok = httpx.Response(
+        assert adapter._verify_tls is False
+        mock_instance = MagicMock()
+        mock_instance.post.return_value = httpx.Response(
             200,
             json={"embeddings": [[1.0, 0.0]]},
             request=httpx.Request("POST", "https://192.168.1.50:11434/api/embed"),
         )
-        with patch("httpx.post", return_value=ok) as mock_post:
+        with patch("httpx.Client", return_value=mock_instance) as mock_client_cls:
             adapter.embed("hello")
-        assert mock_post.call_args.kwargs["verify"] is False
+        mock_client_cls.assert_called_once_with(timeout=adapter._timeout, verify=False)

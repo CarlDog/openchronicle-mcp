@@ -7,6 +7,7 @@ import logging
 import threading
 import time
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 
@@ -103,6 +104,8 @@ class EmbeddingService:
         # CAS publication makes concurrent runs correct, merely wasteful.
         self._background_backfill: asyncio.Task[BackfillResult] | None = None
         self._background_tasks: set[asyncio.Task[Any]] = set()
+        self._sync_executor: ThreadPoolExecutor | None = None
+        self._executor_lock = threading.Lock()
 
     @property
     def backfill_running(self) -> bool:
@@ -453,13 +456,20 @@ class EmbeddingService:
             self._background_tasks.add(task)
             task.add_done_callback(self._background_tasks.discard)
         else:
-            worker = threading.Thread(
-                target=self._safe_generate_for_memory,
-                args=(memory_id, content),
-                daemon=True,
-                name=f"embed-{memory_id[:8]}",
-            )
-            worker.start()
+            with self._executor_lock:
+                if self._sync_executor is None:
+                    self._sync_executor = ThreadPoolExecutor(
+                        max_workers=4,
+                        thread_name_prefix="oc-embed-worker",
+                    )
+                self._sync_executor.submit(self._safe_generate_for_memory, memory_id, content)
+
+    def close(self) -> None:
+        """Shut down background sync worker pool cleanly."""
+        with self._executor_lock:
+            if self._sync_executor is not None:
+                self._sync_executor.shutdown(wait=False)
+                self._sync_executor = None
 
     def generate_missing(self, *, project_id: str | None = None, force: bool = False) -> BackfillResult:
         """Backfill embeddings for memories that don't have one.
@@ -882,25 +892,11 @@ class EmbeddingService:
         # a migration sentinel, or a different-dims row is invisible to
         # ranking — never mixed in.
         candidate_started = time.monotonic()
-        target_ids: list[str] | None = None
-        # Eligibility BEFORE the top-k window: with the filter applied
-        # only after selection (as until 2026-08-28), out-of-scope
-        # vectors consumed the candidate slots and the best in-scope
-        # matches could be missed entirely. The callers' post-filters
-        # remain as invariants, but the window itself is now scope-aware.
-        if project_id is not None or tags:
-            eligible = self._store.eligible_memory_ids(project_id=project_id, tags=tags)
-            if exclude_ids:
-                eligible -= exclude_ids
-            if not eligible:
-                self._safe_observe_stage(stage="candidate_prep_scoring", started=candidate_started)
-                return []
-            target_ids = list(eligible)
-
         vector_load_started = time.monotonic()
         try:
             all_embeddings = self._store.list_embeddings(
-                memory_ids=target_ids,
+                project_id=project_id,
+                tags=tags,
                 model=self._port.model_name(),
                 provider=self._port.provider_name(),
                 dimensions=len(query_vec),
@@ -911,14 +907,15 @@ class EmbeddingService:
         finally:
             self._safe_observe_stage(stage="vector_loading", started=vector_load_started)
 
+        if exclude_ids:
+            for eid in exclude_ids:
+                all_embeddings.pop(eid, None)
+
         if not all_embeddings:
+            self._safe_observe_stage(stage="candidate_prep_scoring", started=candidate_started)
             return []
 
-        ids = (
-            [mid for mid in all_embeddings if mid not in exclude_ids]
-            if exclude_ids and target_ids is None
-            else list(all_embeddings)
-        )
+        ids = list(all_embeddings)
         if not ids:
             self._safe_observe_stage(stage="candidate_prep_scoring", started=candidate_started)
             return []

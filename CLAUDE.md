@@ -375,7 +375,13 @@ Adversarial hardening resolved `context_recent` double-truncation masking, added
 idempotent replay defense in `add_memory`, added bounded timeouts to singleflight waiters, protected
 `OllamaEmbeddingAdapter` client instantiation with a mutex and lifecycle `close()`, capped rate limit
 tracking to 10,000 clients, and added a Python 3.12 CI test matrix leg.
-The full test suite passed: 1,062 passed, 1 skipped.
+Adversarial plan remediation bounded background thread execution in `EmbeddingService` to a 4-worker
+`ThreadPoolExecutor`, added automatic dead-thread reader pruning via `threading.enumerate()`, removed the
+outer `@_locked` from `add_memories` to prevent lock starvation while adding `UNIQUE` replay recovery,
+implemented direct SQL inner `JOIN` in `list_embeddings` vector scope pushdown, eliminated `unittest.mock`
+introspection from `OllamaEmbeddingAdapter`, converted `_client_lock` to `RLock` with double-checked
+probe synchronization, and normalized naive/aware timestamps in OCC `update_memory`.
+The full test suite passed: 1,067 passed, 1 skipped.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;

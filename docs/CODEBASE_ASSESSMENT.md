@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-19 UTC · **Revision:** 201
+**Snapshot date:** 2026-09-19 UTC · **Revision:** 202
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,062 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,067 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.12+** compatibility — `requires-python = ">=3.12"`, PEP 758 syntax standardized with parenthesized exception tuples, ruff target `py312`, CI matrix (ubuntu + windows) testing across Python 3.12 and Python 3.14 |
 | Dependency resolution | Deterministic `uv.lock` consumption enforced across Dockerfile and CI workflows (`uv sync --frozen`), guaranteeing reproducible builds and eliminating unpinned transitive dependency drift |
@@ -39,6 +39,19 @@ drivers in `interfaces/`), enforced by tests — see
 [architecture/MAINTENANCE.md](architecture/MAINTENANCE.md).
 
 ## Where things live
+
+### Remediation checkpoint (Adversarial Plan Remediation) — 2026-09-19 UTC
+
+All 8 vulnerabilities and architectural deviations identified during the adversarial review of the remediation plan on branch `gemini-3.8.flash/remediation-core` were implemented and verified:
+
+1. **Bounded Thread Pool for Background Embedding (`EmbeddingService`):** Replaced raw unbounded `threading.Thread(daemon=True)` with an internal bounded `ThreadPoolExecutor(max_workers=4)` and wired clean teardown `close()` into `CoreContainer.close()`.
+2. **Active Thread Reader Pruning (`SqliteStore._reader_conns`):** Replaced strong connection accumulation with thread-ident indexed mapping and automatic pruning of terminated threads (`threading.enumerate()`), eliminating descriptor and memory leaks.
+3. **Batch Insertion Lock Yielding & Replay Idempotency (`SqliteStore.add_memories`):** Removed outer `@_locked` from `add_memories` so `self._lock` is yielded between chunks, eliminating lock starvation. Added `UNIQUE` constraint replay recovery via per-item insertion so batch replays succeed idempotently and content mismatches raise `DomainValidationError`.
+4. **Direct SQL Inner JOIN Vector Scope Pushdown (`list_embeddings`):** Added `project_id` and `tags` to `MemoryStorePort.list_embeddings` and `SqliteStore.list_embeddings`. Scoped searches perform a single SQL query joining `memory_embeddings` and `memory_items` (`JOIN memory_items m ON m.id = e.memory_id`), eliminating Python-side ID collection and chunked `IN` queries.
+5. **Clean Production Infrastructure (`OllamaEmbeddingAdapter`):** Removed all `from unittest.mock import Base` introspection from production code; updated tests to patch `httpx.Client.post`/`get`.
+6. **Thread-Safe Capability Probe (`OllamaEmbeddingAdapter.model_revision`):** Converted `_client_lock` to `threading.RLock()` and added double-checked locking around `_probe_digest()` to prevent concurrent startup thundering herds.
+7. **OCC Datetime Timezone Normalization (`SqliteStore.update_memory`):** Normalized naive and aware timestamps to UTC before equality comparison in `update_memory`, eliminating false 409 Conflict rejections.
+Regression baseline: 1,067 passed, 1 skipped on Windows (1,068 items). All ruff lint, ruff format, mypy, and boundary/hygiene tests passing.
 
 ### Remediation checkpoint (Adversarial Hardening) — 2026-09-19 UTC
 
