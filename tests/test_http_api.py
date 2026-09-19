@@ -109,6 +109,8 @@ def _make_mock_container() -> MagicMock:
     container.storage.search_pinned.return_value = []
     container.storage.list_memory.return_value = []
     container.storage.list_projects.return_value = []
+    container.storage.get_memory.side_effect = lambda mid: _make_memory() if mid == "mem-1" else None
+    container.storage.get_project.return_value = None
 
     # Embedding service defaults to None (FTS5-only) unless test overrides
     container.embedding_service = None

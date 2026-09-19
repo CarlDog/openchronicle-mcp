@@ -101,6 +101,7 @@ class MemorySaveRequest(BaseModel):
     pinned: bool = False
     created_at: str | None = None
     background_embed: bool = False
+    id: str | None = Field(default=None, min_length=1, max_length=200)
 
 
 @router.post("")
@@ -116,6 +117,8 @@ def memory_save(
         "project_id": body.project_id,
         "source": "api",
     }
+    if body.id is not None:
+        kwargs["id"] = body.id
     if body.created_at is not None:
         try:
             kwargs["created_at"] = datetime.fromisoformat(body.created_at)
@@ -225,6 +228,7 @@ def memory_pin(
 class MemoryUpdateRequest(BaseModel):
     content: str | None = Field(default=None, min_length=1, max_length=MAX_CONTENT_CHARS)
     tags: list[str] | None = Field(default=None, max_length=50)
+    background_embed: bool = False
 
 
 @router.put("/{memory_id}")
@@ -240,6 +244,7 @@ def memory_update(
         content=body.content,
         tags=body.tags,
         embedding_service=container.embedding_service,
+        background_embed=body.background_embed,
     )
     return memory_to_dict(updated)
 

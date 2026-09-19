@@ -22,6 +22,7 @@ def execute(
     tags: list[str] | None = None,
     *,
     embedding_service: EmbeddingService | None = None,
+    background_embed: bool = False,
 ) -> MemoryItem:
     if content is None and tags is None:
         raise DomainValidationError("At least one of content or tags must be provided")
@@ -44,8 +45,11 @@ def execute(
         store.delete_embedding(memory_id)
 
     if content is not None and embedding_service is not None:
-        try:
-            embedding_service.generate_for_memory(memory_id, updated.content, force=True)
-        except Exception:
-            logger.warning("Failed to regenerate embedding for memory %s", memory_id, exc_info=True)
+        if background_embed:
+            embedding_service.schedule_generate_for_memory(memory_id, updated.content)
+        else:
+            try:
+                embedding_service.generate_for_memory(memory_id, updated.content, force=True)
+            except Exception:
+                logger.warning("Failed to regenerate embedding for memory %s", memory_id, exc_info=True)
     return updated

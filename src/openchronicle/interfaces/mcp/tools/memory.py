@@ -136,6 +136,7 @@ def register(mcp: FastMCP) -> None:
         pinned: bool = False,
         created_at: str | None = None,
         background_embed: bool = False,
+        id: str | None = None,
     ) -> dict[str, Any]:
         """Persist a memory item that should outlive the current session.
 
@@ -152,6 +153,7 @@ def register(mcp: FastMCP) -> None:
             pinned: True for standing rules; pinned items always surface.
             created_at: ISO datetime to backdate (e.g. for git-onboard imports).
             background_embed: Generate vector embeddings asynchronously in background.
+            id: Explicit memory ID for idempotent creation / retry.
         """
         if not content or not content.strip():
             raise DomainValidationError("content must be non-empty")
@@ -168,6 +170,8 @@ def register(mcp: FastMCP) -> None:
             "project_id": project_id,
             "source": "mcp",
         }
+        if id is not None:
+            kwargs["id"] = id
         if created_at is not None:
             try:
                 kwargs["created_at"] = datetime.fromisoformat(created_at)
@@ -293,6 +297,7 @@ def register(mcp: FastMCP) -> None:
         ctx: Context,
         content: str | None = None,
         tags: list[str] | None = None,
+        background_embed: bool = False,
     ) -> dict[str, Any]:
         """Edit an existing memory's content or tags in place.
 
@@ -306,6 +311,7 @@ def register(mcp: FastMCP) -> None:
             memory_id: The memory's ID.
             content: New content (replaces existing). Omit to keep current.
             tags: New tags (replaces existing). Omit to keep current.
+            background_embed: Generate vector embeddings asynchronously in background.
         """
         if content is not None and len(content) > MAX_CONTENT_CHARS:
             raise DomainValidationError(f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters")
@@ -318,6 +324,7 @@ def register(mcp: FastMCP) -> None:
                 content=content,
                 tags=tags,
                 embedding_service=container.embedding_service,
+                background_embed=background_embed,
             )
             return memory_to_dict(updated)
 

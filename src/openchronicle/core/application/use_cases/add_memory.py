@@ -29,6 +29,16 @@ def execute(
         raise DomainValidationError(
             f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters (got {len(item.content):,})"
         )
+    existing = store.get_memory(item.id)
+    if existing is not None:
+        if (
+            existing.project_id == item.project_id
+            and existing.content == item.content
+            and set(existing.tags) == set(item.tags)
+        ):
+            return existing
+        raise DomainValidationError(f"Memory already exists with id {item.id!r} and different content")
+
     store.add_memory(item)
     if embedding_service is not None:
         if background_embed:

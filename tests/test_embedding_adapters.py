@@ -108,6 +108,58 @@ class TestOpenAIEmbeddingAdapter:
         adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=3)
         assert adapter._base_url == "https://example.test/v1"
 
+    def test_default_dimensions_none_not_sent(self) -> None:
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key")
+        mock_client = MagicMock()
+        mock_client.embeddings.create.return_value = _FakeEmbeddingResponse(
+            data=[_FakeEmbeddingItem(embedding=[0.5] * 1536)]
+        )
+        adapter._client = mock_client
+
+        vec = adapter.embed("hello")
+        assert len(vec) == 1536
+        assert adapter.dimensions() == 1536
+        kwargs = mock_client.embeddings.create.call_args.kwargs
+        assert "dimensions" not in kwargs
+
+    def test_explicit_dimensions_sent_and_validated(self) -> None:
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=512)
+        mock_client = MagicMock()
+        mock_client.embeddings.create.return_value = _FakeEmbeddingResponse(
+            data=[_FakeEmbeddingItem(embedding=[0.5] * 512)]
+        )
+        adapter._client = mock_client
+
+        vec = adapter.embed("hello")
+        assert len(vec) == 512
+        assert adapter.dimensions() == 512
+        kwargs = mock_client.embeddings.create.call_args.kwargs
+        assert kwargs["dimensions"] == 512
+
+    def test_dimensions_mismatch_raises_provider_error(self) -> None:
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=512)
+        mock_client = MagicMock()
+        mock_client.embeddings.create.return_value = _FakeEmbeddingResponse(
+            data=[_FakeEmbeddingItem(embedding=[0.5] * 384)]
+        )
+        adapter._client = mock_client
+
+        with pytest.raises(LLMProviderError, match="OpenAI returned 384 dimensions, expected 512") as exc_info:
+            adapter.embed("hello")
+        assert exc_info.value.error_code == PROVIDER_ERROR
+
+    def test_empty_batch_short_circuit(self) -> None:
+        adapter = OpenAIEmbeddingAdapter(api_key="test-key")
+        mock_client = MagicMock()
+        adapter._client = mock_client
+        assert adapter.embed_batch([]) == []
+        mock_client.embeddings.create.assert_not_called()
+
+    def test_settings_fingerprint_uses_effective_dimensions(self) -> None:
+        adapter_default = OpenAIEmbeddingAdapter(api_key="test-key")
+        adapter_explicit = OpenAIEmbeddingAdapter(api_key="test-key", dimensions=1536)
+        assert adapter_default.settings_fingerprint() == adapter_explicit.settings_fingerprint()
+
 
 # ── Ollama adapter ──────────────────────────────────────────────────────
 

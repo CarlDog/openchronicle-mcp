@@ -288,6 +288,18 @@
           "default": null,
           "title": "Created At"
         },
+        "id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Id"
+        },
         "pinned": {
           "default": false,
           "title": "Pinned",
@@ -465,6 +477,11 @@
   "memory_update": {
     "input": {
       "properties": {
+        "background_embed": {
+          "default": false,
+          "title": "Background Embed",
+          "type": "boolean"
+        },
         "content": {
           "anyOf": [
             {

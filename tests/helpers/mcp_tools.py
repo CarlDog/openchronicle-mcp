@@ -31,6 +31,7 @@ def mock_container(**overrides: Any) -> Any:
     container = MagicMock()
     container.file_configs = {}
     container.storage = MagicMock()
+    container.storage.get_memory.return_value = None
     container.embedding_service = None
     for key, value in overrides.items():
         setattr(container, key, value)

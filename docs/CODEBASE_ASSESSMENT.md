@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-18 UTC · **Revision:** 197
+**Snapshot date:** 2026-09-19 UTC · **Revision:** 198
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,039 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,048 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.12+** compatibility — `requires-python = ">=3.12"`, PEP 758 syntax standardized with parenthesized exception tuples, ruff target `py312`, CI matrix (ubuntu + windows) testing against Python 3.14 |
 | Dependency resolution | Deterministic `uv.lock` consumption enforced across Dockerfile and CI workflows (`uv sync --frozen`), guaranteeing reproducible builds and eliminating unpinned transitive dependency drift |
@@ -39,6 +39,17 @@ drivers in `interfaces/`), enforced by tests — see
 [architecture/MAINTENANCE.md](architecture/MAINTENANCE.md).
 
 ## Where things live
+
+### Remediation checkpoint (Batch 4) — 2026-09-19 UTC
+
+Batch 4 of the architectural and code-quality remediation plan was implemented and verified
+on branch `gemini-3.8.flash/remediation-core`:
+
+1. **OpenAI Adapter `dimensions` Optional-Send (V3_PLAN Follow-up 5):** Made `dimensions` optional-send in `OpenAIEmbeddingAdapter` (send only when explicitly configured), unblocking strict OpenAI-compatible cloud hosts (e.g. Mistral 422 `extra_forbidden`, Voyage AI 400 "Argument 'dimensions' is not supported"), while preserving the 1536 claim and exact `settings_fingerprint` equality for default databases. Added response vector dimension validation and empty-batch short-circuit.
+2. **Background Vector Embedding on Memory Updates (Phase 3.2 Extension):** Added `background_embed: bool = False` to `update_memory`, MCP `memory_update`, and REST `PUT /memory/{id}` so content updates avoid blocking interactive callers on slow model inference.
+3. **Write Idempotency & Operation Replay Support (Design 0011 §2):** Supported an optional `id: str | None = None` on `memory_save` / `MemorySaveRequest` and added idempotent replay handling in `add_memory` (identical retries return existing memory cleanly; conflicting content/project/tags raise `DomainValidationError`).
+4. **MCP Tool Schema Snapshot Synchronized:** Regenerated `tests/fixtures/mcp_tool_schemas.json` with additive optional `id` on `memory_save` and `background_embed` on `memory_update`.
+Regression baseline: 1,048 passed, 1 skipped on Windows (1,049 items). All ruff lint, ruff format, mypy, and boundary/hygiene tests passing.
 
 ### Remediation checkpoint (Phases 1–6) — 2026-09-18 UTC
 
@@ -282,6 +293,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 198 | 2026-09-19 | **Remediation Batch 4 complete (V3_PLAN Follow-up 5, Design 0011 §2, Phase 3.2 extension).** Implemented optional-send `dimensions` in `OpenAIEmbeddingAdapter` (preserving 1536 default/fallback and exact `settings_fingerprint` equality) to unblock strict OpenAI-compatible cloud hosts (e.g. Mistral/Voyage); added `background_embed: bool = False` to `update_memory`, MCP `memory_update`, and REST `PUT /memory/{id}`; added write idempotency and replay handling in `add_memory`, supporting optional `id` on `memory_save` / `MemorySaveRequest` (clean identical replay on exact match, `DomainValidationError` on conflict); regenerated MCP schema snapshot fixture. 1,039 → 1,048 tests passed, 1 skipped. |
 | 197 | 2026-09-18 | **Codebase Remediation plan complete across all six phases (Design 0013, 0011 §4, 0012).** Finalized and closed out the architectural and code-quality remediation plan on branch `gemini-3.8.flash/remediation-core`. Updated Design 0013 status to IMPLEMENTED with complete verification matrix, reconciled design document index in `docs/design/README.md` (reconciling ADR 0007, 0008, 0009 and 0013), and updated `docs/V3_PLAN.md` active queue. Regression baseline preserved at 1,039 passed, 1 skipped. |
 | 196 | 2026-09-18 | **Codebase Remediation Phases 5–6 & Hygiene complete (Design 0011/0012/0013).** Implemented and verified on branch `gemini-3.8.flash/remediation-core`: Workspace repository hygiene with root-level `.gitignore` exclusions for database sidecars (`*.db`, `*.db-wal`, `*.db-shm`); query singleflight request coalescing and bounded exact-query embedding LRU cache (`maxsize=256`) in `EmbeddingService` scoped to composite embedding identity; context-budget-bounded retrieval with `apply_char_budget` domain utility and `max_chars` budget enforcement across `search_memory`, `EmbeddingService` (`search_hybrid`, `search_semantic`), MCP tools (`memory_search`, `context_recent`), and REST `GET /memory/search` with explicit omission metadata (`omitted_count`, `truncated`, `total_chars`). 1,033 → 1,039 tests passed, 1 skipped. |
 | 195 | 2026-09-18 | **Codebase Remediation Phases 1–4 complete (Design 0013).** Implemented and verified on branch `gemini-3.8.flash/remediation-core`: Ollama probe retry cooldown (30s) & persistent HTTP pooling; SQLite empty-list syntax safety & parameter chunking; SQL vector scope join & batch candidate hydration; rate limiter decoupled sweep; SQLite thread-local reader connections with non-blocking WAL reads & read-your-own-writes consistency; background vector embedding (`background_embed` on MCP/REST/add_memory); PEP 758 exception syntax standardized to `except (A, B):` with Python runtime floor broadened to `>=3.12`; deterministic `uv.lock` consumption across Dockerfile and CI workflows. 1,020 → 1,033 tests passed, 1 skipped. |

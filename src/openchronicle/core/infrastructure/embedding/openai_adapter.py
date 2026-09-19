@@ -62,13 +62,13 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
         self,
         *,
         model: str = "text-embedding-3-small",
-        dimensions: int = 1536,
+        dimensions: int | None = None,
         api_key: str | None = None,
         base_url: str | None = None,
         timeout_seconds: float = 30.0,
     ) -> None:
         self._model = model
-        self._dimensions = dimensions
+        self._requested_dimensions = dimensions
         # `or` chain coerces empty-string env values to None, then falls back to
         # the SDK's documented default. Empty-string env defeats the SDK's
         # `is None` default-fallback check, so we must always pass an explicit
@@ -96,17 +96,30 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
         return self.embed_batch([text])[0]
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
         try:
             client = self._client
-            response = client.embeddings.create(
-                input=texts,
-                model=self._model,
-                dimensions=self._dimensions,
-            )
+            create_kwargs: dict[str, Any] = {
+                "input": texts,
+                "model": self._model,
+            }
+            if self._requested_dimensions is not None:
+                create_kwargs["dimensions"] = self._requested_dimensions
+            response = client.embeddings.create(**create_kwargs)
             vectors: list[list[float]] = []
             for item in response.data:
-                vectors.append(normalize_unit(item.embedding))
+                vec = item.embedding
+                if self._requested_dimensions is not None and len(vec) != self._requested_dimensions:
+                    raise LLMProviderError(
+                        f"OpenAI returned {len(vec)} dimensions, expected {self._requested_dimensions}",
+                        error_code=PROVIDER_ERROR,
+                        details={"provider": "openai", "model": self._model},
+                    )
+                vectors.append(normalize_unit(vec))
             return vectors
+        except LLMProviderError:
+            raise
         except Exception as exc:
             _type = type(exc).__name__
             raise LLMProviderError(
@@ -116,7 +129,7 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
             ) from exc
 
     def dimensions(self) -> int:
-        return self._dimensions
+        return self._requested_dimensions if self._requested_dimensions is not None else 1536
 
     def model_name(self) -> str:
         return self._model
@@ -129,11 +142,10 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
         return None
 
     def settings_fingerprint(self) -> str:
-        # `dimensions` is always sent (see embed_batch). `base_url` is
-        # in the fingerprint because this adapter is the GENERIC
-        # OpenAI-compatible path (operator-directed 2026-08-29): pointed
-        # at Voyage, Gemini, Mistral, or any /v1/embeddings host via
-        # OPENAI_BASE_URL, the same model label can name a different
-        # vector space per host — the endpoint IS an embedding-affecting
-        # setting. On the default OpenAI URL it is a stable constant.
-        return settings_fingerprint({"dimensions": self._dimensions, "base_url": self._base_url})
+        # `dimensions` is included in the fingerprint as the active or default
+        # dimensionality. `base_url` is in the fingerprint because this adapter
+        # is the GENERIC OpenAI-compatible path (operator-directed 2026-08-29):
+        # pointed at Voyage, Gemini, Mistral, or any /v1/embeddings host via
+        # OPENAI_BASE_URL, the same model label can name a different vector space
+        # per host — the endpoint IS an embedding-affecting setting.
+        return settings_fingerprint({"dimensions": self.dimensions(), "base_url": self._base_url})

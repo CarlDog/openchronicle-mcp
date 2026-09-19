@@ -543,3 +543,107 @@ def test_query_embedding_singleflight_failure_isolation() -> None:
     assert all("simulated provider crash" in str(e) for e in exceptions)
     # Cache was not poisoned with failed result
     assert service.query_cache_size == 0
+
+
+def test_add_memory_idempotency_identical_replay() -> None:
+    store = _make_store()
+    item = _make_item("idemp-1", "idempotent content", tags=["alpha", "beta"])
+
+    saved1 = add_memory.execute(store, item)
+    assert saved1.id == "idemp-1"
+
+    # Replaying identical memory (same project, content, tags) succeeds cleanly
+    saved2 = add_memory.execute(store, item)
+    assert saved2.id == "idemp-1"
+    assert saved2.content == "idempotent content"
+
+    # Replay with same tags in different order succeeds cleanly
+    item_reordered_tags = _make_item("idemp-1", "idempotent content", tags=["beta", "alpha"])
+    saved3 = add_memory.execute(store, item_reordered_tags)
+    assert saved3.id == "idemp-1"
+
+
+def test_add_memory_idempotency_conflict_raises() -> None:
+    from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
+
+    store = _make_store()
+    item1 = _make_item("idemp-conflict-1", "initial content", tags=["t1"])
+    add_memory.execute(store, item1)
+
+    # Replaying same ID with different content fails fast
+    item2 = _make_item("idemp-conflict-1", "different content", tags=["t1"])
+    with pytest.raises(
+        DomainValidationError, match="Memory already exists with id 'idemp-conflict-1' and different content"
+    ):
+        add_memory.execute(store, item2)
+
+    # Replaying same ID with different project fails fast
+    item3 = _make_item("idemp-conflict-1", "initial content", project_id="proj-2", tags=["t1"])
+    with pytest.raises(
+        DomainValidationError, match="Memory already exists with id 'idemp-conflict-1' and different content"
+    ):
+        add_memory.execute(store, item3)
+
+    # Replaying same ID with different tags fails fast
+    item4 = _make_item("idemp-conflict-1", "initial content", tags=["different-tag"])
+    with pytest.raises(
+        DomainValidationError, match="Memory already exists with id 'idemp-conflict-1' and different content"
+    ):
+        add_memory.execute(store, item4)
+
+
+def test_update_memory_background_embed() -> None:
+    from openchronicle.core.application.use_cases import update_memory
+
+    store = _make_store()
+    adapter = StubEmbeddingAdapter(dims=4)
+    service = EmbeddingService(port=adapter, store=store)
+
+    item = _make_item("update-bg-1", "initial text")
+    add_memory.execute(store, item, embedding_service=service, background_embed=False)
+
+    # Initial embedding exists
+    assert store.get_embedding("update-bg-1") is not None
+
+    # Update with background_embed=True schedules async embedding
+    updated = update_memory.execute(
+        store,
+        memory_id="update-bg-1",
+        content="updated background text",
+        embedding_service=service,
+        background_embed=True,
+    )
+    assert updated.content == "updated background text"
+
+    # Background embedding worker processes the scheduled update
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        emb = store.get_embedding("update-bg-1")
+        if emb is not None:
+            break
+        time.sleep(0.05)
+
+    assert store.get_embedding("update-bg-1") is not None
+
+
+def test_memory_save_and_update_api_schema() -> None:
+    from openchronicle.interfaces.api.routes.memory import (
+        MemorySaveRequest,
+        MemoryUpdateRequest,
+    )
+
+    save_req = MemorySaveRequest(
+        content="save text",
+        project_id="proj-1",
+        id="custom-uuid-1",
+        background_embed=True,
+    )
+    assert save_req.id == "custom-uuid-1"
+    assert save_req.background_embed is True
+
+    update_req = MemoryUpdateRequest(
+        content="update text",
+        background_embed=True,
+    )
+    assert update_req.content == "update text"
+    assert update_req.background_embed is True

@@ -337,10 +337,10 @@ statements describe those historical checkpoints. Live readback confirms the
 detached stack remains pinned to `v3.3.0`, build `7349f94`; pushing `main` does
 not move that tag. Metrics remain off by default, the corrected integration
 remains untimed, and existing 4C/affected 4D gates remain unresolved. See
-[assessment rev 197](docs/CODEBASE_ASSESSMENT.md#remediation-checkpoint-phases-16--2026-09-18-utc).
+[assessment rev 198](docs/CODEBASE_ASSESSMENT.md#remediation-checkpoint-batch-4--2026-09-19-utc).
 
-**Codebase Remediation (Design 0011/0012/0013, 2026-09-18):**
-All six phases of the architectural and code-quality remediation plan are complete,
+**Codebase Remediation (Design 0011/0012/0013, 2026-09-18/19):**
+All six phases and Batch 4 of the architectural and code-quality remediation plan are complete,
 verified, and closed out on branch `gemini-3.8.flash/remediation-core`.
 Phase 1 resolved permanent failure caching in the Ollama adapter probe with a
 30-second backoff cooldown, added empty-list SQL syntax guards, and enforced safe
@@ -361,8 +361,13 @@ embedding identity. Phase 6 implemented the `apply_char_budget` domain utility a
 integrated `max_chars` context-budget-bounded retrieval across `search_memory`,
 `EmbeddingService` (`search_hybrid`, `search_semantic`), MCP tools (`memory_search`, `context_recent`),
 and REST `GET /memory/search` with explicit omission metadata (`omitted_count`, `truncated`, `total_chars`).
+Batch 4 implemented optional-send `dimensions` in `OpenAIEmbeddingAdapter` (preserving 1536
+default/fallback and exact `settings_fingerprint` equality) to unblock strict OpenAI-compatible
+cloud hosts (e.g. Mistral/Voyage), background vector generation on memory updates (`background_embed=True`
+in `update_memory`, MCP `memory_update`, and REST `PUT /memory/{id}`), and write idempotency/replay handling
+in `add_memory` with optional explicit `id` support. MCP tool schema snapshot regenerated.
 Design 0013 is marked IMPLEMENTED; design index in `docs/design/README.md` and active
-queue in `docs/V3_PLAN.md` are reconciled. The full test suite passed: 1,039 passed, 1 skipped.
+queue in `docs/V3_PLAN.md` are reconciled. The full test suite passed: 1,048 passed, 1 skipped.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
