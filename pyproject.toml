@@ -43,12 +43,12 @@ Documentation = "https://github.com/CarlDog/openchronicle-mcp/tree/main/docs"
 # embedding extras because EmbeddingService.search_hybrid uses it for
 # vectorized cosine similarity on the read path.
 openai = [
-	"openai>=3.6.0",
-	"numpy>=1.24",
+	"openai>=3.16.2",
+	"numpy>=2.5.3",
 ]
 ollama = [
 	"httpx>=0.25.0",
-	"numpy>=1.24",
+	"numpy>=2.5.3",
 ]
 metrics = [
 	# Kept as an extra so local installs can remain dependency-free when
@@ -69,7 +69,7 @@ mcp = [
 	# `mcp.server.mcpserver.MCPServer`. It did NOT move to the standalone
 	# PyPI `fastmcp` project, which this comment used to claim.
 	# See the V3_PLAN "mcp 2.x migration" entry for the verified scope.
-	"mcp>=1.29.1,<2",
+	"mcp>=1.30.0,<2",
 ]
 dev = [
 	"pytest>=7",
@@ -80,15 +80,15 @@ dev = [
 	# CI resolves fresh while the venv + pre-commit hook lag — an open
 	# floor let CI fail format-check on code the local gate had passed.
 	# Dependabot's pip-dev group raises the cap when a new minor lands.
-	"ruff>=0.16.5,<0.17",
-	"openai>=3.6.0",
+	"ruff>=0.16.8,<0.17",
+	"openai>=3.16.2",
 	"httpx>=0.25.0",
 	# Keep in step with the [mcp] extra above — that comment carries the
 	# reasoning. This is the copy CI's test job actually installs, so an
 	# older floor here would resolve the MCP baseline tests against a
 	# version they were never captured on.
-	"mcp>=1.29.1,<2",
-	"numpy>=1.24",
+	"mcp>=1.30.0,<2",
+	"numpy>=2.5.3",
 	"prometheus-client>=0.23.1",
 ]
 
