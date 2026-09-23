@@ -921,7 +921,8 @@ entry (below, or in its design doc):
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
 8. **v3.4.0 correctness release** ([0014](design/0014-gemini-audit-branch-review.md);
-   [review-findings plan, first track merged to `main`](design/0016-review-findings-plan.md)).
+   [review-findings plan](design/0016-review-findings-plan.md), source
+   tracks 1 and 3 merged to `main`).
    Planned as MINOR rather than a patch, because health gains additive
    fields. The blank-content rejection also tightens accepted input;
    reconcile it with [STABILITY.md](api/STABILITY.md) before choosing the
@@ -1023,8 +1024,9 @@ entry (below, or in its design doc):
     never deployed and runs against the fleet's address-pool rule
     (the stack moved to the shared bridge in `343ba47c`, 2026-08-18).
     The repo compose previously masked the REST Host-list fallback to
-    `OC_MCP_ALLOWED_HOSTS`. Plan 0016 track 3 corrects that default on
-    PR #35 and adds access tests, including rendered-compose REST/MCP behavior;
+    `OC_MCP_ALLOWED_HOSTS`. Plan 0016 track 3 corrected that default in
+    merged PR #35 (`77ea0173`) and added access tests, including
+    rendered-compose REST/MCP behavior;
     a future metrics profile still requires an explicit API list with
     external hosts plus `oc:*`. Adoption needs the plan 0016 access check.
     The stored compose keeps the old `OC_LOG_FILE` default, and the stack env
