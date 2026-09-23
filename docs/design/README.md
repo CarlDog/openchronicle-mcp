@@ -22,7 +22,7 @@ as shipped.
 | 0013 — (reserved) | — | Number used only by the unmerged Gemini branch's remediation plan; not on `main`. See 0014 |
 | [0014 — Gemini remediation branch review](0014-gemini-audit-branch-review.md) | Adversarial review | Recorded 2026-09-22/23; branch `gemini-3.8-flash/audit-18092026` not merged; one real `main` defect (§1.1 Ollama revision probe) with an interim control; salvage items listed |
 | [0015 — Prompt library](0015-prompt-library.md) | Research and proposal | Recorded 2026-09-22; operator-scoped to any MCP client; Option B recommended after a zero-code Stage 0; unratified and unscheduled |
-| [0016 — Review findings plan](0016-review-findings-plan.md) | Plan and adversarial review | Track 1 query-revision race fix locally verified on `codex/query-revision-race` (1,146 Windows tests passed, one skip; PR review and CI required). Timestamp ordering, NAS Host allowlist, prompt pilot isolation and release decisions remain proposed or gated; nothing merged or released |
+| [0016 — Review findings plan](0016-review-findings-plan.md) | Plan and adversarial review | Track 1 query-revision fix passed exact-commit CI in unmerged PR #34. Track 3 NAS Host-list fix is on the stacked `codex/nas-host-allowlist` branch; the live stack is unchanged. Track 2 has only a local read-only timestamp inventory. Prompt pilot and release decisions remain gated; nothing merged or released |
 
 The numbering is chronological, not a priority ranking. Current backlog
 status lives in `docs/V3_PLAN.md`; release history lives in

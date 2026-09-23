@@ -921,7 +921,7 @@ entry (below, or in its design doc):
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
 8. **v3.4.0 correctness release** ([0014](design/0014-gemini-audit-branch-review.md);
-   [review-findings plan, first track implemented locally](design/0016-review-findings-plan.md)).
+   [review-findings plan, first track in unmerged PR #34](design/0016-review-findings-plan.md)).
    Planned as MINOR rather than a patch, because health gains additive
    fields. The blank-content rejection also tightens accepted input;
    reconcile it with [STABILITY.md](api/STABILITY.md) before choosing the
@@ -950,16 +950,17 @@ entry (below, or in its design doc):
      outside the maintenance lock with reconciliation backfills; one
      backfill at a time. Planned in three reviewed revisions;
      the NAS restart gate remains for the deploy;
-   - **Local, unmerged:** the plan 0016 query-revision race fix is implemented
-     in `codex/query-revision-race`. Search snapshots before and after
+   - **PR #34 green, unmerged:** the plan 0016 query-revision race fix is in
+     `codex/query-revision-race`. Search snapshots before and after
      embedding, retries once on an observed identity change, and fails
      closed on a known-to-unknown transition even when the retry remains
      unknown. Exhausted churn leaves hybrid with keyword results and a
      distinct `revision_churn` metric without marking the provider failed;
      semantic-only returns typed `MODEL_REVISION_CHANGED` (HTTP 502). Ten
      focused regression tests and the full Windows suite (1,146 passed, one
-     skip), Ruff and mypy passed locally. PR review and exact-commit CI are
-     still required; this is not in `main`, released or deployed;
+     skip), Ruff and mypy passed locally. Windows/Ubuntu tests, quality and
+     CodeQL passed on the exact PR head `2c3a2557`; review and merge are
+     still required. This is not in `main`, released or deployed;
    - ✅ an image smoke test before `build-and-push` pushes (rev 207).
 
    The pre-deploy review (rev 209) fixed everything it found except
@@ -1008,7 +1009,11 @@ entry (below, or in its design doc):
     pre-existing. Fix: normalize to UTC at one chokepoint, migrate the
     existing rows, and consider emitting UTC from `onboard_git`. Plan
     and adversarial review are recorded in 0016; implementation has not
-    started.
+    started. A read-only local development DB inventory found 833 memories
+    and two projects, all populated timestamps UTC-aware, but its schema v1
+    and local origin do not establish the NAS data shape. Production-copy
+    inventory, naive-row interpretation, input-compatibility/version policy
+    and rollback rehearsal remain gates.
 12. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     Measured read-only 2026-09-23. Portainer's stored file predates
@@ -1017,8 +1022,11 @@ entry (below, or in its design doc):
     `oc` on a dedicated `oc-observability` network. That shape was
     never deployed and runs against the fleet's address-pool rule
     (the stack moved to the shared bridge in `343ba47c`, 2026-08-18).
-    The repo compose also masks the REST Host-list fallback to
-    `OC_MCP_ALLOWED_HOSTS`, so adoption needs the plan 0016 access check.
+    The repo compose previously masked the REST Host-list fallback to
+    `OC_MCP_ALLOWED_HOSTS`. Plan 0016 track 3 corrects that default on
+    the unmerged `codex/nas-host-allowlist` branch and adds access tests;
+    a future metrics profile still requires an explicit API list with
+    external hosts plus `oc:*`. Adoption needs the plan 0016 access check.
     The stored compose keeps the old `OC_LOG_FILE` default, and the stack env
     does not set that variable. So the v3.4.0 deploy stays env-only:
     move `OC_TAG` and set `OC_LOG_FILE=/output/logs/openchronicle.log`

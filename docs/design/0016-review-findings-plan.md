@@ -1,8 +1,10 @@
 # 0016 — Plan for the 2026-09-23 review findings
 
-**Status:** Adversarially reviewed. Track 1 is implemented locally on
-`codex/query-revision-race`; tracks 2–5 remain proposed or gated. No track
-is merged, released or deployed by this document. **Baseline:** `main` at
+**Status:** Adversarially reviewed. Track 1 is in green, unmerged
+[PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34). Track 3 is
+locally implemented on `codex/nas-host-allowlist`; tracks 2, 4 and 5 remain
+proposed or gated. No track is merged, released or deployed by this document.
+**Baseline:** `main` at
 `c7f36a7c`; production remains the tag-pinned v3.3.0 image. This plan covers the four findings in the
 2026-09-23 adversarial review and the pre-existing `created_at` ordering
 defect in [V3_PLAN items 8, 10–12](../V3_PLAN.md#post-cutover-follow-ups-tech-debt).
@@ -31,8 +33,8 @@ Each track is a small, reviewable change. The plan leaves the unmerged Gemini
 branch, runtime metrics, the live stack, and prompt-library Stage 1 at their
 current decision gates.
 
-The tracks have different gates. The locally verified query-race fix still
-needs a PR and exact-commit CI before the planned correctness release.
+The tracks have different gates. The query-race fix has a PR and exact-commit
+CI but still needs review and merge before the planned correctness release.
 Timestamp migration has a separate data
 review and release decision; do not bundle it into v3.4.0 by default and
 delay the production revision fix. Compose reconciliation is independent
@@ -79,8 +81,8 @@ next `/api/tags` observation, and one provider endpoint need not switch at
 the same instant as another. This plan cannot claim atomic knowledge of
 provider weights. Record this limit in the implementation review.
 
-**Local implementation checkpoint (2026-09-23):** The first track is on the
-unmerged `codex/query-revision-race` branch. It uses the bounded retry
+**Implementation checkpoint (2026-09-23):** The first track is on the
+unmerged `codex/query-revision-race` branch in PR #34. It uses the bounded retry
 and the known-to-unknown fail-closed refinement above. Hybrid churn returns
 keyword results, logs a sanitized warning and records the bounded
 `revision_churn` fallback without changing provider-failure health counters.
@@ -93,8 +95,10 @@ in-memory vectors and 600 alternating calls per version: p95 was 0.1405 ms
 baseline versus 0.1409 ms current; p99 was 0.2432 versus 0.2274 ms. The
 p99 difference is host noise, not a speed claim; this does not satisfy NAS
 load gates. A stable call made one embed, two snapshot reads and no probe.
-PR review and exact-commit CI remain required; `main` and production still
-carry the old search ordering. Tracks 2–5 have not been implemented.
+PR #34's Windows/Ubuntu test and quality checks plus CodeQL passed on
+`2c3a25570b22a48a682f9b13ec7420679bdbe1e8`; review and merge remain
+pending. `main` and production still carry the old search ordering. Tracks
+2, 4 and 5 have not been implemented.
 
 ### 2. Specify and correct timestamp storage
 
@@ -127,21 +131,34 @@ intact backup and a disposable restore rehearsal before touching live data.
 The migration proposal must say whether the previous tagged image can read
 the converted store and its new version marker. If not, rollback includes a
 tested restoration path from the pre-migration backup, with no intervening
-writes accepted during that restoration.
+writes accepted during that restoration. An old image starting successfully
+is insufficient: the current migrator can open a later schema version, and
+the old write path can reintroduce offset-bearing timestamps.
 
 Prove offset-equivalent instants sort together with a deterministic ID
 tie-break; test listing and pagination, `context_recent`, FTS tie-breaks,
-the Python search fallback, project listings, and export/import round trips.
+the Python search fallback, project and source listings, and export/import
+round trips. Add an ID tie-break where project or source listings lack one.
 Rehearse restoring an envelope written before this change under the chosen
 naive-timestamp policy. Test migration rollback on
 one malformed or naive row, idempotent rerun and preservation of IDs,
-content, tags, project links and embedding identities. **Stop** on any
+content, tags, project links, embedding identities and FTS integrity: the
+existing FTS update trigger rewrites an FTS row even for timestamp-only
+updates. Measure migration duration on a disposable copy. **Stop** on any
 unresolved timestamp interpretation or failed restore comparison. The
 timestamp work is a correctness fix, not an implicit release authorization.
 
+**Read-only readiness checkpoint (2026-09-23):** The available local
+development database has schema version 1, 833 memory rows and two projects.
+All populated `created_at`/`updated_at` values in those tables are UTC-aware;
+none are naive, malformed or nonzero-offset. No memory content was read. This
+is not a production inventory or a migration rehearsal. Production-copy
+inventory, the naive-row policy, the input-compatibility/version decision and
+the rollback window remain gates before data-changing implementation.
+
 ### 3. Preserve Host allowlists when reconciling the NAS compose
 
-The repo compose currently injects a nonempty `OC_API_ALLOWED_HOSTS` default
+Before track 3, the repo compose injected a nonempty `OC_API_ALLOWED_HOSTS` default
 containing loopback and `oc:*`. That masks `HTTPConfig`'s documented fallback
 to `OC_MCP_ALLOWED_HOSTS`: a stack with only `OC_MCP_ALLOWED_HOSTS=nas:*`
 would begin rejecting LAN REST with 421 while loopback health stays 200.
@@ -161,6 +178,19 @@ stored-compose replacement. **Stop** if the rendered compose would narrow
 existing client access or violate the fleet network rule. The v3.4.0
 deployment, if separately approved, remains the documented env-only
 `OC_TAG` plus `OC_LOG_FILE` update on the detached stack.
+
+**Local implementation checkpoint (2026-09-23):** On the unmerged
+`codex/nas-host-allowlist` branch, the repo compose injects an empty API
+Host list by default. The runbook requires an explicit external-hosts-plus-
+`oc:*` list for the opt-in collector and checks LAN REST, MCP and scrape
+access. Tests render both compose settings and feed those values into the
+app: LAN REST remains available, the collector alias is rejected by default
+and allowed only by the explicit API list, and forged Hosts return 421.
+The 24 focused tests and full Windows suite (1,150 passed, one Linux-only
+skip), Ruff and mypy passed locally. An adversarial review caught a source-
+line-only test and stale Git-stack wording; both were corrected before this
+checkpoint. The detached live stack has not changed; this is not a profile
+start, release or deployment.
 
 ### 4. Bound the prompt-library pilot and later ADR
 
@@ -203,6 +233,11 @@ Before selecting a v3.4.0 tag, resolve and record both open decisions:
   newly authorized gate under unchanged budgets. Do not call local tests
   performance acceptance.
 
+Before relying on any prior 4C/4D result for a final release SHA, perform
+design 0010's change-impact review. The query-revision fix changes the search
+path and the integrated recorder/exporter candidate is untimed, with affected
+4D checks pending; old frozen evidence cannot accept the combined candidate.
+
 After those decisions and the intended patch set are fixed, use a PR so
 CI runs on the proposed changes. Put the version and CHANGELOG in the
 commit that will be tagged; after merge, require test, quality, image smoke
@@ -243,6 +278,8 @@ performance run was part of this review.
 | A timestamp migration numbered `005` would collide with design 0015's proposed `005_prompt_library.sql` if that later Stage 1 is ratified. | **Corrected:** assign the next available migration number when implementation lands, and renumber the unratified proposal if needed. |
 | Rejecting new naive timestamps changes input that REST, MCP and import currently accept; the first draft treated it as a purely internal normalization. | **Corrected:** require a separate STABILITY/version disposition for the timestamp release. |
 | Removing the compose's `oc:*` default fixes LAN access but silently breaks the optional Prometheus scrape. | **Corrected:** make its explicit allowlist and scrape check part of the profile's runbook and acceptance. |
+| A source-line test and hand-written app env values could both pass while rendered compose masks the fallback. | **Corrected during implementation:** render compose in a bounded test and pass its actual env values to the app; confirm LAN REST and collector behavior. |
+| Prior 4C/4D observations might be reused for a final SHA even though the search path and recorder/exporter have changed. | **Corrected during implementation review:** require design 0010's impact review and any affected gate rerun before relying on those observations. |
 | A green PR head can differ from the merged/tagged commit, and reverting `OC_TAG` after a failed deployment is not the same as leaving the prior tag pinned. | **Corrected:** require CI on the exact tag SHA, published build-revision readback, and post-deploy rollback/readback. |
 | CI smoke-tests one local build and then rebuilds for push; the exact SHA check alone does not prove identical image layers. | **Corrected:** state the residual moved-base risk and keep the already deferred pin/push choice separate from this plan. |
 | Treating five findings as one release would couple an urgent query correction to a data migration, a compose decision and a two-week pilot. | **Corrected:** separate the tracks and name only the query fix as a prerequisite for the planned correctness release. |

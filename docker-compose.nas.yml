@@ -98,9 +98,9 @@ services:
       # Rate limit ceiling — the var behind the mnemosyne Phase C
       # incident; must be Portainer-tunable without a compose edit:
       OC_API_RATE_LIMIT_RPM: ${OC_API_RATE_LIMIT_RPM:-}
-      # REST Host allowlist. The default includes the private `oc` service
-      # alias for the profile-gated collector; retain it when overriding.
-      OC_API_ALLOWED_HOSTS: ${OC_API_ALLOWED_HOSTS:-127.0.0.1:*,localhost:*,[::1]:*,oc:*}
+      # Empty by default so REST inherits OC_MCP_ALLOWED_HOSTS. When the
+      # metrics profile runs, set the external REST hosts plus `oc:*`.
+      OC_API_ALLOWED_HOSTS: ${OC_API_ALLOWED_HOSTS:-}
       # Embeddings (Portainer stack env; default 'none' = FTS5-only):
       OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
       OC_EMBEDDING_MODEL: ${OC_EMBEDDING_MODEL:-}
