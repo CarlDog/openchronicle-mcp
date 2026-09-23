@@ -151,13 +151,27 @@ updates. Measure migration duration on a disposable copy. **Stop** on any
 unresolved timestamp interpretation or failed restore comparison. The
 timestamp work is a correctness fix, not an implicit release authorization.
 
-**Read-only readiness checkpoint (2026-09-23):** The available local
+**Read-only readiness checkpoints (2026-09-23):** The available local
 development database has schema version 1, 833 memory rows and two projects.
 All populated `created_at`/`updated_at` values in those tables are UTC-aware;
-none are naive, malformed or nonzero-offset. No memory content was read. This
-is not a production inventory or a migration rehearsal. Production-copy
-inventory, the naive-row policy, the input-compatibility/version decision and
-the rollback window remain gates before data-changing implementation.
+none are naive, malformed or nonzero-offset. This did not establish the
+production shape.
+
+A bounded live MCP metadata inventory on schema version 4 returned all 1,080
+memories, matching `memory_stats.total`. `created_at` had 987 UTC values,
+90 at `-05:00` and three at `-06:00`. `updated_at` had 771 null and 309 UTC
+values. All 39 projects returned UTC-aware `created_at` values. No naive or
+malformed timestamp surfaced through these API responses. The production
+`memory_list(order_by="created_at")` had 24 adjacent pairs inverted by actual
+instant; the defect is active, not merely hypothetical. Only timestamp
+metadata, IDs and aggregate counts were used, not memory content. This is
+not a raw SQLite inspection or an immutable snapshot; concurrent writes can
+change counts, and the API's datetime parser may fail on a raw value it
+cannot serialize. Recheck the raw backup before migration and fail closed on
+any unseen naive or malformed value. The named Docker volume is not exposed
+by the available filesystem MCP roots. Input-compatibility/version policy,
+an intact backup, a disposable restore rehearsal and a rollback window remain
+gates before data-changing implementation.
 
 ### 3. Preserve Host allowlists when reconciling the NAS compose
 
