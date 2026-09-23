@@ -150,9 +150,12 @@ Hardened 2026-07-30 (the review-driven CI batch):
   separate from OC's memory, config, and output volumes.
 - When `OC_API_KEY` is set, use the authenticated Prometheus config and mount
   the token through the operator-managed `oc-api-key` file. The default
-  collector config intentionally contains no secret. Keep `oc:*` in
-  `OC_API_ALLOWED_HOSTS` when overriding the NAS compose default so the
-  private collector target passes the REST Host allowlist.
+  collector config intentionally contains no secret.
+- The NAS compose leaves `OC_API_ALLOWED_HOSTS` empty so REST inherits
+  `OC_MCP_ALLOWED_HOSTS`. When enabling the collector, explicitly set the
+  REST list to every external client hostname plus `oc:*` so its private
+  target passes the Host allowlist. An explicit REST list replaces the MCP
+  fallback; a healthy loopback probe cannot establish external access.
 - **DNS-rebinding defense: Host-header allowlists on both surfaces.**
   A containerized service can't be secured by its bind address (it
   binds `0.0.0.0` to be reachable at all), and a malicious web page

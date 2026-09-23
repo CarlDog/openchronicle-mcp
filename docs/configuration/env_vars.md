@@ -71,8 +71,16 @@ relationships).
 | `OC_API_PORT` | Listen port | `8000` |
 | `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
-| `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset, so one stack variable protects both surfaces. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
+| `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset or empty. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
 | `OC_API_CORS_ORIGINS` | CSV of allowed CORS origins; the CORS middleware is only registered when this is non-empty | — |
+
+The NAS compose file passes an empty `OC_API_ALLOWED_HOSTS` by default, so
+REST inherits the MCP Host allowlist, including any configured LAN hostname.
+An explicit REST list replaces that fallback. For the optional metrics
+collector, set it to every external REST host pattern plus `oc:*` for the
+private `oc:8000` scrape target (for example, `your-nas:*,oc:*`). A passing
+loopback healthcheck does not verify LAN access; follow the
+[metrics history runbook](../monitoring/runbook.md) when enabling collection.
 
 ## Metrics
 

@@ -3,6 +3,8 @@
 # Select this file with PROMETHEUS_CONFIG_FILE when OC_API_KEY is set. The
 # mounted file must contain only the bearer token, without the "Bearer "
 # prefix. Keep it outside the repository and on a local filesystem.
+# Set OC_API_ALLOWED_HOSTS to include external REST hosts and `oc:*` for
+# this private-network target.
 
 global:
   scrape_interval: 30s

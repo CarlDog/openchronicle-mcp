@@ -1,8 +1,8 @@
 # Local-only Prometheus configuration for the opt-in metrics profile.
 #
 # The target is reachable by service name on the private compose network.
-# `oc:*` is included in the NAS compose REST Host allowlist for this target;
-# keep that entry if OC_API_ALLOWED_HOSTS is overridden.
+# When enabling this collector, set OC_API_ALLOWED_HOSTS explicitly to include
+# both the external REST hosts and `oc:*` for this private-network target.
 
 global:
   scrape_interval: 30s
