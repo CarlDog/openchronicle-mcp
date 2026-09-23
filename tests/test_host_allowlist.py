@@ -196,8 +196,12 @@ class TestNasComposeAllowlist:
         app = create_app(container, config, mount_mcp=True)
         with TestClient(app, base_url="http://your-nas:18000") as client:
             assert client.get("/api/v1/maintenance/status").status_code == 200
+            mcp_request = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
+            assert client.post("/mcp/", json=mcp_request).status_code != 421
             assert client.get("/metrics", headers={"Host": "oc:8000"}).status_code == collector_status
             assert client.get("/metrics", headers={"Host": "evil.example:18000"}).status_code == 421
+            assert client.post("/mcp/", json=mcp_request, headers={"Host": "oc:8000"}).status_code == 421
+            assert client.post("/mcp/", json=mcp_request, headers={"Host": "evil.example:18000"}).status_code == 421
 
     def test_empty_api_value_inherits_mcp_host_on_both_surfaces(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")

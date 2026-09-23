@@ -921,7 +921,7 @@ entry (below, or in its design doc):
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
 8. **v3.4.0 correctness release** ([0014](design/0014-gemini-audit-branch-review.md);
-   [review-findings plan, first track in unmerged PR #34](design/0016-review-findings-plan.md)).
+   [review-findings plan, first track merged to `main`](design/0016-review-findings-plan.md)).
    Planned as MINOR rather than a patch, because health gains additive
    fields. The blank-content rejection also tightens accepted input;
    reconcile it with [STABILITY.md](api/STABILITY.md) before choosing the
@@ -945,13 +945,13 @@ entry (below, or in its design doc):
    - ✅ the per-request MCP lifespan lines log at DEBUG (rev 206);
    - ✅ the §1.1 Ollama revision-probe fix (rev 208, ADR 0005 §7). An
      unverified revision is refused, never stamped as "none"; one
-     snapshot per write operation, taken before the embed; `main` search still
-     takes its snapshot after the embed; a refresher
+     snapshot per write operation, taken before the embed; the subsequent
+     PR #34 also checks search snapshots around query embedding; a refresher
      outside the maintenance lock with reconciliation backfills; one
      backfill at a time. Planned in three reviewed revisions;
      the NAS restart gate remains for the deploy;
-   - **PR #34 green, unmerged:** the plan 0016 query-revision race fix is in
-     `codex/query-revision-race`. Search snapshots before and after
+   - **Merged to `main`, unreleased:** plan 0016's query-revision race fix
+     entered through PR #34 (merge `7ffc277c`). Search snapshots before and after
      embedding, retries once on an observed identity change, and fails
      closed on a known-to-unknown transition even when the retry remains
      unknown. Exhausted churn leaves hybrid with keyword results and a
@@ -959,8 +959,8 @@ entry (below, or in its design doc):
      semantic-only returns typed `MODEL_REVISION_CHANGED` (HTTP 502). Ten
      focused regression tests and the full Windows suite (1,146 passed, one
      skip), Ruff and mypy passed locally. Windows/Ubuntu tests, quality and
-     CodeQL passed on the exact PR head `2c3a2557`; review and merge are
-     still required. This is not in `main`, released or deployed;
+     CodeQL passed on the exact PR head `2c3a2557`. The merge is a source
+     change; no tagged release or deployment has occurred;
    - ✅ an image smoke test before `build-and-push` pushes (rev 207).
 
    The pre-deploy review (rev 209) fixed everything it found except
@@ -1024,7 +1024,7 @@ entry (below, or in its design doc):
     (the stack moved to the shared bridge in `343ba47c`, 2026-08-18).
     The repo compose previously masked the REST Host-list fallback to
     `OC_MCP_ALLOWED_HOSTS`. Plan 0016 track 3 corrects that default on
-    the unmerged `codex/nas-host-allowlist` branch and adds access tests;
+    PR #35 and adds access tests, including rendered-compose REST/MCP behavior;
     a future metrics profile still requires an explicit API list with
     external hosts plus `oc:*`. Adoption needs the plan 0016 access check.
     The stored compose keeps the old `OC_LOG_FILE` default, and the stack env

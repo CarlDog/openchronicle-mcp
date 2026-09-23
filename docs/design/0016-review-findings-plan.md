@@ -1,9 +1,10 @@
 # 0016 — Plan for the 2026-09-23 review findings
 
-**Status:** Adversarially reviewed. Track 1 is in green, unmerged
-[PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34). Track 3 is
-locally implemented on `codex/nas-host-allowlist`; tracks 2, 4 and 5 remain
-proposed or gated. No track is merged, released or deployed by this document.
+**Status:** Adversarially reviewed. Track 1 entered `main` through
+[PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34) (merge `7ffc277c`).
+Track 3 is in [PR #35](https://github.com/CarlDog/openchronicle-mcp/pull/35);
+tracks 2, 4 and 5 remain proposed or gated. No track is released or deployed
+by this document.
 **Baseline:** `main` at
 `c7f36a7c`; production remains the tag-pinned v3.3.0 image. This plan covers the four findings in the
 2026-09-23 adversarial review and the pre-existing `created_at` ordering
@@ -33,8 +34,8 @@ Each track is a small, reviewable change. The plan leaves the unmerged Gemini
 branch, runtime metrics, the live stack, and prompt-library Stage 1 at their
 current decision gates.
 
-The tracks have different gates. The query-race fix has a PR and exact-commit
-CI but still needs review and merge before the planned correctness release.
+The tracks have different gates. The query-race fix passed PR CI and merged to
+`main`, but still needs a separately authorized tagged release.
 Timestamp migration has a separate data
 review and release decision; do not bundle it into v3.4.0 by default and
 delay the production revision fix. Compose reconciliation is independent
@@ -81,8 +82,8 @@ next `/api/tags` observation, and one provider endpoint need not switch at
 the same instant as another. This plan cannot claim atomic knowledge of
 provider weights. Record this limit in the implementation review.
 
-**Implementation checkpoint (2026-09-23):** The first track is on the
-unmerged `codex/query-revision-race` branch in PR #34. It uses the bounded retry
+**Implementation checkpoint (2026-09-23):** The first track entered `main`
+through PR #34. It uses the bounded retry
 and the known-to-unknown fail-closed refinement above. Hybrid churn returns
 keyword results, logs a sanitized warning and records the bounded
 `revision_churn` fallback without changing provider-failure health counters.
@@ -96,8 +97,9 @@ baseline versus 0.1409 ms current; p99 was 0.2432 versus 0.2274 ms. The
 p99 difference is host noise, not a speed claim; this does not satisfy NAS
 load gates. A stable call made one embed, two snapshot reads and no probe.
 PR #34's Windows/Ubuntu test and quality checks plus CodeQL passed on
-`2c3a25570b22a48a682f9b13ec7420679bdbe1e8`; review and merge remain
-pending. `main` and production still carry the old search ordering. Tracks
+`2c3a25570b22a48a682f9b13ec7420679bdbe1e8`; PR #34 merged as
+`7ffc277c0b997340ec6e6f50e9558aecf856ba65`. Production still runs the
+older tagged image; no runtime cutover is claimed. Tracks
 2, 4 and 5 have not been implemented.
 
 ### 2. Specify and correct timestamp storage
@@ -189,8 +191,10 @@ and allowed only by the explicit API list, and forged Hosts return 421.
 The 24 focused tests and full Windows suite (1,150 passed, one Linux-only
 skip), Ruff and mypy passed locally. An adversarial review caught a source-
 line-only test and stale Git-stack wording; both were corrected before this
-checkpoint. The detached live stack has not changed; this is not a profile
-start, release or deployment.
+checkpoint. A follow-up PR review also requested mounted MCP checks using the
+rendered values; the revised test drives allowed and rejected MCP Hosts.
+Fresh CI on that revision is required. The detached live stack has not changed;
+this is not a profile start, release or deployment.
 
 ### 4. Bound the prompt-library pilot and later ADR
 

@@ -193,7 +193,7 @@ does differently.
 ## Current Sprint
 
 **2026-09-23 — Gemini branch rejected as a unit; prompt library researched;
-query-revision PR green; NAS Host-list fix in progress.**
+query-revision fix merged; NAS Host-list PR in review.**
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
@@ -210,19 +210,19 @@ query-revision PR green; NAS Host-list fix in progress.**
   compose (V3_PLAN item 12). Until a deploy, production (v3.3.0) still
   needs 0014's interim control after any NAS, OC or Ollama restart.
 - The first track of [plan 0016](docs/design/0016-review-findings-plan.md)
-  is in green, unmerged PR #34 on `codex/query-revision-race`, not in `main`:
+  entered `main` through PR #34 (merge `7ffc277c`):
   search snapshots the revision before and after embedding, retries one
   observed change, and fails closed if a known revision becomes unknown.
   Repeated churn gets keyword-only hybrid fallback; semantic-only returns
   typed `MODEL_REVISION_CHANGED` (HTTP 502), without a provider-failure
   count. Ten focused regression tests and the full Windows suite (1,146
   passed, one skip), Ruff and mypy passed locally. Windows/Ubuntu tests,
-  quality and CodeQL passed on the exact head `2c3a2557`; review and merge
-  remain. Track 3 corrects the repository compose API Host-list default on
-  the stacked, unmerged `codex/nas-host-allowlist` branch, with access tests
-  and an explicit `oc:*` collector requirement. The detached live stack is
-  unchanged. Timestamp, prompt-pilot and release tracks remain gated. No
-  merge, release or deployment occurred.
+  quality and CodeQL passed on the exact PR head `2c3a2557`. Track 3 is in
+  PR #35: it corrects the repository compose API Host-list default, with
+  rendered-compose REST/MCP tests and an explicit `oc:*` collector
+  requirement. The detached live stack is unchanged. Timestamp,
+  prompt-pilot and release tracks remain gated. Neither change has a tagged
+  release or deployment.
 - Found 2026-09-23, not yet fixed: chronological listings misorder
   memories whose `created_at` carries a UTC offset, which `onboard_git`
   output does (V3_PLAN item 11).
