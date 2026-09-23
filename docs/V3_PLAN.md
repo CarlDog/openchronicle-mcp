@@ -1010,11 +1010,14 @@ entry (below, or in its design doc):
     pre-existing. Fix: normalize to UTC at one chokepoint, migrate the
     existing rows, and consider emitting UTC from `onboard_git`. Plan
     and adversarial review are recorded in 0016; implementation has not
-    started. A read-only local development DB inventory found 833 memories
-    and two projects, all populated timestamps UTC-aware, but its schema v1
-    and local origin do not establish the NAS data shape. Production-copy
-    inventory, naive-row interpretation, input-compatibility/version policy
-    and rollback rehearsal remain gates.
+    started. A bounded read-only live MCP inventory on schema v4 returned
+    1,080 memories (matching `memory_stats`), including 93 offset-bearing
+    `created_at` values; its chronological listing had 24 adjacent
+    instant-order inversions. No naive or malformed timestamp surfaced via
+    the API, and all 39 project creation times were UTC-aware. This is not
+    raw SQLite inspection or an immutable backup. Recheck the raw backup;
+    an unseen naive row must not be silently interpreted. The input
+    compatibility/version decision and backup/restore rehearsal remain gates.
 12. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     Measured read-only 2026-09-23. Portainer's stored file predates

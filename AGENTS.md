@@ -228,7 +228,9 @@ query-revision and NAS Host-list source fixes merged.**
   release or deployment.
 - Found 2026-09-23, not yet fixed: chronological listings misorder
   memories whose `created_at` carries a UTC offset, which `onboard_git`
-  output does (V3_PLAN item 11).
+  output does (V3_PLAN item 11). A bounded read-only live MCP inventory
+  found 93 offset-bearing values among 1,080 memories and 24 adjacent
+  instant-order inversions. Input-version and backup/restore gates remain.
 - The prompt library ([0015](docs/design/0015-prompt-library.md)) is
   research only; its Stage 0 is operator-run.
 
