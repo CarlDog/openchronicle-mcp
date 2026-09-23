@@ -8,9 +8,10 @@ configured jobs, and runs the ones whose interval has elapsed.
 Design constraints (locked in V3_PLAN.md):
 - Pure asyncio. No DB-backed queue, no manager/worker, no atomic claim.
 - One process. One loop. Jobs run sequentially within a tick.
-- Overlap protection: each job has its own asyncio.Lock; if a job is
-  still running when its next tick fires, the new tick skips (does NOT
-  queue).
+- Overlap protection: each job has its own asyncio.Lock. If a job is
+  still running when its next scheduled start passes, that start is
+  skipped (NOT queued), counted and warned once per run. A job waiting
+  for another job to finish is queued, not overlapping.
 - Failure isolation: exceptions are logged + counted, never crash the
   loop. Bad jobs degrade the system; they don't stop it.
 - Backup-before-destructive: jobs that touch the whole file
@@ -23,11 +24,12 @@ Design constraints (locked in V3_PLAN.md):
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
 import time
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -68,6 +70,12 @@ class JobState:
     runs_failed: int = 0
     runs_skipped_overlap: int = 0
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    # Set once this run holds the global lock. A job whose own lock is held
+    # while this is None is queued behind another job, not overlapping.
+    _started_at: datetime | None = field(default=None, repr=False)
+    # One log line per episode, not one per tick (fleet-review #27).
+    _queued_logged: bool = field(default=False, repr=False)
+    _overlap_logged: bool = field(default=False, repr=False)
 
 
 class MaintenanceLoop:
@@ -94,6 +102,8 @@ class MaintenanceLoop:
         # vacuum + backfill would otherwise race the same DB).
         self._global_lock: asyncio.Lock = asyncio.Lock()
         self._inflight: set[asyncio.Task[None]] = set()
+        # Name of the job holding the global lock, for the "queued" line.
+        self._running_job: str | None = None
 
     def _safe_observe_job(self, *, name: str, outcome: str, duration_seconds: float | None = None) -> None:
         try:
@@ -186,8 +196,8 @@ class MaintenanceLoop:
         Jobs run as background tasks (so the loop can keep ticking while
         a long-running job is in flight), but each job acquires the
         global lock before running its handler — so two jobs never run
-        at the same time. The per-job lock is what the next tick checks
-        to detect overlap.
+        at the same time. The per-job lock tells the tick a run is in
+        flight; `_note_in_flight` decides whether it is queued or overlapping.
         """
         while not self._stop_event.is_set():
             try:
@@ -198,13 +208,7 @@ class MaintenanceLoop:
                     if not _is_due(job, now):
                         continue
                     if job._lock.locked():
-                        job.runs_skipped_overlap += 1
-                        job.last_outcome = "skipped_overlap"
-                        self._safe_observe_job(name=job.name, outcome="overlap")
-                        _logger.warning(
-                            "maintenance job %s skipped: previous run still in progress",
-                            job.name,
-                        )
+                        self._note_in_flight(job, now)
                         continue
                     self._spawn(job)
             except asyncio.CancelledError:
@@ -217,17 +221,65 @@ class MaintenanceLoop:
             except TimeoutError:
                 continue
 
+    def _note_in_flight(self, job: JobState, now: datetime) -> None:
+        """Handle a due job that already has a run in flight. Never spawns.
+
+        `_is_due` reads `last_run_at`, which is written when a run ends, so
+        a job stays due on every tick of its own run. Until 2026-09-23 each
+        of those ticks counted an overlap and logged a WARNING, and so did
+        every tick of a job merely queued behind another one: about 1,200
+        false warnings for one 20-minute backfill (fleet-review #27).
+        """
+        if job._started_at is None:
+            # Waiting on the global lock; nothing of its own is running.
+            if not job._queued_logged:
+                job._queued_logged = True
+                _logger.info(
+                    "maintenance job %s queued: waiting for %s to finish",
+                    job.name,
+                    self._running_job or "another job",
+                )
+            return
+        # Running. An overlap only once its next scheduled start has passed.
+        if job._overlap_logged or now - job._started_at < timedelta(seconds=job.interval_seconds):
+            return
+        job._overlap_logged = True
+        job.runs_skipped_overlap += 1
+        job.last_outcome = "skipped_overlap"
+        self._safe_observe_job(name=job.name, outcome="overlap")
+        _logger.warning(
+            "maintenance job %s skipped: previous run still in progress",
+            job.name,
+        )
+
     def _spawn(self, job: JobState) -> None:
         task = asyncio.create_task(self._invoke(job), name=f"oc-maint-{job.name}")
         self._inflight.add(task)
         task.add_done_callback(self._inflight.discard)
 
+    @contextlib.asynccontextmanager
+    async def _run_slot(self, job: JobState) -> AsyncIterator[None]:
+        """Hold the job's lock, then the global lock, and mark the job running.
+
+        The job's lock tells the tick a run is in flight. The global lock
+        is the process-wide mutex, so two jobs never run at once. Only
+        once both are held is the job running rather than queued.
+        """
+        async with job._lock, self._global_lock:
+            job._started_at = utc_now()
+            job._queued_logged = False
+            self._running_job = job.name
+            try:
+                yield
+            finally:
+                job._started_at = None
+                job._overlap_logged = False
+                self._running_job = None
+
     async def _invoke(self, job: JobState) -> None:
-        # job._lock = next-tick overlap detection. self._global_lock =
-        # process-wide mutex so two jobs never run simultaneously.
         started = time.monotonic()
         metric_outcome = "failure"
-        async with job._lock, self._global_lock:
+        async with self._run_slot(job):
             handler = self._handlers.get(job.name)
             if handler is None:
                 _logger.error("maintenance job %s has no handler registered", job.name)

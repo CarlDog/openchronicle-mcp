@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 202
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 203
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,040 passed, one Linux-only skip** (rev 202); focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,042 passed, one Linux-only skip** (rev 203); focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -94,9 +94,10 @@ their no-commit/no-push statements are historical, not the current scope.
   twice per incident. Production can reach it; it had not fired as of
   2026-09-23 (`model_revision` set, `stale: 0`). Interim control and fix
   shape are in 0014; the fix is planned for v3.4.0 together with the
-  remaining fleet-review issue #27 items. Items 1 and 2 (a blank
-  `memory_update` wiping a memory and its vector; invisible background
-  backfill failures) are fixed on `main` (revs 201 and 202).
+  last fleet-review issue #27 item (OpenAI response validation).
+  Items 1-3 (a blank `memory_update` wiping a memory and its vector;
+  invisible background backfill failures; false overlap warnings) are
+  fixed on `main` (revs 201-203).
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
   Its docs and eight OC milestone memories describe unshipped work;
@@ -278,6 +279,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 203 | 2026-09-23 | **Maintenance overlap warnings tell the truth (fleet-review #27 item 3).** `_is_due` reads `last_run_at`, which is only written when a run ends, so a job stays due for the whole of its own run. The tick treated a held per-job lock as an overlap. It therefore counted and logged a WARNING every second of any long run, and every second a job sat queued behind another job's run: about 1,200 false warnings for one 20-minute backfill. The tick now separates the two cases. A queued job (own lock held, global lock not yet acquired) gets one INFO line naming the job it waits for and is not counted. A running job is an overlap only once its interval has elapsed since its own run started, and that is counted and warned once per run. The locks are unchanged. 6/6 mutants caught. |
 | 202 | 2026-09-23 | **Background backfill failures are visible (fleet-review #27 item 2).** Nothing awaits the task that `memory_embed background=true` starts, so an exception from it left no log line, and health gave no sign while `stale` stopped moving. A done-callback now logs the exception at ERROR, and health gains `last_background_backfill`: `outcome` (ok/partial/failed/error/cancelled), `finished_at`, the run's counts, or `error_type`. It gives the class name only, because REST never returns internal error text. Additive, so MINOR; ships with v3.4.0. The ok/partial/failed rule moves onto `BackfillResult.outcome`, so the synchronous response and the new field share one definition. 6/6 mutants caught. |
 | 201 | 2026-09-23 | **Blank content refused before any write (fleet-review #27 item 1).** `memory_update(content="")` over MCP used to blank the memory and delete its embedding, then return success. REST (`min_length=1`) and the CLI let whitespace-only content through in the same way, and on save only MCP refused blank content. The add and update use cases now raise `content must be non-empty` ahead of the store write and the embedding invalidation, so every surface gets the check. New tests cover the use cases, MCP, REST and the CLI. Reverting either guard, or moving the update guard after the write, fails its tests (3/3 mutants caught). Ships with v3.4.0. |
 | 200 | 2026-09-23 | **Line endings normalized.** New `.gitattributes` (`* text=auto eol=lf`, CRLF working copies only for `*.ps1`/`*.bat`/`*.cmd`) and a renormalize of the 23 files that still stored CR bytes, including 8 source files, `pyproject.toml`, the compose files and the workflow. A diff ignoring CR at end of line shows no other change. This clears the whole-file conflicts that mixed endings caused in main to v4/develop merges (design 0014 Part 4). |

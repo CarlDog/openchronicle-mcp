@@ -930,7 +930,9 @@ entry (below, or in its design doc):
      - ✅ background-backfill failures were invisible. Fixed in rev 202:
        a done-callback logs the exception at ERROR, and health's
        `last_background_backfill` reports how the last run ended;
-     - overlap warnings are false;
+     - ✅ overlap warnings were false. Fixed in rev 203: a job queued
+       behind another logs one INFO line, and a real overlap counts and
+       warns once per run instead of once per tick;
      - the OpenAI adapter does no response-shape validation;
    - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
      none / unknown) plus a scheduled re-probe off the request path;

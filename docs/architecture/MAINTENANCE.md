@@ -74,9 +74,19 @@ migration windows.
 
 ## Concurrency contract
 
-- **Per-job lock** detects cross-tick overlap. If tick N+1 wakes while
-  job's lock is still held from tick N, the new tick records
-  `runs_skipped_overlap` and moves on. No queueing.
+- **Per-job lock** marks a run in flight, and the tick never spawns a
+  second copy of an in-flight job. It separates two cases:
+  - *Queued*: the job holds its own lock but waits for the global lock
+    behind another job. One INFO line names that job; nothing is
+    counted.
+  - *Overlap*: the job is running and its next scheduled start (its
+    interval, measured from this run's start) has passed. That start
+    is skipped, not queued: `runs_skipped_overlap` counts it, and one
+    WARNING is logged per run.
+
+  Before v3.4.0 both cases counted and warned on every one-second
+  tick, including each tick of an ordinary long run, because a job
+  stays due until its run ends (fleet-review #27).
 - **Global lock** serializes all jobs across the process. Two jobs
   never run concurrently. This is the guarantee that a vacuum + a
   backfill can't race the same DB.

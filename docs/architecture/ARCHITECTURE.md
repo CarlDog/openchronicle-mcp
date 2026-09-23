@@ -55,7 +55,7 @@ imports — anything reaching outside the process goes through a port.
   premature abstraction the project rules say to inline back rather than
   create.
 - `services/maintenance_loop.py`: in-process asyncio loop that runs
-  scheduled jobs (per-job lock for cross-tick overlap detection,
+  scheduled jobs (per-job lock marks a run in flight, telling a queued job from a real overlap;
   global lock so jobs never run concurrently in this process; per-job
   schedule persisted to `maintenance_state.json`).
 - `use_cases/`: `add_memory`, `delete_memory`, `list_memory`,

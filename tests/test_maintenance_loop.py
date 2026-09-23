@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -105,6 +107,100 @@ def test_overlap_skip_records_skip_and_does_not_block() -> None:
     skipped = asyncio.run(_exercise())
     assert skipped >= 1, "expected at least one overlap-skip during the slow job"
     assert job.runs_total >= 1
+
+
+_LOOP_LOGGER = "openchronicle.core.application.services.maintenance_loop"
+
+
+async def _wait_for(condition: Callable[[], bool], timeout: float = 2.0) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while not condition():
+        if asyncio.get_running_loop().time() > deadline:
+            raise AssertionError("condition not reached before the deadline")
+        await asyncio.sleep(0.005)
+
+
+def test_job_queued_behind_another_is_not_an_overlap(caplog: pytest.LogCaptureFixture) -> None:
+    """Fleet-review #27: a job waiting on the global lock holds its own lock
+    while it waits, so every tick counted an overlap and logged a WARNING
+    for a run that never happened. It is now one INFO line naming the job
+    it waits for."""
+    release = asyncio.Event()
+    ran: list[str] = []
+
+    async def _long(c: object) -> None:  # noqa: ARG001
+        await release.wait()
+        ran.append("long")
+
+    async def _short(c: object) -> None:  # noqa: ARG001
+        ran.append("short")
+
+    long_job = maintenance_loop.JobState(name="long", interval_seconds=3600, enabled=True)
+    short_job = maintenance_loop.JobState(name="short", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(),
+        jobs=[long_job, short_job],
+        handlers={"long": _long, "short": _short},
+        tick_seconds=0.005,
+    )
+
+    async def _exercise() -> None:
+        await loop.start()
+        await _wait_for(lambda: short_job._lock.locked())
+        await asyncio.sleep(0.2)  # ~40 ticks with "short" queued behind "long"
+        release.set()
+        await _wait_for(lambda: short_job.runs_total == 1)
+        await loop.stop()
+
+    with caplog.at_level(logging.INFO, logger=_LOOP_LOGGER):
+        asyncio.run(_exercise())
+
+    assert ran == ["long", "short"]
+    assert short_job.runs_skipped_overlap == 0, "queued is not an overlap"
+    assert long_job.runs_skipped_overlap == 0, "a run inside its own interval is not an overlap"
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+    queued = [r.getMessage() for r in caplog.records if "queued" in r.getMessage()]
+    assert queued == ["maintenance job short queued: waiting for long to finish"]
+
+
+def test_real_overlap_is_counted_and_warned_once_per_run(caplog: pytest.LogCaptureFixture) -> None:
+    """A run still going when its next start passes skips that start. That
+    is counted and warned once per run, not once per one-second tick."""
+    gates = [asyncio.Event(), asyncio.Event()]
+    runs = 0
+
+    async def _slow(c: object) -> None:  # noqa: ARG001
+        nonlocal runs
+        gate = gates[runs]
+        runs += 1
+        await gate.wait()
+
+    job = maintenance_loop.JobState(name="slow", interval_seconds=0, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(),
+        jobs=[job],
+        handlers={"slow": _slow},
+        tick_seconds=0.005,
+    )
+
+    async def _exercise() -> list[int]:
+        await loop.start()
+        await _wait_for(lambda: job.runs_skipped_overlap == 1)
+        await asyncio.sleep(0.1)  # ~20 more ticks of the same run
+        first = job.runs_skipped_overlap
+        gates[0].set()
+        await _wait_for(lambda: job.runs_skipped_overlap == 2)  # the next run overruns too
+        await asyncio.sleep(0.1)
+        second = job.runs_skipped_overlap
+        await loop.stop()  # cancels the second run
+        return [first, second]
+
+    with caplog.at_level(logging.WARNING, logger=_LOOP_LOGGER):
+        counts = asyncio.run(_exercise())
+
+    assert counts == [1, 2], "one count per overrunning run"
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings == ["maintenance job slow skipped: previous run still in progress"] * 2
 
 
 def test_disabled_job_is_not_invoked() -> None:

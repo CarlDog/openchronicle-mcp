@@ -179,8 +179,8 @@ researched.**
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
   Its docs and OC milestone memories describe unshipped work.
 - In progress: the v3.4.0 correctness release (V3_PLAN item 8).
-  Fleet-review #27 items 1 and 2 have landed (revs 201 and 202); the
-  rest of #27 and the §1.1 Ollama probe fix follow. The probe defect
+  Fleet-review #27 items 1-3 have landed (revs 201-203); item 4 and
+  the §1.1 Ollama probe fix follow. The probe defect
   is reachable in production, so follow 0014's interim control after
   any NAS, OC or Ollama restart. Line endings were renormalized in
   rev 200.
