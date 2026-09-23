@@ -1,9 +1,10 @@
 # 0016 — Plan for the 2026-09-23 review findings
 
 **Status:** Adversarially reviewed. Track 1 entered `main` through
-[PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34) (merge `7ffc277c`).
-Track 3 is in [PR #35](https://github.com/CarlDog/openchronicle-mcp/pull/35);
-tracks 2, 4 and 5 remain proposed or gated. No track is released or deployed
+[PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34) (merge `7ffc277c`);
+track 3 entered `main` through
+[PR #35](https://github.com/CarlDog/openchronicle-mcp/pull/35) (merge `77ea0173`).
+Tracks 2, 4 and 5 remain proposed or gated. No track is released or deployed
 by this document.
 **Baseline:** `main` at
 `c7f36a7c`; production remains the tag-pinned v3.3.0 image. This plan covers the four findings in the

@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 214 (PR #35 branch)
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 215 (source-merge closeout)
 
 ## Current state
 
@@ -21,11 +21,11 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 |---|---|
 | Deployed release | **`v3.3.0`**, verified 2026-09-04: Portainer stack 151, endpoint 2, port `18000`; `health.package_version=3.3.0`, `health.build_revision=7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`. Embedding provider LAN-local `ollama/nomic-embed-text`, `content_egress: local`, active with no missing/stale embeddings. Production container unchanged by this work |
 | Deploy verification | `health.package_version` for a version change; `health.build_revision` for a same-version redeploy — since rev 118 CI bakes the full git SHA into the image and health/`oc version` report it (images built earlier read `"unknown"`; fall back to the `org.opencontainers.image.revision` label for those). Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | `main` includes the query-revision race fix from merged PR #34 (`7ffc277c`) and the earlier performance instrumentation. PR #35 carries the repository compose Host-list fix. Production remains the tagged `v3.3.0` image; stack 151 is detached from Git and tag-pinned via `OC_TAG`, so neither source merge changes its stored compose or runtime |
+| Main vs deployed | `main` includes the query-revision race fix from PR #34 (`7ffc277c`), the repository compose Host-list fix from PR #35 (`77ea0173`), and the earlier performance instrumentation. Production remains the tagged `v3.3.0` image; stack 151 is detached from Git and tag-pinned via `OC_TAG`, so neither source merge changes its stored compose or runtime |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,150 passed, one Linux-only skip** on the unmerged NAS Host-list branch; two rendered-compose cases ran locally without a Docker daemon. Focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1 for the earlier metrics integration, including the native process test. Ruff and mypy passed locally; exact-commit CI remains the merge gate. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) |
+| Tests | Full Windows suite: **1,150 passed, one Linux-only skip** on the NAS Host-list branch; two rendered-compose cases ran locally without a Docker daemon. PR #35 Windows/Ubuntu tests, quality, CodeQL and secret scan passed on head `87b891ed` (Windows on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality and image smoke/publish passed on merge `77ea0173`. Focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1 for the earlier metrics integration, including the native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -107,13 +107,14 @@ their no-commit/no-push statements are historical, not the current scope.
   passed, one skip), Ruff and mypy passed locally. Windows/Ubuntu tests,
   quality and CodeQL passed on the exact PR head `2c3a2557`; PR #34 merged
   as `7ffc277c`. Tagged release and deployment remain pending.
-- **NAS compose Host allowlist, in PR #35** ([0016](design/0016-review-findings-plan.md)
+- **NAS compose Host allowlist, merged to `main` but not deployed** ([0016](design/0016-review-findings-plan.md)
   track 3). The repository compose now injects an empty API Host list by
   default so REST inherits the MCP LAN list. The optional metrics profile
   requires an explicit API list with every external REST host and `oc:*`;
-  the runbook and collector examples state this. The detached live stack's
-  stored compose is unchanged; network/log-path reconciliation remains an
-  operator decision under V3_PLAN item 12.
+  the runbook and collector examples state this. PR #35 merged as `77ea0173`
+  after its rendered-compose REST/MCP regression tests and PR checks passed.
+  The detached live stack's stored compose is unchanged; network/log-path
+  reconciliation remains an operator decision under V3_PLAN item 12.
 - **Timestamp ordering remains open** (V3_PLAN item 11, design 0016 track 2).
   A read-only local development database inventory found 833 memories and
   two projects with UTC-aware populated timestamps, but its schema version 1
@@ -301,6 +302,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 215 (branch) | 2026-09-23 | **Both source PRs merged.** PR #34 entered `main` as `7ffc277c`; its exact-main Windows/Ubuntu tests, quality, image build/push and gitleaks passed. PR #35 entered `main` as `77ea0173` after Windows/Ubuntu tests, quality, CodeQL and secret scan passed on reviewed head `87b891ed` (Windows passed on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality, image smoke/publish and gitleaks passed on `77ea0173`. The repository compose fix is source only: the detached stack remains on its older stored compose and tagged v3.3.0 image. No tagged release, deploy or metrics enablement occurred. |
 | 214 (branch) | 2026-09-23 | **PR #34 merged; PR #35 review refinement.** The query-revision race fix entered `main` through merge commit `7ffc277c`. Exact-main Windows/Ubuntu tests, quality, image build/push and gitleaks passed; this is source publication, not a tagged release or deployment. PR #35's rendered-compose test now drives mounted MCP using the actual rendered Host values, addressing review feedback before the dependent merge. Its branch incorporates the new `main` merge commit. The detached live stack and runtime metrics remain unchanged; PR #35's revised head requires fresh CI. |
 | 213 (branch) | 2026-09-23 | **Repository NAS compose Host-list fallback corrected (design 0016 track 3).** Its default `OC_API_ALLOWED_HOSTS` is empty, preserving `HTTPConfig`'s fallback to `OC_MCP_ALLOWED_HOSTS` for LAN REST clients. The optional Prometheus collector needs an explicit API allowlist containing every external REST host plus `oc:*`; the runbook and security/configuration notes give that requirement. Regression coverage renders compose and checks LAN REST/MCP, the collector Host and hostile Hosts. The full Windows suite passed 1,150 tests with one Linux-only skip; Ruff and mypy passed. The code is on `codex/nas-host-allowlist` stacked on unmerged PR #34; its own PR/CI status is checked separately. The detached live stack, runtime metrics, release and deployment are unchanged. A read-only local timestamp inventory scoped track 2 without establishing the production shape. |
 | 212 (branch) | 2026-09-23 | **Query-revision race fix implemented on `codex/query-revision-race` (design 0016 track 1).** A query reads revision snapshots on both sides of the provider embed, compares known/value rather than `verified_at`, and retries once on an observed change. A known-to-unknown transition never falls through to revision-agnostic scoring, including after a stable unknown retry. Exhausted churn yields a keyword-only hybrid fallback with its own bounded `revision_churn` metric and no provider-failure count; semantic-only returns `MODEL_REVISION_CHANGED` as HTTP 502. Ten focused regression tests and the full Windows suite (1,146 passed, one skip), Ruff and mypy passed locally. Synthetic p95/p99 and its limits are recorded in design 0016. PR review and CI are required. This branch is unmerged, and production remains v3.3.0. Remaining 0016 tracks are proposed/gated. |
