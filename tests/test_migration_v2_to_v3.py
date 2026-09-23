@@ -175,7 +175,7 @@ def test_migration_records_schema_version_1(tmp_path: Path) -> None:
         version = conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0]
     finally:
         conn.close()
-    assert version == 4, "001 baseline + 002/003 embedding identity + 004 status"
+    assert version == 5, "001 baseline + 002/003 embedding identity + 004 status + 005 UTC timestamps"
 
 
 def test_migration_passes_verify_v3(tmp_path: Path) -> None:

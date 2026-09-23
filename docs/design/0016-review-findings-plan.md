@@ -4,7 +4,8 @@
 [PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34) (merge `7ffc277c`);
 track 3 entered `main` through
 [PR #35](https://github.com/CarlDog/openchronicle-mcp/pull/35) (merge `77ea0173`).
-Tracks 2, 4 and 5 remain proposed or gated. No track is released or deployed
+Track 2 has a source-only implementation on `codex/timestamp-utc-migration`;
+tracks 4 and 5 remain proposed or gated. No track is released or deployed
 by this document.
 **Baseline:** `main` at
 `c7f36a7c`; production remains the tag-pinned v3.3.0 image. This plan covers the four findings in the
@@ -127,9 +128,9 @@ may lose subsecond precision). Prefer a migration-local Python normalization
 function called from a versioned SQL migration: register it on the migration
 connection, perform the updates inside the runner's existing savepoint, and
 record the schema version only after success. This avoids a new general
-migration framework or an unversioned startup rewrite. Do not reserve a
-number yet: design 0015 tentatively calls its unratified prompt migration
-`005`, so the later migration must take the next free number. Establish an
+migration framework or an unversioned startup rewrite. The source
+implementation uses migration `005`; design 0015's unratified prompt
+proposal must take the next free number if Stage 1 is approved. Establish an
 intact backup and a disposable restore rehearsal before touching live data.
 The migration proposal must say whether the previous tagged image can read
 the converted store and its new version marker. If not, rollback includes a
@@ -171,7 +172,28 @@ cannot serialize. Recheck the raw backup before migration and fail closed on
 any unseen naive or malformed value. The named Docker volume is not exposed
 by the available filesystem MCP roots. Input-compatibility/version policy,
 an intact backup, a disposable restore rehearsal and a rollback window remain
-gates before data-changing implementation.
+gates before a **production** data change.
+
+**Source checkpoint (2026-09-23):** The operator authorized a narrow
+[STABILITY exception](../api/STABILITY.md#narrow-timestamp-correctness-exception-operator-decision-2026-09-23)
+for rejecting new naive timestamps, with fail-closed handling of any unseen
+legacy naive or malformed row. Migration `005_normalize_timestamps.sql` uses a
+Python UTC normalizer inside the migration savepoint and only rewrites
+noncanonical rows. The unratified prompt-library proposal now needs the next
+free migration number. New writes, import and `onboard_git` normalize aware
+times; chronological readers use deterministic ID ties. Synthetic tests cover
+the source, rollback and online-backup restore paths. A production raw-DB
+inventory and restore rehearsal have **not** occurred: the only known NAS
+share, `\\carldog-nas\docker\openchronicle`, exposes no database inside the
+named Docker volume. The operations gap is recorded as OC dogfooding finding
+`9bd0321a-b324-4e4a-9541-1e45f2a6b488`; it does not establish whether
+automated backups exist. Before production migration, obtain an authorized,
+consistent online backup, verify integrity and row counts, run migration on
+a disposable restored copy, check FTS and embeddings, measure duration, and
+rehearse write-frozen rollback. The previous tagged image can read UTC rows
+but its old write path can reintroduce offsets; opening schema version 5 with
+it is not a safe rollback. A failed raw inspection or restore comparison
+stops the release. No tag or deployment is authorized by this checkpoint.
 
 ### 3. Preserve Host allowlists when reconciling the NAS compose
 

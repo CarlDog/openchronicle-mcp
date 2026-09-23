@@ -60,6 +60,20 @@ the declared version (`v3.0.0-rc6` ↔ `3.0.0rc6`).
 - Changes to the `core.json` schema that aren't backward-compatible.
 - Changes to env var names.
 
+### Narrow timestamp correctness exception (operator decision, 2026-09-23)
+
+The operator authorized one exception to the requires-major-bump validation
+rule above: the timestamp-ordering correction in design 0016 track 2 may
+reject **new naive `created_at` and `updated_at` values** at REST, MCP, import,
+and direct storage boundaries in a v3.x correctness release. Such values have
+no unambiguous instant; accepting them would perpetuate incorrect ordering.
+Aware offsets remain accepted and are stored in UTC without changing their
+instant or microseconds. This exception does not relax the policy for other
+input changes or itself authorize a release. The release version and notes
+remain a separate gate. Legacy naive or malformed database rows cause the
+versioned migration to stop with IDs; they are never assigned an implicit
+timezone.
+
 ## Deprecation window
 
 When a MAJOR change is required:

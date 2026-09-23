@@ -534,6 +534,22 @@ class TestMCPParameterValidation:
         with pytest.raises(DomainValidationError, match="content must be non-empty"):
             asyncio.run(tool_fn(content="", project_id="proj-1", ctx=ctx))
 
+    def test_memory_save_naive_timestamp_rejected_before_write(self) -> None:
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.memory import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        tool_fn = mcp._tool_manager._tools["memory_save"].fn
+        with pytest.raises(DomainValidationError, match="created_at must include a UTC offset"):
+            asyncio.run(tool_fn(content="x", project_id="proj-1", created_at="2026-01-01T12:00:00", ctx=ctx))
+        container.storage.add_memory.assert_not_called()
+
     def test_memory_update_empty_content_rejected_before_any_write(self) -> None:
         """Fleet-review #27's repro: memory_update(content="") returned
         success after blanking the row and deleting its vector."""

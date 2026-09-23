@@ -26,7 +26,7 @@ from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
 from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.core.domain.ports.storage_port import StoragePort
-from openchronicle.core.domain.time_utils import utc_now
+from openchronicle.core.domain.time_utils import require_utc, utc_now
 from openchronicle.core.infrastructure.persistence import migrator
 from openchronicle.core.infrastructure.persistence.backup import backup_from_connection
 from openchronicle.core.infrastructure.persistence.row_mappers import (
@@ -341,7 +341,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur = self._conn.cursor()
         cur.execute(
             "INSERT INTO projects (id, name, metadata, created_at) VALUES (?, ?, ?, ?)",
-            (project.id, project.name, json.dumps(project.metadata), project.created_at.isoformat()),
+            (
+                project.id,
+                project.name,
+                json.dumps(project.metadata),
+                require_utc(project.created_at, field="created_at").isoformat(),
+            ),
         )
         self._commit_if_needed()
 
@@ -350,11 +355,11 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur = self._conn.cursor()
         if name_contains is not None:
             rows = cur.execute(
-                "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC",
+                "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC, id DESC",
                 (f"%{_escape_like(name_contains)}%", _LIKE_ESCAPE),
             ).fetchall()
         else:
-            rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+            rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC, id DESC").fetchall()
         return [row_to_project(r) for r in rows]
 
     @_locked
@@ -422,11 +427,11 @@ class SqliteStore(StoragePort, MemoryStorePort):
                     item.id,
                     item.content,
                     json.dumps(item.tags, sort_keys=True),
-                    item.created_at.isoformat(),
+                    require_utc(item.created_at, field="created_at").isoformat(),
                     1 if item.pinned else 0,
                     item.project_id,
                     item.source,
-                    item.updated_at.isoformat() if item.updated_at else None,
+                    require_utc(item.updated_at, field="updated_at").isoformat() if item.updated_at else None,
                 ),
             )
         except sqlite3.IntegrityError as exc:
@@ -519,10 +524,10 @@ class SqliteStore(StoragePort, MemoryStorePort):
     def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
         cur = self._conn.cursor()
         if project_id is not None:
-            sql = "SELECT * FROM memory_items WHERE source = ? AND project_id = ? ORDER BY created_at DESC"
+            sql = "SELECT * FROM memory_items WHERE source = ? AND project_id = ? ORDER BY created_at DESC, id DESC"
             rows = cur.execute(sql, (source, project_id)).fetchall()
         else:
-            sql = "SELECT * FROM memory_items WHERE source = ? ORDER BY created_at DESC"
+            sql = "SELECT * FROM memory_items WHERE source = ? ORDER BY created_at DESC, id DESC"
             rows = cur.execute(sql, (source,)).fetchall()
         return [row_to_memory_item(r) for r in rows]
 

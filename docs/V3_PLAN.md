@@ -997,7 +997,7 @@ entry (below, or in its design doc):
     from unscoped recall; resolve plan 0016's pilot isolation gate first.
     The outcome decides whether Option B gets built.
 11. **Chronological order ignores `created_at` offsets**
-    (see the [proposed correction plan](design/0016-review-findings-plan.md#2-specify-and-correct-timestamp-storage)).
+    (see the [source and migration plan](design/0016-review-findings-plan.md#2-specify-and-correct-timestamp-storage)).
     Found 2026-09-23 and reproduced against `SqliteStore`. A backdated
     `created_at` is stored with its offset (`isoformat()`), and every
     recency query sorts the TEXT column, so a memory saved as
@@ -1009,15 +1009,22 @@ entry (below, or in its design doc):
     `context_recent` and the FTS tie-break. Accuracy defect,
     pre-existing. Fix: normalize to UTC at one chokepoint, migrate the
     existing rows, and consider emitting UTC from `onboard_git`. Plan
-    and adversarial review are recorded in 0016; implementation has not
-    started. A bounded read-only live MCP inventory on schema v4 returned
+    and adversarial review are recorded in 0016. Source implementation on
+    `codex/timestamp-utc-migration` uses migration 005, normalizes aware
+    writes and `onboard_git`, rejects new naive input under the narrow
+    [STABILITY exception](api/STABILITY.md), and fails closed on unseen
+    naive or malformed legacy rows. A bounded read-only live MCP inventory
+    on schema v4 returned
     1,080 memories (matching `memory_stats`), including 93 offset-bearing
     `created_at` values; its chronological listing had 24 adjacent
     instant-order inversions. No naive or malformed timestamp surfaced via
     the API, and all 39 project creation times were UTC-aware. This is not
     raw SQLite inspection or an immutable backup. Recheck the raw backup;
-    an unseen naive row must not be silently interpreted. The input
-    compatibility/version decision and backup/restore rehearsal remain gates.
+    an unseen naive row must not be silently interpreted. The only known NAS
+    share does not expose the named-volume database; OC dogfooding finding
+    `9bd0321a-b324-4e4a-9541-1e45f2a6b488` records the safe-access gap.
+    Production raw-DB inspection, online backup, disposable restore and
+    write-frozen rollback rehearsal remain gates before any live migration.
 12. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     Measured read-only 2026-09-23. Portainer's stored file predates
