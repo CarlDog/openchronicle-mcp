@@ -102,6 +102,9 @@ HTTP clients, the wiring container).
 - `embedding/`: stub, OpenAI, Ollama adapters implementing
   `EmbeddingPort`. Adapters never crash startup —
   `_build_embedding_port` catches and falls back to FTS5-only.
+  `response_validation.py` is the boundary check both HTTP adapters
+  run on every response: one finite, non-empty vector per input, one
+  length per batch. Only Ollama also checks the requested length.
 - `maintenance/jobs.py`: handler implementations for the maintenance
   loop's job registry (db_backup, db_vacuum, db_integrity_check,
   embedding_backfill, git_onboard_resync).

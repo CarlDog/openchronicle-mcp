@@ -14,7 +14,6 @@ boundary before anything is normalized or stored.
 from __future__ import annotations
 
 import logging
-import math
 import os
 from typing import Any
 
@@ -29,6 +28,7 @@ from openchronicle.core.domain.errors.error_codes import (
 )
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.infrastructure.embedding.response_validation import validate_embeddings
 from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
 
 logger = logging.getLogger(__name__)
@@ -100,7 +100,17 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
             response.raise_for_status()
             data = response.json()
             embeddings = data.get("embeddings")
-            self._validate(embeddings, expected=len(texts))
+            # The old adapter checked none of this; its test suite even
+            # pinned a 3-element vector as acceptable from a "768-dim" adapter.
+            validate_embeddings(
+                embeddings,
+                expected=len(texts),
+                provider="ollama",
+                label="Ollama",
+                model=self._model,
+                requested_dimensions=self._requested_dimensions,
+                dimensions_hint=" — values above the model's native length are silently ignored by Ollama",
+            )
             return [normalize_unit(vec) for vec in embeddings]
         except httpx.HTTPStatusError as exc:
             # The one structured place both status and body still exist —
@@ -136,42 +146,6 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
                 error_code=PROVIDER_ERROR,
                 details={"provider": "ollama", "model": self._model},
             ) from exc
-
-    def _validate(self, embeddings: object, *, expected: int) -> None:
-        """Boundary validation — the response is upstream data, not truth.
-
-        One vector per input, non-empty, finite floats, consistent
-        dimensions across the batch, and agreement with an explicitly
-        requested dimension. The old adapter checked none of these; its
-        test suite even pinned a 3-element vector as acceptable output
-        from a "768-dim" adapter.
-        """
-
-        def _fail(reason: str) -> LLMProviderError:
-            return LLMProviderError(
-                f"Ollama returned an invalid embedding response: {reason}",
-                error_code=PROVIDER_ERROR,
-                details={"provider": "ollama", "model": self._model},
-            )
-
-        if not isinstance(embeddings, list) or len(embeddings) != expected:
-            got = len(embeddings) if isinstance(embeddings, list) else type(embeddings).__name__
-            raise _fail(f"expected {expected} vector(s), got {got}")
-        first_len: int | None = None
-        for i, vec in enumerate(embeddings):
-            if not isinstance(vec, list) or not vec:
-                raise _fail(f"vector {i} is empty or not a list")
-            if first_len is None:
-                first_len = len(vec)
-            elif len(vec) != first_len:
-                raise _fail(f"inconsistent dimensions in one batch: {first_len} then {len(vec)}")
-            if not all(isinstance(x, (int, float)) and math.isfinite(x) for x in vec):
-                raise _fail(f"vector {i} contains non-finite or non-numeric values")
-        if self._requested_dimensions is not None and first_len != self._requested_dimensions:
-            raise _fail(
-                f"requested {self._requested_dimensions} dimensions, got {first_len} — "
-                "values above the model's native length are silently ignored by Ollama"
-            )
 
     def dimensions(self) -> int:
         # The requested value when configured; otherwise the common

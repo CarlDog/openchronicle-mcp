@@ -263,8 +263,8 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
 
   Item 1 is the highest-value next fix in the repository.
 
-  **Update 2026-09-23:** items 1-3 are fixed on `main` (assessment
-  revs 201-203). Item 4 ships with v3.4.0; see V3_PLAN item 8.
+  **Update 2026-09-23:** all four are fixed on `main` (assessment revs
+  201-204) and ship with v3.4.0; see V3_PLAN item 8.
 - **§1.1**, as above: `main`'s only production-reachable defect in this
   review.
 - **Mixed line endings, in docs and source.**

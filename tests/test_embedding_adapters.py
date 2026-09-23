@@ -79,6 +79,52 @@ class TestOpenAIEmbeddingAdapter:
         with pytest.raises(LLMProviderError, match="OpenAI embedding failed"):
             adapter.embed("hello")
 
+    def _adapter_returning(self, *vectors: list[float]) -> OpenAIEmbeddingAdapter:
+        adapter = self._make_adapter()
+        mock_client = MagicMock()
+        mock_client.embeddings.create.return_value = _FakeEmbeddingResponse(
+            data=[_FakeEmbeddingItem(embedding=v) for v in vectors]
+        )
+        adapter._client = mock_client
+        return adapter
+
+    def test_empty_data_is_a_provider_error_not_an_index_error(self) -> None:
+        """Fleet-review #27: `data: []` from a host made embed()'s `[0]` raise
+        a bare IndexError, outside the adapter's error handling."""
+        adapter = self._adapter_returning()
+        with pytest.raises(LLMProviderError, match="expected 1 vector") as excinfo:
+            adapter.embed("hello")
+        assert excinfo.value.error_code == PROVIDER_ERROR
+        # Not re-wrapped as "OpenAI embedding failed: ProviderError: ...".
+        assert str(excinfo.value).startswith("OpenAI returned an invalid embedding response")
+
+    def test_response_cardinality_must_match_input(self) -> None:
+        """Before, a short batch was caught only by the backfill's own check,
+        never on the save path."""
+        adapter = self._adapter_returning([1.0, 0.0])
+        with pytest.raises(LLMProviderError, match="expected 2 vector"):
+            adapter.embed_batch(["a", "b"])
+
+    @pytest.mark.parametrize(
+        ("vectors", "reason"),
+        [
+            (([],), "empty or not a list"),
+            (([float("nan"), 1.0],), "non-finite"),
+            (([float("inf"), 1.0],), "non-finite"),
+            (([1.0, 0.0], [1.0, 0.0, 0.0]), "inconsistent dimensions"),
+        ],
+    )
+    def test_malformed_vectors_are_rejected(self, vectors: tuple[list[float], ...], reason: str) -> None:
+        adapter = self._adapter_returning(*vectors)
+        with pytest.raises(LLMProviderError, match=reason):
+            adapter.embed_batch(["x"] * len(vectors))
+
+    def test_a_host_that_ignores_requested_dimensions_is_accepted(self) -> None:
+        """Deliberately unlike Ollama: a generic OpenAI-compatible host may
+        ignore `dimensions`, and the store records the measured length."""
+        adapter = self._adapter_returning([1.0, 0.0, 0.0, 0.0])  # the adapter requested 3
+        assert len(adapter.embed("a")) == 4
+
     def test_model_name(self) -> None:
         adapter = self._make_adapter()
         assert adapter.model_name() == "text-embedding-3-small"

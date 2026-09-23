@@ -933,7 +933,8 @@ entry (below, or in its design doc):
      - ✅ overlap warnings were false. Fixed in rev 203: a job queued
        behind another logs one INFO line, and a real overlap counts and
        warns once per run instead of once per tick;
-     - the OpenAI adapter does no response-shape validation;
+     - ✅ the OpenAI adapter did no response-shape validation. Fixed in
+       rev 204: both adapters share one boundary validator;
    - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
      none / unknown) plus a scheduled re-probe off the request path;
    - an image smoke test before `build-and-push`.
