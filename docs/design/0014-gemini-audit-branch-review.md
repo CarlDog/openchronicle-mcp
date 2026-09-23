@@ -282,6 +282,9 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
 - **Log noise on every MCP request.** In stateless mode the FastMCP
   lifespan runs per request, so every MCP request logs "OpenChronicle MCP
   server starting" and "shutting down" at INFO into `OC_LOG_FILE`.
+
+  **Update 2026-09-23:** fixed on `main` (assessment rev 206). The pair
+  logs at DEBUG, and the stdio entrypoint logs the one startup line.
 - **Stale records:**
   - 0007 says `onboard_git` holds whole-batch transactions; it doesn't.
   - `docs/integrations/mcp_client_setup.md` says Open WebUI has no native

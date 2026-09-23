@@ -25,6 +25,10 @@ def main() -> None:
     container = CoreContainer()
     config = MCPConfig.from_env()
     server = create_server(container, config)
+    # The server's own lifespan logs at DEBUG (it runs per request over
+    # stateless HTTP), so the one startup line lives here. logging writes
+    # to stderr, which keeps stdout clean for the stdio protocol.
+    logging.getLogger(__name__).info("OpenChronicle MCP server starting (%s transport)", config.transport)
     server.run(transport=config.transport)
 
 

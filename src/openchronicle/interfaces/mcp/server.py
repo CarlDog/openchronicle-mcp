@@ -149,9 +149,13 @@ def create_server(container: CoreContainer, config: MCPConfig) -> FastMCP:
 
     @asynccontextmanager
     async def lifespan(_server: FastMCP) -> AsyncIterator[dict[str, Any]]:
-        logger.info("OpenChronicle MCP server starting")
+        # DEBUG: in stateless streamable-HTTP this runs once per REQUEST, and
+        # at INFO it wrote two lines to OC_LOG_FILE for every MCP call. The
+        # once-per-process startup lines are in the ASGI lifespan and the
+        # stdio entrypoint.
+        logger.debug("OpenChronicle MCP server starting")
         yield {"container": container}
-        logger.info("OpenChronicle MCP server shutting down")
+        logger.debug("OpenChronicle MCP server shutting down")
 
     metrics_candidate = getattr(container, "metrics", None)
     metrics: MetricsRecorder

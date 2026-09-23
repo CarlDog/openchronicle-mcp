@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -114,6 +115,64 @@ def test_mcp_post_initialize_hits_transport_at_slash_mcp() -> None:
         "path-doubling regression: POST /mcp/ returned 404, indicating "
         "FastMCP isn't handling its mount root. Check streamable_http_path."
     )
+
+
+def test_mcp_requests_log_no_lifespan_lines_at_info(caplog: pytest.LogCaptureFixture) -> None:
+    """Stateless streamable-HTTP runs FastMCP's lifespan once per request.
+
+    Its "starting"/"shutting down" pair therefore went into OC_LOG_FILE at
+    INFO on every MCP call (design 0014 Part 4). They are DEBUG now; the
+    once-per-process startup lines live in the ASGI lifespan and the stdio
+    entrypoint.
+    """
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    headers = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
+    with TestClient(app) as client, caplog.at_level(logging.DEBUG, logger="openchronicle.interfaces.mcp.server"):
+        for n in range(3):
+            client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": n,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-03-26",
+                        "capabilities": {},
+                        "clientInfo": {"name": "log-test", "version": "1"},
+                    },
+                },
+                headers=headers,
+            )
+    lifespan = [
+        r for r in caplog.records if r.name == "openchronicle.interfaces.mcp.server" and "MCP server" in r.getMessage()
+    ]
+    starts = [r for r in lifespan if "starting" in r.getMessage()]
+    assert len(starts) >= 3, "premise: the lifespan runs once per request"
+    assert [r.levelname for r in lifespan if r.levelno != logging.DEBUG] == []
+
+
+def test_stdio_entrypoint_logs_one_startup_line_and_keeps_stdout_clean(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The stdio server's only INFO startup line, now that the lifespan's is DEBUG."""
+    from openchronicle.interfaces.mcp import __main__ as entry
+
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "stdio.db"))
+    monkeypatch.delenv("OC_MCP_TRANSPORT", raising=False)
+    server = MagicMock()
+    monkeypatch.setattr("openchronicle.interfaces.mcp.server.create_server", lambda _c, _cfg: server)
+
+    with caplog.at_level(logging.INFO, logger=entry.__name__):
+        entry.main()
+
+    server.run.assert_called_once_with(transport="stdio")
+    assert [r.getMessage() for r in caplog.records if r.name == entry.__name__] == [
+        "OpenChronicle MCP server starting (stdio transport)"
+    ]
+    assert capsys.readouterr().out == "", "stdout belongs to the stdio protocol"
 
 
 def test_mcp_post_at_doubled_path_does_not_work() -> None:

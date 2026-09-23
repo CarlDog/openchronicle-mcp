@@ -939,6 +939,7 @@ entry (below, or in its design doc):
      allowlisted environment as the clone (rev 205). An inherited
      `GIT_DIR`, which every git hook exports, had pointed the walk at
      a different repository;
+   - ✅ the per-request MCP lifespan lines log at DEBUG (rev 206);
    - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
      none / unknown) plus a scheduled re-probe off the request path;
    - an image smoke test before `build-and-push`.
