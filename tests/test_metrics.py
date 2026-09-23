@@ -103,6 +103,15 @@ def test_prometheus_labels_are_bounded_and_sensitive_paths_are_not_exported() ->
     assert "__unknown__" in text
 
 
+def test_revision_churn_has_a_distinct_bounded_fallback_label() -> None:
+    recorder = PrometheusMetricsRecorder()
+    recorder.observe_search_fallback(reason="revision_churn")
+
+    text = _text(recorder)
+    assert 'oc_search_fallbacks_total{reason="revision_churn"} 1.0' in text
+    assert 'oc_search_fallbacks_total{reason="__unknown__"}' not in text
+
+
 def test_metric_cardinality_stays_bounded_under_untrusted_values() -> None:
     recorder = PrometheusMetricsRecorder()
     for index in range(500):

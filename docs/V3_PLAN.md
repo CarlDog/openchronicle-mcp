@@ -920,9 +920,12 @@ entry (below, or in its design doc):
    mcp 2.x migration by its own entry.
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
-8. **v3.4.0 correctness release** ([0014](design/0014-gemini-audit-branch-review.md)).
-   MINOR rather than a patch, because health gains additive fields
-   ([STABILITY.md](api/STABILITY.md)). Contents:
+8. **v3.4.0 correctness release** ([0014](design/0014-gemini-audit-branch-review.md);
+   [review-findings plan, first track implemented locally](design/0016-review-findings-plan.md)).
+   Planned as MINOR rather than a patch, because health gains additive
+   fields. The blank-content rejection also tightens accepted input;
+   reconcile it with [STABILITY.md](api/STABILITY.md) before choosing the
+   release version. Contents:
    - the four fleet-review issue #27 items:
      - ✅ `memory_update(content="")` blanked a memory and deleted its
        vector. Fixed in rev 201: the add and update use cases refuse
@@ -942,10 +945,21 @@ entry (below, or in its design doc):
    - ✅ the per-request MCP lifespan lines log at DEBUG (rev 206);
    - ✅ the §1.1 Ollama revision-probe fix (rev 208, ADR 0005 §7). An
      unverified revision is refused, never stamped as "none"; one
-     snapshot per operation, taken before the embed; a refresher
+     snapshot per write operation, taken before the embed; `main` search still
+     takes its snapshot after the embed; a refresher
      outside the maintenance lock with reconciliation backfills; one
      backfill at a time. Planned in three reviewed revisions;
      the NAS restart gate remains for the deploy;
+   - **Local, unmerged:** the plan 0016 query-revision race fix is implemented
+     in `codex/query-revision-race`. Search snapshots before and after
+     embedding, retries once on an observed identity change, and fails
+     closed on a known-to-unknown transition even when the retry remains
+     unknown. Exhausted churn leaves hybrid with keyword results and a
+     distinct `revision_churn` metric without marking the provider failed;
+     semantic-only returns typed `MODEL_REVISION_CHANGED` (HTTP 502). Ten
+     focused regression tests and the full Windows suite (1,146 passed, one
+     skip), Ruff and mypy passed locally. PR review and exact-commit CI are
+     still required; this is not in `main`, released or deployed;
    - ✅ an image smoke test before `build-and-push` pushes (rev 207).
 
    The pre-deploy review (rev 209) fixed everything it found except
@@ -974,12 +988,15 @@ entry (below, or in its design doc):
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
    files that still stored CR bytes were renormalized on `main`, ahead
    of the next main→`v4/develop` merge.
-10. **Prompt library Stage 0** ([0015](design/0015-prompt-library.md)).
-    Operator-run, zero code: save reused prompts in a dedicated OC
-    project for about two weeks. The outcome decides whether Option B
-    gets built.
-11. **Chronological order ignores `created_at` offsets** (found
-    2026-09-23, reproduced against `SqliteStore`). A backdated
+10. **Prompt library Stage 0** ([0015](design/0015-prompt-library.md);
+    [proposed isolation plan](design/0016-review-findings-plan.md#4-bound-the-prompt-library-pilot-and-later-adr)).
+    Operator-run, zero code: record reused prompts for about two weeks.
+    A dedicated project in the live store alone does not isolate drafts
+    from unscoped recall; resolve plan 0016's pilot isolation gate first.
+    The outcome decides whether Option B gets built.
+11. **Chronological order ignores `created_at` offsets**
+    (see the [proposed correction plan](design/0016-review-findings-plan.md#2-specify-and-correct-timestamp-storage)).
+    Found 2026-09-23 and reproduced against `SqliteStore`. A backdated
     `created_at` is stored with its offset (`isoformat()`), and every
     recency query sorts the TEXT column, so a memory saved as
     `2026-09-23T04:41:37-05:00` (09:41Z) lists after one saved as
@@ -990,14 +1007,19 @@ entry (below, or in its design doc):
     `context_recent` and the FTS tie-break. Accuracy defect,
     pre-existing. Fix: normalize to UTC at one chokepoint, migrate the
     existing rows, and consider emitting UTC from `onboard_git`. Plan
-    and review before implementing.
-12. **Stack 151 runs a detached, older compose** (measured read-only
-    2026-09-23). Portainer's stored file predates `682c68f0`. It keeps
+    and adversarial review are recorded in 0016; implementation has not
+    started.
+12. **Stack 151 runs a detached, older compose**
+    (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
+    Measured read-only 2026-09-23. Portainer's stored file predates
+    `682c68f0`. It keeps
     `oc` on `network_mode: bridge`, where the repo's compose now puts
     `oc` on a dedicated `oc-observability` network. That shape was
     never deployed and runs against the fleet's address-pool rule
     (the stack moved to the shared bridge in `343ba47c`, 2026-08-18).
-    It also keeps the old `OC_LOG_FILE` default, and the stack env
+    The repo compose also masks the REST Host-list fallback to
+    `OC_MCP_ALLOWED_HOSTS`, so adoption needs the plan 0016 access check.
+    The stored compose keeps the old `OC_LOG_FILE` default, and the stack env
     does not set that variable. So the v3.4.0 deploy stays env-only:
     move `OC_TAG` and set `OC_LOG_FILE=/output/logs/openchronicle.log`
     in one `portainer_set_stack_env` call. Operator decision:

@@ -21,10 +21,11 @@ class RevisionSnapshot:
     provider that genuinely has none: OpenAI, stub, or an Ollama model
     listed without a digest.
 
-    Callers take one snapshot per operation, before the provider call, and
-    use it for the currency check, the stamp and the search filter. An
-    adapter swaps in a new snapshot with a single assignment, so a reader
-    never sees a state paired with the wrong value.
+    Writes take one snapshot before the provider call and use it for the
+    currency check and stamp. Searches compare snapshots before and after
+    embedding, then use the stable identity for the row filter. An adapter
+    swaps in a new snapshot with a single assignment, so a reader never sees
+    a state paired with the wrong value.
     """
 
     known: bool

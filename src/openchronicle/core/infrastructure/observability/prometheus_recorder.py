@@ -73,7 +73,7 @@ _MCP_OUTCOMES: Final[frozenset[str]] = frozenset({"ok", "started", "partial", "r
 _SEARCH_STAGES: Final[frozenset[str]] = frozenset(
     {"keyword_lookup", "vector_loading", "candidate_prep_scoring", "fusion_materialization"}
 )
-_FALLBACK_REASONS: Final[frozenset[str]] = frozenset({"provider_failure", "over_length_query"})
+_FALLBACK_REASONS: Final[frozenset[str]] = frozenset({"provider_failure", "over_length_query", "revision_churn"})
 _JOB_NAMES: Final[frozenset[str]] = frozenset(
     {
         "db_vacuum",
