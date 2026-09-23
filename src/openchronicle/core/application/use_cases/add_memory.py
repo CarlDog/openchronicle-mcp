@@ -7,6 +7,7 @@ from openchronicle.core.domain.exceptions import RevisionUnknownError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.time_utils import require_utc
 
 if TYPE_CHECKING:
     from openchronicle.core.application.services.embedding_service import EmbeddingService
@@ -33,6 +34,9 @@ def execute(
         raise DomainValidationError(
             f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters (got {len(item.content):,})"
         )
+    item.created_at = require_utc(item.created_at, field="created_at")
+    if item.updated_at is not None:
+        item.updated_at = require_utc(item.updated_at, field="updated_at")
     store.add_memory(item)
     if embedding_service is not None:
         try:

@@ -173,6 +173,29 @@ by the available filesystem MCP roots. Input-compatibility/version policy,
 an intact backup, a disposable restore rehearsal and a rollback window remain
 gates before data-changing implementation.
 
+**Checkpoint (2026-09-30).** Three of those gates are now met, and one is
+narrowed:
+
+- **Raw read (TS-01).** An immutable read of the verified off-NAS copy found
+  no naive and no malformed value.
+- **Version policy (TS-02).** The operator ratified rejecting new naive
+  input as a MINOR change under the narrow STABILITY exception.
+- **Intact backups.** Design 0017's catalogued nightly backups, plus the
+  OPS-08 offsite push, provide them.
+- **Rebased source (TS-04, first step).** PR #38 now sits on current
+  `main`. Migration `005_normalize_timestamps.sql` refuses and lists any
+  naive or malformed row, then converts aware values to UTC, keeping the
+  instant and microseconds. Writes, import and `onboard_git` pass through
+  `require_utc`, and chronological readers break ties on ID.
+
+**Rollback caveat carried into the rehearsal.** The previous image can read
+UTC rows, but its write path can reintroduce offsets, so running it on a
+migrated database is not a clean rollback. The rollback target after 005 is
+the pre-migration snapshot.
+
+The disposable restore and image-pair rehearsal (TS-03) remains before any
+production migration.
+
 ### 3. Preserve Host allowlists when reconciling the NAS compose
 
 Before track 3, the repo compose injected a nonempty `OC_API_ALLOWED_HOSTS` default

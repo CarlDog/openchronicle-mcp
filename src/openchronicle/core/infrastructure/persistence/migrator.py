@@ -29,16 +29,48 @@ from __future__ import annotations
 import logging
 import re
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 
 from openchronicle.core.domain.errors.error_codes import CONFIG_ERROR
-from openchronicle.core.domain.exceptions import ConfigError
-from openchronicle.core.domain.time_utils import utc_now
+from openchronicle.core.domain.exceptions import ConfigError, ValidationError
+from openchronicle.core.domain.time_utils import require_utc, utc_now
 
 _logger = logging.getLogger(__name__)
 
 _MIGRATION_FILENAME_RE = re.compile(r"^(\d{3,})_[A-Za-z0-9_]+\.sql$")
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
+_TIMESTAMP_MIGRATION = "005_normalize_timestamps.sql"
+
+
+def _utc_timestamp(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return require_utc(datetime.fromisoformat(value), field="timestamp").isoformat()
+
+
+def _check_legacy_timestamps(conn: sqlite3.Connection) -> None:
+    """Refuse ambiguous rows before the SQL UDF can hide their IDs."""
+    invalid: list[str] = []
+    for table, column in (
+        ("projects", "created_at"),
+        ("memory_items", "created_at"),
+        ("memory_items", "updated_at"),
+    ):
+        for row_id, value in conn.execute(f"SELECT id, {column} FROM {table}"):
+            if value is None and column == "updated_at":
+                continue
+            if value is None:
+                invalid.append(f"{table}.{column} id={row_id!r}")
+                continue
+            try:
+                _utc_timestamp(value)
+            except TypeError, ValueError, ValidationError:
+                invalid.append(f"{table}.{column} id={row_id!r}")
+    if invalid:
+        sample = ", ".join(invalid[:10])
+        suffix = " ..." if len(invalid) > 10 else ""
+        raise ValueError(f"{len(invalid)} naive, malformed or out-of-range timestamp(s): {sample}{suffix}")
 
 
 def _split_sql(script: str) -> list[str]:
@@ -106,7 +138,11 @@ def apply_pending(
         _logger.info("Applying migration %03d (%s)", version, path.name)
         savepoint = f"mig_{version}"
         conn.execute(f"SAVEPOINT {savepoint}")
+        has_timestamp_udf = path.name == _TIMESTAMP_MIGRATION
         try:
+            if has_timestamp_udf:
+                _check_legacy_timestamps(conn)
+                conn.create_function("oc_normalize_utc", 1, _utc_timestamp, deterministic=True)
             for stmt in statements:
                 conn.execute(stmt)
             conn.execute(
@@ -121,6 +157,9 @@ def apply_pending(
                 f"Migration {path.name} failed: {exc}",
                 code=CONFIG_ERROR,
             ) from exc
+        finally:
+            if has_timestamp_udf:
+                conn.create_function("oc_normalize_utc", 1, None)
         applied.append(version)
 
     if applied:
