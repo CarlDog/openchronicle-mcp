@@ -262,6 +262,9 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
   4. the OpenAI adapter does no response-shape validation.
 
   Item 1 is the highest-value next fix in the repository.
+
+  **Update 2026-09-23:** item 1 is fixed on `main` (assessment rev 201).
+  The rest ship with v3.4.0; see V3_PLAN item 8.
 - **§1.1**, as above: `main`'s only production-reachable defect in this
   review.
 - **Mixed line endings, in docs and source.**
@@ -273,6 +276,9 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
   - Unless CR is ignored, that turns main→v4 merges into whole-file
     conflicts.
   - `.gitattributes` covers only `*.sh`.
+
+  **Update 2026-09-23:** fixed on `main` (assessment rev 200). A
+  `.gitattributes` rule pins LF, and the mixed files were renormalized.
 - **Log noise on every MCP request.** In stateless mode the FastMCP
   lifespan runs per request, so every MCP request logs "OpenChronicle MCP
   server starting" and "shutting down" at INFO into `OC_LOG_FILE`.

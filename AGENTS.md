@@ -178,11 +178,12 @@ researched.**
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
   Its docs and OC milestone memories describe unshipped work.
-- Next: a v3.3.1 correctness patch: fleet-review #27, plus the §1.1
-  Ollama probe fix. The probe defect is reachable in production, so
-  follow 0014's interim control after any NAS, OC or Ollama restart.
-  Then renormalize line endings before the next main→`v4/develop`
-  merge.
+- In progress: the v3.4.0 correctness release (V3_PLAN item 8). The
+  first fleet-review #27 fix has landed (blank updates, rev 201); the
+  rest of #27 and the §1.1 Ollama probe fix follow. The probe defect
+  is reachable in production, so follow 0014's interim control after
+  any NAS, OC or Ollama restart. Line endings were renormalized in
+  rev 200.
 - The prompt library ([0015](docs/design/0015-prompt-library.md)) is
   research only; its Stage 0 is operator-run.
 

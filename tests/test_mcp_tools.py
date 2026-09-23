@@ -534,6 +534,25 @@ class TestMCPParameterValidation:
         with pytest.raises(DomainValidationError, match="content must be non-empty"):
             asyncio.run(tool_fn(content="", project_id="proj-1", ctx=ctx))
 
+    def test_memory_update_empty_content_rejected_before_any_write(self) -> None:
+        """Fleet-review #27's repro: memory_update(content="") returned
+        success after blanking the row and deleting its vector."""
+        container = _make_container()
+        ctx = _make_context(container)
+
+        from mcp.server.fastmcp import FastMCP
+
+        from openchronicle.interfaces.mcp.tools.memory import register
+
+        mcp = FastMCP("test")
+        register(mcp)
+
+        tool_fn = mcp._tool_manager._tools["memory_update"].fn
+        with pytest.raises(DomainValidationError, match="content must be non-empty"):
+            asyncio.run(tool_fn(memory_id="mem-1", content="", ctx=ctx))
+        container.storage.update_memory.assert_not_called()
+        container.storage.delete_embedding.assert_not_called()
+
     def test_memory_save_overlength_content_rejected(self) -> None:
         container = _make_container()
         ctx = _make_context(container)

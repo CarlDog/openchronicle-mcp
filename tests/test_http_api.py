@@ -684,6 +684,23 @@ class TestInputValidation:
         )
         assert resp.status_code == 422
 
+    def test_whitespace_only_save_rejected(self, client: TestClient) -> None:
+        """`min_length=1` lets whitespace through; the use case refuses it."""
+        resp = client.post("/api/v1/memory", json={"content": " \n ", "project_id": "p1"})
+        assert resp.status_code == 422
+        assert resp.json()["code"] == "INVALID_ARGUMENT"
+        _get_container(client).storage.add_memory.assert_not_called()
+
+    def test_whitespace_only_update_rejected_before_any_write(self, client: TestClient) -> None:
+        """Fleet-review #27 over REST: a whitespace update blanked the row
+        and deleted its vector."""
+        resp = client.put("/api/v1/memory/m1", json={"content": "   "})
+        assert resp.status_code == 422
+        assert resp.json()["code"] == "INVALID_ARGUMENT"
+        storage = _get_container(client).storage
+        storage.update_memory.assert_not_called()
+        storage.delete_embedding.assert_not_called()
+
     def test_empty_project_name_rejected(self, client: TestClient) -> None:
         resp = client.post("/api/v1/project", json={"name": ""})
         assert resp.status_code == 422

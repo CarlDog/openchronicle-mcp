@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 200
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 201
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,021 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,031 passed, one Linux-only skip** (rev 201); focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -93,9 +93,10 @@ their no-commit/no-push statements are historical, not the current scope.
   health reads `active`, and the backfill re-embeds the whole corpus,
   twice per incident. Production can reach it; it had not fired as of
   2026-09-23 (`model_revision` set, `stale: 0`). Interim control and fix
-  shape are in 0014; the fix is planned for v3.3.1 together with the
-  four open fleet-review issue #27 items, the first of which
-  (`memory_update(content="")` blanks a memory) is the highest-value fix.
+  shape are in 0014; the fix is planned for v3.4.0 together with the
+  remaining fleet-review issue #27 items. The first #27 item, a blank
+  `memory_update` wiping a memory and its vector, is fixed on `main`
+  (rev 201).
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
   Its docs and eight OC milestone memories describe unshipped work;
@@ -277,6 +278,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 201 | 2026-09-23 | **Blank content refused before any write (fleet-review #27 item 1).** `memory_update(content="")` over MCP used to blank the memory and delete its embedding, then return success. REST (`min_length=1`) and the CLI let whitespace-only content through in the same way, and on save only MCP refused blank content. The add and update use cases now raise `content must be non-empty` ahead of the store write and the embedding invalidation, so every surface gets the check. New tests cover the use cases, MCP, REST and the CLI. Reverting either guard, or moving the update guard after the write, fails its tests (3/3 mutants caught). Ships with v3.4.0. |
 | 200 | 2026-09-23 | **Line endings normalized.** New `.gitattributes` (`* text=auto eol=lf`, CRLF working copies only for `*.ps1`/`*.bat`/`*.cmd`) and a renormalize of the 23 files that still stored CR bytes, including 8 source files, `pyproject.toml`, the compose files and the workflow. A diff ignoring CR at end of line shows no other change. This clears the whole-file conflicts that mixed endings caused in main to v4/develop merges (design 0014 Part 4). |
 | 199 | 2026-09-23 | **Doc corrections and agent guardrails.** Design 0007 no longer claims `onboard_git` holds whole-batch transactions (only `memory import` does). `mcp_client_setup.md` notes Open WebUI's native MCP support since v0.6.31 (tools only, verified against its docs). `AGENTS.md` gains rules for autonomous agents, drawn from design 0014: research is not authorization, work goes through PRs, nothing is shipped before a tagged release with green CI, and no OC milestones for unmerged work. It also records the pre-commit gotcha: run `pre-commit install-hooks` after a hook `rev:` change, before committing. Documentation only. |
 | 198 | 2026-09-23 | **Dependabot alert #10 closed: `smol-toml` DoS in dev tooling.** `markdownlint-cli2` 0.23.2 pinned `smol-toml` 1.7.0 (vulnerable at 1.7.0 and below, fixed in 1.7.1). The dev dependency floor rises to `^0.23.3`, which resolves `smol-toml` 1.8.0; `npm audit` reports 0 vulnerabilities. The pre-commit markdownlint hook pin moves from v0.23.1 to v0.23.3 so both copies of the linter agree. Tooling only; no runtime change. |

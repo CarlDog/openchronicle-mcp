@@ -21,6 +21,10 @@ def execute(
 ) -> MemoryItem:
     if item.project_id is None:
         raise DomainValidationError("project_id is required")
+    # Blank content was refused only by the MCP driver: REST's min_length=1
+    # accepted whitespace, and the CLI accepted "" (MemoryItem's default).
+    if not item.content.strip():
+        raise DomainValidationError("content must be non-empty")
     # Enforced here, not per-driver: the CLI and any future caller reach
     # the store through this use case, and the two drivers that hand-rolled
     # their own check left `oc memory add` unbounded.

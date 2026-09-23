@@ -25,6 +25,13 @@ def execute(
 ) -> MemoryItem:
     if content is None and tags is None:
         raise DomainValidationError("At least one of content or tags must be provided")
+    # Checked before the store write AND before delete_embedding. A blank
+    # update used to blank the memory and drop its vector while reporting
+    # success (fleet-review #27): MCP passed "" straight through, and REST
+    # (min_length=1) and the CLI passed whitespace. Every surface reaches
+    # the store through here.
+    if content is not None and not content.strip():
+        raise DomainValidationError("content must be non-empty")
     if content is not None and len(content) > MAX_CONTENT_CHARS:
         raise DomainValidationError(
             f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters (got {len(content):,})"

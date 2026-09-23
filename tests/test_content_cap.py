@@ -52,6 +52,23 @@ class TestAddMemoryCap:
         assert "100,000" in msg and "100,500" in msg, "an operator needs both numbers"
 
 
+class TestBlankContentIsRefused:
+    """Same one-place rule for blank content (fleet-review #27).
+
+    Only the MCP driver refused it on save. REST accepted whitespace and
+    the CLI accepted "", both reaching the store through the use case.
+    """
+
+    @pytest.mark.parametrize("blank", ["", "   ", "\n\t "])
+    def test_blank_add_is_rejected(self, store: SqliteStore, blank: str) -> None:
+        with pytest.raises(DomainValidationError, match="content must be non-empty"):
+            add_memory.execute(store, _item(blank))
+        assert store.list_memory(limit=None) == [], "nothing may be persisted"
+
+    # The update side, including the vector that a blank update used to
+    # delete, is pinned in test_memory_update.py.
+
+
 class TestUpdateMemoryCap:
     def test_over_cap_update_is_rejected(self, store: SqliteStore) -> None:
         existing = add_memory.execute(store, _item("small"))
@@ -115,4 +132,28 @@ def test_cli_add_reports_over_cap_cleanly_instead_of_a_traceback(
 
     assert rc == 1, "must exit non-zero"
     assert "exceeds maximum length" in out
+    assert "Traceback" not in out
+
+
+def test_cli_add_refuses_blank_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`oc memory add ""` saved an empty memory and exited 0."""
+    import sys
+
+    from openchronicle.interfaces.cli.main import main
+
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "cli.db"))
+    monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+
+    monkeypatch.setattr(sys, "argv", ["oc", "init-project", "BlankCLI"])
+    assert main() == 0
+    project_id = capsys.readouterr().out.strip().splitlines()[-1]
+
+    monkeypatch.setattr(sys, "argv", ["oc", "memory", "add", "", "--project-id", project_id])
+    rc = main()
+    out = capsys.readouterr().out
+
+    assert rc == 1, "must exit non-zero"
+    assert "content must be non-empty" in out
     assert "Traceback" not in out

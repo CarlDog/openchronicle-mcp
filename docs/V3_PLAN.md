@@ -920,21 +920,25 @@ entry (below, or in its design doc):
    mcp 2.x migration by its own entry.
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
-8. **v3.3.1 correctness patch** ([0014](design/0014-gemini-audit-branch-review.md)).
-   Contents:
-   - the four open fleet-review issue #27 items: `memory_update(content="")`
-     blanks a memory and deletes its vector; background-backfill failures
-     are invisible; overlap warnings are false; the OpenAI adapter does
-     no response-shape validation;
+8. **v3.4.0 correctness release** ([0014](design/0014-gemini-audit-branch-review.md)).
+   MINOR rather than a patch, because health gains additive fields
+   ([STABILITY.md](api/STABILITY.md)). Contents:
+   - the four fleet-review issue #27 items:
+     - ✅ `memory_update(content="")` blanked a memory and deleted its
+       vector. Fixed in rev 201: the add and update use cases refuse
+       blank content before any write, for every surface;
+     - background-backfill failures are invisible;
+     - overlap warnings are false;
+     - the OpenAI adapter does no response-shape validation;
    - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
      none / unknown) plus a scheduled re-probe off the request path;
    - an image smoke test before `build-and-push`.
 
    Plan the probe fix and review it adversarially before implementing.
-9. **Line-ending renormalization.** A `.gitattributes` rule
-   (`* text=auto eol=lf`) plus a renormalize commit on `main`, before
-   the next main→`v4/develop` merge. Docs and several `src/` files have
-   mixed CRLF since `682c68f0`.
+9. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
+   `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
+   files that still stored CR bytes were renormalized on `main`, ahead
+   of the next main→`v4/develop` merge.
 10. **Prompt library Stage 0** ([0015](design/0015-prompt-library.md)).
     Operator-run, zero code: save reused prompts in a dedicated OC
     project for about two weeks. The outcome decides whether Option B
