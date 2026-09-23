@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-09 UTC · **Revision:** 194
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 195
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,020 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,021 passed, one Linux-only skip**; focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -264,6 +264,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 195 | 2026-09-23 | **Hermetic onboard-git CLI test fixture.** `tests/test_cli_smoke.py` now runs its fixture's git commands in a scrubbed environment: no inherited `GIT_*` variables, no global or system config, and `git init --template=`. The same isolation applies to the CLI's own git calls during those tests. Two failures prompted it. (1) Committing from a linked worktree ran this suite inside the pre-commit hook, where the absolute `GIT_DIR` let the fixture's `git init` reinitialize the real repository and flip `core.bare` to true (repaired 2026-09-23). (2) The refreshed global git template injected the fleet identity hook into the fixture, which failed both tests even outside hooks. A new regression test pins the isolation and is mutation-verified. A sandbox reproduction showed the old fixture flipping a scratch repo's `core.bare` and the new one leaving it alone. Full suite 1,021 passed, 1 skipped; ruff and mypy clean. |
 | 194 | 2026-09-09 | **Operator-authorized source checkpoint.** Assemble all current recorder/exporter code, maintained tests, attribution/readiness documentation and reviews 0011/0012 for commit and push to main under mandatory repository hooks. Preserve the recorded 1,020-pass/one-skip Windows baseline and 106-pass Linux contracts on both supported Prometheus versions. Live readback confirms detached stack 151 remains pinned to v3.3.0, build 7349f94. Source publication does not clear 4C/affected 4D gates or authorize a release, deployment, metrics enabling or benchmark. |
 | 193 (working tree) | 2026-09-09 | **FreeToken comparative research recorded.** Review 0012 documents the generation/embedding mismatch, source findings, explicit non-adoptions, and a measurement-gated exact-query cache/singleflight candidate, subordinate to the accuracy-first priority. Recommendations remain unratified and unscheduled. Documentation only; no runtime tests rerun, provider switch, metrics change, performance acceptance, release, deployment, commit or push. Existing rev190-192 work and evidence preserved. |
 | 192 (working tree) | 2026-09-08 | **Memory ecosystem research documented.** Added design 0011 with six repository assessments, MCP reference-server disposition, LongMemEval sources, local capability evidence, proposed priorities and acceptance criteria, source limitations, and reconciliation with existing decisions. Linked the design index and V3_PLAN; recorded the operator's accuracy-first, speed/responsiveness-second priority in the review, plan and byte-identical AGENTS/CLAUDE instructions. Documentation only; no runtime implementation or benchmark, no change to performance acceptance or deployment. |

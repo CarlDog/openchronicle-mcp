@@ -9,6 +9,7 @@ same ``_build_container`` patch pattern test_cli_db established.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from collections.abc import Iterator
 from pathlib import Path
@@ -159,18 +160,92 @@ class TestErrorPaths:
         assert "OC_EMBEDDING_PROVIDER" in out
 
 
+def _hermetic_git_env(scratch: Path) -> dict[str, str]:
+    """An environment in which git sees only the fixture repository.
+
+    Two leaks broke these tests on 2026-09-23:
+
+    - Under a git hook (the pre-commit framework runs this suite), git exports
+      ``GIT_DIR`` and ``GIT_INDEX_FILE``. In a linked worktree ``GIT_DIR`` is
+      absolute, so an inherited ``git init <tmp>`` reinitialized the REAL
+      repository and flipped its ``core.bare`` to true.
+    - The developer's global ``init.templateDir`` copied a real pre-commit
+      hook (the fleet identity allowlist) into the fixture, and that hook
+      rejected the fixture's commits.
+
+    So drop every inherited ``GIT_*`` variable and read no global or system
+    config.
+    """
+    empty_config = scratch / "empty.gitconfig"
+    empty_config.write_text("", encoding="utf-8")
+    env = {name: value for name, value in os.environ.items() if not name.upper().startswith("GIT_")}
+    env["GIT_CONFIG_GLOBAL"] = str(empty_config)
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    return env
+
+
 def _make_git_repo(path: Path) -> None:
-    env_flags = ["-c", "user.name=Smoke", "-c", "user.email=smoke@example.invalid"]
-    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    env = _hermetic_git_env(path.parent)
+    identity = ["-c", "user.name=Smoke", "-c", "user.email=smoke@example.invalid"]
+    subprocess.run(["git", "init", "-q", "--template=", str(path)], check=True, env=env)
     (path / "a.py").write_text("print('one')\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(path), "add", "."], check=True)
-    subprocess.run(["git", "-C", str(path), *env_flags, "commit", "-q", "-m", "feat: first"], check=True)
+    subprocess.run(["git", "-C", str(path), "add", "."], check=True, env=env)
+    subprocess.run(["git", "-C", str(path), *identity, "commit", "-q", "-m", "feat: first"], check=True, env=env)
     (path / "b.py").write_text("print('two')\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(path), "add", "."], check=True)
-    subprocess.run(["git", "-C", str(path), *env_flags, "commit", "-q", "-m", "feat: second"], check=True)
+    subprocess.run(["git", "-C", str(path), "add", "."], check=True, env=env)
+    subprocess.run(["git", "-C", str(path), *identity, "commit", "-q", "-m", "feat: second"], check=True, env=env)
 
 
+@pytest.fixture()
+def hermetic_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Apply ``_hermetic_git_env`` to this process for the CLI's own git calls.
+
+    The onboard CLI runs ``git rev-parse`` and ``git log`` with the inherited
+    environment. Under a hook, an inherited ``GIT_DIR`` would make them read
+    the real repository instead of the fixture.
+    """
+    for name in [name for name in os.environ if name.upper().startswith("GIT_")]:
+        monkeypatch.delenv(name)
+    env = _hermetic_git_env(tmp_path)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", env["GIT_CONFIG_GLOBAL"])
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
+@pytest.mark.usefixtures("hermetic_git")
 class TestOnboardGitCli:
+    def test_fixture_repo_ignores_a_hostile_git_environment(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pins ``_make_git_repo``'s isolation (the 2026-09-23 incident).
+
+        An inherited ``GIT_DIR`` must not reach another repository, and an
+        inherited template must not install hooks into the fixture.
+        """
+        clean = _hermetic_git_env(tmp_path)
+        decoy = tmp_path / "decoy"
+        subprocess.run(["git", "init", "-q", "--template=", str(decoy)], check=True, env=clean)
+        decoy_config = (decoy / ".git" / "config").read_bytes()
+        hostile_template = tmp_path / "hostile-template"
+        (hostile_template / "hooks").mkdir(parents=True)
+        (hostile_template / "hooks" / "pre-commit").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        (hostile_template / "hooks" / "pre-commit").chmod(0o755)
+        monkeypatch.setenv("GIT_DIR", str(decoy / ".git"))
+        monkeypatch.setenv("GIT_INDEX_FILE", str(decoy / ".git" / "index"))
+        monkeypatch.setenv("GIT_TEMPLATE_DIR", str(hostile_template))
+
+        repo = tmp_path / "repo"
+        _make_git_repo(repo)
+
+        assert (decoy / ".git" / "config").read_bytes() == decoy_config
+        commits = subprocess.run(
+            ["git", "-C", str(repo), "rev-list", "--count", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+            env=clean,
+        )
+        assert commits.stdout.strip() == "2"
+
     def test_dry_run_previews_without_writing(self, container: CoreContainer, tmp_path: Path) -> None:
         repo = tmp_path / "repo"
         _make_git_repo(repo)
