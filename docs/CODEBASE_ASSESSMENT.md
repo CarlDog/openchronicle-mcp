@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 199
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 200
 
 ## Current state
 
@@ -277,6 +277,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 200 | 2026-09-23 | **Line endings normalized.** New `.gitattributes` (`* text=auto eol=lf`, CRLF working copies only for `*.ps1`/`*.bat`/`*.cmd`) and a renormalize of the 23 files that still stored CR bytes, including 8 source files, `pyproject.toml`, the compose files and the workflow. A diff ignoring CR at end of line shows no other change. This clears the whole-file conflicts that mixed endings caused in main to v4/develop merges (design 0014 Part 4). |
 | 199 | 2026-09-23 | **Doc corrections and agent guardrails.** Design 0007 no longer claims `onboard_git` holds whole-batch transactions (only `memory import` does). `mcp_client_setup.md` notes Open WebUI's native MCP support since v0.6.31 (tools only, verified against its docs). `AGENTS.md` gains rules for autonomous agents, drawn from design 0014: research is not authorization, work goes through PRs, nothing is shipped before a tagged release with green CI, and no OC milestones for unmerged work. It also records the pre-commit gotcha: run `pre-commit install-hooks` after a hook `rev:` change, before committing. Documentation only. |
 | 198 | 2026-09-23 | **Dependabot alert #10 closed: `smol-toml` DoS in dev tooling.** `markdownlint-cli2` 0.23.2 pinned `smol-toml` 1.7.0 (vulnerable at 1.7.0 and below, fixed in 1.7.1). The dev dependency floor rises to `^0.23.3`, which resolves `smol-toml` 1.8.0; `npm audit` reports 0 vulnerabilities. The pre-commit markdownlint hook pin moves from v0.23.1 to v0.23.3 so both copies of the linter agree. Tooling only; no runtime change. |
 | 197 | 2026-09-23 | **CI type check green on Linux again.** `scripts/probe_performance.py` guarded its Windows-only `ctypes` calls (`WinDLL`, `get_last_error`) with `os.name` and `platform.system()`. mypy narrows platform stubs only on `sys.platform`, so the Linux `quality` job failed on every push from `682c68f0` (2026-09-04) through `70350c41`. The local Windows pre-commit mypy passed, so nobody saw it, and `build-and-push` was skipped for the whole period. Both guards now use `sys.platform == "win32"`; `mypy --platform linux` reproduced the 4 errors before the change and reports none after it. |
