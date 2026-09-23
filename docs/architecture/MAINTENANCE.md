@@ -186,6 +186,23 @@ stops being retried; a backfill run reports parked rows in the
 `tombstoned` count (neither `generated` nor `failed`), and the
 `embedding_backfill` job treats a tombstoned-only run as a success.
 
+### Operator background backfills
+
+`memory_embed` with `background=true` (MCP or REST) starts a backfill
+task that nothing awaits. When it ends, health's
+`last_background_backfill` records how it ended:
+
+| `outcome` | Meaning | Other fields |
+|---|---|---|
+| `ok` / `partial` / `failed` | The run returned. Same verdicts as a synchronous `memory_embed` | `generated`, `failed`, `tombstoned` |
+| `error` | The run raised. The traceback is logged at ERROR | `error_type`: the exception's class name, never its message |
+| `cancelled` | The task was cancelled | none |
+
+Every record carries `finished_at`. The field is `null` until a run
+finishes. It is held in memory, so a restart clears it. Before
+v3.4.0 an exception in this task left no log line and no health
+signal (fleet-review #27).
+
 ### Coverage-field relationships
 
 `embedding_status` coverage fields, after ADR 0009's tombstones:

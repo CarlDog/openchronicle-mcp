@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
+from typing import Any
 
 from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
 from openchronicle.core.domain.content_hash import hash_content
@@ -56,6 +57,19 @@ class BackfillResult:
     tombstoned: int
     elapsed_ms: int
 
+    @property
+    def outcome(self) -> str:
+        """The caller-facing verdict: ``ok``, ``partial`` or ``failed``.
+
+        One definition for every surface that reports a run, so the
+        tombstoned-only-is-``ok`` rule above cannot drift between them.
+        """
+        if self.failed == 0:
+            return "ok"
+        if self.generated == 0:
+            return "failed"
+        return "partial"
+
 
 class EmbeddingService:
     """Coordinates embedding generation and hybrid (FTS5 + semantic) search."""
@@ -83,11 +97,19 @@ class EmbeddingService:
         # maintenance loop's own periodic backfill stays safe regardless —
         # CAS publication makes concurrent runs correct, merely wasteful.
         self._background_backfill: asyncio.Task[BackfillResult] | None = None
+        # How the last operator background backfill ended, for health. In
+        # memory only: None until one finishes in this process.
+        self._last_background_backfill: dict[str, Any] | None = None
 
     @property
     def backfill_running(self) -> bool:
         """True while an operator-started background backfill is in flight."""
         return self._background_backfill is not None and not self._background_backfill.done()
+
+    @property
+    def last_background_backfill(self) -> dict[str, Any] | None:
+        """Outcome of the last finished operator background backfill."""
+        return self._last_background_backfill
 
     def start_background_backfill(self, *, force: bool = False) -> bool:
         """Start ``generate_missing`` on a worker thread; False if one runs.
@@ -101,8 +123,43 @@ class EmbeddingService:
         if self.backfill_running:
             self._safe_observe_job(name="operator_backfill", outcome="overlap")
             return False
-        self._background_backfill = asyncio.get_running_loop().create_task(self._run_operator_backfill(force=force))
+        task = asyncio.get_running_loop().create_task(self._run_operator_backfill(force=force))
+        task.add_done_callback(self._record_background_outcome)
+        self._background_backfill = task
         return True
+
+    def _record_background_outcome(self, task: asyncio.Task[BackfillResult]) -> None:
+        """Log and keep how an operator background backfill ended.
+
+        Nothing awaits the task. Before this callback an exception left no
+        log line at all: `backfill_running` went False while `stale` never
+        moved (fleet-review #27). Calling `exception()` also marks it
+        retrieved, so asyncio does not report it a second time.
+
+        Health gets the exception's type only. The traceback goes to the
+        log, matching REST, which never returns internal error text.
+        """
+        finished_at = utc_now().isoformat()
+        if task.cancelled():
+            self._last_background_backfill = {"outcome": "cancelled", "finished_at": finished_at}
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.error("Background embedding backfill failed", exc_info=exc)
+            self._last_background_backfill = {
+                "outcome": "error",
+                "finished_at": finished_at,
+                "error_type": type(exc).__name__,
+            }
+            return
+        result = task.result()
+        self._last_background_backfill = {
+            "outcome": result.outcome,
+            "finished_at": finished_at,
+            "generated": result.generated,
+            "failed": result.failed,
+            "tombstoned": result.tombstoned,
+        }
 
     async def _run_operator_backfill(self, *, force: bool) -> BackfillResult:
         started = time.monotonic()

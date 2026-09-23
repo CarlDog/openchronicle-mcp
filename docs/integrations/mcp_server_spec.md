@@ -22,7 +22,7 @@ stability guarantees see `docs/api/STABILITY.md`.
 | `memory_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`). `confirm` is **required** — omitting it is an error, not a preview. Two-step safety; the preview returns content/tags/project_id/pinned plus `deleted: false` and a `next_step`, without touching the DB. |
 | `memory_pin` | Toggle pin state. |
 | `memory_stats` | Counts + per-tag/per-source breakdown. |
-| `memory_embed` | Generate missing (or all, with `force=true` — which also retries rows parked as unembeddable) embeddings. Over-length content parks as a tombstone and is reported in the additive `tombstoned` count (a tombstoned-only run is `status="ok"`). `background=true` starts the backfill and returns immediately (`started`/`already_running`) — required for full reindexes, which outlive MCP tool timeouts; progress via health's `stale`/`missing` (parked rows stay in `unembeddable` by design). |
+| `memory_embed` | Generate missing (or all, with `force=true` — which also retries rows parked as unembeddable) embeddings. Over-length content parks as a tombstone and is reported in the additive `tombstoned` count (a tombstoned-only run is `status="ok"`). `background=true` starts the backfill and returns immediately (`started`/`already_running`) — required for full reindexes, which outlive MCP tool timeouts; progress via health's `stale`/`missing` (parked rows stay in `unembeddable` by design), and how the run ended via health's `last_background_backfill` ([MAINTENANCE.md](../architecture/MAINTENANCE.md#operator-background-backfills)). |
 
 The `memory_save` tool's input schema is the canonical "what does an
 LLM need to write a memory" shape:

@@ -53,14 +53,8 @@ def execute(service: EmbeddingService | None, *, force: bool = False) -> dict[st
     # Tombstoned rows (ADR 0009) are classified permanent outcomes, not
     # failures: a tombstoned-only run maps to "ok" (failed == 0) and the
     # additive `tombstoned` field carries the count.
-    if result.failed == 0:
-        outcome = "ok"
-    elif result.generated == 0:
-        outcome = "failed"
-    else:
-        outcome = "partial"
     return {
-        "status": outcome,
+        "status": result.outcome,
         "generated": result.generated,
         "failed": result.failed,
         "tombstoned": result.tombstoned,

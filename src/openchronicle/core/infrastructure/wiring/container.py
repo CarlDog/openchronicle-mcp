@@ -167,6 +167,10 @@ class CoreContainer:
             "last_failure_op": self.embedding_service.last_failure_op,
             "search_failure_count": search_failures,
             "last_search_failure_at": self.embedding_service.last_search_failure_at,
+            # How the last `background=true` backfill ended (null until one
+            # finishes in this process). Nothing awaits that task, so this is
+            # where an operator sees a run that died.
+            "last_background_backfill": self.embedding_service.last_background_backfill,
             # The operator's egress choice, visible where agents look
             # (operator-directed 2026-08-29): "remote" means memory
             # content leaves this host on every save/semantic search.

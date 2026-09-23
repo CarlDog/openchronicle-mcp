@@ -236,6 +236,118 @@ def test_background_backfill_guard_and_restart() -> None:
     assert seen_force == [True, False]
 
 
+def _run_background_to_completion(service: EmbeddingService) -> None:
+    """Start a background backfill and wait without awaiting the task.
+
+    Production never awaits it, so the test must not either: awaiting
+    would retrieve the exception and hide a missing done-callback.
+    """
+    import asyncio
+
+    async def scenario() -> None:
+        assert service.start_background_backfill() is True
+        task = service._background_backfill
+        assert task is not None
+        while not task.done():
+            await asyncio.sleep(0.01)
+        await asyncio.sleep(0)  # done-callbacks run on the next loop pass
+
+    asyncio.run(scenario())
+
+
+def test_background_backfill_exception_is_logged_and_kept(caplog: pytest.LogCaptureFixture) -> None:
+    """Fleet-review #27: an exception in the background task left no trace.
+
+    The operator was told to watch health while `stale` never moved.
+    """
+    import logging
+
+    service, _, _ = _make_service()
+
+    def broken_backfill(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
+        raise RuntimeError("store went away")
+
+    service.generate_missing = broken_backfill  # type: ignore[method-assign]
+
+    with caplog.at_level(logging.ERROR, logger="openchronicle.core.application.services.embedding_service"):
+        _run_background_to_completion(service)
+
+    errors = [r for r in caplog.records if r.getMessage() == "Background embedding backfill failed"]
+    assert len(errors) == 1
+    assert errors[0].levelno == logging.ERROR
+    assert errors[0].exc_info is not None
+    assert str(errors[0].exc_info[1]) == "store went away", "the log carries the traceback"
+    kept = service.last_background_backfill
+    assert kept is not None
+    assert kept["outcome"] == "error"
+    assert kept["error_type"] == "RuntimeError"
+    assert "store went away" not in repr(kept), "health carries the type, never the internal message"
+    assert service.backfill_running is False
+
+
+def test_background_backfill_result_is_kept() -> None:
+    service, _, _ = _make_service()
+    assert service.last_background_backfill is None, "nothing has finished yet"
+
+    def partial_backfill(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
+        return BackfillResult(generated=3, failed=1, tombstoned=2, elapsed_ms=5)
+
+    service.generate_missing = partial_backfill  # type: ignore[method-assign]
+    _run_background_to_completion(service)
+
+    kept = service.last_background_backfill
+    assert kept is not None
+    assert {k: v for k, v in kept.items() if k != "finished_at"} == {
+        "outcome": "partial",
+        "generated": 3,
+        "failed": 1,
+        "tombstoned": 2,
+    }
+    assert isinstance(kept["finished_at"], str)
+
+
+@pytest.mark.parametrize(
+    ("generated", "failed", "tombstoned", "expected"),
+    [
+        (5, 0, 0, "ok"),
+        (0, 0, 4, "ok"),  # ADR 0009: tombstoned-only is a success
+        (0, 0, 0, "ok"),
+        (2, 1, 0, "partial"),
+        (0, 3, 0, "failed"),
+        (0, 3, 2, "failed"),
+    ],
+)
+def test_backfill_outcome_mapping(generated: int, failed: int, tombstoned: int, expected: str) -> None:
+    result = BackfillResult(generated=generated, failed=failed, tombstoned=tombstoned, elapsed_ms=0)
+    assert result.outcome == expected
+
+
+def test_health_reports_the_last_background_backfill() -> None:
+    """The field must reach the health payload, not just the service."""
+    from unittest.mock import MagicMock
+
+    from openchronicle.core.application.config.settings import EmbeddingSettings
+    from openchronicle.core.infrastructure.wiring.container import CoreContainer
+
+    service, _, _ = _make_service()
+    container = MagicMock()
+    container.embedding_settings = EmbeddingSettings(provider="stub", model="stub")
+    container.embedding_service = service
+    container.embedding_endpoint_is_remote.return_value = False
+
+    assert CoreContainer.embedding_status_dict(container)["last_background_backfill"] is None
+
+    def ok_backfill(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
+        return BackfillResult(generated=1, failed=0, tombstoned=0, elapsed_ms=1)
+
+    service.generate_missing = ok_backfill  # type: ignore[method-assign]
+    _run_background_to_completion(service)
+
+    reported = CoreContainer.embedding_status_dict(container)["last_background_backfill"]
+    assert reported is not None
+    assert reported["outcome"] == "ok"
+
+
 # ── search_hybrid ───────────────────────────────────────────────────
 
 

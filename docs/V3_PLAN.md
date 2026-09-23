@@ -927,7 +927,9 @@ entry (below, or in its design doc):
      - ✅ `memory_update(content="")` blanked a memory and deleted its
        vector. Fixed in rev 201: the add and update use cases refuse
        blank content before any write, for every surface;
-     - background-backfill failures are invisible;
+     - ✅ background-backfill failures were invisible. Fixed in rev 202:
+       a done-callback logs the exception at ERROR, and health's
+       `last_background_backfill` reports how the last run ended;
      - overlap warnings are false;
      - the OpenAI adapter does no response-shape validation;
    - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
