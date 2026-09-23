@@ -523,6 +523,19 @@ class TestMemoryRoutes:
         assert body["code"] == "PROVIDER_ERROR"
         assert body["hint"] == "check OLLAMA_HOST"
 
+    def test_semantic_revision_churn_is_a_typed_502(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import RevisionChangedError
+
+        service = MagicMock()
+        service.search_semantic.side_effect = RevisionChangedError()
+        _get_container(client).embedding_service = service
+
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "mode": "semantic"})
+        assert resp.status_code == 502
+        body = resp.json()
+        assert body["code"] == "MODEL_REVISION_CHANGED"
+        assert "Retry" in body["hint"]
+
     def test_memory_list(self, client: TestClient) -> None:
         _get_container(client).storage.list_memory.return_value = [_make_memory()]
 

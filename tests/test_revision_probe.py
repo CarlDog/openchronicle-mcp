@@ -28,7 +28,7 @@ from openchronicle.core.application.services import maintenance_loop
 from openchronicle.core.application.services.embedding_service import BackfillResult, EmbeddingService
 from openchronicle.core.application.use_cases import add_memory, embed_memory, update_memory
 from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
-from openchronicle.core.domain.exceptions import ProviderError, RevisionUnknownError
+from openchronicle.core.domain.exceptions import ProviderError, RevisionChangedError, RevisionUnknownError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.models.revision_snapshot import UNKNOWN_REVISION, RevisionSnapshot
@@ -274,6 +274,7 @@ class _RevisionPort(EmbeddingPort):
         self.snapshot = snapshot
         self.probe_result: RevisionSnapshot | None = None
         self.probes = 0
+        self.snapshot_reads = 0
         self.embeds = 0
         self.probe_threads: list[int] = []
         self.during_embed: Callable[[], None] | None = None
@@ -284,6 +285,7 @@ class _RevisionPort(EmbeddingPort):
         return True
 
     def revision_snapshot(self) -> RevisionSnapshot:
+        self.snapshot_reads += 1
         return self.snapshot
 
     def refresh_revision(self, *, force: bool = False) -> RevisionSnapshot:
@@ -322,6 +324,17 @@ class _RevisionPort(EmbeddingPort):
 
     def settings_fingerprint(self) -> str:
         return "fp"
+
+
+class _QueryRevisionPort(_RevisionPort):
+    """Return the vector for the identity seen when the provider call began."""
+
+    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        identity = self.snapshot.value
+        self.embeds += len(texts)
+        if self.during_embed is not None:
+            self.during_embed()
+        return [[0.0, 1.0] if identity == "sha256:B" else [1.0, 0.0] for _ in texts]
 
 
 def _known(value: str | None) -> RevisionSnapshot:
@@ -436,6 +449,134 @@ class TestTheIncident:
         port.during_embed = flip_once
         EmbeddingService(port=port, store=store).generate_missing()
         assert _stamps(store) == {"sha256:A"}
+
+
+class TestQueryRevisionRace:
+    @staticmethod
+    def _b_store() -> SqliteStore:
+        store = _store_stamped("sha256:B", count=0)
+        for memory_id, vector in (("right", [0.0, 1.0]), ("wrong", [1.0, 0.0])):
+            store.add_memory(MemoryItem(id=memory_id, content=f"{memory_id} candidate", project_id="p"))
+            save_vec(
+                store, memory_id, vector, model="m", provider="ollama", fingerprint="fp", model_revision="sha256:B"
+            )
+        return store
+
+    @pytest.mark.parametrize("mode", ["semantic", "hybrid"])
+    def test_a_to_b_retries_with_the_b_query_vector(self, mode: str) -> None:
+        port = _QueryRevisionPort(_known("sha256:A"))
+
+        def flip_once() -> None:
+            if port.embeds == 1:
+                port.snapshot = _known("sha256:B")
+
+        port.during_embed = flip_once
+        service = EmbeddingService(port=port, store=self._b_store())
+
+        search = service.search_semantic if mode == "semantic" else service.search_hybrid
+        hits = search("vectorquery", top_k=2)
+        assert [hit.item.id for hit in hits] == ["right", "wrong"]
+        assert port.embeds == 2
+        assert port.snapshot_reads == 3, "the post-change snapshot is reused before the retry"
+        assert port.probes == 0, "search must not add a request-path revision probe"
+
+    def test_same_digest_refresh_does_not_retry(self) -> None:
+        port = _QueryRevisionPort(_known("sha256:B"))
+        port.during_embed = lambda: setattr(port, "snapshot", _known("sha256:B"))
+        service = EmbeddingService(port=port, store=self._b_store())
+
+        assert service.search_semantic("vectorquery", top_k=1)[0].item.id == "right"
+        assert port.embeds == 1
+        assert port.snapshot_reads == 2
+        assert port.probes == 0
+
+    def test_unknown_to_known_retries_but_initially_unknown_remains_supported(self) -> None:
+        port = _QueryRevisionPort()
+
+        def verify_once() -> None:
+            if port.embeds == 1:
+                port.snapshot = _known("sha256:B")
+
+        port.during_embed = verify_once
+        service = EmbeddingService(port=port, store=self._b_store())
+        assert service.search_semantic("vectorquery", top_k=1)[0].item.id == "right"
+        assert port.embeds == 2
+
+        port.snapshot = UNKNOWN_REVISION
+        port.during_embed = None
+        assert service.search_semantic("vectorquery", top_k=2)
+        assert port.embeds == 3
+
+    def test_known_to_unknown_never_uses_revision_agnostic_rows(self) -> None:
+        port = _QueryRevisionPort(_known("sha256:A"))
+        port.during_embed = lambda: setattr(port, "snapshot", UNKNOWN_REVISION)
+        service = EmbeddingService(port=port, store=self._b_store())
+
+        with pytest.raises(RevisionChangedError):
+            service.search_semantic("vectorquery")
+        assert port.embeds == 2
+        assert (service.search_failure_count, service.failure_count) == (0, 0)
+
+        port = _QueryRevisionPort(_known("sha256:A"))
+        port.during_embed = lambda: setattr(port, "snapshot", UNKNOWN_REVISION)
+        service = EmbeddingService(port=port, store=_store_stamped("sha256:A", count=1))
+        hits = service.search_hybrid("memory")
+        assert hits and all(hit.channel == "keyword" for hit in hits)
+        assert (service.search_failure_count, service.failure_count) == (0, 0)
+
+    def test_repeated_churn_falls_back_without_provider_failure(self, caplog: pytest.LogCaptureFixture) -> None:
+        port = _QueryRevisionPort(_known("sha256:A"))
+        revisions = iter(("sha256:B", "sha256:C"))
+        port.during_embed = lambda: setattr(port, "snapshot", _known(next(revisions)))
+        metrics = MagicMock()
+        store = _store_stamped("sha256:B", count=1)
+        service = EmbeddingService(port=port, store=store, metrics=metrics)
+        service._search_failure_count = 1
+        service._record_failure("search")
+        previous_failure_at = service.last_failure_at
+
+        with caplog.at_level(logging.WARNING):
+            hits = service.search_hybrid("memory")
+        assert hits and all(hit.channel == "keyword" for hit in hits)
+        assert port.embeds == 2
+        assert port.probes == 0
+        assert (service.search_failure_count, service.failure_count) == (1, 1)
+        assert service.last_failure_at == previous_failure_at
+        metrics.observe_search_fallback.assert_called_once_with(reason="revision_churn")
+        warnings = [
+            record for record in caplog.records if "revision changed during semantic search" in record.getMessage()
+        ]
+        assert len(warnings) == 1
+
+    def test_repeated_churn_raises_for_semantic_only(self) -> None:
+        port = _QueryRevisionPort(_known("sha256:A"))
+        revisions = iter(("sha256:B", "sha256:C"))
+        port.during_embed = lambda: setattr(port, "snapshot", _known(next(revisions)))
+        service = EmbeddingService(port=port, store=self._b_store())
+
+        with pytest.raises(RevisionChangedError, match="revision changed"):
+            service.search_semantic("vectorquery")
+        assert port.embeds == 2
+        assert (service.search_failure_count, service.failure_count) == (0, 0)
+
+    def test_provider_failure_on_retry_keeps_provider_failure_classification(self) -> None:
+        port = _QueryRevisionPort(_known("sha256:A"))
+
+        def interrupt_retry() -> None:
+            if port.embeds == 1:
+                port.snapshot = _known("sha256:B")
+            else:
+                raise ProviderError("provider unavailable")
+
+        port.during_embed = interrupt_retry
+        metrics = MagicMock()
+        service = EmbeddingService(port=port, store=_store_stamped("sha256:B", count=1), metrics=metrics)
+
+        hits = service.search_hybrid("memory")
+        assert hits and all(hit.channel == "keyword" for hit in hits)
+        assert port.embeds == 2
+        assert (service.search_failure_count, service.failure_count) == (1, 1)
+        metrics.observe_search_fallback.assert_called_once_with(reason="provider_failure")
 
 
 class TestSingleBackfill:

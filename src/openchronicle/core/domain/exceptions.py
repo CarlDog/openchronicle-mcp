@@ -10,6 +10,7 @@ from __future__ import annotations
 from openchronicle.core.domain.errors.error_codes import (
     CONFIG_ERROR,
     INVALID_ARGUMENT,
+    MODEL_REVISION_CHANGED,
     NOT_FOUND,
     PROVIDER_ERROR,
 )
@@ -80,4 +81,15 @@ class RevisionUnknownError(ProviderError):
                 "does. See health.embedding_status.model_revision_state."
             ),
             details=details,
+        )
+
+
+class RevisionChangedError(ProviderError):
+    """A query could not be matched to a stable, verified model revision."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "the embedding model revision changed during semantic search",
+            error_code=MODEL_REVISION_CHANGED,
+            hint="Retry after the model revision settles; check health.embedding_status.model_revision_state.",
         )

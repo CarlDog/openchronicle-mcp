@@ -192,8 +192,8 @@ does differently.
 
 ## Current Sprint
 
-**2026-09-23 — Gemini branch reviewed and not merged; prompt library
-researched.**
+**2026-09-23 — Gemini branch rejected as a unit; prompt library researched;
+query-revision race fix in local review.**
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
@@ -209,6 +209,16 @@ researched.**
   at. The deploy is env-only, because stack 151 runs a detached, older
   compose (V3_PLAN item 12). Until a deploy, production (v3.3.0) still
   needs 0014's interim control after any NAS, OC or Ollama restart.
+- The first track of [plan 0016](docs/design/0016-review-findings-plan.md)
+  is implemented locally on `codex/query-revision-race`, not in `main`:
+  search snapshots the revision before and after embedding, retries one
+  observed change, and fails closed if a known revision becomes unknown.
+  Repeated churn gets keyword-only hybrid fallback; semantic-only returns
+  typed `MODEL_REVISION_CHANGED` (HTTP 502), without a provider-failure
+  count. Ten focused regression tests and the full Windows suite (1,146
+  passed, one skip), Ruff and mypy passed locally. PR review and CI are
+  still required. The timestamp, compose, prompt-pilot and release
+  tracks remain proposed or gated. No merge, release or deployment occurred.
 - Found 2026-09-23, not yet fixed: chronological listings misorder
   memories whose `created_at` carries a UTC offset, which `onboard_git`
   output does (V3_PLAN item 11).

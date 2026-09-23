@@ -14,7 +14,7 @@ from typing import Any
 from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
 from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
-from openchronicle.core.domain.exceptions import ProviderError, RevisionUnknownError
+from openchronicle.core.domain.exceptions import ProviderError, RevisionChangedError, RevisionUnknownError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.revision_snapshot import RevisionSnapshot
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
@@ -853,6 +853,13 @@ class EmbeddingService:
                 )
                 self._search_failure_count = 0
             self._record_success()
+        except RevisionChangedError:
+            # The provider answered, but its observed revision did not stay
+            # stable long enough to score safely. This is not an outage and
+            # must not change provider-failure health counters.
+            self._safe_observe_fallback(reason="revision_churn")
+            logger.warning("embedding model revision changed during semantic search; returning keyword-only results")
+            return _page(_wrap_keyword_ranked(keyword_results))
         except Exception as exc:
             if self._is_content_too_long(exc):
                 # An over-length QUERY is caller content, not provider
@@ -964,16 +971,28 @@ class EmbeddingService:
         """
         import numpy as np
 
-        query_vec = self._embed_single(query)
+        opening_snapshot = self._port.revision_snapshot()
+        snapshot = opening_snapshot
+        for attempt in range(2):
+            query_vec = self._embed_single(query)
+            after_embed = self._port.revision_snapshot()
+            # verified_at may change after a probe of the same weights.
+            if (snapshot.known, snapshot.value) == (after_embed.known, after_embed.value):
+                # Once this request has seen a known revision, falling back
+                # to the unknown/agnostic filter could mix embedding spaces.
+                if opening_snapshot.known and not after_embed.known:
+                    raise RevisionChangedError()
+                break
+            if attempt:
+                raise RevisionChangedError()
+            snapshot = after_embed
+
         # Space-scoped (ADR 0005): provider + model + MEASURED query
         # dimensions. A row from another provider under the same label,
         # a migration sentinel, or a different-dims row is invisible to
-        # ranking — never mixed in. The revision comes from a snapshot
-        # read, never a probe; while it is unverified it is left out of the
-        # filter (ADR 0005 §7's one exception), since the query embed
-        # needs a live provider and the startup probe usually settles it
-        # within seconds.
-        snapshot = self._port.revision_snapshot()
+        # ranking — never mixed in. The revision comes from snapshot
+        # reads, never a probe; while it starts and remains unverified it
+        # is left out of the filter (ADR 0005 §7's one exception).
         vector_load_started = time.monotonic()
         try:
             all_embeddings = self._store.list_embeddings(
