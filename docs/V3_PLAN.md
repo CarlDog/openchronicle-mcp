@@ -920,6 +920,25 @@ entry (below, or in its design doc):
    mcp 2.x migration by its own entry.
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
+8. **v3.3.1 correctness patch** ([0014](design/0014-gemini-audit-branch-review.md)).
+   Contents:
+   - the four open fleet-review issue #27 items: `memory_update(content="")`
+     blanks a memory and deletes its vector; background-backfill failures
+     are invisible; overlap warnings are false; the OpenAI adapter does
+     no response-shape validation;
+   - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
+     none / unknown) plus a scheduled re-probe off the request path;
+   - an image smoke test before `build-and-push`.
+
+   Plan the probe fix and review it adversarially before implementing.
+9. **Line-ending renormalization.** A `.gitattributes` rule
+   (`* text=auto eol=lf`) plus a renormalize commit on `main`, before
+   the next main→`v4/develop` merge. Docs and several `src/` files have
+   mixed CRLF since `682c68f0`.
+10. **Prompt library Stage 0** ([0015](design/0015-prompt-library.md)).
+    Operator-run, zero code: save reused prompts in a dedicated OC
+    project for about two weeks. The outcome decides whether Option B
+    gets built.
 
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
 triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+

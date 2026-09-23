@@ -161,6 +161,20 @@ does differently.
 
 ## Current Sprint
 
+**2026-09-23 — Gemini branch reviewed and not merged; prompt library
+researched.**
+
+- The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
+  merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
+  Its docs and OC milestone memories describe unshipped work.
+- Next: a v3.3.1 correctness patch: fleet-review #27, plus the §1.1
+  Ollama probe fix. The probe defect is reachable in production, so
+  follow 0014's interim control after any NAS, OC or Ollama restart.
+  Then renormalize line endings before the next main→`v4/develop`
+  merge.
+- The prompt library ([0015](docs/design/0015-prompt-library.md)) is
+  research only; its Stage 0 is operator-run.
+
 **2026-08-29 — the ranking/identity/provider arc closed; v3.3.0
 shipping to prod.** One day's arc, all reviewed adversarially and all
 pushed:
