@@ -52,12 +52,13 @@ enforces parity.
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
   with it unset fails loudly instead of silently tracking `:latest`),
-  and stack 151 sets `OC_TAG=v3.1.0`; a push to `main` refreshes only
-  `:latest`, which that stack does not pull. **Code goes live when
-  `OC_TAG` moves — a push alone deploys nothing.** So runtime changes
-  (`src/`, `pyproject.toml`, `Dockerfile`, `docker-compose.nas.yml`)
-  ship with the next tagged release, and a `portainer-mcp` redeploy is
-  warranted only when you are moving `OC_TAG` to a new tag. The
+  and stack 151 pins it (`v3.3.0` on 2026-09-23); a push to `main`
+  refreshes only `:latest`, which that stack does not pull. **Code goes
+  live when `OC_TAG` moves — a push alone deploys nothing.** So runtime
+  changes (`src/`, `pyproject.toml`, `Dockerfile`) ship with the next
+  tagged release, and a `portainer-mcp` redeploy is warranted only when
+  you are moving `OC_TAG` to a new tag. `docker-compose.nas.yml` changes
+  do not ship even then: see the stack note below. The
   `build-and-push` job in `.github/workflows/test.yml`
   gates that image: it only
   runs `needs: [test, quality]`, so one green check is a stronger
@@ -73,12 +74,26 @@ enforces parity.
   that cannot start never reaches `:latest`.
   Doc-only / hook-only pushes don't need a redeploy.
 
-  Lookup the stack id dynamically (don't hardcode it):
+  **Stack 151 is detached from Git** (recorded 2026-09-09; its stored
+  compose was last updated 2026-08-31). It runs Portainer's own copy of
+  the compose, which predates `682c68f0`, so a git redeploy does not
+  apply. Look up the stack id dynamically (don't hardcode it), then
+  move the tag with one call, which redeploys a file-based stack:
 
   ```text
   portainer_list_stacks → filter for name == "openchronicle-mcp" → use that .Id
-  portainer_redeploy_git_stack(stack_id=<id>, confirm=true, pull_image=true)
+  portainer_set_stack_env(stack_id=<id>, set=[{name: "OC_TAG", value: "<tag>"}],
+                          confirm=true, pull_image=true)
   ```
+
+  Do not paste the repo's `docker-compose.nas.yml` over the stored file
+  unreviewed. Since `682c68f0` it puts `oc` on a dedicated
+  `oc-observability` network instead of `network_mode: bridge`, which
+  the fleet's address-pool rule exists to prevent. A compose-only fix
+  reaches the NAS through its stack env var instead: rev 210's log path
+  needs `OC_LOG_FILE=/output/logs/openchronicle.log` set in the stack.
+  Reconciling the two files is an open operator decision (V3_PLAN
+  item 12).
 
   Verify with `mcp__openchronicle__health`: `package_version` is the
   signal **when the released version actually changed** — it reports the
@@ -191,8 +206,12 @@ researched.**
   design 0010 blocks releasing its metrics instrumentation, which
   `main` carries, while B/A is inconclusive (options in V3_PLAN item
   8). The version bump and CHANGELOG go in the commit the tag points
-  at. Until a deploy, production (v3.3.0) still needs 0014's interim
-  control after any NAS, OC or Ollama restart.
+  at. The deploy is env-only, because stack 151 runs a detached, older
+  compose (V3_PLAN item 12). Until a deploy, production (v3.3.0) still
+  needs 0014's interim control after any NAS, OC or Ollama restart.
+- Found 2026-09-23, not yet fixed: chronological listings misorder
+  memories whose `created_at` carries a UTC offset, which `onboard_git`
+  output does (V3_PLAN item 11).
 - The prompt library ([0015](docs/design/0015-prompt-library.md)) is
   research only; its Stage 0 is operator-run.
 

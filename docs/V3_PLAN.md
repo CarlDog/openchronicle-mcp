@@ -978,6 +978,33 @@ entry (below, or in its design doc):
     Operator-run, zero code: save reused prompts in a dedicated OC
     project for about two weeks. The outcome decides whether Option B
     gets built.
+11. **Chronological order ignores `created_at` offsets** (found
+    2026-09-23, reproduced against `SqliteStore`). A backdated
+    `created_at` is stored with its offset (`isoformat()`), and every
+    recency query sorts the TEXT column, so a memory saved as
+    `2026-09-23T04:41:37-05:00` (09:41Z) lists after one saved as
+    `07:04:17+00:00`. `onboard_git` hands out local-offset timestamps
+    and tells agents to save with them, so git-derived memories in
+    production misorder by their offset in `memory_list`
+    (`order_by="created_at"`, the recency window consumers rely on),
+    `context_recent` and the FTS tie-break. Accuracy defect,
+    pre-existing. Fix: normalize to UTC at one chokepoint, migrate the
+    existing rows, and consider emitting UTC from `onboard_git`. Plan
+    and review before implementing.
+12. **Stack 151 runs a detached, older compose** (measured read-only
+    2026-09-23). Portainer's stored file predates `682c68f0`. It keeps
+    `oc` on `network_mode: bridge`, where the repo's compose now puts
+    `oc` on a dedicated `oc-observability` network. That shape was
+    never deployed and runs against the fleet's address-pool rule
+    (the stack moved to the shared bridge in `343ba47c`, 2026-08-18).
+    It also keeps the old `OC_LOG_FILE` default, and the stack env
+    does not set that variable. So the v3.4.0 deploy stays env-only:
+    move `OC_TAG` and set `OC_LOG_FILE=/output/logs/openchronicle.log`
+    in one `portainer_set_stack_env` call. Operator decision:
+    reconcile the repo compose with the live shape, or re-attach the
+    stack to Git after the network question is settled. It is tied to
+    design 0010's disposition, since the network exists for the
+    metrics scrape.
 
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
 triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+
