@@ -25,6 +25,7 @@ from openchronicle.core.application.services.git_onboard import (
     cluster_commits,
     extract_commits_from_git,
     extract_commits_from_url,
+    extract_history_from_path,
     filter_commits,
     validate_server_repo_url,
 )
@@ -262,6 +263,34 @@ def test_clone_env_is_an_allowlist_no_unrelated_secret_crosses(monkeypatch: pyte
     assert "OPENAI_API_KEY" not in env
     assert "TOTALLY_NEW_SECRET_SENTINEL" not in env
     assert "PATH" in env, "binary discovery must survive the allowlist"
+
+
+def test_local_git_calls_get_the_same_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`rev-parse` and `log` inherited the whole environment until 2026-09-23.
+
+    That included the server's secrets and any GIT_DIR a hook exported,
+    which overrides `git -C`. The real-git version of the GIT_DIR case is
+    in test_cli_smoke.py.
+    """
+    monkeypatch.setenv("OC_API_KEY", "server-api-secret")
+    monkeypatch.setenv("GIT_DIR", "/elsewhere/.git")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/isolated.gitconfig")
+    envs: list[object] = []
+
+    def fake_run(cmd: list[str], **kwargs: object) -> SimpleNamespace:
+        envs.append(kwargs.get("env"))
+        return SimpleNamespace(returncode=0, stdout="" if "log" in cmd else "main\n", stderr="")
+
+    with patch("openchronicle.core.application.services.git_onboard.subprocess.run", side_effect=fake_run):
+        extract_history_from_path("/fake/repo")
+
+    assert len(envs) == 3, "two rev-parse calls and one log"
+    for env in envs:
+        assert isinstance(env, dict), "the child must not inherit the parent environment"
+        assert "OC_API_KEY" not in env
+        assert "GIT_DIR" not in env
+        assert "PATH" in env
+        assert env["GIT_CONFIG_GLOBAL"] == "/isolated.gitconfig", "config isolation must still reach git"
 
 
 def test_clone_env_never_carries_the_raw_token(monkeypatch: pytest.MonkeyPatch) -> None:

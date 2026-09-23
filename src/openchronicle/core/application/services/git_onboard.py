@@ -413,12 +413,14 @@ def _resolve_ref(repo_path: str) -> tuple[str, str]:
         capture_output=True,
         text=True,
         timeout=10,
+        env=_git_child_env(),
     )
     head = subprocess.run(
         ["git", "-C", repo_path, "rev-parse", "HEAD"],
         capture_output=True,
         text=True,
         timeout=10,
+        env=_git_child_env(),
     )
     if branch.returncode != 0 or head.returncode != 0:
         raise RuntimeError(f"git rev-parse failed: {(branch.stderr + head.stderr).strip()}")
@@ -507,6 +509,7 @@ def extract_commits_from_git(
             capture_output=True,
             text=True,
             timeout=60,
+            env=_git_child_env(),
         )
     except FileNotFoundError as err:
         raise RuntimeError("git is not installed or not in PATH") from err
@@ -589,14 +592,19 @@ def extract_commits_from_git(
     return commits
 
 
-# Environment variables the `git clone` child actually needs, and nothing
-# else. The old shape was `os.environ.copy()`, which handed the child every
-# secret the server holds — OC_API_KEY, OPENAI_API_KEY, the raw
+# Environment variables a git child process actually needs, and nothing
+# else. The old clone shape was `os.environ.copy()`, which handed the child
+# every secret the server holds — OC_API_KEY, OPENAI_API_KEY, the raw
 # OC_GIT_TOKEN — for an operation whose only consumer needs are binary
 # discovery, TLS trust, proxies, locale, and (for ssh URLs) the agent
 # socket. An allowlist excludes future secrets by construction, where a
 # denylist would have to name them one by one and miss the next one.
-_CLONE_ENV_PASSTHROUGH = (
+#
+# It also keeps out GIT_DIR, GIT_WORK_TREE and GIT_INDEX_FILE. Every git
+# hook exports GIT_DIR, and it overrides `git -C <path>`. The local
+# `rev-parse` and `log` calls, which inherited the whole environment
+# until 2026-09-23, would then walk a different repository.
+_GIT_ENV_PASSTHROUGH = (
     # binary discovery + working basics
     "PATH",
     "HOME",
@@ -635,13 +643,22 @@ _CLONE_ENV_PASSTHROUGH = (
     "SSH_AUTH_SOCK",
     "GIT_SSH",
     "GIT_SSH_COMMAND",
+    # which config files git reads; they choose no repository and carry no
+    # secret, and they let an operator or a test isolate git config
+    "GIT_CONFIG_GLOBAL",
+    "GIT_CONFIG_NOSYSTEM",
 )
+
+
+def _git_child_env() -> dict[str, str]:
+    """The allowlisted subset of this process's environment, for any git child."""
+    return {name: value for name in _GIT_ENV_PASSTHROUGH if (value := os.environ.get(name)) is not None}
 
 
 def _build_clone_env(repo_url: str) -> dict[str, str]:
     """Build a least-privilege subprocess env for ``git clone``.
 
-    Passes through only ``_CLONE_ENV_PASSTHROUGH``, sets
+    Passes through only ``_GIT_ENV_PASSTHROUGH``, sets
     ``GIT_TERMINAL_PROMPT=0`` (a private repo with no token must fail
     fast with git's own "could not read Username" error, not sit blocked
     on a prompt that can never be answered until the 300s timeout), and
@@ -669,7 +686,7 @@ def _build_clone_env(repo_url: str) -> dict[str, str]:
     that the clone might somehow follow. v1 supports github.com only;
     GitLab/Bitbucket/etc. would need their own host-scoped tokens.
     """
-    env = {name: value for name in _CLONE_ENV_PASSTHROUGH if (value := os.environ.get(name)) is not None}
+    env = _git_child_env()
     env["GIT_TERMINAL_PROMPT"] = "0"
     token = os.environ.get("OC_GIT_TOKEN")
     if token and repo_url.startswith("https://github.com/"):

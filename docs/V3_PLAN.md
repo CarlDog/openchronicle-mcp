@@ -935,6 +935,10 @@ entry (below, or in its design doc):
        warns once per run instead of once per tick;
      - ✅ the OpenAI adapter did no response-shape validation. Fixed in
        rev 204: both adapters share one boundary validator;
+   - ✅ git_onboard's local `rev-parse` and `log` calls get the same
+     allowlisted environment as the clone (rev 205). An inherited
+     `GIT_DIR`, which every git hook exports, had pointed the walk at
+     a different repository;
    - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
      none / unknown) plus a scheduled re-probe off the request path;
    - an image smoke test before `build-and-push`.
@@ -1295,7 +1299,8 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   name collection/index/id) and `oc memory export --out` publishes via
   `mkstemp` + `os.replace`. ~~A least-privilege `onboard_git` child
   environment~~ — **✅ SHIPPED 2026-08-28** (rev 117): allowlisted clone
-  env with a sentinel test, raw token never in the child,
+  env (extended 2026-09-23, rev 205, to the local `rev-parse` and `log`
+  calls, which had inherited everything) with a sentinel test, raw token never in the child,
   `GIT_TERMINAL_PROMPT=0`, `--no-checkout`, userinfo/query/fragment
   rejection, stderr scrubbing. ~~Explicit server-side clone
   *destination policy*~~ — **✅ DECIDED AND SHIPPED 2026-08-28** (rev

@@ -19,6 +19,7 @@ import pytest
 
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.main import main
+from tests.helpers.git_repos import hermetic_git_env, make_git_repo
 
 
 @pytest.fixture()
@@ -160,53 +161,20 @@ class TestErrorPaths:
         assert "OC_EMBEDDING_PROVIDER" in out
 
 
-def _hermetic_git_env(scratch: Path) -> dict[str, str]:
-    """An environment in which git sees only the fixture repository.
-
-    Two leaks broke these tests on 2026-09-23:
-
-    - Under a git hook (the pre-commit framework runs this suite), git exports
-      ``GIT_DIR`` and ``GIT_INDEX_FILE``. In a linked worktree ``GIT_DIR`` is
-      absolute, so an inherited ``git init <tmp>`` reinitialized the REAL
-      repository and flipped its ``core.bare`` to true.
-    - The developer's global ``init.templateDir`` copied a real pre-commit
-      hook (the fleet identity allowlist) into the fixture, and that hook
-      rejected the fixture's commits.
-
-    So drop every inherited ``GIT_*`` variable and read no global or system
-    config.
-    """
-    empty_config = scratch / "empty.gitconfig"
-    empty_config.write_text("", encoding="utf-8")
-    env = {name: value for name, value in os.environ.items() if not name.upper().startswith("GIT_")}
-    env["GIT_CONFIG_GLOBAL"] = str(empty_config)
-    env["GIT_CONFIG_NOSYSTEM"] = "1"
-    return env
-
-
 def _make_git_repo(path: Path) -> None:
-    env = _hermetic_git_env(path.parent)
-    identity = ["-c", "user.name=Smoke", "-c", "user.email=smoke@example.invalid"]
-    subprocess.run(["git", "init", "-q", "--template=", str(path)], check=True, env=env)
-    (path / "a.py").write_text("print('one')\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(path), "add", "."], check=True, env=env)
-    subprocess.run(["git", "-C", str(path), *identity, "commit", "-q", "-m", "feat: first"], check=True, env=env)
-    (path / "b.py").write_text("print('two')\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(path), "add", "."], check=True, env=env)
-    subprocess.run(["git", "-C", str(path), *identity, "commit", "-q", "-m", "feat: second"], check=True, env=env)
+    make_git_repo(path, ["feat: first", "feat: second"])
 
 
 @pytest.fixture()
 def hermetic_git(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Apply ``_hermetic_git_env`` to this process for the CLI's own git calls.
+    """Keep the developer's git environment out of the CLI's own git calls.
 
-    The onboard CLI runs ``git rev-parse`` and ``git log`` with the inherited
-    environment. Under a hook, an inherited ``GIT_DIR`` would make them read
-    the real repository instead of the fixture.
+    Since 2026-09-23 the onboard code drops an inherited ``GIT_DIR`` itself
+    (``_git_child_env``). This also keeps global and system git config out.
     """
     for name in [name for name in os.environ if name.upper().startswith("GIT_")]:
         monkeypatch.delenv(name)
-    env = _hermetic_git_env(tmp_path)
+    env = hermetic_git_env(tmp_path)
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", env["GIT_CONFIG_GLOBAL"])
     monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
 
@@ -221,7 +189,7 @@ class TestOnboardGitCli:
         An inherited ``GIT_DIR`` must not reach another repository, and an
         inherited template must not install hooks into the fixture.
         """
-        clean = _hermetic_git_env(tmp_path)
+        clean = hermetic_git_env(tmp_path)
         decoy = tmp_path / "decoy"
         subprocess.run(["git", "init", "-q", "--template=", str(decoy)], check=True, env=clean)
         decoy_config = (decoy / ".git" / "config").read_bytes()
@@ -245,6 +213,30 @@ class TestOnboardGitCli:
             env=clean,
         )
         assert commits.stdout.strip() == "2"
+
+    def test_onboard_reads_the_named_repo_despite_an_inherited_git_dir(
+        self, container: CoreContainer, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Every git hook exports GIT_DIR, and it overrides `git -C <path>`.
+
+        The onboard walk inherited it until 2026-09-23 and read the other
+        repository's history into the project's memories.
+        """
+        target = tmp_path / "target"
+        decoy = tmp_path / "decoy"
+        make_git_repo(target, ["feat: target work"])
+        make_git_repo(decoy, ["feat: decoy work"])
+        monkeypatch.setenv("GIT_DIR", str(decoy / ".git"))
+        monkeypatch.setenv("GIT_WORK_TREE", str(decoy))
+        rc, out = _run(container, ["init-project", "onboard-env"])
+        project_id = out.strip().splitlines()[-1].strip()
+
+        rc, out = _run(container, ["onboard", "git", "--project-id", project_id, "--repo-path", str(target)])
+
+        assert rc == 0
+        saved = "\n".join(m.content for m in container.storage.list_memory_by_source("git-onboard", project_id))
+        assert "feat: target work" in saved
+        assert "feat: decoy work" not in saved
 
     def test_dry_run_previews_without_writing(self, container: CoreContainer, tmp_path: Path) -> None:
         repo = tmp_path / "repo"
