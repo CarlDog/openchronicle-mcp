@@ -239,6 +239,10 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
             response = httpx.get(url, timeout=_PROBE_TIMEOUT, verify=self._verify_tls)
             response.raise_for_status()
             payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            # Not str(exc): httpx puts the full request URL in it, including
+            # any user:password in OLLAMA_HOST, and this line is a WARNING.
+            return self._probe_failed(f"HTTP {exc.response.status_code}: {_upstream_error(exc.response)}")
         except Exception as exc:
             return self._probe_failed(f"{type(exc).__name__}: {exc}")
         found = _find_model(payload, self._model)

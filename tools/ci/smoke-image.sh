@@ -14,8 +14,8 @@ image="$1"
 expected="$2"
 
 echo "1/3 oc version reports build revision $expected"
-# --entrypoint oc skips the entrypoint script, which echoes a bootstrap
-# line to stdout on a fresh container and would corrupt the JSON.
+# --entrypoint oc skips the entrypoint's bootstrap and privilege drop, so
+# this check isolates the CLI; step 3 exercises the real entrypoint.
 version_json="$(docker run --rm --entrypoint oc "$image" version --json)"
 python3 - "$expected" "$version_json" <<'PY'
 import json

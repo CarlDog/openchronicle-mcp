@@ -36,7 +36,8 @@ mkdir -p "$(dirname "$OC_DB_PATH")" "$OC_CONFIG_DIR" "$OC_OUTPUT_DIR"
 # restart. cp -n (no-clobber) preserves any operator changes that
 # may exist alongside an absent marker.
 if [ -d /config-defaults ] && [ ! -f "$OC_CONFIG_DIR/.bootstrapped" ]; then
-  echo "entrypoint: bootstrapping $OC_CONFIG_DIR from /config-defaults/ (first run)"
+  # stderr: stdout belongs to the command, and `oc ... --json` is parsed.
+  echo "entrypoint: bootstrapping $OC_CONFIG_DIR from /config-defaults/ (first run)" >&2
   cp -rn /config-defaults/. "$OC_CONFIG_DIR"/
   touch "$OC_CONFIG_DIR/.bootstrapped"
 fi

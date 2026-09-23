@@ -74,8 +74,13 @@ def create_app(
     from openchronicle.core.infrastructure.maintenance import jobs as maintenance_jobs
 
     maintenance: maintenance_loop.MaintenanceLoop | None = None
+    reconcile_backfills = False
     if not maintenance_loop.is_disabled():
         loop_jobs = maintenance_loop.load_jobs(container.file_configs)
+        # Revision reconciliation re-embeds whatever is out of date, so it
+        # follows the embedding_backfill job: an operator who disabled that
+        # job (say, to put off a reindex) gets no automatic backfills either.
+        reconcile_backfills = any(job.name == "embedding_backfill" and job.enabled for job in loop_jobs)
         maintenance = maintenance_loop.MaintenanceLoop(
             container=container,
             jobs=loop_jobs,
@@ -99,11 +104,12 @@ def create_app(
             # Keeps the embedding model's revision verified (ADR 0005 §7).
             # Started after the maintenance loop so the exit stack stops it
             # first: a tick during maintenance.stop() must not start a
-            # backfill mid-shutdown. It runs with maintenance disabled too,
-            # since verification is correctness, but then starts no backfills.
+            # backfill mid-shutdown. It runs with maintenance or the backfill
+            # job disabled too, since verification is correctness, but then
+            # starts no backfills.
             embedding_service = getattr(container, "embedding_service", None)
             if isinstance(embedding_service, EmbeddingService) and embedding_service.start_revision_refresher(
-                auto_backfill=maintenance is not None
+                auto_backfill=reconcile_backfills
             ):
                 stack.push_async_callback(embedding_service.stop_revision_refresher)
             yield

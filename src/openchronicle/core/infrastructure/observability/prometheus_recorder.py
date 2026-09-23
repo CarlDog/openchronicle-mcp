@@ -75,7 +75,15 @@ _SEARCH_STAGES: Final[frozenset[str]] = frozenset(
 )
 _FALLBACK_REASONS: Final[frozenset[str]] = frozenset({"provider_failure", "over_length_query"})
 _JOB_NAMES: Final[frozenset[str]] = frozenset(
-    {"db_vacuum", "db_integrity_check", "embedding_backfill", "db_backup", "git_onboard_resync", "operator_backfill"}
+    {
+        "db_vacuum",
+        "db_integrity_check",
+        "embedding_backfill",
+        "db_backup",
+        "git_onboard_resync",
+        "operator_backfill",
+        "reconcile_backfill",
+    }
 )
 _JOB_OUTCOMES: Final[frozenset[str]] = frozenset({"success", "partial", "failure", "cancel", "overlap"})
 _BACKFILL_OUTCOMES: Final[frozenset[str]] = frozenset({"generated", "failed", "tombstoned"})

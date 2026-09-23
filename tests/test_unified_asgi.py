@@ -175,6 +175,34 @@ def test_stdio_entrypoint_logs_one_startup_line_and_keeps_stdout_clean(
     assert capsys.readouterr().out == "", "stdout belongs to the stdio protocol"
 
 
+def test_stdio_startup_line_goes_to_stderr_with_production_logging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Under pytest the root logger already has handlers, which makes the
+    entrypoint's logging.basicConfig a no-op, so the test above cannot see
+    which stream the line takes. Here the root logger starts empty, as in
+    production (test-honesty review)."""
+    from openchronicle.interfaces.mcp import __main__ as entry
+
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "stdio.db"))
+    monkeypatch.delenv("OC_MCP_TRANSPORT", raising=False)
+    monkeypatch.setattr("openchronicle.interfaces.mcp.server.create_server", lambda _c, _cfg: MagicMock())
+    root = logging.getLogger()
+    saved_handlers, saved_level = root.handlers[:], root.level
+    root.handlers.clear()
+    try:
+        entry.main()
+    finally:
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+        root.handlers.extend(saved_handlers)
+        root.setLevel(saved_level)
+
+    captured = capsys.readouterr()
+    assert "OpenChronicle MCP server starting (stdio transport)" in captured.err
+    assert captured.out == "", "stdout belongs to the stdio protocol"
+
+
 def test_mcp_post_at_doubled_path_does_not_work() -> None:
     """Companion to the regression test above: /mcp/mcp/ should NOT be the
     real endpoint. If a future change accidentally drops streamable_http_path,

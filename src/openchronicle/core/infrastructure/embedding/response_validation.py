@@ -1,11 +1,14 @@
 """Boundary validation for embedding responses, shared by the adapters.
 
 An embedding response is upstream data, not truth. A malformed one has to
-fail at the adapter as a ``ProviderError``. Otherwise it surfaces later as
-a bare ``IndexError`` in a caller, or as a wrong vector stored against a
-memory. Ollama had these checks from the start; the OpenAI adapter, now
-the generic path for any OpenAI-compatible host, had none until
-2026-09-23 (fleet-review #27).
+fail at the adapter as a ``ProviderError``. Otherwise a NaN, empty or
+wrong-length vector is stored against a memory, where it silently corrupts
+ranking. Ollama had these checks from the start. The OpenAI adapter, now
+the generic path for any OpenAI-compatible host, had none until 2026-09-23
+(fleet-review #27): the openai SDK's own parser rejects an empty ``data``
+list, but nothing checked the vector count, NaN/Inf, mixed lengths or empty
+vectors (corrected 2026-09-23 by the pre-deploy review; an earlier note
+here claimed an ``IndexError`` the real SDK never lets happen).
 """
 
 from __future__ import annotations

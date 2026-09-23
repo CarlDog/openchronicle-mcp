@@ -332,3 +332,15 @@ def test_counts_can_leave_the_revision_out_while_it_is_unverified() -> None:
         "test-provider", "test-model", settings_fingerprint="test-fp", match_revision=False
     )
     assert unembeddable == 1
+
+
+def test_a_wrong_revision_row_with_stale_content_is_counted_once() -> None:
+    """The buckets stay disjoint across a revision mismatch: a row stamped
+    with another revision is space-stale, whatever its content hash says."""
+    store = _store_with_memories("mem-1")
+    save_vec(store, "mem-1", [0.6, 0.8], model_revision="sha256:OLD")
+    store.update_memory("mem-1", content="edited content")  # its content hash is stale too
+    buckets = store.stale_embedding_counts(
+        "test-provider", "test-model", settings_fingerprint="test-fp", model_revision="sha256:NEW"
+    )
+    assert buckets == {"space_mismatch": 1, "content_mismatch": 0}

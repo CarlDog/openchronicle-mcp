@@ -211,8 +211,10 @@ with. Health reports:
   backfill has completed against it in this process, it starts one with
   `trigger: "reconcile"`. That happens after a boot (usually with zero
   candidates), after a re-pull, and after writes refused while
-  `unknown`. With `OC_MAINTENANCE_DISABLED` it still verifies, but
-  starts no backfills.
+  `unknown`. With `OC_MAINTENANCE_DISABLED`, or with the
+  `embedding_backfill` job disabled, it still verifies but starts no
+  backfills: a reconcile run re-embeds whatever is out of date, so it
+  follows that job.
 - **stdio MCP and the CLI** have no refresher. The stdio server verifies
   once at startup; `oc memory search` (unless `--mode keyword`) and
   `oc memory embed --status` verify first; writes verify on demand. A
@@ -225,8 +227,9 @@ with. Health reports:
 
 One backfill runs at a time per process. A call that finds one running
 is skipped: a synchronous `memory_embed` answers `already_running`, and
-the maintenance job counts it as done, since the running backfill does
-the work.
+the maintenance job records `last_outcome: "skipped"`. `last_run_at`
+advances, so it is not due again at once, but `runs_ok` and
+`last_success_at` do not, because that run did no work.
 
 ### Classified permanent outcomes (ADR 0009)
 
@@ -251,7 +254,7 @@ records how it ended:
 | `ok` / `partial` / `failed` | The run returned. Same verdicts as a synchronous `memory_embed` | `generated`, `failed`, `tombstoned` |
 | `skipped` | Another backfill was already running | the same counts, all 0 |
 | `error` | The run raised. It is logged at ERROR: one line for a provider error such as an unverified revision, a traceback otherwise | `error_type`: the exception's class name, never its message |
-| `cancelled` | The task was cancelled | none |
+| `cancelled` | The task was cancelled, which only process shutdown does | none |
 
 Every record carries `trigger` (`operator` or `reconcile`) and
 `finished_at`. The field is `null` until a run

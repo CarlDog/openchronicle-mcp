@@ -297,6 +297,9 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
 
   **Update 2026-09-23:** fixed on `main` (assessment rev 206). The pair
   logs at DEBUG, and the stdio entrypoint logs the one startup line.
+  Three other INFO lines per request remain, all from outside OC's own
+  code: the MCP SDK's "Processing request" and "Terminating session",
+  and the uvicorn access line.
 - **Stale records:**
   - 0007 says `onboard_git` holds whole-batch transactions; it doesn't.
   - `docs/integrations/mcp_client_setup.md` says Open WebUI has no native

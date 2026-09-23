@@ -209,7 +209,9 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
 def cmd_memory_update(args: argparse.Namespace, container: CoreContainer) -> int:
     """Update an existing memory item's content and/or tags."""
     tags = parse_csv_tags(args.tags)
-    content = args.content if args.content else None
+    # None when --content is absent; an explicit "" reaches the use case,
+    # which refuses blank content like every other surface (fleet-review #27).
+    content = args.content
 
     if content is None and tags is None:
         print("At least one of --content or --tags must be provided")

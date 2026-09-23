@@ -64,7 +64,9 @@ class JobState:
     # counter resets on every redeploy — and this repo redeploys on
     # every push to main.
     last_success_at: datetime | None = None
-    last_outcome: str | None = None  # "ok" | "failed" | "skipped_overlap"
+    # "ok" | "failed" | "skipped_overlap" (its own run overran its next start)
+    # | "skipped" (another run of the same work was in progress; did nothing)
+    last_outcome: str | None = None
     last_error: str | None = None
     runs_total: int = 0
     runs_ok: int = 0
@@ -300,11 +302,19 @@ class MaintenanceLoop:
             succeeded = False
             try:
                 result = await handler(self._container)
-                job.last_outcome = "ok"
                 job.last_error = None
-                job.runs_ok += 1
-                succeeded = True
-                metric_outcome = "partial" if _job_result_is_partial(result) else "success"
+                if _job_result_is_skipped(result):
+                    # Another run of the same work was already in progress, so
+                    # this one did nothing. Not a success: last_success_at must
+                    # not claim work that never happened. last_run_at still
+                    # advances below, or the job would be due again every tick.
+                    job.last_outcome = "skipped"
+                    metric_outcome = "overlap"
+                else:
+                    job.last_outcome = "ok"
+                    job.runs_ok += 1
+                    succeeded = True
+                    metric_outcome = "partial" if _job_result_is_partial(result) else "success"
             except Exception as exc:
                 if isinstance(exc, ProviderError):
                     # A known provider condition, such as an unverified model
@@ -334,7 +344,8 @@ class MaintenanceLoop:
                 self._safe_observe_job(
                     name=job.name,
                     outcome=metric_outcome,
-                    duration_seconds=time.monotonic() - started,
+                    # An overlap skip has no execution duration (design 0010).
+                    duration_seconds=None if metric_outcome == "overlap" else time.monotonic() - started,
                 )
                 await asyncio.to_thread(self._persist_state)
 
@@ -444,6 +455,11 @@ def _is_due(job: JobState, now: datetime) -> bool:
 def _job_result_is_partial(result: object) -> bool:
     """Recognize the one built-in handler result that carries partial counts."""
     return isinstance(result, Mapping) and bool(result.get("failed"))
+
+
+def _job_result_is_skipped(result: object) -> bool:
+    """A handler that found the same work already running returns ``skipped``."""
+    return isinstance(result, Mapping) and bool(result.get("skipped"))
 
 
 # ─────────────────────────────────────────────────────────────────────

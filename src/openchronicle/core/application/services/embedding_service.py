@@ -215,7 +215,9 @@ class EmbeddingService:
             outcome = "cancel"
             raise
         finally:
-            self._safe_observe_job(name=job, outcome=outcome, duration_seconds=time.monotonic() - started)
+            # An overlap skip has no execution duration (design 0010).
+            duration = None if outcome == "overlap" else time.monotonic() - started
+            self._safe_observe_job(name=job, outcome=outcome, duration_seconds=duration)
 
     # -- model revision (ADR 0005 §7) ------------------------------------------
 

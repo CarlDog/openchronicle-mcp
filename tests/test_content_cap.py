@@ -135,6 +135,40 @@ def test_cli_add_reports_over_cap_cleanly_instead_of_a_traceback(
     assert "Traceback" not in out
 
 
+def test_cli_update_refuses_an_explicit_blank_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`oc memory update ID --content "" --tags a` used to drop the content
+    silently, apply the tags and exit 0. MCP and REST refuse the whole
+    request, so the CLI does too (pre-deploy review)."""
+    import sys
+
+    from openchronicle.interfaces.cli.main import main
+
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "cli.db"))
+    monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+    monkeypatch.setattr(sys, "argv", ["oc", "init-project", "BlankUpdate"])
+    assert main() == 0
+    project_id = capsys.readouterr().out.strip().splitlines()[-1]
+    monkeypatch.setattr(sys, "argv", ["oc", "memory", "add", "keep me", "--project-id", project_id])
+    assert main() == 0
+    memory_id = capsys.readouterr().out.strip().splitlines()[-1]
+
+    monkeypatch.setattr(sys, "argv", ["oc", "memory", "update", memory_id, "--content", "", "--tags", "a"])
+    rc = main()
+    out = capsys.readouterr().out
+
+    assert rc == 1
+    assert "content must be non-empty" in out
+    store = SqliteStore(str(tmp_path / "cli.db"))
+    try:
+        kept = store.get_memory(memory_id)
+        assert kept is not None
+        assert (kept.content, kept.tags) == ("keep me", []), "nothing was applied"
+    finally:
+        store.close()
+
+
 def test_cli_add_refuses_blank_content(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

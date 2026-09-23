@@ -264,7 +264,9 @@ Important measurement contracts:
   and scheduled execution, without double-counting their wrapper layers. Preserve
   existing health counters and maintenance status semantics. Assign the fixed
   job name at the initiating boundary: scheduled backfill is `embedding_backfill`,
-  explicitly started backfill is `operator_backfill`; its completion is recorded
+  explicitly started backfill is `operator_backfill`, and a backfill the
+  revision refresher starts is `reconcile_backfill` (ADR 0005 §7, added
+  2026-09-23); its completion is recorded
   under that name once. Seed scheduled last-success gauges from the existing
   persisted timestamps. Operator-backfill last-success is process-local, and
   absent until observed after startup; historical observations live in the

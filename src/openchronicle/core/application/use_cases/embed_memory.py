@@ -37,6 +37,9 @@ def execute_background(service: EmbeddingService | None, *, force: bool = False)
         "message": (
             "Backfill running in the background — watch health.embedding_status "
             "(`stale` and `missing` count down to 0)."
+            if started
+            else "Another backfill is already running, so this request did not start one. "
+            "Retry once health.embedding_status.last_background_backfill shows it finished."
         ),
         "force": force,
         **service.embedding_status(),

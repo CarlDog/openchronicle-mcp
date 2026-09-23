@@ -27,7 +27,8 @@ from openchronicle.core.application.services import embedding_service as embeddi
 from openchronicle.core.application.services import maintenance_loop
 from openchronicle.core.application.services.embedding_service import BackfillResult, EmbeddingService
 from openchronicle.core.application.use_cases import add_memory, embed_memory, update_memory
-from openchronicle.core.domain.exceptions import RevisionUnknownError
+from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
+from openchronicle.core.domain.exceptions import ProviderError, RevisionUnknownError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.models.revision_snapshot import UNKNOWN_REVISION, RevisionSnapshot
@@ -40,7 +41,7 @@ from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteSto
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.app import create_app
 from openchronicle.interfaces.api.config import HTTPConfig
-from tests.helpers.vectors import save_vec
+from tests.helpers.vectors import save_tombstone, save_vec
 
 _ADAPTER_LOGGER = "openchronicle.core.infrastructure.embedding.ollama_adapter"
 
@@ -276,6 +277,7 @@ class _RevisionPort(EmbeddingPort):
         self.embeds = 0
         self.probe_threads: list[int] = []
         self.during_embed: Callable[[], None] | None = None
+        self.too_long: set[str] = set()
 
     @property
     def tracks_revision(self) -> bool:
@@ -305,6 +307,8 @@ class _RevisionPort(EmbeddingPort):
         self.embeds += len(texts)
         if self.during_embed is not None:
             self.during_embed()
+        if self.too_long.intersection(texts):
+            raise ProviderError("input exceeds maximum context length", error_code=CONTENT_TOO_LONG)
         return [[1.0, 0.0] for _ in texts]
 
     def dimensions(self) -> int:
@@ -799,3 +803,316 @@ class TestWiring:
         use_case_records = [r for r in caplog.records if r.name.startswith("openchronicle.core.application.use_cases")]
         assert use_case_records, "premise: the refusals were logged"
         assert all(r.levelno == logging.DEBUG and r.exc_info is None for r in use_case_records)
+
+
+# ── Pre-deploy review fixes (2026-09-23) ──────────────────────────────
+
+
+class TestReviewFixes:
+    def test_a_skipped_maintenance_backfill_is_not_a_success(self) -> None:
+        """The job skipped because another backfill held the lock, yet it
+        recorded `ok` and advanced last_success_at. If that other run then
+        failed, maintenance status still read `ok` (reproduced in review)."""
+        from openchronicle.core.infrastructure.maintenance import jobs as maintenance_jobs
+
+        service = EmbeddingService(port=_RevisionPort(_known("sha256:A")), store=_store_stamped("sha256:A", count=1))
+        container = MagicMock()
+        container.embedding_service = service
+        job = maintenance_loop.JobState(name="embedding_backfill", interval_seconds=60, enabled=True)
+        loop = maintenance_loop.MaintenanceLoop(
+            container=container, jobs=[job], handlers={"embedding_backfill": maintenance_jobs.embedding_backfill}
+        )
+        with service._backfill_lock:
+            asyncio.run(loop.run_once("embedding_backfill"))
+        assert job.last_outcome == "skipped"
+        assert (job.runs_ok, job.runs_failed, job.runs_skipped_overlap) == (0, 0, 0)
+        assert job.last_success_at is None, "a run that did nothing is not a success"
+        assert job.last_run_at is not None, "but it ran, so it is not due again at once"
+
+    def test_a_refused_background_start_says_it_did_not_start(self) -> None:
+        service = EmbeddingService(port=_RevisionPort(_known("sha256:A")), store=_store_stamped("sha256:A", count=1))
+
+        async def scenario() -> dict[str, Any]:
+            with service._backfill_lock:
+                return embed_memory.execute_background(service, force=True)
+
+        payload = asyncio.run(scenario())
+        assert payload["status"] == "already_running"
+        assert "did not start" in payload["message"]
+
+    def test_every_background_trigger_has_a_bounded_metric_name(self) -> None:
+        """An unlisted name is recorded as `unknown` (review finding)."""
+        from openchronicle.core.infrastructure.observability.prometheus_recorder import _JOB_NAMES
+
+        assert {f"{trigger}_backfill" for trigger in ("operator", "reconcile")} <= _JOB_NAMES
+
+    def test_a_cancelled_background_backfill_is_recorded(self) -> None:
+        service = EmbeddingService(port=_RevisionPort(_known("sha256:A")), store=_store_stamped("sha256:A", count=0))
+        release = threading.Event()
+
+        def blocked(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
+            release.wait(5)
+            return BackfillResult(generated=0, failed=0, tombstoned=0, elapsed_ms=0)
+
+        service.generate_missing = blocked  # type: ignore[method-assign]
+
+        async def scenario() -> None:
+            assert service.start_background_backfill() is True
+            task = service._background_backfill
+            assert task is not None
+            await asyncio.sleep(0.05)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            await asyncio.sleep(0)
+            release.set()
+
+        asyncio.run(scenario())
+        kept = service.last_background_backfill
+        assert kept is not None and kept["outcome"] == "cancelled"
+
+
+class TestReviewFixesRevision:
+    """Behaviours whose mutants survived the suite in the pre-deploy review."""
+
+    def test_a_save_verifies_an_unknown_revision_itself(self) -> None:
+        """The CLI never probes at startup, so a save must resolve it."""
+        store = _store_stamped("sha256:A", count=0)
+        port = _RevisionPort()
+        port.probe_result = _known("sha256:A")
+        service = EmbeddingService(port=port, store=store)
+        _save(store, service, "fresh")
+        assert port.probes == 1
+        assert _revision_of(store, "fresh") == "sha256:A"
+
+    def test_a_save_parks_over_length_content_under_its_snapshot(self) -> None:
+        store = _store_stamped("sha256:A", count=0)
+        store.add_memory(MemoryItem(id="big", content="way too long", project_id="p"))
+        port = _RevisionPort(_known("sha256:A"))
+        port.too_long = {"way too long"}
+        EmbeddingService(port=port, store=store).generate_for_memory("big", "way too long")
+        identity = store.get_embedding_identity("big")
+        assert identity is not None
+        assert (identity["status"], identity["model_revision"]) == ("content_too_long", "sha256:A")
+
+    def test_health_reports_when_the_revision_was_verified(self) -> None:
+        port = _RevisionPort(_known("sha256:A"))
+        health = _health(EmbeddingService(port=port, store=_store_stamped("sha256:A", count=0)))
+        assert port.snapshot.verified_at is not None
+        assert health["model_revision_verified_at"] == port.snapshot.verified_at.isoformat()
+
+    def test_an_outage_starts_no_backfills_and_logs_no_errors(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Without the known-revision check, every tick of an outage started a
+        backfill that failed with an ERROR line, every ~30 s."""
+        monkeypatch.setattr(embedding_service_module, "_REVISION_REFRESH_UNKNOWN_SECONDS", 0.01)
+        port = _RevisionPort()
+        service = EmbeddingService(port=port, store=_store_stamped("sha256:A"))
+        with caplog.at_level(logging.WARNING):
+            _run_refresher(service, lambda: port.probes >= 10)
+        assert port.probes >= 10
+        assert service.last_background_backfill is None
+        assert [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR] == []
+
+    def test_a_failed_probe_never_logs_credentials(self, caplog: pytest.LogCaptureFixture) -> None:
+        """httpx puts the whole request URL, userinfo included, into
+        HTTPStatusError's text, and a probe failure is a WARNING."""
+        url = "http://user:s3cr3t@localhost:11434"
+        adapter = OllamaEmbeddingAdapter(model="nomic-embed-text", host=url, timeout_seconds=5.0)
+        response = httpx.Response(500, json={"error": "boom"}, request=httpx.Request("GET", f"{url}/api/tags"))
+        with caplog.at_level(logging.DEBUG, logger=_ADAPTER_LOGGER):
+            _probe(adapter, response)
+        messages = [r.getMessage() for r in caplog.records]
+        assert any("HTTP 500" in m for m in messages), "premise: the failure was logged"
+        assert not any("s3cr3t" in m for m in messages)
+
+    def test_a_skipped_background_run_records_an_overlap_without_a_duration(self) -> None:
+        """Design 0010: an overlap skip has no execution duration."""
+        metrics = MagicMock()
+        service = EmbeddingService(
+            port=_RevisionPort(_known("sha256:A")), store=_store_stamped("sha256:A", count=0), metrics=metrics
+        )
+
+        def skipped(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
+            return BackfillResult(generated=0, failed=0, tombstoned=0, elapsed_ms=0, skipped=True)
+
+        service.generate_missing = skipped  # type: ignore[method-assign]
+
+        async def scenario() -> None:
+            assert service.start_background_backfill() is True
+            task = service._background_backfill
+            assert task is not None
+            while not task.done():
+                await asyncio.sleep(0.01)
+
+        asyncio.run(scenario())
+        jobs = [c.kwargs for c in metrics.observe_job.call_args_list]
+        assert jobs == [{"name": "operator_backfill", "outcome": "overlap", "duration_seconds": None}]
+
+    def test_a_skipped_maintenance_run_records_an_overlap_without_a_duration(self) -> None:
+        container = MagicMock()
+
+        async def skipped(_container: object) -> dict[str, int]:
+            return {"generated": 0, "failed": 0, "tombstoned": 0, "skipped": 1}
+
+        job = maintenance_loop.JobState(name="embedding_backfill", interval_seconds=60, enabled=True)
+        loop = maintenance_loop.MaintenanceLoop(
+            container=container, jobs=[job], handlers={"embedding_backfill": skipped}
+        )
+        asyncio.run(loop.run_once("embedding_backfill"))
+        jobs = [c.kwargs for c in container.metrics.observe_job.call_args_list]
+        assert jobs == [{"name": "embedding_backfill", "outcome": "overlap", "duration_seconds": None}]
+
+
+class TestReviewFixesWiring:
+    def _serve(
+        self, monkeypatch: pytest.MonkeyPatch, file_configs: dict[str, Any], until: Callable[[], bool]
+    ) -> tuple[EmbeddingService, SqliteStore]:
+        """A real app lifespan with maintenance enabled but its jobs not run."""
+
+        async def no_op(_self: object) -> None:
+            return None
+
+        monkeypatch.delenv("OC_MAINTENANCE_DISABLED", raising=False)
+        monkeypatch.setattr(maintenance_loop.MaintenanceLoop, "start", no_op)
+        monkeypatch.setattr(maintenance_loop.MaintenanceLoop, "stop", no_op)
+        port = _RevisionPort()
+        port.probe_result = _known("sha256:B")
+        store = _store_stamped("sha256:A")
+        service = EmbeddingService(port=port, store=store)
+        container = MagicMock()
+        container.file_configs = file_configs
+        container.embedding_service = service
+        with TestClient(create_app(container, HTTPConfig(), mount_mcp=False)):
+            for _ in range(300):
+                if until() or (port.probes and service.last_background_backfill is not None):
+                    break
+                time.sleep(0.01)
+            time.sleep(0.05)
+        return service, store
+
+    def test_a_real_server_reconciles(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The only lifespan test ran with maintenance disabled, so switching
+        reconciliation off in a real server went unnoticed."""
+        service, store = self._serve(monkeypatch, {}, lambda: False)
+        kept = service.last_background_backfill
+        assert kept is not None and (kept["trigger"], kept["generated"]) == ("reconcile", 5)
+        assert _stamps(store) == {"sha256:B"}
+
+    def test_disabling_the_backfill_job_disables_reconciliation(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An operator who turned embedding_backfill off, say to put off a
+        reindex after a model switch, got one anyway at boot."""
+        config = {"maintenance": {"jobs": [{"name": "embedding_backfill", "enabled": False}]}}
+        service, store = self._serve(monkeypatch, config, lambda: False)
+        assert service.last_background_backfill is None
+        assert _stamps(store) == {"sha256:A"}
+
+
+class TestReviewFixesHonesty:
+    """Gaps the test-honesty reviewer proved: each mutant passed the suite before."""
+
+    def test_the_save_path_against_the_real_adapter(self) -> None:
+        """The save verifies an unknown revision itself, and inside the cooldown
+        after a failed probe it does not probe again. Asking with force=True
+        cost a probe per save (measured: 5 saves, 5 s, against a 1 s hang)."""
+        store = _store_stamped("sha256:A", count=0)
+        adapter = OllamaEmbeddingAdapter(model="m", host="http://localhost:11434", timeout_seconds=5.0)
+        service = EmbeddingService(port=adapter, store=store)
+        embed_ok = httpx.Response(
+            200, json={"embeddings": [[1.0, 0.0]]}, request=httpx.Request("POST", "http://localhost:11434/api/embed")
+        )
+        with (
+            patch("httpx.get", return_value=_tags([_listed(name="m:latest")])) as get,
+            patch("httpx.post", return_value=embed_ok),
+        ):
+            _save(store, service, "first")
+        assert get.call_count == 1, "the save probed once"
+        assert _revision_of(store, "first") == "sha256:A", "and stamped the verified digest"
+
+        outage = OllamaEmbeddingAdapter(model="m", host="http://localhost:11434", timeout_seconds=5.0)
+        service = EmbeddingService(port=outage, store=store)
+        with patch("httpx.get", side_effect=httpx.ConnectError("refused")) as get:
+            outage.refresh_revision(force=True)  # the refresher's failed probe starts the cooldown
+            _save(store, service, "during-outage")
+        assert get.call_count == 1, "a save inside the cooldown does not probe again"
+        assert store.get_embedding_identity("during-outage") is None
+
+    def test_cli_add_embeds_in_a_fresh_process(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The user-visible form: `oc memory add` starts unverified and runs no refresher."""
+        port = _RevisionPort()
+        port.probe_result = _known("sha256:A")
+        container = _cli(tmp_path, monkeypatch, port)
+        container.storage.add_project(Project(id="p", name="p"))
+
+        rc, lines = _run_cli(container, ["memory", "add", "hello world", "--project-id", "p"])
+
+        assert rc == 0
+        identity = container.storage.get_embedding_identity(lines[-1])
+        assert identity is not None, "the CLI-added memory has a vector"
+        assert identity["model_revision"] == "sha256:A"
+
+    def test_search_and_health_never_probe(self) -> None:
+        """Only embedding_status() was checked. Health and search run on
+        worker threads, but a probe there made each request wait out the
+        probe timeout during an outage."""
+        port = _RevisionPort()
+        service = EmbeddingService(port=port, store=_store_stamped("sha256:A", count=2))
+        service.search_semantic("memory number")
+        _health(service)
+        assert port.probe_threads == [], "a read called refresh_revision()"
+
+    def test_a_refused_background_backfill_logs_one_line(self, caplog: pytest.LogCaptureFixture) -> None:
+        logger_name = "openchronicle.core.application.services.embedding_service"
+        service = EmbeddingService(port=_RevisionPort(), store=_store_stamped("sha256:A", count=1))
+
+        async def scenario() -> None:
+            assert service.start_background_backfill() is True
+            task = service._background_backfill
+            assert task is not None
+            while not task.done():
+                await asyncio.sleep(0.01)
+            await asyncio.sleep(0)  # done-callbacks run on the next loop pass
+
+        with caplog.at_level(logging.ERROR, logger=logger_name):
+            asyncio.run(scenario())
+
+        errors = [r for r in caplog.records if r.name == logger_name and r.levelno >= logging.ERROR]
+        assert len(errors) == 1
+        assert errors[0].exc_info is None, "no traceback for a known provider condition"
+        assert "not verified" in errors[0].getMessage()
+        kept = service.last_background_backfill
+        assert kept is not None and kept["error_type"] == "RevisionUnknownError"
+
+    def test_health_counts_tombstones_while_the_revision_is_unknown(self) -> None:
+        store = _store_stamped("sha256:A", count=1)
+        store.add_memory(MemoryItem(id="big", content="too long to embed", project_id="p"))
+        save_tombstone(store, "big", model="m", provider="ollama", fingerprint="fp", model_revision="sha256:A")
+        health = _health(EmbeddingService(port=_RevisionPort(), store=store))
+        assert (health["model_revision_state"], health["unembeddable"], health["stale"], health["missing"]) == (
+            "unknown",
+            1,
+            0,
+            0,
+        )
+
+    def test_a_project_scoped_backfill_does_not_count_as_reconciled(self) -> None:
+        """Only a whole-corpus run may satisfy reconciliation."""
+        store = _store_stamped("sha256:A", count=1)
+        port = _RevisionPort(_known("sha256:A"))
+        port.probe_result = _known("sha256:A")
+        service = EmbeddingService(port=port, store=store)
+        service._auto_backfill = True  # what start_revision_refresher sets
+        service.generate_missing(project_id="p")
+
+        async def tick() -> bool:
+            service._reconcile(port.snapshot)
+            started = service.backfill_running
+            task = service._background_backfill
+            while task is not None and not task.done():
+                await asyncio.sleep(0.01)
+            return started
+
+        assert asyncio.run(tick()) is True, "a reconcile run still starts"

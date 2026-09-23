@@ -89,9 +89,10 @@ class TestOpenAIEmbeddingAdapter:
         adapter._client = mock_client
         return adapter
 
-    def test_empty_data_is_a_provider_error_not_an_index_error(self) -> None:
-        """Fleet-review #27: `data: []` from a host made embed()'s `[0]` raise
-        a bare IndexError, outside the adapter's error handling."""
+    def test_empty_data_is_a_provider_error(self) -> None:
+        """A backstop: the real openai SDK's parser already rejects `data: []`
+        with a ValueError inside the adapter's handling. This client is a
+        mock that skips that parser, so the validator must still catch it."""
         adapter = self._adapter_returning()
         with pytest.raises(LLMProviderError, match="expected 1 vector") as excinfo:
             adapter.embed("hello")
@@ -100,8 +101,8 @@ class TestOpenAIEmbeddingAdapter:
         assert str(excinfo.value).startswith("OpenAI returned an invalid embedding response")
 
     def test_response_cardinality_must_match_input(self) -> None:
-        """Before, a short batch was caught only by the backfill's own check,
-        never on the save path."""
+        """A multi-input batch that came back short (or long) was caught only
+        by the backfill's own count check, never by the adapter."""
         adapter = self._adapter_returning([1.0, 0.0])
         with pytest.raises(LLMProviderError, match="expected 2 vector"):
             adapter.embed_batch(["a", "b"])

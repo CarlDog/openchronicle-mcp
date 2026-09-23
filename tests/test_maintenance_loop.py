@@ -163,6 +163,36 @@ def test_job_queued_behind_another_is_not_an_overlap(caplog: pytest.LogCaptureFi
     assert queued == ["maintenance job short queued: waiting for long to finish"]
 
 
+def test_each_queued_episode_logs_once_and_names_its_blocker(caplog: pytest.LogCaptureFixture) -> None:
+    """Once per queued episode, not once per job: a run resets the flag.
+
+    Also pins that the running job's name is cleared when its run ends, so a
+    later "waiting for" line cannot name a job that already finished (both
+    were escaping mutants in the pre-deploy review).
+    """
+    job = maintenance_loop.JobState(name="short", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={})
+    now = datetime.now(UTC)
+
+    async def _exercise() -> None:
+        loop._running_job = "long-a"
+        loop._note_in_flight(job, now)
+        loop._note_in_flight(job, now)
+        async with loop._run_slot(job):
+            assert loop._running_job == "short"
+        assert loop._running_job is None, "cleared when the run ends"
+        loop._running_job = "long-b"
+        loop._note_in_flight(job, now)
+
+    with caplog.at_level(logging.INFO, logger=_LOOP_LOGGER):
+        asyncio.run(_exercise())
+    queued = [r.getMessage() for r in caplog.records if "queued" in r.getMessage()]
+    assert queued == [
+        "maintenance job short queued: waiting for long-a to finish",
+        "maintenance job short queued: waiting for long-b to finish",
+    ]
+
+
 def test_real_overlap_is_counted_and_warned_once_per_run(caplog: pytest.LogCaptureFixture) -> None:
     """A run still going when its next start passes skips that start. That
     is counted and warned once per run, not once per one-second tick."""

@@ -948,7 +948,24 @@ entry (below, or in its design doc):
      the NAS restart gate remains for the deploy;
    - ✅ an image smoke test before `build-and-push` pushes (rev 207).
 
-   Plan the probe fix and review it adversarially before implementing.
+   The pre-deploy review (rev 209) fixed everything it found except
+   these low-severity follow-ups, deliberately deferred:
+   - pin the pushed image to the smoke-tested one (a second build
+     reuses the layer cache; a moved base tag between the builds would
+     push an untested image), or pin the base image digest;
+   - sort OpenAI-compatible `data` by `index` before use;
+   - `LC_ALL=C` for git children, since git errors are matched in
+     English;
+   - redact userinfo from `OLLAMA_HOST` in the adapter's TLS warning
+     (the probe log is already fixed).
+
+   **Release blocker for the operator:** a v3.4.0 tagged from `main`
+   also ships design 0010's metrics instrumentation (off by default),
+   and 0010 says an inconclusive B/A result blocks its release even
+   with metrics disabled. B/A is inconclusive. The operator decides:
+   an explicit exception, a release cut from v3.3.0 (the fixes do not
+   cherry-pick cleanly, because B2, B3 and B5 build on the metrics
+   hooks), or rerunning the B/A gate first.
 9. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
    files that still stored CR bytes were renormalized on `main`, ahead

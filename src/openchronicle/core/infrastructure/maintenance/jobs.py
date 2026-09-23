@@ -130,11 +130,14 @@ async def embedding_backfill(container: CoreContainer) -> dict[str, int] | None:
 
     def _run() -> dict[str, int]:
         result = service.generate_missing(force=False)
+        summary = {"generated": result.generated, "failed": result.failed, "tombstoned": result.tombstoned}
         if result.skipped:
             # Another backfill (operator or revision reconciliation) is doing
-            # this work right now; running a second one only doubles the embeds.
+            # this work right now; a second one would only double the embeds.
+            # The loop records "skipped", never a success (pre-deploy review).
             _logger.info("embedding_backfill: another backfill is running; skipped")
-        return {"generated": result.generated, "failed": result.failed, "tombstoned": result.tombstoned}
+            summary["skipped"] = 1
+        return summary
 
     summary = await asyncio.to_thread(_run)
     # A total failure must FAIL the job: returning normally here let the

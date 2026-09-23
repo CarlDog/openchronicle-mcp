@@ -183,13 +183,15 @@ researched.**
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
   Its docs and OC milestone memories describe unshipped work.
-- In progress: the v3.4.0 correctness release (V3_PLAN item 8). All of
-  it is on `main` (revs 201-208): the four fleet-review #27 items, the
-  §1.1 Ollama revision fix (ADR 0005 §7), and three hygiene fixes.
-  Next: the pre-deploy adversarial review of the assembled diff, then
-  the version bump and CHANGELOG. The tag and the `OC_TAG` move are the
-  operator's call. Until v3.4.0 is deployed, production (v3.3.0) still
-  needs 0014's interim control after any NAS, OC or Ollama restart.
+- The v3.4.0 correctness release (V3_PLAN item 8) is on `main` and
+  reviewed (revs 201-209): the four fleet-review #27 items, the §1.1
+  Ollama revision fix (ADR 0005 §7), three hygiene fixes, and the
+  pre-deploy review's fixes. **Waiting on the operator:** design 0010
+  blocks releasing its metrics instrumentation, which `main` carries,
+  while B/A is inconclusive (options in V3_PLAN item 8). The version
+  bump and CHANGELOG go in the commit the tag points at. Until a deploy,
+  production (v3.3.0) still needs 0014's interim control after any
+  NAS, OC or Ollama restart.
 - The prompt library ([0015](docs/design/0015-prompt-library.md)) is
   research only; its Stage 0 is operator-run.
 

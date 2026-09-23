@@ -44,7 +44,9 @@ def test_complete_recorder_matrix_and_updated_values_are_byte_identical(
     assert b"test_process_cpu_seconds_total" in expected
     assert len(exporter._prefixes) < 4096
     if full:
-        assert sum(line.startswith(b"oc_") for line in expected.splitlines()) == 3642
+        # 3,642 when Patch 2 was promoted (design 0010-4c), plus 27 for the
+        # `reconcile_backfill` job name added with ADR 0005 §7 (2026-09-23).
+        assert sum(line.startswith(b"oc_") for line in expected.splitlines()) == 3669
         assert sum(line.startswith(b"test_process_") for line in expected.splitlines()) == 6
 
     def unexpected_prefix(key: Any) -> str:
