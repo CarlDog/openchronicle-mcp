@@ -313,7 +313,8 @@ Add `kind`, `slug` and `version` columns to `memory_items`.
 ### Option B (recommended): dedicated tables, immutable versions, three surfaces
 
 ```sql
--- migration 005_prompt_library.sql (prompt_fts + triggers go in _ensure_fts5,
+-- future prompt-library migration (next free number after 005 timestamp normalization;
+-- prompt_fts + triggers go in _ensure_fts5,
 -- because the migration splitter cannot hold trigger bodies)
 CREATE TABLE IF NOT EXISTS prompt_templates (
     id               TEXT PRIMARY KEY,

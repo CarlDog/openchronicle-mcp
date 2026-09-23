@@ -21,13 +21,13 @@ def test_apply_pending_creates_schema_version_on_fresh_db(tmp_path: Path) -> Non
     conn = _new_conn(tmp_path)
     try:
         applied = migrator.apply_pending(conn)
-        assert applied == [1, 2, 3, 4], "001 baseline + 002/003 embedding identity + 004 status on a fresh DB"
+        assert applied == [1, 2, 3, 4, 5], "001 baseline through 005 timestamp normalization on a fresh DB"
 
         version = migrator.current_version(conn)
-        assert version == 4
+        assert version == 5
 
         rows = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert [r["version"] for r in rows] == [1, 2, 3, 4]
+        assert [r["version"] for r in rows] == [1, 2, 3, 4, 5]
     finally:
         conn.close()
 
@@ -37,9 +37,9 @@ def test_apply_pending_is_idempotent(tmp_path: Path) -> None:
     try:
         first = migrator.apply_pending(conn)
         second = migrator.apply_pending(conn)
-        assert first == [1, 2, 3, 4]
+        assert first == [1, 2, 3, 4, 5]
         assert second == [], "second pass should be a no-op"
-        assert migrator.current_version(conn) == 4
+        assert migrator.current_version(conn) == 5
     finally:
         conn.close()
 
@@ -114,10 +114,12 @@ def test_migration_004_applies_to_a_populated_db(tmp_path: Path) -> None:
     try:
         # A populated pre-004 database (no status column yet).
         assert migrator.apply_pending(conn, migrations_dir=pre_004_dir) == [1, 2, 3]
-        conn.execute("INSERT INTO projects (id, name, metadata, created_at) VALUES ('p', 'p', '{}', '2026-01-01')")
+        conn.execute(
+            "INSERT INTO projects (id, name, metadata, created_at) VALUES ('p', 'p', '{}', '2026-01-01T00:00:00+00:00')"
+        )
         conn.execute(
             "INSERT INTO memory_items (id, content, tags, created_at, pinned, source, project_id)"
-            " VALUES ('m1', 'alpha', '[]', '2026-01-01', 0, 'test', 'p')"
+            " VALUES ('m1', 'alpha', '[]', '2026-01-01T00:00:00+00:00', 0, 'test', 'p')"
         )
         conn.execute(
             "INSERT INTO memory_embeddings (memory_id, embedding, model, dimensions, generated_at,"
@@ -126,12 +128,12 @@ def test_migration_004_applies_to_a_populated_db(tmp_path: Path) -> None:
         )
 
         applied = migrator.apply_pending(conn)
-        assert applied == [4]
+        assert applied == [4, 5]
         row = conn.execute("SELECT status FROM memory_embeddings WHERE memory_id = 'm1'").fetchone()
         assert row["status"] == "ok", "existing rows default to 'ok' — real vectors, not tombstones"
 
         assert migrator.apply_pending(conn) == [], "re-run is a no-op"
-        assert migrator.current_version(conn) == 4
+        assert migrator.current_version(conn) == 5
     finally:
         conn.close()
 

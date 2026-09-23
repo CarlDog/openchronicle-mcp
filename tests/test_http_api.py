@@ -906,6 +906,15 @@ class TestErrorShapeParity:
         assert resp.status_code == 422
         assert "ISO 8601" in resp.text
 
+    def test_naive_created_at_is_422_before_write(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/memory",
+            json={"content": "x", "project_id": "proj-1", "created_at": "2026-01-01T12:00:00"},
+        )
+        assert resp.status_code == 422
+        assert "created_at must include a UTC offset" in resp.text
+        _get_container(client).storage.add_memory.assert_not_called()
+
     def test_memory_get_404_carries_code_field(self, client: TestClient) -> None:
         """This 404 used to be an inline HTTPException without the "code"
         key every sibling 404 carries via the global handler.

@@ -23,7 +23,7 @@ from typing import Any
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
-from openchronicle.core.domain.time_utils import utc_now
+from openchronicle.core.domain.time_utils import require_utc, utc_now
 
 _logger = logging.getLogger(__name__)
 
@@ -251,7 +251,7 @@ def cluster_to_summary(
         "commit_count": len(cluster.commits),
         "shown_commit_count": min(max_commits, len(cluster.commits)),
         "date_range": f"{by_date[0].date.date().isoformat()} to {by_date[-1].date.date().isoformat()}",
-        "created_at": by_date[-1].date.isoformat(),
+        "created_at": require_utc(by_date[-1].date, field="git author date").isoformat(),
         "key_files": files,
         "commits_summary": format_cluster_for_synthesis(
             cluster,
@@ -553,7 +553,7 @@ def extract_commits_from_git(
 
         # Parse date
         try:
-            date = datetime.fromisoformat(date_str)
+            date = require_utc(datetime.fromisoformat(date_str), field="git author date")
         except ValueError:
             date = utc_now()
 

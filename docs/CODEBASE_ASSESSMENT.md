@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 216 (timestamp inventory)
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 217 (timestamp source implementation)
 
 ## Current state
 
@@ -115,15 +115,21 @@ their no-commit/no-push statements are historical, not the current scope.
   after its rendered-compose REST/MCP regression tests and PR checks passed.
   The detached live stack's stored compose is unchanged; network/log-path
   reconciliation remains an operator decision under V3_PLAN item 12.
-- **Timestamp ordering remains open** (V3_PLAN item 11, design 0016 track 2).
+- **Timestamp ordering source fix in progress, not merged or deployed** (V3_PLAN item 11, design 0016 track 2).
   A bounded read-only inventory of live MCP metadata returned 1,080 memories,
   matching `memory_stats`: 93 `created_at` values have `-05:00` or `-06:00`
   offsets, and the API's chronological order has 24 adjacent instant-order
   inversions. No naive or malformed timestamp surfaced through the API;
   all 39 project creation timestamps are UTC-aware. This is not raw SQLite
-  inspection or a backup. The input-compatibility/version decision, a
-  fail-closed policy for any unseen naive row, and an intact backup with a
-  disposable restore rehearsal remain prerequisites to migration.
+  inspection or a backup. The `codex/timestamp-utc-migration` branch adds
+  migration 005, UTC normalization on aware writes and `onboard_git`, a
+  fail-closed policy for naive or malformed legacy rows, and the operator's
+  narrow input-compatibility exception in STABILITY.md. Focused synthetic
+  source and backup/restore tests passed; full checks and PR CI are pending.
+  The only known NAS share does not expose the named-volume database.
+  Production raw-DB inspection, intact online backup, disposable restore and
+  write-frozen rollback rehearsal remain prerequisites to a live migration
+  (OC dogfooding finding `9bd0321a-b324-4e4a-9541-1e45f2a6b488`).
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
   Its docs and eight OC milestone memories describe unshipped work;
@@ -305,6 +311,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 217 (branch) | 2026-09-23 | **Timestamp source correction (design 0016 track 2).** Migration 005 normalizes aware legacy timestamps to UTC in a savepoint and refuses naive/malformed rows with IDs; writes and git-onboard output normalize to UTC, and input boundaries reject new naive values under the narrow STABILITY exception. Synthetic migration, rollback, FTS/embedding-preservation and online-backup restore tests passed. Production raw-DB inspection and restore rehearsal are blocked by named-volume access; no source merge, tag or deployment is claimed. |
 | 216 (branch) | 2026-09-23 | **Read-only production timestamp inventory (design 0016 track 2).** `memory_list(compact=true, order_by="created_at")` returned 1,080 rows, matching `memory_stats`: 987 UTC and 93 nonzero-offset `created_at` values (90 `-05:00`, three `-06:00`). Of `updated_at` values, 771 were null and 309 UTC. `project_list(compact=true)` returned 39 UTC-aware creation timestamps. No naive or malformed values surfaced through these API responses; 24 adjacent pairs in the chronological list are inverted by actual instant. No content was analyzed. API serialization is not raw SQLite inspection, and concurrent writes can change counts. The production DB is in a named Docker volume that the available filesystem MCP does not expose. Backup/restore and input-version decisions remain; no data or runtime change occurred. |
 | 215 (branch) | 2026-09-23 | **Both source PRs merged.** PR #34 entered `main` as `7ffc277c`; its exact-main Windows/Ubuntu tests, quality, image build/push and gitleaks passed. PR #35 entered `main` as `77ea0173` after Windows/Ubuntu tests, quality, CodeQL and secret scan passed on reviewed head `87b891ed` (Windows passed on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality, image smoke/publish and gitleaks passed on `77ea0173`. The repository compose fix is source only: the detached stack remains on its older stored compose and tagged v3.3.0 image. No tagged release, deploy or metrics enablement occurred. |
 | 214 (branch) | 2026-09-23 | **PR #34 merged; PR #35 review refinement.** The query-revision race fix entered `main` through merge commit `7ffc277c`. Exact-main Windows/Ubuntu tests, quality, image build/push and gitleaks passed; this is source publication, not a tagged release or deployment. PR #35's rendered-compose test now drives mounted MCP using the actual rendered Host values, addressing review feedback before the dependent merge. Its branch incorporates the new `main` merge commit. The detached live stack and runtime metrics remain unchanged; PR #35's revised head requires fresh CI. |

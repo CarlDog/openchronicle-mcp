@@ -228,9 +228,16 @@ query-revision and NAS Host-list source fixes merged.**
   release or deployment.
 - Found 2026-09-23, not yet fixed: chronological listings misorder
   memories whose `created_at` carries a UTC offset, which `onboard_git`
-  output does (V3_PLAN item 11). A bounded read-only live MCP inventory
+  output does (V3_PLAN item 11). Source implementation is in progress on
+  `codex/timestamp-utc-migration`: migration 005, UTC write normalization,
+  naive-input rejection under the narrow STABILITY exception and synthetic
+  rollback/restore tests. No source merge or production data change yet.
+  A bounded read-only live MCP inventory
   found 93 offset-bearing values among 1,080 memories and 24 adjacent
-  instant-order inversions. Input-version and backup/restore gates remain.
+  instant-order inversions. The only known NAS share does not expose the
+  named-volume DB; a verified production backup, disposable restore and
+  write-frozen rollback rehearsal remain gates (OC dogfooding finding
+  `9bd0321a-b324-4e4a-9541-1e45f2a6b488`).
 - The prompt library ([0015](docs/design/0015-prompt-library.md)) is
   research only; its Stage 0 is operator-run.
 
