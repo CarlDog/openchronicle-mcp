@@ -294,7 +294,7 @@ class MetricsScraper:
 
 def _process_rss_bytes(pid: int) -> int | None:
     """Read a child process working-set size without adding a dependency."""
-    if os.name == "nt":
+    if sys.platform == "win32":
         import ctypes
         from ctypes import wintypes
 
@@ -470,7 +470,7 @@ def _apply_process_affinity(mask: int | None) -> None:
     if mask is None:
         return
     cpus = tuple(index for index in range(mask.bit_length()) if mask & (1 << index))
-    if platform.system() == "Windows":
+    if sys.platform == "win32":
         import ctypes
 
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)

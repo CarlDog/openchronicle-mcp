@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 196
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 197
 
 ## Current state
 
@@ -277,6 +277,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 197 | 2026-09-23 | **CI type check green on Linux again.** `scripts/probe_performance.py` guarded its Windows-only `ctypes` calls (`WinDLL`, `get_last_error`) with `os.name` and `platform.system()`. mypy narrows platform stubs only on `sys.platform`, so the Linux `quality` job failed on every push from `682c68f0` (2026-09-04) through `70350c41`. The local Windows pre-commit mypy passed, so nobody saw it, and `build-and-push` was skipped for the whole period. Both guards now use `sys.platform == "win32"`; `mypy --platform linux` reproduced the 4 errors before the change and reports none after it. |
 | 196 | 2026-09-23 | **Gemini branch review and prompt-library research recorded.** Design 0014 records the adversarial review of the unmerged `gemini-3.8-flash/audit-18092026` (9 commits on `429f137a`). Verdict: not merged. Its Docker image cannot start, and it implemented gated items without evidence. One real `main` defect was found (§1.1 Ollama revision probe), with an interim control. Design 0015 records the prompt-library research (operator-scoped to any MCP client; unratified). The design index gains 0007–0009 (taken from the branch, verified) and 0013 (reserved)–0015. Documentation only; no runtime change, release or deployment. |
 | 195 | 2026-09-23 | **Hermetic onboard-git CLI test fixture.** `tests/test_cli_smoke.py` now runs its fixture's git commands in a scrubbed environment: no inherited `GIT_*` variables, no global or system config, and `git init --template=`. The same isolation applies to the CLI's own git calls during those tests. Two failures prompted it. (1) Committing from a linked worktree ran this suite inside the pre-commit hook, where the absolute `GIT_DIR` let the fixture's `git init` reinitialize the real repository and flip `core.bare` to true (repaired 2026-09-23). (2) The refreshed global git template injected the fleet identity hook into the fixture, which failed both tests even outside hooks. A new regression test pins the isolation and is mutation-verified. A sandbox reproduction showed the old fixture flipping a scratch repo's `core.bare` and the new one leaving it alone. Full suite 1,021 passed, 1 skipped; ruff and mypy clean. |
 | 194 | 2026-09-09 | **Operator-authorized source checkpoint.** Assemble all current recorder/exporter code, maintained tests, attribution/readiness documentation and reviews 0011/0012 for commit and push to main under mandatory repository hooks. Preserve the recorded 1,020-pass/one-skip Windows baseline and 106-pass Linux contracts on both supported Prometheus versions. Live readback confirms detached stack 151 remains pinned to v3.3.0, build 7349f94. Source publication does not clear 4C/affected 4D gates or authorize a release, deployment, metrics enabling or benchmark. |
