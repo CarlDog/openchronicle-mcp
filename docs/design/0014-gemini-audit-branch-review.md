@@ -236,6 +236,8 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
    on Windows. The reader-connection tests must use a file-backed database.
 3. **An image smoke test before push:** `oc version`, `import openchronicle`,
    and `/health` returning 200 with the expected `build_revision`.
+   **Automated 2026-09-23** (assessment rev 207): `build-and-push` runs
+   `tools/ci/smoke-image.sh` on every image before pushing it.
 4. **Mutation re-checks.** For each salvaged behavior, reverting it must turn
    its guarding test red.
 5. **§1.1:** a fake-Ollama end-to-end test, then a NAS restart in both

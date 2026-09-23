@@ -65,7 +65,12 @@ enforces parity.
   now can't ship `:latest` at all (fixed 2026-07-30, standards-gap
   UNI-14 — `docker-publish.yml` used to have no `needs:` at all,
   since GitHub Actions `needs:` can't cross workflow *files*; the fix
-  merged the publish job into `test.yml` as a third job).
+  merged the publish job into `test.yml` as a third job). Since
+  2026-09-23 it also builds the image locally and runs
+  `tools/ci/smoke-image.sh` before pushing: `oc version` must report
+  the commit's SHA, the runtime extras must import, and a started
+  container must answer `/health` and report the same SHA. An image
+  that cannot start never reaches `:latest`.
   Doc-only / hook-only pushes don't need a redeploy.
 
   Lookup the stack id dynamically (don't hardcode it):

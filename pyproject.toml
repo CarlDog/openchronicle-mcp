@@ -57,8 +57,10 @@ metrics = [
 	"prometheus-client>=0.23.1",
 ]
 mcp = [
-	# Floor 1.29: the version the MCP surface baselines were captured on
-	# (tests/test_mcp_tool_schema_snapshot.py, tests/test_mcp_error_shape.py).
+	# Floor 1.30.0, raised by Dependabot #33 (2026-09-23). The MCP surface
+	# baselines (tests/test_mcp_tool_schema_snapshot.py,
+	# tests/test_mcp_error_shape.py) were captured on 1.29 and pass
+	# unchanged on 1.30.0, the version the lock resolves.
 	# The old >=1.0 floor was fiction — nothing ever verified the server
 	# against it, and a resolver free to pick 1.0 would not have run.
 	#

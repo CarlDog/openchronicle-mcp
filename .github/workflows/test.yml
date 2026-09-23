@@ -168,6 +168,25 @@ jobs:
             type=sha,prefix=,format=short
             type=ref,event=tag
 
+      # Build once into the local daemon and prove the image starts before
+      # anything is pushed. The push step below rebuilds from the same
+      # layer cache (same builder, context and build-args), so it ships
+      # the layers tested here; only its OCI labels differ.
+      - name: Build image for the smoke test
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: oc-smoke:ci
+          build-args: |
+            OC_BUILD_REVISION=${{ github.sha }}
+          cache-from: type=gha
+
+      - name: Smoke-test the image before pushing
+        run: bash tools/ci/smoke-image.sh oc-smoke:ci "${{ github.sha }}"
+
       - name: Build and push
         uses: docker/build-push-action@v7
         with:
