@@ -24,6 +24,12 @@ def main() -> None:
 
     container = CoreContainer()
     config = MCPConfig.from_env()
+    # Verify the embedding model's revision once before serving. This entry
+    # point runs no maintenance loop and no revision refresher, so without
+    # it the semantic channel would match every revision until a write
+    # happened to verify one (ADR 0005 §7). A re-pull is noticed on restart.
+    if container.embedding_service is not None:
+        container.embedding_service.port.refresh_revision()
     server = create_server(container, config)
     # The server's own lifespan logs at DEBUG (it runs per request over
     # stateless HTTP), so the one startup line lives here. logging writes

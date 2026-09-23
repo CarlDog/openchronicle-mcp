@@ -148,7 +148,12 @@ class CoreContainer:
         # original search-only counter keeps its keys for continuity.
         search_failures = self.embedding_service.search_failure_count
         failure_count = self.embedding_service.failure_count
-        status = "degraded" if failure_count else "active"
+        # A snapshot read, never a probe and never raising (ADR 0005 §7):
+        # health must explain an unverified revision, not fail on it. While
+        # it is unverified no embedding is written, so the subsystem is
+        # degraded even with no failed provider call.
+        revision = port.revision_snapshot()
+        status = "degraded" if failure_count or not revision.known else "active"
         return {
             "status": status,
             "provider": settings.provider,
@@ -160,7 +165,12 @@ class CoreContainer:
             "dimensions": port.dimensions(),
             "configured_dimensions": settings.dimensions,
             "stored_dimensions": self.storage.stored_embedding_dimensions(),
-            "model_revision": port.model_revision(),
+            # `model_revision` is the last VERIFIED value; while unverified it
+            # is null and `model_revision_state` says why: "known", "none"
+            # (the provider or model has no revision) or "unknown".
+            "model_revision": revision.value,
+            "model_revision_state": revision.state,
+            "model_revision_verified_at": revision.verified_at.isoformat() if revision.verified_at else None,
             "timeout_seconds": settings.timeout,
             "failure_count": failure_count,
             "last_failure_at": self.embedding_service.last_failure_at,

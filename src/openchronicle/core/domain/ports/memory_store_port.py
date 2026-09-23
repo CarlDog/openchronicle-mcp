@@ -316,12 +316,16 @@ class MemoryStorePort(ABC):
         model: str,
         settings_fingerprint: str = "",
         model_revision: str | None = None,
+        *,
+        match_revision: bool = True,
     ) -> int:
         """CURRENT tombstones — space identity AND content hash match.
 
         Health's additive ``unembeddable`` count (ADR 0009). Non-current
         tombstones are genuine backfill candidates and belong to the
-        stale buckets instead; no row is in both.
+        stale buckets instead; no row is in both. ``match_revision=False``
+        drops the revision predicate while the revision is unverified
+        (ADR 0005 §7).
         """
         ...
 
@@ -332,6 +336,8 @@ class MemoryStorePort(ABC):
         model: str,
         settings_fingerprint: str = "",
         model_revision: str | None = None,
+        *,
+        match_revision: bool = True,
     ) -> dict[str, int]:
         """Disjoint staleness buckets against the active space (ADR 0005).
 
@@ -339,6 +345,8 @@ class MemoryStorePort(ABC):
         included) and ``content_mismatch`` (right space, stale content
         hash — counted only among space-matching rows). Their sum is the
         row count a backfill will regenerate; no row is in both.
+        ``match_revision=False`` leaves the revision out of the space
+        while it is unverified (ADR 0005 §7).
         """
         ...
 

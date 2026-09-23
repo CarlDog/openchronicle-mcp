@@ -749,6 +749,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
         model: str,
         settings_fingerprint: str = "",
         model_revision: str | None = None,
+        *,
+        match_revision: bool = True,
     ) -> int:
         """CURRENT tombstones: space identity AND content hash both match.
 
@@ -758,17 +760,23 @@ class SqliteStore(StoragePort, MemoryStorePort):
         (``stale_embedding_counts`` needs no status predicate for that;
         verified, per the ADR). Content hashes are compared in Python,
         same as the content-mismatch bucket.
+
+        ``match_revision=False`` drops the revision predicate. The service
+        passes it while the active revision is unverified (ADR 0005 §7),
+        when there is no revision to compare against.
         """
         cur = self._conn.cursor()
-        rows = cur.execute(
-            """
+        sql = """
             SELECT m.content AS content, e.content_hash AS content_hash
             FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
             WHERE e.status = 'content_too_long'
-              AND e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
-            """,
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchall()
+              AND e.provider = ? AND e.model = ? AND e.settings_fingerprint = ?
+            """
+        params: list[Any] = [provider, model, settings_fingerprint]
+        if match_revision:
+            sql += " AND e.model_revision IS ?"
+            params.append(model_revision)
+        rows = cur.execute(sql, params).fetchall()
         return sum(1 for r in rows if hash_content(r["content"]) == r["content_hash"])
 
     @_locked
@@ -778,6 +786,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
         model: str,
         settings_fingerprint: str = "",
         model_revision: str | None = None,
+        *,
+        match_revision: bool = True,
     ) -> dict[str, int]:
         """Disjoint staleness buckets against the active space (ADR 0005).
 
@@ -788,24 +798,29 @@ class SqliteStore(StoragePort, MemoryStorePort):
         disjoint and their sum equals the row count backfill will
         regenerate. Content hashes are compared in Python (SQLite has no
         sha256) — a full-join scan, milliseconds at this corpus size.
+
+        ``match_revision=False`` leaves the revision out of the space. The
+        service passes it while the active revision is unverified (ADR
+        0005 §7); comparing against an unknown value would report every
+        row as stale.
         """
         cur = self._conn.cursor()
-        row = cur.execute(
-            "SELECT COUNT(*) AS cnt FROM memory_embeddings"
-            " WHERE provider != ? OR model != ? OR settings_fingerprint != ? OR model_revision IS NOT ?",
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchone()
+        space_sql = "SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE provider != ? OR model != ? OR settings_fingerprint != ?"
+        content_sql = """
+            SELECT m.content AS content, e.content_hash AS content_hash
+            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
+            WHERE e.provider = ? AND e.model = ? AND e.settings_fingerprint = ?
+            """
+        params: list[Any] = [provider, model, settings_fingerprint]
+        if match_revision:
+            space_sql += " OR model_revision IS NOT ?"
+            content_sql += " AND e.model_revision IS ?"
+            params.append(model_revision)
+        row = cur.execute(space_sql, params).fetchone()
         space_mismatch = row["cnt"] if row else 0
 
         content_mismatch = 0
-        rows = cur.execute(
-            """
-            SELECT m.content AS content, e.content_hash AS content_hash
-            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
-            WHERE e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
-            """,
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchall()
+        rows = cur.execute(content_sql, params).fetchall()
         for r in rows:
             if hash_content(r["content"]) != r["content_hash"]:
                 content_mismatch += 1

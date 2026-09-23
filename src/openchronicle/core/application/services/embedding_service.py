@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import functools
 import logging
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -11,8 +14,9 @@ from typing import Any
 from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
 from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
-from openchronicle.core.domain.exceptions import ProviderError
+from openchronicle.core.domain.exceptions import ProviderError, RevisionUnknownError
 from openchronicle.core.domain.models.memory_item import MemoryItem
+from openchronicle.core.domain.models.revision_snapshot import RevisionSnapshot
 from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.ports.memory_store_port import DEFAULT_PINNED_LIMIT, MemoryStorePort
@@ -35,6 +39,17 @@ _RRF_K = 60
 # fallback isolates it.
 _BACKFILL_CHUNK_SIZE = 32
 
+# The revision refresher (ADR 0005 §7). Once the revision is known it is
+# re-probed every 5 minutes, which is how a re-pulled model is noticed.
+# While it is unknown every write is refused, so it is retried every 30 s,
+# the adapter's own cooldown after a failed probe.
+_REVISION_REFRESH_KNOWN_SECONDS = 300.0
+_REVISION_REFRESH_UNKNOWN_SECONDS = 30.0
+
+# Sentinel for "no backfill has completed in this process". None cannot
+# serve: it is a real revision value (a provider with no revision).
+_NOT_RECONCILED = object()
+
 
 @dataclass(frozen=True)
 class BackfillResult:
@@ -50,20 +65,26 @@ class BackfillResult:
     ``failed``: a tombstoned-only run is a success (the maintenance
     guard's ``failed and not generated`` doesn't match, ``embed_memory``
     maps it to ``ok``, the CLI exits 0).
+
+    ``skipped`` marks a call that did nothing because another backfill was
+    already running in this service; only one runs at a time.
     """
 
     generated: int
     failed: int
     tombstoned: int
     elapsed_ms: int
+    skipped: bool = False
 
     @property
     def outcome(self) -> str:
-        """The caller-facing verdict: ``ok``, ``partial`` or ``failed``.
+        """The caller-facing verdict: ``ok``, ``partial``, ``failed`` or ``skipped``.
 
         One definition for every surface that reports a run, so the
         tombstoned-only-is-``ok`` rule above cannot drift between them.
         """
+        if self.skipped:
+            return "skipped"
         if self.failed == 0:
             return "ok"
         if self.generated == 0:
@@ -91,27 +112,38 @@ class EmbeddingService:
         self._failure_count: int = 0
         self._last_failure_at: str | None = None
         self._last_failure_op: str | None = None
-        # Handle for an operator-started background backfill (the MCP/REST
-        # `background=true` path). One at a time per service: a second
-        # start while one runs is refused, not queued. Overlap with the
-        # maintenance loop's own periodic backfill stays safe regardless —
-        # CAS publication makes concurrent runs correct, merely wasteful.
+        # Handle for a background backfill, started by an operator (the
+        # MCP/REST `background=true` path) or by revision reconciliation.
+        # A second start while one runs is refused, not queued.
         self._background_backfill: asyncio.Task[BackfillResult] | None = None
-        # How the last operator background backfill ended, for health. In
-        # memory only: None until one finishes in this process.
+        # Held by generate_missing whoever calls it: the maintenance job,
+        # the synchronous memory_embed, a background task. Before it, an
+        # automatic reindex and the maintenance job could overlap, which is
+        # correct under CAS but up to twice the embeds (measured in the
+        # 2026-09-23 plan review).
+        self._backfill_lock = threading.Lock()
+        # How the last background backfill ended, for health. In memory
+        # only: None until one finishes in this process.
         self._last_background_backfill: dict[str, Any] | None = None
+        # ADR 0005 §7: the revision value the last completed whole-corpus
+        # backfill used in this process. The refresher starts a backfill
+        # whenever the verified revision differs from it.
+        self._reconciled_revision: object = _NOT_RECONCILED
+        self._revision_refresher: asyncio.Task[None] | None = None
+        self._auto_backfill = False
 
     @property
     def backfill_running(self) -> bool:
-        """True while an operator-started background backfill is in flight."""
-        return self._background_backfill is not None and not self._background_backfill.done()
+        """True while any backfill runs in this service, or a background one is starting."""
+        task_running = self._background_backfill is not None and not self._background_backfill.done()
+        return task_running or self._backfill_lock.locked()
 
     @property
     def last_background_backfill(self) -> dict[str, Any] | None:
-        """Outcome of the last finished operator background backfill."""
+        """How the last background backfill (operator or reconcile) ended."""
         return self._last_background_backfill
 
-    def start_background_backfill(self, *, force: bool = False) -> bool:
+    def start_background_backfill(self, *, force: bool = False, trigger: str = "operator") -> bool:
         """Start ``generate_missing`` on a worker thread; False if one runs.
 
         Must be called from a running event loop (the MCP tool and the
@@ -119,17 +151,21 @@ class EmbeddingService:
         minutes — far past any MCP host tool timeout — so the interactive
         surfaces need started-job semantics; progress is observable in
         health (`stale`/`missing` count down) rather than in this call.
+
+        ``trigger`` labels the run in health and metrics: ``operator`` for
+        ``memory_embed``, ``reconcile`` for the revision refresher.
         """
+        job = f"{trigger}_backfill"
         if self.backfill_running:
-            self._safe_observe_job(name="operator_backfill", outcome="overlap")
+            self._safe_observe_job(name=job, outcome="overlap")
             return False
-        task = asyncio.get_running_loop().create_task(self._run_operator_backfill(force=force))
-        task.add_done_callback(self._record_background_outcome)
+        task = asyncio.get_running_loop().create_task(self._run_background_backfill(force=force, job=job))
+        task.add_done_callback(functools.partial(self._record_background_outcome, trigger=trigger))
         self._background_backfill = task
         return True
 
-    def _record_background_outcome(self, task: asyncio.Task[BackfillResult]) -> None:
-        """Log and keep how an operator background backfill ended.
+    def _record_background_outcome(self, task: asyncio.Task[BackfillResult], *, trigger: str) -> None:
+        """Log and keep how a background backfill ended.
 
         Nothing awaits the task. Before this callback an exception left no
         log line at all: `backfill_running` went False while `stale` never
@@ -137,17 +173,23 @@ class EmbeddingService:
         retrieved, so asyncio does not report it a second time.
 
         Health gets the exception's type only. The traceback goes to the
-        log, matching REST, which never returns internal error text.
+        log, matching REST, which never returns internal error text. A
+        ProviderError (an unverified revision, a dead provider) is a known
+        condition whose message is the useful part, so it logs one line.
         """
         finished_at = utc_now().isoformat()
         if task.cancelled():
-            self._last_background_backfill = {"outcome": "cancelled", "finished_at": finished_at}
+            self._last_background_backfill = {"outcome": "cancelled", "trigger": trigger, "finished_at": finished_at}
             return
         exc = task.exception()
         if exc is not None:
-            logger.error("Background embedding backfill failed", exc_info=exc)
+            if isinstance(exc, ProviderError):
+                logger.error("Background embedding backfill failed: %s", exc)
+            else:
+                logger.error("Background embedding backfill failed", exc_info=exc)
             self._last_background_backfill = {
                 "outcome": "error",
+                "trigger": trigger,
                 "finished_at": finished_at,
                 "error_type": type(exc).__name__,
             }
@@ -155,28 +197,95 @@ class EmbeddingService:
         result = task.result()
         self._last_background_backfill = {
             "outcome": result.outcome,
+            "trigger": trigger,
             "finished_at": finished_at,
             "generated": result.generated,
             "failed": result.failed,
             "tombstoned": result.tombstoned,
         }
 
-    async def _run_operator_backfill(self, *, force: bool) -> BackfillResult:
+    async def _run_background_backfill(self, *, force: bool, job: str) -> BackfillResult:
         started = time.monotonic()
         outcome = "failure"
         try:
             result = await asyncio.to_thread(self.generate_missing, force=force)
-            outcome = "partial" if result.failed else "success"
+            outcome = "overlap" if result.skipped else "partial" if result.failed else "success"
             return result
         except asyncio.CancelledError:
             outcome = "cancel"
             raise
         finally:
-            self._safe_observe_job(
-                name="operator_backfill",
-                outcome=outcome,
-                duration_seconds=time.monotonic() - started,
+            self._safe_observe_job(name=job, outcome=outcome, duration_seconds=time.monotonic() - started)
+
+    # -- model revision (ADR 0005 §7) ------------------------------------------
+
+    def start_revision_refresher(self, *, auto_backfill: bool = True) -> bool:
+        """Keep the model revision verified. True if a refresher was started.
+
+        Only for a provider that tracks a revision. It probes at once, then
+        every 30 s while the revision is unknown and every 300 s once it is
+        known, on a worker thread and outside the maintenance loop's global
+        lock, so neither a long backfill nor the persisted job schedule can
+        delay it. With ``auto_backfill`` it also reconciles: once the
+        revision is verified, if no backfill has completed against it in
+        this process and none is running, it starts one. That covers a
+        re-pull, a boot after one, and writes refused while the revision was
+        unknown. Idempotent; must be called from a running event loop.
+        """
+        if not self._port.tracks_revision or self._revision_refresher is not None:
+            return False
+        self._auto_backfill = auto_backfill
+        task = asyncio.get_running_loop().create_task(self._refresh_revision_forever(), name="oc-revision-refresher")
+        task.add_done_callback(self._refresher_ended)
+        self._revision_refresher = task
+        return True
+
+    async def stop_revision_refresher(self) -> None:
+        task, self._revision_refresher = self._revision_refresher, None
+        if task is None:
+            return
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+
+    @staticmethod
+    def _refresher_ended(task: asyncio.Task[None]) -> None:
+        # Cancellation is the normal stop. Anything else would leave health
+        # reading "known" while re-pull detection is silently off.
+        if not task.cancelled():
+            logger.error(
+                "model revision refresher stopped; re-pull detection is off until restart",
+                exc_info=task.exception(),
             )
+
+    async def _refresh_revision_forever(self) -> None:
+        while True:
+            try:
+                snapshot = await asyncio.to_thread(self._port.refresh_revision, force=True)
+                self._reconcile(snapshot)
+            except Exception:
+                # One bad tick must not end re-pull detection.
+                logger.exception("model revision refresh failed; retrying")
+                snapshot = self._port.revision_snapshot()
+            await asyncio.sleep(
+                _REVISION_REFRESH_KNOWN_SECONDS if snapshot.known else _REVISION_REFRESH_UNKNOWN_SECONDS
+            )
+
+    def _reconcile(self, snapshot: RevisionSnapshot) -> None:
+        """Start a backfill if none has completed against this revision yet."""
+        if not self._auto_backfill or not snapshot.known:
+            return
+        if self._reconciled_revision == snapshot.value or self.backfill_running:
+            return
+        if self.start_background_backfill(trigger="reconcile"):
+            logger.info("Embedding backfill started to reconcile with model revision %s", snapshot.value or "none")
+
+    def _revision_unknown(self) -> RevisionUnknownError:
+        return RevisionUnknownError(
+            f"the revision of embedding model {self._port.model_name()!r} is not verified yet; "
+            "nothing is stamped until it is",
+            details={"provider": self._port.provider_name(), "model": self._port.model_name()},
+        )
 
     @property
     def port(self) -> EmbeddingPort:
@@ -294,7 +403,7 @@ class EmbeddingService:
         """
         return isinstance(exc, ProviderError) and exc.error_code == CONTENT_TOO_LONG
 
-    def _write_tombstone(self, memory_id: str, content: str) -> bool:
+    def _write_tombstone(self, memory_id: str, content: str, revision: str | None) -> bool:
         """Park ``memory_id`` as unembeddable for this exact content.
 
         The tombstone goes through the SAME CAS as a real save (full
@@ -310,7 +419,7 @@ class EmbeddingService:
             model=self._port.model_name(),
             provider=self._port.provider_name(),
             content_hash=hash_content(content),
-            model_revision=self._port.model_revision(),
+            model_revision=revision,
             settings_fingerprint=self._port.settings_fingerprint(),
             status="content_too_long",
         )
@@ -324,9 +433,10 @@ class EmbeddingService:
             logger.info("tombstone for memory %s not published (content changed or memory deleted)", memory_id)
         return published
 
-    def _is_current(self, memory_id: str, content: str) -> bool:
+    def _is_current(self, memory_id: str, content: str, revision: str | None) -> bool:
         """ADR 0005 freshness: stored identity matches the active space
-        AND the stored content hash matches this content.
+        AND the stored content hash matches this content. ``revision`` is
+        the operation's verified snapshot value (ADR 0005 §7).
 
         Dimensions are deliberately not compared here — pre-embed, only
         the port's *claimed* dimensions exist (unreliable per 0003); the
@@ -339,7 +449,7 @@ class EmbeddingService:
             identity["provider"] == self._port.provider_name()
             and identity["model"] == self._port.model_name()
             and identity["settings_fingerprint"] == self._port.settings_fingerprint()
-            and identity["model_revision"] == self._port.model_revision()
+            and identity["model_revision"] == revision
             and identity["content_hash"] == hash_content(content)
         )
 
@@ -366,15 +476,29 @@ class EmbeddingService:
         stored and FTS5-searchable; health's ``unembeddable`` and the
         INFO line are the surfaces. Transient failures keep the
         raise-on-failure contract unchanged.
+
+        One revision snapshot, taken before the provider call, serves the
+        currency check and the stamp (ADR 0005 §7). While the revision is
+        unverified this raises ``RevisionUnknownError`` before any embed.
+        That refusal is not a provider failure: the memory is saved and
+        FTS5-searchable, and reconciliation embeds it once the revision is
+        verified.
         """
-        if not force and self._is_current(memory_id, content):
+        snapshot = self._port.revision_snapshot()
+        if not snapshot.known:
+            # Resolve it here rather than wait for the refresher; this may
+            # wait for a probe already in flight.
+            snapshot = self._port.refresh_revision()
+        if not snapshot.known:
+            raise self._revision_unknown()
+        if not force and self._is_current(memory_id, content, snapshot.value):
             return
 
         try:
             vec = self._embed_single(content)
         except Exception as exc:
             if self._is_content_too_long(exc):
-                self._write_tombstone(memory_id, content)
+                self._write_tombstone(memory_id, content, snapshot.value)
                 return
             # Counted at the boundary (op="save") so a dead provider is
             # visible in health even when nothing ever searches; the
@@ -388,7 +512,7 @@ class EmbeddingService:
             model=self._port.model_name(),
             provider=self._port.provider_name(),
             content_hash=hash_content(content),
-            model_revision=self._port.model_revision(),
+            model_revision=snapshot.value,
             settings_fingerprint=self._port.settings_fingerprint(),
         )
         if not published:
@@ -402,9 +526,33 @@ class EmbeddingService:
         Individual failures are logged and skipped so the backfill always
         completes — but the failure count is returned so callers can surface
         a partial/total-failure status instead of falsely reporting "ok".
-        """
-        import time
 
+        One backfill runs at a time per service: a call that finds one
+        running returns a ``skipped`` result at once. The revision is
+        re-verified first, and that one snapshot serves every candidate
+        check and stamp. An unverified revision raises
+        ``RevisionUnknownError`` before any candidate is selected (ADR 0005
+        §7). A completed whole-corpus run records the revision it used,
+        which is what the refresher's reconciliation compares against.
+        """
+        if not self._backfill_lock.acquire(blocking=False):
+            logger.info("Embedding backfill skipped: another backfill is already running")
+            return BackfillResult(generated=0, failed=0, tombstoned=0, elapsed_ms=0, skipped=True)
+        try:
+            # One /api/tags probe per backfill. If it fails, a known value is
+            # still used: a stamp can trail the weights but never lead them,
+            # and a trailing stamp heals once the new revision is detected.
+            snapshot = self._port.refresh_revision(force=True)
+            if not snapshot.known:
+                raise self._revision_unknown()
+            result = self._backfill(snapshot, project_id=project_id, force=force)
+            if project_id is None:
+                self._reconciled_revision = snapshot.value
+            return result
+        finally:
+            self._backfill_lock.release()
+
+    def _backfill(self, snapshot: RevisionSnapshot, *, project_id: str | None, force: bool) -> BackfillResult:
         items = self._store.list_memory(limit=None, pinned_only=False, project_id=project_id)
 
         candidates = []
@@ -413,7 +561,7 @@ class EmbeddingService:
             # wrong space or with a stale content hash — including the
             # '' migration sentinels — is a candidate. This is what
             # makes the post-migration reindex just "the next backfill".
-            if not force and self._is_current(item.id, item.content):
+            if not force and self._is_current(item.id, item.content, snapshot.value):
                 continue
             candidates.append(item)
 
@@ -482,7 +630,7 @@ class EmbeddingService:
                         model=self._port.model_name(),
                         provider=self._port.provider_name(),
                         content_hash=hash_content(item.content),
-                        model_revision=self._port.model_revision(),
+                        model_revision=snapshot.value,
                         settings_fingerprint=self._port.settings_fingerprint(),
                     )
                     if published:
@@ -503,7 +651,7 @@ class EmbeddingService:
                         # counts nothing — the row stays a candidate,
                         # mirroring the ok-path refusal.
                         try:
-                            if self._write_tombstone(item.id, item.content):
+                            if self._write_tombstone(item.id, item.content, snapshot.value):
                                 tombstoned += 1
                                 self._safe_observe_backfill_item("tombstoned")
                         except Exception as tombstone_exc:
@@ -568,6 +716,11 @@ class EmbeddingService:
         known, not missing); ``stale`` counts regeneration work
         regardless of row status.
         """
+        # A snapshot read, never a probe: this runs on the event loop from
+        # `memory_embed background=true`. While the revision is unverified
+        # the counts leave it out of the space (ADR 0005 §7); comparing
+        # against an unknown value would call every row stale.
+        snapshot = self._port.revision_snapshot()
         total_memories = self._store.count_memory()
         total_rows = self._store.count_embeddings()
         embedded = self._store.count_embeddings(status="ok")
@@ -575,13 +728,15 @@ class EmbeddingService:
             self._port.provider_name(),
             self._port.model_name(),
             settings_fingerprint=self._port.settings_fingerprint(),
-            model_revision=self._port.model_revision(),
+            model_revision=snapshot.value,
+            match_revision=snapshot.known,
         )
         unembeddable = self._store.count_unembeddable_embeddings(
             self._port.provider_name(),
             self._port.model_name(),
             settings_fingerprint=self._port.settings_fingerprint(),
-            model_revision=self._port.model_revision(),
+            model_revision=snapshot.value,
+            match_revision=snapshot.known,
         )
         return {
             "total_memories": total_memories,
@@ -811,7 +966,12 @@ class EmbeddingService:
         # Space-scoped (ADR 0005): provider + model + MEASURED query
         # dimensions. A row from another provider under the same label,
         # a migration sentinel, or a different-dims row is invisible to
-        # ranking — never mixed in.
+        # ranking — never mixed in. The revision comes from a snapshot
+        # read, never a probe; while it is unverified it is left out of the
+        # filter (ADR 0005 §7's one exception), since the query embed
+        # needs a live provider and the startup probe usually settles it
+        # within seconds.
+        snapshot = self._port.revision_snapshot()
         vector_load_started = time.monotonic()
         try:
             all_embeddings = self._store.list_embeddings(
@@ -819,8 +979,8 @@ class EmbeddingService:
                 provider=self._port.provider_name(),
                 dimensions=len(query_vec),
                 settings_fingerprint=self._port.settings_fingerprint(),
-                model_revision=self._port.model_revision(),
-                match_revision=True,
+                model_revision=snapshot.value,
+                match_revision=snapshot.known,
             )
         finally:
             self._safe_observe_stage(stage="vector_loading", started=vector_load_started)

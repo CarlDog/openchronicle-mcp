@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from openchronicle.core.domain.exceptions import RevisionUnknownError
+
 if TYPE_CHECKING:
     from openchronicle.core.application.services.embedding_service import EmbeddingService
 
@@ -48,8 +50,29 @@ def execute(service: EmbeddingService | None, *, force: bool = False) -> dict[st
             "status": "not_configured",
             "message": "Set OC_EMBEDDING_PROVIDER to enable embeddings.",
         }
-    result = service.generate_missing(force=force)
+    try:
+        result = service.generate_missing(force=force)
+    except RevisionUnknownError as exc:
+        # Refused before any candidate was selected (ADR 0005 §7). Reported
+        # like a dead provider, as a failed run, not as a transport error.
+        return {
+            "status": "failed",
+            "message": str(exc),
+            "generated": 0,
+            "failed": 0,
+            "tombstoned": 0,
+            "elapsed_ms": 0,
+            "force": force,
+            **service.embedding_status(),
+        }
     status = service.embedding_status()
+    if result.skipped:
+        return {
+            "status": "already_running",
+            "message": "Another backfill is running — watch health.embedding_status.",
+            "force": force,
+            **status,
+        }
     # Tombstoned rows (ADR 0009) are classified permanent outcomes, not
     # failures: a tombstoned-only run maps to "ok" (failed == 0) and the
     # additive `tombstoned` field carries the count.

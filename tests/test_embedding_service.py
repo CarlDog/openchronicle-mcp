@@ -299,6 +299,7 @@ def test_background_backfill_result_is_kept() -> None:
     assert kept is not None
     assert {k: v for k, v in kept.items() if k != "finished_at"} == {
         "outcome": "partial",
+        "trigger": "operator",
         "generated": 3,
         "failed": 1,
         "tombstoned": 2,

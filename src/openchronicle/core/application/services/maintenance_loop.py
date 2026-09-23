@@ -35,6 +35,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from openchronicle.core.domain.exceptions import ProviderError
 from openchronicle.core.domain.time_utils import utc_now
 
 if TYPE_CHECKING:
@@ -305,7 +306,13 @@ class MaintenanceLoop:
                 succeeded = True
                 metric_outcome = "partial" if _job_result_is_partial(result) else "success"
             except Exception as exc:
-                _logger.exception("maintenance job %s failed", job.name)
+                if isinstance(exc, ProviderError):
+                    # A known provider condition, such as an unverified model
+                    # revision or a dead provider: the message is the useful
+                    # part. The run still counts as failed.
+                    _logger.error("maintenance job %s failed: %s", job.name, exc)
+                else:
+                    _logger.exception("maintenance job %s failed", job.name)
                 job.last_outcome = "failed"
                 job.last_error = str(exc)
                 job.runs_failed += 1

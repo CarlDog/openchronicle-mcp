@@ -46,6 +46,11 @@ falls back to FTS5-only and surfaces `"status": "degraded"` from
 `embedding_backfill` job (default every 6 hours) catches up missing
 embeddings when the provider recovers.
 
+With `ollama`, health also reads `degraded` while the model's revision
+is unverified (`model_revision_state: "unknown"`): nothing is
+embedded until Ollama's `/api/tags` lists the configured model. See
+[MAINTENANCE.md](../architecture/MAINTENANCE.md#model-revision-adr-0005-7).
+
 Content the provider rejects as exceeding the model's context is a
 classified PERMANENT outcome (`CONTENT_TOO_LONG`, ADR 0009), not
 degradation: the row parks as an `unembeddable` tombstone instead of

@@ -51,6 +51,13 @@ that production can reach today, on `main`/`v3.3.0`, and a read-only health
 check on 2026-09-22 showed it has **not** fired (`model_revision` recorded,
 `stale: 0`).
 
+**Update 2026-09-23:** fixed on `main` (assessment rev 208, ADR 0005
+§7), shipping with v3.4.0. Production runs v3.3.0 until `OC_TAG` moves,
+so the control below still applies until then. After v3.4.0 is
+deployed, no action is needed after a restart; if
+`embedding_status.model_revision_state` stays `unknown` for more than 5
+minutes, check that OC can reach Ollama's `/api/tags`.
+
 **Interim control for §1.1, until a fix ships.**
 
 1. After any NAS reboot, or any OC or Ollama restart, wait until Ollama
@@ -241,8 +248,10 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
 4. **Mutation re-checks.** For each salvaged behavior, reverting it must turn
    its guarding test red.
 5. **§1.1:** a fake-Ollama end-to-end test, then a NAS restart in both
-   orders. Pass: `model_revision` non-null, `stale` and `space_mismatch`
-   both 0, and no manual restart needed.
+   orders. Pass: `model_revision_state` reaches `known` within 60 s of
+   Ollama answering, `stale` and `space_mismatch` are both 0, and no
+   manual restart is needed. The fake-Ollama tests are in
+   `tests/test_revision_probe.py` (rev 208); the NAS restarts remain.
 6. **The persistent client:** NAS p50/p95/p99 before and after, at 1 and 8
    clients, cold and warm, with an Ollama restart mid-run.
 7. **Anything on instrumented paths** (reader split, stage timers): design
@@ -268,7 +277,8 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
   **Update 2026-09-23:** all four are fixed on `main` (assessment revs
   201-204) and ship with v3.4.0; see V3_PLAN item 8.
 - **§1.1**, as above: `main`'s only production-reachable defect in this
-  review.
+  review. **Update 2026-09-23:** fixed on `main` (rev 208), shipping
+  with v3.4.0.
 - **Mixed line endings, in docs and source.**
   - `main`'s `AGENTS.md` has 535 of 696 lines CRLF, and `V3_PLAN.md`,
     `CODEBASE_ASSESSMENT.md` and others are also mixed.

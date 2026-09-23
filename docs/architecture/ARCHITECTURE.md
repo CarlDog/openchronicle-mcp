@@ -42,6 +42,8 @@ imports — anything reaching outside the process goes through a port.
 - `services/embedding_service.py`: hybrid FTS5 + cosine-similarity
   search via Reciprocal Rank Fusion. Falls back to FTS5-only on
   embedding provider failure (the embedding-degradation policy).
+  It also owns the model-revision refresher and one-at-a-time backfills
+  (ADR 0005 §7).
 - `services/git_onboard.py`: clone-and-cluster a remote git repo into
   memory candidates. No LLM call — synthesis is the caller's job.
   **Size judged deliberately (2026-08-28, ~814 lines): cohesive, keep as

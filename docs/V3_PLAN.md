@@ -940,8 +940,12 @@ entry (below, or in its design doc):
      `GIT_DIR`, which every git hook exports, had pointed the walk at
      a different repository;
    - ✅ the per-request MCP lifespan lines log at DEBUG (rev 206);
-   - the §1.1 Ollama revision-probe fix: a tri-state revision (known /
-     none / unknown) plus a scheduled re-probe off the request path;
+   - ✅ the §1.1 Ollama revision-probe fix (rev 208, ADR 0005 §7). An
+     unverified revision is refused, never stamped as "none"; one
+     snapshot per operation, taken before the embed; a refresher
+     outside the maintenance lock with reconciliation backfills; one
+     backfill at a time. Planned in three reviewed revisions;
+     the NAS restart gate remains for the deploy;
    - ✅ an image smoke test before `build-and-push` pushes (rev 207).
 
    Plan the probe fix and review it adversarially before implementing.

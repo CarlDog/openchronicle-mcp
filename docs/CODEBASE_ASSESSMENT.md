@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 207
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 208
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,053 passed, one Linux-only skip** (rev 206); focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
+| Tests | Full Windows suite: **1,111 passed, one Linux-only skip** (rev 208); focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1, including that native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) (pytest; per-commit via pre-commit hook and CI) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -87,15 +87,15 @@ their no-commit/no-push statements are historical, not the current scope.
   checklist was corrected first: it would have deleted the live stack and
   an in-use volume. See V3_PLAN's Day-7 section, which preserves the
   failure mode rather than hiding it.
-- **Ollama revision-probe defect on `main`** ([0014](design/0014-gemini-audit-branch-review.md)
+- **Ollama revision-probe defect in v3.3.0, fixed on `main` (rev 208)** ([0014](design/0014-gemini-audit-branch-review.md)
   §1.1). A failed first `/api/tags` probe is cached as revision `None`
   for the process lifetime. Semantic search then returns nothing while
   health reads `active`, and the backfill re-embeds the whole corpus,
   twice per incident. Production can reach it; it had not fired as of
-  2026-09-23 (`model_revision` set, `stale: 0`). Interim control and fix
-  shape are in 0014; the fix is planned for v3.4.0. All four
-  fleet-review issue #27 items that ship alongside it are fixed on
-  `main` (revs 201-204).
+  2026-09-23 (`model_revision` set, `stale: 0`). The fix (ADR 0005 §7)
+  and the four fleet-review issue #27 items are on `main` (revs
+  201-208) and ship with v3.4.0. Until that deploy, production keeps
+  0014's interim control.
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
   Its docs and eight OC milestone memories describe unshipped work;
@@ -277,6 +277,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 208 | 2026-09-23 | **An unknown model revision is no longer "no revision" (design 0014 §1.1, ADR 0005 §7).** v3.3.0's Ollama adapter probed `/api/tags` once and cached a failed probe as `None`, which ADR 0005 reads as "this provider has no revision". One transient failure blanked semantic search while health read `active`, and the backfill re-embedded the corpus stamped NULL, twice per incident. A digest was also cached for the process lifetime, so a re-pull went unnoticed. Now adapters expose a `RevisionSnapshot` (known/value/verified_at), and only `refresh_revision()` does I/O, on worker threads. Only `/api/tags` listing the model sets a value; an unlisted model, an HTTP error, a timeout or a malformed body is a failed probe and never changes a verified value. Writes refuse while `unknown` (the memory is saved without a vector; a backfill refuses before selecting candidates), and every operation stamps one snapshot taken before its embed. A service-owned refresher runs in the ASGI server outside the maintenance global lock. It probes at startup, then every 30 s while `unknown` and every 300 s once known, and reconciles: if no backfill has completed against the verified value in this process, it starts one. One backfill runs at a time per service. Health gains `model_revision_state` and `model_revision_verified_at` and reads `degraded` while `unknown`, a refinement with rev 126 as precedent. The stdio server and the CLI verify once. Refusals log one line. The plan went through three revisions after five adversarial reviewer passes; the reviewers measured the stamp-after-embed race, the event-loop probe (5.17 s) and the backfill overlap (1.95x). Mutation-verified (36/36 caught). The test that pinned the defect (`down.model_revision() is None`) is replaced, not weakened. Named regression: an upstream that hides `/api/tags` now refuses writes. Local latency check against a fake Ollama (1,000 memories, 300 operations per cell, two alternating runs per side): medians unchanged within noise at one thread (save 7.9-8.1 before vs 8.0-8.2 ms after, search 57.6-58.2 vs 57.7-59.6 ms, health 12.9-13.1 vs 13.0-13.2 ms), and at eight threads tails moved both ways within the run-to-run spread. One shift, health p95 at eight threads 304-357 vs 143-144 ms, has no mechanism in this change and is recorded as observed, not claimed. The NAS restart gate remains for the deploy. |
 | 207 | 2026-09-23 | **Every image is smoke-tested before it is pushed.** `build-and-push` now builds the image into the runner's daemon, runs `tools/ci/smoke-image.sh`, and only then pushes. The push step rebuilds from the same layer cache, so it ships the tested layers. The script checks three things: `oc version --json` (with the entrypoint bypassed, whose bootstrap echo would corrupt stdout) reports the commit's SHA; the runtime extras import, including `mcp.server.fastmcp`, the import mcp 2.x removes; and a started container answers `/health` with 200 while `/api/v1/health` reports the same SHA. It was validated against a local build, and it failed as intended on a wrong SHA, on an image with `uvicorn` uninstalled, and on one serving the wrong port (logs printed, container removed). The `pyproject.toml` comment on the mcp floor now says 1.30.0, the version Dependabot #33 raised it to. |
 | 206 | 2026-09-23 | **No INFO lines per MCP request.** Stateless streamable-HTTP runs FastMCP's lifespan once per request, so its "OpenChronicle MCP server starting"/"shutting down" pair went into `OC_LOG_FILE` at INFO on every MCP call (design 0014 Part 4). The pair logs at DEBUG now. The stdio entrypoint, where the lifespan runs once, logs one INFO startup line naming the transport, to stderr. A test drives three MCP requests through the unified app and first proves the lifespan still ran each time. A stdio test checks the single line and an empty stdout. 3/3 mutants caught. |
 | 205 | 2026-09-23 | **Every git child gets the allowlisted environment.** Rev 117 limited the `git clone` child to an allowlist, but `onboard_git`'s local `rev-parse` and `log` calls still inherited the whole process environment. That included the server's secrets and any `GIT_DIR`/`GIT_WORK_TREE`. Every git hook exports `GIT_DIR`, and it overrides `git -C <path>`: an `oc onboard git` run from a hook, or from a shell with `GIT_DIR` set, walked a different repository into the project's memories. Rev 195 made only the tests hermetic. All three calls now use `_git_child_env()`, the same allowlist (renamed `_GIT_ENV_PASSTHROUGH`). The allowlist adds `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_NOSYSTEM`, which choose config files, carry no secret and name no repository. The hermetic test helpers move to `tests/helpers/git_repos.py`. There is a real-git decoy test and an environment unit test. 4/4 mutants caught. |

@@ -178,12 +178,55 @@ successful semantic search resets the counter.
 | Field | When |
 |---|---|
 | `status: "active"` | provider configured + most recent search succeeded |
-| `status: "degraded"` | provider configured + at least one recent failure |
+| `status: "degraded"` | provider configured + at least one recent failure, or the model revision is not verified (below) |
 | `status: "disabled"` | `OC_EMBEDDING_PROVIDER=none` (default) |
 | `status: "failed"` | adapter init failed at startup; FTS5-only |
 
 `/api/v1/health` and the MCP `health` tool both return this shape, so
 clients see degradation cleanly without parsing logs.
+
+### Model revision (ADR 0005 §7)
+
+Ollama can re-pull a model tag with different weights under the same
+name, so every stored vector carries the manifest digest it was made
+with. Health reports:
+
+| Field | Meaning |
+|---|---|
+| `model_revision` | The last verified digest. Null while unverified, or when there is none |
+| `model_revision_state` | `known`; `none` (OpenAI, stub, or an Ollama model listed without a digest); or `unknown` |
+| `model_revision_verified_at` | When `/api/tags` last confirmed it |
+
+- **Only `/api/tags` listing the model verifies it.** An unlisted model,
+  an HTTP error, a timeout or a malformed body is a failed probe. It
+  never changes a verified value. While nothing is verified the state
+  stays `unknown`.
+- **While `unknown`, nothing is stamped.** A save stores the memory,
+  FTS5-searchable, without a vector, and a backfill refuses before
+  selecting candidates. Search and the `stale`/`unembeddable` counts
+  leave the revision out meanwhile, and `status` reads `degraded`.
+- **The refresher** runs in the ASGI server only. It probes at startup,
+  then every 30 s while `unknown` and every 300 s once known, outside
+  the maintenance loop's global lock. Once the revision is known, if no
+  backfill has completed against it in this process, it starts one with
+  `trigger: "reconcile"`. That happens after a boot (usually with zero
+  candidates), after a re-pull, and after writes refused while
+  `unknown`. With `OC_MAINTENANCE_DISABLED` it still verifies, but
+  starts no backfills.
+- **stdio MCP and the CLI** have no refresher. The stdio server verifies
+  once at startup; `oc memory search` (unless `--mode keyword`) and
+  `oc memory embed --status` verify first; writes verify on demand. A
+  re-pull is noticed when those processes restart.
+- **Logs.** An unverified revision warns once, then every 15 minutes. A
+  verified one that stops re-verifying warns after three failed probes
+  in a row, then hourly. A changed digest is a WARNING naming both
+  values. Refused saves log at DEBUG, and a refused backfill logs one
+  line with no traceback.
+
+One backfill runs at a time per process. A call that finds one running
+is skipped: a synchronous `memory_embed` answers `already_running`, and
+the maintenance job counts it as done, since the running backfill does
+the work.
 
 ### Classified permanent outcomes (ADR 0009)
 
@@ -196,19 +239,22 @@ stops being retried; a backfill run reports parked rows in the
 `tombstoned` count (neither `generated` nor `failed`), and the
 `embedding_backfill` job treats a tombstoned-only run as a success.
 
-### Operator background backfills
+### Background backfills
 
 `memory_embed` with `background=true` (MCP or REST) starts a backfill
-task that nothing awaits. When it ends, health's
-`last_background_backfill` records how it ended:
+task that nothing awaits, and so does the revision refresher's
+reconciliation. When one ends, health's `last_background_backfill`
+records how it ended:
 
 | `outcome` | Meaning | Other fields |
 |---|---|---|
 | `ok` / `partial` / `failed` | The run returned. Same verdicts as a synchronous `memory_embed` | `generated`, `failed`, `tombstoned` |
-| `error` | The run raised. The traceback is logged at ERROR | `error_type`: the exception's class name, never its message |
+| `skipped` | Another backfill was already running | the same counts, all 0 |
+| `error` | The run raised. It is logged at ERROR: one line for a provider error such as an unverified revision, a traceback otherwise | `error_type`: the exception's class name, never its message |
 | `cancelled` | The task was cancelled | none |
 
-Every record carries `finished_at`. The field is `null` until a run
+Every record carries `trigger` (`operator` or `reconcile`) and
+`finished_at`. The field is `null` until a run
 finishes. It is held in memory, so a restart clears it. Before
 v3.4.0 an exception in this task left no log line and no health
 signal (fleet-review #27).

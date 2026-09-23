@@ -60,3 +60,24 @@ class ProviderError(Exception):
         self.hint = hint
         self.details = details
         super().__init__(message)
+
+
+class RevisionUnknownError(ProviderError):
+    """The embedding model's revision is not verified, so nothing may be stamped.
+
+    Raised instead of guessing. Stamping ``None`` for an unverified revision
+    made a transient probe failure re-embed the whole corpus twice (design
+    0014 §1.1). It refuses a write; it is not a provider failure, and the
+    embedding service does not count it as one.
+    """
+
+    def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__(
+            message,
+            error_code=PROVIDER_ERROR,
+            hint=(
+                "The provider has not confirmed the model's revision yet; embedding resumes once it "
+                "does. See health.embedding_status.model_revision_state."
+            ),
+            details=details,
+        )

@@ -305,3 +305,30 @@ def test_count_unembeddable_counts_only_current_tombstones() -> None:
     assert buckets == {"space_mismatch": 1, "content_mismatch": 1}, (
         "non-current tombstones are genuine candidates and stay in the stale buckets"
     )
+
+
+def test_counts_can_leave_the_revision_out_while_it_is_unverified() -> None:
+    """ADR 0005 §7: with no verified revision there is nothing to compare.
+
+    Rows stamped "sha256:A" read as stale against the unverified-as-None
+    value (the §1.1 health symptom, stale == total). With the predicate
+    dropped they are current again. Every other part of the space still
+    counts: a wrong model stays stale either way.
+    """
+    store = _store_with_memories("mem-1", "mem-2", "mem-3")
+    save_vec(store, "mem-1", [0.6, 0.8], model_revision="sha256:A")
+    save_tombstone(store, "mem-2", model_revision="sha256:A")
+    save_vec(store, "mem-3", [0.6, 0.8], model="old-model", model_revision="sha256:A")
+
+    matched = store.stale_embedding_counts("test-provider", "test-model", settings_fingerprint="test-fp")
+    assert matched == {"space_mismatch": 3, "content_mismatch": 0}, "against None, every stamped row is stale"
+    assert store.count_unembeddable_embeddings("test-provider", "test-model", settings_fingerprint="test-fp") == 0
+
+    agnostic = store.stale_embedding_counts(
+        "test-provider", "test-model", settings_fingerprint="test-fp", match_revision=False
+    )
+    assert agnostic == {"space_mismatch": 1, "content_mismatch": 0}, "only the wrong-model row is stale"
+    unembeddable = store.count_unembeddable_embeddings(
+        "test-provider", "test-model", settings_fingerprint="test-fp", match_revision=False
+    )
+    assert unembeddable == 1

@@ -11,6 +11,7 @@ import pytest
 
 from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG, PROVIDER_ERROR
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
+from openchronicle.core.domain.exceptions import RevisionUnknownError
 from openchronicle.core.infrastructure.embedding.ollama_adapter import (
     OllamaEmbeddingAdapter,
     _is_context_length_rejection,
@@ -286,7 +287,16 @@ class TestOllamaEmbeddingAdapter:
             with pytest.raises(LLMProviderError, match="input exceeds maximum context length"):
                 adapter.embed("hello")
 
-    def test_probe_supplies_model_revision_and_is_nonfatal(self) -> None:
+    def test_revision_reads_never_probe_and_an_unreachable_server_is_unknown(self) -> None:
+        """Replaces test_probe_supplies_model_revision_and_is_nonfatal (2026-09-23).
+
+        That test pinned the defect in design 0014 §1.1: model_revision()
+        probed lazily and read an unreachable server as None, which ADR
+        0005 takes to mean "no revision". Now only refresh_revision()
+        probes, reads come from the snapshot, and an unreachable server
+        leaves the revision unknown. The save path stays non-fatal in the
+        use cases, which catch the refusal (tests/test_revision_probe.py).
+        """
         adapter = self._make_adapter()
         tags = httpx.Response(
             200,
@@ -294,13 +304,17 @@ class TestOllamaEmbeddingAdapter:
             request=httpx.Request("GET", "http://localhost:11434/api/tags"),
         )
         with patch("httpx.get", return_value=tags) as mock_get:
+            adapter.refresh_revision(force=True)
             assert adapter.model_revision() == "sha256:abc123"
             assert adapter.model_revision() == "sha256:abc123"
-        mock_get.assert_called_once()  # cached — never probed per request
+        mock_get.assert_called_once()  # reads never probe
 
         down = self._make_adapter()
         with patch("httpx.get", side_effect=httpx.ConnectError("refused")):
-            assert down.model_revision() is None, "an unreachable server must not fail the save path"
+            snapshot = down.refresh_revision(force=True)
+        assert snapshot.known is False, "an unreachable server is not evidence of 'no revision'"
+        with pytest.raises(RevisionUnknownError):
+            down.model_revision()
 
     def test_settings_fingerprint_is_stable_and_setting_sensitive(self) -> None:
         a = self._make_adapter()

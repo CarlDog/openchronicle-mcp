@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from openchronicle.core.domain.exceptions import RevisionUnknownError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
@@ -36,6 +37,11 @@ def execute(
     if embedding_service is not None:
         try:
             embedding_service.generate_for_memory(item.id, item.content)
+        except RevisionUnknownError:
+            # Refused, not failed (ADR 0005 §7): the memory is saved, and
+            # reconciliation embeds it once the revision is verified. The
+            # adapter already warns about the unverified revision.
+            logger.debug("Embedding for memory %s deferred: model revision not verified", item.id)
         except Exception:
             logger.warning("Failed to generate embedding for memory %s", item.id, exc_info=True)
     return item

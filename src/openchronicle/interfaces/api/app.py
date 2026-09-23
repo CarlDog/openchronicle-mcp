@@ -20,6 +20,7 @@ from openchronicle.core.application.observability.exporter import (
     MetricsScrapeBusyError,
     MetricsScrapeError,
 )
+from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.domain.errors.error_codes import FILE_NOT_FOUND, INTERNAL_ERROR
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.config import HTTPConfig
@@ -95,6 +96,16 @@ def create_app(
             if maintenance is not None:
                 await maintenance.start()
                 stack.push_async_callback(maintenance.stop)
+            # Keeps the embedding model's revision verified (ADR 0005 §7).
+            # Started after the maintenance loop so the exit stack stops it
+            # first: a tick during maintenance.stop() must not start a
+            # backfill mid-shutdown. It runs with maintenance disabled too,
+            # since verification is correctness, but then starts no backfills.
+            embedding_service = getattr(container, "embedding_service", None)
+            if isinstance(embedding_service, EmbeddingService) and embedding_service.start_revision_refresher(
+                auto_backfill=maintenance is not None
+            ):
+                stack.push_async_callback(embedding_service.stop_revision_refresher)
             yield
         logger.info("OpenChronicle ASGI shutting down")
 

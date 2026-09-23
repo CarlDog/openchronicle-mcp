@@ -100,10 +100,12 @@ From the client side, the simplest check is to call the `health` MCP
 tool. The response includes:
 
 - `db_path`, `db_exists`, `db_modified_utc` — storage reachability
-- `embedding_status.status` — `active` / `degraded` / `disabled` / `failed`
+- `embedding_status.status` — `active` / `degraded` / `disabled` / `failed`; `degraded` also while the model revision is unverified
 - `embedding_status.unembeddable` — rows parked as permanently
   over-length for the current model (ADR 0009); parked rows are not
   failures and do not make `status` read `degraded`
+- `embedding_status.model_revision_state` — `known`, `none` or
+  `unknown`; while `unknown`, no embedding is written (ADR 0005 §7)
 - `package_version` — confirms the version the client is talking to
 - `maintenance_degraded` — `true` if the integrity-check job has
   failed since the last successful run
