@@ -17,6 +17,17 @@ enforces parity.
   tail latency and responsiveness under relevant load; throughput alone is
   not enough. Preserve existing acceptance/noise budgets. This priority
   does not itself authorize a benchmark, release, deployment or enablement.
+- **Rules for autonomous agents** (Claude, Gemini/Antigravity, Codex).
+  Added 2026-09-23 after [design 0014](docs/design/0014-gemini-audit-branch-review.md).
+  - Research and review designs (0003, 0011, 0012 and similar) are
+    not authorization to implement. Implement a gated or parked item
+    only after the operator ratifies it and its named measurement or
+    trigger is met.
+  - Work lands through a pull request so CI runs. A pushed branch
+    alone gets no test run.
+  - Nothing is "shipped" or "verified" before it is in a tagged
+    release, and CI has passed on the exact commit.
+  - Never write OpenChronicle milestone memories for unmerged work.
 - **Docs + memories before every commit.** Standing rule (2026-05-05).
   Before any `git commit` on this repo, update the affected docs (at
   minimum `docs/CODEBASE_ASSESSMENT.md`; for in-flight work also
@@ -378,6 +389,11 @@ The optional extras are deliberately small:
 - `[openai]` and `[ollama]` — embedding providers only (v3 has no LLM)
 - `[mcp]` — FastMCP runtime
 - `[dev]` — pytest, mypy, ruff, plus the embedding deps for tests
+
+After changing any hook `rev:` in `.pre-commit-config.yaml`, run
+`pre-commit install-hooks` from a normal shell before committing.
+Installing a hook environment inside a commit lets npm inherit git's
+hook variables, and on 2026-09-23 that overwrote a worktree's index.
 
 ## Testing
 

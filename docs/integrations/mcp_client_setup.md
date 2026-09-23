@@ -51,10 +51,11 @@ extensions:
 
 ## Open WebUI
 
-Open WebUI's tool-server integration speaks the OpenAI tool-server
-protocol over HTTP, not native MCP. Use the REST surface instead —
-register `http://your-nas:18000` as an OpenAPI-backed tool server
-and Open WebUI will pull the spec from `/openapi.json`.
+Open WebUI v0.6.31 and later speaks native MCP over Streamable HTTP,
+so it can use `http://your-nas:18000/mcp` directly. It supports MCP
+tools but not MCP prompts. The OpenAPI tool-server route still works
+too: register `http://your-nas:18000` and Open WebUI pulls the spec
+from `/openapi.json`.
 
 ## Authenticated deployments
 
