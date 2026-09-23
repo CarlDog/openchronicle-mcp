@@ -56,7 +56,11 @@ check on 2026-09-22 showed it has **not** fired (`model_revision` recorded,
 so the control below still applies until then. After v3.4.0 is
 deployed, no action is needed after a restart; if
 `embedding_status.model_revision_state` stays `unknown` for more than 5
-minutes, check that OC can reach Ollama's `/api/tags`.
+minutes, check that OC can reach Ollama's `/api/tags`. After a reboot
+where OC starts before Ollama, an overdue `embedding_backfill` may
+record `failed` (revision not verified) even though reconciliation
+heals within about 30 s of Ollama answering; the job's status clears
+at its next run, up to 6 hours later.
 
 **Interim control for §1.1, until a fix ships.**
 

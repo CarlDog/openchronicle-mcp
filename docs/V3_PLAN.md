@@ -957,7 +957,11 @@ entry (below, or in its design doc):
    - `LC_ALL=C` for git children, since git errors are matched in
      English;
    - redact userinfo from `OLLAMA_HOST` in the adapter's TLS warning
-     (the probe log is already fixed).
+     (the probe's WARNING and httpx's per-request INFO lines are fixed,
+     rev 210);
+   - a stop flag checked between backfill chunks: a redeploy during a
+     backfill waits out the stop timeout and ends in SIGKILL (exit 137),
+     without data loss, and the next boot's reconciliation resumes it.
 
    **Release blocker for the operator:** a v3.4.0 tagged from `main`
    also ships design 0010's metrics instrumentation (off by default),

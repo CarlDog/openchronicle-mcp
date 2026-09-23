@@ -88,8 +88,10 @@ migration windows.
   tick, including each tick of an ordinary long run, because a job
   stays due until its run ends (fleet-review #27).
 - **Global lock** serializes all jobs across the process. Two jobs
-  never run concurrently. This is the guarantee that a vacuum + a
-  backfill can't race the same DB.
+  never run concurrently. Background backfills (`memory_embed
+  background=true` and revision reconciliation) run outside it and
+  can overlap a vacuum or a backup; the store's own lock keeps that
+  safe, and only one backfill runs at a time.
 - **Failure isolation**: handler exceptions are logged + counted on the
   job's `runs_failed` and `last_error`, never crash the loop.
 

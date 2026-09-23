@@ -115,6 +115,13 @@ def configure_root_logger(*, default_level: str = "INFO") -> None:
 
     _attach_file_handler(root, formatter, level)
 
+    # httpx logs every request at INFO with its full URL, userinfo included,
+    # so an OLLAMA_HOST carrying credentials would put them in the log on
+    # every embed and every revision probe. Kept for DEBUG, where an
+    # operator chasing a connection problem wants those lines.
+    if level > logging.DEBUG:
+        logging.getLogger("httpx").setLevel(logging.WARNING)
+
 
 # Rotation bounds for OC_LOG_FILE: 5 MiB × (1 live + 3 rotated) ≈ 20 MiB
 # ceiling on the volume, weeks of history at this deployment's log rate.

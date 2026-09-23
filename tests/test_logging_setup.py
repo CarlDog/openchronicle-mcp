@@ -142,3 +142,22 @@ def test_log_file_unusable_path_degrades_to_stderr_only(
                 handler.close()
                 root.removeHandler(handler)
         root.setLevel(old_level)
+
+
+@pytest.mark.parametrize(("level", "expected"), [("INFO", logging.WARNING), ("DEBUG", logging.NOTSET)])
+def test_request_urls_stay_out_of_the_log_unless_debugging(
+    monkeypatch: pytest.MonkeyPatch, level: str, expected: int
+) -> None:
+    """httpx logs each request URL at INFO, userinfo included, so credentials
+    in OLLAMA_HOST reached the log on every embed (pre-deploy review)."""
+    httpx_logger = logging.getLogger("httpx")
+    monkeypatch.setattr(httpx_logger, "level", logging.NOTSET)
+    monkeypatch.setenv("OC_LOG_LEVEL", level)
+    monkeypatch.delenv("OC_LOG_FILE", raising=False)
+    root = logging.getLogger()
+    saved = root.handlers[:], root.level
+    try:
+        configure_root_logger()
+        assert httpx_logger.level == expected
+    finally:
+        root.handlers[:], root.level = saved[0], saved[1]
