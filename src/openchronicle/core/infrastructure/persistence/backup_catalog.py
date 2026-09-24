@@ -32,11 +32,24 @@ class BackupCatalogError(ValueError):
 class BackupCatalog:
     """Create, inspect and stage snapshots without touching the live DB file."""
 
-    def __init__(self, store: SqliteStore, root: Path, db_path: Path) -> None:
+    def __init__(self, store: SqliteStore, root: Path, db_path: Path, *, require_existing_root: bool = False) -> None:
         self.store = store
         self.root = root
         self.db_path = db_path
+        # An explicitly configured root (an operator mount) must already
+        # exist: creating it would silently write into the container layer
+        # when the mount is missing.
+        self.require_existing_root = require_existing_root
         self._operation_lock = threading.Lock()
+
+    def _check_root(self) -> None:
+        if self.require_existing_root and (
+            not self.root.is_absolute() or self.root.is_symlink() or not self.root.is_dir()
+        ):
+            raise BackupCatalogError(
+                f"Configured backup directory {self.root} is missing or not a directory; "
+                "nothing was written and there is no fallback location"
+            )
 
     @staticmethod
     def _split_id(artifact_id: str) -> tuple[str, str]:
@@ -124,6 +137,7 @@ class BackupCatalog:
         if not self._operation_lock.acquire(blocking=False):
             raise BackupCatalogError("Another backup operation is already running")
         try:
+            self._check_root()
             directory = self.root / kind
             directory.mkdir(parents=True, exist_ok=True)
             if directory.is_symlink():

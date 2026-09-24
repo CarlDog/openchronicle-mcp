@@ -70,8 +70,9 @@ LLM need to write a memory" shape:
 
 Five additional tools register on the HTTP MCP surface only when
 `OC_BACKUP_MCP_ENABLED=true`, `OC_BACKUP_DIR` is explicitly configured, and
-the effective `OC_API_KEY` is nonempty. The default 18-tool inventory and
-stdio server omit them. All take generated artifact IDs, never file paths.
+the effective `OC_API_KEY` is nonempty; any other setting logs an ERROR and
+leaves them off without stopping startup. They are parked while production
+auth stays disabled. The default 18-tool inventory and stdio server omit them. All take generated artifact IDs, never file paths.
 
 | Tool | Purpose |
 |---|---|

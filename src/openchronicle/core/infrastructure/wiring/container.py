@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -50,6 +51,20 @@ def _looks_private_host(url: str) -> bool:
     return host.rsplit(".", 1)[-1] in ("local", "internal", "lan", "home", "localhost")
 
 
+def _backup_dir_problem(path: Path) -> str | None:
+    """Why an explicitly configured backup directory is unusable, or None."""
+    if not path.is_absolute():
+        return "must be an absolute path"
+    if path.is_symlink() or not path.is_dir():
+        return "must be an existing directory, not a symlink"
+    try:
+        with tempfile.TemporaryFile(dir=path):
+            pass
+    except OSError as exc:
+        return f"is not writable ({exc.strerror or exc})"
+    return None
+
+
 class CoreContainer:
     """Slim v3 DI container — memory storage + optional embeddings.
 
@@ -93,16 +108,18 @@ class CoreContainer:
         backup_dir_env = os.environ.get("OC_BACKUP_DIR", "").strip()
         self.backup_dir_explicit = bool(backup_dir_env)
         self.backup_dir = Path(backup_dir_env) if backup_dir_env else db_path_resolved.parent / "backups"
-        if backup_dir_env:
-            if not self.backup_dir.is_absolute() or not self.backup_dir.is_dir() or self.backup_dir.is_symlink():
-                raise ConfigError(
-                    "OC_BACKUP_DIR must be an existing absolute directory, not a symlink", code=CONFIG_ERROR
-                )
-            try:
-                with tempfile.TemporaryFile(dir=self.backup_dir):
-                    pass
-            except OSError as exc:
-                raise ConfigError("OC_BACKUP_DIR is not writable", code=CONFIG_ERROR) from exc
+        # A bad backup directory must not stop the service or the CLI (the
+        # emergency `oc db backup` included): under `restart: unless-stopped`
+        # a startup failure is a crash loop. Log it here; every backup into
+        # the configured directory then fails loudly. There is no fallback.
+        self.backup_dir_problem = _backup_dir_problem(self.backup_dir) if backup_dir_env else None
+        if self.backup_dir_problem is not None:
+            logging.getLogger(__name__).error(
+                "OC_BACKUP_DIR %s: %s. Scheduled and manual catalog backups will fail until it is fixed; "
+                "they are not written anywhere else.",
+                self.backup_dir,
+                self.backup_dir_problem,
+            )
 
         db_path_resolved.parent.mkdir(parents=True, exist_ok=True)
         if not config_dir_resolved.exists():
@@ -119,7 +136,9 @@ class CoreContainer:
             metrics=self.metrics if self.metrics.enabled else None,
         )
         self.storage.init_schema()
-        self.backups = BackupCatalog(self.storage, self.backup_dir, db_path_resolved)
+        self.backups = BackupCatalog(
+            self.storage, self.backup_dir, db_path_resolved, require_existing_root=self.backup_dir_explicit
+        )
         try:
             self.embedding_settings = load_embedding_settings(file_configs.get("embedding"))
             self.embedding_port: EmbeddingPort | None = self._build_embedding_port()

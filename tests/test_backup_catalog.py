@@ -13,7 +13,6 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from openchronicle.core.domain.exceptions import ConfigError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog, BackupCatalogError
@@ -227,13 +226,29 @@ def test_overlapping_create_is_rejected(tmp_path: Path) -> None:
         store.close()
 
 
-def test_configured_directory_must_exist_and_be_absolute(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_bad_backup_directory_fails_backups_not_startup(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
     config_dir = tmp_path / "config"
     config_dir.mkdir()
-    for bad in ("relative/path", str(tmp_path / "missing")):
+    for bad, reason in (("relative/path", "absolute"), (str(tmp_path / "missing" / "backups"), "existing directory")):
         monkeypatch.setenv("OC_BACKUP_DIR", bad)
-        with pytest.raises(ConfigError, match="OC_BACKUP_DIR must be an existing absolute directory"):
-            CoreContainer(db_path=str(tmp_path / "db.db"), config_dir=str(config_dir))
+        caplog.clear()
+        # Startup (and every CLI command, including emergency `oc db backup`)
+        # must survive: under `restart: unless-stopped` raising here loops.
+        container = CoreContainer(db_path=str(tmp_path / "db.db"), config_dir=str(config_dir))
+        try:
+            assert reason in (container.backup_dir_problem or "")
+            assert any(
+                record.levelname == "ERROR" and "OC_BACKUP_DIR" in record.getMessage() for record in caplog.records
+            )
+            with pytest.raises(BackupCatalogError, match="no fallback"):
+                container.backups.create("auto")
+            # Nothing was created in place of the missing mount.
+            assert not (tmp_path / "missing").exists()
+            assert not Path(bad).exists()
+        finally:
+            container.storage.close()
 
 
 def test_backup_mcp_tools_require_http_auth_and_explicit_directory(
@@ -243,16 +258,22 @@ def test_backup_mcp_tools_require_http_auth_and_explicit_directory(
     container.file_configs = {}
     container.backup_dir_explicit = True
     container.paths.db_path = tmp_path / "db.db"
+    from openchronicle.interfaces.api.app import _backup_tools_enabled
+
+    # A bad or incomplete setting logs and leaves the tools off; it never
+    # stops startup (a crash loop under `restart: unless-stopped`).
+    monkeypatch.setenv("OC_BACKUP_MCP_ENABLED", "ture")
+    assert _backup_tools_enabled(HTTPConfig(api_key="test-key"), container) is False
+    assert create_app(container, HTTPConfig(api_key="test-key"), mount_mcp=True) is not None
     monkeypatch.setenv("OC_BACKUP_MCP_ENABLED", "true")
-    with pytest.raises(ConfigError, match="require OC_API_KEY"):
-        create_app(container, HTTPConfig(), mount_mcp=True)
-    with pytest.raises(ConfigError, match="require OC_API_KEY"):
-        create_app(container, HTTPConfig(api_key=""), mount_mcp=True)
+    assert _backup_tools_enabled(HTTPConfig(), container) is False
+    assert _backup_tools_enabled(HTTPConfig(api_key=""), container) is False
+    assert create_app(container, HTTPConfig(), mount_mcp=True) is not None
     container.backup_dir_explicit = False
-    with pytest.raises(ConfigError, match="explicit OC_BACKUP_DIR"):
-        create_app(container, HTTPConfig(api_key="test-key"), mount_mcp=True)
+    assert _backup_tools_enabled(HTTPConfig(api_key="test-key"), container) is False
 
     container.backup_dir_explicit = True
+    assert _backup_tools_enabled(HTTPConfig(api_key="test-key"), container) is True
     app = create_app(container, HTTPConfig(api_key="test-key"), mount_mcp=True)
     assert app is not None
     assert "db_backup_create" not in create_server(container, MCPConfig())._tool_manager._tools

@@ -27,8 +27,10 @@ Stack 151 is detached from Git. Review its stored compose and the proposed
 bind mount before changing it; a Git push or tag does not update the stack's
 mounts. Confirm free capacity for at least one current snapshot plus a
 restore-stage copy, filesystem permissions for uid 1000, and restricted SMB
-ACLs. A configured missing or unwritable `OC_BACKUP_DIR` fails startup rather
-than writing into the named volume by accident.
+ACLs. A configured missing or unwritable `OC_BACKUP_DIR` logs an ERROR at
+startup and fails every catalog backup; it never writes into the named volume
+or the container layer instead. The service keeps running, so check the
+startup log and the `db_backup` job status after any mount change.
 
 Before that stack edit, record the old compose, environment (without
 publishing secrets), image ID, database schema, project-ID fingerprint, row

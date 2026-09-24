@@ -28,6 +28,10 @@ proposed in design 0001. It does not make the live SQLite file an SMB file.
 current location beside the database. When explicitly set, it must be an
 absolute, existing, writable directory. A missing or unwritable configured
 mount fails clearly; it must not silently fall back into the named volume.
+"Clearly" means an ERROR log at startup and a failed backup job, not a
+failed startup: under `restart: unless-stopped` a startup failure crash-loops
+the memory service and blocks every CLI command, including the emergency
+`oc db backup` (Claude review, 2026-09-24).
 The container runs as uid 1000; prepare the host directory with appropriate
 ownership/ACL before deployment. Do not recursively chown the snapshot tree
 at every start. Restrict SMB access because local snapshots contain the full
@@ -36,12 +40,15 @@ plaintext corpus.
 MCP backup tools are **off by default**, and available only on the mounted
 HTTP MCP surface when `OC_BACKUP_MCP_ENABLED=true`, `OC_BACKUP_DIR` is
 explicitly configured, and the HTTP API has a nonempty effective API key.
-An enabled-but-unauthenticated configuration fails startup. Stdio MCP never
+An enabled-but-unauthenticated or unrecognized setting logs an error and
+leaves the tools unregistered; it does not stop startup. Stdio MCP never
 registers these tools. Tool inputs are artifact IDs, not paths; the server
 chooses destinations inside the configured directory. No tool returns raw
-database bytes. The current auth-disabled LAN deployment therefore needs an
-authentication/client transition before these MCP tools are enabled; daily
-scheduled backups can use the bind mount independently.
+database bytes. **The tools are parked** (operator decision, 2026-09-24):
+auth stays disabled on the LAN deployment as decided on 2026-05-06, so the
+tools cannot register there, and no auth change is planned or implied. The
+production restore path does not depend on them. Daily scheduled backups use
+the bind mount independently.
 
 | Tool | Effect and result |
 |---|---|
@@ -97,7 +104,7 @@ supply it itself.
 | Move the live DB to the exposed share for easy copying. | Rejected: external writes or a raw copy of a WAL-mode file can damage or misrepresent the live store. Export consistent snapshots instead. |
 | Mount the share at `/data/backups`. | Rejected: the mount hides prior named-volume backups. Use `/exports` and leave history untouched. |
 | Expose `db_restore_execute(confirm=true)` on the normal MCP server. | Rejected: confirmation is self-service, and the live connection remains open. MCP verifies/stages; offline operator action performs cutover. |
-| Enable backup tools while LAN MCP auth is disabled. | Fail startup for the explicitly enabled configuration. Stdio registration stays off. Scheduled backups remain independent of MCP auth. |
+| Enable backup tools while LAN MCP auth is disabled. | Log an error and leave the tools unregistered (originally: fail startup, which crash-loops under `unless-stopped`). Stdio registration stays off. Scheduled backups remain independent of MCP auth. |
 | Trust a filename or JSON manifest from the share. | Strict generated IDs, fixed root, no arbitrary paths, checksum plus read-only integrity check, and validation again after staging. ACLs still gate hostile modification. |
 | Prune the pre-upgrade recovery point during a burst of automatic backups. | Separate `manual/` from `auto/`; automatic retention never touches manual snapshots. |
 | Rename a candidate from the share over `/data/openchronicle.db`. | Rejected: cross-filesystem rename is not atomic. Copy and reverify on the database volume; activate only while stopped. |
