@@ -893,6 +893,18 @@ The MCP backup tools are parked while auth stays disabled (operator,
 detached compose reconciled (item 12); without it, `OC_BACKUP_DIR` stays
 unset and catalogued auto backups remain in `/data/backups/auto`.
 
+Deferred from the 2026-09-24 review, deliberately:
+
+- Snapshot inspection exists in three shapes: `BackupCatalog._inspect`,
+  `offline_restore._inspect` and `offline_restore._describe`. Together they
+  carry one identity contract (standalone file, checks, project
+  fingerprint). Lift them into one leaf module that the helper can import
+  without constructing `CoreContainer`. Do it as its own reviewed change,
+  not while touching restore code.
+- `docker-compose.nas.yml` hardcodes `OC_BACKUP_DIR: /exports/backups`.
+  Both reviewers read it as mount wiring rather than operator
+  configuration. Revisit when the detached compose is reconciled (item 12).
+
 **Persistent storage architecture review — later, separate from 0017.**
 Inventory the whole `/volume1/docker/openchronicle` tree and the live named
 volumes, their owners, mounts, retention, backups, and recovery paths. Determine
