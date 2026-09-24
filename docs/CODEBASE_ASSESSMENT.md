@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 231 (storage review raised to high priority; premise checked)
+**Snapshot date:** 2026-09-24 UTC · **Revision:** 232 (NAS restore drill passed)
 
 ## Current state
 
@@ -131,9 +131,9 @@ their no-commit/no-push statements are historical, not the current scope.
   and an offline stage/activate/rollback helper. A Claude adversarial review
   of `f65be230` found P1 defects; revs 221-227 fix them, and the fix round had
   its own independent review. The MCP backup tools are parked while auth stays
-  disabled. A verified off-NAS v3.3.0 copy exists (rev 230). Open: the NAS
-  drill, on the authorized non-release image `backup-drill-20260924-1fad2c4c`;
-  merge after the v3.4.0 tag (operator decision). Production is unchanged. V3_PLAN holds the
+  disabled. A verified off-NAS v3.3.0 copy exists (rev 230) and the NAS restore
+  drill passed (rev 232). Open: merge after the v3.4.0 tag (operator decision);
+  before timestamp PR #38, a fresh copy and an image-pair rehearsal. Production is unchanged. V3_PLAN holds the
   ordered list and a separate storage-layout review.
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
@@ -316,6 +316,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 232 | 2026-09-24 | **NAS restore drill passed.** The operator ran `tools/backup-drill/drill-nas.sh` over SSH (Docker 24.0.2, 267 s), on the non-release image `backup-drill-20260924-1fad2c4c`, seeded from the verified off-NAS copy. The driver runs every runbook block verbatim as its own file, filling only placeholders. Normal leg: `activated`, post-snapshot marker absent, `rolled_back` with the marker restored, stage retired. Aborted leg: failure at the final swap, `prepared`, `rolled_back` with the marker restored, stage retired. Service checks at each start: integrity ok, no FK violations, schema 4, 1,083 memories, 39 projects, a known ID, search. Latency budget (operator: zero failures; during-snapshot p95 at most 2x idle and under 500 ms) met: 5.96 ms against 5.58 ms, 166 of 166 responses 200, snapshots 0.94-1.10 s. The production container was unchanged. An independent checker accepted it with gaps. The latency result covers a separate-process `oc db backup` on a small store, not the in-process nightly job. Restart policies, Portainer recreation, the production host-source `stage` block, failure paths and the image pair were not exercised. The checker also found the seed copy readable by `Everyone` on the share; it was archived off the NAS with the evidence and deleted. Fixes from its review: the driver's marker check accepts only the exact missing-table error, its placeholder check catches in-value placeholders, the runbook prints the aborted leg's `prepared` status, and the budget is written into the runbook; a local re-run passed. |
 | 231 | 2026-09-24 | **Persistent-storage review raised to high priority, next after the 0017 work.** The operator feared that each release had replaced the database. The verified off-NAS copy disproves it: `schema_version` records creation at the 2026-05-06 cutover and migrations 2-4 applied on 2026-08-29, while the live container started 2026-08-31, and the oldest project dates from 2026-05-06. The named volume `openchronicle-mcp_oc-data` has persisted across every redeploy since the cutover; the only loss was the cutover's failed migration. V3_PLAN now lists the real risks the review must settle. |
 | 230 | 2026-09-24 | **Verified off-NAS copy of production v3.3.0.** The operator ran the runbook's Portainer-console route in `openchronicle-mcp-oc-1` as user `oc`: `oc db backup /config/pre-change-20260924T040030Z.db`, 9,895,936 bytes, SHA-256 `eb85987e55c52dff87a4bfa9e4c83db73a3de77ec7481f1f97ae7ac06a689243`. It was copied over SMB to the operator workstation (`D:\Backups\openchronicle\`, outside the NAS and outside OneDrive), with the same digest in the container, on the share and locally. Opened read-only (`immutable=1`, no sidecars created): `integrity_check` ok, no `foreign_key_check` rows, schema 4, 1,083 memories, 1,083 embedding rows and 39 projects, matching live health (1,083 memories: 1,062 embedded and 21 unembeddable) and the earlier inventory; the handoff memory and the project record are present. The clean FK check also shows production has no orphans, so the nightly verification in PR #39 will not start failing on its first night. The console session also wrote `pre-change-.db` (empty `STAMP`); both copies and their `.tmp-wal`/`.tmp-shm` files are to be deleted from `/config`. Production is unchanged. |
 | 229 (branch) | 2026-09-24 | **PR #39: merge timing decided; drill image published.** Operator decisions: #39 merges after the v3.4.0 tag, so v3.4.0 keeps its reviewed scope and the nightly backup change ships in its own release; the NAS drill uses a non-release image rather than waiting on design 0010. That image was built from `1fad2c4c` (linux/amd64), passed `tools/ci/smoke-image.sh` (build revision, runtime imports, `/health`), and is published only as `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c`, index digest `sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`. No `:latest` movement, release tag, `OC_TAG` change or deployment. The image reports `package_version` 3.3.0; `build_revision` distinguishes it. |

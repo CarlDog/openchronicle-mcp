@@ -203,10 +203,13 @@ query-revision and NAS Host-list source fixes merged.**
   production restores use the CLI and the offline helper's
   `stage`/`activate`/`rollback`. It merges **after the v3.4.0 tag**
   (operator, 2026-09-24), so the nightly backup change ships in its own
-  release. A verified off-NAS v3.3.0 copy exists (2026-09-24, custody in
-  V3_PLAN's backup entry). Next is the NAS drill in the
-  [runbook](docs/configuration/local_backup_restore.md), on the authorized
-  non-release image `backup-drill-20260924-1fad2c4c`.
+  release. A verified off-NAS v3.3.0 copy exists, and the NAS restore drill
+  passed on 2026-09-24 (both legs, latency budget met, accepted with gaps by
+  an independent checker; details in the
+  [runbook](docs/configuration/local_backup_restore.md)). Remaining: merge
+  after v3.4.0, and before timestamp PR #38 a fresh copy plus an image-pair
+  rehearsal. Next after this work, at high priority: the persistent-storage
+  review (V3_PLAN).
   Production is unchanged. Resume from the
   [handoff](docs/handoffs/2026-09-24-backup-restore.md).
 

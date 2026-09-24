@@ -892,7 +892,13 @@ in the assessment (revs 217-227). Open, in order:
 3. Helper image for the NAS drill: **done.** The operator authorized a
    non-release image (2026-09-24), published as
    `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c` (`sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`), from `1fad2c4c`; see the runbook.
-4. NAS drill (normal and aborted legs), independently reviewed.
+4. NAS drill (normal and aborted legs), independently reviewed: **passed
+   2026-09-24** on the drill image, seeded from the verified copy, with the
+   latency budget met; an independent checker accepted it with coverage gaps
+   (listed in the runbook). Evidence is archived off the NAS. The checker also
+   found the share granting `Everyone` read on files under
+   `/volume1/docker/openchronicle` (the seed copy there has been deleted); the
+   storage review below must settle the share ACLs.
 5. Before the timestamp migration: a fresh off-NAS copy and an old/new
    image-pair rehearsal.
 
@@ -920,7 +926,9 @@ not: its `schema_version` table records creation at the 2026-05-06 cutover and
 migrations applied on 2026-08-29, by containers that no longer exist (the live
 one started 2026-08-31). So the named volume `openchronicle-mcp_oc-data` has
 survived every redeploy since the cutover. The only loss was the cutover's
-failed migration, a different failure. The real risks this review must settle:
+failed migration, a different failure. The real risks this review must settle
+(add: the `docker` share grants `Everyone` read, and `/config` is mode 0777, both
+seen 2026-09-24):
 the volume is keyed to the Compose project name, so a stack deleted with its
 volumes or redeployed under another name starts empty; automatic backups share
 that volume; the log path is wrong on the live stack; and everything sits on

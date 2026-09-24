@@ -227,9 +227,12 @@ rejected until the previous one is handled offline.
 3. Stage the same snapshot with the helper's `stage` action and the recorded
    digest, and confirm the printed identity. Record the drill's duration and a
    simple probe's request latency (for example repeated `/health` and one
-   search) while the backup runs. No latency budget is ratified yet: agree one
-   before the drill. A failed digest, missing data, a failed request or health
-   check, latency over the agreed budget, or a broad share ACL blocks the
+   search) while the backup runs. **Budget (operator, 2026-09-24):** zero
+   failed requests or health checks, and the p95 during a snapshot at most 2x
+   the idle p95 and under 500 ms, with at least 10 samples during snapshots.
+   `tools/backup-drill/probe.py` implements it, paced under the API's 600
+   requests/minute limit. A failed digest, missing data, a failed request or
+   health check, latency over the budget, or a broad share ACL blocks the
    timestamp upgrade.
 4. On a disposable clone, stop the serving container **before** making a
    post-snapshot write with a separate WAL writer that disables auto-checkpoint
@@ -404,6 +407,7 @@ helper.activate(Path("/data/openchronicle.db"), Path(os.environ["STAGE"]),
   exit 1
 fi
 STATUS=$(offline status --db /data/openchronicle.db --operation-id "$OP")
+echo "$STATUS"
 [[ "$STATUS" == *'"phase": "prepared"'* ]]
 docker run --rm --pull never --network none --read-only --user 1000:1000 \
   --mount "type=volume,source=$VOL,target=/data" \
@@ -758,8 +762,34 @@ On 2026-09-24 the drill blocks above ran on Docker Desktop, each as its own
 aborted leg (clone, stage, activate, rollback with the post-snapshot write
 recovered, retire), and the drill fence stopped a production volume name.
 That replay also caught and fixed a placeholder that broke bash quoting.
-**The NAS procedure, Synology Docker, real ownership and ACLs, and the
-off-device handoff have not been rehearsed and remain release gates.** Keep
-both image IDs available: the wrong image may migrate a restored database on
+**NAS drill, 2026-09-24: passed** (operator over SSH, `tools/backup-drill/drill-nas.sh`,
+267 s, Docker 24.0.2, drill image `backup-drill-20260924-1fad2c4c`, seeded from
+the verified off-NAS copy). Every block ran verbatim from this runbook with
+only placeholders filled. Both legs reached their end states (normal:
+`activated`, marker absent, `rolled_back` with the marker restored, stage
+retired; aborted: failure at the final swap, `prepared`, `rolled_back` with the
+marker restored, stage retired). The service checks passed at each start:
+integrity, no FK violations, schema 4, 1,083 memories, 39 projects, a known ID,
+search. The latency budget passed: p95 5.96 ms during snapshots against
+5.58 ms idle, zero failures, 166 of 166 responses 200, ten snapshots of
+0.94-1.10 s each. Production's container was unchanged. Rollback, from start
+to marker verified, took about 41 s per leg, mostly health-check wait. An
+independent checker accepted the result with gaps; evidence is archived off
+the NAS.
+
+What that drill did **not** cover:
+
+- The latency result covers a snapshot taken by a separate `oc db backup`
+  process on a 9.9 MB store with one paced client. The in-process nightly
+  job never ran.
+- Restart policies were `no` throughout, so restoring them was a no-op.
+- There was no Portainer recreation or freeze.
+- The production `stage` block, with a host bind-mounted source, was not
+  exercised.
+- The real `oc-data` volume's ownership history was not involved.
+- Failure paths (unreadable old state, interrupted rollback retry,
+  `archiving`) and the old/new image pair were not exercised.
+
+The image pair remains a timestamp-migration gate. Keep both image IDs available: the wrong image may migrate a restored database on
 startup. Staging does not establish that recovery succeeded. Do not run the timestamp migration until
 the NAS drill and a fresh independently retained pre-upgrade snapshot pass.
