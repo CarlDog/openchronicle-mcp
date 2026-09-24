@@ -11,9 +11,9 @@ was overkill.
 
 | Job | Default interval | What it does |
 |---|---|---|
-| `db_backup` | 1 day | Online backup via `sqlite3.Connection.backup()` to `${OC_DATA_DIR}/backups/auto/`; retention keeps the union of the 7 newest files and the newest file per day for the 7 most recent days with backups (a same-day burst can't evict older days) |
+| `db_backup` | 1 day | Online backup via `sqlite3.Connection.backup()` to `${OC_BACKUP_DIR}/auto/` when configured, otherwise beside the database in `backups/auto/`; a SHA-256/SQLite-verified manifest publishes completion. Retention keeps the union of the 7 newest files and the newest file per day for the 7 most recent days with backups, and prunes matching manifests. Manual snapshots are never auto-pruned. |
 | `db_vacuum` | 7 days | Runs `db_backup` first (backup-before-destructive policy enforced in code), then `PRAGMA wal_checkpoint(FULL)` and `VACUUM` |
-| `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup`, sets `container.maintenance_degraded = True` (surfaces via `/api/v1/health` and the MCP `health` tool), raises so the loop counts it. On success: clears any prior degraded flag. |
+| `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup` (the snapshot is kept rather than published: `auto/*.db.failed-quick-check` when `quick_check` also fails, otherwise `auto/*.db.failed-verify`), sets `container.maintenance_degraded = True` (surfaces via `/api/v1/health` and the MCP `health` tool), raises so the loop counts it. On success: clears any prior degraded flag. |
 | `embedding_backfill` | 6 hours | Equivalent to `oc memory embed`; no-op when the embedding service is unset or nothing is missing |
 | `git_onboard_resync` | 1 hour, OFF by default | Placeholder. Full implementation lands when the tracked-repo list spec is finalized. |
 

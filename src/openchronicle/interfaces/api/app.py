@@ -8,6 +8,7 @@ v3 fold: a single ASGI process serves both the HTTP REST surface
 from __future__ import annotations
 
 import logging
+import os
 import traceback
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -27,6 +28,26 @@ from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.version import package_version
 
 logger = logging.getLogger(__name__)
+
+
+def _backup_tools_enabled(config: HTTPConfig, container: CoreContainer) -> bool:
+    """Whether to register the backup MCP tools; a bad setting never stops startup.
+
+    The tools stay off unless OC_BACKUP_MCP_ENABLED is true, an API key is
+    set, and OC_BACKUP_DIR is explicit. Anything else is logged at ERROR and
+    leaves them unregistered: under `restart: unless-stopped`, raising here
+    would crash-loop the whole memory service over an optional tool set.
+    """
+    flag = os.environ.get("OC_BACKUP_MCP_ENABLED", "").strip().lower()
+    if flag in ("", "0", "false", "no", "off"):
+        return False
+    if flag not in ("1", "true", "yes", "on"):
+        logger.error("OC_BACKUP_MCP_ENABLED=%r is not true or false; backup MCP tools are not registered", flag)
+        return False
+    if not config.api_key or not container.backup_dir_explicit:
+        logger.error("Backup MCP tools need OC_API_KEY and an explicit OC_BACKUP_DIR; they are not registered")
+        return False
+    return True
 
 
 def create_app(
@@ -54,7 +75,7 @@ def create_app(
         from openchronicle.interfaces.mcp.server import create_server
 
         mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"))
-        mcp_server = create_server(container, mcp_config)
+        mcp_server = create_server(container, mcp_config, backup_tools_enabled=_backup_tools_enabled(config, container))
 
     metrics_candidate = getattr(container, "metrics", None)
     metrics_enabled = getattr(metrics_candidate, "enabled", None)

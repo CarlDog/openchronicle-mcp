@@ -184,3 +184,27 @@ def test_quarantine_name_is_outside_the_retention_glob(tmp_path: Path) -> None:
     quarantine.write_bytes(b"evidence")
     _retention_prune(tmp_path, keep=1)
     assert quarantine.exists()
+
+
+def test_unparseable_schema_is_quarantined_not_deleted(tmp_path: Path) -> None:
+    """The rollback-journal switch parses the schema; a failure there must
+    still reach validation and its forensic quarantine."""
+    import sqlite3
+
+    from openchronicle.core.infrastructure.persistence.backup import BackupValidationError, backup_from_connection
+
+    live = tmp_path / "live.db"
+    with sqlite3.connect(live) as conn:
+        conn.execute("CREATE TABLE t (x)")
+        conn.execute("PRAGMA writable_schema=ON")
+        conn.execute("UPDATE sqlite_master SET sql = 'CREATE TABLE t (' WHERE name = 't'")
+    conn.close()
+    source = sqlite3.connect(live)
+    try:
+        dest = tmp_path / "out" / "snap.db"
+        with pytest.raises((BackupValidationError, sqlite3.DatabaseError)):
+            backup_from_connection(source, dest)
+    finally:
+        source.close()
+    assert not dest.exists()
+    assert (tmp_path / "out" / "snap.db.failed-quick-check").exists()

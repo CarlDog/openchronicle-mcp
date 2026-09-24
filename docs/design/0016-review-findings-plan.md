@@ -130,7 +130,8 @@ record the schema version only after success. This avoids a new general
 migration framework or an unversioned startup rewrite. Do not reserve a
 number yet: design 0015 tentatively calls its unratified prompt migration
 `005`, so the later migration must take the next free number. Establish an
-intact backup and a disposable restore rehearsal before touching live data.
+intact backup and a disposable restore rehearsal before touching live data;
+design 0017 and its runbook are that path.
 The migration proposal must say whether the previous tagged image can read
 the converted store and its new version marker. If not, rollback includes a
 tested restoration path from the pre-migration backup, with no intervening

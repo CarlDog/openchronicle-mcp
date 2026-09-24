@@ -398,6 +398,10 @@ def test_db_backup_writes_and_prunes(tmp_path: Path) -> None:
     container = MagicMock()
     container.storage = store
     container.paths.db_path = db_path
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     asyncio.run(maintenance_jobs.db_backup(container))
 
@@ -421,6 +425,10 @@ def test_db_vacuum_runs_backup_first(tmp_path: Path) -> None:
     container = MagicMock()
     container.storage = store
     container.paths.db_path = db_path
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     asyncio.run(maintenance_jobs.db_vacuum(container))
 
@@ -462,6 +470,10 @@ def test_db_integrity_check_failure_backs_up_flags_degraded_and_raises(
     container.storage = store
     container.paths.db_path = db_path
     container.maintenance_degraded = False
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     monkeypatch.setattr(store, "integrity_check", lambda: "*** in database main *** page 3: btree corruption")
 
@@ -491,6 +503,10 @@ def test_db_integrity_check_failure_still_flags_when_emergency_backup_fails(
     container.storage = store
     container.paths.db_path = db_path
     container.maintenance_degraded = False
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     monkeypatch.setattr(store, "integrity_check", lambda: "not ok")
 
@@ -536,6 +552,7 @@ def test_retention_keeps_newest(tmp_path: Path) -> None:
     for i in range(10):
         p = backup_dir / f"old-{i}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         os_time = base - (10 - i) * 60
         os.utime(p, (os_time, os_time))
         paths.append(p)
@@ -572,11 +589,13 @@ def test_retention_burst_cannot_evict_older_days(tmp_path: Path) -> None:
     for d in range(6, 0, -1):
         p = backup_dir / f"day-{d}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         os.utime(p, (now - d * day, now - d * day))
     # ...plus a burst of four backups today.
     for i in range(4):
         p = backup_dir / f"today-{i}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         ts = now - (4 - i) * 60
         os.utime(p, (ts, ts))
 

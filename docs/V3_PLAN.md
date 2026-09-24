@@ -871,6 +871,77 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 ### Post-cutover follow-ups (tech debt)
 
+**Exposed backup/restore capability before timestamp migration.** Design
+[0017](design/0017-exposed-backup-and-restore.md), draft PR #39, runbook
+[local_backup_restore.md](configuration/local_backup_restore.md). Status lives
+in the assessment (revs 217-227). Open, in order:
+
+1. Merge: **done after the v3.4.0 tag** (operator decision, 2026-09-24),
+   so v3.4.0 kept its reviewed scope. The nightly backup change
+   (catalogued, verified, failures quarantined) is on `main`, unreleased,
+   and ships in the next release with its own deploy check. The review
+   fixes and an independent review of the fix round are done (revs
+   221-227).
+2. Off-NAS v3.3.0 copy before any stack change: **done 2026-09-24.** Taken
+   through the Portainer console route (`pre-change-20260924T040030Z.db`,
+   9,895,936 bytes, SHA-256 `eb85987e55c52dff87a4bfa9e4c83db73a3de77ec7481f1f97ae7ac06a689243`), copied to the operator workstation
+   (`D:\Backups\openchronicle\`, outside the NAS and outside OneDrive), with
+   the same digest in the container, on the share and locally. Read-only
+   checks: integrity ok, no FK violations, schema 4, 1,083 memories and 39
+   projects, matching live health; selected IDs present. The `/config`
+   copies are to be deleted from the console.
+3. Helper image for the NAS drill: **done.** The operator authorized a
+   non-release image (2026-09-24), published as
+   `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c` (`sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`), from `1fad2c4c`; see the runbook.
+4. NAS drill (normal and aborted legs), independently reviewed: **passed
+   2026-09-24** on the drill image, seeded from the verified copy, with the
+   latency budget met; an independent checker accepted it with coverage gaps
+   (listed in the runbook). Evidence is archived off the NAS. The checker also
+   found the share granting `Everyone` read on files under
+   `/volume1/docker/openchronicle` (the seed copy there has been deleted); the
+   storage review below must settle the share ACLs.
+5. Before the timestamp migration: a fresh off-NAS copy and an old/new
+   image-pair rehearsal.
+
+The MCP backup tools are parked while auth stays disabled (operator,
+2026-09-24); no auth change is planned. The `/exports` mount needs the
+detached compose reconciled (item 12); without it, `OC_BACKUP_DIR` stays
+unset and catalogued auto backups remain in `/data/backups/auto`.
+
+Deferred from the 2026-09-24 review, deliberately:
+
+- Snapshot inspection exists in three shapes: `BackupCatalog._inspect`,
+  `offline_restore._inspect` and `offline_restore._describe`. Together they
+  carry one identity contract (standalone file, checks, project
+  fingerprint). Lift them into one leaf module that the helper can import
+  without constructing `CoreContainer`. Do it as its own reviewed change,
+  not while touching restore code.
+- `docker-compose.nas.yml` hardcodes `OC_BACKUP_DIR: /exports/backups`.
+  Both reviewers read it as mount wiring rather than operator
+  configuration. Revisit when the detached compose is reconciled (item 12).
+
+**Persistent storage architecture review — HIGH PRIORITY, next after the
+0017 work** (operator, 2026-09-24). The operator raised it as a fear that each
+release had replaced the database. The verified production copy says it has
+not: its `schema_version` table records creation at the 2026-05-06 cutover and
+migrations applied on 2026-08-29, by containers that no longer exist (the live
+one started 2026-08-31). So the named volume `openchronicle-mcp_oc-data` has
+survived every redeploy since the cutover. The only loss was the cutover's
+failed migration, a different failure. The real risks this review must settle
+(add: the `docker` share grants `Everyone` read, and `/config` is mode 0777, both
+seen 2026-09-24):
+the volume is keyed to the Compose project name, so a stack deleted with its
+volumes or redeployed under another name starts empty; automatic backups share
+that volume; the log path is wrong on the live stack; and everything sits on
+one NAS. Inventory the whole `/volume1/docker/openchronicle` tree and the live named
+volumes, their owners, mounts, retention, backups, and recovery paths. Determine
+whether the exposed `assets` and `output` folders are used or needed, including
+the status of `oc-output` and the actual `OC_LOG_FILE` destination. Decide
+which logs and other durable data should live on an external mount and how to
+migrate them without hiding or deleting current data. Record a reviewed target
+layout and an operator cutover/rollback plan before changing mounts or removing
+any folder. This note authorizes review only; 0017 does not do that migration.
+
 **Active queue — sorted by need (operator-ratified 2026-08-29).** The
 authoritative order for picking up work; each line points at the full
 entry (below, or in its design doc):
@@ -897,6 +968,8 @@ entry (below, or in its design doc):
    Folder probe, age keypairs, key escrow, two-key decrypt drill.
    Needs the operator at a desktop; the only item whose downside is
    data loss. Per 0007's rule: not done until a restore is drilled.
+   The off-NAS copy from 0017's bootstrap (see the backup entry above)
+   is a ready input for that drill.
 3. **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
    sibling driving N simulated clients (mixed search/save/list)
    against a store, reporting latency percentiles vs N — the
@@ -985,8 +1058,8 @@ entry (below, or in its design doc):
    not enablement; see 0010. The blank-content refusal was reconciled
    with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
    **not deployed**. Deploying is a separate, env-only step (item 12),
-   with the NAS restart gate. PR #39 (design 0017) merges after this
-   tag.
+   with the NAS restart gate. PR #39 (design 0017) merged after this
+   tag and is unreleased.
 9. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
    files that still stored CR bytes were renormalized on `main`, ahead
@@ -1019,6 +1092,7 @@ entry (below, or in its design doc):
     raw SQLite inspection or an immutable backup. Recheck the raw backup;
     an unseen naive row must not be silently interpreted. The input
     compatibility/version decision and backup/restore rehearsal remain gates.
+    Those gates are the 0017 sequence in the backup entry above.
 12. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     Measured read-only 2026-09-23. Portainer's stored file predates
@@ -1034,7 +1108,8 @@ entry (below, or in its design doc):
     a future metrics profile still requires an explicit API list with
     external hosts plus `oc:*`. Adoption needs the plan 0016 access check.
     The stored compose keeps the old `OC_LOG_FILE` default, and the stack env
-    does not set that variable. So the v3.4.0 deploy stays env-only:
+    does not set that variable. 0017's `/exports` bind mount is the one
+    change that cannot ship env-only. So the v3.4.0 deploy stays env-only:
     move `OC_TAG` and set `OC_LOG_FILE=/output/logs/openchronicle.log`
     in one `portainer_set_stack_env` call. Operator decision:
     reconcile the repo compose with the live shape, or re-attach the

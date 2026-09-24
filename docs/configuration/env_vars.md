@@ -21,6 +21,7 @@ rather than silently shadowing them.
 | `OC_DB_PATH` | SQLite file location | `data/openchronicle.db` |
 | `OC_CONFIG_DIR` | Directory containing `core.json` | `config` |
 | `OC_OUTPUT_DIR` | Directory for operator-export artifacts | `output` |
+| `OC_BACKUP_DIR` | Existing absolute directory for catalogued SQLite snapshots (`auto/` and `manual/`); a configured missing or unwritable directory logs an ERROR and fails each backup (no fallback, service keeps running) | Database parent `/backups` |
 
 The four-layer precedence (constructor arg > per-path env > `OC_DATA_DIR`-derived > default) is implemented in
 `application/config/paths.py:RuntimePaths.resolve`.
@@ -70,6 +71,7 @@ relationships).
 | `OC_API_HOST` | Bind address | `127.0.0.1` |
 | `OC_API_PORT` | Listen port | `8000` |
 | `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
+| `OC_BACKUP_MCP_ENABLED` | Register five fixed-root backup and restore-preparation HTTP MCP tools; requires an explicit `OC_BACKUP_DIR` and a nonempty effective API key; otherwise, or for an unrecognized value, logs an ERROR and leaves them off. Parked while auth is disabled | `false` |
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
 | `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset or empty. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
 | `OC_API_CORS_ORIGINS` | CSV of allowed CORS origins; the CORS middleware is only registered when this is non-empty | — |

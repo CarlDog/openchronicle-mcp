@@ -66,6 +66,25 @@ LLM need to write a memory" shape:
 |---|---|
 | `health` | Probe server state: DB reachability, config, embedding subsystem status, `maintenance_degraded`, `package_version`, `schema_version`, and `fts5_active`. Identical key set to `GET /api/v1/health`. |
 
+## Optional local backup and restore preparation
+
+Five additional tools register on the HTTP MCP surface only when
+`OC_BACKUP_MCP_ENABLED=true`, `OC_BACKUP_DIR` is explicitly configured, and
+the effective `OC_API_KEY` is nonempty; any other setting logs an ERROR and
+leaves them off without stopping startup. They are parked while production
+auth stays disabled. The default 18-tool inventory and stdio server omit them. All take generated artifact IDs, never file paths.
+
+| Tool | Purpose |
+|---|---|
+| `db_backup_create` | Create a consistent manual SQLite snapshot in the fixed backup root. |
+| `db_backup_list` | List completed auto/manual snapshots; metadata is not a fresh verification. |
+| `db_backup_verify` | Recheck a snapshot's SHA-256, full SQLite integrity, schema and counts. |
+| `db_restore_plan` | Compare a verified candidate to the running store; read-only. Returns `stop_reasons` (newer schema, or no project shared with the running store) plus `memory_delta` and project differences. |
+| `db_restore_stage` | Reverify and copy a candidate to the DB volume for an offline restore; refuses on any stop reason; does not activate it. |
+
+See [design 0017](../design/0017-exposed-backup-and-restore.md) and the
+[local backup runbook](../configuration/local_backup_restore.md).
+
 ## Tool design philosophy
 
 Each tool's docstring answers "when would I call this vs the others?"
