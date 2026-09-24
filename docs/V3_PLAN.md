@@ -876,14 +876,16 @@ The README is not a market-positioning document. It states what OC is, what it d
 [local_backup_restore.md](configuration/local_backup_restore.md). Status lives
 in the assessment (revs 217-227). Open, in order:
 
-1. Merge, the operator's call. The 2026-09-24 Claude review's fixes and an
-   independent review of that fix round are done (revs 221-227). Merging
-   changes the nightly backup path (catalogued, verified, failures
-   quarantined), so decide whether it rides v3.4.0.
+1. Merge **after the v3.4.0 tag** (operator decision, 2026-09-24): v3.4.0
+   keeps its reviewed scope, and the nightly backup change (catalogued,
+   verified, failures quarantined) ships in its own release with its own
+   deploy check. The review fixes and an independent review of the fix
+   round are done (revs 221-227).
 2. Off-NAS v3.3.0 copy before any stack change, through NAS Bash or the
    Portainer console route in the runbook.
-3. Helper image for the NAS drill: a release (blocked by design 0010) or an
-   authorized non-release image.
+3. Helper image for the NAS drill: **done.** The operator authorized a
+   non-release image (2026-09-24), published as
+   `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c` (`sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`), from `1fad2c4c`; see the runbook.
 4. NAS drill (normal and aborted legs), independently reviewed.
 5. Before the timestamp migration: a fresh off-NAS copy and an old/new
    image-pair rehearsal.

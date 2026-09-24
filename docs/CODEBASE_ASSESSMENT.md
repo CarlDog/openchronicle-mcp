@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 228 (PR #39: deferred items filed)
+**Snapshot date:** 2026-09-24 UTC · **Revision:** 229 (PR #39: merge timing decided; drill image published)
 
 ## Current state
 
@@ -131,10 +131,9 @@ their no-commit/no-push statements are historical, not the current scope.
   and an offline stage/activate/rollback helper. A Claude adversarial review
   of `f65be230` found P1 defects; revs 221-227 fix them, and the fix round had
   its own independent review. The MCP backup tools are parked while auth stays
-  disabled. Open: merge, the operator's call (it changes the nightly backup
-  path, so decide whether it rides v3.4.0); an off-NAS v3.3.0
-  copy before any stack change; a helper image for the NAS drill (design 0010
-  gate); the NAS drill itself. Production is unchanged. V3_PLAN holds the
+  disabled. Open: merge after the v3.4.0 tag (operator decision); an off-NAS
+  v3.3.0 copy before any stack change; the NAS drill itself, on the authorized
+  non-release image `backup-drill-20260924-1fad2c4c`. Production is unchanged. V3_PLAN holds the
   ordered list and a separate storage-layout review.
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
@@ -317,6 +316,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 229 (branch) | 2026-09-24 | **PR #39: merge timing decided; drill image published.** Operator decisions: #39 merges after the v3.4.0 tag, so v3.4.0 keeps its reviewed scope and the nightly backup change ships in its own release; the NAS drill uses a non-release image rather than waiting on design 0010. That image was built from `1fad2c4c` (linux/amd64), passed `tools/ci/smoke-image.sh` (build revision, runtime imports, `/health`), and is published only as `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c`, index digest `sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`. No `:latest` movement, release tag, `OC_TAG` change or deployment. The image reports `package_version` 3.3.0; `build_revision` distinguishes it. |
 | 228 (branch) | 2026-09-24 | **Deferred PR #39 items filed.** V3_PLAN's backup entry now records two items the review deliberately left: consolidating the three snapshot-inspection implementations into one leaf module, and the hardcoded compose `OC_BACKUP_DIR`, to revisit at compose reconciliation. Docs only. |
 | 227 (branch) | 2026-09-24 | **PR #39 fix-round review resolved.** An independent code-and-docs review of revs 221-226 found nine problems, none P1. Code: rev 225's identity stop reason used the project fingerprint, which changes on every project create or delete, so staging refused the most common restore (undoing an accidental delete); now only a snapshot sharing no project with a non-empty store stops, and project differences are reported. The rollback-journal switch could delete a snapshot whose schema it could not parse instead of quarantining it; it now falls through to validation. The helper copied source permission bits, so a read-only custody copy failed to stage and, activated, would have left the live DB unwritable; it no longer copies them. Runbook: the bootstrap block now prints the volume and old image ID; a missing blank line had put the normal post-activation steps inside a rare-case bullet; the stage block accepts in-volume sources and PowerShell's uppercase digests; the operator compares the staged candidate with the live inventory, because the helper never opens the live DB; the stage-slot and quarantine-name wording is corrected. The reviewer's own mutation run caught 7 of 7; the new fixes caught 4 of 4. Source and docs only. |
 | 226 (branch) | 2026-09-24 | **PR #39 review fix 6: the runbook runs as written, and the records are corrected.** The drill fence `[[ ... ]] && test ...` never stopped under `set -e`, and blocks relied on one interactive shell that the first failed check would close, losing every recorded value. Each guard is now its own command, and each block declares its values and helpers and runs as `bash <file>`; restart policies are printed for the record. The drill creates its candidate with `oc db backup` and the helper's `stage`. The PowerShell custody step no longer reports a false mismatch for a folder destination. A Portainer-console bootstrap route (via the SMB-visible `/config` mount) is documented as an operator choice, and the drill's dependency on a helper image (design 0010) is stated. Every drill block was then replayed verbatim on Docker Desktop, each as its own file, for both legs; that replay caught a placeholder with an apostrophe that broke bash quoting, and confirmed the fence now stops a production volume name. The handoff's "no further P0/P1" claim is corrected; status duplicated across the handoff, AGENTS/CLAUDE and V3_PLAN is reduced to pointers; forward pointers were added to V3_PLAN items 2, 11 and 12 and to 0016 track 2; 0017 records the review's disposition. Source and docs only; NAS drill still open. |

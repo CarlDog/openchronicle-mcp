@@ -236,10 +236,24 @@ rejected until the previous one is handled offline.
    identity, integrity and request checks.
 
 The drill needs an image that contains the helper. A release image is blocked
-by design 0010's release gate (V3_PLAN item 8) until the operator decides it;
-a non-release drill image, like the earlier `phase4-recovery-*` image, needs
-its own explicit authorization. Either way, resolve that before scheduling the
-drill.
+by design 0010's release gate (V3_PLAN item 8), so the operator authorized a
+non-release drill image on 2026-09-24. It was built from PR #39 commit
+`1fad2c4c` and passed CI's image smoke script. It is published only as
+`ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c`, index digest `sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`. It never moves `:latest` or `OC_TAG`. It reports
+`package_version` 3.3.0 like production, so tell them apart by
+`build_revision` (`1fad2c4c...`). On the NAS, pull it by digest and use the
+resulting local image ID:
+
+```bash
+set -euo pipefail
+docker pull 'ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c@sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758'
+docker image inspect -f '{{.Id}}' 'ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c@sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758'
+docker run --rm --pull never --network none --read-only --entrypoint cat \
+  'ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c@sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758' /app/build-revision
+```
+
+Use the printed ID as `DRILL_IMAGE_ID` (and `HELPER_IMAGE_ID` in the drill);
+the build revision must read `1fad2c4c1a5a34c887913aa91f0fb901a6a52dd5`.
 
 To prepare that clone on the NAS once such an image is present, use a
 verified copy of the bootstrap snapshot and a **new named volume**. The volume

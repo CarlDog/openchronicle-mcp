@@ -201,12 +201,13 @@ query-revision and NAS Host-list source fixes merged.**
   including an independent review of the fix round), and the review record
   is in 0017. The MCP backup tools are **parked**: auth stays disabled, so
   production restores use the CLI and the offline helper's
-  `stage`/`activate`/`rollback`. Merge is the operator's call: it changes
-  the nightly backup path, so decide whether it rides v3.4.0. The next operational step is an
-  off-NAS v3.3.0 copy through either bootstrap route in the
+  `stage`/`activate`/`rollback`. It merges **after the v3.4.0 tag**
+  (operator, 2026-09-24), so the nightly backup change ships in its own
+  release. The next operational step is an off-NAS v3.3.0 copy through
+  either bootstrap route in the
   [runbook](docs/configuration/local_backup_restore.md), before any stack
-  change. The NAS drill also needs a helper image, which waits on the
-  design 0010 release decision or an authorized non-release image.
+  change. The NAS drill uses the authorized non-release image
+  `backup-drill-20260924-1fad2c4c` (digest in the runbook).
   Production is unchanged. Resume from the
   [handoff](docs/handoffs/2026-09-24-backup-restore.md).
 

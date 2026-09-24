@@ -28,12 +28,12 @@ store automatically.
    `CarlDog/openchronicle-mcp#backup-restore-tools` (memory
    `54f059eb-0370-4cbf-808a-7a9d678aeb7b`) and update that record.
 3. Source: the fix round has had its own independent review (rev 227).
-   Merge is the operator's call; it changes the nightly backup path, so
-   decide whether it rides v3.4.0.
+   Merge after the v3.4.0 tag (operator decision, 2026-09-24).
 4. Next operational step: the off-NAS v3.3.0 copy, through NAS Bash or the
    runbook's Portainer console route, before any stack change.
-5. The NAS drill needs a helper image: a release (design 0010 gate) or an
-   authorized non-release image.
+5. The NAS drill uses the authorized non-release image
+   `backup-drill-20260924-1fad2c4c`; the runbook has its digest and the
+   pull-by-digest steps.
 
 Timestamp PR #38 stays downstream of all of this. No NAS drill, off-device
 copy, merge, release, stack change, live restore or migration had occurred
