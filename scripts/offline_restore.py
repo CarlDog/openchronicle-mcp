@@ -1,8 +1,11 @@
-"""Offline, same-volume activation and rollback for a staged SQLite snapshot.
+"""Offline, same-volume staging, activation and rollback of a SQLite snapshot.
 
-Run only as PID 1 of a disposable helper container after every writer using
-the named data volume has stopped. This module never constructs CoreContainer:
-doing so would open and possibly migrate the database before the swap.
+Run only as PID 1 of a disposable helper container. `stage` only reads a
+verified snapshot and writes the stage directory, so it may run while the
+service is up; activation, rollback and stage retirement need every writer
+using the named data volume stopped. This module never constructs
+CoreContainer: doing so would open and possibly migrate the database before
+the swap.
 """
 
 from __future__ import annotations
@@ -287,6 +290,57 @@ def _remove_incoming(db: Path, operation_id: str, candidate_sha256: str) -> str 
     return f"removed {incoming.name}"
 
 
+def stage(db: Path, source: Path, expected_sha256: str, *, apply: bool = False) -> dict[str, Any]:
+    """Stage a verified snapshot for activation without the MCP tools.
+
+    This is the production staging path while auth stays disabled. The
+    expected digest must come from an independent record (the artifact's
+    manifest or verify output, or the off-NAS copy's recorded hash). A hash
+    computed from the file at staging time would pass for any file,
+    including a fresh copy of the live database.
+    """
+    if not db.is_absolute() or db.name != "openchronicle.db" or not source.is_absolute():
+        raise RestoreError("Use absolute paths and the expected openchronicle.db name")
+    if re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None:
+        raise RestoreError("--expected-sha256 must be 64 lowercase hex characters from an independent record")
+    stage_dir = db.parent / ".restore-stage"
+    resolved = source.resolve()
+    forbidden = {path.resolve() for path in (db, Path(f"{db}-wal"), Path(f"{db}-shm"))}
+    for protected in (stage_dir, db.parent / ".recovery"):
+        if resolved.is_relative_to(protected.resolve()):
+            raise RestoreError("Stage a snapshot, not a file from .restore-stage or .recovery")
+    if resolved in forbidden or source.name.startswith((".incoming-", ".rollback-")):
+        raise RestoreError("The live database family cannot be staged; stage a verified snapshot")
+    info = _inspect(source)
+    if info["sha256"] != expected_sha256:
+        raise RestoreError("Snapshot digest differs from the independently recorded SHA-256")
+    if stage_dir.is_symlink():
+        raise RestoreError("Stage directory cannot be a symlink")
+    if stage_dir.exists() and any(stage_dir.glob("*.db")):
+        raise RestoreError("A restore candidate is already staged; activate it or retire it first")
+    if shutil.disk_usage(db.parent).free < source.stat().st_size + _MARGIN:
+        raise RestoreError("Insufficient space to stage the snapshot")
+    if not apply:
+        return {"action": "stage", "applied": False, "source": str(source), "candidate": info}
+    stage_dir.mkdir(mode=0o700, exist_ok=True)
+    name = f"candidate-{token_hex(12)}"
+    temp = stage_dir / f"{name}.tmp"
+    final = stage_dir / f"{name}.db"
+    try:
+        _copy_durable(source, temp)
+        if _sha256(temp) != expected_sha256:
+            raise RestoreError("Staged copy differs from the verified snapshot")
+        os.replace(temp, final)
+        _fsync_dir(stage_dir)
+    finally:
+        temp.unlink(missing_ok=True)
+    staged = _inspect(final)
+    if staged != info:
+        final.unlink(missing_ok=True)
+        raise RestoreError("Staged candidate failed re-verification")
+    return {"action": "stage", "applied": True, "stage_path": str(final), "candidate": staged}
+
+
 def activate(
     db: Path,
     candidate: Path,
@@ -537,9 +591,10 @@ def _require_helper() -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("activate", "rollback", "retire-stage", "status"))
+    parser.add_argument("action", choices=("stage", "activate", "rollback", "retire-stage", "status"))
     parser.add_argument("--db", type=Path, required=True)
-    parser.add_argument("--operation-id", required=True)
+    parser.add_argument("--operation-id")
+    parser.add_argument("--source", type=Path, help="stage: absolute path of a verified snapshot")
     parser.add_argument("--candidate", type=Path)
     parser.add_argument("--expected-sha256")
     parser.add_argument("--expected-schema", type=int)
@@ -550,6 +605,14 @@ def main(argv: list[str] | None = None) -> int:
         _require_helper()
         if args.db != Path("/data/openchronicle.db"):
             raise RestoreError("Helper commands require --db /data/openchronicle.db")
+        if args.action == "stage":
+            if args.source is None or not args.expected_sha256:
+                raise RestoreError("Staging requires --source and --expected-sha256 from an independent record")
+            result = stage(args.db, args.source, args.expected_sha256, apply=args.apply)
+            print(json.dumps(result, sort_keys=True))
+            return 0
+        if not args.operation_id:
+            raise RestoreError(f"{args.action} requires --operation-id")
         if args.action == "activate":
             if not all((args.candidate, args.expected_sha256, args.expected_schema, args.expected_project_sha256)):
                 raise RestoreError("Activation requires candidate, digest, schema and project identity")
@@ -573,7 +636,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, sort_keys=True))
         return 0
     except (OSError, sqlite3.Error, RestoreError) as exc:
-        print(json.dumps({"error": str(exc), "service_must_remain_stopped": True}), file=sys.stderr)
+        payload: dict[str, Any] = {"error": str(exc)}
+        if args.action != "stage":  # staging never touches the live family
+            payload["service_must_remain_stopped"] = True
+        print(json.dumps(payload), file=sys.stderr)
         return 1
 
 

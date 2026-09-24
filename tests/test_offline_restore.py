@@ -617,3 +617,92 @@ def test_zero_length_main_with_wal_is_not_a_rollback_target(tmp_path: Path) -> N
     assert {name: offline_restore._sha256(raw / name) for name in before} == before
     with pytest.raises(offline_restore.RestoreError, match="no automated rollback target"):
         offline_restore.rollback(db, "zero-main", apply=True)
+
+
+# ── Helper staging: the production path while the MCP tools are parked ──
+
+
+def _snapshot(tmp_path: Path, name: str = "snapshot.db") -> tuple[Path, Path, offline_restore.BackupInfo]:
+    db, candidate, _ = _stopped_wal_fixture(tmp_path)
+    exported = tmp_path / "exports" / name
+    exported.parent.mkdir()
+    exported.write_bytes(candidate.read_bytes())
+    candidate.unlink()
+    return db, exported, offline_restore._inspect(exported)
+
+
+def test_stage_then_activate_from_an_exported_snapshot(tmp_path: Path) -> None:
+    db, exported, info = _snapshot(tmp_path)
+    dry = offline_restore.stage(db, exported, info["sha256"])
+    assert dry["applied"] is False
+    assert list((tmp_path / ".restore-stage").glob("*")) == []
+    staged = offline_restore.stage(db, exported, info["sha256"], apply=True)
+    stage_path = Path(str(staged["stage_path"]))
+    assert staged["candidate"] == info
+    assert [path.name for path in stage_path.parent.iterdir()] == [stage_path.name]
+    # The printed values are exactly what activation checks.
+    result = _activate(db, stage_path, "staged-by-helper", info)
+    assert result["applied"] is True
+    assert _ids(db) == ["before-snapshot"]
+    with pytest.raises(offline_restore.RestoreError, match="already staged"):
+        offline_restore.stage(db, exported, info["sha256"])
+
+
+def test_stage_requires_the_independently_recorded_digest(tmp_path: Path) -> None:
+    db, exported, info = _snapshot(tmp_path)
+    with pytest.raises(offline_restore.RestoreError, match="differs from the independently recorded"):
+        offline_restore.stage(db, exported, "0" * 64, apply=True)
+    for malformed in (info["sha256"].upper(), "", "abc"):
+        with pytest.raises(offline_restore.RestoreError, match="64 lowercase hex"):
+            offline_restore.stage(db, exported, malformed, apply=True)
+    assert list((tmp_path / ".restore-stage").glob("*")) == []
+
+
+def test_stage_refuses_the_live_family_and_recovery_files(tmp_path: Path) -> None:
+    db, exported, info = _snapshot(tmp_path)
+    live_digest = offline_restore._sha256(db)
+    for source in (db, Path(f"{db}-wal")):
+        with pytest.raises(offline_restore.RestoreError, match="live database family"):
+            offline_restore.stage(db, source, live_digest, apply=True)
+    recovery_copy = tmp_path / ".recovery" / "op" / "old-consistent.db"
+    recovery_copy.parent.mkdir(parents=True)
+    recovery_copy.write_bytes(exported.read_bytes())
+    with pytest.raises(offline_restore.RestoreError, match=r"\.recovery"):
+        offline_restore.stage(db, recovery_copy, info["sha256"], apply=True)
+
+
+def test_stage_refuses_unverifiable_snapshots(tmp_path: Path) -> None:
+    db, exported, info = _snapshot(tmp_path)
+    Path(f"{exported}-wal").write_bytes(b"sidecar")
+    with pytest.raises(offline_restore.RestoreError, match="without sidecars"):
+        offline_restore.stage(db, exported, info["sha256"], apply=True)
+    Path(f"{exported}-wal").unlink()
+    with closing(sqlite3.connect(exported)) as conn:
+        conn.execute("INSERT INTO memory_items VALUES ('orphan', 'missing-project')")
+        conn.commit()
+    broken = offline_restore._sha256(exported)
+    with pytest.raises(offline_restore.RestoreError, match="foreign_key_check"):
+        offline_restore.stage(db, exported, broken, apply=True)
+    assert list((tmp_path / ".restore-stage").glob("*")) == []
+
+
+def test_main_stage_wiring(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    monkeypatch.setattr(offline_restore, "_require_helper", lambda: None)
+    assert offline_restore.main(["stage", "--db", "/data/openchronicle.db"]) == 1
+    stage_error = capsys.readouterr().err
+    assert "requires --source and --expected-sha256" in stage_error
+    assert "service_must_remain_stopped" not in stage_error
+    assert offline_restore.main(["rollback", "--db", "/data/openchronicle.db"]) == 1
+    assert "requires --operation-id" in capsys.readouterr().err
+    calls: list[tuple[Path, Path, str, bool]] = []
+
+    def fake_stage(db: Path, source: Path, digest: str, *, apply: bool = False) -> dict[str, object]:
+        calls.append((db, source, digest, apply))
+        return {"action": "stage", "applied": apply}
+
+    monkeypatch.setattr(offline_restore, "stage", fake_stage)
+    source = tmp_path / "snap.db"
+    argv = ["stage", "--db", "/data/openchronicle.db", "--source", str(source), "--expected-sha256", "a" * 64]
+    assert offline_restore.main([*argv, "--apply"]) == 0
+    assert calls == [(Path("/data/openchronicle.db"), source, "a" * 64, True)]
+    assert '"applied": true' in capsys.readouterr().out

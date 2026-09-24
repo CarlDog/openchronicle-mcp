@@ -309,9 +309,44 @@ backup-facility drill and remains a timestamp release gate.
 
 ## Offline activation and rollback
 
-Stage and verify the selected artifact while the service is running. Record
-the returned absolute `stage_path`, SHA-256, schema version and project-ID
-fingerprint, plus the artifact and operation IDs. Retain a verified off-NAS
+Stage and verify the selected snapshot with the helper's `stage` action. This
+is the production path while the MCP tools stay parked (auth stays disabled),
+and it works whether or not the service is running or even starts: it only
+reads the snapshot and writes `/data/.restore-stage`. `--expected-sha256` must
+come from an **independent record**: the artifact's manifest or earlier verify
+output, or the hash recorded for the off-NAS copy. Never hash the file at
+staging time and feed that back in: that check passes for any file, including
+a fresh copy of the live database. The source may be an existing snapshot in
+the volume (for example `/data/backups/auto/...` or `/data/backups/manual/...`)
+or a host file bind-mounted read-only, such as an `/exports` artifact or an
+off-NAS copy returned to the NAS. A bind-mounted file must be readable by uid
+1000.
+
+```bash
+set -euo pipefail
+VOL='<recorded original data volume name>'
+HELPER_IMAGE_ID='<verified image ID containing offline_restore.py>'
+SOURCE_HOST_PATH='<absolute NAS path of the verified snapshot file>'
+EXPECTED_SHA='<SHA-256 from the manifest or the off-NAS custody record>'
+test -f "$SOURCE_HOST_PATH"
+[[ "$EXPECTED_SHA" =~ ^[0-9a-f]{64}$ ]] || { echo 'EXPECTED_SHA is not a SHA-256' >&2; exit 1; }
+stage() {
+  docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+    --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
+    --mount "type=bind,source=$SOURCE_HOST_PATH,target=/import/snapshot.db,readonly" \
+    --entrypoint python --env OC_OFFLINE_RESTORE=1 "$HELPER_IMAGE_ID" \
+    /app/scripts/offline_restore.py stage --db /data/openchronicle.db \
+    --source /import/snapshot.db --expected-sha256 "$EXPECTED_SHA" "$@"
+}
+stage
+stage --apply
+```
+
+The dry run verifies the snapshot (standalone file, `integrity_check`,
+`foreign_key_check`, digest) without writing. The apply prints `stage_path`
+and the candidate's `sha256`, `schema_version` and `project_identity_sha256`:
+record those for activation, with the operation ID. A second stage is refused
+until the first is activated or retired. Retain a verified off-NAS
 snapshot. Record the old and candidate image IDs. Prepare enough free space on
 the data volume for the old raw DB/WAL/SHM family, a consolidated old snapshot,
 an incoming candidate, a forward-state archive, a rollback incoming file and
@@ -326,8 +361,8 @@ volume is the expected original volume. Set `HELPER_IMAGE_ID` from the
 **published, locally present, exact release image** containing
 `/app/scripts/offline_restore.py`;
 record its `/app/build-revision` and compare with that release's CI commit.
-Set the other values from `db_restore_stage` and the verified manifest, not
-from a filename guess. A different image is used for the helper only; it has
+Set `STAGE` and the three `EXPECTED_*` values from the recorded `stage`
+output, never from a filename guess. A different image is used for the helper only; it has
 no network or secrets mount. Agree a maintenance freeze that prevents
 Portainer stack edits, webhooks, scheduled reconciliation and other container
 starts for this stack during the swap. Record the Docker restart policy, set it
