@@ -1071,6 +1071,11 @@ entry (below, or in its design doc):
     A dedicated project in the live store alone does not isolate drafts
     from unscoped recall; resolve plan 0016's pilot isolation gate first.
     The outcome decides whether Option B gets built.
+    **Operator intent (2026-09-24):** prompts that *improve with use*, by
+    tracking outcomes, not a static library. Captured in
+    [0018](design/0018-self-improving-prompts.md), which answers 0015's
+    outcome-signal question and proposes that Stage 0 also test the
+    improvement loop.
 11. **Chronological order ignores `created_at` offsets**
     (see the [proposed correction plan](design/0016-review-findings-plan.md#2-specify-and-correct-timestamp-storage)).
     Found 2026-09-23 and reproduced against `SqliteStore`. A backdated
