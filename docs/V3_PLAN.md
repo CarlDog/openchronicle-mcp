@@ -993,7 +993,12 @@ entry (below, or in its design doc):
    mcp 2.x migration by its own entry.
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
-8. ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
+8. **GitHub Copilot SDK integration** ([setup documentation](https://docs.github.com/en/copilot/how-tos/copilot-sdk/setup)) — evaluate
+  incorporating the SDK as an optional agent/runtime integration while
+  keeping OpenChronicle's memory service boundary intact. Define the
+  supported setup path, authentication model, lifecycle, and tool/session
+  isolation before implementation.
+9. ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
    `9b1e83e6`), NOT deployed** ([0014](design/0014-gemini-audit-branch-review.md);
    [review-findings plan](design/0016-review-findings-plan.md), source
    tracks 1 and 3 merged to `main`).
@@ -1058,14 +1063,14 @@ entry (below, or in its design doc):
    metrics instrumentation off by default. The exception covers release,
    not enablement; see 0010. The blank-content refusal was reconciled
    with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
-   **not deployed**. Deploying is a separate, env-only step (item 12),
-   with the NAS restart gate. PR #39 (design 0017) merged after this
+  **not deployed**. Deploying is a separate, env-only step (item 13),
+  with the NAS restart gate. PR #39 (design 0017) merged after this
    tag and is unreleased.
-9. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
+10. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
    files that still stored CR bytes were renormalized on `main`, ahead
    of the next main→`v4/develop` merge.
-10. **Prompt library Stage 0** ([0015](design/0015-prompt-library.md);
+11. **Prompt library Stage 0** ([0015](design/0015-prompt-library.md);
     [proposed isolation plan](design/0016-review-findings-plan.md#4-bound-the-prompt-library-pilot-and-later-adr)).
     Operator-run, zero code: record reused prompts for about two weeks.
     A dedicated project in the live store alone does not isolate drafts
@@ -1076,7 +1081,7 @@ entry (below, or in its design doc):
     [0018](design/0018-self-improving-prompts.md), which answers 0015's
     outcome-signal question and proposes that Stage 0 also test the
     improvement loop.
-11. **Chronological order ignores `created_at` offsets**
+12. **Chronological order ignores `created_at` offsets**
     (see the [proposed correction plan](design/0016-review-findings-plan.md#2-specify-and-correct-timestamp-storage)).
     Found 2026-09-23 and reproduced against `SqliteStore`. A backdated
     `created_at` is stored with its offset (`isoformat()`), and every
@@ -1099,7 +1104,7 @@ entry (below, or in its design doc):
     an unseen naive row must not be silently interpreted. The input
     compatibility/version decision and backup/restore rehearsal remain gates.
     Those gates are the 0017 sequence in the backup entry above.
-12. **Stack 151 runs a detached, older compose**
+13. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     Measured read-only 2026-09-23. Portainer's stored file predates
     `682c68f0`. It keeps
@@ -1125,7 +1130,7 @@ entry (below, or in its design doc):
     `container_name: openchronicle-mcp` to the `oc` service (operator,
     2026-09-24: no `-oc-1` suffix). Nothing depends on the name; the
     backup runbook finds the container by its compose labels.
-13. **Persistent-storage review — HIGH PRIORITY, next after the 0017 work**
+14. **Persistent-storage review — HIGH PRIORITY, next after the 0017 work**
     (operator, 2026-09-24; full entry under the post-cutover follow-ups,
     beside the 0017 backup entry). Numbered last only so existing item
     references stay stable. Its premise was checked: the database has
@@ -1134,7 +1139,7 @@ entry (below, or in its design doc):
     that volume; the log path is wrong on the live stack; everything sits
     on one NAS; the `docker` share grants `Everyone` read; `/config` is
     mode 0777.
-14. **Persistent Ollama HTTP client** (salvage from
+15. **Persistent Ollama HTTP client** (salvage from
     [0014](design/0014-gemini-audit-branch-review.md), its last open item).
     The Ollama adapter opens a new connection for every call
     (`httpx.post`), about 12-13 ms per call on desktop loopback against

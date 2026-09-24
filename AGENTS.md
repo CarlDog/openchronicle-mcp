@@ -93,7 +93,7 @@ enforces parity.
   reaches the NAS through its stack env var instead: rev 210's log path
   needs `OC_LOG_FILE=/output/logs/openchronicle.log` set in the stack.
   Reconciling the two files is an open operator decision (V3_PLAN
-  item 12).
+  item 13).
 
   Verify with `mcp__openchronicle__health`: `package_version` is the
   signal **when the released version actually changed** — it reports the
@@ -209,15 +209,15 @@ query-revision and NAS Host-list source fixes merged.**
   [runbook](docs/configuration/local_backup_restore.md)). Remaining: before
   timestamp PR #38, a fresh copy plus an image-pair rehearsal. Next, at
   high priority: the persistent-storage review (V3_PLAN active queue item
-  13). Then the last open 0014 salvage item, a persistent Ollama HTTP
-  client (item 14).
+  14). Then the last open 0014 salvage item, a persistent Ollama HTTP
+  client (item 15).
   Production is unchanged. Resume from the
   [handoff](docs/handoffs/2026-09-24-backup-restore.md).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
   Its docs and OC milestone memories describe unshipped work.
-- The v3.4.0 correctness release (V3_PLAN item 8) is on `main` and
+- The v3.4.0 correctness release (V3_PLAN item 9) is on `main` and
   reviewed (revs 201-210): the four fleet-review #27 items, the §1.1
   Ollama revision fix (ADR 0005 §7), three hygiene fixes, and the fixes
   from the pre-deploy review and its completeness critic (among them
@@ -225,7 +225,7 @@ query-revision and NAS Host-list source fixes merged.**
   2026-09-24, not deployed:** the operator granted an exception to design
   0010's B/A gate (metrics stay off by default), and the tag points at the
   release PR's merge. The deploy is env-only, because stack 151 runs a detached, older
-  compose (V3_PLAN item 12). 0017's `/exports` mount is the exception: it
+  compose (V3_PLAN item 13). 0017's `/exports` mount is the exception: it
   needs that compose reconciled, so it is not part of an env-only deploy.
   Until a deploy, production (v3.3.0) still
   needs 0014's interim control after any NAS, OC or Ollama restart.
