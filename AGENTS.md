@@ -195,6 +195,16 @@ does differently.
 **2026-09-23 — Gemini branch rejected as a unit; prompt library researched;
 query-revision and NAS Host-list source fixes merged.**
 
+- Design [0017](docs/design/0017-exposed-backup-and-restore.md) and source
+  branch `codex/exposed-backup-tools` prepare independent local snapshots and
+  guarded MCP restore staging before the timestamp upgrade. `/exports/backups`
+  is the proposed exposed mount; the live DB remains in `oc-data`. Source PR,
+  release decision under design 0010, detached-stack mount/auth rollout, and
+  an independently restored NAS snapshot are distinct gates. No live restore
+  executes through MCP. V3_PLAN separately records a full persistent-storage
+  architecture review, including `assets`, `output` and durable logs; these
+  folders are not altered in this branch.
+
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
   Its docs and OC milestone memories describe unshipped work.

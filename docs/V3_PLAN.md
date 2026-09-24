@@ -871,6 +871,25 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 ### Post-cutover follow-ups (tech debt)
 
+**Exposed backup/restore capability before timestamp migration.** Design
+[0017](design/0017-exposed-backup-and-restore.md) proposes a dedicated
+`/volume1/docker/openchronicle/exports` host directory mounted at `/exports`,
+with snapshots under `/exports/backups`. Its source PR, exact-head CI,
+production mount/auth rollout, and an independently read and restored NAS
+snapshot are separate gates. Do not run the timestamp migration merely because
+the PR is green. The detached stack and design 0010 release gate still require
+an operator decision.
+
+**Persistent storage architecture review — later, separate from 0017.**
+Inventory the whole `/volume1/docker/openchronicle` tree and the live named
+volumes, their owners, mounts, retention, backups, and recovery paths. Determine
+whether the exposed `assets` and `output` folders are used or needed, including
+the status of `oc-output` and the actual `OC_LOG_FILE` destination. Decide
+which logs and other durable data should live on an external mount and how to
+migrate them without hiding or deleting current data. Record a reviewed target
+layout and an operator cutover/rollback plan before changing mounts or removing
+any folder. This note authorizes review only; 0017 does not do that migration.
+
 **Active queue — sorted by need (operator-ratified 2026-08-29).** The
 authoritative order for picking up work; each line points at the full
 entry (below, or in its design doc):

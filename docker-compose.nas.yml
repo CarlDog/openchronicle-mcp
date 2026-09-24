@@ -85,6 +85,9 @@ services:
       # /data keeps the SQLite file safe from external interference.
       OC_CONFIG_DIR: /config
       OC_DB_PATH: /data/openchronicle.db
+      # Exposed snapshots only. The live SQLite file stays in oc-data.
+      OC_BACKUP_DIR: /exports/backups
+      OC_BACKUP_MCP_ENABLED: ${OC_BACKUP_MCP_ENABLED:-false}
       OC_OUTPUT_DIR: /output
       # Bind the unified ASGI to all interfaces inside the container.
       OC_API_HOST: 0.0.0.0
@@ -145,6 +148,11 @@ services:
       - oc-data:/data
       - ${HOST_CONFIG_DIR:-oc-config}:/config
       - oc-output:/output
+      - type: bind
+        source: ${HOST_EXPORTS_DIR:-/volume1/docker/openchronicle/exports}
+        target: /exports
+        bind:
+          create_host_path: false
     healthcheck:
       test:
         [

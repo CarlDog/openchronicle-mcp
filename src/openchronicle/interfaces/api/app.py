@@ -8,6 +8,7 @@ v3 fold: a single ASGI process serves both the HTTP REST surface
 from __future__ import annotations
 
 import logging
+import os
 import traceback
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
@@ -22,6 +23,7 @@ from openchronicle.core.application.observability.exporter import (
 )
 from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.domain.errors.error_codes import FILE_NOT_FOUND, INTERNAL_ERROR
+from openchronicle.core.domain.exceptions import ConfigError
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.version import package_version
@@ -54,7 +56,13 @@ def create_app(
         from openchronicle.interfaces.mcp.server import create_server
 
         mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"))
-        mcp_server = create_server(container, mcp_config)
+        backup_flag = os.environ.get("OC_BACKUP_MCP_ENABLED", "").strip().lower()
+        if backup_flag not in ("", "0", "false", "no", "off", "1", "true", "yes", "on"):
+            raise ConfigError("OC_BACKUP_MCP_ENABLED must be true or false")
+        backup_requested = backup_flag in ("1", "true", "yes", "on")
+        if backup_requested and (not config.api_key or not container.backup_dir_explicit):
+            raise ConfigError("Backup MCP tools require OC_API_KEY and an explicit OC_BACKUP_DIR")
+        mcp_server = create_server(container, mcp_config, backup_tools_enabled=backup_requested)
 
     metrics_candidate = getattr(container, "metrics", None)
     metrics_enabled = getattr(metrics_candidate, "enabled", None)

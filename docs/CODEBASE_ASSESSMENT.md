@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-23 UTC · **Revision:** 216 (timestamp inventory)
+**Snapshot date:** 2026-09-23 UTC · **Revision:** 217 (exposed backup source branch)
 
 ## Current state
 
@@ -124,6 +124,13 @@ their no-commit/no-push statements are historical, not the current scope.
   inspection or a backup. The input-compatibility/version decision, a
   fail-closed policy for any unseen naive row, and an intact backup with a
   disposable restore rehearsal remain prerequisites to migration.
+- **Exposed local backup/restore preparation is source-only** ([0017](design/0017-exposed-backup-and-restore.md)).
+  `codex/exposed-backup-tools` adds a separate `/exports/backups` snapshot
+  catalog, optional authenticated HTTP MCP tools, and verified staging without
+  live replacement. The detached production stack is unchanged. PR/CI, a
+  release decision under design 0010, host mount/ACL setup, and an independently
+  restored NAS artifact remain before the timestamp migration. V3_PLAN records
+  a separate review of `assets`, `output`, logs and the full storage layout.
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
   Its docs and eight OC milestone memories describe unshipped work;
@@ -305,6 +312,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 217 (branch) | 2026-09-23 | **Exposed local backup and guarded restore preparation (design 0017).** Source branch adds a fixed-root online SQLite snapshot catalog, SHA-256/integrity manifests, auto sidecar retention, preserved manual artifacts, optional authenticated HTTP MCP create/list/verify/plan/stage tools, and a separate `/exports` host mount. Staging does not replace the live WAL database. The design records adversarial failure cases and the NAS drill. Full local suite: 1,161 passed, one Linux-only skip; Ruff, mypy, Markdown lint and rendered compose validation passed. PR/CI status is separate; no release, production mount, tool enablement, or timestamp migration occurred. The full persistent-storage architecture remains a separate review item. |
 | 216 (branch) | 2026-09-23 | **Read-only production timestamp inventory (design 0016 track 2).** `memory_list(compact=true, order_by="created_at")` returned 1,080 rows, matching `memory_stats`: 987 UTC and 93 nonzero-offset `created_at` values (90 `-05:00`, three `-06:00`). Of `updated_at` values, 771 were null and 309 UTC. `project_list(compact=true)` returned 39 UTC-aware creation timestamps. No naive or malformed values surfaced through these API responses; 24 adjacent pairs in the chronological list are inverted by actual instant. No content was analyzed. API serialization is not raw SQLite inspection, and concurrent writes can change counts. The production DB is in a named Docker volume that the available filesystem MCP does not expose. Backup/restore and input-version decisions remain; no data or runtime change occurred. |
 | 215 (branch) | 2026-09-23 | **Both source PRs merged.** PR #34 entered `main` as `7ffc277c`; its exact-main Windows/Ubuntu tests, quality, image build/push and gitleaks passed. PR #35 entered `main` as `77ea0173` after Windows/Ubuntu tests, quality, CodeQL and secret scan passed on reviewed head `87b891ed` (Windows passed on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality, image smoke/publish and gitleaks passed on `77ea0173`. The repository compose fix is source only: the detached stack remains on its older stored compose and tagged v3.3.0 image. No tagged release, deploy or metrics enablement occurred. |
 | 214 (branch) | 2026-09-23 | **PR #34 merged; PR #35 review refinement.** The query-revision race fix entered `main` through merge commit `7ffc277c`. Exact-main Windows/Ubuntu tests, quality, image build/push and gitleaks passed; this is source publication, not a tagged release or deployment. PR #35's rendered-compose test now drives mounted MCP using the actual rendered Host values, addressing review feedback before the dependent merge. Its branch incorporates the new `main` merge commit. The detached live stack and runtime metrics remain unchanged; PR #35's revised head requires fresh CI. |

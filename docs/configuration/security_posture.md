@@ -78,6 +78,16 @@ home-LAN deployment, intentional, documented per the lessons from the
 2026-05-06 cutover. If that trust boundary changes, follow the steps
 above.
 
+## Exposed SQLite snapshots
+
+The optional backup catalog exports full plaintext SQLite snapshots under
+`/exports/backups`. Restrict the host directory and SMB share to the operator;
+the artifact hash detects accidental changes but cannot authenticate a writer
+who can change both the database and its manifest. The five backup/restore
+preparation MCP tools require an explicit backup root and nonempty HTTP API key
+and are off by default. They never accept a caller-supplied path or activate a
+restore. The current auth-disabled production deployment does not expose them.
+
 ## Transport
 
 - The image binds the unified ASGI app to plain HTTP. TLS termination

@@ -26,8 +26,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from openchronicle.core.domain.time_utils import utc_now
-
 if TYPE_CHECKING:
     from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
@@ -37,8 +35,7 @@ _BACKUP_RETENTION = 7
 
 
 def _auto_backup_dir(container: CoreContainer) -> Path:
-    base = container.paths.db_path.parent
-    return base / "backups" / "auto"
+    return container.backup_dir / "auto"
 
 
 def _retention_prune(directory: Path, keep: int) -> None:
@@ -68,6 +65,7 @@ def _retention_prune(directory: Path, keep: int) -> None:
             continue
         try:
             path.unlink()
+            path.with_suffix(".json").unlink(missing_ok=True)
         except OSError as exc:
             _logger.warning("backup retention: failed to prune %s: %s", path, exc)
 
@@ -81,15 +79,11 @@ async def db_backup(container: CoreContainer) -> None:
     finding from the 2026-05-06 cutover.
     """
     directory = _auto_backup_dir(container)
-    timestamp = utc_now().strftime("%Y%m%dT%H%M%S%fZ")
-    dest = directory / f"openchronicle-{timestamp}.db"
-
     # The stdlib backup API blocks; run on a worker thread so the
-    # asyncio loop stays responsive. The store method holds the store
-    # lock, so the copy never interleaves an open transaction.
-    await asyncio.to_thread(container.storage.backup_to, dest)
+    # asyncio loop stays responsive. The store method holds the store lock.
+    artifact = await asyncio.to_thread(container.backups.create, "auto")
     await asyncio.to_thread(_retention_prune, directory, _BACKUP_RETENTION)
-    _logger.info("db_backup: wrote %s; retention pruned to last %d", dest, _BACKUP_RETENTION)
+    _logger.info("db_backup: wrote %s; retention pruned to last %d", artifact["artifact_id"], _BACKUP_RETENTION)
 
 
 async def db_vacuum(container: CoreContainer) -> None:

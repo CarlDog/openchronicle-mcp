@@ -398,6 +398,10 @@ def test_db_backup_writes_and_prunes(tmp_path: Path) -> None:
     container = MagicMock()
     container.storage = store
     container.paths.db_path = db_path
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     asyncio.run(maintenance_jobs.db_backup(container))
 
@@ -421,6 +425,10 @@ def test_db_vacuum_runs_backup_first(tmp_path: Path) -> None:
     container = MagicMock()
     container.storage = store
     container.paths.db_path = db_path
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     asyncio.run(maintenance_jobs.db_vacuum(container))
 
@@ -462,6 +470,10 @@ def test_db_integrity_check_failure_backs_up_flags_degraded_and_raises(
     container.storage = store
     container.paths.db_path = db_path
     container.maintenance_degraded = False
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     monkeypatch.setattr(store, "integrity_check", lambda: "*** in database main *** page 3: btree corruption")
 
@@ -491,6 +503,10 @@ def test_db_integrity_check_failure_still_flags_when_emergency_backup_fails(
     container.storage = store
     container.paths.db_path = db_path
     container.maintenance_degraded = False
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     monkeypatch.setattr(store, "integrity_check", lambda: "not ok")
 

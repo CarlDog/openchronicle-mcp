@@ -140,7 +140,7 @@ class MetricsFastMCP(FastMCP):
             logger.warning("metrics recorder failed in MCP handler", exc_info=False)
 
 
-def create_server(container: CoreContainer, config: MCPConfig) -> FastMCP:
+def create_server(container: CoreContainer, config: MCPConfig, *, backup_tools_enabled: bool = False) -> FastMCP:
     """Build a fully-wired FastMCP server with all OC tools registered.
 
     The container is injected into tool handlers via the lifespan context.
@@ -214,5 +214,9 @@ def create_server(container: CoreContainer, config: MCPConfig) -> FastMCP:
     memory.register(mcp)
     context.register(mcp)
     onboard.register(mcp)
+    if backup_tools_enabled:
+        from openchronicle.interfaces.mcp.tools import backup
+
+        backup.register(mcp)
 
     return mcp

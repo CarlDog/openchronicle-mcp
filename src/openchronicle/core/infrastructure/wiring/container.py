@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from openchronicle.core.application.config.paths import RuntimePaths
@@ -15,6 +18,7 @@ from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.core.infrastructure.config.config_loader import load_config_files
 from openchronicle.core.infrastructure.observability.factory import create_metrics
+from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
 
@@ -86,6 +90,19 @@ class CoreContainer:
         db_path_resolved = paths.db_path
         config_dir_resolved = paths.config_dir
         output_dir_resolved = paths.output_dir
+        backup_dir_env = os.environ.get("OC_BACKUP_DIR", "").strip()
+        self.backup_dir_explicit = bool(backup_dir_env)
+        self.backup_dir = Path(backup_dir_env) if backup_dir_env else db_path_resolved.parent / "backups"
+        if backup_dir_env:
+            if not self.backup_dir.is_absolute() or not self.backup_dir.is_dir() or self.backup_dir.is_symlink():
+                raise ConfigError(
+                    "OC_BACKUP_DIR must be an existing absolute directory, not a symlink", code=CONFIG_ERROR
+                )
+            try:
+                with tempfile.TemporaryFile(dir=self.backup_dir):
+                    pass
+            except OSError as exc:
+                raise ConfigError("OC_BACKUP_DIR is not writable", code=CONFIG_ERROR) from exc
 
         db_path_resolved.parent.mkdir(parents=True, exist_ok=True)
         if not config_dir_resolved.exists():
@@ -102,6 +119,7 @@ class CoreContainer:
             metrics=self.metrics if self.metrics.enabled else None,
         )
         self.storage.init_schema()
+        self.backups = BackupCatalog(self.storage, self.backup_dir, db_path_resolved)
         try:
             self.embedding_settings = load_embedding_settings(file_configs.get("embedding"))
             self.embedding_port: EmbeddingPort | None = self._build_embedding_port()
