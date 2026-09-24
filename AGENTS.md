@@ -201,14 +201,13 @@ query-revision and NAS Host-list source fixes merged.**
   including an independent review of the fix round), and the review record
   is in 0017. The MCP backup tools are **parked**: auth stays disabled, so
   production restores use the CLI and the offline helper's
-  `stage`/`activate`/`rollback`. It merges **after the v3.4.0 tag**
-  (operator, 2026-09-24), so the nightly backup change ships in its own
-  release. A verified off-NAS v3.3.0 copy exists, and the NAS restore drill
+  `stage`/`activate`/`rollback`. It merged to `main` **after the v3.4.0
+  tag** (operator, 2026-09-24) and is unreleased: the nightly backup change
+  ships in the next release. A verified off-NAS v3.3.0 copy exists, and the NAS restore drill
   passed on 2026-09-24 (both legs, latency budget met, accepted with gaps by
   an independent checker; details in the
-  [runbook](docs/configuration/local_backup_restore.md)). Remaining: merge
-  after v3.4.0, and before timestamp PR #38 a fresh copy plus an image-pair
-  rehearsal. Next after this work, at high priority: the persistent-storage
+  [runbook](docs/configuration/local_backup_restore.md)). Remaining: before
+  timestamp PR #38, a fresh copy plus an image-pair rehearsal. Next after this work, at high priority: the persistent-storage
   review (V3_PLAN).
   Production is unchanged. Resume from the
   [handoff](docs/handoffs/2026-09-24-backup-restore.md).
@@ -220,13 +219,13 @@ query-revision and NAS Host-list source fixes merged.**
   reviewed (revs 201-210): the four fleet-review #27 items, the §1.1
   Ollama revision fix (ADR 0005 §7), three hygiene fixes, and the fixes
   from the pre-deploy review and its completeness critic (among them
-  the NAS log file, which never existed). **Waiting on the operator:**
-  design 0010 blocks releasing its metrics instrumentation, which
-  `main` carries, while B/A is inconclusive (options in V3_PLAN item
-  8). The version bump and CHANGELOG go in the commit the tag points
-  at. The deploy is env-only, because stack 151 runs a detached, older
+  the NAS log file, which never existed). **Released as v3.4.0 on
+  2026-09-24, not deployed:** the operator granted an exception to design
+  0010's B/A gate (metrics stay off by default), and the tag points at the
+  release PR's merge. The deploy is env-only, because stack 151 runs a detached, older
   compose (V3_PLAN item 12). 0017's `/exports` mount is the exception: it
-  needs that compose reconciled, so it is not part of an env-only deploy. Until a deploy, production (v3.3.0) still
+  needs that compose reconciled, so it is not part of an env-only deploy.
+  Until a deploy, production (v3.3.0) still
   needs 0014's interim control after any NAS, OC or Ollama restart.
 - Source tracks 1 and 3 of [plan 0016](docs/design/0016-review-findings-plan.md)
   entered `main` through PR #34 (merge `7ffc277c`) and PR #35 (merge

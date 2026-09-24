@@ -28,10 +28,10 @@ store automatically.
    `CarlDog/openchronicle-mcp#backup-restore-tools` (memory
    `54f059eb-0370-4cbf-808a-7a9d678aeb7b`) and update that record.
 3. Source: the fix round has had its own independent review (rev 227).
-   Merge after the v3.4.0 tag (operator decision, 2026-09-24).
+   Merged to `main` after the v3.4.0 tag; unreleased and not deployed.
 4. The off-NAS v3.3.0 copy is done and verified, and the NAS drill passed
    (2026-09-24, accepted with gaps). `tools/backup-drill/` reruns it. Next:
-   merge after v3.4.0; the persistent-storage review at high priority.
+   the next release to ship it; the persistent-storage review at high priority.
 5. Before timestamp PR #38: a fresh off-NAS copy and an old/new image-pair
    rehearsal.
 
