@@ -165,12 +165,13 @@ to `oc`: the default is root, which would leave a root-owned file. Connect with
 `/bin/sh` and run:
 
 ```sh
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-oc db backup "/config/pre-change-$STAMP.db"
-sha256sum "/config/pre-change-$STAMP.db"
+STAMP=$(date -u +%Y%m%dT%H%M%SZ); oc db backup "/config/pre-change-$STAMP.db"; sha256sum "/config/pre-change-$STAMP.db"
 ```
 
-Record the digest. From the workstation, run the PowerShell block above with
+Run it as one line, and check that the printed file name carries the
+timestamp. On 2026-09-24 an earlier attempt in the same console session wrote
+`pre-change-.db` with an empty `STAMP`; that is an extra plaintext copy to
+delete. Record the digest. From the workstation, run the PowerShell block above with
 `$source` set to `\\carldog-nas\docker\openchronicle\config\pre-change-<STAMP>.db`,
 check that the printed digest equals the recorded one, and open the
 independent copy read-only for the same checks, for example:
@@ -181,7 +182,8 @@ python -c "import pathlib,sqlite3,sys; p=pathlib.Path(sys.argv[1]).as_posix(); c
 
 Expect `('ok',) None (<schema>,) (<count>,)`. Then, in the console, delete
 `/config/pre-change-<STAMP>.db` and the `.db.tmp-wal` and `.db.tmp-shm` files
-v3.3.0 leaves beside every backup. This route is an operator decision: it
+v3.3.0 leaves beside every backup (`ls -la /config` afterwards should show
+no `pre-change-*`). This route is an operator decision: it
 avoids a NAS shell and any stack edit, at the cost of that brief exposure.
 
 ## Enable and use the MCP surface

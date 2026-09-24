@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 229 (PR #39: merge timing decided; drill image published)
+**Snapshot date:** 2026-09-24 UTC · **Revision:** 230 (verified off-NAS v3.3.0 copy taken)
 
 ## Current state
 
@@ -131,9 +131,9 @@ their no-commit/no-push statements are historical, not the current scope.
   and an offline stage/activate/rollback helper. A Claude adversarial review
   of `f65be230` found P1 defects; revs 221-227 fix them, and the fix round had
   its own independent review. The MCP backup tools are parked while auth stays
-  disabled. Open: merge after the v3.4.0 tag (operator decision); an off-NAS
-  v3.3.0 copy before any stack change; the NAS drill itself, on the authorized
-  non-release image `backup-drill-20260924-1fad2c4c`. Production is unchanged. V3_PLAN holds the
+  disabled. A verified off-NAS v3.3.0 copy exists (rev 230). Open: the NAS
+  drill, on the authorized non-release image `backup-drill-20260924-1fad2c4c`;
+  merge after the v3.4.0 tag (operator decision). Production is unchanged. V3_PLAN holds the
   ordered list and a separate storage-layout review.
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
@@ -316,6 +316,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 230 | 2026-09-24 | **Verified off-NAS copy of production v3.3.0.** The operator ran the runbook's Portainer-console route in `openchronicle-mcp-oc-1` as user `oc`: `oc db backup /config/pre-change-20260924T040030Z.db`, 9,895,936 bytes, SHA-256 `eb85987e55c52dff87a4bfa9e4c83db73a3de77ec7481f1f97ae7ac06a689243`. It was copied over SMB to the operator workstation (`D:\Backups\openchronicle\`, outside the NAS and outside OneDrive), with the same digest in the container, on the share and locally. Opened read-only (`immutable=1`, no sidecars created): `integrity_check` ok, no `foreign_key_check` rows, schema 4, 1,083 memories, 1,083 embedding rows and 39 projects, matching live health (1,083 memories: 1,062 embedded and 21 unembeddable) and the earlier inventory; the handoff memory and the project record are present. The clean FK check also shows production has no orphans, so the nightly verification in PR #39 will not start failing on its first night. The console session also wrote `pre-change-.db` (empty `STAMP`); both copies and their `.tmp-wal`/`.tmp-shm` files are to be deleted from `/config`. Production is unchanged. |
 | 229 (branch) | 2026-09-24 | **PR #39: merge timing decided; drill image published.** Operator decisions: #39 merges after the v3.4.0 tag, so v3.4.0 keeps its reviewed scope and the nightly backup change ships in its own release; the NAS drill uses a non-release image rather than waiting on design 0010. That image was built from `1fad2c4c` (linux/amd64), passed `tools/ci/smoke-image.sh` (build revision, runtime imports, `/health`), and is published only as `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c`, index digest `sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`. No `:latest` movement, release tag, `OC_TAG` change or deployment. The image reports `package_version` 3.3.0; `build_revision` distinguishes it. |
 | 228 (branch) | 2026-09-24 | **Deferred PR #39 items filed.** V3_PLAN's backup entry now records two items the review deliberately left: consolidating the three snapshot-inspection implementations into one leaf module, and the hardcoded compose `OC_BACKUP_DIR`, to revisit at compose reconciliation. Docs only. |
 | 227 (branch) | 2026-09-24 | **PR #39 fix-round review resolved.** An independent code-and-docs review of revs 221-226 found nine problems, none P1. Code: rev 225's identity stop reason used the project fingerprint, which changes on every project create or delete, so staging refused the most common restore (undoing an accidental delete); now only a snapshot sharing no project with a non-empty store stops, and project differences are reported. The rollback-journal switch could delete a snapshot whose schema it could not parse instead of quarantining it; it now falls through to validation. The helper copied source permission bits, so a read-only custody copy failed to stage and, activated, would have left the live DB unwritable; it no longer copies them. Runbook: the bootstrap block now prints the volume and old image ID; a missing blank line had put the normal post-activation steps inside a rare-case bullet; the stage block accepts in-volume sources and PowerShell's uppercase digests; the operator compares the staged candidate with the live inventory, because the helper never opens the live DB; the stage-slot and quarantine-name wording is corrected. The reviewer's own mutation run caught 7 of 7; the new fixes caught 4 of 4. Source and docs only. |

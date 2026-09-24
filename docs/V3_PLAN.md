@@ -881,8 +881,14 @@ in the assessment (revs 217-227). Open, in order:
    verified, failures quarantined) ships in its own release with its own
    deploy check. The review fixes and an independent review of the fix
    round are done (revs 221-227).
-2. Off-NAS v3.3.0 copy before any stack change, through NAS Bash or the
-   Portainer console route in the runbook.
+2. Off-NAS v3.3.0 copy before any stack change: **done 2026-09-24.** Taken
+   through the Portainer console route (`pre-change-20260924T040030Z.db`,
+   9,895,936 bytes, SHA-256 `eb85987e55c52dff87a4bfa9e4c83db73a3de77ec7481f1f97ae7ac06a689243`), copied to the operator workstation
+   (`D:\Backups\openchronicle\`, outside the NAS and outside OneDrive), with
+   the same digest in the container, on the share and locally. Read-only
+   checks: integrity ok, no FK violations, schema 4, 1,083 memories and 39
+   projects, matching live health; selected IDs present. The `/config`
+   copies are to be deleted from the console.
 3. Helper image for the NAS drill: **done.** The operator authorized a
    non-release image (2026-09-24), published as
    `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c` (`sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`), from `1fad2c4c`; see the runbook.
