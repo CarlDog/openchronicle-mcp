@@ -222,6 +222,8 @@ query-revision and NAS Host-list source fixes merged.**
   backup publication durability and fail-open shell checks. The Docker/NAS
   procedure, off-device copy and live release path are **not yet rehearsed**;
   PR #39 remains draft and production is unchanged.
+  The [2026-09-24 continuation handoff](docs/handoffs/2026-09-24-backup-restore.md)
+  records the verified source checkpoint and next operational prerequisite.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

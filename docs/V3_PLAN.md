@@ -892,7 +892,9 @@ design 0010 release gate still require an operator decision. The only known
 SMB share does not expose the DB or old backups; a NAS Docker admin/console
 path to run v3.3.0's existing `oc db backup` and extract its artifact is a
 bootstrap prerequisite before changing the stack. Source PR review can finish
-before this operational gate, but source merge cannot satisfy it.
+before this operational gate, but source merge cannot satisfy it. The
+[2026-09-24 continuation handoff](handoffs/2026-09-24-backup-restore.md)
+records the exact source checkpoint and resume order.
 
 **Persistent storage architecture review — later, separate from 0017.**
 Inventory the whole `/volume1/docker/openchronicle` tree and the live named

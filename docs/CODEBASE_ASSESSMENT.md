@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 219 (offline restore procedure and adversarial pass)
+**Snapshot date:** 2026-09-24 UTC · **Revision:** 220 (backup/restore continuation handoff)
 
 ## Current state
 
@@ -69,6 +69,8 @@ their no-commit/no-push statements are historical, not the current scope.
   follow-ups" (the backlog) and "Open Questions" 20-22 (Q20/Q21 shipped
   2026-08-17; Q22 heatmaps remains exploratory). The 2026-08-15
   review's punch list is mirrored in OC memory `e22472b8`.
+- **[Backup/restore handoff](handoffs/2026-09-24-backup-restore.md)** — dated
+  continuation checkpoint for draft PR #39 and the remaining NAS gates.
 - **`AGENTS.md` / `CLAUDE.md` "Current Sprint"** — the in-flight batch
   only; `AGENTS.md` is canonical and a repository-hygiene test keeps the
   compatibility mirror byte-identical. History rolls into the revision
@@ -315,6 +317,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 220 (branch) | 2026-09-24 | **Backup/restore continuation handoff.** A dated handoff links the current assessment, design and runbook, records draft PR #39's green implementation checkpoint `5f9fe006` and the still-draft timestamp PR #38, and identifies the approved NAS Docker route plus independently verified off-NAS v3.3.0 copy as the next operational prerequisite. OpenChronicle health still reported production `v3.3.0` build `7349f94` at 01:37 UTC. This documentation checkpoint does not constitute a NAS drill, merge, release, deployment or timestamp migration. |
 | 219 (branch) | 2026-09-24 | **Offline activation/rollback procedure and adversarial pass.** A disposable PID-1 helper verifies the staged candidate, archives the raw old DB/WAL/SHM, consolidates a rollback snapshot, activates on the same volume, records recovery phases, and can roll back or retire the stage. Local WAL and interruption tests exercise those paths. Catalog readback is immutable; publication directory entries are fsynced, and retention excludes incomplete artifact pairs. The operator runbook now details v3.3.0 bootstrap, off-NAS verification, disposable clone, cutover and rollback commands. Independent review corrected a fail-open Docker guard, restart/identity controls, rollback retry and stage lifecycle; its final pass found no further P0/P1 source defect. Full Windows suite: 1,169 passed, one Linux-only skip; source checks passed. Docker/NAS rehearsal, release and production acceptance remain open; PR #39 is draft. |
 | 218 (branch) | 2026-09-24 | **Second adversarial pass of design 0017.** The first disposable drill opened a copy but did not rehearse offline activation or rollback, and `/exports` is on the same NAS as the live volume. The plan now requires a verified off-NAS v3.3.0 copy before stack changes, a fresh independent copy before timestamp migration, and an exact offline activation/rollback drill on a WAL-bearing disposable clone with pinned image/database pairs. The only known SMB share cannot expose the initial copy: an approved NAS Docker admin/console path to run the existing v3.3.0 backup command and extract its artifact is a bootstrap prerequisite. SQLite's `integrity_check` misses foreign-key violations, so the catalog now also rejects a failing `foreign_key_check` and has a regression test. PR #39 remains draft; no live recovery or timestamp migration is claimed. |
 | 217 (branch) | 2026-09-23 | **Exposed local backup and guarded restore preparation (design 0017).** Source branch adds a fixed-root online SQLite snapshot catalog, SHA-256/integrity manifests, auto sidecar retention, preserved manual artifacts, optional authenticated HTTP MCP create/list/verify/plan/stage tools, and a separate `/exports` host mount. Staging does not replace the live WAL database. The design records adversarial failure cases and the NAS drill. Full local suite: 1,161 passed, one Linux-only skip; Ruff, mypy, Markdown lint and rendered compose validation passed. PR/CI status is separate; no release, production mount, tool enablement, or timestamp migration occurred. The full persistent-storage architecture remains a separate review item. |
