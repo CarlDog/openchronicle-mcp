@@ -204,6 +204,17 @@ query-revision and NAS Host-list source fixes merged.**
   executes through MCP. V3_PLAN separately records a full persistent-storage
   architecture review, including `assets`, `output` and durable logs; these
   folders are not altered in this branch.
+  The second adversarial pass on 0017 found two P0 gaps: `/exports` is the
+  same NAS failure domain, and opening a disposable copy is not a rehearsal
+  of offline activation and rollback. PR #39 remains draft. Before a live
+  stack change, retain a verified v3.3.0 copy on a separate device. Before
+  timestamp migration, retain a fresh independent copy and pass the exact
+  offline activation/rollback drill on a disposable WAL-bearing clone with
+  pinned image/database pairs. `foreign_key_check` joins snapshot verification.
+  The known SMB share cannot supply the initial v3.3.0 recovery point, so an
+  approved NAS Docker admin/console route to run `oc db backup` and extract a
+  verified copy is required before the first stack change. Source PR review
+  and CI are distinct from that later operational gate.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

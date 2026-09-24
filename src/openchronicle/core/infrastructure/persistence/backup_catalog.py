@@ -70,6 +70,8 @@ class BackupCatalog:
                 integrity = conn.execute("PRAGMA integrity_check").fetchone()
                 if integrity is None or integrity[0] != "ok":
                     raise BackupCatalogError("Backup artifact failed SQLite integrity_check")
+                if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
+                    raise BackupCatalogError("Backup artifact failed SQLite foreign_key_check")
                 schema = conn.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version").fetchone()[0]
                 projects = conn.execute("SELECT COUNT(*) FROM projects").fetchone()[0]
                 project_ids = [str(row[0]) for row in conn.execute("SELECT id FROM projects ORDER BY id")]

@@ -89,6 +89,18 @@ def test_verify_rejects_tampering_and_list_ignores_incomplete_pair(tmp_path: Pat
         store.close()
 
 
+def test_create_rejects_relationally_broken_snapshot(tmp_path: Path) -> None:
+    store, catalog = _catalog(tmp_path)
+    try:
+        with sqlite3.connect(catalog.db_path) as conn:
+            conn.execute("UPDATE memory_items SET project_id = 'missing-project'")
+        with pytest.raises(BackupCatalogError, match="foreign_key_check"):
+            catalog.create()
+        assert catalog.list() == []
+    finally:
+        store.close()
+
+
 @pytest.mark.parametrize("artifact_id", ["../secret", "manual:../../secret", "auto:bad", "/tmp/x.db"])
 def test_artifact_ids_cannot_select_paths(tmp_path: Path, artifact_id: str) -> None:
     store, catalog = _catalog(tmp_path)

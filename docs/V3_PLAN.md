@@ -876,9 +876,19 @@ The README is not a market-positioning document. It states what OC is, what it d
 `/volume1/docker/openchronicle/exports` host directory mounted at `/exports`,
 with snapshots under `/exports/backups`. Its source PR, exact-head CI,
 production mount/auth rollout, and an independently read and restored NAS
-snapshot are separate gates. Do not run the timestamp migration merely because
-the PR is green. The detached stack and design 0010 release gate still require
-an operator decision.
+snapshot are separate gates. A second adversarial pass found that the first
+drill did not rehearse offline activation/rollback and `/exports` is on the
+same NAS as the live volume. Before changing the live stack, retain a verified
+v3.3.0 copy on a separate device; before timestamp migration, repeat that with
+a fresh snapshot and pass the exact offline activation/rollback drill on a
+disposable WAL-bearing clone using pinned image/database pairs. The cutover
+procedure remains to be implemented, reviewed and rehearsed. Do not run the
+timestamp migration merely because the PR is green. The detached stack and
+design 0010 release gate still require an operator decision. The only known
+SMB share does not expose the DB or old backups; a NAS Docker admin/console
+path to run v3.3.0's existing `oc db backup` and extract its artifact is a
+bootstrap prerequisite before changing the stack. Source PR review can finish
+before this operational gate, but source merge cannot satisfy it.
 
 **Persistent storage architecture review — later, separate from 0017.**
 Inventory the whole `/volume1/docker/openchronicle` tree and the live named
