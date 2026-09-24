@@ -3,6 +3,10 @@
 **Recorded:** 2026-09-09 UTC. **Status:** completed comparative review;
 recommendations unratified, measurement-gated, and unscheduled. This is a
 research document, not an ADR accepting a provider or a runtime change.
+**Note, 2026-09-24:** the operator's hope for this review was ideas for
+lowering *cloud LLM* cost, which this review's scope (OC's embedding path)
+did not examine. That question is captured in
+[0019](0019-cloud-llm-cost-north-star.md).
 [CODEBASE_ASSESSMENT.md](../CODEBASE_ASSESSMENT.md) remains authoritative for
 current state; [V3_PLAN.md](../V3_PLAN.md) remains the backlog.
 
