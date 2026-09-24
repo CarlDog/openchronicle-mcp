@@ -913,8 +913,18 @@ Deferred from the 2026-09-24 review, deliberately:
   Both reviewers read it as mount wiring rather than operator
   configuration. Revisit when the detached compose is reconciled (item 12).
 
-**Persistent storage architecture review — later, separate from 0017.**
-Inventory the whole `/volume1/docker/openchronicle` tree and the live named
+**Persistent storage architecture review — HIGH PRIORITY, next after the
+0017 work** (operator, 2026-09-24). The operator raised it as a fear that each
+release had replaced the database. The verified production copy says it has
+not: its `schema_version` table records creation at the 2026-05-06 cutover and
+migrations applied on 2026-08-29, by containers that no longer exist (the live
+one started 2026-08-31). So the named volume `openchronicle-mcp_oc-data` has
+survived every redeploy since the cutover. The only loss was the cutover's
+failed migration, a different failure. The real risks this review must settle:
+the volume is keyed to the Compose project name, so a stack deleted with its
+volumes or redeployed under another name starts empty; automatic backups share
+that volume; the log path is wrong on the live stack; and everything sits on
+one NAS. Inventory the whole `/volume1/docker/openchronicle` tree and the live named
 volumes, their owners, mounts, retention, backups, and recovery paths. Determine
 whether the exposed `assets` and `output` folders are used or needed, including
 the status of `oc-output` and the actual `OC_LOG_FILE` destination. Decide
