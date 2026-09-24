@@ -62,6 +62,8 @@ def test_create_list_verify_and_stage_without_replacing_live_db(tmp_path: Path) 
         assert plan["artifact"]["memory_count"] == 1
         assert plan["current"]["memory_count"] == 2
         assert plan["artifact"]["project_identity_sha256"] == plan["current"]["project_identity_sha256"]
+        assert plan["stop_reasons"] == []
+        assert plan["memory_delta"] == -1
         assert plan["restored"] is False
 
         stage = catalog.restore_stage(created["artifact_id"])
@@ -215,12 +217,20 @@ def test_manifest_failure_never_offers_artifact(tmp_path: Path, monkeypatch: pyt
         store.close()
 
 
-def test_overlapping_create_is_rejected(tmp_path: Path) -> None:
+def test_overlapping_create_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import time
+
+    from openchronicle.core.infrastructure.persistence import backup_catalog
+
+    # A manual request answers at once; only the scheduled job queues.
+    monkeypatch.setattr(backup_catalog, "_AUTO_LOCK_WAIT_SECONDS", 5)
     store, catalog = _catalog(tmp_path)
     try:
         assert catalog._operation_lock.acquire(blocking=False)
+        started = time.monotonic()
         with pytest.raises(BackupCatalogError, match="already running"):
             catalog.create()
+        assert time.monotonic() - started < 2
     finally:
         catalog._operation_lock.release()
         store.close()
@@ -320,3 +330,38 @@ def test_auto_retention_prunes_manifest_with_snapshot(tmp_path: Path) -> None:
         assert db.with_suffix(".json").exists()
     assert len([db for db in directory.glob("*.db") if db != incomplete]) == 1
     assert incomplete.exists()
+
+
+def test_foreign_instance_snapshot_is_a_stop_reason_and_is_not_staged(tmp_path: Path) -> None:
+    store, catalog = _catalog(tmp_path)
+    try:
+        created = catalog.create("manual")
+        store.add_project(Project(name="only-in-live"))
+        plan = catalog.restore_plan(created["artifact_id"])
+        assert plan["stop_reasons"] == ["project identity differs: this snapshot may belong to another instance"]
+        with pytest.raises(BackupCatalogError, match="Refusing to stage: project identity differs"):
+            catalog.restore_stage(created["artifact_id"])
+        assert not (tmp_path / "private" / ".restore-stage").exists()
+    finally:
+        store.close()
+
+
+def test_scheduled_backup_waits_for_an_overlapping_operation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import threading
+
+    from openchronicle.core.infrastructure.persistence import backup_catalog
+
+    store, catalog = _catalog(tmp_path)
+    try:
+        assert catalog._operation_lock.acquire(blocking=False)
+        threading.Timer(0.3, catalog._operation_lock.release).start()
+        assert catalog.create("auto")["artifact_id"].startswith("auto:")
+        monkeypatch.setattr(backup_catalog, "_AUTO_LOCK_WAIT_SECONDS", 0.05)
+        assert catalog._operation_lock.acquire(blocking=False)
+        try:
+            with pytest.raises(BackupCatalogError, match="already running"):
+                catalog.create("auto")
+        finally:
+            catalog._operation_lock.release()
+    finally:
+        store.close()

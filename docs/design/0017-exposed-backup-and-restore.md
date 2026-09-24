@@ -55,8 +55,8 @@ the bind mount independently.
 | `db_backup_create` | One online SQLite snapshot under `manual/`; returns an artifact ID and metadata. No overwrite or caller path. |
 | `db_backup_list` | Lists completed `auto/` and `manual/` snapshots, bounded and newest-first. |
 | `db_backup_verify` | Reopens one artifact read-only, checks checksum and SQLite integrity, and reports schema and row counts. |
-| `db_restore_plan` | Read-only comparison of a verified artifact with the current database, including schema and counts; explicitly says no restore occurred. |
-| `db_restore_stage` | After re-verification, copies the candidate into a private staging directory on the database volume, verifies it again, and returns an ID. Does not replace the live database. |
+| `db_restore_plan` | Read-only comparison of a verified artifact with the current database, including schema and counts. Returns `stop_reasons` (a newer schema, or a different project identity, meaning another instance) and `memory_delta`: a decrease is expected when restoring an older snapshot, so only the operator can judge it. Explicitly says no restore occurred. |
+| `db_restore_stage` | Refuses on any `db_restore_plan` stop reason. After re-verification, copies the candidate into a private staging directory on the database volume, verifies it again, and returns an ID. Does not replace the live database. |
 
 Snapshots are produced by the existing `sqlite3.Connection.backup()` path,
 written to a sibling temporary file, checked and renamed. Verification runs

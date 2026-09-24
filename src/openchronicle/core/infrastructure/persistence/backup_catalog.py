@@ -6,6 +6,7 @@ interrupted database copy is not offered as a restore candidate.
 
 from __future__ import annotations
 
+import builtins
 import hashlib
 import json
 import os
@@ -23,6 +24,10 @@ from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteSto
 
 _ID_RE = re.compile(r"^(auto|manual):([0-9]{8}T[0-9]{12}Z-[0-9a-f]{12})$")
 _MIN_FREE_MARGIN = 1024 * 1024
+# The scheduled backup waits this long for an overlapping catalog operation
+# (a manual snapshot or a stage) instead of failing and losing the day: the
+# loop only retries a failed daily job after its full interval.
+_AUTO_LOCK_WAIT_SECONDS = 600
 
 
 class BackupCatalogError(ValueError):
@@ -133,8 +138,12 @@ class BackupCatalog:
             temp.unlink(missing_ok=True)
 
     def create(self, kind: Literal["auto", "manual"] = "manual") -> dict[str, Any]:
-        """Create one online snapshot; reject overlapping catalog operations."""
-        if not self._operation_lock.acquire(blocking=False):
+        """Create one online snapshot; a manual request never queues behind another."""
+        if kind == "auto":
+            acquired = self._operation_lock.acquire(timeout=_AUTO_LOCK_WAIT_SECONDS)
+        else:
+            acquired = self._operation_lock.acquire(blocking=False)
+        if not acquired:
             raise BackupCatalogError("Another backup operation is already running")
         try:
             self._check_root()
@@ -218,23 +227,42 @@ class BackupCatalog:
             raise BackupCatalogError("Backup artifact differs from its manifest")
         return {**expected, "verified": True}
 
-    def restore_plan(self, artifact_id: str) -> dict[str, Any]:
-        """Compare candidate with the live store; never mutate the live DB."""
-        candidate = self.verify(artifact_id)
-        current_schema = self.store.schema_version()
-        if int(candidate["schema_version"]) > current_schema:
-            raise BackupCatalogError("Backup schema is newer than this running version")
+    def _current_identity(self) -> dict[str, Any]:
         projects = self.store.list_projects()
         return {
+            "schema_version": self.store.schema_version(),
+            "project_count": len(projects),
+            "project_identity_sha256": hashlib.sha256(
+                "\n".join(sorted(project.id for project in projects)).encode("utf-8")
+            ).hexdigest(),
+            "memory_count": self.store.count_memory(),
+        }
+
+    @staticmethod
+    def _stop_reasons(candidate: dict[str, Any], current: dict[str, Any]) -> builtins.list[str]:
+        """Conditions that make a candidate the wrong restore target outright."""
+        reasons = []
+        if int(candidate["schema_version"]) > int(current["schema_version"]):
+            reasons.append("backup schema is newer than this running version")
+        if candidate["project_identity_sha256"] != current["project_identity_sha256"]:
+            reasons.append("project identity differs: this snapshot may belong to another instance")
+        return reasons
+
+    def restore_plan(self, artifact_id: str) -> dict[str, Any]:
+        """Compare candidate with the live store; never mutate the live DB.
+
+        `stop_reasons` lists what makes the candidate the wrong target; a
+        memory decrease is reported as `memory_delta` because restoring an
+        older snapshot is expected to lose later rows, which only the
+        operator can judge.
+        """
+        candidate = self.verify(artifact_id)
+        current = self._current_identity()
+        return {
             "artifact": candidate,
-            "current": {
-                "schema_version": current_schema,
-                "project_count": len(projects),
-                "project_identity_sha256": hashlib.sha256(
-                    "\n".join(sorted(project.id for project in projects)).encode("utf-8")
-                ).hexdigest(),
-                "memory_count": self.store.count_memory(),
-            },
+            "current": current,
+            "stop_reasons": self._stop_reasons(candidate, current),
+            "memory_delta": int(candidate["memory_count"]) - int(current["memory_count"]),
             "restored": False,
             "next_step": "Stop writes and the service; activate the staged copy offline after a pre-restore backup.",
         }
@@ -245,8 +273,9 @@ class BackupCatalog:
             raise BackupCatalogError("Another backup operation is already running")
         try:
             candidate = self.verify(artifact_id)
-            if int(candidate["schema_version"]) > self.store.schema_version():
-                raise BackupCatalogError("Backup schema is newer than this running version")
+            reasons = self._stop_reasons(candidate, self._current_identity())
+            if reasons:
+                raise BackupCatalogError("Refusing to stage: " + "; ".join(reasons))
             stage_dir = self.db_path.parent / ".restore-stage"
             stage_dir.mkdir(mode=0o700, exist_ok=True)
             if stage_dir.is_symlink() or any(stage_dir.glob("*.db")):
