@@ -993,7 +993,8 @@ entry (below, or in its design doc):
    mcp 2.x migration by its own entry.
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
-8. **v3.4.0 correctness release** ([0014](design/0014-gemini-audit-branch-review.md);
+8. ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
+   `9b1e83e6`), NOT deployed** ([0014](design/0014-gemini-audit-branch-review.md);
    [review-findings plan](design/0016-review-findings-plan.md), source
    tracks 1 and 3 merged to `main`).
    Planned as MINOR rather than a patch, because health gains additive
@@ -1115,7 +1116,36 @@ entry (below, or in its design doc):
     reconcile the repo compose with the live shape, or re-attach the
     stack to Git after the network question is settled. It is tied to
     design 0010's disposition, since the network exists for the
-    metrics scrape.
+    metrics scrape. When the compose is reconciled, also add
+    `container_name: openchronicle-mcp` to the `oc` service (operator,
+    2026-09-24: no `-oc-1` suffix). Nothing depends on the name; the
+    backup runbook finds the container by its compose labels.
+13. **Persistent-storage review — HIGH PRIORITY, next after the 0017 work**
+    (operator, 2026-09-24; full entry under the post-cutover follow-ups,
+    beside the 0017 backup entry). Numbered last only so existing item
+    references stay stable. Its premise was checked: the database has
+    persisted since the 2026-05-06 cutover. What it must settle: the
+    volume is keyed to the compose project name; automatic backups share
+    that volume; the log path is wrong on the live stack; everything sits
+    on one NAS; the `docker` share grants `Everyone` read; `/config` is
+    mode 0777.
+14. **Persistent Ollama HTTP client** (salvage from
+    [0014](design/0014-gemini-audit-branch-review.md), its last open item).
+    The Ollama adapter opens a new connection for every call
+    (`httpx.post`), about 12-13 ms per call on desktop loopback against
+    about 0.8 ms with a reused `httpx.Client`, as 0014 measured on the
+    Gemini branch. 0003's trigger for this has fired. It is a
+    speed-second item: no correctness gain, so it waits behind item 13.
+    Build it fresh on `main`, not from the branch. What 0014 requires:
+    - a thread-safe client with its lifecycle wired: created with the
+      adapter and closed on shutdown, including the CLI and stdio paths;
+    - proxy and TLS parity with today's per-call behaviour;
+    - a test that the adapter reuses one client and closes it;
+    - evidence: NAS p50/p95/p99 before and after, at 1 and 8 clients,
+      cold and warm, with an Ollama restart mid-run. The concurrency
+      probe (item 3) is the natural instrument;
+    - the embedding path is instrumented, so check design 0010's gates
+      if metrics are enabled by then.
 
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
 triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+
