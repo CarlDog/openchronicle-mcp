@@ -55,7 +55,7 @@ the bind mount independently.
 | `db_backup_create` | One online SQLite snapshot under `manual/`; returns an artifact ID and metadata. No overwrite or caller path. |
 | `db_backup_list` | Lists completed `auto/` and `manual/` snapshots, bounded and newest-first. |
 | `db_backup_verify` | Reopens one artifact read-only, checks checksum and SQLite integrity, and reports schema and row counts. |
-| `db_restore_plan` | Read-only comparison of a verified artifact with the current database, including schema and counts. Returns `stop_reasons` (a newer schema, or a different project identity, meaning another instance) and `memory_delta`: a decrease is expected when restoring an older snapshot, so only the operator can judge it. Explicitly says no restore occurred. |
+| `db_restore_plan` | Read-only comparison of a verified artifact with the current database, including schema and counts. Returns `stop_reasons` (a newer schema, or a snapshot sharing no project with a non-empty running store, meaning another instance) plus `memory_delta` and project differences. Those differences are expected when restoring an older snapshot, including undoing an accidental delete, so only the operator can judge them. The project fingerprint changes on every project create or delete and is not an instance identity. Explicitly says no restore occurred. |
 | `db_restore_stage` | Refuses on any `db_restore_plan` stop reason. After re-verification, copies the candidate into a private staging directory on the database volume, verifies it again, and returns an ID. Does not replace the live database. |
 
 Snapshots are produced by the existing `sqlite3.Connection.backup()` path,
@@ -184,7 +184,7 @@ below was reproduced directly.
 | A rollback retry refused forever when the candidate was byte-identical to the old state. | Fixed (rev 223). |
 | The drill fence `[[ ... ]] && test ...` did not stop under `set -e`; the blocks assumed one interactive shell. | Fixed (rev 226): each guard is its own command; each block runs as its own file. A replay of every block also found a placeholder that broke bash quoting. |
 | Snapshots kept a WAL header, so a read-only open over SMB made the catalog reject them; every backup left `.tmp-wal`/`.tmp-shm` beside it. | Fixed (rev 221): published in rollback-journal mode. |
-| `restore_plan` returned no verdict; `restore_stage` checked only the schema. | Fixed (rev 225): `stop_reasons`, `memory_delta`; staging refuses on a stop reason. |
+| `restore_plan` returned no verdict; `restore_stage` checked only the schema. | Fixed (rev 225), corrected in rev 227: a fingerprint mismatch had been made a stop reason, which refused the most common restore; now only a snapshot sharing no project stops staging, and the runbook has the operator compare the helper's output with the live inventory. |
 | The nightly backup failed at once on lock contention and lost a day. | Fixed (rev 225): waits up to 600 s. |
 | The "console route" gate was already satisfiable: production mounts the SMB-visible `config` folder at `/config`. | Documented as an operator-chosen route in the runbook. |
 | The drill needs a helper image, which the design 0010 release gate blocks. | Stated in the runbook, V3_PLAN and the handoff. |

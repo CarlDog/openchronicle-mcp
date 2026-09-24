@@ -6,7 +6,6 @@ interrupted database copy is not offered as a restore candidate.
 
 from __future__ import annotations
 
-import builtins
 import hashlib
 import json
 import os
@@ -15,6 +14,7 @@ import shutil
 import sqlite3
 import tempfile
 import threading
+from contextlib import closing
 from pathlib import Path
 from secrets import token_hex
 from typing import Any, Literal
@@ -228,41 +228,57 @@ class BackupCatalog:
         return {**expected, "verified": True}
 
     def _current_identity(self) -> dict[str, Any]:
-        projects = self.store.list_projects()
+        project_ids = sorted(project.id for project in self.store.list_projects())
         return {
             "schema_version": self.store.schema_version(),
-            "project_count": len(projects),
-            "project_identity_sha256": hashlib.sha256(
-                "\n".join(sorted(project.id for project in projects)).encode("utf-8")
-            ).hexdigest(),
+            "project_count": len(project_ids),
+            "project_identity_sha256": hashlib.sha256("\n".join(project_ids).encode("utf-8")).hexdigest(),
+            "project_ids": project_ids,
             "memory_count": self.store.count_memory(),
         }
 
+    def _artifact_project_ids(self, artifact_id: str) -> set[str]:
+        db, _ = self._paths(artifact_id)
+        with closing(sqlite3.connect(f"file:{db.as_posix()}?mode=ro&immutable=1", uri=True)) as conn:
+            return {str(row[0]) for row in conn.execute("SELECT id FROM projects")}
+
     @staticmethod
-    def _stop_reasons(candidate: dict[str, Any], current: dict[str, Any]) -> builtins.list[str]:
-        """Conditions that make a candidate the wrong restore target outright."""
+    def _comparison(candidate: dict[str, Any], candidate_ids: set[str], current: dict[str, Any]) -> dict[str, Any]:
+        """What makes a candidate the wrong target, and what a restore would change.
+
+        The project fingerprint changes with every project created or deleted,
+        so a mismatch is normal for an older snapshot, including the most
+        common restore (undoing an accidental delete). Only a snapshot that
+        shares no project with a non-empty running store is treated as another
+        instance.
+        """
+        current_ids = set(current["project_ids"])
         reasons = []
         if int(candidate["schema_version"]) > int(current["schema_version"]):
             reasons.append("backup schema is newer than this running version")
-        if candidate["project_identity_sha256"] != current["project_identity_sha256"]:
-            reasons.append("project identity differs: this snapshot may belong to another instance")
-        return reasons
+        if candidate_ids and current_ids and candidate_ids.isdisjoint(current_ids):
+            reasons.append("the snapshot shares no project with the running store: likely another instance")
+        return {
+            "stop_reasons": reasons,
+            "memory_delta": int(candidate["memory_count"]) - int(current["memory_count"]),
+            "projects_only_in_snapshot": len(candidate_ids - current_ids),
+            "projects_only_in_current": len(current_ids - candidate_ids),
+        }
 
     def restore_plan(self, artifact_id: str) -> dict[str, Any]:
         """Compare candidate with the live store; never mutate the live DB.
 
-        `stop_reasons` lists what makes the candidate the wrong target; a
-        memory decrease is reported as `memory_delta` because restoring an
-        older snapshot is expected to lose later rows, which only the
-        operator can judge.
+        `stop_reasons` lists what makes the candidate the wrong target. Row
+        and project differences are reported, not refused: restoring an
+        older snapshot is expected to change them, and only the operator
+        can judge whether the change is the intended one.
         """
         candidate = self.verify(artifact_id)
         current = self._current_identity()
         return {
             "artifact": candidate,
-            "current": current,
-            "stop_reasons": self._stop_reasons(candidate, current),
-            "memory_delta": int(candidate["memory_count"]) - int(current["memory_count"]),
+            "current": {key: value for key, value in current.items() if key != "project_ids"},
+            **self._comparison(candidate, self._artifact_project_ids(artifact_id), current),
             "restored": False,
             "next_step": "Stop writes and the service; activate the staged copy offline after a pre-restore backup.",
         }
@@ -273,7 +289,9 @@ class BackupCatalog:
             raise BackupCatalogError("Another backup operation is already running")
         try:
             candidate = self.verify(artifact_id)
-            reasons = self._stop_reasons(candidate, self._current_identity())
+            reasons = self._comparison(candidate, self._artifact_project_ids(artifact_id), self._current_identity())[
+                "stop_reasons"
+            ]
             if reasons:
                 raise BackupCatalogError("Refusing to stage: " + "; ".join(reasons))
             stage_dir = self.db_path.parent / ".restore-stage"

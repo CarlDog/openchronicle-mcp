@@ -110,9 +110,8 @@ def _copy_durable(source: Path, target: Path) -> None:
         shutil.copyfileobj(src, dst, length=1024 * 1024)
         dst.flush()
         os.fsync(dst.fileno())
-    shutil.copymode(source, target)
-    with target.open("r+b") as copied:
-        os.fsync(copied.fileno())
+    # Deliberately no copymode: a read-only (0444) custody copy would make the
+    # staged file, and after activation the live database, unwritable.
     _fsync_dir(target.parent)
 
 

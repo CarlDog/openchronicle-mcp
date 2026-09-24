@@ -706,3 +706,20 @@ def test_main_stage_wiring(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Captu
     assert offline_restore.main([*argv, "--apply"]) == 0
     assert calls == [(Path("/data/openchronicle.db"), source, "a" * 64, True)]
     assert '"applied": true' in capsys.readouterr().out
+
+
+def test_stage_from_a_read_only_custody_copy_gives_a_writable_candidate(tmp_path: Path) -> None:
+    """A 0444 source must neither fail staging nor make the activated DB read-only."""
+    import os
+    import stat
+
+    db, exported, info = _snapshot(tmp_path)
+    exported.chmod(stat.S_IREAD)
+    try:
+        staged = offline_restore.stage(db, exported, info["sha256"], apply=True)
+        candidate = Path(str(staged["stage_path"]))
+        assert os.access(candidate, os.W_OK)
+        _activate(db, candidate, "read-only-source", info)
+        assert os.access(db, os.W_OK)
+    finally:
+        exported.chmod(stat.S_IREAD | stat.S_IWRITE)

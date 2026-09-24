@@ -85,7 +85,12 @@ def backup_from_connection(conn: sqlite3.Connection, dest_db_path: Path | str) -
             # operator inspecting the file) create -wal/-shm files that a
             # read-only connection cannot remove. A snapshot is a standalone
             # file, so publish it in rollback-journal mode.
-            dst_conn.execute("PRAGMA journal_mode=DELETE")
+            try:
+                dst_conn.execute("PRAGMA journal_mode=DELETE")
+            except sqlite3.DatabaseError:
+                # A schema SQLite cannot parse: leave the copy as it is. The
+                # validation below fails it and keeps it as evidence.
+                _logger.warning("staged backup could not be switched to rollback-journal mode: %s", tmp)
         finally:
             dst_conn.close()
         try:

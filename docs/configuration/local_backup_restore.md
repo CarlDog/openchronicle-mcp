@@ -78,6 +78,8 @@ test -n "$VOL"
 docker volume inspect "$VOL" >/dev/null
 OLD_IMAGE_ID=$(docker inspect -f '{{.Image}}' "$CID")
 docker image inspect "$OLD_IMAGE_ID" >/dev/null
+echo "VOL=$VOL  (record this: the original data volume)"
+echo "OLD_IMAGE_ID=$OLD_IMAGE_ID  (record this: the rollback image)"
 docker exec "$CID" cat /app/build-revision
 LIVE_BYTES=$(docker exec --user 1000:1000 "$CID" python -c '
 import os
@@ -170,7 +172,7 @@ sha256sum "/config/pre-change-$STAMP.db"
 
 Record the digest. From the workstation, run the PowerShell block above with
 `$source` set to `\\carldog-nas\docker\openchronicle\config\pre-change-<STAMP>.db`,
-check that both printed digests equal the recorded one, and open the
+check that the printed digest equals the recorded one, and open the
 independent copy read-only for the same checks, for example:
 
 ```powershell
@@ -410,27 +412,38 @@ reads the snapshot and writes `/data/.restore-stage`. `--expected-sha256` must
 come from an **independent record**: the artifact's manifest or earlier verify
 output, or the hash recorded for the off-NAS copy. Never hash the file at
 staging time and feed that back in: that check passes for any file, including
-a fresh copy of the live database. The source may be an existing snapshot in
-the volume (for example `/data/backups/auto/...` or `/data/backups/manual/...`)
-or a host file bind-mounted read-only, such as an `/exports` artifact or an
-off-NAS copy returned to the NAS. A bind-mounted file must be readable by uid
-1000.
+a fresh copy of the live database. `SOURCE` is either a snapshot inside the
+volume (a path under `/data`, for example `/data/backups/auto/...`, where
+catalogued backups live until `/exports` is mounted) or an absolute NAS host
+path, which is bind-mounted read-only (an `/exports` artifact, or an off-NAS
+copy returned to the NAS). A host file must be readable by uid 1000; its
+permission bits are not copied, so a read-only copy is fine.
 
 ```bash
 set -euo pipefail
 VOL='<recorded original data volume name>'
 HELPER_IMAGE_ID='<verified image ID containing offline_restore.py>'
-SOURCE_HOST_PATH='<absolute NAS path of the verified snapshot file>'
+SOURCE='<a /data/... path in the volume, or an absolute NAS host path>'
 EXPECTED_SHA='<SHA-256 from the manifest or the off-NAS custody record>'
-test -f "$SOURCE_HOST_PATH"
+# PowerShell's Get-FileHash prints uppercase; the helper compares lowercase.
+EXPECTED_SHA=$(printf '%s' "$EXPECTED_SHA" | tr 'A-F' 'a-f')
 [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{64}$ ]] || { echo 'EXPECTED_SHA is not a SHA-256' >&2; exit 1; }
 stage() {
-  docker run --rm --pull never --network none --read-only --tmpfs /tmp \
-    --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
-    --mount "type=bind,source=$SOURCE_HOST_PATH,target=/import/snapshot.db,readonly" \
-    --entrypoint python --env OC_OFFLINE_RESTORE=1 "$HELPER_IMAGE_ID" \
-    /app/scripts/offline_restore.py stage --db /data/openchronicle.db \
-    --source /import/snapshot.db --expected-sha256 "$EXPECTED_SHA" "$@"
+  if [[ "$SOURCE" == /data/* ]]; then
+    docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+      --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
+      --entrypoint python --env OC_OFFLINE_RESTORE=1 "$HELPER_IMAGE_ID" \
+      /app/scripts/offline_restore.py stage --db /data/openchronicle.db \
+      --source "$SOURCE" --expected-sha256 "$EXPECTED_SHA" "$@"
+  else
+    test -f "$SOURCE"
+    docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+      --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
+      --mount "type=bind,source=$SOURCE,target=/import/snapshot.db,readonly" \
+      --entrypoint python --env OC_OFFLINE_RESTORE=1 "$HELPER_IMAGE_ID" \
+      /app/scripts/offline_restore.py stage --db /data/openchronicle.db \
+      --source /import/snapshot.db --expected-sha256 "$EXPECTED_SHA" "$@"
+  fi
 }
 stage
 stage --apply
@@ -438,9 +451,23 @@ stage --apply
 
 The dry run verifies the snapshot (standalone file, `integrity_check`,
 `foreign_key_check`, digest) without writing. The apply prints `stage_path`
-and the candidate's `sha256`, `schema_version` and `project_identity_sha256`:
-record those for activation, with the operation ID. A second stage is refused
-until the first is activated or retired. Retain a verified off-NAS
+and the candidate's `sha256`, `schema_version`, `project_count`,
+`memory_count` and `project_identity_sha256`: record those for activation,
+with the operation ID.
+
+**Compare the candidate with the live store before activating.** The helper
+checks the candidate against your recorded values, not against the running
+database, because it never opens the live files. Compare the printed
+`schema_version`, `project_count` and `memory_count` with the live inventory
+you recorded (OpenChronicle `health` and `project_list`). Stop if the schema is
+newer than the image you will start, or if the snapshot shares no project with
+the live store (another instance). A lower memory or project count is expected
+for an older snapshot; confirm it is the loss you intend. The project
+fingerprint changes whenever a project is created or deleted, so a different
+fingerprint alone is not a stop.
+
+A second stage is refused until the first is retired with `retire-stage`;
+activation leaves the staged file in place. Retain a verified off-NAS
 snapshot. Record the old and candidate image IDs. Prepare enough free space on
 the data volume for the old raw DB/WAL/SHM family, a consolidated old snapshot,
 an incoming candidate, a forward-state archive, a rollback incoming file and
@@ -560,8 +587,10 @@ What a stopped phase means:
 - `activated` with `old_state.rollback_available: false`: SQLite could not
   read the old state, so rollback is refused and `raw-old` holds it
   byte-exact. To change what is live, activate another verified artifact
-  under a new operation ID. It copies the candidate on the
-same volume, moves old sidecars away, then atomically replaces the main DB.
+  under a new operation ID.
+
+On a normal activation the helper copies the candidate on the same volume,
+moves old sidecars away, then atomically replaces the main DB.
 Never copy an external file directly over the live DB. Start the **recorded
 matching image** through the reviewed Portainer stack procedure; for a
 same-image drill or recovery using the original stopped container, use
@@ -640,7 +669,7 @@ policy only after its data and build identity pass. If a new container was
 created, check its policy against the reviewed old stack definition.
 
 Only after independently accepting the restored state, retire the staged
-candidate so a later `db_restore_stage` can run. Keep the exported backup and
+candidate so a later `stage` can run. Keep the exported backup and
 recovery directory; this removes only the verified staged copy. This is a
 separate bounded stop/start operation and works from a new NAS Bash session:
 

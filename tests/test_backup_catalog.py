@@ -332,14 +332,40 @@ def test_auto_retention_prunes_manifest_with_snapshot(tmp_path: Path) -> None:
     assert incomplete.exists()
 
 
-def test_foreign_instance_snapshot_is_a_stop_reason_and_is_not_staged(tmp_path: Path) -> None:
+def test_older_snapshot_with_different_projects_is_reported_not_refused(tmp_path: Path) -> None:
+    """Undoing an accidental project delete is the most common restore."""
+    store, catalog = _catalog(tmp_path)
+    try:
+        lost = Project(name="deleted-by-accident")
+        store.add_project(lost)
+        created = catalog.create("manual")
+        store.delete_project(lost.id)
+        store.add_project(Project(name="created-later"))
+        plan = catalog.restore_plan(created["artifact_id"])
+        assert plan["stop_reasons"] == []
+        assert plan["projects_only_in_snapshot"] == 1
+        assert plan["projects_only_in_current"] == 1
+        assert "project_ids" not in plan["current"]
+        assert catalog.restore_stage(created["artifact_id"])["restored"] is False
+    finally:
+        store.close()
+
+
+def test_snapshot_sharing_no_project_is_a_stop_reason_and_is_not_staged(tmp_path: Path) -> None:
     store, catalog = _catalog(tmp_path)
     try:
         created = catalog.create("manual")
-        store.add_project(Project(name="only-in-live"))
+        (original,) = store.list_projects()
+        replacement = Project(name="other-instance")
+        store.add_project(replacement)
+        with sqlite3.connect(catalog.db_path) as conn:  # the live store no longer shares a project
+            conn.execute("UPDATE memory_items SET project_id = ?", (replacement.id,))
+        store.delete_project(original.id)
         plan = catalog.restore_plan(created["artifact_id"])
-        assert plan["stop_reasons"] == ["project identity differs: this snapshot may belong to another instance"]
-        with pytest.raises(BackupCatalogError, match="Refusing to stage: project identity differs"):
+        assert plan["stop_reasons"] == [
+            "the snapshot shares no project with the running store: likely another instance"
+        ]
+        with pytest.raises(BackupCatalogError, match="Refusing to stage: the snapshot shares no project"):
             catalog.restore_stage(created["artifact_id"])
         assert not (tmp_path / "private" / ".restore-stage").exists()
     finally:
