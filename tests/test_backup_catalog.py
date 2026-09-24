@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import shutil
@@ -105,14 +106,86 @@ def test_verify_rejects_tampering_and_list_ignores_incomplete_pair(tmp_path: Pat
         store.close()
 
 
-def test_create_rejects_relationally_broken_snapshot(tmp_path: Path) -> None:
+def test_create_quarantines_relationally_broken_snapshot(tmp_path: Path) -> None:
     store, catalog = _catalog(tmp_path)
     try:
         with sqlite3.connect(catalog.db_path) as conn:
             conn.execute("UPDATE memory_items SET project_id = 'missing-project'")
-        with pytest.raises(BackupCatalogError, match="foreign_key_check"):
+        with pytest.raises(BackupCatalogError, match="foreign_key_check.*preserved"):
             catalog.create()
         assert catalog.list() == []
+        # The copy is evidence about the live store and may be its newest
+        # copy: kept outside catalog and retention names, never deleted.
+        (kept,) = (catalog.root / "manual").glob("*.db.failed-verify")
+        assert list((catalog.root / "manual").glob("*.db")) == []
+        assert list((catalog.root / "manual").glob("*.json")) == []
+        with sqlite3.connect(f"file:{kept.as_posix()}?mode=ro&immutable=1", uri=True) as copy:
+            assert copy.execute("SELECT project_id FROM memory_items").fetchone() == ("missing-project",)
+    finally:
+        store.close()
+
+
+def _corrupt_index(db: Path) -> None:
+    """Index/table mismatch that quick_check misses and integrity_check reports."""
+    conn = sqlite3.connect(db)
+    try:
+        conn.execute("CREATE TABLE corruption_probe (a INTEGER, b TEXT)")
+        conn.execute("CREATE INDEX corruption_probe_a ON corruption_probe(a)")
+        conn.executemany("INSERT INTO corruption_probe VALUES (?, ?)", [(i, str(i)) for i in range(50)])
+        conn.commit()
+        conn.execute("PRAGMA writable_schema=ON")
+        conn.execute(
+            "UPDATE sqlite_master SET sql='CREATE INDEX corruption_probe_a ON corruption_probe(b)' "
+            "WHERE name='corruption_probe_a'"
+        )
+        conn.execute("PRAGMA writable_schema=OFF")
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_integrity_failure_emergency_backup_survives_catalog_verification(tmp_path: Path) -> None:
+    from openchronicle.core.infrastructure.maintenance import jobs
+
+    db = tmp_path / "private" / "openchronicle.db"
+    seed, _ = _catalog(tmp_path)
+    seed.close()
+    _corrupt_index(db)
+    with sqlite3.connect(db) as probe:
+        assert probe.execute("PRAGMA quick_check").fetchone() == ("ok",)
+        assert probe.execute("PRAGMA integrity_check").fetchone() != ("ok",)
+    store = SqliteStore(str(db))
+    try:
+        container = MagicMock()
+        container.storage = store
+        container.maintenance_degraded = False
+        container.backup_dir = tmp_path / "exports" / "backups"
+        container.backups = BackupCatalog(store, container.backup_dir, db)
+        with pytest.raises(RuntimeError, match="integrity_check failed"):
+            asyncio.run(jobs.db_integrity_check(container))
+        assert container.maintenance_degraded is True
+        (kept,) = (container.backup_dir / "auto").glob("*.db.failed-verify")
+        with sqlite3.connect(f"file:{kept.as_posix()}?mode=ro&immutable=1", uri=True) as copy:
+            assert copy.execute("SELECT COUNT(*) FROM memory_items").fetchone() == (1,)
+            assert copy.execute("PRAGMA integrity_check").fetchone() != ("ok",)
+    finally:
+        store.close()
+
+
+def test_published_snapshot_is_standalone_and_survives_read_only_inspection(tmp_path: Path) -> None:
+    store, catalog = _catalog(tmp_path)
+    try:
+        created = catalog.create("manual")
+        snapshot, _ = catalog._paths(created["artifact_id"])
+        # Rollback-journal header (bytes 18-19 == 1), not the live DB's WAL mode.
+        assert snapshot.read_bytes()[18:20] == b"\x01\x01"
+        # An operator opening the export read-only must not leave sidecars
+        # that make the catalog reject the artifact afterwards.
+        with sqlite3.connect(f"file:{snapshot.as_posix()}?mode=ro", uri=True) as inspect:
+            assert inspect.execute("SELECT COUNT(*) FROM memory_items").fetchone() == (1,)
+        assert catalog.verify(created["artifact_id"])["verified"] is True
+        leftovers = sorted(path.name for path in (catalog.root / "manual").iterdir())
+        assert leftovers == [snapshot.name, snapshot.with_suffix(".json").name]
     finally:
         store.close()
 

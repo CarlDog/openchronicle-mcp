@@ -134,16 +134,29 @@ class BackupCatalog:
             stamp = utc_now().strftime("%Y%m%dT%H%M%S%fZ")
             artifact_id = f"{kind}:{stamp}-{token_hex(6)}"
             db, manifest = self._paths(artifact_id)
+            self.store.backup_to(db)
+            with db.open("r+b") as snapshot:
+                os.fsync(snapshot.fileno())
+            self._fsync_dir(directory)
             try:
-                self.store.backup_to(db)
-                with db.open("r+b") as snapshot:
-                    os.fsync(snapshot.fileno())
+                inspected = self._inspect(db)
+            except BackupCatalogError as exc:
+                # The snapshot faithfully copies the live store, so a failed
+                # check is evidence about the LIVE database, and possibly the
+                # newest copy of it. Quarantine it outside the catalog and
+                # retention names, as backup.py does for quick_check, rather
+                # than deleting it. The integrity job's emergency backup
+                # depends on this: it runs exactly when these checks fail.
+                quarantine = db.with_name(db.name + ".failed-verify")
+                os.replace(db, quarantine)
                 self._fsync_dir(directory)
-                metadata: dict[str, Any] = {
-                    "artifact_id": artifact_id,
-                    "created_at": utc_now().isoformat(),
-                    **self._inspect(db),
-                }
+                raise BackupCatalogError(f"{exc}; snapshot preserved as {quarantine.name}") from exc
+            metadata: dict[str, Any] = {
+                "artifact_id": artifact_id,
+                "created_at": utc_now().isoformat(),
+                **inspected,
+            }
+            try:
                 self._publish_manifest(manifest, metadata)
             except Exception:
                 db.unlink(missing_ok=True)

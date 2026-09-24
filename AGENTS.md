@@ -224,6 +224,10 @@ query-revision and NAS Host-list source fixes merged.**
   PR #39 remains draft and production is unchanged.
   The [2026-09-24 continuation handoff](docs/handoffs/2026-09-24-backup-restore.md)
   records the verified source checkpoint and next operational prerequisite.
+  A Claude adversarial review of `f65be230` (2026-09-24) found P1 defects that
+  supersede the "no further P0/P1" claim; fixes land on PR #39 in order
+  (assessment revs 221+). Do not merge #39, or tag a release containing it,
+  until they are done: merging changes the nightly backup path.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

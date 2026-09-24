@@ -54,7 +54,13 @@ scheduled backups can use the bind mount independently.
 Snapshots are produced by the existing `sqlite3.Connection.backup()` path,
 written to a sibling temporary file, checked and renamed. Verification runs
 both `PRAGMA integrity_check` and `PRAGMA foreign_key_check`: SQLite's
-integrity check does not detect broken foreign keys. A sidecar manifest
+integrity check does not detect broken foreign keys. A snapshot that fails
+either check is a faithful copy of a damaged live store, and may be its
+newest copy: it is kept as `*.db.failed-verify`, outside the catalog and
+retention names, and the operation fails. It is never deleted, so the
+integrity job's emergency backup still leaves evidence (Claude review,
+2026-09-24). Snapshots are published in rollback-journal mode, so opening
+one read-only never creates `-wal`/`-shm` files. A sidecar manifest
 records SHA-256, schema version, size and creation time; only a complete
 artifact pair is offered for restore. Pre-upgrade/manual artifacts are not
 subject to automatic retention. Automatic retention keeps its existing

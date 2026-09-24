@@ -6,7 +6,9 @@ DB. v2 used file-copy in some paths and lost a backup to a torn-write
 on 2026-04-29; v3 routes every backup through this module.
 
 Publication guarantees (verify, then rename):
-  - The destination is written to a sibling ``<dest>.tmp`` first.
+  - The destination is written to a sibling ``<dest>.tmp`` first, and
+    converted to rollback-journal mode so the published file is
+    standalone: opening it never needs, or leaves, ``-wal``/``-shm``.
   - The staged file is re-opened read-only and must pass
     ``PRAGMA quick_check`` before it may replace anything — an artifact
     that cannot be proven openable is not a backup (the 2026-05-06
@@ -78,6 +80,12 @@ def backup_from_connection(conn: sqlite3.Connection, dest_db_path: Path | str) -
         dst_conn = sqlite3.connect(str(tmp))
         try:
             conn.backup(dst_conn)
+            # The backup copies the live database's WAL-mode header. Leaving it
+            # would make every later read-only open (this validation, or an
+            # operator inspecting the file) create -wal/-shm files that a
+            # read-only connection cannot remove. A snapshot is a standalone
+            # file, so publish it in rollback-journal mode.
+            dst_conn.execute("PRAGMA journal_mode=DELETE")
         finally:
             dst_conn.close()
         try:

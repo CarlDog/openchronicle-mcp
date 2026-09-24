@@ -895,6 +895,10 @@ bootstrap prerequisite before changing the stack. Source PR review can finish
 before this operational gate, but source merge cannot satisfy it. The
 [2026-09-24 continuation handoff](handoffs/2026-09-24-backup-restore.md)
 records the exact source checkpoint and resume order.
+A Claude adversarial review of `f65be230` (2026-09-24) found P1 defects; fixes
+land on PR #39 in order (assessment revs 221+). Do not merge #39, or tag a
+release containing it, until they are done: `db_backup` routes the nightly
+backup through the new catalog unconditionally.
 
 **Persistent storage architecture review — later, separate from 0017.**
 Inventory the whole `/volume1/docker/openchronicle` tree and the live named

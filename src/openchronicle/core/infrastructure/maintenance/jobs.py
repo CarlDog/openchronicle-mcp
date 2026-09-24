@@ -4,8 +4,11 @@ Each handler is a coroutine ``async def(container) -> None``. Failures
 must raise; the loop catches and counts.
 
 Job inventory:
-- ``db_backup`` — atomic online backup to ``${data_dir}/backups/auto/``;
-  retention keeps the 7 newest plus the newest per day for 7 days.
+- ``db_backup`` — atomic online backup to ``auto/`` under
+  ``OC_BACKUP_DIR`` (default ``${data_dir}/backups``), published with a
+  verified manifest; retention keeps the 7 newest plus the newest per
+  day for 7 days. A snapshot that fails verification is kept as
+  ``*.failed-verify`` and the job fails.
 - ``db_vacuum`` — runs ``db_backup`` first (backup-before-destructive
   policy), then ``PRAGMA wal_checkpoint(FULL)`` and ``VACUUM``.
 - ``db_integrity_check`` — ``PRAGMA integrity_check``; on failure,
@@ -49,7 +52,9 @@ def _retention_prune(directory: Path, keep: int) -> None:
     The per-day set is what a pure newest-N rule lacked: a burst of
     restarts or manual runs filled all N slots with same-day snapshots
     and evicted the week-old backup that matters after discovering
-    corruption. Worst-case files retained: 2 × ``keep``.
+    corruption. Worst-case published snapshots retained: 2 × ``keep``.
+    Files outside that set are never pruned: pre-catalog snapshots
+    without a manifest, and ``*.failed-*`` quarantines.
     """
     # A database file without its manifest was never published as a usable
     # artifact. Do not let an interrupted publication evict a valid recovery
