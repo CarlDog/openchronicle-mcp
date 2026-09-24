@@ -993,11 +993,28 @@ entry (below, or in its design doc):
    mcp 2.x migration by its own entry.
 7. **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
-8. **GitHub Copilot SDK integration** ([setup documentation](https://docs.github.com/en/copilot/how-tos/copilot-sdk/setup)) — evaluate
-  incorporating the SDK as an optional agent/runtime integration while
-  keeping OpenChronicle's memory service boundary intact. Define the
-  supported setup path, authentication model, lifecycle, and tool/session
-  isolation before implementation.
+8. **Provider SDK integration survey** — evaluate optional agent/runtime
+   integrations while keeping OpenChronicle's memory service boundary intact:
+
+   - [GitHub Copilot SDK](https://docs.github.com/en/copilot/how-tos/copilot-sdk/setup)
+     — agent runtime with bundled or local CLI, backend and multi-tenant setup paths.
+   - [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/)
+     — agents, tools, handoffs, guardrails, sessions, tracing, and MCP support.
+   - [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python)
+     — Python and TypeScript agent SDKs with Claude Code tools, sessions, hooks,
+     and in-process MCP tools.
+   - [Google Gen AI SDK](https://github.com/googleapis/python-genai)
+     — Python and JavaScript clients with chats, function calling, experimental
+     MCP support, and the stateful Interactions API.
+   - [Groq SDKs](https://console.groq.com/docs/libraries)
+     — Python and JavaScript model clients with tool use and remote MCP, but no
+     equivalent first-party agent runtime identified in this survey.
+   - [Ollama Python SDK](https://github.com/ollama/ollama-python)
+     — local/cloud model client with chat, streaming, and embeddings; no
+     equivalent first-party agent runtime identified in this survey.
+
+   Define the supported setup path, authentication model, lifecycle, tool/session
+   isolation, licensing/terms, and provider-neutral abstraction before implementation.
 9. ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
    `9b1e83e6`), NOT deployed** ([0014](design/0014-gemini-audit-branch-review.md);
    [review-findings plan](design/0016-review-findings-plan.md), source
