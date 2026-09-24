@@ -13,6 +13,15 @@ results before any production restore or timestamp migration. Every example
 uses NAS Bash, an explicit container/image/volume identity, and a separate
 helper process. Do not paste a command with placeholder values into the NAS.
 
+**Run each block as a file.** Every block is self-contained: it declares the
+values it needs and defines any helper function it calls. Save it to a file,
+replace every `<...>` placeholder, and run `bash <file>`. Do not paste a block
+into an interactive NAS shell. Blocks start with `set -euo pipefail`, which
+closes an interactive session at the first failed check and loses every value
+typed into it. Each safety check is its own command, so a failed check stops
+the block before the next step. Copy every value a block prints (for example
+`OLD_RESTART_POLICY`) into the deployment record before running the next one.
+
 ## Prepare the NAS mount
 
 Create `/volume1/docker/openchronicle/exports/backups` on the host, owned or
@@ -34,10 +43,12 @@ startup log and the `db_backup` job status after any mount change.
 
 Before that stack edit, record the old compose, environment (without
 publishing secrets), image ID, database schema, project-ID fingerprint, row
-counts and selected memory IDs. The currently exposed SMB share contains
-neither the live DB nor old backups. An approved NAS Docker admin/console path
-is required. The Portainer MCP surface cannot exec or copy container files;
-the SMB share alone does not close this prerequisite.
+counts and selected memory IDs. The `exports` share does not exist yet, and no
+share exposes the live DB or old backups. Two routes produce the pre-change
+copy without editing the stack: NAS Bash (below), or the
+[Portainer web console](#alternative-bootstrap-through-the-portainer-console),
+which needs no NAS shell. The Portainer MCP surface cannot exec or copy
+container files.
 
 ### Bootstrap a pre-change copy from v3.3.0
 
@@ -52,7 +63,8 @@ stack. Preserve their non-secret output in the deployment record:
 set -euo pipefail
 CID='<observed production oc container ID>'
 EXPECTED_STACK_PROJECT='<observed compose project label for this Portainer stack>'
-test -n "$CID" && test -n "$EXPECTED_STACK_PROJECT"
+test -n "$CID"
+test -n "$EXPECTED_STACK_PROJECT"
 docker inspect "$CID" >/dev/null
 test "$(docker inspect -f '{{.State.Running}}' "$CID")" = true
 test "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$CID")" = oc
@@ -60,7 +72,9 @@ test "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}
 docker exec --user 1000:1000 "$CID" python -c 'import os; assert os.environ["OC_DB_PATH"] == "/data/openchronicle.db"'
 MOUNT=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Type}}|{{.Name}}|{{.RW}}{{end}}{{end}}' "$CID")
 IFS='|' read -r MOUNT_TYPE VOL MOUNT_RW <<< "$MOUNT"
-test "$MOUNT_TYPE" = volume && test "$MOUNT_RW" = true && test -n "$VOL"
+test "$MOUNT_TYPE" = volume
+test "$MOUNT_RW" = true
+test -n "$VOL"
 docker volume inspect "$VOL" >/dev/null
 OLD_IMAGE_ID=$(docker inspect -f '{{.Image}}' "$CID")
 docker image inspect "$OLD_IMAGE_ID" >/dev/null
@@ -71,8 +85,10 @@ base="/data/openchronicle.db"
 print(sum(os.path.getsize(path) for path in (base,base+"-wal",base+"-shm") if os.path.isfile(path)))')
 VOL_FREE_BYTES=$(docker exec --user 1000:1000 "$CID" python -c 'import shutil; print(shutil.disk_usage("/data").free)')
 HOST_FREE_KB=$(df -Pk /volume1/docker/openchronicle | awk 'NR==2 {print $4}')
-[[ "$LIVE_BYTES" =~ ^[0-9]+$ ]] && test "$LIVE_BYTES" -gt 0
-[[ "$VOL_FREE_BYTES" =~ ^[0-9]+$ ]] && [[ "$HOST_FREE_KB" =~ ^[0-9]+$ ]]
+[[ "$LIVE_BYTES" =~ ^[0-9]+$ ]]
+test "$LIVE_BYTES" -gt 0
+[[ "$VOL_FREE_BYTES" =~ ^[0-9]+$ ]]
+[[ "$HOST_FREE_KB" =~ ^[0-9]+$ ]]
 NEEDED=$((3 * LIVE_BYTES + 64 * 1024 * 1024))
 test "$VOL_FREE_BYTES" -ge "$NEEDED"
 test "$((HOST_FREE_KB * 1024))" -ge "$NEEDED"
@@ -115,11 +131,13 @@ offsite destination for `DEST`:
 
 ```powershell
 $source = '\\carldog-nas\docker\openchronicle\exports\bootstrap\pre-change-<STAMP>.db'
-$dest = '<absolute path on a device independent of the NAS>'
+$destDir = '<absolute folder on a device independent of the NAS>'
+$dest = Join-Path $destDir (Split-Path -Leaf $source)
 Copy-Item -LiteralPath $source -Destination $dest -ErrorAction Stop
-$sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $source).Hash
-$destHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest).Hash
+$sourceHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $source -ErrorAction Stop).Hash
+$destHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $dest -ErrorAction Stop).Hash
 if ($sourceHash -ne $destHash) { throw 'Independent copy hash mismatch' }
+"$dest $destHash"
 ```
 
 Compare the hash with the two NAS digests and open the independent copy
@@ -131,13 +149,50 @@ in the WAL. Retain the old image ID, old compose and the independent copy. If
 any check fails, stop the rollout; the backup feature itself needs a recovery
 point.
 
+### Alternative bootstrap through the Portainer console
+
+The production container bind-mounts the SMB-visible
+`/volume1/docker/openchronicle/config` folder at `/config`, read-write
+(seen in a read-only Portainer query on 2026-09-24; recheck the mount first).
+The config loader reads only `core.json`, so a snapshot file there is inert.
+Before starting, confirm who can read `\\carldog-nas\docker\openchronicle\config`:
+until it is deleted, the file is a plaintext copy of the whole corpus.
+
+In Portainer, open Containers, the `oc` container, then Console. Set **User**
+to `oc`: the default is root, which would leave a root-owned file. Connect with
+`/bin/sh` and run:
+
+```sh
+STAMP=$(date -u +%Y%m%dT%H%M%SZ)
+oc db backup "/config/pre-change-$STAMP.db"
+sha256sum "/config/pre-change-$STAMP.db"
+```
+
+Record the digest. From the workstation, run the PowerShell block above with
+`$source` set to `\\carldog-nas\docker\openchronicle\config\pre-change-<STAMP>.db`,
+check that both printed digests equal the recorded one, and open the
+independent copy read-only for the same checks, for example:
+
+```powershell
+python -c "import pathlib,sqlite3,sys; p=pathlib.Path(sys.argv[1]).as_posix(); c=sqlite3.connect('file:'+p+'?mode=ro&immutable=1',uri=True); print(c.execute('PRAGMA integrity_check').fetchone(), c.execute('PRAGMA foreign_key_check').fetchone(), c.execute('SELECT MAX(version) FROM schema_version').fetchone(), c.execute('SELECT COUNT(*) FROM memory_items').fetchone())" '<independent copy path>'
+```
+
+Expect `('ok',) None (<schema>,) (<count>,)`. Then, in the console, delete
+`/config/pre-change-<STAMP>.db` and the `.db.tmp-wal` and `.db.tmp-shm` files
+v3.3.0 leaves beside every backup. This route is an operator decision: it
+avoids a NAS shell and any stack edit, at the cost of that brief exposure.
+
 ## Enable and use the MCP surface
 
-Scheduled backups need `OC_BACKUP_DIR` but do not need MCP auth. The five MCP
-tools remain absent until `OC_BACKUP_MCP_ENABLED=true` and a nonempty effective
-`OC_API_KEY` are set. Migrate every client to bearer auth before enabling the
-tools. The stdio server never registers them. Do not place the API key in a
-tracked file or a backup manifest.
+**The MCP tools are parked** (operator decision, 2026-09-24). They register only
+with `OC_BACKUP_MCP_ENABLED=true`, an explicit `OC_BACKUP_DIR` and a nonempty
+effective `OC_API_KEY`. Production auth stays disabled as decided on
+2026-05-06, so they cannot register there, and no auth change is planned. Every
+production step in this runbook uses the CLI and the offline helper instead.
+Scheduled backups need `OC_BACKUP_DIR` (or its default) and no MCP auth. The
+stdio server never registers the tools. If they are ever enabled, do not place
+the API key in a tracked file or a backup manifest. The rest of this section
+describes the tools for that case.
 
 Use `db_backup_create` for a manual recovery point. Record its artifact ID,
 size, schema version, row counts and SHA-256. Use `db_backup_list` to find
@@ -150,10 +205,11 @@ rejected until the previous one is handled offline.
 
 ## Disposable restore drill
 
-1. Create and verify a fresh manual artifact. Read the `.db` file through the
-   exposed SMB share, retain it on a device outside the NAS, and calculate its
-   SHA-256 there; compare it with the manifest and MCP verification result.
-   Preserve both the export and independent copy.
+1. Create a fresh snapshot with `oc db backup`, or take a published `auto/`
+   artifact and its manifest, and record its SHA-256. Read the `.db` file
+   through the SMB share, retain it on a device outside the NAS, calculate its
+   SHA-256 there and compare. Preserve both the export and the independent
+   copy.
 2. Copy the artifact into a **separate disposable database location**, never
    over `/data/openchronicle.db`. Open the copy with SQLite and run
    `PRAGMA integrity_check` and `PRAGMA foreign_key_check`; compare schema
@@ -161,11 +217,13 @@ rejected until the previous one is handled offline.
    a disposable OpenChronicle instance using the pinned release image against
    that copy and check representative ID reads and search. Record any schema
    change caused by startup.
-3. Run `db_restore_plan` and `db_restore_stage` for the same artifact. Inspect
-   the staged file's digest and integrity on the DB volume. Record the drill's
-   duration and the serving process's request-tail latency while the backup
-   was made. A failed digest, missing data, unacceptable latency, or broad
-   share ACL blocks the timestamp upgrade.
+3. Stage the same snapshot with the helper's `stage` action and the recorded
+   digest, and confirm the printed identity. Record the drill's duration and a
+   simple probe's request latency (for example repeated `/health` and one
+   search) while the backup runs. No latency budget is ratified yet: agree one
+   before the drill. A failed digest, missing data, a failed request or health
+   check, latency over the agreed budget, or a broad share ACL blocks the
+   timestamp upgrade.
 4. On a disposable clone, stop the serving container **before** making a
    post-snapshot write with a separate WAL writer that disables auto-checkpoint
    and exits abruptly. Confirm a nonempty `openchronicle.db-wal` immediately
@@ -175,7 +233,13 @@ rejected until the previous one is handled offline.
    production writer for this drill. Record elapsed recovery time and all
    identity, integrity and request checks.
 
-To prepare that clone on the NAS after the feature image is published, use a
+The drill needs an image that contains the helper. A release image is blocked
+by design 0010's release gate (V3_PLAN item 8) until the operator decides it;
+a non-release drill image, like the earlier `phase4-recovery-*` image, needs
+its own explicit authorization. Either way, resolve that before scheduling the
+drill.
+
+To prepare that clone on the NAS once such an image is present, use a
 verified copy of the bootstrap snapshot and a **new named volume**. The volume
 name and container labels below are deliberately distinct from production.
 This seeds only disposable storage; retain the external copy unchanged. Use
@@ -211,16 +275,11 @@ for attempt in {1..30}; do
   sleep 2
 done
 test "$HEALTH" = healthy
-STAGE=/data/.restore-stage/candidate-aaaaaaaaaaaaaaaaaaaaaaaa.db
-docker exec --user 1000:1000 "$DRILL_NAME" oc db backup "$STAGE"
-META=$(docker run --rm --pull never --network none --read-only --user 1000:1000 \
-  --mount "type=volume,source=$DRILL_VOL,target=/data" \
-  --entrypoint python "$DRILL_IMAGE_ID" -c '
-from pathlib import Path
-from scripts.offline_restore import _inspect
-m = _inspect(Path("/data/.restore-stage/candidate-aaaaaaaaaaaaaaaaaaaaaaaa.db"))
-print(m["sha256"], m["schema_version"], m["project_identity_sha256"])')
-read -r EXPECTED_SHA EXPECTED_SCHEMA EXPECTED_PROJECT <<< "$META"
+SNAP=/data/backups/manual/drill-candidate.db
+docker exec --user 1000:1000 "$DRILL_NAME" oc db backup "$SNAP"
+# The drill's independent record. In production this digest comes from the
+# manifest or the off-NAS custody record, never from the file at staging time.
+RECORDED_SHA=$(docker exec --user 1000:1000 "$DRILL_NAME" sha256sum "$SNAP" | cut -d' ' -f1)
 docker stop --time 60 "$DRILL_NAME"
 test "$(docker inspect -f '{{.State.Running}}' "$DRILL_NAME")" = false
 docker run --rm --pull never --network none --user 1000:1000 \
@@ -237,12 +296,28 @@ os._exit(0)'
 docker run --rm --pull never --network none --read-only --user 1000:1000 \
   --mount "type=volume,source=$DRILL_VOL,target=/data" \
   --entrypoint sh "$DRILL_IMAGE_ID" -c 'test -s /data/openchronicle.db-wal'
+STAGED=$(docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+  --user 1000:1000 --mount "type=volume,source=$DRILL_VOL,target=/data" \
+  --entrypoint python --env OC_OFFLINE_RESTORE=1 "$DRILL_IMAGE_ID" \
+  /app/scripts/offline_restore.py stage --db /data/openchronicle.db \
+  --source "$SNAP" --expected-sha256 "$RECORDED_SHA" --apply)
+printf '%s' "$STAGED" | docker run --rm -i --pull never --network none --read-only \
+  --entrypoint python "$DRILL_IMAGE_ID" -c '
+import json, sys
+r = json.load(sys.stdin); c = r["candidate"]
+print("STAGE=" + r["stage_path"])
+print("EXPECTED_SHA=" + c["sha256"])
+print("EXPECTED_SCHEMA=" + str(c["schema_version"]))
+print("EXPECTED_PROJECT=" + c["project_identity_sha256"])'
+echo "DRILL_NAME=$DRILL_NAME"
+echo "DRILL_VOL=$DRILL_VOL"
+echo "DRILL_IMAGE_ID=$DRILL_IMAGE_ID"
 ```
 
-Use `CID=$(docker inspect -f '{{.Id}}' "$DRILL_NAME")`, `VOL=$DRILL_VOL`,
-`SERVING_IMAGE_ID=$DRILL_IMAGE_ID`, `HELPER_IMAGE_ID=$DRILL_IMAGE_ID`,
-`EXPECTED_STACK_PROJECT=oc-restore-drill`, the `STAGE` and three `EXPECTED_*`
-values above, plus a unique `OP`, in the activation block below. The helper's
+Record the printed values. In the activation block below use
+`CID=<DRILL_NAME>`, `VOL=<DRILL_VOL>`, `SERVING_IMAGE_ID=<DRILL_IMAGE_ID>`,
+`HELPER_IMAGE_ID=<DRILL_IMAGE_ID>`, `EXPECTED_STACK_PROJECT=oc-restore-drill`,
+the printed `STAGE` and three `EXPECTED_*` values, and a unique `OP`. The helper's
 dry-run and apply must finish with `phase=activated`; after the candidate
 starts, the marker table should be absent. Run the rollback block against the
 same disposable container/volume, restart the recorded image, and query
@@ -250,6 +325,8 @@ same disposable container/volume, restart the recorded image, and query
 survived. The exact readback after restart is:
 
 ```bash
+set -euo pipefail
+DRILL_NAME='<recorded DRILL_NAME>'
 docker exec --user 1000:1000 "$DRILL_NAME" python -c '
 import sqlite3
 c = sqlite3.connect("file:/data/openchronicle.db?mode=ro", uri=True)
@@ -259,15 +336,32 @@ c.close()'
 
 Repeat the clone setup on a **new disposable volume** for the
 aborted-activation leg. After the same stop, separate WAL write and
-nonempty-WAL check, set `VOL` to that drill volume, `OP` to a new operation ID,
-and run the activation block through its dry-run so the `offline` function is
-defined. Use this deterministic failure injection instead of the normal apply.
+nonempty-WAL check, run the activation block's dry run against that volume
+with a new operation ID. Then run this deterministic failure injection instead
+of the normal apply, with the values that clone printed.
 It calls the same activation
 function but deliberately fails at the final main-file replacement, after
 moving the old sidecars. It has no effect on the production volume:
 
 ```bash
-[[ "$VOL" == oc-restore-drill-* ]] && test "$VOL" = "$DRILL_VOL"
+set -euo pipefail
+VOL='<recorded DRILL_VOL of this second clone>'
+DRILL_IMAGE_ID='<recorded DRILL_IMAGE_ID>'
+STAGE='<printed STAGE>'
+EXPECTED_SHA='<printed EXPECTED_SHA>'
+EXPECTED_SCHEMA='<printed EXPECTED_SCHEMA>'
+EXPECTED_PROJECT='<printed EXPECTED_PROJECT>'
+OP='<the new operation ID used in the dry run for this leg>'
+# Fence: this block must never reach a production volume.
+[[ "$VOL" == oc-restore-drill-* ]]
+USERS=$(docker ps -q --filter "volume=$VOL")
+test -z "$USERS"
+offline() {
+  docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+    --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
+    --entrypoint python --env OC_OFFLINE_RESTORE=1 "$DRILL_IMAGE_ID" \
+    /app/scripts/offline_restore.py "$@"
+}
 if docker run --rm --pull never --network none --read-only --tmpfs /tmp \
   --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
   --env STAGE="$STAGE" --env OP="$OP" --env EXPECTED_SHA="$EXPECTED_SHA" \
@@ -383,7 +477,9 @@ EXPECTED_SHA='<64-character digest from verified stage>'
 EXPECTED_SCHEMA='<integer schema version from verified artifact>'
 EXPECTED_PROJECT='<64-character project-ID digest from verified artifact>'
 OP='restore-<unique lowercase operation ID>'
-test -n "$CID" && test -n "$VOL" && test -n "$EXPECTED_STACK_PROJECT"
+test -n "$CID"
+test -n "$VOL"
+test -n "$EXPECTED_STACK_PROJECT"
 docker inspect "$CID" >/dev/null
 docker image inspect "$HELPER_IMAGE_ID" >/dev/null
 docker run --rm --pull never --network none --read-only --entrypoint cat "$HELPER_IMAGE_ID" /app/build-revision
@@ -393,6 +489,7 @@ test "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}
 test "$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$CID")" = "$VOL"
 docker volume inspect "$VOL" >/dev/null
 OLD_RESTART_POLICY=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$CID")
+echo "OLD_RESTART_POLICY=$OLD_RESTART_POLICY  (record this)"
 docker update --restart=no "$CID" >/dev/null
 test "$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$CID")" = no
 if [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = true ]; then
@@ -413,14 +510,30 @@ offline activate --db /data/openchronicle.db --operation-id "$OP" \
 ```
 
 The first block stops the service and runs a **dry-run only**. For normal
-activation, continue with this separate apply block in the same frozen
-maintenance session. For the aborted disposable drill, use the guarded fault
+activation, run this separate apply block, with the same recorded values, in
+the same maintenance freeze. For the aborted disposable drill, use the guarded fault
 injection above instead; never run this normal apply block for that leg.
 
 ```bash
+set -euo pipefail
+CID='<same CID as the dry run>'
+VOL='<same VOL>'
+HELPER_IMAGE_ID='<same HELPER_IMAGE_ID>'
+STAGE='<same STAGE>'
+EXPECTED_SHA='<same EXPECTED_SHA>'
+EXPECTED_SCHEMA='<same EXPECTED_SCHEMA>'
+EXPECTED_PROJECT='<same EXPECTED_PROJECT>'
+OP='<same OP>'
+test "$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}' "$CID")" = "$VOL"
 test "$(docker inspect -f '{{.State.Running}}' "$CID")" = false
 USERS=$(docker ps -q --filter "volume=$VOL")
 test -z "$USERS"
+offline() {
+  docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+    --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
+    --entrypoint python --env OC_OFFLINE_RESTORE=1 "$HELPER_IMAGE_ID" \
+    /app/scripts/offline_restore.py "$@"
+}
 offline activate --db /data/openchronicle.db --operation-id "$OP" \
   --candidate "$STAGE" --expected-sha256 "$EXPECTED_SHA" \
   --expected-schema "$EXPECTED_SCHEMA" --expected-project-sha256 "$EXPECTED_PROJECT" --apply
@@ -478,7 +591,9 @@ VOL='<recorded original data volume name>'
 HELPER_IMAGE_ID='<recorded helper image ID>'
 EXPECTED_STACK_PROJECT='<recorded compose project label>'
 OP='<recorded operation ID>'
-test -n "$CID" && test -n "$VOL" && test -n "$EXPECTED_STACK_PROJECT"
+test -n "$CID"
+test -n "$VOL"
+test -n "$EXPECTED_STACK_PROJECT"
 docker inspect "$CID" >/dev/null
 test "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$CID")" = oc
 test "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$CID")" = "$EXPECTED_STACK_PROJECT"
@@ -487,6 +602,7 @@ docker volume inspect "$VOL" >/dev/null
 docker image inspect "$HELPER_IMAGE_ID" >/dev/null
 docker run --rm --pull never --network none --read-only --entrypoint cat "$HELPER_IMAGE_ID" /app/build-revision
 ROLLBACK_RESTART_POLICY=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$CID")
+echo "ROLLBACK_RESTART_POLICY=$ROLLBACK_RESTART_POLICY  (record this)"
 docker update --restart=no "$CID" >/dev/null
 if [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = true ]; then
   docker stop --time 60 "$CID"
@@ -535,7 +651,9 @@ VOL='<recorded original data volume name>'
 HELPER_IMAGE_ID='<recorded helper image ID>'
 EXPECTED_STACK_PROJECT='<recorded compose project label>'
 OP='<recorded operation ID>'
-test -n "$CID" && test -n "$VOL" && test -n "$EXPECTED_STACK_PROJECT"
+test -n "$CID"
+test -n "$VOL"
+test -n "$EXPECTED_STACK_PROJECT"
 docker inspect "$CID" >/dev/null
 test "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$CID")" = oc
 test "$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$CID")" = "$EXPECTED_STACK_PROJECT"
@@ -543,6 +661,7 @@ test "$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Nam
 docker volume inspect "$VOL" >/dev/null
 docker image inspect "$HELPER_IMAGE_ID" >/dev/null
 RETIRE_RESTART_POLICY=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$CID")
+echo "RETIRE_RESTART_POLICY=$RETIRE_RESTART_POLICY  (record this)"
 docker update --restart=no "$CID" >/dev/null
 docker stop --time 60 "$CID"
 test "$(docker inspect -f '{{.State.Running}}' "$CID")" = false
@@ -583,10 +702,16 @@ Then verify health/build identity, integrity, foreign keys, counts,
 representative IDs and search. Retain the old database, sidecars and off-NAS
 copy until acceptance.
 
-The helper's file operations passed local disposable SQLite tests, including
-committed WAL data and interrupted swaps. **The Docker invocation, complete NAS
-procedure and off-device handoff have not been rehearsed and remain release
-gates.** Keep both image IDs available: the wrong
-image may migrate a restored database on startup. `db_restore_stage` does not
-establish that recovery succeeded. Do not run the timestamp migration until
+Evidence so far is local only. The helper's file operations pass disposable
+SQLite tests covering committed WAL data, interrupted swaps and retries, and a
+damaged, unreadable or empty old state; a mutation run caught every guard.
+On 2026-09-24 the drill blocks above ran on Docker Desktop, each as its own
+`bash` file with only the placeholders filled, for both the normal and the
+aborted leg (clone, stage, activate, rollback with the post-snapshot write
+recovered, retire), and the drill fence stopped a production volume name.
+That replay also caught and fixed a placeholder that broke bash quoting.
+**The NAS procedure, Synology Docker, real ownership and ACLs, and the
+off-device handoff have not been rehearsed and remain release gates.** Keep
+both image IDs available: the wrong image may migrate a restored database on
+startup. Staging does not establish that recovery succeeded. Do not run the timestamp migration until
 the NAS drill and a fresh independently retained pre-upgrade snapshot pass.

@@ -195,39 +195,20 @@ does differently.
 **2026-09-23 — Gemini branch rejected as a unit; prompt library researched;
 query-revision and NAS Host-list source fixes merged.**
 
-- Design [0017](docs/design/0017-exposed-backup-and-restore.md) and source
-  branch `codex/exposed-backup-tools` prepare independent local snapshots and
-  guarded MCP restore staging before the timestamp upgrade. `/exports/backups`
-  is the proposed exposed mount; the live DB remains in `oc-data`. Source PR,
-  release decision under design 0010, detached-stack mount/auth rollout, and
-  an independently restored NAS snapshot are distinct gates. No live restore
-  executes through MCP. V3_PLAN separately records a full persistent-storage
-  architecture review, including `assets`, `output` and durable logs; these
-  folders are not altered in this branch.
-  The second adversarial pass on 0017 found two P0 gaps: `/exports` is the
-  same NAS failure domain, and opening a disposable copy is not a rehearsal
-  of offline activation and rollback. PR #39 remains draft. Before a live
-  stack change, retain a verified v3.3.0 copy on a separate device. Before
-  timestamp migration, retain a fresh independent copy and pass the exact
-  offline activation/rollback drill on a disposable WAL-bearing clone with
-  pinned image/database pairs. `foreign_key_check` joins snapshot verification.
-  The known SMB share cannot supply the initial v3.3.0 recovery point, so an
-  approved NAS Docker admin/console route to run `oc db backup` and extract a
-  verified copy is required before the first stack change. Source PR review
-  and CI are distinct from that later operational gate. A guarded offline
-  helper and concrete bootstrap, activation and rollback runbook are now on
-  the source branch. Local disposable SQLite tests preserve committed WAL
-  writes through activation/rollback and exercise interrupted phases. A further
-  adversarial pass corrected incomplete rollback retries, stage retirement,
-  backup publication durability and fail-open shell checks. The Docker/NAS
-  procedure, off-device copy and live release path are **not yet rehearsed**;
-  PR #39 remains draft and production is unchanged.
-  The [2026-09-24 continuation handoff](docs/handoffs/2026-09-24-backup-restore.md)
-  records the verified source checkpoint and next operational prerequisite.
-  A Claude adversarial review of `f65be230` (2026-09-24) found P1 defects that
-  supersede the "no further P0/P1" claim; fixes land on PR #39 in order
-  (assessment revs 221+). Do not merge #39, or tag a release containing it,
-  until they are done: merging changes the nightly backup path.
+- **Backup/restore (design [0017](docs/design/0017-exposed-backup-and-restore.md),
+  draft PR #39).** A Claude adversarial review of `f65be230` (2026-09-24)
+  found P1 defects; their fixes are on the PR (assessment revs 221-226),
+  and the review record is in 0017. The MCP backup tools are **parked**:
+  auth stays disabled, so production restores use the CLI and the offline
+  helper's `stage`/`activate`/`rollback`. Before merge: an independent
+  review of the fix round. Merging changes the nightly backup path, so
+  decide whether it rides v3.4.0. The next operational step is an
+  off-NAS v3.3.0 copy through either bootstrap route in the
+  [runbook](docs/configuration/local_backup_restore.md), before any stack
+  change. The NAS drill also needs a helper image, which waits on the
+  design 0010 release decision or an authorized non-release image.
+  Production is unchanged. Resume from the
+  [handoff](docs/handoffs/2026-09-24-backup-restore.md).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
@@ -241,7 +222,8 @@ query-revision and NAS Host-list source fixes merged.**
   `main` carries, while B/A is inconclusive (options in V3_PLAN item
   8). The version bump and CHANGELOG go in the commit the tag points
   at. The deploy is env-only, because stack 151 runs a detached, older
-  compose (V3_PLAN item 12). Until a deploy, production (v3.3.0) still
+  compose (V3_PLAN item 12). 0017's `/exports` mount is the exception: it
+  needs that compose reconciled, so it is not part of an env-only deploy. Until a deploy, production (v3.3.0) still
   needs 0014's interim control after any NAS, OC or Ollama restart.
 - Source tracks 1 and 3 of [plan 0016](docs/design/0016-review-findings-plan.md)
   entered `main` through PR #34 (merge `7ffc277c`) and PR #35 (merge

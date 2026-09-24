@@ -123,7 +123,7 @@ supply it itself.
 | Trust a filename or JSON manifest from the share. | Strict generated IDs, fixed root, no arbitrary paths, checksum plus read-only integrity check, and validation again after staging. ACLs still gate hostile modification. |
 | Prune the pre-upgrade recovery point during a burst of automatic backups. | Separate `manual/` from `auto/`; automatic retention never touches manual snapshots. |
 | Rename a candidate from the share over `/data/openchronicle.db`. | Rejected: cross-filesystem rename is not atomic. Copy and reverify on the database volume; activate only while stopped. |
-| Ship the timestamp migration in the same release that first creates its backup facility. | Rejected: deploy and restore-drill this capability first. Production v3.3.0 needs an interim console `oc db backup` after the new mount or a separate backup-capability release. |
+| Ship the timestamp migration in the same release that first creates its backup facility. | Rejected: deploy and restore-drill this capability first. Production v3.3.0 needs a verified off-NAS `oc db backup` copy **before** any stack change (superseded wording said "after the new mount"; see the second pass). |
 
 ## Second adversarial pass — release blockers
 
@@ -165,6 +165,34 @@ release, deployment or production restore is claimed.
 | An incomplete snapshot publication could lose a directory entry on power loss or evict a valid artifact under retention. | Fsync the catalog directory after DB/manifest publication; count only complete DB/manifest pairs for automatic retention and leave incomplete/legacy files for review. |
 | A container could restart or Portainer could recreate it during the offline swap. | The runbook requires a recorded maintenance freeze, disables the container restart policy temporarily, checks the same volume for active users before and after each operation, and verifies the recreated container's volume. This is an **operational control**, not a machine-enforced lock against all external actors. Its real NAS behavior must pass the disposable drill before production use. |
 | The bootstrap copy and off-NAS handoff could be mistaken for a verified safety net. | The runbook now checks capacity before two NAS-side copies, verifies snapshot structure and identity read-only, and requires an independently hashed copy on a separate device. The real transfer and access controls remain acceptance evidence to collect. |
+
+## Claude adversarial review of `f65be230` — disposition (2026-09-24)
+
+The review used four dimension reviewers, a completeness critic, a mutation
+run (11 of 25 guards caught) and a local Docker replay of the runbook. Its
+P1 findings overturned the earlier "no further P0/P1" claim. Every finding
+below was reproduced directly.
+
+| Finding | Disposition |
+|---|---|
+| `create()` deleted a snapshot that failed its full `integrity_check`/`foreign_key_check`, so the integrity job's emergency backup of a corrupt store left nothing, and one FK orphan made every nightly backup delete itself. | Fixed (rev 221): quarantined as `*.db.failed-verify`; tests use real corruption and a real orphan. |
+| Merging would ship that to the nightly backup, because `db_backup` uses the catalog unconditionally. | Fixed with the above. Merge still changes the nightly path; the operator decides whether it rides v3.4.0. |
+| A damaged live store wedged activation in `archiving`, with no exit. | Fixed (rev 223, operator decision to automate): the old state is assessed, not required to pass. A plan review first found that the checks raise rather than report, that an empty consolidation passes both checks, and that a read-only open of the live DB changes its sidecars. |
+| Production activation took its inputs from `db_restore_stage`, which cannot register while auth is disabled; the drill's recipe, pasted onto production, would stage the current live DB. | Fixed (rev 224): helper `stage` action with an independently recorded digest; the tools are parked. |
+| The docs scheduled an "auth/client transition" the operator never decided. | Corrected: the tools are parked; no auth change is planned. |
+| A bad backup setting crash-looped the service and every CLI command. | Fixed (rev 222): logged, and each backup fails with no fallback. |
+| A rollback retry refused forever when the candidate was byte-identical to the old state. | Fixed (rev 223). |
+| The drill fence `[[ ... ]] && test ...` did not stop under `set -e`; the blocks assumed one interactive shell. | Fixed (rev 226): each guard is its own command; each block runs as its own file. A replay of every block also found a placeholder that broke bash quoting. |
+| Snapshots kept a WAL header, so a read-only open over SMB made the catalog reject them; every backup left `.tmp-wal`/`.tmp-shm` beside it. | Fixed (rev 221): published in rollback-journal mode. |
+| `restore_plan` returned no verdict; `restore_stage` checked only the schema. | Fixed (rev 225): `stop_reasons`, `memory_delta`; staging refuses on a stop reason. |
+| The nightly backup failed at once on lock contention and lost a day. | Fixed (rev 225): waits up to 600 s. |
+| The "console route" gate was already satisfiable: production mounts the SMB-visible `config` folder at `/config`. | Documented as an operator-chosen route in the runbook. |
+| The drill needs a helper image, which the design 0010 release gate blocks. | Stated in the runbook, V3_PLAN and the handoff. |
+| Status was duplicated across the handoff, AGENTS/CLAUDE, V3_PLAN and this design. | Condensed to pointers; the handoff is corrected. |
+
+After the fixes, mutation runs caught every targeted guard, and both drill
+legs replayed verbatim on Docker Desktop. That is still source evidence:
+the NAS drill, real ACLs and the off-device handoff remain open.
 
 ## Bounded implementation and acceptance sequence
 

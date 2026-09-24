@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 225 (PR #39 review fix: restore stop conditions; scheduled backup waits for the lock)
+**Snapshot date:** 2026-09-24 UTC · **Revision:** 226 (PR #39 review: runbook replayed, docs corrected)
 
 ## Current state
 
@@ -127,15 +127,14 @@ their no-commit/no-push statements are historical, not the current scope.
   fail-closed policy for any unseen naive row, and an intact backup with a
   disposable restore rehearsal remain prerequisites to migration.
 - **Exposed local backup/restore preparation is source-only** ([0017](design/0017-exposed-backup-and-restore.md)).
-  `codex/exposed-backup-tools` adds a separate `/exports/backups` snapshot
-  catalog, optional authenticated HTTP MCP tools, verified staging, and a
-  guarded offline activation/rollback helper. Local disposable tests cover a
-  committed WAL write and interrupted swaps; the exact Docker/NAS command
-  sequence is not yet rehearsed. The detached production stack is unchanged.
-  PR/CI, a release decision under design 0010, host mount/ACL setup, an
-  off-NAS recovery copy and the full NAS restore drill remain before the
-  timestamp migration. V3_PLAN records a separate review of `assets`,
-  `output`, logs and the full storage layout.
+  Draft PR #39 adds a verified snapshot catalog, the `/exports` export mount,
+  and an offline stage/activate/rollback helper. A Claude adversarial review
+  of `f65be230` found P1 defects; revs 221-226 fix them. The MCP backup tools
+  are parked while auth stays disabled. Open: an independent review of the fix
+  round, then merge (it changes the nightly backup path); an off-NAS v3.3.0
+  copy before any stack change; a helper image for the NAS drill (design 0010
+  gate); the NAS drill itself. Production is unchanged. V3_PLAN holds the
+  ordered list and a separate storage-layout review.
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
   Its docs and eight OC milestone memories describe unshipped work;
@@ -317,6 +316,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 226 (branch) | 2026-09-24 | **PR #39 review fix 6: the runbook runs as written, and the records are corrected.** The drill fence `[[ ... ]] && test ...` never stopped under `set -e`, and blocks relied on one interactive shell that the first failed check would close, losing every recorded value. Each guard is now its own command, and each block declares its values and helpers and runs as `bash <file>`; restart policies are printed for the record. The drill creates its candidate with `oc db backup` and the helper's `stage`. The PowerShell custody step no longer reports a false mismatch for a folder destination. A Portainer-console bootstrap route (via the SMB-visible `/config` mount) is documented as an operator choice, and the drill's dependency on a helper image (design 0010) is stated. Every drill block was then replayed verbatim on Docker Desktop, each as its own file, for both legs; that replay caught a placeholder with an apostrophe that broke bash quoting, and confirmed the fence now stops a production volume name. The handoff's "no further P0/P1" claim is corrected; status duplicated across the handoff, AGENTS/CLAUDE and V3_PLAN is reduced to pointers; forward pointers were added to V3_PLAN items 2, 11 and 12 and to 0016 track 2; 0017 records the review's disposition. Source and docs only; NAS drill still open. |
 | 225 (branch) | 2026-09-24 | **PR #39 review fix 5: restore stop conditions, and the scheduled backup no longer loses a day to lock contention.** Design 0017 names an identity mismatch as a stop condition, but `restore_plan` returned both sides with no verdict and `restore_stage` checked only the schema. `restore_plan` now returns `stop_reasons` (a newer schema, or a different project identity) and `memory_delta`, and `restore_stage` refuses on any stop reason. A memory decrease is reported, not refused: restoring an older snapshot is expected to lose later rows. The scheduled `db_backup` now waits up to 600 s for an overlapping catalog operation instead of failing at once, which the loop would not retry for a day; a manual request still answers immediately. Mutation run: 5 of 5 caught. The MCP tools stay parked. Source only. |
 | 224 (branch) | 2026-09-24 | **PR #39 review fix 4: production can stage a restore without the MCP tools.** The runbook took its activation inputs from `db_restore_stage`, which cannot register while auth stays disabled, and there was no other staging route. The only working recipe was the drill's `oc db backup` into `.restore-stage`; pasted onto production, it stages a copy of the current live DB and every identity check passes. The offline helper now has a `stage` action: it strictly verifies a snapshot (standalone, `integrity_check`, `foreign_key_check`), requires `--expected-sha256` from an independent record (a manifest or the off-NAS custody hash), refuses the live family and recovery files, holds one stage slot, and prints the values activation checks. It works from `/data/backups/...` or a read-only bind mount, with the service up or unable to start. The runbook's stage block ran verbatim in local Docker (uid 1000, read-only rootfs, PID-1 guard). A stage failure no longer says the service must stay stopped. Mutation run: 9 of 9 caught. Source only. |
 | 223 (branch) | 2026-09-24 | **PR #39 review fix 3: the offline helper no longer wedges on a damaged live store.** Activation required the old state to pass `integrity_check`/`foreign_key_check`, so a corrupt store or one FK orphan stopped it in phase `archiving`, from which rollback, retirement and re-staging all refused. By operator decision the old state is now assessed, never required to pass; each check and identity query is recorded separately, catching any SQLite error, because the pragmas often raise rather than report. Rollback reinstalls the consolidated copy whenever it is a readable OpenChronicle database, damage included; an unreadable old state (`SQLITE_CORRUPT`/`SQLITE_NOTADB`) or one with no identity (a zero-length main file consolidates to an empty DB that passes both checks) is kept byte-exact in `raw-old`, and rollback is refused rather than installing it. Consolidation now reads a disposable copy of the archive: a read-only open of the live DB could create sidecars and, for a zero-length main file, delete the live WAL. Phase `archiving` can be closed as `abandoned`, which removes a leftover `.incoming-<op>.db`; rollback and retirement also remove it. A retry no longer refuses forever when the candidate is byte-identical to the old state. The plan for this change had its own adversarial pass first, which found the raising pragmas, the empty-DB case and the live-sidecar mutation. New tests use real page corruption, a garbage header, a truncated file and a zero-length main; a mutation run caught 25 of 25, including steps 2 and 4 and every guard that escaped the review's run. Source only. |

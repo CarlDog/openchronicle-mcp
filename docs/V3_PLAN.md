@@ -872,33 +872,26 @@ The README is not a market-positioning document. It states what OC is, what it d
 ### Post-cutover follow-ups (tech debt)
 
 **Exposed backup/restore capability before timestamp migration.** Design
-[0017](design/0017-exposed-backup-and-restore.md) proposes a dedicated
-`/volume1/docker/openchronicle/exports` host directory mounted at `/exports`,
-with snapshots under `/exports/backups`. Its source PR, exact-head CI,
-production mount/auth rollout, and an independently read and restored NAS
-snapshot are separate gates. A second adversarial pass found that the first
-drill did not rehearse offline activation/rollback and `/exports` is on the
-same NAS as the live volume. Before changing the live stack, retain a verified
-v3.3.0 copy on a separate device; before timestamp migration, repeat that with
-a fresh snapshot and pass the exact offline activation/rollback drill on a
-disposable WAL-bearing clone using pinned image/database pairs. The guarded
-offline cutover helper and operator runbook are drafted and locally exercised
-on disposable WAL databases. An independent adversarial pass closed
-rollback-retry, stage-retirement, publication-durability and fail-open
-shell-guard gaps. The exact Docker/NAS sequence remains to be rehearsed on a
-disposable volume and independently checked. Do not run the
-timestamp migration merely because the PR is green. The detached stack and
-design 0010 release gate still require an operator decision. The only known
-SMB share does not expose the DB or old backups; a NAS Docker admin/console
-path to run v3.3.0's existing `oc db backup` and extract its artifact is a
-bootstrap prerequisite before changing the stack. Source PR review can finish
-before this operational gate, but source merge cannot satisfy it. The
-[2026-09-24 continuation handoff](handoffs/2026-09-24-backup-restore.md)
-records the exact source checkpoint and resume order.
-A Claude adversarial review of `f65be230` (2026-09-24) found P1 defects; fixes
-land on PR #39 in order (assessment revs 221+). Do not merge #39, or tag a
-release containing it, until they are done: `db_backup` routes the nightly
-backup through the new catalog unconditionally.
+[0017](design/0017-exposed-backup-and-restore.md), draft PR #39, runbook
+[local_backup_restore.md](configuration/local_backup_restore.md). Status lives
+in the assessment (revs 217-226). Open, in order:
+
+1. Independent review of the fix round that answered the 2026-09-24 Claude
+   review (revs 221-226); then merge. Merging changes the nightly backup
+   path (catalogued, verified, failures quarantined), so the operator
+   decides whether it rides v3.4.0.
+2. Off-NAS v3.3.0 copy before any stack change, through NAS Bash or the
+   Portainer console route in the runbook.
+3. Helper image for the NAS drill: a release (blocked by design 0010) or an
+   authorized non-release image.
+4. NAS drill (normal and aborted legs), independently reviewed.
+5. Before the timestamp migration: a fresh off-NAS copy and an old/new
+   image-pair rehearsal.
+
+The MCP backup tools are parked while auth stays disabled (operator,
+2026-09-24); no auth change is planned. The `/exports` mount needs the
+detached compose reconciled (item 12); without it, `OC_BACKUP_DIR` stays
+unset and catalogued auto backups remain in `/data/backups/auto`.
 
 **Persistent storage architecture review — later, separate from 0017.**
 Inventory the whole `/volume1/docker/openchronicle` tree and the live named
@@ -936,6 +929,8 @@ entry (below, or in its design doc):
    Folder probe, age keypairs, key escrow, two-key decrypt drill.
    Needs the operator at a desktop; the only item whose downside is
    data loss. Per 0007's rule: not done until a restore is drilled.
+   The off-NAS copy from 0017's bootstrap (see the backup entry above)
+   is a ready input for that drill.
 3. **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
    sibling driving N simulated clients (mixed search/save/list)
    against a store, reporting latency percentiles vs N — the
@@ -1057,6 +1052,7 @@ entry (below, or in its design doc):
     raw SQLite inspection or an immutable backup. Recheck the raw backup;
     an unseen naive row must not be silently interpreted. The input
     compatibility/version decision and backup/restore rehearsal remain gates.
+    Those gates are the 0017 sequence in the backup entry above.
 12. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     Measured read-only 2026-09-23. Portainer's stored file predates
@@ -1072,7 +1068,8 @@ entry (below, or in its design doc):
     a future metrics profile still requires an explicit API list with
     external hosts plus `oc:*`. Adoption needs the plan 0016 access check.
     The stored compose keeps the old `OC_LOG_FILE` default, and the stack env
-    does not set that variable. So the v3.4.0 deploy stays env-only:
+    does not set that variable. 0017's `/exports` bind mount is the one
+    change that cannot ship env-only. So the v3.4.0 deploy stays env-only:
     move `OC_TAG` and set `OC_LOG_FILE=/output/logs/openchronicle.log`
     in one `portainer_set_stack_env` call. Operator decision:
     reconcile the repo compose with the live shape, or re-attach the
