@@ -183,9 +183,10 @@ python -c "import pathlib,sqlite3,sys; p=pathlib.Path(sys.argv[1]).as_posix(); c
 Expect `('ok',) None (<schema>,) (<count>,)`. Then, in the console, delete
 `/config/pre-change-<STAMP>.db` and the `.db.tmp-wal` and `.db.tmp-shm` files
 v3.3.0 leaves beside every backup (`ls -la /config` afterwards should show
-no `pre-change-*`). The `docker` share has a Synology recycle bin, which keeps
-deleted files: remove them from `\\carldog-nas\docker\#recycle\openchronicle\config\`
-too, or the plaintext copies survive there (seen 2026-09-24). This route is an operator decision: it
+no `pre-change-*`). The `docker` share's Synology recycle bin keeps deleted
+files in `\\carldog-nas\docker\#recycle\openchronicle\config\` until its
+retention clears them (seen 2026-09-24; the operator accepts that). Empty it
+by hand only if the copies must not linger. This route is an operator decision: it
 avoids a NAS shell and any stack edit, at the cost of that brief exposure.
 
 ## Enable and use the MCP surface
