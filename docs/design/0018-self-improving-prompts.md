@@ -24,6 +24,15 @@ So the goal is not a store of saved prompts. It is prompts that **get better
 the more they are used**, with OpenChronicle carrying the memory of what
 worked.
 
+A second goal followed the same day:
+
+> "My hope is that not only do our prompts improve with use over time, but
+> we possibly could save on tokens and the time spent on LLMs trying to
+> create an appropriate prompt to generate the content or data we ask for."
+
+So the library should also be **cheaper and faster** than working out a
+prompt from scratch each time (see [Efficiency](#the-second-goal-efficiency)).
+
 ## How this changes 0015
 
 0015 designed a curated, versioned library and treated feedback as optional:
@@ -61,7 +70,9 @@ keeping prompts out of `memory_search` ranking, and the staged, gated path.
      of the prompt;
    - where possible, a *checkable* signal (tests passed, the operator
      accepted the result, a follow-up correction was needed) rather than
-     the agent's own opinion.
+     the agent's own opinion;
+   - the cost: tokens, time and the number of attempts (see
+     [Efficiency](#the-second-goal-efficiency)).
 3. **Improvements are proposed as small edits.** A new version records its
    parent and the change, typically a targeted change to the part that
    failed. It is never a wholesale rewrite.
@@ -94,6 +105,51 @@ The evidence supports the idea and names its failure modes:
 
 Hence the concepts above: small edits, checkable outcomes, versions that
 compete on evidence, and human promotion.
+
+### The second goal: efficiency
+
+A proven prompt, fetched and reused, can replace work that currently costs
+tokens and time on every task:
+
+- **Prompt construction.** An agent drafting a brief or instructions from
+  scratch: for a subagent, a generation request or a data-extraction
+  format.
+- **Iteration.** The first attempt misses, the output is corrected, and the
+  request is re-run. A refined prompt should need fewer rounds.
+- **Re-derivation.** Rediscovering constraints the last run already learned
+  ("return JSON with these fields", "don't include X").
+
+It can also make provider-side prompt caching work better: a long, stable,
+reused prompt is the kind of byte-identical prefix that Anthropic, OpenAI,
+Gemini and Ollama cache for reduced cost and latency (0015 §1).
+
+**Making it measurable.** Record per use:
+
+- input and output tokens;
+- wall-clock time;
+- the number of attempts or corrections before the result was accepted.
+
+Then compare tasks run with a library prompt against comparable tasks run
+without one, and one prompt version against the next. The improvement loop
+then optimizes for quality *and* cost. A new version that works as well but
+needs fewer tokens or fewer retries is also an improvement.
+
+**Where the savings might not be real:**
+
+- Fetching a prompt costs a tool call plus the prompt's own tokens. A long
+  prompt re-sent on every use can cost more than a short one an agent writes
+  itself; the savings come from fewer attempts and less drafting, not from
+  the fetch.
+- Provider caching only helps a prefix that is byte-stable and long enough
+  (roughly 1,024-4,096 tokens, depending on the provider). MCP prompts
+  arrive as user messages after the client's own system prompt, so most
+  library prompts will not be cached; the ones that are system prompts for
+  API callers can be.
+- Dynamic content (dates, counts, a changing catalogue) placed early in a
+  prompt, or in OC's tool descriptions, breaks every client's cache. Keep
+  variable parts last (0015 §1).
+- With few runs per prompt, token and time comparisons are noisy; record the
+  raw counts rather than claiming a percentage too early.
 
 ### Honest limits
 
@@ -136,7 +192,9 @@ for about two weeks and note reuse. To test this idea as well, for each
 prompt reused, note:
 
 - whether it worked, and what failed or needed correcting;
-- what changed in the next use, and whether that helped.
+- what changed in the next use, and whether that helped;
+- roughly how many attempts it took, and whether it saved drafting or
+  rework compared with starting from scratch.
 
 **Exit:** evidence that recorded outcomes actually led to better prompts, or
 an honest "they did not", which is a result worth recording.
@@ -153,6 +211,9 @@ the MCP prompt primitive, trust and procedural memory. Not yet covered:
   versions, and how they decide a version is better.
 - **Evaluation at small N:** how to compare two prompt versions honestly
   with few runs, and which checkable signals agents can report.
+- **Cost accounting:** which clients expose per-request token and timing
+  counts that an agent could report, and how existing prompt-management
+  tools attribute cost to prompt versions.
 
 ## Where this is tracked
 
