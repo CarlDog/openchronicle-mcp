@@ -881,8 +881,12 @@ drill did not rehearse offline activation/rollback and `/exports` is on the
 same NAS as the live volume. Before changing the live stack, retain a verified
 v3.3.0 copy on a separate device; before timestamp migration, repeat that with
 a fresh snapshot and pass the exact offline activation/rollback drill on a
-disposable WAL-bearing clone using pinned image/database pairs. The cutover
-procedure remains to be implemented, reviewed and rehearsed. Do not run the
+disposable WAL-bearing clone using pinned image/database pairs. The guarded
+offline cutover helper and operator runbook are drafted and locally exercised
+on disposable WAL databases. An independent adversarial pass closed
+rollback-retry, stage-retirement, publication-durability and fail-open
+shell-guard gaps. The exact Docker/NAS sequence remains to be rehearsed on a
+disposable volume and independently checked. Do not run the
 timestamp migration merely because the PR is green. The detached stack and
 design 0010 release gate still require an operator decision. The only known
 SMB share does not expose the DB or old backups; a NAS Docker admin/console

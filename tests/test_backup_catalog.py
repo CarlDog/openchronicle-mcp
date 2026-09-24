@@ -43,6 +43,8 @@ def test_create_list_verify_and_stage_without_replacing_live_db(tmp_path: Path) 
         assert catalog.list() == [created]
         assert catalog.verify(created["artifact_id"])["verified"] is True
         snapshot, _ = catalog._paths(created["artifact_id"])
+        assert not Path(f"{snapshot}-wal").exists()
+        assert not Path(f"{snapshot}-shm").exists()
         disposable = tmp_path / "drill" / "openchronicle.db"
         disposable.parent.mkdir()
         shutil.copy2(snapshot, disposable)
@@ -65,12 +67,26 @@ def test_create_list_verify_and_stage_without_replacing_live_db(tmp_path: Path) 
         stage = catalog.restore_stage(created["artifact_id"])
         assert stage["restored"] is False
         staged = next((tmp_path / "private" / ".restore-stage").glob("*.db"))
+        assert not Path(f"{staged}-wal").exists()
+        assert not Path(f"{staged}-shm").exists()
         with sqlite3.connect(staged) as candidate:
             assert candidate.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
             assert candidate.execute("SELECT count(*) FROM memory_items").fetchone()[0] == 1
         assert store.count_memory() == 2
         with pytest.raises(BackupCatalogError, match="already staged"):
             catalog.restore_stage(created["artifact_id"])
+    finally:
+        store.close()
+
+
+def test_verify_rejects_artifact_with_sidecars(tmp_path: Path) -> None:
+    store, catalog = _catalog(tmp_path)
+    try:
+        created = catalog.create("manual")
+        db, _ = catalog._paths(created["artifact_id"])
+        Path(f"{db}-wal").write_bytes(b"unexpected")
+        with pytest.raises(BackupCatalogError, match="standalone SQLite file"):
+            catalog.verify(created["artifact_id"])
     finally:
         store.close()
 
@@ -200,7 +216,13 @@ def test_auto_retention_prunes_manifest_with_snapshot(tmp_path: Path) -> None:
         db.with_suffix(".json").write_text(json.dumps({"index": index}), encoding="utf-8")
         db.touch()
         os.utime(db, (index, index))
+    incomplete = directory / "openchronicle-incomplete.db"
+    incomplete.write_bytes(b"unpublished")
+    os.utime(incomplete, (4, 4))
     _retention_prune(directory, keep=1)
     for db in directory.glob("*.db"):
+        if db == incomplete:
+            continue
         assert db.with_suffix(".json").exists()
-    assert len(list(directory.glob("*.db"))) == 1
+    assert len([db for db in directory.glob("*.db") if db != incomplete]) == 1
+    assert incomplete.exists()

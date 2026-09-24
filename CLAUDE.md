@@ -214,7 +214,14 @@ query-revision and NAS Host-list source fixes merged.**
   The known SMB share cannot supply the initial v3.3.0 recovery point, so an
   approved NAS Docker admin/console route to run `oc db backup` and extract a
   verified copy is required before the first stack change. Source PR review
-  and CI are distinct from that later operational gate.
+  and CI are distinct from that later operational gate. A guarded offline
+  helper and concrete bootstrap, activation and rollback runbook are now on
+  the source branch. Local disposable SQLite tests preserve committed WAL
+  writes through activation/rollback and exercise interrupted phases. A further
+  adversarial pass corrected incomplete rollback retries, stage retirement,
+  backup publication durability and fail-open shell checks. The Docker/NAS
+  procedure, off-device copy and live release path are **not yet rehearsed**;
+  PR #39 remains draft and production is unchanged.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

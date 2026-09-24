@@ -51,7 +51,15 @@ def _retention_prune(directory: Path, keep: int) -> None:
     and evicted the week-old backup that matters after discovering
     corruption. Worst-case files retained: 2 × ``keep``.
     """
-    candidates = sorted(directory.glob("*.db"), key=lambda p: p.stat().st_mtime, reverse=True)
+    # A database file without its manifest was never published as a usable
+    # artifact. Do not let an interrupted publication evict a valid recovery
+    # point from either retention set. Preserve old manifestless files for
+    # explicit operator review rather than deleting them implicitly.
+    candidates = sorted(
+        (path for path in directory.glob("*.db") if path.with_suffix(".json").is_file()),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
     keep_set: set[Path] = set(candidates[:keep])
     newest_per_day: dict[str, Path] = {}
     for path in candidates:  # newest-first, so the first hit per day wins

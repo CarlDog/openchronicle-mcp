@@ -60,10 +60,24 @@ class BackupCatalog:
         return digest.hexdigest()
 
     @staticmethod
+    def _fsync_dir(path: Path) -> None:
+        if os.name == "nt":  # Production container is Linux; Windows runs tests.
+            return
+        fd = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+    @staticmethod
     def _inspect(path: Path) -> dict[str, int | str]:
         if path.is_symlink() or not path.is_file():
             raise BackupCatalogError("Backup artifact is not a regular file")
-        uri = f"file:{path.as_posix()}?mode=ro"
+        if any(Path(f"{path}{suffix}").exists() for suffix in ("-wal", "-shm")):
+            raise BackupCatalogError("Backup artifact must be a standalone SQLite file")
+        # Published snapshots never rely on a WAL. Immutable readback does not
+        # create new sidecars beside an otherwise verified artifact.
+        uri = f"file:{path.as_posix()}?mode=ro&immutable=1"
         try:
             conn = sqlite3.connect(uri, uri=True)
             try:
@@ -101,6 +115,7 @@ class BackupCatalog:
                 out.flush()
                 os.fsync(out.fileno())
             os.replace(temp, path)
+            BackupCatalog._fsync_dir(path.parent)
         finally:
             temp.unlink(missing_ok=True)
 
@@ -123,6 +138,7 @@ class BackupCatalog:
                 self.store.backup_to(db)
                 with db.open("r+b") as snapshot:
                     os.fsync(snapshot.fileno())
+                self._fsync_dir(directory)
                 metadata: dict[str, Any] = {
                     "artifact_id": artifact_id,
                     "created_at": utc_now().isoformat(),
@@ -228,6 +244,7 @@ class BackupCatalog:
                 if any(candidate.get(key) != value for key, value in actual.items()):
                     raise BackupCatalogError("Staged candidate differs from verified backup")
                 os.replace(temp, final)
+                self._fsync_dir(stage_dir)
             finally:
                 temp.unlink(missing_ok=True)
             return {

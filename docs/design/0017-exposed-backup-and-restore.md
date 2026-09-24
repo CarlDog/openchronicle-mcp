@@ -3,7 +3,7 @@
 **Status:** Operator-requested implementation plan; source/PR and production
 acceptance tracked separately · **Date:** 2026-09-23 · **Precedes:** design
 0016 track 2, the timestamp migration. **Second adversarial pass:**
-2026-09-24 UTC.
+2026-09-24 UTC. **Offline-procedure adversarial pass:** 2026-09-24 UTC.
 
 ## Problem and decision
 
@@ -66,12 +66,21 @@ The final restore is deliberately **offline**. A serving process has an open
 WAL-mode connection; replacing its file from an MCP request risks old WAL/SHM
 sidecars and concurrent writes. Quiesce writes, take and verify a pre-restore
 snapshot while the service still runs if it is healthy enough, then stop every
-writer. Keep the old database **and its WAL/SHM state together** for rollback;
-verify and activate the staged candidate on the database volume, restart the
-appropriate pinned image, and independently check health, schema, counts,
-search and selected IDs. If the live store is already damaged, use a previously
-verified recovery point; do not make a fresh snapshot a prerequisite that
-prevents recovery. `db_restore_stage` is not a claim that a restore happened.
+writer. A standalone helper, run as PID 1 of a network-isolated disposable
+container with only the verified data volume, archives the old database **and
+its WAL/SHM state together**, consolidates and verifies an old-state rollback
+snapshot, copies the staged candidate on the same volume, moves old sidecars,
+then atomically replaces the main file. It records durable recovery phases;
+rollback first archives the forward state and verifies its checksums. A
+partial forward archive fails closed. The helper refuses the live service's
+`docker exec` context. Restart the appropriate pinned image and independently
+check health, schema, counts, search and selected IDs. If the live store is
+already damaged, use a previously verified recovery point; do not make a fresh
+snapshot a prerequisite that prevents recovery. A corrupt old DB may prevent
+the normal helper from making its consolidated rollback copy; that emergency
+case requires a separately reviewed manual recovery from the raw triplet and
+off-NAS artifact, never a forced helper flag. `db_restore_stage` is not a
+claim that a restore happened.
 Do not use an MCP `confirm=true` as final authority: an autonomous client could
 supply it itself.
 
@@ -96,13 +105,13 @@ recovery. The following are P0 gates, not optional follow-ups:
 | Failure attempt | Required evidence before timestamp work |
 |---|---|
 | The NAS or its volume fails after a successful local snapshot. | Retain at least one verified, independently hashed copy outside the NAS failure domain before changing the live stack, and a fresh one immediately before migration. The `/exports` share is access, not an independent backup. Record its custody and do not prune it until rollback is retired. |
-| The disposable copy opens, but the actual offline replacement fails or reattaches an old WAL. | Rehearse the **exact** stop, sidecar-preservation, same-volume activation, restart, validation and rollback procedure on a disposable clone with pending WAL writes. The activation procedure or utility must be reviewed and repeatable before any production migration. Opening a separate copy and `db_restore_stage` alone do not pass this gate. |
+| The disposable copy opens, but the actual offline replacement fails or reattaches an old WAL. | Rehearse the **exact** [offline helper procedure](../configuration/local_backup_restore.md#offline-activation-and-rollback) on a disposable clone with a deliberately retained nonempty WAL, including activation, restart, validation and rollback. Opening a separate copy and `db_restore_stage` alone do not pass this gate. |
 | The replacement opens under the wrong image and immediately migrates again. | Pin and retain the pre-upgrade and candidate image tags/digests; test forward startup and rollback startup with the corresponding image and database pair. Compare schema before and after each start. |
 | `integrity_check` reports `ok` for orphaned rows. | Verify `foreign_key_check` as well; reject an artifact if either check fails, and cover the distinction in a regression test. |
 | A snapshot from a different instance has a valid manifest. | Record the expected source environment, schema, project-ID fingerprint, selected memory IDs and counts. Treat any identity mismatch or unexplained row decrease as a stop condition; a hash proves file integrity, not that this is the intended corpus. |
 | The first rollout of the backup facility itself goes wrong. | Produce and independently retain a v3.3.0 recovery copy **before** modifying the detached stack or starting the new image. Record the old stack definition, env, image digest, mounts and rollback procedure. Resolve design 0010's release gate explicitly rather than treating this PR's green CI as approval to ship. |
 | The operator can only reach the SMB share, which has no database or old backups. | This is a current bootstrap blocker. Obtain an approved NAS Docker admin/console path, run the existing v3.3.0 `oc db backup` against the live container, extract the resulting snapshot without raw-copying the live WAL database, then hash, open and retain it off-NAS. Do not change the stack first merely to expose the volume. Record the actual container/volume/path discovered at execution time. |
-| A successful drill depends on undocumented manual improvisation. | Freeze a runbook with exact, separately reviewed commands, operator/checker roles, expected outputs, stop conditions and rollback triggers; execute it twice on disposable copies, including one aborted or failed activation. Record the artifacts and elapsed recovery time. |
+| A successful drill depends on undocumented manual improvisation. | The guarded [runbook](../configuration/local_backup_restore.md) supplies bootstrap, helper activation and rollback commands with identity checks, expected phases and stop conditions. Have an independent checker review the filled values and outputs, then execute twice on disposable copies, including one aborted activation. Record artifacts and elapsed recovery time. Local tests do not substitute for the NAS drill. |
 
 Source PR review and exact-head CI can complete before NAS rollout; merging
 source does not satisfy operational acceptance. Before a release or stack
@@ -112,6 +121,22 @@ recovery rehearsal must pass. PR #39 is **not** a safety net on its own.
 SQLite documents that the WAL is part of the database's persistent state and
 cannot be discarded just because the main file exists:
 [WAL file handling](https://www.sqlite.org/wal.html#the_wal_file).
+
+## Offline-procedure adversarial pass — disposition
+
+The independently reviewed helper and operator procedure produced further
+failure cases. This pass reviews the *source procedure*; no Docker/NAS drill,
+release, deployment or production restore is claimed.
+
+| Finding | Disposition |
+|---|---|
+| A rollback retry could trust a partial forward archive or silently discard new WAL writes. | Archive and checksum each forward-state member before setting `rolling_back`; reject incomplete archives. On retry, compare current/displaced WAL and SHM with recorded checksums, and fail closed on reappearance or modification. Disposable tests cover interrupted activation, interrupted rollback and a tampered displaced WAL. |
+| A successful activation left `*.db` in `.restore-stage`, blocking every future stage. | A guarded `retire-stage` action verifies the recorded candidate and completed operation phase, then records two-phase retirement. It removes only the staged copy after operator acceptance; recovery and exported artifacts remain. |
+| The shell's `test -z "$(docker ps ...)"` could pass after a Docker query failure. | Assign the Docker output first under `set -e`, then test it. Recheck before each apply and after completion. Rollback and stage retirement now have self-contained, re-identifying commands for a new shell. |
+| A graceful stop after the deliberate WAL write could erase the very condition the drill meant to test. | Stop the disposable service first, then use an abruptly exited separate writer and assert a nonempty WAL immediately before activation. The runbook includes a disposable volume setup and deterministic aborted-swap injection. |
+| An incomplete snapshot publication could lose a directory entry on power loss or evict a valid artifact under retention. | Fsync the catalog directory after DB/manifest publication; count only complete DB/manifest pairs for automatic retention and leave incomplete/legacy files for review. |
+| A container could restart or Portainer could recreate it during the offline swap. | The runbook requires a recorded maintenance freeze, disables the container restart policy temporarily, checks the same volume for active users before and after each operation, and verifies the recreated container's volume. This is an **operational control**, not a machine-enforced lock against all external actors. Its real NAS behavior must pass the disposable drill before production use. |
+| The bootstrap copy and off-NAS handoff could be mistaken for a verified safety net. | The runbook now checks capacity before two NAS-side copies, verifies snapshot structure and identity read-only, and requires an independently hashed copy on a separate device. The real transfer and access controls remain acceptance evidence to collect. |
 
 ## Bounded implementation and acceptance sequence
 
@@ -123,7 +148,8 @@ cannot be discarded just because the main file exists:
    registration, path traversal, tampering, incomplete artifacts, concurrent
    creation, schema mismatch, and stage re-verification. Keep the default MCP
    tool inventory unchanged.
-3. Verify locally with disposable WAL-mode databases, interrupted writes,
+3. Verify locally with disposable WAL-mode databases, an abruptly exited WAL
+   writer, offline activation and rollback, interrupted activation/rollback,
    round-trip restore to a *separate* database, relational integrity checks,
    and the repository's required full checks. PR #39 can pass source review
    independently of NAS acceptance; exact-head CI must pass after every source

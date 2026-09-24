@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 218 (backup plan adversarial pass)
+**Snapshot date:** 2026-09-24 UTC · **Revision:** 219 (offline restore procedure and adversarial pass)
 
 ## Current state
 
@@ -25,7 +25,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Full Windows suite: **1,150 passed, one Linux-only skip** on the NAS Host-list branch; two rendered-compose cases ran locally without a Docker daemon. PR #35 Windows/Ubuntu tests, quality, CodeQL and secret scan passed on head `87b891ed` (Windows on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality and image smoke/publish passed on merge `77ea0173`. Focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1 for the earlier metrics integration, including the native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) |
+| Tests | Backup branch full Windows suite: **1,169 passed, one Linux-only skip** on the current uncommitted helper draft; Ruff, mypy and Markdown are separate checks. PR #39 exact-head CI has not yet run for this revision. PR #35 Windows/Ubuntu tests, quality, CodeQL and secret scan passed on head `87b891ed` (Windows on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality and image smoke/publish passed on merge `77ea0173`. Focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1 for the earlier metrics integration, including the native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
@@ -126,11 +126,14 @@ their no-commit/no-push statements are historical, not the current scope.
   disposable restore rehearsal remain prerequisites to migration.
 - **Exposed local backup/restore preparation is source-only** ([0017](design/0017-exposed-backup-and-restore.md)).
   `codex/exposed-backup-tools` adds a separate `/exports/backups` snapshot
-  catalog, optional authenticated HTTP MCP tools, and verified staging without
-  live replacement. The detached production stack is unchanged. PR/CI, a
-  release decision under design 0010, host mount/ACL setup, and an independently
-  restored NAS artifact remain before the timestamp migration. V3_PLAN records
-  a separate review of `assets`, `output`, logs and the full storage layout.
+  catalog, optional authenticated HTTP MCP tools, verified staging, and a
+  guarded offline activation/rollback helper. Local disposable tests cover a
+  committed WAL write and interrupted swaps; the exact Docker/NAS command
+  sequence is not yet rehearsed. The detached production stack is unchanged.
+  PR/CI, a release decision under design 0010, host mount/ACL setup, an
+  off-NAS recovery copy and the full NAS restore drill remain before the
+  timestamp migration. V3_PLAN records a separate review of `assets`,
+  `output`, logs and the full storage layout.
 - **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
   adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
   Its docs and eight OC milestone memories describe unshipped work;
@@ -312,6 +315,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 219 (branch) | 2026-09-24 | **Offline activation/rollback procedure and adversarial pass.** A disposable PID-1 helper verifies the staged candidate, archives the raw old DB/WAL/SHM, consolidates a rollback snapshot, activates on the same volume, records recovery phases, and can roll back or retire the stage. Local WAL and interruption tests exercise those paths. Catalog readback is immutable; publication directory entries are fsynced, and retention excludes incomplete artifact pairs. The operator runbook now details v3.3.0 bootstrap, off-NAS verification, disposable clone, cutover and rollback commands. Independent review corrected a fail-open Docker guard, restart/identity controls, rollback retry and stage lifecycle; its final pass found no further P0/P1 source defect. Full Windows suite: 1,169 passed, one Linux-only skip; source checks passed. Docker/NAS rehearsal, release and production acceptance remain open; PR #39 is draft. |
 | 218 (branch) | 2026-09-24 | **Second adversarial pass of design 0017.** The first disposable drill opened a copy but did not rehearse offline activation or rollback, and `/exports` is on the same NAS as the live volume. The plan now requires a verified off-NAS v3.3.0 copy before stack changes, a fresh independent copy before timestamp migration, and an exact offline activation/rollback drill on a WAL-bearing disposable clone with pinned image/database pairs. The only known SMB share cannot expose the initial copy: an approved NAS Docker admin/console path to run the existing v3.3.0 backup command and extract its artifact is a bootstrap prerequisite. SQLite's `integrity_check` misses foreign-key violations, so the catalog now also rejects a failing `foreign_key_check` and has a regression test. PR #39 remains draft; no live recovery or timestamp migration is claimed. |
 | 217 (branch) | 2026-09-23 | **Exposed local backup and guarded restore preparation (design 0017).** Source branch adds a fixed-root online SQLite snapshot catalog, SHA-256/integrity manifests, auto sidecar retention, preserved manual artifacts, optional authenticated HTTP MCP create/list/verify/plan/stage tools, and a separate `/exports` host mount. Staging does not replace the live WAL database. The design records adversarial failure cases and the NAS drill. Full local suite: 1,161 passed, one Linux-only skip; Ruff, mypy, Markdown lint and rendered compose validation passed. PR/CI status is separate; no release, production mount, tool enablement, or timestamp migration occurred. The full persistent-storage architecture remains a separate review item. |
 | 216 (branch) | 2026-09-23 | **Read-only production timestamp inventory (design 0016 track 2).** `memory_list(compact=true, order_by="created_at")` returned 1,080 rows, matching `memory_stats`: 987 UTC and 93 nonzero-offset `created_at` values (90 `-05:00`, three `-06:00`). Of `updated_at` values, 771 were null and 309 UTC. `project_list(compact=true)` returned 39 UTC-aware creation timestamps. No naive or malformed values surfaced through these API responses; 24 adjacent pairs in the chronological list are inverted by actual instant. No content was analyzed. API serialization is not raw SQLite inspection, and concurrent writes can change counts. The production DB is in a named Docker volume that the available filesystem MCP does not expose. Backup/restore and input-version decisions remain; no data or runtime change occurred. |

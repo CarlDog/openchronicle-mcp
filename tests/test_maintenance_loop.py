@@ -552,6 +552,7 @@ def test_retention_keeps_newest(tmp_path: Path) -> None:
     for i in range(10):
         p = backup_dir / f"old-{i}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         os_time = base - (10 - i) * 60
         os.utime(p, (os_time, os_time))
         paths.append(p)
@@ -588,11 +589,13 @@ def test_retention_burst_cannot_evict_older_days(tmp_path: Path) -> None:
     for d in range(6, 0, -1):
         p = backup_dir / f"day-{d}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         os.utime(p, (now - d * day, now - d * day))
     # ...plus a burst of four backups today.
     for i in range(4):
         p = backup_dir / f"today-{i}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         ts = now - (4 - i) * 60
         os.utime(p, (ts, ts))
 
