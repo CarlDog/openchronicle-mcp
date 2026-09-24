@@ -4,6 +4,11 @@
 ADR. Nothing here changes current behavior until
 [CODEBASE_ASSESSMENT.md](../CODEBASE_ASSESSMENT.md) records it as shipped.
 
+**Operator intent, 2026-09-24:** the goal is prompts that keep improving
+from tracked outcomes, not a static library. That makes outcome signals
+core rather than a Stage 2 add-on. See
+[0018 — Self-improving prompts](0018-self-improving-prompts.md).
+
 **Assessment date:** 2026-09-22 (America/Chicago).
 
 **Baseline:** `main` at `429f137a` (release `v3.3.0` plus the unreleased
@@ -515,7 +520,10 @@ Negative results are recorded, not buried.
    (Claude Code's `UserPromptSubmit`) would add per-turn latency and
    privacy and secret exposure.
 6. **Outcome signals.** Add `prompt_feedback`, which revisits the dropped
-   telemetry decision, or rely on human curation only?
+   telemetry decision, or rely on human curation only? **Answered
+   2026-09-24:** outcome signals are the core of the feature, because the
+   operator wants prompts that improve with use; see
+   [0018](0018-self-improving-prompts.md).
 7. **Tool budget.** Is 18 → 22 tools acceptable?
 8. **Draft retention.** Keep drafts forever, or expire unapproved drafts,
    as OWASP ASI06 suggests?
