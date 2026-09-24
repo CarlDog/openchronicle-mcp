@@ -396,8 +396,23 @@ test -z "$USERS"
 
 Keep the service stopped if either call fails or
 the `state.json` phase is not `activated`. The helper keeps the original raw
-DB/WAL/SHM in `/data/.recovery/$OP/raw-old`, and a separately verified,
-consolidated `old-consistent.db` for rollback. It copies the candidate on the
+DB/WAL/SHM in `/data/.recovery/$OP/raw-old`, and a consolidated
+`old-consistent.db` for rollback, with the old state's integrity, foreign-key
+and identity verdicts under `old_state` in `state.json`. A damaged live store
+does not block activation; read `old_state` before relying on rollback.
+
+What a stopped phase means:
+
+- `archiving`: the main database file was never replaced, and the helper read
+  the live family only by byte copy. `offline rollback ... --apply` records
+  phase `abandoned` and removes any leftover `.incoming-$OP.db`; then start
+  the service, or activate again under a new operation ID.
+- `prepared`: the old sidecars may already be displaced. Keep the service
+  stopped and run rollback.
+- `activated` with `old_state.rollback_available: false`: SQLite could not
+  read the old state, so rollback is refused and `raw-old` holds it
+  byte-exact. To change what is live, activate another verified artifact
+  under a new operation ID. It copies the candidate on the
 same volume, moves old sidecars away, then atomically replaces the main DB.
 Never copy an external file directly over the live DB. Start the **recorded
 matching image** through the reviewed Portainer stack procedure; for a
@@ -459,7 +474,8 @@ USERS=$(docker ps -q --filter "volume=$VOL")
 test -z "$USERS"
 ```
 
-The rollback dry-run verifies the consolidated old snapshot. The apply step
+The rollback dry-run checks the consolidated old snapshot against its
+recorded SHA-256 and prints the recorded `old_state` verdicts. The apply step
 archives the forward DB family before replacement and writes phase
 `rolled_back`. If it is interrupted, leave all services stopped. A retry is
 allowed only when the forward archive and checksums are complete; a partial

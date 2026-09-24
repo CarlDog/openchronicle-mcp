@@ -81,19 +81,34 @@ sidecars and concurrent writes. Quiesce writes, take and verify a pre-restore
 snapshot while the service still runs if it is healthy enough, then stop every
 writer. A standalone helper, run as PID 1 of a network-isolated disposable
 container with only the verified data volume, archives the old database **and
-its WAL/SHM state together**, consolidates and verifies an old-state rollback
-snapshot, copies the staged candidate on the same volume, moves old sidecars,
+its WAL/SHM state together**, consolidates an old-state rollback snapshot
+from a disposable copy of that archive (SQLite never opens the live files, so
+even a read-only open cannot create or delete their sidecars), copies the
+staged candidate on the same volume, moves old sidecars,
 then atomically replaces the main file. It records durable recovery phases;
 rollback first archives the forward state and verifies its checksums. A
 partial forward archive fails closed. The helper refuses the live service's
 `docker exec` context. Restart the appropriate pinned image and independently
 check health, schema, counts, search and selected IDs. If the live store is
 already damaged, use a previously verified recovery point; do not make a fresh
-snapshot a prerequisite that prevents recovery. A corrupt old DB may prevent
-the normal helper from making its consolidated rollback copy; that emergency
-case requires a separately reviewed manual recovery from the raw triplet and
-off-NAS artifact, never a forced helper flag. `db_restore_stage` is not a
-claim that a restore happened.
+snapshot a prerequisite that prevents recovery.
+
+**A damaged live store does not block activation** (operator decision,
+2026-09-24; this replaces the earlier "manual recovery from the raw
+triplet" rule, which in practice wedged the helper in phase `archiving`).
+The old state is assessed, never required to pass: integrity, foreign keys
+and identity are recorded separately in `state.json`, and an SQLite error
+from any of them is a verdict. Rollback reinstalls the consolidated copy
+whenever it is recognisably an OpenChronicle database, faithfully including
+any damage. If SQLite cannot read the old state at all (`SQLITE_CORRUPT` or
+`SQLITE_NOTADB` while consolidating), or the copy has no readable identity
+(for example a zero-length main file), activation still proceeds, rollback
+is refused, and the exact old family stays in `raw-old`; the way out is
+another activation of a verified artifact under a new operation ID. Any
+other consolidation error (disk, lock, I/O) stops activation in phase
+`archiving`, where the live family is unchanged. No force flag exists, and
+the helper never reattaches a WAL. `db_restore_stage` is not a claim that a
+restore happened.
 Do not use an MCP `confirm=true` as final authority: an autonomous client could
 supply it itself.
 

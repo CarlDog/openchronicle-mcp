@@ -15,6 +15,7 @@ import re
 import shutil
 import sqlite3
 import sys
+from contextlib import closing
 from pathlib import Path
 from secrets import token_hex
 from typing import Any, TypedDict
@@ -24,6 +25,15 @@ from openchronicle.core.domain.time_utils import utc_now
 _ID = re.compile(r"[a-z0-9][a-z0-9-]{3,63}\Z")
 _CANDIDATE = re.compile(r"candidate-[0-9a-f]{24}\.db\Z")
 _MARGIN = 16 * 1024 * 1024
+# Primary SQLite result codes that mean "this file is not a readable
+# database", as opposed to an environmental failure (disk, lock, I/O).
+_SQLITE_CORRUPT = 11
+_SQLITE_NOTADB = 26
+_ARCHIVING_NOTE = (
+    "Activation stopped before the main database file was replaced; there is nothing to roll back. "
+    "The helper reads the live family only by byte copy, so it is unchanged; raw-old holds a copy. "
+    "Start the service, or activate again under a new operation ID."
+)
 
 
 class RestoreError(RuntimeError):
@@ -185,6 +195,98 @@ def _consolidate(source: Path, target: Path) -> None:
     _fsync_dir(target.parent)
 
 
+def _sqlite_error_name(exc: sqlite3.Error) -> str:
+    return str(getattr(exc, "sqlite_errorname", None) or type(exc).__name__)
+
+
+def _describe(path: Path) -> dict[str, Any]:
+    """Assess an old-state copy without requiring it to pass.
+
+    A damaged live store must not block activation (operator decision,
+    2026-09-24), so every check and query is recorded separately, and an
+    SQLite error from one of them is a verdict rather than a failure.
+    """
+    info: dict[str, Any] = {"sha256": _sha256(path), "size_bytes": path.stat().st_size}
+    checks: dict[str, str] = {}
+    with closing(sqlite3.connect(f"file:{path.as_posix()}?mode=ro&immutable=1", uri=True)) as conn:
+        try:
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            checks["integrity"] = "ok" if row == ("ok",) else str(row[0] if row else "no result")
+        except sqlite3.Error as exc:
+            checks["integrity"] = f"raised {_sqlite_error_name(exc)}"
+        try:
+            violation = conn.execute("PRAGMA foreign_key_check").fetchone()
+            checks["foreign_keys"] = "ok" if violation is None else "violations"
+        except sqlite3.Error as exc:
+            checks["foreign_keys"] = f"raised {_sqlite_error_name(exc)}"
+        try:
+            schema = int(conn.execute("SELECT COALESCE(MAX(version), 0) FROM schema_version").fetchone()[0])
+            project_ids = [str(row[0]) for row in conn.execute("SELECT id FROM projects ORDER BY id")]
+            memories = int(conn.execute("SELECT COUNT(*) FROM memory_items").fetchone()[0])
+            embeddings = int(conn.execute("SELECT COUNT(*) FROM memory_embeddings").fetchone()[0])
+        except sqlite3.Error as exc:
+            info["identity_error"] = f"{_sqlite_error_name(exc)}: {exc}"
+        else:
+            info.update(
+                schema_version=schema,
+                project_identity_sha256=hashlib.sha256("\n".join(project_ids).encode()).hexdigest(),
+                project_count=len(project_ids),
+                memory_count=memories,
+                embedding_count=embeddings,
+            )
+    # Rollback may reinstall a faithfully damaged copy, but never something
+    # that is not recognisably an OpenChronicle database (for example the
+    # empty result of consolidating a zero-length main file).
+    identity_ok = "identity_error" not in info and int(info.get("schema_version", 0)) > 0
+    info["checks"] = checks
+    info["rollback_available"] = identity_ok
+    info["verified"] = identity_ok and all(value == "ok" for value in checks.values())
+    return info
+
+
+def _assess_old_state(recovery: Path, raw: Path, db_name: str) -> dict[str, Any]:
+    """Consolidate the archived old family into old-consistent.db and assess it.
+
+    SQLite never opens the live files: even a read-only open can create or
+    delete sidecars. It opens a disposable copy of raw-old instead, so both
+    the live family and the forensic archive stay byte-exact.
+    """
+    scratch = recovery / "consolidate-source"
+    scratch.mkdir(mode=0o700)
+    target = recovery / "old-consistent.db"
+    try:
+        for member in raw.iterdir():
+            _copy_durable(member, scratch / member.name)
+        try:
+            _consolidate(scratch / db_name, target)
+        except sqlite3.DatabaseError as exc:
+            code = getattr(exc, "sqlite_errorcode", None)
+            if code is None or code & 0xFF not in (_SQLITE_CORRUPT, _SQLITE_NOTADB):
+                raise
+            target.unlink(missing_ok=True)
+            return {
+                "readable": False,
+                "rollback_available": False,
+                "verified": False,
+                "error": f"{_sqlite_error_name(exc)}: {exc}",
+            }
+    finally:
+        shutil.rmtree(scratch, ignore_errors=True)
+    return {"readable": True, **_describe(target)}
+
+
+def _remove_incoming(db: Path, operation_id: str, candidate_sha256: str) -> str | None:
+    """Remove a leftover activation copy that is byte-identical to the candidate."""
+    incoming = db.parent / f".incoming-{operation_id}.db"
+    if not incoming.exists() and not incoming.is_symlink():
+        return None
+    if incoming.is_symlink() or not incoming.is_file() or _sha256(incoming) != candidate_sha256:
+        return f"left {incoming.name}: it does not match the staged candidate"
+    incoming.unlink()
+    _fsync_dir(db.parent)
+    return f"removed {incoming.name}"
+
+
 def activate(
     db: Path,
     candidate: Path,
@@ -211,11 +313,18 @@ def activate(
     # Include forward-state and the old-state incoming copy needed by rollback.
     # Recheck free space at rollback: serving writes can grow either DB meanwhile.
     old_size = sum(path.stat().st_size for path in live_files)
-    needed = 3 * old_size + 2 * candidate.stat().st_size + _MARGIN
+    # raw-old, its disposable consolidation copy and old-consistent coexist.
+    needed = 4 * old_size + 2 * candidate.stat().st_size + _MARGIN
     if shutil.disk_usage(db.parent).free < needed:
         raise RestoreError("Insufficient space for raw and consolidated rollback copies plus incoming candidate")
     if not apply:
-        return {"action": "activate", "applied": False, "recovery_dir": str(recovery), "candidate": candidate_info}
+        return {
+            "action": "activate",
+            "applied": False,
+            "recovery_dir": str(recovery),
+            "candidate": candidate_info,
+            "old_state": "assessed during apply; a damaged old state does not block activation",
+        }
 
     recovery.parent.mkdir(mode=0o700, exist_ok=True)
     recovery.mkdir(mode=0o700)
@@ -242,10 +351,8 @@ def activate(
             state["raw_files"][source.name] = before
         _save_state(recovery, state)
 
-        old_consistent = recovery / "old-consistent.db"
-        _consolidate(db, old_consistent)
-        old_info = _inspect(old_consistent)
-        state["old_info"] = old_info
+        state["old_state"] = _assess_old_state(recovery, raw, db.name)
+        _save_state(recovery, state)
         incoming = db.parent / f".incoming-{operation_id}.db"
         _copy_durable(candidate, incoming)
         if _sha256(incoming) != candidate_info["sha256"]:
@@ -276,14 +383,37 @@ def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, A
     state = _load_state(recovery)
     if state.get("db") != str(db) or state.get("operation_id") != operation_id:
         raise RestoreError("Recovery state belongs to a different database or operation")
-    if state.get("phase") not in ("prepared", "activated", "rolling_back"):
-        raise RestoreError("No verified old-state snapshot is ready for rollback")
+    phase = state.get("phase")
+    candidate_sha = str((state.get("candidate_info") or {}).get("sha256", ""))
+    if phase == "archiving":
+        if not apply:
+            return {"action": "rollback", "applied": False, "phase": phase, "note": _ARCHIVING_NOTE}
+        cleanup = _remove_incoming(db, operation_id, candidate_sha)
+        state["phase"] = "abandoned"
+        _save_state(recovery, state)
+        return {
+            "action": "rollback",
+            "applied": True,
+            "phase": "abandoned",
+            "note": _ARCHIVING_NOTE,
+            "cleanup": cleanup,
+        }
+    if phase not in ("prepared", "activated", "rolling_back"):
+        raise RestoreError(f"Nothing to roll back in phase {phase!r}")
+    old_state = state.get("old_state")
+    if not isinstance(old_state, dict) or not old_state.get("rollback_available"):
+        raise RestoreError(
+            "The old state was not a readable OpenChronicle database, so there is no automated rollback target. "
+            "It is preserved byte-exact in raw-old. To leave this state, activate another verified artifact "
+            "under a new operation ID."
+        )
     old = recovery / "old-consistent.db"
-    old_info = _inspect(old)
-    if old_info != state.get("old_info"):
+    _regular(old)
+    old_digest = str(old_state["sha256"])
+    if _sha256(old) != old_digest:
         raise RestoreError("Consolidated rollback snapshot differs from its recorded identity")
     if not apply:
-        return {"action": "rollback", "applied": False, "recovery_dir": str(recovery), "old": old_info}
+        return {"action": "rollback", "applied": False, "recovery_dir": str(recovery), "old": old_state}
 
     forward = recovery / "forward-state"
     if state["phase"] != "rolling_back":
@@ -320,14 +450,11 @@ def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, A
             if _sha256(archived) != digest:
                 raise RestoreError("Forward archive differs from recorded checksum")
         current_digest = _sha256(db)
-        old_digest = old_info["sha256"]
         if current_digest not in (recorded.get(db.name), old_digest):
             raise RestoreError("Current database changed during rollback; keep the service stopped")
         for sidecar in (Path(f"{db}-wal"), Path(f"{db}-shm")):
             displaced = forward / f"displaced-{sidecar.name}"
             expected_sidecar = recorded.get(sidecar.name)
-            if current_digest == old_digest and sidecar.exists():
-                raise RestoreError("Unexpected sidecars appeared after rollback installation")
             if sidecar.is_symlink() or displaced.is_symlink():
                 raise RestoreError("Rollback sidecar path cannot be a symlink")
             if expected_sidecar is None:
@@ -341,7 +468,7 @@ def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, A
     incoming = db.parent / f".rollback-{operation_id}.db"
     incoming.unlink(missing_ok=True)
     _copy_durable(old, incoming)
-    if _sha256(incoming) != old_info["sha256"]:
+    if _sha256(incoming) != old_digest:
         raise RestoreError("Rollback copy differs from archived old state")
     for sidecar in (Path(f"{db}-wal"), Path(f"{db}-shm")):
         if sidecar.exists():
@@ -355,7 +482,8 @@ def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, A
     _fsync_dir(db.parent)
     state["phase"] = "rolled_back"
     _save_state(recovery, state)
-    return {"action": "rollback", "applied": True, "recovery_dir": str(recovery), "state": state}
+    cleanup = _remove_incoming(db, operation_id, candidate_sha)
+    return {"action": "rollback", "applied": True, "recovery_dir": str(recovery), "state": state, "cleanup": cleanup}
 
 
 def retire_stage(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, Any]:
@@ -364,7 +492,7 @@ def retire_stage(db: Path, operation_id: str, *, apply: bool = False) -> dict[st
     state = _load_state(recovery)
     if state.get("db") != str(db) or state.get("operation_id") != operation_id:
         raise RestoreError("Recovery state belongs to a different database or operation")
-    if state.get("phase") not in ("activated", "rolled_back"):
+    if state.get("phase") not in ("activated", "rolled_back", "abandoned"):
         raise RestoreError("Cannot retire a stage before activation or rollback completes")
     candidate = Path(str(state.get("candidate", "")))
     if (
@@ -396,7 +524,8 @@ def retire_stage(db: Path, operation_id: str, *, apply: bool = False) -> dict[st
     _fsync_dir(candidate.parent)
     state["stage_retirement"] = "done"
     _save_state(recovery, state)
-    return {"action": "retire-stage", "applied": True, "stage_retired": True}
+    cleanup = _remove_incoming(db, operation_id, str(recorded["sha256"]))
+    return {"action": "retire-stage", "applied": True, "stage_retired": True, "cleanup": cleanup}
 
 
 def _require_helper() -> None:
