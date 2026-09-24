@@ -979,13 +979,14 @@ entry (below, or in its design doc):
      backfill waits out the stop timeout and ends in SIGKILL (exit 137),
      without data loss, and the next boot's reconciliation resumes it.
 
-   **Release blocker for the operator:** a v3.4.0 tagged from `main`
-   also ships design 0010's metrics instrumentation (off by default),
-   and 0010 says an inconclusive B/A result blocks its release even
-   with metrics disabled. B/A is inconclusive. The operator decides:
-   an explicit exception, a release cut from v3.3.0 (the fixes do not
-   cherry-pick cleanly, because B2, B3 and B5 build on the metrics
-   hooks), or rerunning the B/A gate first.
+   **Release decision (operator, 2026-09-24):** an explicit exception to
+   design 0010's B/A release gate. v3.4.0 is tagged from `main` with the
+   metrics instrumentation off by default. The exception covers release,
+   not enablement; see 0010. The blank-content refusal was reconciled
+   with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
+   **not deployed**. Deploying is a separate, env-only step (item 12),
+   with the NAS restart gate. PR #39 (design 0017) merges after this
+   tag.
 9. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
    files that still stored CR bytes were renormalized on `main`, ahead

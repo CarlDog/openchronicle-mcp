@@ -5,6 +5,81 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## v3.4.0 — 2026-09-24
+
+The correctness release: the four fleet-review #27 fixes, the model-revision
+fix, the query-revision race fix, and design 0010's metrics instrumentation,
+shipped **off by default** under an operator exception (below).
+
+**Deploy note:** stack 151 runs a detached, older compose, so the deploy is
+env-only. In one `portainer_set_stack_env` call, move `OC_TAG` to `v3.4.0` and
+set `OC_LOG_FILE=/output/logs/openchronicle.log`; the stored compose still
+carries the old default. Then verify `health.package_version=3.4.0`,
+`health.build_revision`, and `model_revision_state`. The tag was not deployed
+when it was cut.
+
+- **Blank content is refused before any write** (fleet-review #27 item 1).
+  `memory_update(content="")` over MCP blanked the memory and deleted its
+  embedding while reporting success. REST and the CLI let whitespace-only
+  content through. The add and update use cases now refuse blank content
+  ahead of any write, on every surface. Versioning: STABILITY.md allows
+  tightening validation without a MAJOR bump when the value was already
+  documented as invalid. Memory content already was: the REST schema
+  declared `min_length=1` for add and update, and MCP `memory_save` refused
+  blank content. This applies that rule consistently and closes a data-loss
+  path, so it ships in a MINOR release.
+- **Background backfill failures are visible** (#27 item 2). A failed
+  `memory_embed background=true` run is logged at ERROR, and health gains
+  `last_background_backfill` (`outcome`, `finished_at`, counts or
+  `error_type`). Additive.
+- **Maintenance overlap warnings are truthful** (#27 item 3). A job queued
+  behind another logs one INFO line; a real overlap warns once per run,
+  instead of once per tick (about 1,200 false warnings per long backfill).
+- **OpenAI-compatible embedding responses are validated at the boundary**
+  (#27 item 4). Non-finite, empty, mixed-length or surplus vectors are
+  refused, sharing Ollama's validator.
+- **An unknown model revision is no longer "no revision"** (design 0014 §1.1,
+  ADR 0005 §7). A failed revision probe used to be cached as "no revision",
+  which blanked semantic search while health read `active` and re-embedded
+  the corpus. Adapters now expose a revision snapshot, writes refuse while
+  it is unknown, and a service-owned refresher probes and reconciles. Health
+  gains `model_revision_state` and `model_revision_verified_at`, and reads
+  `degraded` while the revision is unknown.
+- **Queries stay on one model revision** (PR #34, design 0016 track 1). A
+  search snapshots the revision around the query embed, retries once on a
+  change, falls back to keyword results when changes continue, and
+  semantic-only search returns `MODEL_REVISION_CHANGED` (HTTP 502).
+- **The NAS log file exists.** `OC_LOG_FILE` defaults to
+  `/output/logs/openchronicle.log`, on the output volume; the old default
+  was on no volume, so every boot fell back to stderr. httpx no longer logs
+  request URLs, or any `OLLAMA_HOST` credentials, at INFO.
+- **Smaller fixes:**
+  - `onboard_git`'s local git calls get the allowlisted environment. An
+    inherited `GIT_DIR` had walked the wrong repository.
+  - The per-request MCP lifespan lines log at DEBUG.
+  - A skipped maintenance backfill records `skipped` rather than `ok`.
+  - Reconciliation honours a disabled `embedding_backfill` job.
+  - `oc memory update --content ""` is refused.
+  - The entrypoint's bootstrap line goes to stderr.
+  - The repository NAS compose keeps the REST Host-list fallback (PR #35);
+    it is compose-only, and stack 151 is detached.
+- **Metrics instrumentation (design 0010), off by default.** Bounded
+  Prometheus metrics and a guarded `/metrics` endpoint exist only when
+  `OC_METRICS_ENABLED=true`; the disabled path bypasses the recorder. An
+  optional local Prometheus profile ships in the NAS compose. **Operator
+  exception, 2026-09-24:** design 0010 blocks any release carrying this code
+  while its B/A (disabled-path) overhead comparison is inconclusive, and it
+  still is. The operator released it anyway: metrics stay off, and the
+  measured disabled-path median losses (0.129% and 0.399%) sit inside host
+  noise. Enabling metrics still needs 0010's gates.
+- **CI:** every image is smoke-tested before it is pushed (build revision,
+  runtime imports, `/health`).
+- **Housekeeping:** line endings normalized to LF (`.gitattributes`), and
+  dependency updates (the uv runtime group, uvicorn, setuptools, wheel, and
+  the smol-toml fix in the Markdown tooling).
+
+Deliberately deferred low-severity follow-ups are listed in V3_PLAN item 8.
+
 ## v3.3.0 — 2026-08-29
 
 The health-honesty release: ADR 0009 end-to-end (permanent
