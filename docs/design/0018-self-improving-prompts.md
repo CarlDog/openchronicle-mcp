@@ -141,7 +141,7 @@ needs fewer tokens or fewer retries is also an improvement.
   itself; the savings come from fewer attempts and less drafting, not from
   the fetch.
 - Provider caching only helps a prefix that is byte-stable and long enough
-  (roughly 1,024-4,096 tokens, depending on the provider). MCP prompts
+  (512 to 4,096 tokens, depending on provider and model; 0015 §1). MCP prompts
   arrive as user messages after the client's own system prompt, so most
   library prompts will not be cached; the ones that are system prompts for
   API callers can be.
