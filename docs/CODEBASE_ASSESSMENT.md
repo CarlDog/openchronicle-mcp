@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 237 (0018: efficiency goal added)
+**Snapshot date:** 2026-09-24 UTC · **Revision:** 238 (north star captured: cloud LLM cost, 0019)
 
 ## Current state
 
@@ -317,6 +317,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 238 | 2026-09-24 | **North star captured: lower the cost of cloud LLM use through OC (design 0019).** The operator's long-range aspiration, and the hope behind grabbing the FreeToken repository. 0012's FreeToken review had examined only OC's embedding path, so the cloud-cost question was never researched; 0012 now says so. 0019 lists candidate levers from "fits OC today" to "needs a scope decision": measure per-task spend; memory instead of rediscovery; budgeted context; self-improving prompts (0018); cache-friendly tool surfaces; result reuse; and, farthest, a request-path gateway, which OC's memory-only boundary excludes. It keeps accuracy first and requires measured savings. V3_PLAN carries a north-star note. Docs only; nothing scheduled. |
 | 237 | 2026-09-24 | **0018 gains a second goal: efficiency.** The operator also hopes reused, refined prompts will save tokens and the time LLMs spend building a prompt for each request. 0018 records the quote and where the savings come from (less drafting, fewer attempts, better provider caching of stable prefixes), adds tokens, time and attempts to the per-use outcome record and to Stage 0's notes, and lists where the savings might not be real: the fetch itself costs tokens, MCP prompts rarely reach provider caches, dynamic content breaks caching, and small samples are noisy. Docs only. |
 | 236 | 2026-09-24 | **Idea captured: self-improving prompts (design 0018).** The operator's intent behind the 0015 prompt-library request is prompts that improve with every use, by tracking outcomes, not a static library. 0018 records it in the operator's words, with the concepts (per-use outcome records, small edits, versions that compete on evidence, human promotion, staleness flags), the research warnings from 0015, the honest limits, the trust constraint, and the open fork: agents propose edits and OC only records, or OC runs its own improver model. 0015's open question 6 is marked answered, and V3_PLAN item 10 points to 0018. Docs only; nothing scheduled. |
 | 235 | 2026-09-24 | **Backlog: the 0014 salvage list and the storage review are queued.** Of design 0014's salvage list, the §1.1 fix shipped in v3.4.0 and the three documentation corrections were already made; the persistent Ollama HTTP client was filed nowhere, so it is now V3_PLAN active queue item 14, with 0014's evidence requirements. The persistent-storage review is item 13, marked high priority and appended so existing item numbers stay stable. Item 12 gains the `container_name: openchronicle-mcp` preference; item 8 is marked released (not deployed). 0014 records that the Gemini branch no longer exists. Docs only. |

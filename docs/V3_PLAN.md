@@ -1152,6 +1152,12 @@ entry (below, or in its design doc):
     - the embedding path is instrumented, so check design 0010's gates
       if metrics are enabled by then.
 
+North star (operator, 2026-09-24; no scheduling): lower the cost and
+improve the efficiency of the fleet's cloud LLM use through OpenChronicle.
+Candidate levers, the gap in the FreeToken review, and the research still to
+do are in [0019](design/0019-cloud-llm-cost-north-star.md). Each lever keeps
+its own gates, and accuracy stays first.
+
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
 triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+
 pgvector shape); mcp 2.x on its triggers; frozen-lock consumption;

@@ -4,7 +4,8 @@
 to implement.** It records the operator's intent and the concepts
 discussed, so they are not lost. It extends
 [0015 — Prompt Library](0015-prompt-library.md), which remains the research
-record. Nothing is scheduled.
+record. Nothing is scheduled. It is one lever toward the broader goal in
+[0019 — Cloud LLM cost north star](0019-cloud-llm-cost-north-star.md).
 
 **Work-item key:** `CarlDog/openchronicle-mcp#idea-0018-self-improving-prompts`
 
