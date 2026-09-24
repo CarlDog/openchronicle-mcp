@@ -81,10 +81,11 @@ HEALTHCHECK hits the liveness `/health`, which never probes.
 
 **Salvage (small, separately reviewed changes on `main`):**
 
-- a correct fix for §1.1;
+- a correct fix for §1.1 (**done**: rev 208, shipped in v3.4.0);
 - the persistent Ollama HTTP client, with its lifecycle wired and a NAS
-  measurement;
-- a few documentation corrections.
+  measurement (**open**: V3_PLAN active queue item 14, filed 2026-09-24);
+- a few documentation corrections (**done**: the three stale records in
+  Part 4 were corrected by 2026-09-23).
 
 The open fleet-review items in issue #27 remain higher-value than most of
 the branch. They include an MCP `memory_update(content="")` that blanks a
@@ -337,7 +338,9 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
   the same direction, the session-start cross-check could not catch the
   error.
 - **Keep the remote branch** at least until this record lands, because it
-  cites the branch's SHAs. Whether to delete it afterwards is the
+  cites the branch's SHAs. (**Update 2026-09-24:** the branch no longer
+  exists on the remote or in the local repository, so the SHAs cited here
+  may become unreachable. This record's findings stand on their own.) Whether to delete it afterwards is the
   operator's call.
 
 ## Not covered

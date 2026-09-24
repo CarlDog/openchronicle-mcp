@@ -207,8 +207,10 @@ query-revision and NAS Host-list source fixes merged.**
   passed on 2026-09-24 (both legs, latency budget met, accepted with gaps by
   an independent checker; details in the
   [runbook](docs/configuration/local_backup_restore.md)). Remaining: before
-  timestamp PR #38, a fresh copy plus an image-pair rehearsal. Next after this work, at high priority: the persistent-storage
-  review (V3_PLAN).
+  timestamp PR #38, a fresh copy plus an image-pair rehearsal. Next, at
+  high priority: the persistent-storage review (V3_PLAN active queue item
+  13). Then the last open 0014 salvage item, a persistent Ollama HTTP
+  client (item 14).
   Production is unchanged. Resume from the
   [handoff](docs/handoffs/2026-09-24-backup-restore.md).
 
