@@ -129,9 +129,10 @@ their no-commit/no-push statements are historical, not the current scope.
 - **Exposed local backup/restore preparation is source-only** ([0017](design/0017-exposed-backup-and-restore.md)).
   Draft PR #39 adds a verified snapshot catalog, the `/exports` export mount,
   and an offline stage/activate/rollback helper. A Claude adversarial review
-  of `f65be230` found P1 defects; revs 221-226 fix them. The MCP backup tools
-  are parked while auth stays disabled. Open: an independent review of the fix
-  round, then merge (it changes the nightly backup path); an off-NAS v3.3.0
+  of `f65be230` found P1 defects; revs 221-227 fix them, and the fix round had
+  its own independent review. The MCP backup tools are parked while auth stays
+  disabled. Open: merge, the operator's call (it changes the nightly backup
+  path, so decide whether it rides v3.4.0); an off-NAS v3.3.0
   copy before any stack change; a helper image for the NAS drill (design 0010
   gate); the NAS drill itself. Production is unchanged. V3_PLAN holds the
   ordered list and a separate storage-layout review.

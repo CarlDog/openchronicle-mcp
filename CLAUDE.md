@@ -197,12 +197,12 @@ query-revision and NAS Host-list source fixes merged.**
 
 - **Backup/restore (design [0017](docs/design/0017-exposed-backup-and-restore.md),
   draft PR #39).** A Claude adversarial review of `f65be230` (2026-09-24)
-  found P1 defects; their fixes are on the PR (assessment revs 221-226),
-  and the review record is in 0017. The MCP backup tools are **parked**:
-  auth stays disabled, so production restores use the CLI and the offline
-  helper's `stage`/`activate`/`rollback`. Before merge: an independent
-  review of the fix round. Merging changes the nightly backup path, so
-  decide whether it rides v3.4.0. The next operational step is an
+  found P1 defects; their fixes are on the PR (assessment revs 221-227,
+  including an independent review of the fix round), and the review record
+  is in 0017. The MCP backup tools are **parked**: auth stays disabled, so
+  production restores use the CLI and the offline helper's
+  `stage`/`activate`/`rollback`. Merge is the operator's call: it changes
+  the nightly backup path, so decide whether it rides v3.4.0. The next operational step is an
   off-NAS v3.3.0 copy through either bootstrap route in the
   [runbook](docs/configuration/local_backup_restore.md), before any stack
   change. The NAS drill also needs a helper image, which waits on the

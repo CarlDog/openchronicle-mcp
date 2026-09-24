@@ -874,12 +874,12 @@ The README is not a market-positioning document. It states what OC is, what it d
 **Exposed backup/restore capability before timestamp migration.** Design
 [0017](design/0017-exposed-backup-and-restore.md), draft PR #39, runbook
 [local_backup_restore.md](configuration/local_backup_restore.md). Status lives
-in the assessment (revs 217-226). Open, in order:
+in the assessment (revs 217-227). Open, in order:
 
-1. Independent review of the fix round that answered the 2026-09-24 Claude
-   review (revs 221-226); then merge. Merging changes the nightly backup
-   path (catalogued, verified, failures quarantined), so the operator
-   decides whether it rides v3.4.0.
+1. Merge, the operator's call. The 2026-09-24 Claude review's fixes and an
+   independent review of that fix round are done (revs 221-227). Merging
+   changes the nightly backup path (catalogued, verified, failures
+   quarantined), so decide whether it rides v3.4.0.
 2. Off-NAS v3.3.0 copy before any stack change, through NAS Bash or the
    Portainer console route in the runbook.
 3. Helper image for the NAS drill: a release (blocked by design 0010) or an
