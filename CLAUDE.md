@@ -202,11 +202,10 @@ query-revision and NAS Host-list source fixes merged.**
   reviewed (revs 201-210): the four fleet-review #27 items, the §1.1
   Ollama revision fix (ADR 0005 §7), three hygiene fixes, and the fixes
   from the pre-deploy review and its completeness critic (among them
-  the NAS log file, which never existed). **Waiting on the operator:**
-  design 0010 blocks releasing its metrics instrumentation, which
-  `main` carries, while B/A is inconclusive (options in V3_PLAN item
-  8). The version bump and CHANGELOG go in the commit the tag points
-  at. The deploy is env-only, because stack 151 runs a detached, older
+  the NAS log file, which never existed). **Released as v3.4.0 on
+  2026-09-24, not deployed:** the operator granted an exception to design
+  0010's B/A gate (metrics stay off by default), and the tag points at the
+  release PR's merge. The deploy is env-only, because stack 151 runs a detached, older
   compose (V3_PLAN item 12). Until a deploy, production (v3.3.0) still
   needs 0014's interim control after any NAS, OC or Ollama restart.
 - Source tracks 1 and 3 of [plan 0016](docs/design/0016-review-findings-plan.md)

@@ -9,6 +9,10 @@ Production is unchanged; 4E/4F have not started. The subsequent recorder and
 cached-prefix exporter patches are locally implemented; further NAS validation
 requires a scoped decision.
 **Date:** 2026-09-05.
+**Release exception (operator, 2026-09-24):** v3.4.0 ships this
+instrumentation, off by default, under an explicit exception to the rule that
+an inconclusive B/A blocks release; see [the exception](#operator-release-exception-2026-09-24).
+Enabling metrics in production still requires this design's gates.
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
 This identifies the planning work, not a GitHub issue or an approved build.
@@ -1402,6 +1406,26 @@ and hand off the specific blocker and smallest next decision.
 The adopted [4C recovery plan](#4c-recovery-plan) explicitly amends calibration
 and full-suite timing/caps for its next cycle; the existing protocol and its
 historical results are not retrospectively changed.
+
+## Operator release exception (2026-09-24)
+
+This design says an inconclusive B/A (disabled-path) comparison blocks
+releasing the instrumentation, even with metrics off. B/A remains
+inconclusive. The measured median throughput losses were 0.129% (4C) and
+0.399% (4C recovery), but the repeated-baseline noise veto prevents a verdict.
+The v3.4.0 correctness fixes build on the metrics hooks and do not cherry-pick
+onto v3.3.0 cleanly.
+
+The operator granted an explicit exception so that v3.4.0 can ship from
+`main`, for these reasons:
+
+- metrics stay off by default (`OC_METRICS_ENABLED=false`);
+- the disabled path has the 4B bypass;
+- the measured disabled-path losses sit inside host noise.
+
+The exception covers release only. It does not cover enabling metrics in
+production, which still needs the unchanged C/A, responsiveness and 4E/4F
+gates. The tagged release is not deployed by this decision.
 
 ## Completion and subsequent decisions
 
