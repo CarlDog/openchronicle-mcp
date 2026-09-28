@@ -47,7 +47,7 @@ long-lived branches and code comments (the code carries no work-marker comments)
 | HYG-04 | Delete stale branches and worktrees: `origin/v3/develop` (0 ahead of `main`, 290 behind); the `vigilant-mendel` worktree (on `c7f36a7c`) | S | |
 | HYG-05 | Review and merge Dependabot PRs #45 and #46 on fresh CI | S | |
 | HYG-06 | Design-record status corrections still open: the 0002, 0003 and 0004 headers (0004's shipped ranks 2, 4, 5, 8 and 10); 0016's track-3 checkpoint still says "unmerged branch" | S | Design index rows were corrected on 2026-09-28 |
-| HYG-07 | Decide whether to enforce "work lands through a PR" with branch protection on `main` (revs 201-211 were direct pushes) | S | Decision. The same gap bit portainer-mcp on 2026-09-28: with no required checks, `gh pr merge --auto` merged at once, before CI finished (its STATUS.md now carries the matching item, PR CarlDog/portainer-mcp#36). Likely fleet-wide |
+| HYG-07 | Decide whether to enforce "work lands through a PR" with branch protection on `main` (revs 201-211 were direct pushes) | S | **Done 2026-09-28 (operator decision):** classic branch protection on `main` requires a PR (0 approvals) and these checks: `ubuntu-latest`, `windows-latest`, `lint + format + types`, `Scan for secrets`, `Analyze (python)`, `Analyze (actions)`. The branch must be up to date (`strict`). It is enforced for admins too, so the operator's token, which agents use, cannot push directly. Force pushes and deletion are blocked. The same was applied to portainer-mcp. Emergency path: switch protection off briefly in Settings |
 
 ## Phase 1 — Persistent storage and data safety (HIGH PRIORITY)
 
@@ -187,7 +187,7 @@ These wait on the operator, not on engineering:
   - Stage 0 isolation and start (LLM-03);
   - 0015 Q1-Q8 and the 0018 fork (LLM-04);
   - the gateway scope (LLM-06).
-- **Process:** branch protection (HYG-07).
+- ~~**Process:** branch protection (HYG-07).~~ Decided and applied 2026-09-28.
 
 ## Belongs to other repositories
 
