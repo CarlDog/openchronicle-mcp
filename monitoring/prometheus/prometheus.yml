@@ -1,8 +1,10 @@
 # Local-only Prometheus configuration for the opt-in metrics profile.
 #
-# The target is reachable by service name on the private compose network.
-# When enabling this collector, set OC_API_ALLOWED_HOSTS explicitly to include
-# both the external REST hosts and `oc:*` for this private-network target.
+# Both services use the shared Docker bridge, so the collector scrapes OC's
+# published port on the host (default 18000; change the target if
+# HOST_HTTP_PORT moves). When enabling this collector, set
+# OC_API_ALLOWED_HOSTS explicitly to include both the external REST hosts and
+# `host.docker.internal:*` for this target.
 
 global:
   scrape_interval: 30s
@@ -17,6 +19,6 @@ scrape_configs:
     scrape_timeout: 5s
     static_configs:
       - targets:
-          - oc:8000
+          - host.docker.internal:18000
         labels:
           service: openchronicle

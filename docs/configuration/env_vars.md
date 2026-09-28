@@ -79,8 +79,9 @@ relationships).
 The NAS compose file passes an empty `OC_API_ALLOWED_HOSTS` by default, so
 REST inherits the MCP Host allowlist, including any configured LAN hostname.
 An explicit REST list replaces that fallback. For the optional metrics
-collector, set it to every external REST host pattern plus `oc:*` for the
-private `oc:8000` scrape target (for example, `your-nas:*,oc:*`). A passing
+collector, set it to every external REST host pattern plus
+`host.docker.internal:*` for its scrape of OC's published port (for
+example, `your-nas:*,host.docker.internal:*`). A passing
 loopback healthcheck does not verify LAN access; follow the
 [metrics history runbook](../monitoring/runbook.md) when enabling collection.
 

@@ -235,6 +235,10 @@ exists, is owned `1000:1000`, and was 11,914 bytes and growing at 16:31Z.
 
 ### Step B — with OPS-03's compose reconciliation
 
+The repository side landed on 2026-09-28: `docker-compose.nas.yml` now
+carries the target layout, and `tests/test_nas_compose_shape.py` pins it.
+The steps below are the deploy.
+
 1. Confirm the stored compose still matches file version 142, and record it;
    Portainer keeps the previous version for rollback.
 2. Stop the container (a clean shutdown checkpoints the WAL).

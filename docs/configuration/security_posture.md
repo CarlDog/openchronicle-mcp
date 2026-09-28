@@ -152,20 +152,20 @@ Hardened 2026-07-30 (the review-driven CI batch):
   `18000:8000`). Set `HOST_HTTP_PORT` to relocate.
 - `extra_hosts: host.docker.internal:host-gateway` lets the container
   reach Ollama running on the NAS host. No reverse direction.
-- The repo's NAS compose puts OC on a private `oc-observability` network
-  whether or not the optional `metrics` profile runs; the profile adds
-  Prometheus to it. The live stack 151 is detached from Git and still runs
-  its older file, with `network_mode: bridge` (V3_PLAN item 13). Prometheus
-  UI port `19090` is bound to NAS loopback only by default; it is not a LAN
-  service. Its history volume is
+- The NAS compose runs OC, and the optional Prometheus collector, on the
+  shared Docker bridge (`network_mode: bridge`, the fleet's address-pool
+  rule); there is no project network. The collector scrapes OC's published
+  port through `host.docker.internal`. Stack 151 is file-based, and OPS-03
+  reconciled its stored compose with this file. Prometheus UI port `19090`
+  is bound to NAS loopback only by default; it is not a LAN service. Its history volume is
   separate from OC's memory, config, and output volumes.
 - When `OC_API_KEY` is set, use the authenticated Prometheus config and mount
   the token through the operator-managed `oc-api-key` file. The default
   collector config intentionally contains no secret.
 - The NAS compose leaves `OC_API_ALLOWED_HOSTS` empty so REST inherits
   `OC_MCP_ALLOWED_HOSTS`. When enabling the collector, explicitly set the
-  REST list to every external client hostname plus `oc:*` so its private
-  target passes the Host allowlist. An explicit REST list replaces the MCP
+  REST list to every external client hostname plus `host.docker.internal:*`
+  so the collector's scrape passes the Host allowlist. An explicit REST list replaces the MCP
   fallback; a healthy loopback probe cannot establish external access.
 - **DNS-rebinding defense: Host-header allowlists on both surfaces.**
   A containerized service can't be secured by its bind address (it

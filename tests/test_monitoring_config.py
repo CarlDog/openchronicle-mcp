@@ -18,7 +18,7 @@ def test_default_collector_config_is_local_and_bounded() -> None:
     assert "scrape_timeout: 5s" in config
     assert "job_name: openchronicle" in config
     assert "metrics_path: /metrics" in config
-    assert "- oc:8000" in config
+    assert "- host.docker.internal:18000" in config
     assert "remote_write:" not in config
     assert "http://" not in config
 
@@ -29,7 +29,7 @@ def test_authenticated_config_uses_a_file_not_a_tracked_secret() -> None:
     assert "credentials_file: /etc/prometheus/secrets/oc-api-key" in config
     assert "credentials:" not in config
     assert "job_name: openchronicle" in config
-    assert "- oc:8000" in config
+    assert "- host.docker.internal:18000" in config
 
 
 def test_query_catalog_and_runbook_cover_history_boundaries() -> None:

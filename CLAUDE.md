@@ -241,8 +241,10 @@ query-revision and NAS Host-list source fixes merged.**
   rides OPS-03; decision 5 waits on the operator's ACL check, and decision
   6 is answered (no DSM backup covers the Docker paths). Cloud-backup
   Phase 0 (DATA-02) passed on 2026-09-28: both escrowed identities decrypted
-  an uploaded artifact. Nightly off-NAS push is OPS-08. Next: production
-  health (OPS-*).
+  an uploaded artifact. Nightly off-NAS push is OPS-08. OPS-03's compose
+  reconciliation is done in the repo (bridge network, 0020's volume layout,
+  `container_name`, no Watchtower label); deploying it to stack 151, still
+  on v3.3.0, is the next step, then OPS-01 (v3.4.0).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
