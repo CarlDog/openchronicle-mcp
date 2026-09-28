@@ -37,13 +37,29 @@ def _integrity_failure_persisted() -> bool:
     raised. Fail-soft: an absent or unreadable state file reports False,
     matching the loop's own tolerance of it.
     """
+    return _last_run_failed("db_integrity_check")
+
+
+def _backup_failure_persisted() -> bool:
+    """Did the last scheduled `db_backup` run fail, per the state file?
+
+    Since v3.5.0 backups go to `OC_BACKUP_DIR`, an operator-managed host
+    bind on the NAS. If its ownership drifts, every nightly backup fails
+    while the service stays healthy, and nothing else in health says so.
+    Same evidence and fail-soft rule as the integrity check.
+    """
+    return _last_run_failed("db_backup")
+
+
+def _last_run_failed(job: str) -> bool:
+    """True when `job`'s persisted last run is newer than its last success."""
     state_path = RuntimePaths.resolve().db_path.parent / "maintenance_state.json"
     try:
         import json
 
         raw = json.loads(state_path.read_text(encoding="utf-8"))
-        run = raw.get("last_run_at", {}).get("db_integrity_check")
-        success = raw.get("last_success_at", {}).get("db_integrity_check")
+        run = raw.get("last_run_at", {}).get(job)
+        success = raw.get("last_success_at", {}).get(job)
         if not run:
             return False
         if not success:
@@ -64,8 +80,11 @@ def build_health_payload(container: CoreContainer) -> dict[str, Any]:
     report.embedding_status = container.embedding_status_dict()
     report.schema_version = container.storage.schema_version()
     # In-process flag OR persisted evidence: the flag is immediate, the
-    # state file survives the restart that used to clear it.
-    report.maintenance_degraded = container.maintenance_degraded or _integrity_failure_persisted()
+    # state file survives the restart that used to clear it. A failed last
+    # backup counts too, or a broken backup root stays invisible here.
+    report.maintenance_degraded = (
+        container.maintenance_degraded or _integrity_failure_persisted() or _backup_failure_persisted()
+    )
     report.fts5_active = container.storage.fts5_active
     data = asdict(report)
     if data.get("timestamp_utc"):

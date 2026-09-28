@@ -28,6 +28,13 @@ back is moving `OC_TAG` back.
   pre-0017 file in `/data/backups/auto`, are never pruned, so the old ones stay
   for explicit review. A snapshot that fails verification is kept as
   `*.failed-verify` or `*.failed-quick-check`, and the job fails.
+- **A failing nightly backup shows in health** (v3.5.0 pre-deploy review,
+  finding 1). `maintenance_degraded` now also reads true when the last
+  `db_backup` run failed, from the persisted run and success stamps, so it
+  survives a restart. The next successful backup clears it. Before this, a
+  broken backup root failed every nightly backup while health read clean;
+  the gap predates this release but mattered more once backups moved to an
+  operator-managed host bind.
 - **Bad backup configuration never stops startup.** An unusable
   `OC_BACKUP_DIR` is logged at ERROR, and manual and scheduled backups fail
   until it is fixed. Under `restart: unless-stopped`, raising instead would

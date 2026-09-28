@@ -391,3 +391,59 @@ def test_scheduled_backup_waits_for_an_overlapping_operation(tmp_path: Path, mon
             catalog._operation_lock.release()
     finally:
         store.close()
+
+
+def test_failed_nightly_backup_is_visible_in_health_until_a_backup_succeeds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """v3.5.0 pre-deploy review F1: a broken backup root failed every nightly
+    backup while health stayed clean. Health reads the persisted evidence, so
+    the real job, run through the real loop, must surface in the payload."""
+    from openchronicle.core.application.services.maintenance_loop import JobState, MaintenanceLoop
+    from openchronicle.core.application.use_cases.diagnose_runtime import build_health_payload
+    from openchronicle.core.infrastructure.maintenance import jobs as maintenance_jobs
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    db_path = tmp_path / "data" / "db.db"
+    db_path.parent.mkdir()
+    backup_root = tmp_path / "exports" / "backups"
+    monkeypatch.setenv("OC_DB_PATH", str(db_path))
+    monkeypatch.setenv("OC_CONFIG_DIR", str(config_dir))
+    monkeypatch.setenv("OC_BACKUP_DIR", str(backup_root))
+    state_path = db_path.parent / "maintenance_state.json"
+
+    def run_backup() -> bool:
+        container = CoreContainer()
+        try:
+            job = JobState(name="db_backup", interval_seconds=86400, enabled=True)
+            loop = MaintenanceLoop(
+                container=container,
+                jobs=[job],
+                handlers={"db_backup": maintenance_jobs.db_backup},
+                state_path=state_path,
+            )
+            loop._load_state()
+            asyncio.run(loop.run_once("db_backup"))
+            return bool(build_health_payload(container)["maintenance_degraded"])
+        finally:
+            container.storage.close()
+
+    # The backup root is missing: the nightly job fails, and health says so.
+    assert run_backup() is True
+    # A restart must not clear it: the evidence is persisted, not in-process.
+    container = CoreContainer()
+    try:
+        assert build_health_payload(container)["maintenance_degraded"] is True
+    finally:
+        container.storage.close()
+
+    # The operator fixes the mount; the next successful backup clears it.
+    backup_root.mkdir(parents=True)
+    assert run_backup() is False
+    assert list((backup_root / "auto").glob("*.json"))
+
+    # The production shape of the defect: backups worked, then the root broke
+    # (ownership drift). An earlier success must not mask the later failure.
+    backup_root.rename(tmp_path / "exports" / "moved-away")
+    assert run_backup() is True

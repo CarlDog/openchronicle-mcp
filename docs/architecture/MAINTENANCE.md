@@ -165,7 +165,10 @@ Status payload per job:
 ```
 
 `/api/v1/health` carries `maintenance_degraded` so operators can detect
-an integrity-check failure without polling the dedicated endpoint.
+an integrity-check failure, or a failed last `db_backup` run (since v3.5.0),
+without polling the dedicated endpoint. Both read the persisted run and
+success stamps, so a restart does not clear them. A later successful run of
+the same job does, and `/api/v1/maintenance/status` names the job.
 
 ## Embedding degradation policy
 
