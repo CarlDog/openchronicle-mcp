@@ -193,9 +193,10 @@ avoids a NAS shell and any stack edit, at the cost of that brief exposure.
 
 **The MCP tools are parked** (operator decision, 2026-09-24). They register only
 with `OC_BACKUP_MCP_ENABLED=true`, an explicit `OC_BACKUP_DIR` and a nonempty
-effective `OC_API_KEY`. Production auth stays disabled as decided on
-2026-05-06, so they cannot register there, and no auth change is planned. Every
-production step in this runbook uses the CLI and the offline helper instead.
+effective `OC_API_KEY`. Production auth was enabled on 2026-09-25, which meets
+the key precondition, but production sets no explicit backup root, so they do
+not register there; enabling them is an operator decision (ROADMAP OPS-07).
+Every production step in this runbook uses the CLI and the offline helper.
 Scheduled backups need `OC_BACKUP_DIR` (or its default) and no MCP auth. The
 stdio server never registers the tools. If they are ever enabled, do not place
 the API key in a tracked file or a backup manifest. The rest of this section
@@ -244,7 +245,7 @@ rejected until the previous one is handled offline.
    identity, integrity and request checks.
 
 The drill needs an image that contains the helper. A release image is blocked
-by design 0010's release gate (V3_PLAN item 8), so the operator authorized a
+by design 0010's release gate (V3_PLAN item 9), so the operator authorized a
 non-release drill image on 2026-09-24. It was built from PR #39 commit
 `1fad2c4c` and passed CI's image smoke script. It is published only as
 `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c`, index digest `sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`. It never moves `:latest` or `OC_TAG`. It reports
@@ -429,7 +430,7 @@ backup-facility drill and remains a timestamp release gate.
 ## Offline activation and rollback
 
 Stage and verify the selected snapshot with the helper's `stage` action. This
-is the production path while the MCP tools stay parked (auth stays disabled),
+is the production path while the MCP tools stay parked,
 and it works whether or not the service is running or even starts: it only
 reads the snapshot and writes `/data/.restore-stage`. `--expected-sha256` must
 come from an **independent record**: the artifact's manifest or earlier verify

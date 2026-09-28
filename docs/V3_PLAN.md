@@ -903,9 +903,10 @@ in the assessment (revs 217-227). Open, in order:
 5. Before the timestamp migration: a fresh off-NAS copy and an old/new
    image-pair rehearsal.
 
-The MCP backup tools are parked while auth stays disabled (operator,
-2026-09-24); no auth change is planned. The `/exports` mount needs the
-detached compose reconciled (item 12); without it, `OC_BACKUP_DIR` stays
+The MCP backup tools are parked (operator, 2026-09-24). Auth was enabled on
+2026-09-25, which meets their API-key precondition; enabling them still needs an
+explicit `OC_BACKUP_DIR` and the operator's call (ROADMAP OPS-07). The `/exports` mount needs the
+detached compose reconciled (item 13); without it, `OC_BACKUP_DIR` stays
 unset and catalogued auto backups remain in `/data/backups/auto`.
 
 Deferred from the 2026-09-24 review, deliberately:
@@ -918,7 +919,7 @@ Deferred from the 2026-09-24 review, deliberately:
   not while touching restore code.
 - `docker-compose.nas.yml` hardcodes `OC_BACKUP_DIR: /exports/backups`.
   Both reviewers read it as mount wiring rather than operator
-  configuration. Revisit when the detached compose is reconciled (item 12).
+  configuration. Revisit when the detached compose is reconciled (item 13).
 
 **Persistent storage architecture review — HIGH PRIORITY, next after the
 0017 work** (operator, 2026-09-24). The operator raised it as a fear that each
@@ -1149,7 +1150,9 @@ entry (below, or in its design doc):
     backup runbook finds the container by its compose labels.
 14. **Persistent-storage review — HIGH PRIORITY, next after the 0017 work**
     (operator, 2026-09-24; full entry under the post-cutover follow-ups,
-    beside the 0017 backup entry). Numbered last only so existing item
+    beside the 0017 backup entry). Cite items by their stable
+    [ROADMAP](ROADMAP.md) IDs: these numbers shift when an entry is inserted.
+    Numbered last only so existing item
     references stay stable. Its premise was checked: the database has
     persisted since the 2026-05-06 cutover. What it must settle: the
     volume is keyed to the compose project name; automatic backups share
@@ -1162,7 +1165,7 @@ entry (below, or in its design doc):
     (`httpx.post`), about 12-13 ms per call on desktop loopback against
     about 0.8 ms with a reused `httpx.Client`, as 0014 measured on the
     Gemini branch. 0003's trigger for this has fired. It is a
-    speed-second item: no correctness gain, so it waits behind item 13.
+    speed-second item: no correctness gain, so it waits behind item 14.
     Build it fresh on `main`, not from the branch. What 0014 requires:
     - a thread-safe client with its lifecycle wired: created with the
       adapter and closed on shutdown, including the CLI and stdio paths;

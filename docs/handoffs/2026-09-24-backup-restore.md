@@ -18,7 +18,9 @@ pass "found no further P0/P1 defect". A Claude adversarial review of
 
 Their fixes are on draft PR #39 (revs 221-227). The operator decided on
 2026-09-24 to park the MCP tools, keep auth disabled, and restore a damaged
-store automatically.
+store automatically. (Update 2026-09-28: auth was enabled on 2026-09-25; the
+tools stay parked pending ROADMAP OPS-07. The ordered plan is now
+[ROADMAP.md](../ROADMAP.md).)
 
 ## Resume here
 

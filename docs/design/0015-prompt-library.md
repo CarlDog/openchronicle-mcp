@@ -55,7 +55,9 @@ Code, goose, and others), not only Claude Code sessions.
    easy to damage.
 4. **The hard problem is trust, not storage.** A saved prompt is replayed
    *as instructions, with the user's authority*, and on this LAN any client
-   can write, because auth is intentionally off. The evidence is consistent:
+   can write, because auth is intentionally off. (*Update 2026-09-28:* auth
+   was enabled on 2026-09-25; with one shared key, every key-holding client
+   can still write, so the conclusion stands.) The evidence is consistent:
    - self-generated agent skills scored *below* having no skills at all,
      while curated ones added +16.6 percentage points (SkillsBench);
    - poisoned skill marketplaces exist in the wild (ClawHavoc);

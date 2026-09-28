@@ -44,9 +44,11 @@ An enabled-but-unauthenticated or unrecognized setting logs an error and
 leaves the tools unregistered; it does not stop startup. Stdio MCP never
 registers these tools. Tool inputs are artifact IDs, not paths; the server
 chooses destinations inside the configured directory. No tool returns raw
-database bytes. **The tools are parked** (operator decision, 2026-09-24):
-auth stays disabled on the LAN deployment as decided on 2026-05-06, so the
-tools cannot register there, and no auth change is planned or implied. The
+database bytes. **The tools are parked** (operator decision, 2026-09-24).
+At the time, auth was disabled on the LAN deployment as decided on 2026-05-06.
+**Update 2026-09-28:** the operator enabled auth on 2026-09-25, which meets the
+API-key precondition. Enabling the tools still needs an explicit
+`OC_BACKUP_DIR` and the operator's call (ROADMAP OPS-07). The
 production restore path does not depend on them. Daily scheduled backups use
 the bind mount independently.
 

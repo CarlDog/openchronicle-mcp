@@ -2,7 +2,8 @@
 
 **Status:** Benchmark RUN (see results below) — the local option cleared
 the gate; the switch decision is with the operator, pending the NAS
-latency leg · **Date:** 2026-08-29
+latency leg · **Date:** 2026-08-29 · **Outcome:** the switch was made;
+`ollama/nomic-embed-text` has been production since v3.2.0.
 
 **Requested by the operator** at the close of ADR 0005's
 implementation, which is what makes this review timely: provider

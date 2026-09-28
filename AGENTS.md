@@ -171,6 +171,23 @@ does differently.
   projects, different close behaviour). Tolerated, per the duplication
   bar.
 
+### Every phase end: roadmap reconciliation
+
+Added 2026-09-28, after a manual inventory found open work scattered across
+docs, OC memories, issues and branches, some of it in no plan at all.
+
+1. Sweep every source of open work for this project: `docs/V3_PLAN.md`,
+   `docs/CODEBASE_ASSESSMENT.md` known-open items, `docs/design/`, OC
+   memories for project `fe2ef898-…` (ideas, `mcp-feedback`, deferred
+   notes), open GitHub issues and PRs, long-lived branches (`v4/develop`,
+   draft PR branches), and work-marker comments in the code.
+2. Every open item must appear in [docs/ROADMAP.md](docs/ROADMAP.md) under a
+   stable ID, or be dropped with a recorded reason.
+3. Mark items done that finished since the last audit; correct any status
+   line or cross-reference that no longer matches reality.
+4. Re-check the phase order against the operator's current priorities and
+   record any change the operator makes.
+
 ### Quarterly additions
 
 - **Embedding-provider sweep** (operator-directed 2026-08-29): diff the
@@ -199,7 +216,8 @@ query-revision and NAS Host-list source fixes merged.**
   draft PR #39).** A Claude adversarial review of `f65be230` (2026-09-24)
   found P1 defects; their fixes are on the PR (assessment revs 221-227,
   including an independent review of the fix round), and the review record
-  is in 0017. The MCP backup tools are **parked**: auth stays disabled, so
+  is in 0017. The MCP backup tools are **parked** (their auth precondition is now met,
+  because auth was enabled on 2026-09-25; enabling them is ROADMAP OPS-07), so
   production restores use the CLI and the offline helper's
   `stage`/`activate`/`rollback`. It merged to `main` **after the v3.4.0
   tag** (operator, 2026-09-24) and is unreleased: the nightly backup change
@@ -213,6 +231,9 @@ query-revision and NAS Host-list source fixes merged.**
   client (item 15).
   Production is unchanged. Resume from the
   [handoff](docs/handoffs/2026-09-24-backup-restore.md).
+- **Development roadmap (2026-09-28):** [docs/ROADMAP.md](docs/ROADMAP.md)
+  orders all open work with stable IDs. Next: the persistent-storage review
+  (DATA-01), then production health (OPS-*).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
@@ -248,7 +269,7 @@ query-revision and NAS Host-list source fixes merged.**
   release or deployment.
 - Found 2026-09-23, not yet fixed: chronological listings misorder
   memories whose `created_at` carries a UTC offset, which `onboard_git`
-  output does (V3_PLAN item 11). A bounded read-only live MCP inventory
+  output does (V3_PLAN item 12). A bounded read-only live MCP inventory
   found 93 offset-bearing values among 1,080 memories and 24 adjacent
   instant-order inversions. Input-version and backup/restore gates remain.
 - The prompt library ([0015](docs/design/0015-prompt-library.md)) is
@@ -673,13 +694,14 @@ table — freeform strings will fail. (Project name on the NAS is
 If the NAS DB is recreated again in the future, create a new project
 with `project_create` and update this UUID.
 
-**Auth posture (decided 2026-05-06, post-cutover):** `OC_API_KEY` on
-stack 151 resolves to empty — auth is **intentionally disabled**.
-This is a single-user home-LAN deployment, the LAN is trusted, no MCP
-clients are configured to send a bearer header, and the cost/benefit
-of switching doesn't pay. If the trust boundary ever changes (public
-exposure, untrusted LAN segment, multi-user environment), follow the
-"How to enable auth on a running deployment" steps in
+**Auth posture: enabled (operator, 2026-09-25).** Stack 151 sets
+`OC_API_KEY`, so `/mcp` and REST require
+`Authorization: Bearer <key>` (or `X-API-Key`); only `/health`,
+`/api/v1/health` and the OpenAPI pages are exempt. Confirmed read-only on
+2026-09-28: `/mcp` answers 401 without a key. Every MCP client must send the
+key, so a client configured without it cannot reach OpenChronicle. The key
+lives only in Portainer and in client configurations, never in the
+repository. This supersedes the 2026-05-06 decision to leave auth off. See
 [docs/configuration/security_posture.md](docs/configuration/security_posture.md#authentication).
 
 ### Session Protocol Addition

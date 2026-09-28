@@ -83,7 +83,7 @@ HEALTHCHECK hits the liveness `/health`, which never probes.
 
 - a correct fix for §1.1 (**done**: rev 208, shipped in v3.4.0);
 - the persistent Ollama HTTP client, with its lifecycle wired and a NAS
-  measurement (**open**: V3_PLAN active queue item 14, filed 2026-09-24);
+  measurement (**open**: V3_PLAN active queue item 15, filed 2026-09-24; ROADMAP QUAL-08);
 - a few documentation corrections (**done**: the three stale records in
   Part 4 were corrected by 2026-09-23).
 
@@ -280,7 +280,7 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
   Item 1 is the highest-value next fix in the repository.
 
   **Update 2026-09-23:** all four are fixed on `main` (assessment revs
-  201-204) and ship with v3.4.0; see V3_PLAN item 8.
+  201-204) and ship with v3.4.0; see V3_PLAN item 9.
 - **§1.1**, as above: `main`'s only production-reachable defect in this
   review. **Update 2026-09-23:** fixed on `main` (rev 208), shipping
   with v3.4.0.
