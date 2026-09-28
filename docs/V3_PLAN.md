@@ -1082,8 +1082,8 @@ entry (below, or in its design doc):
    metrics instrumentation off by default. The exception covers release,
    not enablement; see 0010. The blank-content refusal was reconciled
    with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
-  **not deployed**. Deploying is a separate, env-only step (item 13),
-  with the NAS restart gate. PR #39 (design 0017) merged after this
+  **deployed 2026-09-28** (ROADMAP OPS-01, assessment rev 245); the NAS
+  restart gate (OPS-02) follows. PR #39 (design 0017) merged after this
    tag and is unreleased.
 10. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23

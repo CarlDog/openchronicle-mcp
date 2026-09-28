@@ -16,7 +16,8 @@ env-only. In one `portainer_set_stack_env` call, move `OC_TAG` to `v3.4.0` and
 set `OC_LOG_FILE=/output/logs/openchronicle.log`; the stored compose still
 carries the old default. Then verify `health.package_version=3.4.0`,
 `health.build_revision`, and `model_revision_state`. The tag was not deployed
-when it was cut.
+when it was cut. **Deployed 2026-09-28**, after OPS-03 had reconciled the stack's
+compose, so only `OC_TAG` moved.
 
 - **Blank content is refused before any write** (fleet-review #27 item 1).
   `memory_update(content="")` over MCP blanked the memory and deleted its

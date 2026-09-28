@@ -52,7 +52,7 @@ enforces parity.
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
   with it unset fails loudly instead of silently tracking `:latest`),
-  and stack 151 pins it (`v3.3.0` on 2026-09-23); a push to `main`
+  and stack 151 pins it (`v3.4.0` since 2026-09-28); a push to `main`
   refreshes only `:latest`, which that stack does not pull. **Code goes
   live when `OC_TAG` moves — a push alone deploys nothing.** So runtime
   changes (`src/`, `pyproject.toml`, `Dockerfile`) ship with the next
@@ -247,7 +247,8 @@ query-revision and NAS Host-list source fixes merged.**
   an uploaded artifact. Nightly off-NAS push is OPS-08. OPS-03 is done and
   deployed (2026-09-28): stack 151 runs `main`'s compose (bridge network,
   0020's volume layout, container `openchronicle-mcp`, no Watchtower
-  label), still on v3.3.0. Next: OPS-01 (v3.4.0).
+  label). OPS-01 is done: v3.4.0 (`9b1e83e6`) is live since 2026-09-28.
+  Next: OPS-02, the NAS restart gate.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
@@ -257,13 +258,13 @@ query-revision and NAS Host-list source fixes merged.**
   Ollama revision fix (ADR 0005 §7), three hygiene fixes, and the fixes
   from the pre-deploy review and its completeness critic (among them
   the NAS log file, which never existed). **Released as v3.4.0 on
-  2026-09-24, not deployed:** the operator granted an exception to design
+  2026-09-24 and deployed 2026-09-28 (OPS-01):** the operator granted an exception to design
   0010's B/A gate (metrics stay off by default), and the tag points at the
   release PR's merge. The deploy is env-only, because stack 151 runs a detached, older
   compose (V3_PLAN item 13). 0017's `/exports` mount is the exception: it
   needs that compose reconciled, so it is not part of an env-only deploy.
-  Until a deploy, production (v3.3.0) still
-  needs 0014's interim control after any NAS, OC or Ollama restart.
+  With v3.4.0 live, 0014's interim restart control is no longer needed; the
+  restart gate (OPS-02) proves that on a real restart.
 - Source tracks 1 and 3 of [plan 0016](docs/design/0016-review-findings-plan.md)
   entered `main` through PR #34 (merge `7ffc277c`) and PR #35 (merge
   `77ea0173`), respectively. Track 1:
