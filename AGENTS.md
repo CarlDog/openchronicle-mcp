@@ -92,9 +92,11 @@ enforces parity.
   (the data volume external and pinned by name) and `container_name`.
   The stack stays file-based by operator decision, so the repo file
   reaches production only through a reviewed `portainer_update_stack_file`,
-  never by a git redeploy. Until that step runs, the stored file is
-  still file version 142. `OC_LOG_FILE=/output/logs/openchronicle.log` is
-  already set in the stack env (0020 step A).
+  never by a git redeploy. It was deployed on 2026-09-28 (file version
+  143, matching `main` at `5a207070`; `HOST_CONFIG_DIR` removed, so
+  `/config` is a named volume). The container is `openchronicle-mcp`.
+  `OC_LOG_FILE=/output/logs/openchronicle.log` is set in the stack env
+  (0020 step A).
 
   Verify with `mcp__openchronicle__health`: `package_version` is the
   signal **when the released version actually changed** — it reports the
@@ -242,10 +244,10 @@ query-revision and NAS Host-list source fixes merged.**
   rides OPS-03; decision 5 waits on the operator's ACL check, and decision
   6 is answered (no DSM backup covers the Docker paths). Cloud-backup
   Phase 0 (DATA-02) passed on 2026-09-28: both escrowed identities decrypted
-  an uploaded artifact. Nightly off-NAS push is OPS-08. OPS-03's compose
-  reconciliation is done in the repo (bridge network, 0020's volume layout,
-  `container_name`, no Watchtower label); deploying it to stack 151, still
-  on v3.3.0, is the next step, then OPS-01 (v3.4.0).
+  an uploaded artifact. Nightly off-NAS push is OPS-08. OPS-03 is done and
+  deployed (2026-09-28): stack 151 runs `main`'s compose (bridge network,
+  0020's volume layout, container `openchronicle-mcp`, no Watchtower
+  label), still on v3.3.0. Next: OPS-01 (v3.4.0).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

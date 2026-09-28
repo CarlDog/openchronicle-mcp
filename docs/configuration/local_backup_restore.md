@@ -153,26 +153,26 @@ point.
 
 ### Alternative bootstrap through the Portainer console
 
-The production container bind-mounts the SMB-visible
-`/volume1/docker/openchronicle/config` folder at `/config`, read-write
-(seen in a read-only Portainer query on 2026-09-24; recheck the mount first).
-The config loader reads only `core.json`, so a snapshot file there is inert.
-Before starting, confirm who can read `\\carldog-nas\docker\openchronicle\config`:
-until it is deleted, the file is a plaintext copy of the whole corpus.
+Since OPS-03 (2026-09-28) `/config` is a named volume and is not visible over
+SMB. The SMB-visible path is the `/exports` bind:
+`/volume1/docker/openchronicle/exports`, owned by uid 1000 (`oc`), group
+`users`, mode 0750, with no Synology ACL. Recheck the mount before starting.
+Until it is deleted, the snapshot is a plaintext copy of the whole corpus,
+readable by members of `users`.
 
-In Portainer, open Containers, the `oc` container, then Console. Set **User**
+In Portainer, open Containers, `openchronicle-mcp`, then Console. Set **User**
 to `oc`: the default is root, which would leave a root-owned file. Connect with
 `/bin/sh` and run:
 
 ```sh
-STAMP=$(date -u +%Y%m%dT%H%M%SZ); oc db backup "/config/pre-change-$STAMP.db"; sha256sum "/config/pre-change-$STAMP.db"
+STAMP=$(date -u +%Y%m%dT%H%M%SZ); mkdir -p /exports/bootstrap; oc db backup "/exports/bootstrap/pre-change-$STAMP.db"; sha256sum "/exports/bootstrap/pre-change-$STAMP.db"
 ```
 
 Run it as one line, and check that the printed file name carries the
 timestamp. On 2026-09-24 an earlier attempt in the same console session wrote
 `pre-change-.db` with an empty `STAMP`; that is an extra plaintext copy to
 delete. Record the digest. From the workstation, run the PowerShell block above with
-`$source` set to `\\carldog-nas\docker\openchronicle\config\pre-change-<STAMP>.db`,
+`$source` set to `\\carldog-nas\docker\openchronicle\exports\bootstrap\pre-change-<STAMP>.db`,
 check that the printed digest equals the recorded one, and open the
 independent copy read-only for the same checks, for example:
 
@@ -180,14 +180,22 @@ independent copy read-only for the same checks, for example:
 python -c "import pathlib,sqlite3,sys; p=pathlib.Path(sys.argv[1]).as_posix(); c=sqlite3.connect('file:'+p+'?mode=ro&immutable=1',uri=True); print(c.execute('PRAGMA integrity_check').fetchone(), c.execute('PRAGMA foreign_key_check').fetchone(), c.execute('SELECT MAX(version) FROM schema_version').fetchone(), c.execute('SELECT COUNT(*) FROM memory_items').fetchone())" '<independent copy path>'
 ```
 
-Expect `('ok',) None (<schema>,) (<count>,)`. Then, in the console, delete
-`/config/pre-change-<STAMP>.db` and the `.db.tmp-wal` and `.db.tmp-shm` files
-v3.3.0 leaves beside every backup (`ls -la /config` afterwards should show
-no `pre-change-*`). The `docker` share's Synology recycle bin keeps deleted
-files in `\\carldog-nas\docker\#recycle\openchronicle\config\` until its
-retention clears them (seen 2026-09-24; the operator accepts that). Empty it
-by hand only if the copies must not linger. This route is an operator decision: it
-avoids a NAS shell and any stack edit, at the cost of that brief exposure.
+Expect `('ok',) None (<schema>,) (<count>,)`. Then delete the snapshot **in the
+same container console** (a NAS SSH shell has its own, unrelated `/config` and
+`/exports`; use the host path `/volume1/docker/openchronicle/exports/...`
+there):
+
+```sh
+rm -v /exports/bootstrap/pre-change-<STAMP>.db /exports/bootstrap/pre-change-<STAMP>.db.tmp-wal /exports/bootstrap/pre-change-<STAMP>.db.tmp-shm; ls -la /exports/bootstrap
+```
+
+v3.3.0 leaves the `.db.tmp-wal` and `.db.tmp-shm` files beside every backup.
+Deleting inside the container bypasses the share's Synology recycle bin;
+deleting over SMB instead leaves a copy in `\\carldog-nas\docker\#recycle\`
+until its retention clears it. This route is an operator decision: it avoids a
+NAS shell and any stack edit, at the cost of that brief exposure. (Before
+OPS-03 it wrote to the then SMB-visible `/config` bind; the 2026-09-24 and
+2026-09-28 pre-change copies were taken that way.)
 
 ## Enable and use the MCP surface
 

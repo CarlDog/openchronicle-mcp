@@ -275,6 +275,30 @@ both intermediate states are valid.
    (`assets`, `output`, `plugins`, `config`). The orphaned volumes were
    already pruned on 2026-09-28.
 
+#### Step B result, 2026-09-28
+
+Done, operator-approved at each step:
+
+- **Saved first:** the version 142 file, checked against git: it is
+  `682c68f0~1`'s compose plus the two Watchtower label lines.
+- **Fresh off-NAS copy:** `pre-change-20260928T181210Z.db`, SHA-256
+  `d0ec3407…b66f3` on the share and on the workstation. `integrity_check`
+  `ok`, schema 4, 1,094 memories (equal to live), 39 projects. The plaintext
+  copy on the share was deleted afterwards.
+- **`exports` and `exports/backups`:** owner `1000:100`, mode 0750, Linux
+  mode (no Synology ACL).
+- **`portainer_update_stack_file` (18:18Z):** file version 143, byte-identical
+  to `main` at `5a207070`. One container, `openchronicle-mcp`, replaced
+  `openchronicle-mcp-oc-1` with no orphan. `/data` stayed
+  `openchronicle-mcp_oc-data`, `/exports` was bound, and the startup log was
+  clean. Healthy, build `7349f94`, 1,094 memories.
+- **`HOST_CONFIG_DIR` removed (18:23Z):** `/config` is now
+  `openchronicle-mcp_oc-config`, seeded on first run. The same build and
+  count, and a clean startup.
+- **Stack access control** (administrators only) is unchanged.
+- **Still to do** (step 7): after a week of green nights, remove
+  `/volume1/docker/openchronicle/{assets,output,plugins,config}`.
+
 Rollback runs the same steps in reverse: set `HOST_CONFIG_DIR` back, then
 re-send the saved version 142 text with `portainer_update_stack_file`. The
 image and the data volume never change, so writes made after the deploy

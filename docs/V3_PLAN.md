@@ -1158,7 +1158,9 @@ entry (below, or in its design doc):
     the live file's Watchtower label is dropped, and 0020's layout is applied
     (external `oc-data`, named `oc-config`/`oc-output`, `container_name`).
     `OC_BACKUP_DIR: /exports/backups` stays in the file as container wiring,
-    not operator configuration. Deploying it to stack 151 is the next step.
+    not operator configuration. **Deployed to stack 151 on 2026-09-28** (file
+    version 143, then `HOST_CONFIG_DIR` removed); the stored file now
+    matches `main` at `5a207070`.
 14. **Persistent-storage review — HIGH PRIORITY, next after the 0017 work**
     (operator, 2026-09-24; full entry under the post-cutover follow-ups,
     beside the 0017 backup entry). Cite items by their stable
