@@ -1,6 +1,6 @@
 # Cloud Backup for OpenChronicle — Design
 
-**Status:** Proposed — provider decided, nothing built · **Date:** 2026-08-23
+**Status:** Phase 0 complete (2026-09-28, [record](#phase-0-record-2026-09-28)); Phase 1 not built · **Date:** 2026-08-23
 **Resolves:** `docs/V3_PLAN.md` open question 12 · **Leaves open:** sync-as-store (stays in the Out of Scope table)
 
 > **Corrected baseline.** The brief said ~3.7 MB / 277 memories. Live health on 2026-08-23T17:29Z: **8,650,752 bytes (8.25 MiB), 730 memories, 728 embedded**, `package_version 3.0.0rc8`, `schema_version 1`. Growth ≈ 5 MiB/quarter. Nothing below changes at this scale — but size the work off 8.25 MiB.
@@ -167,7 +167,7 @@ Ranked by *unattended reliability*, the only ranking that matters for a backup:
 | OneDrive personal | No | **No** — see below | ~90 days | Rejected despite being preferred |
 | *B2 / S3 / WebDAV / SFTP* | **No OAuth at all** | Yes (bucket + prefix + capability) | None | Strictly better, but the operator has none |
 
-**Dropbox.** No app review for a single-user app (production approval only past 50 linked users), refresh tokens with no documented expiry, `Retry-After` always present on 429, and App Folder is the narrowest blast radius rclone can actually use. Create the app with **App folder** access and enable exactly `account_info.read`, `files.metadata.write`, `files.content.write`, `files.content.read`, `sharing.write`.
+**Dropbox.** No app review for a single-user app (production approval only past 50 linked users), refresh tokens with no documented expiry, `Retry-After` always present on 429, and App Folder is the narrowest blast radius rclone can actually use. Create the app with **App folder** access and enable exactly `account_info.read`, `files.metadata.read`, `files.metadata.write`, `files.content.write`, `files.content.read`, `sharing.write`. (Corrected 2026-09-28: the original five omitted `files.metadata.read`, and rclone's listing and post-upload metadata check both fail without it. Add the OAuth2 redirect URI `http://localhost:53682/` in the app's Settings too, or rclone's browser login cannot complete.)
 
 **Two facts about this specific account that change the plan.**
 
@@ -444,6 +444,47 @@ with whichever access type verified, generate and **escrow** the age keypair, ru
 
 On the quarterly re-runs, **sample an artifact older than the newest one** — `rclone lsjson … | tail` picks the object most recently written and therefore least likely to have rotted. Nothing in this design ever re-reads an old remote object, so the drill is the only coverage old artifacts get; say so plainly rather than implying continuous verification.
 
+### Phase 0 record, 2026-09-28
+
+Run on the operator's Windows desktop, not the NAS. The exit gate passed.
+
+- **Tools:** rclone v1.75.1 and age v1.3.1, installed with winget.
+- **Access type: App folder.** Step 0 verified it: `rclone lsd`, a real
+  write, and a byte-identical read-back. The root listing showed only the
+  probe, none of the account's existing content, so the token is confined to
+  its own folder. The Full Dropbox fallback was not needed. The account
+  reported 23.125 GiB total, 6.745 GiB used and 16.380 GiB free.
+- **Scope defect found and fixed:** the five scopes in §4 omitted
+  `files.metadata.read`, and listing and upload verification failed until it
+  was added and the token re-issued (`rclone config reconnect ocdrop:`). §4
+  is corrected.
+- **Recipients:** primary `age17dnfg89z5d0uqvnsvhrd7gfjwl7tau6phrkkkx7n0ktlya2e3yhqm0t9z2`,
+  recovery `age1wfzgwe2xgutyqk246rrrpefy50m55yd3gp3dwxp2cvx635cy45tq9f5cgn`.
+  These are the public halves, safe to record, and Phase 1's
+  `OC_CLOUD_AGE_RECIPIENTS` must carry exactly these two. The primary
+  identity is in the operator's password manager and the recovery identity
+  is printed and stored separately. The generated local files were deleted
+  once escrow was confirmed.
+- **Artifact:** the verified 2026-09-24 off-NAS copy
+  (`pre-change-20260924T040030Z.db`, SHA-256 `eb85987e…a689243`), encrypted
+  to both recipients as `probe.db.age` (9,898,634 bytes, SHA-256
+  `49acab46…d914ec`), uploaded to `ocdrop:openchronicle/nas/probe.db.age`,
+  and pulled back with an identical hash.
+- **4a (primary, pasted from the password manager) and 4b (recovery, typed
+  from the printout):** each identity file derived the expected public key,
+  and each decryption was byte-identical to the source. Both returned
+  `integrity_check` = `ok`, 1,083 `memory_items` (99.2% of the live 1,092)
+  and 39 `projects` (100% of the live 39).
+- **Left behind:** `probe.db.age` on the remote, as the first sample for the
+  quarterly drill. The local identity copies and decrypted plaintext were
+  overwritten and deleted. `rclone.conf` lives in the desktop's rclone config
+  directory; treat it as plaintext-equivalent (§7).
+- **Not done, deliberately:** §4.1 step 5, installing `rclone.conf` on the
+  NAS. It conflicts with [0020](0020-persistent-storage-review.md)'s
+  adopted decision 1, which moves `/config` from the host bind that step 5
+  assumes to a named volume. It becomes an OPS-03/OPS-08 input: keep a small
+  bind for `rclone.conf` alone, or `docker cp` it into the named volume.
+
 ### Phase 1 — The push job
 
 ~~Two commits. **First:** `JobState.last_success_at` for all five jobs plus persistence, on its own (§6.1).~~ *That prerequisite shipped 2026-08-23; what remains is one commit.* **Namely:** Dockerfile, the `cloud_backup` handler in `jobs.py`, all three registrations (`HANDLERS`, `_DEFAULT_JOBS`, `core.json.example`), the health block, the guarded entrypoint chmod, compose lines, ignore files, and docs (ADR + `docs/configuration/cloud_backup.md` runbook + security_posture section + env_vars + MAINTENANCE job table + V3_PLAN Q12 resolved + CHANGELOG).
@@ -555,7 +596,7 @@ Carry these into implementation. Do not let them quietly become assertions.
 
 | Claim | Status | How to settle it |
 |---|---|---|
-| rclone works against a **Dropbox App folder** app (reports of "Path root is not supported for sandbox app") | **UNVERIFIED — now the first step of Phase 0** (§4.1 step 0). It no longer gates the *provider*, only the *scope* | 10 min, before any other bootstrap step: create the app with App folder access, `rclone authorize "dropbox"`, then `rclone lsd remote:` and copy a file. Fallback is Full Dropbox **on the same account** — a wider token, but the alternative (a fresh 2 GB account) cannot hold the backups at all. |
+| rclone works against a **Dropbox App folder** app (reports of "Path root is not supported for sandbox app") | **VERIFIED 2026-09-28** ([Phase 0 record](#phase-0-record-2026-09-28)): an App folder app lists, writes and reads back with rclone v1.75.1, and the token sees only its own folder. It no longer gates the *provider*, only the *scope* | 10 min, before any other bootstrap step: create the app with App folder access, `rclone authorize "dropbox"`, then `rclone lsd remote:` and copy a file. Fallback is Full Dropbox **on the same account** — a wider token, but the alternative (a fresh 2 GB account) cannot hold the backups at all. |
 | The official `rclone/rclone` image binary runs on `python:3.14-slim` | **UNVERIFIED, mitigated** — the upstream release binary measures fully static and the image is built `CGO_ENABLED=0`, but the image binary was not executed on Debian | `RUN rclone version` makes it a build failure, not a runtime one. Keep that line. |
 | trixie's `age` package satisfies the `age -r … -o …` invocation | **UNVERIFIED, mitigated** | `RUN age --version` in the same gate; the encrypt path is exercised in Phase 0 by hand before any code exists. |
 | Dropbox refresh tokens never expire | **LIKELY** — stated by Dropbox Community staff; the OAuth guide itself is silent on refresh-token expiry | Only matters after a >90-day OC outage. Re-bootstrap is documented; accept. |

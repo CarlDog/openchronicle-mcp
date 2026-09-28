@@ -238,8 +238,11 @@ query-revision and NAS Host-list source fixes merged.**
   inventory, eight findings, a target layout and a two-step cutover plan.
   The operator adopted the recommendations; step A (`OC_LOG_FILE` on the
   stack, environment only) is live on v3.3.0 as of 2026-09-28. Step B
-  rides OPS-03; decisions 5-6 wait on operator-run NAS checks. Next:
-  production health (OPS-*).
+  rides OPS-03; decision 5 waits on the operator's ACL check, and decision
+  6 is answered (no DSM backup covers the Docker paths). Cloud-backup
+  Phase 0 (DATA-02) passed on 2026-09-28: both escrowed identities decrypted
+  an uploaded artifact. Nightly off-NAS push is OPS-08. Next: production
+  health (OPS-*).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
