@@ -26,6 +26,7 @@ as shipped.
 | [0017 — Exposed local backups and guarded restore preparation](0017-exposed-backup-and-restore.md) | Plan and adversarial review | Merged to `main` 2026-09-24 after the v3.4.0 tag; unreleased. The P1 findings from the Claude review are fixed, a verified off-NAS copy exists, and the NAS restore drill passed (accepted with gaps). MCP tools parked (auth now enabled; ROADMAP OPS-07). Open: the release and `/exports` mount (ROADMAP OPS-04, OPS-05) and the pre-migration gate (TS-03) |
 | [0018 — Self-improving prompts](0018-self-improving-prompts.md) | Idea capture | Recorded 2026-09-24: the operator's intent behind 0015, prompts that improve from tracked outcomes. Concepts, research warnings and the open architectural fork. Not a design; nothing scheduled |
 | [0019 — Cloud LLM cost north star](0019-cloud-llm-cost-north-star.md) | Idea capture | Recorded 2026-09-24: the operator's aspiration that OC lower the cost of cloud LLM use; candidate levers from measurement to a request-path gateway, and the gap in 0012's FreeToken scope. Nothing scheduled |
+| [0020 — Persistent storage review](0020-persistent-storage-review.md) | Review | DATA-01, 2026-09-28: read-only inventory of the NAS storage layout, eight findings, a target layout and a two-step cutover plan. Awaiting operator decisions; nothing changed |
 
 The numbering is chronological, not a priority ranking. Current backlog
 status lives in `docs/V3_PLAN.md`; release history lives in

@@ -232,8 +232,14 @@ query-revision and NAS Host-list source fixes merged.**
   Production is unchanged. Resume from the
   [handoff](docs/handoffs/2026-09-24-backup-restore.md).
 - **Development roadmap (2026-09-28):** [docs/ROADMAP.md](docs/ROADMAP.md)
-  orders all open work with stable IDs. Next: the persistent-storage review
-  (DATA-01), then production health (OPS-*).
+  orders all open work with stable IDs. The persistent-storage review
+  (DATA-01) is written up as
+  [0020](docs/design/0020-persistent-storage-review.md): a read-only
+  inventory, eight findings, a target layout and a two-step cutover plan.
+  The operator adopted the recommendations; step A (`OC_LOG_FILE` on the
+  stack, environment only) is live on v3.3.0 as of 2026-09-28. Step B
+  rides OPS-03; decisions 5-6 wait on operator-run NAS checks. Next:
+  production health (OPS-*).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
@@ -346,7 +352,9 @@ was removed; production remained unchanged. Phase 4D then passed on
 disposable observation stack 216 with retained Prometheus history across
 target restart/rollback, distinct idle/outage signals, documented access
 contracts, and both recovery paths preserving candidate-created data. Stack
-216 is stopped with its history volume preserved. Normal runtime metrics
+216 no longer exists, and its Prometheus history volume was pruned on
+2026-09-28 ([0020](docs/design/0020-persistent-storage-review.md) S7).
+Normal runtime metrics
 remain off. All 897 tests passed for the candidate.
 
 **Active queue after this release** (V3_PLAN carries the full
