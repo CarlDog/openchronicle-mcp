@@ -247,8 +247,8 @@ query-revision and NAS Host-list source fixes merged.**
   an uploaded artifact. Nightly off-NAS push is OPS-08. OPS-03 is done and
   deployed (2026-09-28): stack 151 runs `main`'s compose (bridge network,
   0020's volume layout, container `openchronicle-mcp`, no Watchtower
-  label). v3.4.0 (`9b1e83e6`) is live since 2026-09-28 (OPS-01); OPS-01
-  stays open until its rollback is exercised or waived. Next: OPS-02, the
+  label). v3.4.0 (`9b1e83e6`) is live since 2026-09-28, and OPS-01 is done,
+  including a live rollback drill to v3.3.0 and back. Next: OPS-02, the
   NAS restart gate.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
