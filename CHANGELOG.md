@@ -5,6 +5,60 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## v3.5.0 — 2026-09-28
+
+The backup release: design 0017's catalogued, verified snapshots, written to
+an exposed backup root that is separate from the live database's volume.
+
+**Deploy note:** stack 151 already runs the reconciled compose (OPS-03). It sets
+`OC_BACKUP_DIR=/exports/backups` and binds `/volume1/docker/openchronicle/exports`
+(owned by uid 1000, group `users`, mode 0750). The deploy moves only `OC_TAG`
+to `v3.5.0`. Verify `health.package_version=3.5.0` and `health.build_revision`.
+Then run 0017 step 5: a snapshot lands in `/exports/backups`, its digest matches
+when read over SMB, and a disposable restore passes integrity, foreign-key, row,
+ID and search checks. No schema change separates v3.4.0 and v3.5.0, so rolling
+back is moving `OC_TAG` back.
+
+- **Nightly backups move to `OC_BACKUP_DIR`** (0017). `db_backup`, and the
+  backup `db_vacuum` takes first, write to `auto/` under `OC_BACKUP_DIR`
+  (default `${data_dir}/backups`, the old location). Each snapshot is
+  published in rollback-journal mode with a verified JSON manifest. Retention
+  still keeps the 7 newest plus the newest per day for 7 days, and it counts
+  only published snapshots. Snapshots without a manifest, including every
+  pre-0017 file in `/data/backups/auto`, are never pruned, so the old ones stay
+  for explicit review. A snapshot that fails verification is kept as
+  `*.failed-verify` or `*.failed-quick-check`, and the job fails.
+- **A failing nightly backup shows in health** (v3.5.0 pre-deploy review,
+  finding 1). A new health field, `backup_last_run_failed`, reads true when
+  the last scheduled `db_backup` run failed. It comes from the persisted run
+  and success stamps, so it survives a restart. The next scheduled success
+  clears it; manual backups do not. It is deliberately separate from
+  `maintenance_degraded`, which still means "the database may be corrupt"
+  (design 0001 section 6.2). Folding a backup failure into it would have sent
+  operators to a restore. Usually the backup root is at fault, but a live
+  database that fails its checks also fails the backup; the incident runbook
+  says how to tell the two apart. Before this, a broken backup root failed every
+  nightly backup while health read clean. The gap predates this release but
+  mattered more once backups moved to an operator-managed host bind. The
+  field is additive (MINOR).
+- **Bad backup configuration never stops startup.** An unusable
+  `OC_BACKUP_DIR` is logged at ERROR, and manual and scheduled backups fail
+  until it is fixed. Under `restart: unless-stopped`, raising instead would
+  crash-loop the memory service.
+- **Backup MCP tools, off by default** (0017). `db_backup_create`,
+  `db_backup_list`, `db_backup_verify` and `db_restore_plan` register only when
+  `OC_BACKUP_MCP_ENABLED=true`, `OC_API_KEY` is set and `OC_BACKUP_DIR` is
+  explicit. The default tool inventory is unchanged, so this is MINOR under
+  STABILITY.md. Enabling them is ROADMAP OPS-07.
+- **Guarded offline restore** (`scripts/offline_restore.py` and the runbook):
+  `stage`, `activate`, `rollback` and `retire-stage`, drilled on the NAS on
+  2026-09-24.
+- **Design 0010 release gate:** the operator extended the v3.4.0 exception to
+  this release (2026-09-28). v3.5.0 changes no metrics code, and metrics stay
+  off by default. The exception covers release, not enablement.
+- **Housekeeping:** `uv.lock` recorded the project as 3.3.0 because the v3.4.0
+  release did not refresh it. It now matches.
+
 ## v3.4.0 — 2026-09-24
 
 The correctness release: the four fleet-review #27 fixes, the model-revision

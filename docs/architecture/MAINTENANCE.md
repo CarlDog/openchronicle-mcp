@@ -165,7 +165,18 @@ Status payload per job:
 ```
 
 `/api/v1/health` carries `maintenance_degraded` so operators can detect
-an integrity-check failure without polling the dedicated endpoint.
+an integrity-check failure ("the database may be corrupt") without polling
+the dedicated endpoint. Since v3.5.0 it also carries
+`backup_last_run_failed`, true when the last scheduled `db_backup` run
+failed, for example because `OC_BACKUP_DIR` became unwritable. The two are
+deliberately separate, because a failed backup is usually not a corrupt
+database. It can be, though: the snapshot copies the live store, so a live
+database that fails its checks also fails the backup. The incident runbook
+in `security_posture.md` says how to tell the two apart. Both read the persisted run and success
+stamps, so a restart does not clear them. A later successful scheduled run of
+the same job does. Manual runs (`oc maintenance run-once`, `oc db backup`,
+MCP `db_backup_create`) do not write loop state, so after fixing a backup
+root the field clears at the next scheduled backup, within 24 hours.
 
 ## Embedding degradation policy
 

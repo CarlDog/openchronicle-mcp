@@ -108,7 +108,13 @@ tool. The response includes:
   `unknown`; while `unknown`, no embedding is written (ADR 0005 §7)
 - `package_version` — confirms the version the client is talking to
 - `maintenance_degraded` — `true` if the integrity-check job has
-  failed since the last successful run
+  failed since the last successful run (the database may be corrupt)
+- `backup_last_run_failed` — `true` if the last scheduled backup failed.
+  Usually the backup root needs attention, and that is not a reason to
+  restore. But if the maintenance status error names `integrity_check`,
+  `foreign_key_check` or `quick_check`, the live database failed its checks:
+  run the integrity check before anything else (see
+  [security_posture.md](../configuration/security_posture.md#incident-response)).
 
 From the server side:
 

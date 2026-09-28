@@ -13,6 +13,8 @@ requires a scoped decision.
 instrumentation, off by default, under an explicit exception to the rule that
 an inconclusive B/A blocks release; see [the exception](#operator-release-exception-2026-09-24).
 Enabling metrics in production still requires this design's gates.
+**Extended to v3.5.0 (operator, 2026-09-28):** that release changes no
+metrics code; see [the extension](#extension-to-v350-2026-09-28).
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
 This identifies the planning work, not a GitHub issue or an approved build.
@@ -1432,6 +1434,18 @@ The operator granted an explicit exception so that v3.4.0 can ship from
 The exception covers release only. It does not cover enabling metrics in
 production, which still needs the unchanged C/A, responsiveness and 4E/4F
 gates. The tagged release is not deployed by this decision.
+
+### Extension to v3.5.0 (2026-09-28)
+
+The operator extended the exception to v3.5.0, on the same terms. The
+release adds design 0017's backup work. `git diff v3.4.0` shows no change to
+the observability package, the metrics middleware, the request routes, the
+search service or `sqlite_store.py`, so the instrumented and measured paths
+are byte-identical to v3.4.0. The only new runtime load is the nightly backup
+job, which is off the request path. Its request-tail impact was within budget
+on the 2026-09-24 NAS drill, and it is measured again during this release's
+0017 step 5 deploy check. Metrics stay off by default, and enabling them still
+needs this design's gates.
 
 ## Completion and subsequent decisions
 

@@ -32,6 +32,14 @@ def register(mcp: FastMCP) -> None:
         its documentation. `fts5_active` distinguishes "search is
         degraded" from "search is broken" — it falls back silently
         otherwise.
+
+        `maintenance_degraded` true means the integrity check failed:
+        the database may be corrupt. `backup_last_run_failed` true means
+        the last scheduled backup failed, usually because the backup root
+        is unwritable, which is not a reason to restore. If the maintenance
+        status error names integrity_check, foreign_key_check or
+        quick_check, though, the live database failed its checks: run the
+        integrity check first.
         """
         container = _get_container(ctx)
         return await asyncio.to_thread(build_health_payload, container)
