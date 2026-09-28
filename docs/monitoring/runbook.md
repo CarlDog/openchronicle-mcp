@@ -33,28 +33,30 @@ destination. The checked-in collector image is pinned to
    path when you need an explicit storage location.
 2. Ensure the OC stack environment contains `OC_TAG` and set
    `OC_METRICS_ENABLED=true`. Set `OC_API_ALLOWED_HOSTS` explicitly to every
-   external REST host pattern plus `oc:*` for the collector's private
-   `oc:8000` target. For example, `your-nas:*,oc:*` allows clients using
-   that NAS hostname and the collector. An explicit REST list replaces the
+   external REST host pattern plus `host.docker.internal:*` for the
+   collector, which scrapes OC's published port on the host. For example,
+   `your-nas:*,host.docker.internal:*` allows clients using that NAS
+   hostname and the collector. An explicit REST list replaces the
    default inheritance from `OC_MCP_ALLOWED_HOSTS`; retain every external
    hostname clients use.
 3. Leave `PROMETHEUS_CONFIG_FILE` unset when `OC_API_KEY` is empty. The
-   default config scrapes `oc:8000/metrics` every 30 seconds with a 5-second
-   timeout.
+   default config scrapes `host.docker.internal:18000/metrics` every 30
+   seconds with a 5-second timeout. If `HOST_HTTP_PORT` is not 18000, edit
+   the target in both `prometheus.yml` and `prometheus-auth.yml` to match.
 4. Start the profile from the repository directory:
 
    ```powershell
    $env:OC_TAG = "<release-tag>"
    $env:OC_METRICS_ENABLED = "true"
-   $env:OC_API_ALLOWED_HOSTS = "your-nas:*,oc:*"
+   $env:OC_API_ALLOWED_HOSTS = "your-nas:*,host.docker.internal:*"
    docker compose -f docker-compose.nas.yml --profile metrics up -d oc prometheus
    ```
 
    Portainer operators should activate the equivalent `metrics` profile in
-   the stack configuration and use the same environment values. The deployed
-   file-based stack keeps its own compose; review that stored configuration
-   before applying an equivalent change. Editing the repository compose does
-   not update the deployed stack. A green compose operation is not proof of
+   the stack configuration and use the same environment values. Stack 151 is
+   file-based: its stored compose matches the repository only as of the last
+   reviewed `portainer_update_stack_file` (OPS-03). Editing the repository
+   compose does not update the deployed stack. A green compose operation is not proof of
    a healthy scrape.
 5. Open the Prometheus UI through the loopback-only binding, normally
    `http://127.0.0.1:19090`, or use an SSH tunnel to the NAS. The UI is not
@@ -76,7 +78,8 @@ file is missing or unreadable, Prometheus should show a down target rather than
 silently recording a clean zero.
 
 The metrics endpoint is not an authentication exemption. The collector also
-needs `oc:*` in the REST Host allowlist described in the start procedure.
+needs `host.docker.internal:*` in the REST Host allowlist described in the
+start procedure.
 
 ## Verify collection and retention
 

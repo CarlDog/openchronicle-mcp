@@ -235,29 +235,53 @@ exists, is owned `1000:1000`, and was 11,914 bytes and growing at 16:31Z.
 
 ### Step B — with OPS-03's compose reconciliation
 
-1. Confirm the stored compose still matches file version 142, and record it;
-   Portainer keeps the previous version for rollback.
-2. Stop the container (a clean shutdown checkpoints the WAL).
-3. Take and verify a fresh off-NAS copy of the database, following the
+The repository side landed on 2026-09-28: `docker-compose.nas.yml` now
+carries the target layout, and `tests/test_nas_compose_shape.py` pins it.
+The steps below are the deploy.
+
+Revised 2026-09-28 after the OPS-03 pre-deploy review. Portainer has no
+"restore version" call, and `portainer_update_stack_file` cannot change the
+stack env, so the change is two ordered redeploys. A local rehearsal showed
+both intermediate states are valid.
+
+1. Save stack 151's current `StackFileContent` (file version 142) verbatim to
+   a local file. Rollback re-sends that text; nothing else restores it.
+2. Take and verify a fresh off-NAS copy of the database, following the
    runbook's bootstrap procedure. The 2026-09-24 copy is too old to be the
    rollback point.
-4. On the NAS, over SSH: copy the volume data directories aside with `cp -a`,
-   create `exports/backups` owned by uid 1000 with mode 0750, and create the
-   `openchronicle-mcp_oc-config` volume if you choose that option.
-5. Apply the reconciled compose (`portainer_update_stack_file`), then start.
+3. On the NAS, over SSH, create the bind source, then confirm it:
+   `sudo install -d -o 1000 -g 1000 -m 0750 /volume1/docker/openchronicle/exports /volume1/docker/openchronicle/exports/backups`
+   and `ls -ldn /volume1/docker/openchronicle/exports/backups`.
+4. Apply the repository compose with `portainer_update_stack_file`, with
+   `HOST_CONFIG_DIR` still set. Only the container name, the `/exports` bind,
+   three variables v3.3.0 does not read, and the dropped Watchtower label
+   change; `/config` is untouched. Compose replaces the old container by its
+   labels, and if the bind source were missing, the old container would keep
+   running. Verify with `portainer_get_container`: name `openchronicle-mcp`,
+   `/data` from `openchronicle-mcp_oc-data`, `/exports` present, healthy.
+5. Remove `HOST_CONFIG_DIR` with `portainer_set_stack_env`. `/config` becomes
+   the new `openchronicle-mcp_oc-config` volume, seeded with
+   `core.json.example` only, which v3.3.0 does not load.
 6. Verify:
-   - `health.build_revision` is the expected commit;
-   - `total_memories` is at least the pre-cutover count;
+   - `health.build_revision` is still `7349f94`;
+   - `total_memories` is at least the pre-change count;
    - `db_path` is `/data/openchronicle.db`;
-   - the log file exists;
-   - the next nightly backup lands in `/exports/backups/auto`.
-7. After a week of green nights: remove the dead host directories. (The
-   orphaned volumes were already pruned on 2026-09-28.)
+   - the log file at `/output/logs/openchronicle.log` keeps growing;
+   - the mounts are the three named volumes plus the `/exports` bind.
+   Nightly backups still land in `/data/backups/auto`: v3.3.0 does not read
+   `OC_BACKUP_DIR`. They move to `/exports/backups` with the release that
+   carries 0017 (OPS-04).
+7. After a week of green nights: remove the dead host directories
+   (`assets`, `output`, `plugins`, `config`). The orphaned volumes were
+   already pruned on 2026-09-28.
 
-Rollback: stop the stack, restore stack file version 142 in Portainer, put the
-`cp -a` copies back if a volume was touched, and start. Design 0017's
-`stage`/`activate`/`rollback` helper restores database files, not volumes; it
-applies only if the database itself has to be replaced.
+Rollback runs the same steps in reverse: set `HOST_CONFIG_DIR` back, then
+re-send the saved version 142 text with `portainer_update_stack_file`. The
+image and the data volume never change, so writes made after the deploy
+survive. The new `openchronicle-mcp_oc-config` volume is left behind,
+harmless. Design 0017's `stage`/`activate`/`rollback` helper restores
+database files, not volumes; it applies only if the database itself has to
+be replaced.
 
 ## Confirm before cutover
 

@@ -3,8 +3,8 @@
 # Select this file with PROMETHEUS_CONFIG_FILE when OC_API_KEY is set. The
 # mounted file must contain only the bearer token, without the "Bearer "
 # prefix. Keep it outside the repository and on a local filesystem.
-# Set OC_API_ALLOWED_HOSTS to include external REST hosts and `oc:*` for
-# this private-network target.
+# Set OC_API_ALLOWED_HOSTS to include external REST hosts and
+# `host.docker.internal:*` for this target (OC's published host port).
 
 global:
   scrape_interval: 30s
@@ -22,6 +22,6 @@ scrape_configs:
       credentials_file: /etc/prometheus/secrets/oc-api-key
     static_configs:
       - targets:
-          - oc:8000
+          - host.docker.internal:18000
         labels:
           service: openchronicle

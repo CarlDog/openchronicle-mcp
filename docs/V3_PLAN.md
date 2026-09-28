@@ -1125,7 +1125,9 @@ entry (below, or in its design doc):
     Those gates are the 0017 sequence in the backup entry above.
 13. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
-    Measured read-only 2026-09-23. Portainer's stored file predates
+    *History, measured read-only 2026-09-23, before OPS-03 (the network and
+    `oc:*` statements in this paragraph no longer describe the repository;
+    see the reconciliation note at the end of this item).* Portainer's stored file predates
     `682c68f0`. It keeps
     `oc` on `network_mode: bridge`, where the repo's compose now puts
     `oc` on a dedicated `oc-observability` network. That shape was
@@ -1149,6 +1151,14 @@ entry (below, or in its design doc):
     `container_name: openchronicle-mcp` to the `oc` service (operator,
     2026-09-24: no `-oc-1` suffix). Nothing depends on the name; the
     backup runbook finds the container by its compose labels.
+    **Reconciled in the repo 2026-09-28 (ROADMAP OPS-03):** both services
+    use `network_mode: bridge`, and the collector scrapes the published port
+    through `host.docker.internal` (so its explicit REST list uses
+    `host.docker.internal:*` instead of `oc:*`). The stack stays file-based,
+    the live file's Watchtower label is dropped, and 0020's layout is applied
+    (external `oc-data`, named `oc-config`/`oc-output`, `container_name`).
+    `OC_BACKUP_DIR: /exports/backups` stays in the file as container wiring,
+    not operator configuration. Deploying it to stack 151 is the next step.
 14. **Persistent-storage review — HIGH PRIORITY, next after the 0017 work**
     (operator, 2026-09-24; full entry under the post-cutover follow-ups,
     beside the 0017 backup entry). Cite items by their stable

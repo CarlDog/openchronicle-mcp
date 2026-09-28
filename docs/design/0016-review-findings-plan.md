@@ -212,6 +212,11 @@ rendered values; the revised test drives allowed and rejected MCP Hosts.
 Fresh CI on that revision is required. The detached live stack has not changed;
 this is not a profile start, release or deployment.
 
+**Superseded detail (2026-09-28, ROADMAP OPS-03):** the collector no longer
+uses the `oc` service alias. Both services moved to the shared bridge, so the
+explicit REST list for the collector is the external hosts plus
+`host.docker.internal:*`, and the rendered-compose tests assert that form.
+
 ### 4. Bound the prompt-library pilot and later ADR
 
 Do not start Stage 0 by writing unapproved prompt bodies to the live memory

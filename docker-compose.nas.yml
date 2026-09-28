@@ -24,16 +24,19 @@
 #     OC_EMBEDDING_MODEL    Provider-specific embedding model name.
 #     OC_EMBEDDING_API_KEY  Explicit embedding API key override.
 #
-#   Optional — persistent storage:
-#     The DB and internal runtime state live in the `oc-data` named
-#     volume (never operator-relocatable). The config dir defaults to
-#     a named volume too; set HOST_CONFIG_DIR to a host path to switch
-#     to bind-mount mode.
-#       HOST_CONFIG_DIR     Host path for /config (core.json). On first
-#                           start with an empty
-#                           bind-mount, the entrypoint copies example
-#                           configs (creates a .bootstrapped marker so
-#                           it doesn't repeat).
+#   Optional — persistent storage (layout: design 0020):
+#     The DB and internal runtime state live in the `oc-data` volume,
+#     declared external below so a missing volume fails the deploy
+#     instead of starting on an empty database. The config dir is the
+#     named `openchronicle-mcp_oc-config` volume, which is not visible
+#     over SMB; edit a core.json there through the container console.
+#       HOST_CONFIG_DIR     Host path for /config, switching it to a bind
+#                           mount. Leave unset on the NAS (0020 S2). On
+#                           first start the entrypoint seeds example
+#                           configs and writes a .bootstrapped marker.
+#       HOST_EXPORTS_DIR    Host path bound at /exports for catalogued
+#                           backups. It must already exist, owned by
+#                           uid 1000: the bind will not create it.
 #
 #   Optional — deployment shape:
 #     OC_TAG                Image tag. REQUIRED — deploy fails with an
@@ -60,6 +63,10 @@
 #   Optional — metrics profile (off unless explicitly selected):
 #     OC_METRICS_ENABLED       Set true before starting the `metrics` profile.
 #     HOST_PROMETHEUS_PORT     Loopback UI port (default: 19090).
+#     The collector scrapes host.docker.internal:18000, the published
+#     port, so OC_API_ALLOWED_HOSTS must include host.docker.internal:*
+#     whenever the profile runs. If HOST_HTTP_PORT moves, edit the target
+#     in both prometheus.yml and prometheus-auth.yml.
 #     HOST_PROMETHEUS_DATA_DIR Local filesystem for collector data; the
 #                              default is the named `prometheus-data` volume.
 #     HOST_PROMETHEUS_SECRETS_DIR Local directory containing `oc-api-key`
@@ -73,9 +80,12 @@
 services:
   oc:
     image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:?set OC_TAG to the release tag this stack should run (e.g. v3.0.0) — no :latest fallback}
+    container_name: openchronicle-mcp
     restart: unless-stopped
-    networks:
-      - oc-observability
+    # Fleet address-pool rule: a single-service stack joins the shared
+    # bridge instead of creating its own network. The optional collector
+    # reaches this service through the published port on the host.
+    network_mode: bridge
     ports:
       - "${HOST_HTTP_PORT:-18000}:8000"
     environment:
@@ -102,7 +112,8 @@ services:
       # incident; must be Portainer-tunable without a compose edit:
       OC_API_RATE_LIMIT_RPM: ${OC_API_RATE_LIMIT_RPM:-}
       # Empty by default so REST inherits OC_MCP_ALLOWED_HOSTS. When the
-      # metrics profile runs, set the external REST hosts plus `oc:*`.
+      # metrics profile runs, set the external REST hosts plus
+      # `host.docker.internal:*`.
       OC_API_ALLOWED_HOSTS: ${OC_API_ALLOWED_HOSTS:-}
       # Embeddings (Portainer stack env; default 'none' = FTS5-only):
       OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
@@ -168,8 +179,9 @@ services:
     image: prom/prometheus:v3.14.0
     profiles: [metrics]
     restart: unless-stopped
-    networks:
-      - oc-observability
+    network_mode: bridge
+    extra_hosts:
+      - host.docker.internal:host-gateway
     depends_on:
       oc:
         condition: service_healthy
@@ -187,12 +199,17 @@ services:
       - ${HOST_PROMETHEUS_SECRETS_DIR:-prometheus-secrets}:/etc/prometheus/secrets:ro
 
 volumes:
+  # The live database, pinned by exact name and never created by Compose.
+  # A missing volume, or this file deployed under another project name,
+  # then fails the deploy instead of starting on an empty database
+  # (design 0020, S1). On a fresh host, create it once first:
+  #   docker volume create openchronicle-mcp_oc-data
   oc-data:
+    external: true
+    name: openchronicle-mcp_oc-data
   oc-config:
+    name: openchronicle-mcp_oc-config
   oc-output:
+    name: openchronicle-mcp_oc-output
   prometheus-data:
   prometheus-secrets:
-
-networks:
-  oc-observability:
-    driver: bridge
