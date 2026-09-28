@@ -87,13 +87,14 @@ enforces parity.
   ```
 
   Do not paste the repo's `docker-compose.nas.yml` over the stored file
-  unreviewed. Since `682c68f0` it puts `oc` on a dedicated
-  `oc-observability` network instead of `network_mode: bridge`, which
-  the fleet's address-pool rule exists to prevent. A compose-only fix
-  reaches the NAS through its stack env var instead: rev 210's log path
-  needs `OC_LOG_FILE=/output/logs/openchronicle.log` set in the stack.
-  Reconciling the two files is an open operator decision (V3_PLAN
-  item 13).
+  unreviewed. OPS-03 (2026-09-28) reconciled the repo file with the
+  production target: the shared bridge, design 0020's volume layout
+  (the data volume external and pinned by name) and `container_name`.
+  The stack stays file-based by operator decision, so the repo file
+  reaches production only through a reviewed `portainer_update_stack_file`,
+  never by a git redeploy. Until that step runs, the stored file is
+  still file version 142. `OC_LOG_FILE=/output/logs/openchronicle.log` is
+  already set in the stack env (0020 step A).
 
   Verify with `mcp__openchronicle__health`: `package_version` is the
   signal **when the released version actually changed** — it reports the

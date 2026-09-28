@@ -21,7 +21,10 @@ IMAGE_REF="${IMAGE_REF:-ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-
 EXPECTED_REVISION="${EXPECTED_REVISION:-1fad2c4c1a5a34c887913aa91f0fb901a6a52dd5}"
 SEED="$HERE/${SEED_NAME:-pre-change-20260924T040030Z.db}"
 SEED_SHA="${SEED_SHA:-eb85987e55c52dff87a4bfa9e4c83db73a3de77ec7481f1f97ae7ac06a689243}"
-PROD_CONTAINER="${PROD_CONTAINER:-openchronicle-mcp-oc-1}"
+# Found by compose labels, not by name: the container was renamed from
+# openchronicle-mcp-oc-1 to openchronicle-mcp by OPS-03.
+PROD_CONTAINER="${PROD_CONTAINER:-$(docker ps -aq --filter label=com.docker.compose.project=openchronicle-mcp \
+  --filter label=com.docker.compose.service=oc | head -n 1 || true)}"
 BLOCKS="$HERE/blocks"
 LOG="$HERE/drill-$(date -u +%Y%m%dT%H%M%SZ).log"
 mkdir -p "$BLOCKS"

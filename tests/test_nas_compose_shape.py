@@ -57,15 +57,24 @@ def test_exports_bind_never_creates_its_host_directory(rendered: dict[str, Any])
 
 def test_every_service_uses_the_shared_bridge(rendered: dict[str, Any]) -> None:
     """Fleet address-pool rule: no per-project network."""
+    # Pin the set, so a renamed profile cannot quietly drop the collector
+    # out of the loop below.
+    assert set(rendered["services"]) == {"oc", "prometheus"}
     assert not rendered.get("networks")
     for name, service in rendered["services"].items():
         assert service.get("network_mode") == "bridge", name
 
 
+def test_collector_reaches_the_published_port_through_the_host(rendered: dict[str, Any]) -> None:
+    """On the shared bridge the collector scrapes host.docker.internal:18000,
+    which does not resolve on Linux without the host-gateway entry."""
+    assert "host.docker.internal=host-gateway" in rendered["services"]["prometheus"]["extra_hosts"]
+
+
 def test_container_name_and_no_auto_updater(rendered: dict[str, Any]) -> None:
-    oc = rendered["services"]["oc"]
-    assert oc["container_name"] == "openchronicle-mcp"
+    assert rendered["services"]["oc"]["container_name"] == "openchronicle-mcp"
     # Code goes live only when OC_TAG moves; an image watcher must not
-    # recreate the container behind that rule.
-    labels = oc.get("labels") or {}
-    assert not any("watchtower" in key for key in labels)
+    # recreate any service behind that rule.
+    for name, service in rendered["services"].items():
+        labels = service.get("labels") or {}
+        assert not any("watchtower" in key for key in labels), name

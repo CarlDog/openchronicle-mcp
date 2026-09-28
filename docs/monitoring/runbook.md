@@ -42,7 +42,7 @@ destination. The checked-in collector image is pinned to
 3. Leave `PROMETHEUS_CONFIG_FILE` unset when `OC_API_KEY` is empty. The
    default config scrapes `host.docker.internal:18000/metrics` every 30
    seconds with a 5-second timeout. If `HOST_HTTP_PORT` is not 18000, edit
-   the target to match.
+   the target in both `prometheus.yml` and `prometheus-auth.yml` to match.
 4. Start the profile from the repository directory:
 
    ```powershell

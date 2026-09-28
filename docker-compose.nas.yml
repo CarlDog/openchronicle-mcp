@@ -64,8 +64,9 @@
 #     OC_METRICS_ENABLED       Set true before starting the `metrics` profile.
 #     HOST_PROMETHEUS_PORT     Loopback UI port (default: 19090).
 #     The collector scrapes host.docker.internal:18000, the published
-#     port. If HOST_HTTP_PORT moves, edit the prometheus.yml target too,
-#     and add host.docker.internal:* to OC_API_ALLOWED_HOSTS.
+#     port, so OC_API_ALLOWED_HOSTS must include host.docker.internal:*
+#     whenever the profile runs. If HOST_HTTP_PORT moves, edit the target
+#     in both prometheus.yml and prometheus-auth.yml.
 #     HOST_PROMETHEUS_DATA_DIR Local filesystem for collector data; the
 #                              default is the named `prometheus-data` volume.
 #     HOST_PROMETHEUS_SECRETS_DIR Local directory containing `oc-api-key`

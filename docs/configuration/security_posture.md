@@ -155,8 +155,9 @@ Hardened 2026-07-30 (the review-driven CI batch):
 - The NAS compose runs OC, and the optional Prometheus collector, on the
   shared Docker bridge (`network_mode: bridge`, the fleet's address-pool
   rule); there is no project network. The collector scrapes OC's published
-  port through `host.docker.internal`. Stack 151 is file-based, and OPS-03
-  reconciled its stored compose with this file. Prometheus UI port `19090`
+  port through `host.docker.internal`. Stack 151 is file-based: its stored
+  compose matches this file only after the reviewed OPS-03 deploy step
+  (`portainer_update_stack_file`), not merely because the file changed. Prometheus UI port `19090`
   is bound to NAS loopback only by default; it is not a LAN service. Its history volume is
   separate from OC's memory, config, and output volumes.
 - When `OC_API_KEY` is set, use the authenticated Prometheus config and mount
