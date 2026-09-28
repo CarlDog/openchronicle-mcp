@@ -24,7 +24,10 @@ enforces parity.
     only after the operator ratifies it and its named measurement or
     trigger is met.
   - Work lands through a pull request so CI runs. A pushed branch
-    alone gets no test run.
+    alone gets no test run. Since 2026-09-28 GitHub enforces this: `main`
+    is protected for everyone, admins included, requires the CI checks
+    listed under ROADMAP HYG-07, and requires the branch to be up to date.
+    `gh pr merge --auto` now waits for those checks.
   - Nothing is "shipped" or "verified" before it is in a tagged
     release, and CI has passed on the exact commit.
   - Never write OpenChronicle milestone memories for unmerged work.
