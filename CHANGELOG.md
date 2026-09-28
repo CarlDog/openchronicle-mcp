@@ -29,12 +29,16 @@ back is moving `OC_TAG` back.
   for explicit review. A snapshot that fails verification is kept as
   `*.failed-verify` or `*.failed-quick-check`, and the job fails.
 - **A failing nightly backup shows in health** (v3.5.0 pre-deploy review,
-  finding 1). `maintenance_degraded` now also reads true when the last
-  `db_backup` run failed, from the persisted run and success stamps, so it
-  survives a restart. The next successful backup clears it. Before this, a
-  broken backup root failed every nightly backup while health read clean;
-  the gap predates this release but mattered more once backups moved to an
-  operator-managed host bind.
+  finding 1). A new health field, `backup_last_run_failed`, reads true when
+  the last scheduled `db_backup` run failed. It comes from the persisted run
+  and success stamps, so it survives a restart. The next scheduled success
+  clears it; manual backups do not. It is deliberately separate from
+  `maintenance_degraded`, which still means "the database may be corrupt"
+  (design 0001 section 6.2). Folding a backup failure into it would have sent
+  operators to a restore. Before this, a broken backup root failed every
+  nightly backup while health read clean. The gap predates this release but
+  mattered more once backups moved to an operator-managed host bind. The
+  field is additive (MINOR).
 - **Bad backup configuration never stops startup.** An unusable
   `OC_BACKUP_DIR` is logged at ERROR, and manual and scheduled backups fail
   until it is fixed. Under `restart: unless-stopped`, raising instead would

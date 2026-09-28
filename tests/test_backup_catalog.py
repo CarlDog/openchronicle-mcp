@@ -398,7 +398,9 @@ def test_failed_nightly_backup_is_visible_in_health_until_a_backup_succeeds(
 ) -> None:
     """v3.5.0 pre-deploy review F1: a broken backup root failed every nightly
     backup while health stayed clean. Health reads the persisted evidence, so
-    the real job, run through the real loop, must surface in the payload."""
+    the real job, run through the real loop, must surface in the payload, in
+    its own field: maintenance_degraded means "the DB may be corrupt" (design
+    0001 section 6.2) and must never be raised by a backup failure."""
     from openchronicle.core.application.services.maintenance_loop import JobState, MaintenanceLoop
     from openchronicle.core.application.use_cases.diagnose_runtime import build_health_payload
     from openchronicle.core.infrastructure.maintenance import jobs as maintenance_jobs
@@ -413,7 +415,14 @@ def test_failed_nightly_backup_is_visible_in_health_until_a_backup_succeeds(
     monkeypatch.setenv("OC_BACKUP_DIR", str(backup_root))
     state_path = db_path.parent / "maintenance_state.json"
 
-    def run_backup() -> bool:
+    def health() -> dict[str, object]:
+        container = CoreContainer()
+        try:
+            return build_health_payload(container)
+        finally:
+            container.storage.close()
+
+    def run_backup() -> dict[str, object]:
         container = CoreContainer()
         try:
             job = JobState(name="db_backup", interval_seconds=86400, enabled=True)
@@ -425,25 +434,29 @@ def test_failed_nightly_backup_is_visible_in_health_until_a_backup_succeeds(
             )
             loop._load_state()
             asyncio.run(loop.run_once("db_backup"))
-            return bool(build_health_payload(container)["maintenance_degraded"])
+            return build_health_payload(container)
         finally:
             container.storage.close()
 
-    # The backup root is missing: the nightly job fails, and health says so.
-    assert run_backup() is True
+    # A fresh install, or a backup job that never ran, reads clean.
+    assert health()["backup_last_run_failed"] is False
+
+    # The backup root is missing: the nightly job fails, and health says so,
+    # without claiming the database may be corrupt.
+    payload = run_backup()
+    assert payload["backup_last_run_failed"] is True
+    assert payload["maintenance_degraded"] is False
     # A restart must not clear it: the evidence is persisted, not in-process.
-    container = CoreContainer()
-    try:
-        assert build_health_payload(container)["maintenance_degraded"] is True
-    finally:
-        container.storage.close()
+    assert health()["backup_last_run_failed"] is True
 
     # The operator fixes the mount; the next successful backup clears it.
     backup_root.mkdir(parents=True)
-    assert run_backup() is False
+    assert run_backup()["backup_last_run_failed"] is False
     assert list((backup_root / "auto").glob("*.json"))
 
     # The production shape of the defect: backups worked, then the root broke
     # (ownership drift). An earlier success must not mask the later failure.
     backup_root.rename(tmp_path / "exports" / "moved-away")
-    assert run_backup() is True
+    payload = run_backup()
+    assert payload["backup_last_run_failed"] is True
+    assert payload["maintenance_degraded"] is False

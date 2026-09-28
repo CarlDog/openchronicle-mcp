@@ -108,7 +108,10 @@ tool. The response includes:
   `unknown`; while `unknown`, no embedding is written (ADR 0005 §7)
 - `package_version` — confirms the version the client is talking to
 - `maintenance_degraded` — `true` if the integrity-check job has
-  failed since the last successful run
+  failed since the last successful run (the database may be corrupt)
+- `backup_last_run_failed` — `true` if the last scheduled backup failed.
+  The database itself is fine; the backup root needs attention. This is not
+  a reason to restore.
 
 From the server side:
 

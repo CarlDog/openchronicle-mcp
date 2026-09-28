@@ -46,7 +46,10 @@ def _backup_failure_persisted() -> bool:
     Since v3.5.0 backups go to `OC_BACKUP_DIR`, an operator-managed host
     bind on the NAS. If its ownership drifts, every nightly backup fails
     while the service stays healthy, and nothing else in health says so.
-    Same evidence and fail-soft rule as the integrity check.
+    Same evidence and fail-soft rule as the integrity check. Only the
+    scheduled job stamps this state: a manual `oc maintenance run-once
+    db_backup`, `oc db backup` or MCP `db_backup_create` does not clear it,
+    so a fixed mount reads clean after the next scheduled run.
     """
     return _last_run_failed("db_backup")
 
@@ -80,11 +83,11 @@ def build_health_payload(container: CoreContainer) -> dict[str, Any]:
     report.embedding_status = container.embedding_status_dict()
     report.schema_version = container.storage.schema_version()
     # In-process flag OR persisted evidence: the flag is immediate, the
-    # state file survives the restart that used to clear it. A failed last
-    # backup counts too, or a broken backup root stays invisible here.
-    report.maintenance_degraded = (
-        container.maintenance_degraded or _integrity_failure_persisted() or _backup_failure_persisted()
-    )
+    # state file survives the restart that used to clear it.
+    report.maintenance_degraded = container.maintenance_degraded or _integrity_failure_persisted()
+    # Its own field, never folded into maintenance_degraded: that flag means
+    # "the DB may be corrupt" and sends an operator to a restore (0001 §6.2).
+    report.backup_last_run_failed = _backup_failure_persisted()
     report.fts5_active = container.storage.fts5_active
     data = asdict(report)
     if data.get("timestamp_utc"):

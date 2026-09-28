@@ -241,9 +241,16 @@ that is the part that matters, and it is handled.
 - DB corruption: the maintenance loop's `db_integrity_check` job
   detects it on a 7-day cadence, takes an emergency backup, and flips
   `/api/v1/health` to `maintenance_degraded: true`. Operators restore
-  from the resolved DB path's `backups/auto/` directory
-  (`/data/backups/auto/` on the NAS; or a manual `oc db backup` taken
-  earlier).
+  from the newest verified snapshot under `OC_BACKUP_DIR`'s `auto/`
+  (on the NAS since v3.5.0, `/exports/backups/auto/`, which is readable as
+  `\\carldog-nas\docker\openchronicle\exports\backups\auto`), using
+  the guarded restore in [local_backup_restore.md](local_backup_restore.md).
+  `/data/backups/auto/` holds only pre-v3.5.0 snapshots, frozen at that
+  cutover and older every day; never restore from it by default.
+- Backup failure: `backup_last_run_failed: true` means the last scheduled
+  backup failed. The database is not implicated; check that `/exports` is
+  still owned by uid 1000 and writable, and read
+  `/api/v1/maintenance/status` for the error. Do not restore.
 - Embedding provider compromise: rotate the relevant API key and
   redeploy. The degradation policy keeps search working
   (FTS5-only) until the new key is in place.
