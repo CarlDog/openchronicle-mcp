@@ -1048,7 +1048,7 @@ entry (below, or in its design doc):
      PR #34 also checks search snapshots around query embedding; a refresher
      outside the maintenance lock with reconciliation backfills; one
      backfill at a time. Planned in three reviewed revisions;
-     the NAS restart gate (ROADMAP OPS-02) follows the 2026-09-28 deploy;
+     the NAS restart gate (ROADMAP OPS-02) passed on 2026-09-28;
    - **Released in v3.4.0 and deployed 2026-09-28** (originally merged to `main`
      unreleased): plan 0016's query-revision race fix
      entered through PR #34 (merge `7ffc277c`). Search snapshots before and after
@@ -1084,7 +1084,7 @@ entry (below, or in its design doc):
    not enablement; see 0010. The blank-content refusal was reconciled
    with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
   **deployed 2026-09-28** (ROADMAP OPS-01, assessment rev 245); the NAS
-  restart gate (OPS-02) follows. PR #39 (design 0017) merged after this
+  restart gate (OPS-02) passed the same day (rev 248). PR #39 (design 0017) merged after this
    tag and is unreleased.
 10. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23

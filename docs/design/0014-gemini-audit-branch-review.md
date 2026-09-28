@@ -256,7 +256,10 @@ Dockerfile and `test.yml`) carry into v4 without conflict.
    orders. Pass: `model_revision_state` reaches `known` within 60 s of
    Ollama answering, `stale` and `space_mismatch` are both 0, and no
    manual restart is needed. The fake-Ollama tests are in
-   `tests/test_revision_probe.py` (rev 208); the NAS restarts remain.
+   `tests/test_revision_probe.py` (rev 208). **The NAS restarts passed on
+   2026-09-28** on v3.4.0 (ROADMAP OPS-02): about 22 s from Ollama's start
+   to `known` with OC first, 70 ms after OC's startup with Ollama first;
+   `stale` and `space_mismatch` 0, no manual restart.
 6. **The persistent client:** NAS p50/p95/p99 before and after, at 1 and 8
    clients, cold and warm, with an Ollama restart mid-run.
 7. **Anything on instrumented paths** (reader split, stage timers): design

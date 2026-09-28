@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-28 UTC · **Revision:** 247 (branch protection on `main`, HYG-07)
+**Snapshot date:** 2026-09-28 UTC · **Revision:** 248 (NAS restart gate passed, OPS-02)
 
 ## Current state
 
@@ -100,8 +100,8 @@ their no-commit/no-push statements are historical, not the current scope.
   and the four fleet-review issue #27 items are on `main` (revs
   201-208) and shipped with v3.4.0, deployed 2026-09-28 (rev 245). On its
   first start the revision read `known` and the reconcile backfill generated
-  0 embeddings. The live restart gate (OPS-02) still has to prove it across a
-  NAS, OC or Ollama restart.
+  0 embeddings. The live restart gate (OPS-02, rev 248) then proved it across
+  OC and Ollama restarts in both start orders.
 - **Query-revision race, released in v3.4.0 and deployed 2026-09-28** ([0016](design/0016-review-findings-plan.md)
   track 1). The previous search path read the revision snapshot after
   embedding a query, which could score an old-revision query against
@@ -324,6 +324,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 248 | 2026-09-28 | **NAS restart gate passed (OPS-02; ADR 0005 §7, 0014 must-run 5).** Order A (Ollama stopped, OC restarted, then Ollama started): OC booted `degraded` with the revision `unknown` and `stale` 0, and wrote nothing; Ollama's container started at 20:08:30.2 and OC verified the revision at 20:08:52.3, about 22 s later (the unknown-state re-probe interval is 30 s, so the worst case is about 30 s plus the probe). Order B (Ollama restarted and answering, then OC restarted): the new OC process started at 20:09:38.9 and verified the revision at 20:09:40.7, 70 ms after startup completed. Both reconciles found "0 candidates, nothing to do". Final: `stale` 0, `space_mismatch` 0, `missing` 0, `maintenance_degraded` false, and no manual restart was needed. Timings come from the NAS container and OC log timestamps, not the desktop monitor, whose first samples raced the restart. 0014's interim restart control is retired. Ollama was down for about 72 s in order A and restarted once in order B, which briefly affected its other NAS consumers. |
 | 247 | 2026-09-28 | **Branch protection on `main` (HYG-07, operator decision).** Classic protection via the API: a PR required (0 approvals); required checks `ubuntu-latest`, `windows-latest`, `lint + format + types`, `Scan for secrets`, `Analyze (python)`, `Analyze (actions)`; branch up to date (`strict`); enforced for admins; force pushes and deletion blocked. The API readback confirmed every setting. Why: revs 201-211 were direct pushes, and on an unprotected repository `gh pr merge --auto` merges at once (it did in portainer-mcp, PRs #34 and #35). The required checks all run on every PR (`test.yml` has no path filter on `pull_request`), so a docs-only PR cannot stall on a skipped check. portainer-mcp got the same protection. This PR is itself the first merged through it, armed with `--auto`. |
 | 246 | 2026-09-28 | **OPS-01 closed: the rollback was drilled live** (operator-approved; PR #52 review had correctly refused an untested "Done"). Baseline: v3.4.0, 1,098 memories, revision `known`, `stale` 0. Leg 1: `OC_TAG=v3.3.0` without a pull, recreated at 18:56Z. `package_version` 3.3.0 and build `7349f94` on data v3.4.0 had written: 1,098 memories, `stale` and `space_mismatch` 0, a clean startup, `/health` 200, REST without the key 401, and MCP search working (with `top_k: 2` it returned exactly 2, confirming QUAL-11). Leg 2: back to `v3.4.0`, also without a pull. Build `9b1e83e6`, revision verified `known` at 18:56:35, reconcile "0 candidates, nothing to do", 1,098 memories, `stale` 0, REST and `/metrics` without the key 401. Production ends on v3.4.0. |
 | 245 | 2026-09-28 | **v3.4.0 deployed to stack 151 (OPS-01).** Env-only: `OC_TAG` moved from `v3.3.0` to `v3.4.0` with an image pull, and the container was recreated at 18:42Z. No schema change lies between the two tags (identical migrations, no new DDL), so rollback is moving `OC_TAG` back; the v3.3.0 image stays on the NAS. Verified: `package_version` 3.4.0, `build_revision` `9b1e83e6` (the tag commit), `model_revision_state` `known` at 18:42:15, and a reconcile backfill that generated 0 (no re-embed). 1,097 memories before and after, `stale` 0, healthy after 37 s, clean startup log. Access: `/health` and `/api/v1/health` 200; REST and `/metrics` without the key 401; a forged Host 421; MCP with the key returns search results. Metrics stay off. The rollback was not exercised live. Next: OPS-02, the restart gate that proves the revision fix across a real restart. |
