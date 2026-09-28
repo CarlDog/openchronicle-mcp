@@ -103,6 +103,7 @@ long-lived branches and code comments (the code carries no work-marker comments)
 | QUAL-08 | Persistent Ollama HTTP client, with NAS p50/p95/p99 evidence at 1 and 8 clients, cold and warm, across an Ollama restart | M | V3_PLAN active 15; 0014 salvage |
 | QUAL-09 | MCP tool ergonomics from dogfooding: `memory_save` and `memory_update` echo the full content back; `memory_update` has no append or targeted edit; triage the reported "expected nonoptional" optional-parameter error (not reproduced) | M | OC `mcp-feedback` memories |
 | QUAL-10 | Cache-friendly tool surfaces: keep tool descriptions and server instructions byte-stable and in a stable order, enforced by a test | S | 0019 lever 5; 0015 §1 |
+| QUAL-11 | **MCP tools silently ignore unknown arguments.** `memory_search` counts with `top_k`, while its sibling `memory_list` uses `limit`. A caller who passes `limit` gets the default of 8, with no error: on 2026-09-28 `limit: 3` and `limit: 5` each returned 8 results (about 10 KB), and the 2026-08-16 "limit=3 returned 34" report is probably the same trap. Fix: reject unknown arguments on every tool, with INVALID_ARGUMENT naming the field and the valid one; optionally also accept `limit` as a `top_k` alias (MINOR under STABILITY.md). Test that a misspelled optional parameter is refused on all 18 tools | S-M | OC `mcp-feedback` memory `2a637611` (updated 2026-09-28) |
 
 ## Phase 6 — Measurement foundations
 
