@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-28 UTC · **Revision:** 244 (OPS-03 deployed to stack 151)
+**Snapshot date:** 2026-09-28 UTC · **Revision:** 245 (v3.4.0 deployed to stack 151, OPS-01)
 
 ## Current state
 
@@ -19,9 +19,9 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | **`v3.3.0`**, verified 2026-09-04: Portainer stack 151, endpoint 2, port `18000`; `health.package_version=3.3.0`, `health.build_revision=7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`. Embedding provider LAN-local `ollama/nomic-embed-text`, `content_egress: local`, active with no missing/stale embeddings. Production container unchanged by this work |
+| Deployed release | **`v3.4.0`**, deployed and verified 2026-09-28 (OPS-01, rev 245): Portainer stack 151, endpoint 2, port `18000`, container `openchronicle-mcp`; `health.package_version=3.4.0`, `health.build_revision=9b1e83e6c97ef0ffb9d14a0714491311a1d8b3b6`, `model_revision_state=known`. Embedding provider LAN-local `ollama/nomic-embed-text`, `content_egress: local`, active with no missing/stale embeddings. Stack file version 143 matches the repository compose (OPS-03) |
 | Deploy verification | `health.package_version` for a version change; `health.build_revision` for a same-version redeploy — since rev 118 CI bakes the full git SHA into the image and health/`oc version` report it (images built earlier read `"unknown"`; fall back to the `org.opencontainers.image.revision` label for those). Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | `main` includes the query-revision race fix from PR #34 (`7ffc277c`), the repository compose Host-list fix from PR #35 (`77ea0173`), and the earlier performance instrumentation. Production remains the tagged `v3.3.0` image; stack 151 is detached from Git and tag-pinned via `OC_TAG`, so neither source merge changes its stored compose or runtime |
+| Main vs deployed | Production runs the `v3.4.0` tag, which includes the query-revision race fix (PR #34) and the metrics instrumentation (off by default). `main` is ahead of it by design 0017's backup/restore work (PR #39) and later docs/compose changes; those reach production with the next release (OPS-04). Stack 151 is file-based and tag-pinned via `OC_TAG`, and its stored compose matches `main`'s as of OPS-03 |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth enabled on production since 2026-09-25 (operator; previously intentionally disabled on the home LAN) ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
@@ -91,16 +91,18 @@ their no-commit/no-push statements are historical, not the current scope.
   checklist was corrected first: it would have deleted the live stack and
   an in-use volume. See V3_PLAN's Day-7 section, which preserves the
   failure mode rather than hiding it.
-- **Ollama revision-probe defect in v3.3.0, fixed on `main` (rev 208)** ([0014](design/0014-gemini-audit-branch-review.md)
+- **Ollama revision-probe defect in v3.3.0, fixed in v3.4.0 (rev 208), deployed 2026-09-28** ([0014](design/0014-gemini-audit-branch-review.md)
   §1.1). A failed first `/api/tags` probe is cached as revision `None`
   for the process lifetime. Semantic search then returns nothing while
   health reads `active`, and the backfill re-embeds the whole corpus,
   twice per incident. Production can reach it; it had not fired as of
   2026-09-23 (`model_revision` set, `stale: 0`). The fix (ADR 0005 §7)
   and the four fleet-review issue #27 items are on `main` (revs
-  201-208) and ship with v3.4.0. Until that deploy, production keeps
-  0014's interim control.
-- **Query-revision race, merged to `main` but unreleased** ([0016](design/0016-review-findings-plan.md)
+  201-208) and shipped with v3.4.0, deployed 2026-09-28 (rev 245). On its
+  first start the revision read `known` and the reconcile backfill generated
+  0 embeddings. The live restart gate (OPS-02) still has to prove it across a
+  NAS, OC or Ollama restart.
+- **Query-revision race, released in v3.4.0 and deployed 2026-09-28** ([0016](design/0016-review-findings-plan.md)
   track 1). The previous search path read the revision snapshot after
   embedding a query, which could score an old-revision query against
   new-revision rows. PR #34 now snapshots before and after the
@@ -110,8 +112,8 @@ their no-commit/no-push statements are historical, not the current scope.
   (HTTP 502). Ten focused regression tests and the full Windows suite (1,146
   passed, one skip), Ruff and mypy passed locally. Windows/Ubuntu tests,
   quality and CodeQL passed on the exact PR head `2c3a2557`; PR #34 merged
-  as `7ffc277c`. Tagged release and deployment remain pending.
-- **NAS compose Host allowlist, merged to `main` but not deployed** ([0016](design/0016-review-findings-plan.md)
+  as `7ffc277c`, shipped in v3.4.0, and deployed 2026-09-28 (rev 245).
+- **NAS compose Host allowlist, deployed 2026-09-28 with OPS-03** ([0016](design/0016-review-findings-plan.md)
   track 3). The repository compose now injects an empty API Host list by
   default so REST inherits the MCP LAN list. The optional metrics profile
   requires an explicit API list with every external REST host and
@@ -119,8 +121,8 @@ their no-commit/no-push statements are historical, not the current scope.
   OPS-03, rev 243; before that it was `oc:*`); the runbook and collector
   examples state this. PR #35 merged as `77ea0173`
   after its rendered-compose REST/MCP regression tests and PR checks passed.
-  The detached live stack's stored compose is unchanged; network/log-path
-  reconciliation remains an operator decision under V3_PLAN item 13.
+  Stack 151's stored compose was reconciled with the repository file and
+  deployed on 2026-09-28 (OPS-03, rev 244).
 - **Timestamp ordering remains open** (V3_PLAN item 12, design 0016 track 2).
   A bounded read-only inventory of live MCP metadata returned 1,080 memories,
   matching `memory_stats`: 93 `created_at` values have `-05:00` or `-06:00`
@@ -322,6 +324,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 245 | 2026-09-28 | **v3.4.0 deployed to stack 151 (OPS-01).** Env-only: `OC_TAG` moved from `v3.3.0` to `v3.4.0` with an image pull, and the container was recreated at 18:42Z. No schema change lies between the two tags (identical migrations, no new DDL), so rollback is moving `OC_TAG` back; the v3.3.0 image stays on the NAS. Verified: `package_version` 3.4.0, `build_revision` `9b1e83e6` (the tag commit), `model_revision_state` `known` at 18:42:15, and a reconcile backfill that generated 0 (no re-embed). 1,097 memories before and after, `stale` 0, healthy after 37 s, clean startup log. Access: `/health` and `/api/v1/health` 200; REST and `/metrics` without the key 401; a forged Host 421; MCP with the key returns search results. Metrics stay off. The rollback was not exercised live. Next: OPS-02, the restart gate that proves the revision fix across a real restart. |
 | 244 | 2026-09-28 | **OPS-03 and 0020 step B deployed to stack 151.** Operator-approved, in two steps, still on v3.3.0 (build `7349f94`). Prerequisites: the version 142 file was saved and checked against git; a fresh verified off-NAS copy was taken (`pre-change-20260928T181210Z.db`, 1,094 memories, equal to live), and its plaintext on the share was deleted; `exports/backups` exists as `1000:100` 0750. `portainer_update_stack_file` stored file version 143, identical to `main` at `5a207070`: container `openchronicle-mcp` replaced `openchronicle-mcp-oc-1` with no orphan, `/data` stayed `openchronicle-mcp_oc-data`, and `/exports` was bound. Removing `HOST_CONFIG_DIR` then moved `/config` to `openchronicle-mcp_oc-config`. After each step: healthy, 1,094 memories, a clean startup log, and stack access control unchanged. The runbook's console bootstrap route moves from `/config`, no longer on the share, to `/exports/bootstrap`. Left: remove the dead host folders after a week of green nights; decision 5 (share root access); then OPS-01. |
 | 243 | 2026-09-28 | **NAS compose reconciled in the repository (OPS-03); not yet deployed.** `docker-compose.nas.yml` now matches what stack 151 should run. `oc` and the optional collector use `network_mode: bridge` (the fleet address-pool rule), and the `oc-observability` network is gone. The collector scrapes `host.docker.internal:18000`, so its explicit REST Host list uses `host.docker.internal:*` (prometheus configs, runbook, env and security docs, and the 0016 rendered-compose tests updated). 0020's layout is applied: `oc-data` external and pinned as `openchronicle-mcp_oc-data`, `oc-config` and `oc-output` with explicit names, `/config` a named volume unless `HOST_CONFIG_DIR` is set, `container_name: openchronicle-mcp`. The live file's Watchtower label, never in the repo, is dropped. The stack stays file-based. A shared `tests/helpers/nas_compose.py` renders the file through the Compose CLI for both compose test files; the new `tests/test_nas_compose_shape.py` pins the external volume, names, bridge, `/exports`, `container_name`, the service set, the collector's host-gateway route, and no Watchtower label on any service. Mutation check: 12 of 12 compose mutants caught, file restored byte-identical. A pre-deploy review (deploy mechanics, network and access, test honesty) found no data-safety or access regression. It did find stale docs (the redeploy convention in AGENTS/CLAUDE, the metrics allowlist in this file, a deploy claimed before it happened), a scrape-port note that missed `prometheus-auth.yml`, the drill script's hardcoded old container name (now found by compose labels), a two-step deploy that 0020 step B described as one (rewritten, with a saved version-142 file as the only rollback), and compose tests that silently skip on the Windows CI leg. The helper now keeps the Windows plugin-discovery variables, reports why it skips, and fails instead of skipping on Linux CI. v3.3.0 reads none of `OC_BACKUP_DIR`, `OC_BACKUP_MCP_ENABLED` or `OC_METRICS_ENABLED`, so the deploy changes no behavior beyond the layout. The deploy to stack 151 is the next, separately reviewed step. |
 | 242 | 2026-09-28 | **Cloud-backup Phase 0 done (DATA-02, design 0001).** Operator-run on the desktop. Dropbox App folder access verified with rclone v1.75.1: list, write and read-back, with the token confined to its folder. Two age keypairs were generated, escrowed (password manager and printout), and their local copies deleted. The verified 2026-09-24 off-NAS copy was encrypted to both recipients, uploaded to `ocdrop:openchronicle/nas/probe.db.age`, and pulled back byte-identical. Both escrowed identities decrypted it to the source's exact SHA-256, `integrity_check` `ok`, 1,083 memories (99.2% of live) and 39 projects (100%). Found and corrected: 0001's scope list omitted `files.metadata.read`. §4.1 step 5 (`rclone.conf` on the NAS) was deliberately not done, because it conflicts with 0020 decision 1; it goes to OPS-03/OPS-08. Also recorded in 0020: the step A log file was confirmed over SSH, and no DSM backup task covers the Docker paths (decision 6). `.gitignore` gains `rclone.conf`, `*.age` and `backup-identity*` (0001 §7). No production change. |

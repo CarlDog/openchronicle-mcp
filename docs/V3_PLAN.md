@@ -1018,7 +1018,7 @@ entry (below, or in its design doc):
    Define the supported setup path, authentication model, lifecycle, tool/session
    isolation, licensing/terms, and provider-neutral abstraction before implementation.
 9. ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
-   `9b1e83e6`), NOT deployed** ([0014](design/0014-gemini-audit-branch-review.md);
+   `9b1e83e6`), DEPLOYED 2026-09-28** (ROADMAP OPS-01) ([0014](design/0014-gemini-audit-branch-review.md);
    [review-findings plan](design/0016-review-findings-plan.md), source
    tracks 1 and 3 merged to `main`).
    Planned as MINOR rather than a patch, because health gains additive
@@ -1048,8 +1048,9 @@ entry (below, or in its design doc):
      PR #34 also checks search snapshots around query embedding; a refresher
      outside the maintenance lock with reconciliation backfills; one
      backfill at a time. Planned in three reviewed revisions;
-     the NAS restart gate remains for the deploy;
-   - **Merged to `main`, unreleased:** plan 0016's query-revision race fix
+     the NAS restart gate (ROADMAP OPS-02) follows the 2026-09-28 deploy;
+   - **Released in v3.4.0 and deployed 2026-09-28** (originally merged to `main`
+     unreleased): plan 0016's query-revision race fix
      entered through PR #34 (merge `7ffc277c`). Search snapshots before and after
      embedding, retries once on an observed identity change, and fails
      closed on a known-to-unknown transition even when the retry remains
@@ -1058,8 +1059,8 @@ entry (below, or in its design doc):
      semantic-only returns typed `MODEL_REVISION_CHANGED` (HTTP 502). Ten
      focused regression tests and the full Windows suite (1,146 passed, one
      skip), Ruff and mypy passed locally. Windows/Ubuntu tests, quality and
-     CodeQL passed on the exact PR head `2c3a2557`. The merge is a source
-     change; no tagged release or deployment has occurred;
+     CodeQL passed on the exact PR head `2c3a2557`. It shipped in the v3.4.0 tag
+     and was deployed on 2026-09-28;
    - ✅ an image smoke test before `build-and-push` pushes (rev 207).
 
    The pre-deploy review (rev 209) fixed everything it found except
@@ -1082,8 +1083,8 @@ entry (below, or in its design doc):
    metrics instrumentation off by default. The exception covers release,
    not enablement; see 0010. The blank-content refusal was reconciled
    with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
-  **not deployed**. Deploying is a separate, env-only step (item 13),
-  with the NAS restart gate. PR #39 (design 0017) merged after this
+  **deployed 2026-09-28** (ROADMAP OPS-01, assessment rev 245); the NAS
+  restart gate (OPS-02) follows. PR #39 (design 0017) merged after this
    tag and is unreleased.
 10. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
