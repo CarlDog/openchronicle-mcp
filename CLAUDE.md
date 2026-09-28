@@ -235,9 +235,11 @@ query-revision and NAS Host-list source fixes merged.**
   orders all open work with stable IDs. The persistent-storage review
   (DATA-01) is written up as
   [0020](docs/design/0020-persistent-storage-review.md): a read-only
-  inventory, eight findings, a target layout and a two-step cutover plan,
-  awaiting six operator decisions. Nothing changed on the NAS. Next:
-  those decisions, then production health (OPS-*).
+  inventory, eight findings, a target layout and a two-step cutover plan.
+  The operator adopted the recommendations; step A (`OC_LOG_FILE` on the
+  stack, environment only) is live on v3.3.0 as of 2026-09-28. Step B
+  rides OPS-03; decisions 5-6 wait on operator-run NAS checks. Next:
+  production health (OPS-*).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

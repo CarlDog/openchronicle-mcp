@@ -1159,8 +1159,9 @@ entry (below, or in its design doc):
     that volume; the log path is wrong on the live stack; everything sits
     on one NAS; the `docker` share grants `Everyone` read; `/config` is
     mode 0777. **Review written 2026-09-28:**
-    [0020](design/0020-persistent-storage-review.md). It awaits six
-    operator decisions; nothing on the NAS has changed.
+    [0020](design/0020-persistent-storage-review.md). Its recommendations
+    were adopted, and step A (the log path) went live the same day. Step B
+    rides item 13 (ROADMAP OPS-03).
 15. **Persistent Ollama HTTP client** (salvage from
     [0014](design/0014-gemini-audit-branch-review.md), its last open item).
     The Ollama adapter opens a new connection for every call

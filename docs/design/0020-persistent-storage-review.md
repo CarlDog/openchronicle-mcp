@@ -1,10 +1,11 @@
 # 0020 — Persistent storage review (DATA-01)
 
-**Status:** Review, 2026-09-28. **Read-only inventory and a proposal, not
-authorization.** No mount, volume, stack or file was changed. Every change
-below waits for the operator's decisions in
-[Operator decisions](#operator-decisions), and the cutover then runs as its
-own reviewed step. Roadmap item: [DATA-01](../ROADMAP.md).
+**Status:** Review, 2026-09-28. **Recommendations adopted by the operator the
+same day; step A done.** The inventory was read-only. The operator then
+adopted decisions 1-4 as recommended and had step A applied (see
+[Step A result](#step-a-result-2026-09-28)). Step B still runs as its own
+reviewed step with OPS-03, and decisions 5 and 6 wait on the operator-run
+checks. Roadmap item: [DATA-01](../ROADMAP.md).
 
 ## Why this review
 
@@ -215,6 +216,24 @@ needs OPS-03.
 
 Rollback: remove the variable and redeploy. No data is touched.
 
+#### Step A result, 2026-09-28
+
+Applied at 15:58Z with `portainer_set_stack_env` (no image pull). The
+container was recreated at 15:58:56Z. Checked afterwards:
+
+- the container environment has `OC_LOG_FILE=/output/logs/openchronicle.log`;
+- `build_revision` is still `7349f94`, and `total_memories` is 1,091 before
+  and after;
+- the mounts are unchanged (`oc-data`, `oc-output`, the `config` bind);
+- the stored compose is still file version 142, and the stack's access
+  control is unchanged;
+- the startup log has no `not usable` warning and no logging-error
+  traceback, so the file handler attached and has been writing.
+
+Not yet seen directly: the file itself, because the volume is outside the
+filesystem MCP's roots. To confirm, run
+`sudo ls -la /volume1/@docker/volumes/openchronicle-mcp_oc-output/_data/logs/`.
+
 ### Step B — with OPS-03's compose reconciliation
 
 1. Confirm the stored compose still matches file version 142, and record it;
@@ -261,14 +280,18 @@ pre-cutover copy).
 
 ## Operator decisions
 
-1. **`/config`:** a named volume (recommended), or keep the host bind and
-   clean out its v2 contents.
-2. **Volume pinning:** `external: true` with an explicit name (recommended), or
-   an explicit `name:` only (Compose would still create an empty volume if it
-   went missing).
-3. **Step A now?** Recommended: it is independent of every other change here.
-4. **Orphaned volumes:** prune all 20 (recommended; the 4D report is kept
-   outside the repository), or keep the `20260905c2` Prometheus volume.
+Decisions 1-4 were adopted as recommended on 2026-09-28 ("go with your
+recommendations, do step A now").
+
+1. **`/config`:** a named volume. **Adopted.** (The alternative was to keep
+   the host bind and clean out its v2 contents.)
+2. **Volume pinning:** `external: true` with an explicit name. **Adopted.**
+   (An explicit `name:` alone would still let Compose create an empty volume
+   if it went missing.)
+3. **Step A now:** **Adopted and done**; see the step A result above.
+4. **Orphaned volumes:** prune all 20. **Adopted**, on the plan's timing:
+   step B's last step, after a week of green nights. They are independent of
+   production, so they can go sooner if the operator says so.
 5. **Share access:** owner, group and mode for `/volume1/docker/openchronicle`
    and `exports/`, after the ACL check.
 6. **DSM-level backup:** does one cover these paths today, and should one?
