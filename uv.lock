@@ -667,7 +667,7 @@ wheels = [
 
 [[package]]
 name = "openchronicle-mcp"
-version = "3.3.0"
+version = "3.5.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

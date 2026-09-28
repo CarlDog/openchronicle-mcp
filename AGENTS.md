@@ -252,7 +252,9 @@ query-revision and NAS Host-list source fixes merged.**
   0020's volume layout, container `openchronicle-mcp`, no Watchtower
   label). v3.4.0 (`9b1e83e6`) is live since 2026-09-28, and OPS-01 is done,
   including a live rollback drill to v3.3.0 and back. OPS-02, the NAS
-  restart gate, passed in both start orders the same day.
+  restart gate, passed in both start orders the same day. OPS-04 is in
+  progress: the v3.5.0 release (design 0017's backups) is prepared, and a
+  tag and deploy follow a merge-integration review.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
