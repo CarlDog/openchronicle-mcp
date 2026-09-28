@@ -21,10 +21,8 @@ IMAGE_REF="${IMAGE_REF:-ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-
 EXPECTED_REVISION="${EXPECTED_REVISION:-1fad2c4c1a5a34c887913aa91f0fb901a6a52dd5}"
 SEED="$HERE/${SEED_NAME:-pre-change-20260924T040030Z.db}"
 SEED_SHA="${SEED_SHA:-eb85987e55c52dff87a4bfa9e4c83db73a3de77ec7481f1f97ae7ac06a689243}"
-# Found by compose labels, not by name: the container was renamed from
-# openchronicle-mcp-oc-1 to openchronicle-mcp by OPS-03.
-PROD_CONTAINER="${PROD_CONTAINER:-$(docker ps -aq --filter label=com.docker.compose.project=openchronicle-mcp \
-  --filter label=com.docker.compose.service=oc | head -n 1 || true)}"
+# Empty means: find it by compose labels in preflight (see below).
+PROD_CONTAINER="${PROD_CONTAINER:-}"
 BLOCKS="$HERE/blocks"
 LOG="$HERE/drill-$(date -u +%Y%m%dT%H%M%SZ).log"
 mkdir -p "$BLOCKS"
@@ -175,6 +173,16 @@ say "preflight"
 [[ -f "$RUNBOOK" && -f "$PROBE" && -f "$SEED" ]] || fail "runbook, probe or seed missing next to this script"
 test "$(sha256sum "$SEED" | cut -d' ' -f1)" = "$SEED_SHA" || fail "seed digest differs from the recorded off-NAS copy"
 docker version --format 'docker {{.Server.Version}}' || fail "docker is not usable (run with sudo)"
+if [[ -z "$PROD_CONTAINER" ]]; then
+  # By compose labels, not by name (OPS-03 renamed openchronicle-mcp-oc-1 to
+  # openchronicle-mcp). Running containers only, and exactly one, so a stopped
+  # container left by a failed or replaced deploy is never inspected instead.
+  PROD_MATCHES=$(docker ps -q --filter label=com.docker.compose.project=openchronicle-mcp \
+    --filter label=com.docker.compose.service=oc)
+  [[ $(printf '%s\n' "$PROD_MATCHES" | grep -c .) -eq 1 ]] \
+    || fail "expected exactly one running production oc container, found: ${PROD_MATCHES:-none}; set PROD_CONTAINER"
+  PROD_CONTAINER=$PROD_MATCHES
+fi
 PROD_BEFORE=$(docker inspect -f '{{.Id}} {{.State.StartedAt}} {{.RestartCount}} {{.State.Status}}' "$PROD_CONTAINER") \
   || fail "production container $PROD_CONTAINER not found; set PROD_CONTAINER"
 say "production before: $PROD_BEFORE"

@@ -8,12 +8,13 @@ database volume.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from tests.helpers.nas_compose import render_nas_compose
+from tests.helpers.nas_compose import NAS_COMPOSE, render_nas_compose
 
 
 @pytest.fixture
@@ -51,7 +52,12 @@ def test_exports_bind_never_creates_its_host_directory(rendered: dict[str, Any])
     mounts = {m["target"]: m for m in rendered["services"]["oc"]["volumes"]}
     exports = mounts["/exports"]
     assert exports["type"] == "bind"
-    assert exports["bind"]["create_host_path"] is False
+    # Compose versions render this differently: v5 prints the explicit false,
+    # while the v2 on CI omits a false value. A rendered true fails either way.
+    assert (exports.get("bind") or {}).get("create_host_path", False) is False
+    # Absence alone is ambiguous, so also pin the explicit setting in the source.
+    source = NAS_COMPOSE.read_text(encoding="utf-8")
+    assert re.search(r"target: /exports\n\s+bind:\n\s+create_host_path: false\n", source)
     assert rendered["services"]["oc"]["environment"]["OC_BACKUP_DIR"] == "/exports/backups"
 
 

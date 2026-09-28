@@ -1125,7 +1125,9 @@ entry (below, or in its design doc):
     Those gates are the 0017 sequence in the backup entry above.
 13. **Stack 151 runs a detached, older compose**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
-    Measured read-only 2026-09-23. Portainer's stored file predates
+    *History, measured read-only 2026-09-23, before OPS-03 (the network and
+    `oc:*` statements in this paragraph no longer describe the repository;
+    see the reconciliation note at the end of this item).* Portainer's stored file predates
     `682c68f0`. It keeps
     `oc` on `network_mode: bridge`, where the repo's compose now puts
     `oc` on a dedicated `oc-observability` network. That shape was

@@ -344,6 +344,12 @@ started by the default compose invocation, and OC still defaults to
 `OC_METRICS_ENABLED=false`. It has no service discovery or cloud remote-write
 destination.
 
+*Superseded shape (2026-09-28, ROADMAP OPS-03):* the collector no longer uses
+a private network. Both services now run on the shared Docker bridge, the
+collector scrapes OC's published port at `host.docker.internal:18000`, and its
+explicit REST Host list uses `host.docker.internal:*` instead of `oc:*`. See
+the [monitoring runbook](../monitoring/runbook.md) for the current procedure.
+
 Configured starting retention: 14 days with a 1 GiB retention-size target and at least
 2 GiB of allocated local storage. This is a starting budget to validate, not a
 hard filesystem cap or a guarantee of 14 days: the first retention threshold
