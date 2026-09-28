@@ -230,9 +230,8 @@ container was recreated at 15:58:56Z. Checked afterwards:
 - the startup log has no `not usable` warning and no logging-error
   traceback, so the file handler attached and has been writing.
 
-Not yet seen directly: the file itself, because the volume is outside the
-filesystem MCP's roots. To confirm, run
-`sudo ls -la /volume1/@docker/volumes/openchronicle-mcp_oc-output/_data/logs/`.
+The operator then confirmed the file over SSH: `logs/openchronicle.log`
+exists, is owned `1000:1000`, and was 11,914 bytes and growing at 16:31Z.
 
 ### Step B — with OPS-03's compose reconciliation
 
@@ -298,3 +297,10 @@ recommendations, do step A now").
 5. **Share access:** owner, group and mode for `/volume1/docker/openchronicle`
    and `exports/`, after the ACL check.
 6. **DSM-level backup:** does one cover these paths today, and should one?
+   **Answered 2026-09-28: none does.** No Hyper Backup or Snapshot
+   Replication task covers the `docker` share or `/volume1/@docker`.
+   Recommendation: do not file-copy the live volume, which is not a shared
+   folder and cannot be snapshotted. After step B, optionally snapshot the
+   `docker` share to protect `exports/backups` against deletion. Loss of the
+   NAS itself is answered only by off-NAS copies: DATA-02 (Phase 0 done the
+   same day) and OPS-08.

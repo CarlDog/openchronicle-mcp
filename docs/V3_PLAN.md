@@ -970,7 +970,8 @@ entry (below, or in its design doc):
    Needs the operator at a desktop; the only item whose downside is
    data loss. Per 0007's rule: not done until a restore is drilled.
    The off-NAS copy from 0017's bootstrap (see the backup entry above)
-   is a ready input for that drill.
+   is a ready input for that drill. **Done 2026-09-28** (ROADMAP DATA-02;
+   [0001 Phase 0 record](design/0001-cloud-backup.md#phase-0-record-2026-09-28)).
 3. **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
    sibling driving N simulated clients (mixed search/save/list)
    against a store, reporting latency percentiles vs N — the
