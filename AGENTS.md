@@ -260,9 +260,8 @@ query-revision and NAS Host-list source fixes merged.**
   the NAS log file, which never existed). **Released as v3.4.0 on
   2026-09-24 and deployed 2026-09-28 (OPS-01):** the operator granted an exception to design
   0010's B/A gate (metrics stay off by default), and the tag points at the
-  release PR's merge. The deploy is env-only, because stack 151 runs a detached, older
-  compose (V3_PLAN item 13). 0017's `/exports` mount is the exception: it
-  needs that compose reconciled, so it is not part of an env-only deploy.
+  release PR's merge. The deploy only moved `OC_TAG`: OPS-03 had already
+  reconciled the stack's compose, including 0017's `/exports` mount.
   With v3.4.0 live, 0014's interim restart control is no longer needed; the
   restart gate (OPS-02) proves that on a real restart.
 - Source tracks 1 and 3 of [plan 0016](docs/design/0016-review-findings-plan.md)
