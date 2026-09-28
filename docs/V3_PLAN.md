@@ -1158,7 +1158,9 @@ entry (below, or in its design doc):
     volume is keyed to the compose project name; automatic backups share
     that volume; the log path is wrong on the live stack; everything sits
     on one NAS; the `docker` share grants `Everyone` read; `/config` is
-    mode 0777.
+    mode 0777. **Review written 2026-09-28:**
+    [0020](design/0020-persistent-storage-review.md). It awaits six
+    operator decisions; nothing on the NAS has changed.
 15. **Persistent Ollama HTTP client** (salvage from
     [0014](design/0014-gemini-audit-branch-review.md), its last open item).
     The Ollama adapter opens a new connection for every call
