@@ -251,8 +251,8 @@ query-revision and NAS Host-list source fixes merged.**
   deployed (2026-09-28): stack 151 runs `main`'s compose (bridge network,
   0020's volume layout, container `openchronicle-mcp`, no Watchtower
   label). v3.4.0 (`9b1e83e6`) is live since 2026-09-28, and OPS-01 is done,
-  including a live rollback drill to v3.3.0 and back. Next: OPS-02, the
-  NAS restart gate.
+  including a live rollback drill to v3.3.0 and back. OPS-02, the NAS
+  restart gate, passed in both start orders the same day.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
@@ -266,8 +266,8 @@ query-revision and NAS Host-list source fixes merged.**
   0010's B/A gate (metrics stay off by default), and the tag points at the
   release PR's merge. The deploy only moved `OC_TAG`: OPS-03 had already
   reconciled the stack's compose, including 0017's `/exports` mount.
-  With v3.4.0 live, 0014's interim restart control is no longer needed; the
-  restart gate (OPS-02) proves that on a real restart.
+  With v3.4.0 live, 0014's interim restart control is retired: the
+  restart gate (OPS-02) proved recovery without a manual restart.
 - Source tracks 1 and 3 of [plan 0016](docs/design/0016-review-findings-plan.md)
   entered `main` through PR #34 (merge `7ffc277c`) and PR #35 (merge
   `77ea0173`), respectively. Track 1:
