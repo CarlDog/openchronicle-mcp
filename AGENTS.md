@@ -352,8 +352,8 @@ was removed; production remained unchanged. Phase 4D then passed on
 disposable observation stack 216 with retained Prometheus history across
 target restart/rollback, distinct idle/outage signals, documented access
 contracts, and both recovery paths preserving candidate-created data. Stack
-216 no longer exists; its Prometheus history survives only as the dangling
-volume named in [0020](docs/design/0020-persistent-storage-review.md) S7.
+216 no longer exists, and its Prometheus history volume was pruned on
+2026-09-28 ([0020](docs/design/0020-persistent-storage-review.md) S7).
 Normal runtime metrics
 remain off. All 897 tests passed for the candidate.
 

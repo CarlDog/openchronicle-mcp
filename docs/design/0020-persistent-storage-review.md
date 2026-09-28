@@ -252,8 +252,8 @@ filesystem MCP's roots. To confirm, run
    - `db_path` is `/data/openchronicle.db`;
    - the log file exists;
    - the next nightly backup lands in `/exports/backups/auto`.
-7. After a week of green nights: remove the dead host directories and prune
-   the orphaned volumes the operator approves.
+7. After a week of green nights: remove the dead host directories. (The
+   orphaned volumes were already pruned on 2026-09-28.)
 
 Rollback: stop the stack, restore stack file version 142 in Portainer, put the
 `cp -a` copies back if a volume was touched, and start. Design 0017's
@@ -289,9 +289,12 @@ recommendations, do step A now").
    (An explicit `name:` alone would still let Compose create an empty volume
    if it went missing.)
 3. **Step A now:** **Adopted and done**; see the step A result above.
-4. **Orphaned volumes:** prune all 20. **Adopted**, on the plan's timing:
-   step B's last step, after a week of green nights. They are independent of
-   production, so they can go sooner if the operator says so.
+4. **Orphaned volumes:** prune all 20. **Adopted and done** on 2026-09-28,
+   ahead of step B at the operator's request. Each was deleted by exact name
+   with a tool that refuses any volume still attached. Afterwards only
+   `openchronicle-mcp_oc-data` and `openchronicle-mcp_oc-output` remain, and
+   production health was unchanged. The Phase 4D Prometheus history is gone;
+   its sanitized report and summary remain outside the repository.
 5. **Share access:** owner, group and mode for `/volume1/docker/openchronicle`
    and `exports/`, after the ACL check.
 6. **DSM-level backup:** does one cover these paths today, and should one?
