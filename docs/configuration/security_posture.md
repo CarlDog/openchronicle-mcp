@@ -248,9 +248,18 @@ that is the part that matters, and it is handled.
   `/data/backups/auto/` holds only pre-v3.5.0 snapshots, frozen at that
   cutover and older every day; never restore from it by default.
 - Backup failure: `backup_last_run_failed: true` means the last scheduled
-  backup failed. The database is not implicated; check that `/exports` is
-  still owned by uid 1000 and writable, and read
-  `/api/v1/maintenance/status` for the error. Do not restore.
+  backup failed. Read `db_backup`'s `last_error` in
+  `/api/v1/maintenance/status` first. Usually the backup root is at fault:
+  check that `/exports` is still owned by uid 1000 and writable, and do not
+  restore. But a snapshot copies the live database, so the backup also fails
+  when the live database fails its checks. If `last_error` mentions
+  `integrity_check`, `foreign_key_check` or `quick_check`, or a
+  `*.failed-verify` or `*.failed-quick-check` file appears under
+  `exports/backups/auto`, treat it as possible corruption: run
+  `oc maintenance run-once db_integrity_check` in the container before
+  anything else, and follow the corruption steps above if it fails. The
+  weekly integrity check would otherwise take up to 7 days to raise
+  `maintenance_degraded`.
 - Embedding provider compromise: rotate the relevant API key and
   redeploy. The degradation policy keeps search working
   (FTS5-only) until the new key is in place.

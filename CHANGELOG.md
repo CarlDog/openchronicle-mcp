@@ -35,7 +35,9 @@ back is moving `OC_TAG` back.
   clears it; manual backups do not. It is deliberately separate from
   `maintenance_degraded`, which still means "the database may be corrupt"
   (design 0001 section 6.2). Folding a backup failure into it would have sent
-  operators to a restore. Before this, a broken backup root failed every
+  operators to a restore. Usually the backup root is at fault, but a live
+  database that fails its checks also fails the backup; the incident runbook
+  says how to tell the two apart. Before this, a broken backup root failed every
   nightly backup while health read clean. The gap predates this release but
   mattered more once backups moved to an operator-managed host bind. The
   field is additive (MINOR).

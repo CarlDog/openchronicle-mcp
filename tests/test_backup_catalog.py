@@ -460,3 +460,34 @@ def test_failed_nightly_backup_is_visible_in_health_until_a_backup_succeeds(
     payload = run_backup()
     assert payload["backup_last_run_failed"] is True
     assert payload["maintenance_degraded"] is False
+
+
+def test_integrity_failure_does_not_raise_the_backup_field(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The two health flags stay independent in both directions: a failed
+    integrity check means "the DB may be corrupt" and must not also report a
+    failed backup that never happened."""
+    from openchronicle.core.application.use_cases.diagnose_runtime import build_health_payload
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    db_path = tmp_path / "data" / "db.db"
+    db_path.parent.mkdir()
+    monkeypatch.setenv("OC_DB_PATH", str(db_path))
+    monkeypatch.setenv("OC_CONFIG_DIR", str(config_dir))
+    monkeypatch.setenv("OC_BACKUP_DIR", str(tmp_path))
+    (db_path.parent / "maintenance_state.json").write_text(
+        json.dumps(
+            {
+                "last_run_at": {"db_integrity_check": "2026-09-28T10:00:00+00:00"},
+                "last_success_at": {"db_integrity_check": "2026-09-21T10:00:00+00:00"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    container = CoreContainer()
+    try:
+        payload = build_health_payload(container)
+    finally:
+        container.storage.close()
+    assert payload["maintenance_degraded"] is True
+    assert payload["backup_last_run_failed"] is False
