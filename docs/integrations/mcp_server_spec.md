@@ -71,8 +71,8 @@ LLM need to write a memory" shape:
 Five additional tools register on the HTTP MCP surface only when
 `OC_BACKUP_MCP_ENABLED=true`, `OC_BACKUP_DIR` is explicitly configured, and
 the effective `OC_API_KEY` is nonempty; any other setting logs an ERROR and
-leaves them off without stopping startup. They are parked while production
-auth stays disabled. The default 18-tool inventory and stdio server omit them. All take generated artifact IDs, never file paths.
+leaves them off without stopping startup. They are parked in production:
+auth is on there since 2026-09-25, but no explicit backup root is set. The default 18-tool inventory and stdio server omit them. All take generated artifact IDs, never file paths.
 
 | Tool | Purpose |
 |---|---|

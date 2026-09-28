@@ -7,7 +7,7 @@ lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-24 UTC · **Revision:** 238 (north star captured: cloud LLM cost, 0019)
+**Snapshot date:** 2026-09-28 UTC · **Revision:** 239 (development roadmap; auth posture recorded)
 
 ## Current state
 
@@ -24,7 +24,7 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Main vs deployed | `main` includes the query-revision race fix from PR #34 (`7ffc277c`), the repository compose Host-list fix from PR #35 (`77ea0173`), and the earlier performance instrumentation. Production remains the tagged `v3.3.0` image; stack 151 is detached from Git and tag-pinned via `OC_TAG`, so neither source merge changes its stored compose or runtime |
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
-| Security posture | Auth supported, intentionally disabled on the home LAN ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
+| Security posture | Auth enabled on production since 2026-09-25 (operator; previously intentionally disabled on the home LAN) ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
 | Tests | Backup branch source checkpoint: full Windows suite **1,169 passed, one Linux-only skip**; Ruff, mypy, Markdown and commit hooks passed. PR #39 hosted checks are assessed separately on its exact head. PR #35 Windows/Ubuntu tests, quality, CodeQL and secret scan passed on head `87b891ed` (Windows on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality and image smoke/publish passed on merge `77ea0173`. Focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1 for the earlier metrics integration, including the native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
@@ -69,6 +69,8 @@ their no-commit/no-push statements are historical, not the current scope.
   follow-ups" (the backlog) and "Open Questions" 20-22 (Q20/Q21 shipped
   2026-08-17; Q22 heatmaps remains exploratory). The 2026-08-15
   review's punch list is mirrored in OC memory `e22472b8`.
+- **[ROADMAP.md](ROADMAP.md)** — the ordered development plan for all open
+  work, with stable item IDs; reconciled at every phase-end audit.
 - **[Backup/restore handoff](handoffs/2026-09-24-backup-restore.md)** — dated
   continuation checkpoint for draft PR #39 and the remaining NAS gates.
 - **`AGENTS.md` / `CLAUDE.md` "Current Sprint"** — the in-flight batch
@@ -116,8 +118,8 @@ their no-commit/no-push statements are historical, not the current scope.
   the runbook and collector examples state this. PR #35 merged as `77ea0173`
   after its rendered-compose REST/MCP regression tests and PR checks passed.
   The detached live stack's stored compose is unchanged; network/log-path
-  reconciliation remains an operator decision under V3_PLAN item 12.
-- **Timestamp ordering remains open** (V3_PLAN item 11, design 0016 track 2).
+  reconciliation remains an operator decision under V3_PLAN item 13.
+- **Timestamp ordering remains open** (V3_PLAN item 12, design 0016 track 2).
   A bounded read-only inventory of live MCP metadata returned 1,080 memories,
   matching `memory_stats`: 93 `created_at` values have `-05:00` or `-06:00`
   offsets, and the API's chronological order has 24 adjacent instant-order
@@ -130,8 +132,8 @@ their no-commit/no-push statements are historical, not the current scope.
   Draft PR #39 adds a verified snapshot catalog, the `/exports` export mount,
   and an offline stage/activate/rollback helper. A Claude adversarial review
   of `f65be230` found P1 defects; revs 221-227 fix them, and the fix round had
-  its own independent review. The MCP backup tools are parked while auth stays
-  disabled. A verified off-NAS v3.3.0 copy exists (rev 230) and the NAS restore
+  its own independent review. The MCP backup tools are parked; their auth precondition
+  is now met (auth enabled 2026-09-25), and enabling them is ROADMAP OPS-07. A verified off-NAS v3.3.0 copy exists (rev 230) and the NAS restore
   drill passed (rev 232). Merged to `main` after the v3.4.0 tag (rev 234),
   unreleased and not deployed. Open:
   before timestamp PR #38, a fresh copy and an image-pair rehearsal. Production is unchanged. V3_PLAN holds the
@@ -317,6 +319,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 239 | 2026-09-28 | **Development roadmap; auth posture recorded.** New [ROADMAP.md](ROADMAP.md) orders all open work into phases without dates, with stable IDs, from a full inventory of V3_PLAN, this file, design records 0001-0019, OC memories, GitHub issues and PRs, branches and code markers. Phases: records and hygiene; persistent storage (high priority); production health; the timestamp fix; v4.0.0; correctness; measurement; prompts and LLM cost; retrieval features; plus a gated register and an operator-decisions register. The inventory surfaced work in no repo doc (CLI contract gaps, MCP tool ergonomics, the conflicting main-to-v4 merge, OC memory cleanup, issue #17's open standards items). **Auth:** production enabled `OC_API_KEY` on 2026-09-25 (operator, deliberate; container recreated, still v3.3.0, data intact at 1,088 memories); `/mcp` answers 401 without a key. Current-state records now say so; history is unchanged. An inserted V3_PLAN item 8 had shifted items 8-14; stale cross-references are corrected, and the roadmap's stable IDs replace position numbers. Design-index rows for 0005, 0006, 0010, 0014 and 0017 are corrected. The phase-end checklist gains roadmap reconciliation. Docs only. |
 | 238 | 2026-09-24 | **North star captured: lower the cost of cloud LLM use through OC (design 0019).** The operator's long-range aspiration, and the hope behind grabbing the FreeToken repository. 0012's FreeToken review had examined only OC's embedding path, so the cloud-cost question was never researched; 0012 now says so. 0019 lists candidate levers from "fits OC today" to "needs a scope decision": measure per-task spend; memory instead of rediscovery; budgeted context; self-improving prompts (0018); cache-friendly tool surfaces; result reuse; and, farthest, a request-path gateway, which OC's memory-only boundary excludes. It keeps accuracy first and requires measured savings. V3_PLAN carries a north-star note. Docs only; nothing scheduled. |
 | 237 | 2026-09-24 | **0018 gains a second goal: efficiency.** The operator also hopes reused, refined prompts will save tokens and the time LLMs spend building a prompt for each request. 0018 records the quote and where the savings come from (less drafting, fewer attempts, better provider caching of stable prefixes), adds tokens, time and attempts to the per-use outcome record and to Stage 0's notes, and lists where the savings might not be real: the fetch itself costs tokens, MCP prompts rarely reach provider caches, dynamic content breaks caching, and small samples are noisy. Docs only. |
 | 236 | 2026-09-24 | **Idea captured: self-improving prompts (design 0018).** The operator's intent behind the 0015 prompt-library request is prompts that improve with every use, by tracking outcomes, not a static library. 0018 records it in the operator's words, with the concepts (per-use outcome records, small edits, versions that compete on evidence, human promotion, staleness flags), the research warnings from 0015, the honest limits, the trust constraint, and the open fork: agents propose edits and OC only records, or OC runs its own improver model. 0015's open question 6 is marked answered, and V3_PLAN item 10 points to 0018. Docs only; nothing scheduled. |

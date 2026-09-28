@@ -78,7 +78,7 @@ when it was cut.
   dependency updates (the uv runtime group, uvicorn, setuptools, wheel, and
   the smol-toml fix in the Markdown tooling).
 
-Deliberately deferred low-severity follow-ups are listed in V3_PLAN item 8.
+Deliberately deferred low-severity follow-ups are listed in V3_PLAN item 9.
 
 ## v3.3.0 — 2026-08-29
 

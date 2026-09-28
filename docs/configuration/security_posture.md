@@ -72,11 +72,10 @@ deployment context.
    invalidated immediately on container restart (no in-DB key
    storage; the env var is the source of truth).
 
-**Current stable deployment:** the NAS stack at `your-nas:18000`
-is configured with `OC_API_KEY` empty (auth disabled) — single-user
-home-LAN deployment, intentional, documented per the lessons from the
-2026-05-06 cutover. If that trust boundary changes, follow the steps
-above.
+**Current stable deployment:** the NAS stack at `your-nas:18000` has
+**auth enabled** since 2026-09-25 (operator decision). It superseded the
+2026-05-06 decision to leave `OC_API_KEY` empty on the trusted home LAN.
+Every client sends the bearer key; rotate it with the steps above.
 
 ## Exposed SQLite snapshots
 
@@ -86,7 +85,9 @@ the artifact hash detects accidental changes but cannot authenticate a writer
 who can change both the database and its manifest. The five backup/restore
 preparation MCP tools require an explicit backup root and nonempty HTTP API key
 and are off by default. They never accept a caller-supplied path or activate a
-restore. The current auth-disabled production deployment does not expose them.
+restore. Production does not expose them: auth is on since 2026-09-25, but no
+explicit backup root is set there, and enabling them is an operator decision
+(ROADMAP OPS-07).
 
 ## Transport
 
@@ -154,7 +155,7 @@ Hardened 2026-07-30 (the review-driven CI batch):
 - The repo's NAS compose puts OC on a private `oc-observability` network
   whether or not the optional `metrics` profile runs; the profile adds
   Prometheus to it. The live stack 151 is detached from Git and still runs
-  its older file, with `network_mode: bridge` (V3_PLAN item 12). Prometheus
+  its older file, with `network_mode: bridge` (V3_PLAN item 13). Prometheus
   UI port `19090` is bound to NAS loopback only by default; it is not a LAN
   service. Its history volume is
   separate from OC's memory, config, and output volumes.

@@ -168,8 +168,9 @@ needs fewer tokens or fewer retries is also an improvement.
 
 A prompt that is replayed as instructions, with the operator's authority,
 and that changes itself from feedback, is exactly the poisoning path 0015's
-risk register warns about. It is sharper here because production auth is
-intentionally disabled, so any LAN client can write. Feedback and proposed
+risk register warns about. It was sharper when production auth was
+disabled, so any LAN client could write. Auth was enabled on 2026-09-25, but
+one shared key still lets every key-holding client write. Feedback and proposed
 versions can be accepted from agents, but **promotion to the version that
 gets served stays a human act** that no agent can perform.
 
@@ -218,7 +219,8 @@ the MCP prompt primitive, trust and procedural memory. Not yet covered:
 
 ## Where this is tracked
 
-- [V3_PLAN](../V3_PLAN.md) active queue item 10 (the prompt library)
+- [V3_PLAN](../V3_PLAN.md) active queue item 11 (the prompt library;
+  ROADMAP LLM-03)
   points here.
 - 0015's open question 6 is marked answered by this record.
 - OpenChronicle memory, stable key

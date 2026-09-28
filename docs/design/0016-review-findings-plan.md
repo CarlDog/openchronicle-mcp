@@ -191,7 +191,7 @@ fail its scrape/access check rather than appear healthy from loopback alone.
 Test the rendered compose and actual REST/MCP Host behavior for an MCP-only
 LAN setting, an explicit API override, the collector alias, and a hostile
 Host. Assert external `/health` and REST access as well as local health.
-Review the network and log-path differences in V3_PLAN item 12 before any
+Review the network and log-path differences in V3_PLAN item 13 before any
 stored-compose replacement. **Stop** if the rendered compose would narrow
 existing client access or violate the fleet network rule. The v3.4.0
 deployment, if separately approved, remains the documented env-only
@@ -265,7 +265,7 @@ and publication success for the **exact tag SHA** rather than treating the
 PR head's green run as sufficient. Verify the published build revision and
 release artifact. The workflow currently rebuilds after smoke testing, so
 that check does not prove the pushed image has identical layers if a base
-tag moves between builds. The risk is already deferred in V3_PLAN item 8;
+tag moves between builds. The risk is already deferred in V3_PLAN item 9;
 record it as a release limitation unless the operator separately scopes a
 push-of-tested-image or pinned-base change. After those checks, an env-only
 move of the detached stack's `OC_TAG` and `OC_LOG_FILE` is eligible for its
