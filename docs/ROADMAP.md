@@ -60,6 +60,8 @@ in `jobs.py`.
 | DATA-03 | Dropbox retention decision: keep the account as the backup target; how much of the existing 6.75 GB to keep | S | 0001 §13 Q7. Decision |
 | DATA-04 | Check that the restore path has a post-swap writeability probe (`BEGIN IMMEDIATE`); add it if missing | S | 0004 F8 step 5 |
 | DATA-05 | Delete the v2 pre-migration backup (its condition, a verified v3 backup, is now met) | S | V3_PLAN Phase 9 Day 7. After DATA-01's inventory |
+| DATA-06 | Remove the dead host directories `/volume1/docker/openchronicle/{assets,output,plugins,config}`, including the leftover database copies and `.tmp-wal`/`.tmp-shm` files in `config/` (assessment rev 230) | S | 0020 step 7. After a week of green nights from 2026-09-28, so from about 2026-10-05; operator-run with DATA-07 |
+| DATA-07 | Clean up the frozen pre-v3.5.0 snapshots in `/data/backups/auto`, which the catalog never prunes | S | Assessment rev 250. Same operator session as DATA-06; keep them until an off-NAS copy of a current snapshot exists (OPS-08 provides it) |
 
 ## Phase 2 — Production health
 
@@ -97,9 +99,9 @@ in `jobs.py`.
 |---|---|---|---|
 | QUAL-01 | **CLI contract gaps**, confirmed in code 2026-09-24: a blank project name is accepted; `--limit` and `--offset` are unvalidated; `show-project --json` prints plain text when the project is not found; no handler-level error guard (so `export --out <dir>` tracebacks); exporting an unknown project exits 0 with an empty envelope | M | Found in OC memory, not in any repo doc until now |
 | QUAL-02 | Rev-209 deferred minors: push exactly the smoke-tested image, or pin the base digest; sort OpenAI `data` by index; `LC_ALL=C` for git children; redact `OLLAMA_HOST` userinfo in the TLS warning; a stop flag between backfill chunks | S-M | V3_PLAN active 9 |
-| QUAL-03 | Consolidate the three snapshot-inspection implementations into one leaf module | S | V3_PLAN 0017 deferred item |
+| QUAL-03 | Consolidate the three snapshot-inspection implementations (`BackupCatalog._inspect`, `offline_restore._inspect` and `_describe`) into one leaf module, with the helpers they duplicate: `_sha256`, `_fsync_dir`, the project fingerprint (four copies, including `BackupCatalog._current_identity`, which sorts in Python where the others sort in SQL), and one TypedDict for the inspection result. The free-space margins differ (1 MiB and 16 MiB); pick one deliberately | M | V3_PLAN 0017 deferred item; 2026-09-29 phase-end audit (the catalog copy already returns `size_bytes`, the offline copy does not) |
 | QUAL-04 | `set_pinned` does not bump `updated_at`, and `projects` has no `updated_at` | S | 0001 §11.5 |
-| QUAL-05 | Docs-parity gates: the CLI argparse tree, the MCP tool inventory, and `OC_*` env vars against the docs | M | 0004 F5; V3_PLAN active 7 |
+| QUAL-05 | Docs-parity gates: the CLI argparse tree, the MCP tool inventory, and `OC_*` env vars against the docs | M | 0004 F5; V3_PLAN active 7. Due since the 2026-09-29 phase-end audit, which found these docs in step by hand (one gap: `OC_BUILD_REVISION_FILE`, a test-only override, is undocumented) |
 | QUAL-06 | Consume `uv.lock` in CI and Docker (`--locked`, pinned uv), audit the locked dependency graph, and drop unused dependencies | M | 0004 F6; V3_PLAN follow-ups |
 | QUAL-07 | `_cosine_similarity` has no production caller | S | V3_PLAN follow-up |
 | QUAL-08 | Persistent Ollama HTTP client, with NAS p50/p95/p99 evidence at 1 and 8 clients, cold and warm, across an Ollama restart | M | V3_PLAN active 15; 0014 salvage |
@@ -107,6 +109,10 @@ in `jobs.py`.
 | QUAL-10 | Cache-friendly tool surfaces: keep tool descriptions and server instructions byte-stable and in a stable order, enforced by a test | S | 0019 lever 5; 0015 §1 |
 | QUAL-11 | **MCP tools silently ignore unknown arguments.** `memory_search` counts with `top_k`, while its sibling `memory_list` uses `limit`. A caller who passes `limit` gets the default of 8, with no error: on 2026-09-28 `limit: 3` and `limit: 5` each returned 8 results (about 10 KB), and the 2026-08-16 "limit=3 returned 34" report is probably the same trap. Fix: reject unknown arguments on every tool, with INVALID_ARGUMENT naming the field and the valid one; optionally also accept `limit` as a `top_k` alias (MINOR under STABILITY.md). Test that a misspelled optional parameter is refused on all 18 tools | S-M | OC `mcp-feedback` memory `2a637611` (updated 2026-09-28) |
 | QUAL-12 | **Boot-time `OC_BACKUP_DIR` errors miss the log file and can name the wrong cause** (v3.5.0 pre-deploy review, finding 2). `CoreContainer()` runs before `configure_root_logger()`, so the error goes to bare stderr, which a Portainer recreate discards, instead of `OC_LOG_FILE`. When the real cause is EACCES on a parent, `is_dir()` is False and the message says "must be an existing directory, not a symlink". Fix: configure logging before building the container, or re-emit the problem after logger setup; report permission errors separately. It touches every command's boot path, so it was kept out of the release | S | OPS-04 review |
+| QUAL-13 | One owner for backup-snapshot naming and the "published" rule. The stamp format, artifact-id reconstruction and "published" predicate live in both `backup_catalog.py` and `jobs.py`, and the job's "published" (a manifest file exists) is weaker than the catalog's (the manifest parses and its id matches). `BackupCatalog` should list the published auto snapshots as (stamp, path, artifact id) for retention and `cloud_backup` to share. Also one "N newest plus the newest per UTC day" helper: retention keys on file mtime, the cloud push on the filename stamp, so the two can disagree for a restored or copied file; moving retention to the stamp is a behaviour change to call out | M | 2026-09-29 phase-end audit, refactor scan findings 4 and 5 |
+| QUAL-14 | Typed shapes that have settled: `cloud_backup_status` (a TypedDict with a `Literal` status), `_last_background_backfill`, and a `JobResult` for maintenance handler results (read today by duck typing on `skipped`/`failed`). In tests, one parameterized always-raising embedding port for the five near-identical fakes in four files | S-M | 2026-09-29 phase-end audit, refactor scan findings 9 and 10 |
+| QUAL-15 | `embedding_service.py` grew from 758 to 1,117 lines in one phase and now holds background-backfill and refresher lifecycle, generation and backfill, and search. Record a size decision in ARCHITECTURE.md, or plan a split with the lifecycle first; not during an audit | S decision, M split | 2026-09-29 phase-end audit, refactor scan finding 6 |
+| QUAL-16 | Close the stores that test fixtures open (about 245 unclosed SQLite connections per run, across about 25 test files, hidden because `ResourceWarning` is ignored by default), then make `ResourceWarning` an error in the pytest config so a new leak fails CI | M | 2026-09-29 phase-end audit item C7 (assessment rev 266), which fixed the production entry points |
 
 ## Phase 6 — Measurement foundations
 
@@ -115,7 +121,7 @@ on.
 
 | ID | Item | Size | Detail |
 |---|---|---|---|
-| MEAS-01 | Design 0010 disposition. Needs a new scoped decision first; then a quiet NAS window with interference attribution; a frozen acceptance run (C/A overhead, REST list p99, MCP list p99 with at least 1,000 samples); and the affected 4D checks. (Stack 216 was deleted and its history volume pruned on 2026-09-28.) | M-L | 0010 4C final disposition; the attribution record |
+| MEAS-01 | Design 0010 disposition. Needs a new scoped decision first; then a quiet NAS window with interference attribution; a frozen acceptance run (C/A overhead, REST list p99, MCP list p99 with at least 1,000 samples); and the affected 4D checks. Also explain, or drop with a reason, the one unexplained 7 s request seen in an idle capture during v3.5.0's step-5 check (assessment rev 251). (Stack 216 was deleted and its history volume pruned on 2026-09-28.) | M-L | 0010 4C final disposition; the attribution record |
 | MEAS-02 | Concurrency probe: reconcile V3_PLAN active 3 (the probe already exists as `scripts/probe_performance.py`), then measure store-lock contention at realistic fleet N | S-M | 0007 Stage 0 |
 | MEAS-03 | OC-FT-01: measure duplicate query-embedding rate and the embedding share of latency | M | 0012 |
 | MEAS-04 | Public, reproducible memory-quality evaluation on a sanitized corpus | M | 0011 H1 |
@@ -184,7 +190,10 @@ The operator's aspiration (2026-09-28): do everything #memory (usememory.com) do
 | GATE-18 | Deduplicate the CLI `--confirm` branch | A third such command |
 | GATE-19 | Metrics 4E enablement and 4F observation; Prometheus retention validation; later observability decisions | MEAS-01 passes, plus authorization |
 | GATE-20 | Prompt-library Stages 2 and 3 | Stage 1 has shipped; mcp 2.x for Stage 3 |
+| GATE-21 | Run backup verification in a killable subprocess | A verification outlives `cloud_backup`'s 900 s bound in production (0001 Diff review: cancelling the await does not stop the worker thread) |
 | CAL-01 | Quarterly embedding-provider sweep | Next due about 2026-11-29 (0006) |
+| CAL-02 | Quarterly cloud-restore drill: decrypt and verify an artifact older than the newest, the only coverage old artifacts get | Next due about 2026-12-29 (0001 Phase 0, "the first run of the restore drill": re-run quarterly, sampling an older artifact) |
+| CAL-03 | Quarterly rclone bump (`COPY --from=rclone/rclone:<tag>` in the Dockerfile; Dependabot does not track it) | Next due about 2026-12-29; 1.75.1 was the latest release on 2026-09-29 |
 
 ## Operator decisions register
 
@@ -209,5 +218,8 @@ Found in the inventory, but not OpenChronicle work:
 
 - **Fleet-kit:** lesson harvests, and whether the canonical `gitleaks.yml`
   scans only the pushed range.
-- **Other repos:** `FUNDING.yml` is missing in filesystem-mcp and
-  mnemosyne-mcp.
+- **portainer-mcp:** a Portainer configuration backup route, tracked in
+  that repository's `STATUS.md` (done when one backup has been taken by the
+  chosen route).
+- ~~**Other repos:** `FUNDING.yml` missing in filesystem-mcp and
+  mnemosyne-mcp.~~ Both have it (verified 2026-09-29).

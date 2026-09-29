@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-29 UTC · **Revision:** 266 (audit C7: entry points close their store)
+**Snapshot date:** 2026-09-29 UTC · **Revision:** 267 (phase-end audit: roadmap entries)
 
 ## Current state
 
@@ -108,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 267 | 2026-09-29 | **Phase-end audit: new roadmap entries.** From the roadmap reconciliation and the refactor scan: DATA-06 (remove the dead host directories after a week of green nights) and DATA-07 (the frozen pre-v3.5.0 snapshots); QUAL-03 widened to the duplicated hash, fsync and fingerprint helpers; QUAL-13 (one owner for snapshot naming, the "published" rule and the per-day retention window), QUAL-14 (settled typed shapes, one test fake), QUAL-15 (a size decision for `embedding_service.py`), QUAL-16 (close test-fixture stores, then make `ResourceWarning` an error); QUAL-05 marked due; the 7 s outlier folded into MEAS-01; GATE-21 (a killable verify subprocess); CAL-02 (quarterly cloud-restore drill) and CAL-03 (quarterly rclone bump); a pointer to portainer-mcp's configuration-backup route. The audit's code fixes C1 to C7 are revs 260 to 266 |
 | 266 | 2026-09-29 | **Audit C7: the unclosed SQLite connections, traced.** `-W default` showed 271 `ResourceWarning`s the normal run hides. Traced with `tracemalloc`: 236 are tests opening a store and never closing it, 3 are the known Windows subprocess-pipe noise, and 32 came through production entry points: the `oc` CLI and the stdio MCP server never closed their `CoreContainer`, so SQLite's WAL was never checkpointed on a clean `oc` exit or `oc serve` shutdown (no data risk: the next open replays it). Both entry points now hold the container in `with`. CLI tests that reused one container across calls now get a fresh one per call, as a real process would. Two tests pin the closes and fail against the old code. Warnings: 272 → 249, all test fixtures (ROADMAP QUAL-16) |
 | 265 | 2026-09-29 | **Audit C6: the metrics exporter protocol matches its one implementation.** `MetricsExporter` declared `content_type` as a settable attribute while `PrometheusMetricsRecorder` exposes a read-only property, and `create_metrics` hid the mismatch with two casts. The protocol now declares a property and the casts are gone, so mypy checks the pairing: reverting the protocol line alone makes `factory.py` fail type-checking. No runtime change |
 | 264 | 2026-09-29 | **Audit C5: the commit hook's identity check follows the fleet rule.** `.githooks/check-identity-and-pii.sh` checked only the author, against a denylist of consumer email domains, so a corporate address or a personal committer passed. `security.md` requires an allowlist (the GitHub noreply alias only) on both author and committer, with a per-clone `fleet.allowedIdentityPattern` override. Section 1 now matches the fleet template (claude-fleet-kit `templates/common/githooks/pre-commit`) line for line. `tests/test_identity_hook.py` runs the real hook in a throwaway repository under Git's own bash; the corporate-committer case passed the old hook. The PII scan is unchanged |
