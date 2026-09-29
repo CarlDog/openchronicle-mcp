@@ -31,7 +31,7 @@ import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -42,6 +42,35 @@ if TYPE_CHECKING:
     from openchronicle.core.infrastructure.wiring.container import CoreContainer
 
 _logger = logging.getLogger(__name__)
+
+_STATE_FILE_NAME = "maintenance_state.json"
+
+
+def maintenance_state_path(db_path: Path) -> Path:
+    """Where the loop persists its schedule: beside the database.
+
+    The loop writes this file and health reads it (`maintenance_degraded`,
+    `backup_last_run_failed`, `cloud_backup_status`). One definition, so a
+    moved path cannot leave health reading a file nobody writes.
+    """
+    return db_path.parent / _STATE_FILE_NAME
+
+
+def parse_state_timestamp(value: object) -> datetime | None:
+    """One persisted timestamp, or None when missing or unparseable.
+
+    The loop writes timezone-aware stamps. A naive one, from a hand-edited
+    or foreign state file, is read as UTC: comparing it with an aware time
+    would raise, and each reader used to handle that differently.
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
 
 # Handler signature: async function that takes the container and returns
 # nothing. Failures must raise; the loop catches and counts.
@@ -363,12 +392,9 @@ class MaintenanceLoop:
         if not isinstance(entries, dict):
             return parsed
         for name, iso in entries.items():
-            if not isinstance(iso, str):
-                continue
-            try:
-                parsed[name] = datetime.fromisoformat(iso)
-            except ValueError:
-                continue
+            stamp = parse_state_timestamp(iso)
+            if stamp is not None:
+                parsed[name] = stamp
         return parsed
 
     def _load_state(self) -> None:
