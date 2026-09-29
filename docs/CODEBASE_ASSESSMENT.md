@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-29 UTC · **Revision:** 265 (audit C6: exporter protocol matches its implementation)
+**Snapshot date:** 2026-09-29 UTC · **Revision:** 266 (audit C7: entry points close their store)
 
 ## Current state
 
@@ -108,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 266 | 2026-09-29 | **Audit C7: the unclosed SQLite connections, traced.** `-W default` showed 271 `ResourceWarning`s the normal run hides. Traced with `tracemalloc`: 236 are tests opening a store and never closing it, 3 are the known Windows subprocess-pipe noise, and 32 came through production entry points: the `oc` CLI and the stdio MCP server never closed their `CoreContainer`, so SQLite's WAL was never checkpointed on a clean `oc` exit or `oc serve` shutdown (no data risk: the next open replays it). Both entry points now hold the container in `with`. CLI tests that reused one container across calls now get a fresh one per call, as a real process would. Two tests pin the closes and fail against the old code. Warnings: 272 → 249, all test fixtures (ROADMAP QUAL-16) |
 | 265 | 2026-09-29 | **Audit C6: the metrics exporter protocol matches its one implementation.** `MetricsExporter` declared `content_type` as a settable attribute while `PrometheusMetricsRecorder` exposes a read-only property, and `create_metrics` hid the mismatch with two casts. The protocol now declares a property and the casts are gone, so mypy checks the pairing: reverting the protocol line alone makes `factory.py` fail type-checking. No runtime change |
 | 264 | 2026-09-29 | **Audit C5: the commit hook's identity check follows the fleet rule.** `.githooks/check-identity-and-pii.sh` checked only the author, against a denylist of consumer email domains, so a corporate address or a personal committer passed. `security.md` requires an allowlist (the GitHub noreply alias only) on both author and committer, with a per-clone `fleet.allowedIdentityPattern` override. Section 1 now matches the fleet template (claude-fleet-kit `templates/common/githooks/pre-commit`) line for line. `tests/test_identity_hook.py` runs the real hook in a throwaway repository under Git's own bash; the corporate-committer case passed the old hook. The PII scan is unchanged |
 | 263 | 2026-09-29 | **Audit C4: the `git_onboard_resync` placeholder reports a skip, not a success.** It is off by default, but enabled in `core.json` it returned `None`, which the loop recorded as `ok` with a fresh `last_success_at` every hour for work that never happened. It now returns `{"skipped": 1, "reason": "not implemented yet"}`, so the loop records `skipped` and `oc maintenance run-once` prints SKIPPED. A loop test pins it and fails against the old code |

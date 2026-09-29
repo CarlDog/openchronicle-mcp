@@ -854,11 +854,22 @@ def _cli(root: Path, monkeypatch: pytest.MonkeyPatch, port: _RevisionPort) -> Co
 
 
 def _run_cli(container: CoreContainer, argv: list[str]) -> tuple[int, list[str]]:
+    """One `oc` invocation. Like a real process, it gets a fresh container (with
+    the same embedding port) and closes it on exit; `container` stays open for
+    the test to inspect the database afterwards."""
     from openchronicle.interfaces.cli.main import main
+
+    assert container.embedding_service is not None
+    port = container.embedding_service.port
+
+    def fresh(_args: object) -> CoreContainer:
+        c = CoreContainer()
+        c.embedding_service = EmbeddingService(port=port, store=c.storage)
+        return c
 
     with (
         patch("builtins.print") as printed,
-        patch("openchronicle.interfaces.cli.main._build_container", return_value=container),
+        patch("openchronicle.interfaces.cli.main._build_container", side_effect=fresh),
     ):
         rc = main(argv)
     return rc, [str(c.args[0]) if c.args else "" for c in printed.call_args_list]
@@ -931,6 +942,7 @@ class TestWiring:
         entry.main()
 
         assert order == ["refresh", "run"]
+        container.__exit__.assert_called_once()  # the store closes when the server stops
 
     def test_a_refused_save_logs_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         """The adapter warns once about the unverified revision. A traceback on
