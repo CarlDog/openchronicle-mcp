@@ -1461,6 +1461,11 @@ of about 10 MB and uploads them. Its first run happens at boot, so the deploy
 check samples request latency during it. Metrics stay off by default, and
 enabling them still needs this design's gates.
 
+**Deploy record (2026-09-29): the latency sample was not taken.** The
+boot-time run started at the first tick and finished about 15 seconds later,
+before a sample began. Its load is therefore unmeasured; the next nightly run
+is the chance to sample it.
+
 ## Completion and subsequent decisions
 
 The planning deliverable is complete, Phases 1–3 are implemented, and Phase 4

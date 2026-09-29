@@ -55,7 +55,7 @@ enforces parity.
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
   with it unset fails loudly instead of silently tracking `:latest`),
-  and stack 151 pins it (`v3.5.0` since 2026-09-28); a push to `main`
+  and stack 151 pins it (`v3.6.0` since 2026-09-29); a push to `main`
   refreshes only `:latest`, which that stack does not pull. **Code goes
   live when `OC_TAG` moves — a push alone deploys nothing.** So runtime
   changes (`src/`, `pyproject.toml`, `Dockerfile`) ship with the next
@@ -97,7 +97,8 @@ enforces parity.
   reaches production only through a reviewed `portainer_update_stack_file`,
   never by a git redeploy. It was deployed on 2026-09-28 (file version
   143, matching `main` at `5a207070`; `HOST_CONFIG_DIR` removed, so
-  `/config` is a named volume). The container is `openchronicle-mcp`.
+  `/config` is a named volume), and updated on 2026-09-29 to file
+  version 144, matching `main` at `99bd68cb` (OPS-08's cloud lines). The container is `openchronicle-mcp`.
   `OC_LOG_FILE=/output/logs/openchronicle.log` is set in the stack env
   (0020 step A).
 
@@ -262,11 +263,12 @@ query-revision and NAS Host-list source fixes merged.**
   OPS-06 is done: every MCP client on the second workstation (seven
   clients) sends the API key and passed `health`.
   OPS-08 (the nightly encrypted offsite push, design 0001 Phase 1) is
-  merged (PR #59, after plan and diff reviews) and the v3.6.0 release is
-  prepared: `cloud_backup` job, `cloud_backup_status` in health, rclone
-  and age in the image, a required PR image-smoke check. Not tagged or
-  deployed; the deploy follows amendment A7's order in the
-  [runbook](docs/configuration/cloud_backup.md).
+  deployed: v3.6.0 (`99bd68cb`) is live since 2026-09-29, and its
+  boot-time run pushed three encrypted snapshots to
+  `ocdrop:openchronicle/nas` (`cloud_backup_status` `ok`). OPS-08 closes
+  after three green nights, an escrow decrypt of a daemon-pushed artifact,
+  and a deliberate-breakage check; the
+  [runbook](docs/configuration/cloud_backup.md) has the procedures.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
