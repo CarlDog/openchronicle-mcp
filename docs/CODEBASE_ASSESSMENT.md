@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-29 UTC · **Revision:** 263 (audit C4: the resync placeholder reports a skip)
+**Snapshot date:** 2026-09-29 UTC · **Revision:** 264 (audit C5: identity hook is an allowlist on both identities)
 
 ## Current state
 
@@ -108,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 264 | 2026-09-29 | **Audit C5: the commit hook's identity check follows the fleet rule.** `.githooks/check-identity-and-pii.sh` checked only the author, against a denylist of consumer email domains, so a corporate address or a personal committer passed. `security.md` requires an allowlist (the GitHub noreply alias only) on both author and committer, with a per-clone `fleet.allowedIdentityPattern` override. Section 1 now matches the fleet template (claude-fleet-kit `templates/common/githooks/pre-commit`) line for line. `tests/test_identity_hook.py` runs the real hook in a throwaway repository under Git's own bash; the corporate-committer case passed the old hook. The PII scan is unchanged |
 | 263 | 2026-09-29 | **Audit C4: the `git_onboard_resync` placeholder reports a skip, not a success.** It is off by default, but enabled in `core.json` it returned `None`, which the loop recorded as `ok` with a fresh `last_success_at` every hour for work that never happened. It now returns `{"skipped": 1, "reason": "not implemented yet"}`, so the loop records `skipped` and `oc maintenance run-once` prints SKIPPED. A loop test pins it and fails against the old code |
 | 262 | 2026-09-29 | **Audit C3: one parser for yes/no environment switches.** Four copies of the true-word set behaved four ways on an unrecognized value: `OC_METRICS_ENABLED` warned and stayed off, `OC_BACKUP_MCP_ENABLED` logged an ERROR and stayed off, `OC_MAINTENANCE_DISABLED` stayed silent, and `OC_SEARCH_FTS5_ENABLED` **silently turned search off**. `parse_bool_env()` in `env_helpers` is now the one parser: blank means the default, the usual true and false words are recognized, and anything else logs (naming the variable) and keeps that switch's default, so an FTS5 typo now keeps search on. The backup-tools flag keeps its documented ERROR level. Tests cover the parser table and the FTS5 regression, which fails against the old code; `env_vars.md` states the invalid-value behaviour |
 | 261 | 2026-09-29 | **Audit C2: one maintenance state-file path and one timestamp rule.** The loop's writer (`app.py`) and health's reader (`diagnose_runtime`) each spelled out `maintenance_state.json`, and three readers handled a timestamp without an offset three ways: the loop kept it naive (then `_is_due` raised on an aware now inside every tick), `_last_run_failed` swallowed the TypeError as "no failure" (a failed backup read clean), and `_cloud_backup_status` read it as UTC. Now `maintenance_state_path()` and `parse_state_timestamp()` in `maintenance_loop` are the one definition (naive reads as UTC) for the writer and every reader. Ten tests; the two naive-stamp regressions fail against the old code, and a source guard asserts the file name appears exactly once |
