@@ -1093,6 +1093,40 @@ class TestReviewFixesRevision:
         jobs = [c.kwargs for c in metrics.observe_job.call_args_list]
         assert jobs == [{"name": "operator_backfill", "outcome": "overlap", "duration_seconds": None}]
 
+    @pytest.mark.parametrize(
+        ("generated", "failed", "tombstoned", "expected"),
+        [
+            (1, 0, 0, "success"),
+            (0, 0, 2, "success"),  # tombstoned-only is a success (ADR 0009)
+            (2, 1, 0, "partial"),
+            (0, 3, 0, "failure"),  # total failure: not "partial"
+        ],
+    )
+    def test_a_background_run_labels_its_metric_from_the_shared_verdict(
+        self, generated: int, failed: int, tombstoned: int, expected: str
+    ) -> None:
+        """The metric label comes from BackfillResult.outcome, the one definition."""
+        metrics = MagicMock()
+        service = EmbeddingService(
+            port=_RevisionPort(_known("sha256:A")), store=_store_stamped("sha256:A", count=0), metrics=metrics
+        )
+
+        def ran(*, project_id: str | None = None, force: bool = False) -> BackfillResult:
+            return BackfillResult(generated=generated, failed=failed, tombstoned=tombstoned, elapsed_ms=0)
+
+        service.generate_missing = ran  # type: ignore[method-assign]
+
+        async def scenario() -> None:
+            assert service.start_background_backfill() is True
+            task = service._background_backfill
+            assert task is not None
+            while not task.done():
+                await asyncio.sleep(0.01)
+
+        asyncio.run(scenario())
+        (job,) = [c.kwargs for c in metrics.observe_job.call_args_list]
+        assert job["outcome"] == expected
+
     def test_a_skipped_maintenance_run_records_an_overlap_without_a_duration(self) -> None:
         container = MagicMock()
 

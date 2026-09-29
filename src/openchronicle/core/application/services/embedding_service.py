@@ -92,6 +92,11 @@ class BackfillResult:
         return "partial"
 
 
+# BackfillResult.outcome -> the job metric's outcome label (design 0010). Mapped,
+# never recomputed, so the metric cannot call a total failure "partial".
+_JOB_METRIC_OUTCOME = {"skipped": "overlap", "ok": "success", "partial": "partial", "failed": "failure"}
+
+
 class EmbeddingService:
     """Coordinates embedding generation and hybrid (FTS5 + semantic) search."""
 
@@ -209,7 +214,7 @@ class EmbeddingService:
         outcome = "failure"
         try:
             result = await asyncio.to_thread(self.generate_missing, force=force)
-            outcome = "overlap" if result.skipped else "partial" if result.failed else "success"
+            outcome = _JOB_METRIC_OUTCOME[result.outcome]
             return result
         except asyncio.CancelledError:
             outcome = "cancel"

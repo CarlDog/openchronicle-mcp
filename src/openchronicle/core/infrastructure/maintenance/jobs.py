@@ -190,18 +190,15 @@ async def embedding_backfill(container: CoreContainer) -> dict[str, int] | None:
         _logger.debug("embedding_backfill: no embedding service configured; skipping")
         return None
 
-    def _run() -> dict[str, int]:
-        result = service.generate_missing(force=False)
-        summary = {"generated": result.generated, "failed": result.failed, "tombstoned": result.tombstoned}
-        if result.skipped:
-            # Another backfill (operator or revision reconciliation) is doing
-            # this work right now; a second one would only double the embeds.
-            # The loop records "skipped", never a success (pre-deploy review).
-            _logger.info("embedding_backfill: another backfill is running; skipped")
-            summary["skipped"] = 1
+    result = await asyncio.to_thread(service.generate_missing, force=False)
+    summary = {"generated": result.generated, "failed": result.failed, "tombstoned": result.tombstoned}
+    if result.skipped:
+        # Another backfill (operator or revision reconciliation) is doing
+        # this work right now; a second one would only double the embeds.
+        # The loop records "skipped", never a success (pre-deploy review).
+        _logger.info("embedding_backfill: another backfill is running; skipped")
+        summary["skipped"] = 1
         return summary
-
-    summary = await asyncio.to_thread(_run)
     # A total failure must FAIL the job: returning normally here let the
     # loop record last_outcome="ok" and advance last_success_at while
     # zero vectors were generated — a dead provider produced "backfill
@@ -209,9 +206,9 @@ async def embedding_backfill(container: CoreContainer) -> dict[str, int] | None:
     # defect). Partial success stays a completed-but-degraded run with
     # exact counts; zero candidates stays a clean no-op. Tombstoned rows
     # (ADR 0009) are classified permanent outcomes, not failures — a
-    # tombstoned-only run is a SUCCESS, and this guard expression
-    # deliberately doesn't see them.
-    if summary["failed"] and not summary["generated"]:
+    # tombstoned-only run is a SUCCESS. The verdict is BackfillResult.outcome,
+    # the one definition every surface shares.
+    if result.outcome == "failed":
         raise RuntimeError(
             f"embedding_backfill: 0 generated, {summary['failed']} failed, "
             f"{summary['tombstoned']} tombstoned — provider down?"
