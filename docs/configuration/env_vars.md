@@ -122,12 +122,12 @@ and [PromQL catalog](../monitoring/promql.md) for activation and queries.
 Five paths are exempt from auth even when `OC_API_KEY` is set:
 `/health`, `/api/v1/health`, `/docs`, `/redoc`, and `/openapi.json`
 (`_AUTH_EXEMPT_PATHS` plus `_DOCS_PATHS` in
-`interfaces/api/middleware/`). Note that `/api/v1/health` is the *full*
-diagnostic payload, not the static liveness probe — it reports absolute
-`db_path` and `config_dir` values, so on a deployment that enables auth
-this exemption discloses filesystem layout to an unauthenticated caller.
-Narrowing it to the top-level `/health` probe is an open item from the
-2026-08-15 review.
+`interfaces/api/middleware/`). `/api/v1/health` is the full diagnostic
+payload, not the static liveness probe. When a key is set, a caller
+without it gets that payload minus the absolute `db_path` and
+`config_dir`; a caller presenting the key, and every caller when auth is
+off, gets them too (closed 2026-09-29; it was an open item from the
+2026-08-15 review).
 
 **Auth posture:** OC supports auth but does not require it. Whether to
 set `OC_API_KEY` is a deployment decision — see

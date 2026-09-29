@@ -53,6 +53,15 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
         return await call_next(request)
 
 
+def request_has_key(request: Request, api_key: str) -> bool:
+    """Whether `request` carries `api_key`, compared as the middleware does.
+
+    For auth-exempt routes that still show more to a caller holding the key.
+    """
+    key = _extract_key(request)
+    return key is not None and hmac.compare_digest(key, api_key)
+
+
 def _extract_key(request: Request) -> str | None:
     """Extract API key from request headers."""
     # Try Authorization: Bearer <key>
