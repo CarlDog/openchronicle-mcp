@@ -556,6 +556,83 @@ Tests beyond §8's list:
 - the Dockerfile gate is proven by the CI image smoke test, extended to run
   `rclone version` and `age --version` inside the built image.
 
+#### Plan review amendments (2026-09-28)
+
+Two adversarial reviewers (correctness and data safety; operations and
+security) attacked the reconciliation above before any code was written.
+These amendments supersede the reconciliation, and the original design where
+they conflict with it.
+
+- **A1. Success means something fresh went offsite.** A handler that returns
+  normally stamps `last_success_at`, so §3.2 step 3 ("empty → return") would
+  report `ok` indefinitely for a deployment that never pushed. The same holds
+  when `db_backup` stops producing, whose same three names are already remote so
+  rclone exits 0, and when the clock steps backward, so new stamps sort below
+  old ones. The handler **raises** when the source set is empty, when the newest
+  published stamp is older than 26 hours (the 24-hour `db_backup` interval plus
+  margin), or when it is in the future. The job then fails, `last_success_at`
+  stops advancing, and health reads `stale`, which is honest.
+- **A2. Window by day, not only by count.** `db_vacuum` makes a second
+  snapshot on the same day, and a manual run adds more, so "the 3 newest" can
+  skip a whole day; the same defect was fixed in retention. Push the union of
+  the 3 newest published snapshots and the newest published snapshot from each
+  of the 3 most recent UTC days. That is at most 6 per run, and
+  `--ignore-existing` makes the ones already uploaded free. One helper returns
+  the ordered published set, and both retention's predicate and the push
+  selection use it.
+- **A3. Verify before encrypting, and push the manifest.** Before encrypting,
+  `container.backups.verify(artifact_id)` re-checks each snapshot against its
+  manifest and raises on a mismatch, so rot on the NAS is never shipped
+  offsite. `<name>.json.age` is pushed beside `<name>.db.age`, so a restore
+  after losing the NAS has the manifest's SHA-256, schema and project identity.
+  The pushed SHA-256 values are logged at INFO. §7 is corrected: age recipient
+  mode gives confidentiality, not authenticity. Anyone with the public keys and
+  write access to the Dropbox folder could plant a well-formed artifact, so
+  before restoring from the cloud, compare the decrypted manifest's SHA-256
+  with an off-cloud record where one exists (the OC log, or an earlier
+  verified copy).
+- **A4. Never as root.** The Dockerfile has no `USER`, so the Portainer
+  console and `docker exec` default to root. A root run refreshes the Dropbox
+  token and rewrites `rclone.conf` as root, mode 0600, which locks out the
+  nightly `oc` run until the next restart. The handler **refuses to run with
+  euid 0**, naming the fix. The runbook requires `--user 1000:1000` (or
+  console User `oc`) for every manual `oc` and `rclone` call, as the local
+  runbook already does. The `cloud-push-*` sweep removes only directories whose
+  mtime is more than the 900 s handler timeout old, logs and continues on
+  failure, and never raises.
+- **A5. `misconfigured` is visible.** The state file holds only timestamps,
+  so health could never show `misconfigured`. `build_health_payload` runs the
+  same validator as the handler (one shared function: the remote regex,
+  recipients non-empty), and `misconfigured` takes precedence over `ok` and
+  `stale`. Run the deliberate-breakage part of DONE *after* the three green
+  nights; breaking production for two nights would use up the window.
+- **A6. Minimal token, no staging copy.** Build an `rclone.conf` holding only
+  `[ocdrop]`, not the whole desktop file. Install it with no host copy: pipe it
+  over SSH into `docker exec -i --user 1000:1000 openchronicle-mcp sh -c 'umask 077;
+  cat > /config/rclone.conf'`. Keep the re-install copy in the password manager,
+  not as a live file. §7 is corrected: the token's `files.content.write` scope
+  can also delete and overwrite, so "never deletes" describes the daemon, not
+  the credential. A compromised NAS or desktop could wipe the offsite copy, and
+  Dropbox's 30-day deleted-file retention is the backstop. The desktop and NAS
+  copies share one token, so revoking it stops both.
+- **A7. Deploy order, because a new job runs at boot.** A new job has no
+  `last_run_at`, so it runs on the first tick, and a failed first run means
+  the next attempt is 24 hours later. The order is: install `rclone.conf` into
+  the volume (the running v3.5.0 container is fine for this); tag the release;
+  then **one** `portainer_update_stack_file` carrying the compose lines, and one
+  env update setting `OC_TAG` and both cloud values, before the new container's
+  first tick. Verify `build_revision`, then `cloud_backup_status` reading `ok`
+  after the boot-time run, then `last_error` in `/api/v1/maintenance/status`.
+- **A8. The image is checked on PRs.** `build-and-push` runs only on pushes to
+  `main` and tags, so a bad `COPY --from` or a missing `age` would pass every
+  required PR check. The image build and `smoke-image.sh` also run on
+  `pull_request`, without pushing. The container test uses a throwaway
+  `rclone.conf` with a local-backend remote named `testlocal`, because the §5
+  regex rejects `:memory:`.
+- **A9. The `--` guard goes before the positional arguments:**
+  `rclone copy [flags] -- <tmpdir> <remote>/`, and the argv test asserts its
+  position.
+
 ### Phase 1 — The push job
 
 ~~Two commits. **First:** `JobState.last_success_at` for all five jobs plus persistence, on its own (§6.1).~~ *That prerequisite shipped 2026-08-23; what remains is one commit.* **Namely:** Dockerfile, the `cloud_backup` handler in `jobs.py`, all three registrations (`HANDLERS`, `_DEFAULT_JOBS`, `core.json.example`), the health block, the guarded entrypoint chmod, compose lines, ignore files, and docs (ADR + `docs/configuration/cloud_backup.md` runbook + security_posture section + env_vars + MAINTENANCE job table + V3_PLAN Q12 resolved + CHANGELOG).
