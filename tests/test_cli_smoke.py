@@ -33,13 +33,17 @@ def container(tmp_path: Path) -> Iterator[CoreContainer]:
     monkeypatch.delenv("OC_EMBEDDING_PROVIDER", raising=False)
     c = CoreContainer()
     yield c
+    c.close()
     monkeypatch.undo()
 
 
 def _run(container: CoreContainer, argv: list[str]) -> tuple[int, str]:
+    """One `oc` invocation. Like a real process, it gets a fresh container from
+    the same environment and closes it on exit; the fixture's container stays
+    open for the test to inspect the database afterwards."""
     with (
         patch("builtins.print") as mock_print,
-        patch("openchronicle.interfaces.cli.main._build_container", return_value=container),
+        patch("openchronicle.interfaces.cli.main._build_container", side_effect=lambda _args: CoreContainer()),
     ):
         rc = main(argv)
     out = "\n".join(str(c.args[0]) if c.args else "" for c in mock_print.call_args_list)

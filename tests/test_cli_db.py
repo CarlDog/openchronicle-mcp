@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import patch
@@ -24,6 +25,15 @@ def container(tmp_path: Path) -> Iterator[CoreContainer]:
     c = CoreContainer()
     yield c
     monkeypatch.undo()
+
+
+def test_the_cli_closes_its_container_on_the_way_out(container: CoreContainer) -> None:
+    """Left to process exit, the store never closed, so SQLite's WAL was never
+    checkpointed on a clean `oc` exit or `oc serve` shutdown (audit C7)."""
+    with patch("builtins.print"), patch("openchronicle.interfaces.cli.main._build_container", return_value=container):
+        assert main(["db", "info"]) == 0
+    with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+        container.storage._conn.execute("SELECT 1")
 
 
 class TestDbInfo:

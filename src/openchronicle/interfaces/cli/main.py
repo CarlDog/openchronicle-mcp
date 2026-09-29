@@ -245,11 +245,14 @@ def main(argv: list[str] | None = None) -> int:
     if container is None:
         return 1
 
-    handler = COMMANDS.get(args.command)
-    if handler is None:
-        parser.print_help()
-        return 0
-    return handler(args, container)
+    # Closing the store on the way out checkpoints SQLite's WAL, including
+    # after `oc serve` shuts down; left to process exit it never closed.
+    with container:
+        handler = COMMANDS.get(args.command)
+        if handler is None:
+            parser.print_help()
+            return 0
+        return handler(args, container)
 
 
 if __name__ == "__main__":
