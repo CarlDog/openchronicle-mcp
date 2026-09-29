@@ -16,7 +16,7 @@ was overkill.
 | `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup` (the snapshot is kept rather than published: `auto/*.db.failed-quick-check` when `quick_check` also fails, otherwise `auto/*.db.failed-verify`), sets `container.maintenance_degraded = True` (surfaces via `/api/v1/health` and the MCP `health` tool), raises so the loop counts it. On success: clears any prior degraded flag. |
 | `cloud_backup` | 1 day | Encrypts the newest published snapshots (3 newest plus the newest per day for 3 days) and their manifests with age, and `rclone copy --ignore-existing`s them to `OC_CLOUD_REMOTE`; append-only, 900 s bound. Skipped while the remote is unset; raises on invalid config, a root run, a missing `rclone.conf`, no or stale (>26 h) or future-stamped snapshots, a manifest mismatch, or an age or rclone failure. Surfaces as `cloud_backup_status` in health. See [cloud_backup.md](../configuration/cloud_backup.md) |
 | `embedding_backfill` | 6 hours | Equivalent to `oc memory embed`; no-op when the embedding service is unset or nothing is missing |
-| `git_onboard_resync` | 1 hour, OFF by default | Placeholder. Full implementation lands when the tracked-repo list spec is finalized. |
+| `git_onboard_resync` | 1 hour, OFF by default | Placeholder. Full implementation lands when the tracked-repo list spec is finalized. If enabled, each run reports a skip, never a success |
 
 ## Configuration
 

@@ -229,13 +229,16 @@ async def embedding_backfill(container: CoreContainer) -> dict[str, int] | None:
     return summary
 
 
-async def git_onboard_resync(container: CoreContainer) -> None:
+async def git_onboard_resync(container: CoreContainer) -> dict[str, object]:
     """Placeholder — full implementation lands when a tracked-repo list exists.
 
     Off by default in the config; this handler exists so the registry
-    name resolves and the loop can dispatch to it without crashing.
+    name resolves and the loop can dispatch to it without crashing. It
+    reports a skip, never a success: enabling it in core.json must not
+    stamp `last_success_at` every hour for work that never happened.
     """
-    _logger.debug("git_onboard_resync: not implemented yet (off by default)")
+    _logger.debug("git_onboard_resync: not implemented yet; skipped")
+    return {"skipped": 1, "reason": "not implemented yet"}
 
 
 def _select_for_push(published: list[tuple[datetime, Path]]) -> list[Path]:
