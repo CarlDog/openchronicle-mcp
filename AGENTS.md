@@ -8,6 +8,8 @@ enforces parity.
 
 **`docs/CODEBASE_ASSESSMENT.md`** — single source of truth for this project.
 
+**Fleet standards:** python-service v3.0 — audited 2026-09-29 (one open gap: PY-04, whose check predates the uv ecosystem; see issue #17)
+
 ## Project-Specific Notes
 
 - **Development priorities (operator, 2026-09-08).** Accuracy comes first;

@@ -1,0 +1,43 @@
+# Canonical .editorconfig for the fleet — standard UNI-06.
+#
+# Copy to .editorconfig in the repo root. Verbatim, no per-repo variants: the
+# survey found this file in 6 of 21 repos and all 6 differed, which is the worst
+# of both worlds — enough presence to imply a convention, enough variance to
+# make cross-repo diffs noisy.
+#
+# This governs what editors do. .gitattributes (UNI-05) governs what git stores.
+# Both are needed: an editor writing CRLF into a file git normalizes to LF
+# produces a diff on every save.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,yml,yaml,md,css,html}]
+indent_size = 2
+
+[*.{py,cs,ps1,psm1,psd1,sh}]
+indent_size = 4
+
+# Tab-significant formats. A space here is a syntax error, not a style choice.
+[{Makefile,makefile,*.mk}]
+indent_style = tab
+
+[*.go]
+indent_style = tab
+
+# Markdown uses trailing double-space for hard line breaks. Trimming it silently
+# changes rendered output, so this is an exception rather than an oversight.
+[*.md]
+trim_trailing_whitespace = false
+
+# Generated and vendored files: leave them exactly as their generator wrote them.
+[{package-lock.json,pnpm-lock.yaml,yarn.lock,poetry.lock,uv.lock}]
+insert_final_newline = false
+trim_trailing_whitespace = false

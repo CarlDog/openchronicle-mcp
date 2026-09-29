@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-29 UTC · **Revision:** 272 (QUAL-17: compose parity gate)
+**Snapshot date:** 2026-09-29 UTC · **Revision:** 273 (hygiene items and TS-01)
 
 ## Current state
 
@@ -78,9 +78,10 @@ current work:
   Chronological listings misorder memories whose `created_at` carries a UTC
   offset, which `onboard_git` output does: a 2026-09-23 read-only inventory
   found 93 offset-bearing values among 1,080 memories and 24 adjacent
-  instant-order inversions. Migration waits on the input-compatibility
-  decision, a fail-closed policy for naive rows, and a fresh backup with an
-  image-pair rehearsal.
+  instant-order inversions. TS-01 (rev 273) read the verified off-NAS copy
+  directly: no naive or malformed value anywhere, 94 offset rows. Migration
+  waits on the input-compatibility decision (TS-02) and a fresh backup with
+  an image-pair rehearsal (TS-03).
 - **The MCP backup tools** (design 0017) ship in the image but stay off
   (`OC_BACKUP_MCP_ENABLED=false`). Auth is on and production sets
   `OC_BACKUP_DIR`, so enabling them is the operator's decision (OPS-07).
@@ -108,6 +109,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 273 | 2026-09-29 | **Hygiene items and TS-01.** HYG-01: issue #27 closed with an evidence comment; each of its fix commits is an ancestor of the v3.4.0 tag. HYG-03: OpenChronicle memories cleaned (the stale current-state pin rewritten and unpinned, a pinned v3.6.0 milestone added, the junk "test" memory and the obsolete v3.4.0 changelog draft deleted, the eight Gemini-branch memories retagged `not-merged`, five resolved `mcp-feedback` notes tagged, two portainer-mcp notes moved to that project). HYG-02: `.editorconfig` from the fleet template, a `Last updated:` line on the `STATUS.md` pointer, the `Fleet standards:` stamp in AGENTS.md and CLAUDE.md, and GitHub Releases for the 14 tags that had none (v3.6.0 now Latest). Against catalogue 3.0 the audit leaves one gap, PY-04, whose check predates the `uv` ecosystem; that fix belongs to fleet-kit, as does a worktree false negative in UNI-02b. Moving the assessment to the root `STATUS.md` (UNI-08's full intent) is deferred as HYG-08. TS-01: an immutable read of the verified step-5 copy (digest, size and counts match its manifest; `quick_check` ok) found no naive and no malformed value in any of 5 timestamp columns; `memory_items.created_at` has 94 offset values (91 at -05:00, 3 at -06:00) and 10 UTC values without microseconds, and text order has 24 adjacent inversions, all offset-then-UTC. Counts only; no stored value was printed |
 | 272 | 2026-09-29 | **QUAL-17: compose parity gate.** Three checks join `tests/test_docs_parity.py`: every `OC_*` setting the source reads is passed to the `oc` service in `docker-compose.nas.yml`; every `OC_*` name in the compose file is read by the source; and every value is `${SAME_NAME...}`, so Portainer can set it, apart from six container-wiring entries (the /config, /data, /exports and /output paths, the bind address and the port). Allowlists carry a reason per entry: `OC_TAG` is compose-only, and the stdio-only `OC_MCP_*` settings, `OC_DATA_DIR` and `OC_BUILD_REVISION_FILE` are read but deliberately absent. The compose file had no gaps; six deliberate breaks (a deleted line, a dead name, a hardcoded value, a wrong variable name, a new setting in code, an allowlisted name now set) were all caught, and the new-setting break also trips QUAL-05's docs check. No new dependency: the environment block is parsed line by line |
 | 271 | 2026-09-29 | **Roadmap: QUAL-17 added (operator request).** A compose parity gate, following QUAL-05: every `OC_*` setting the source reads must be wired into `docker-compose.nas.yml`, and every `OC_*` name there must be read, with a reasoned allowlist (`OC_TAG`, the stdio-only `OC_MCP_*` settings, `OC_DATA_DIR`, `OC_BUILD_REVISION_FILE`). Docs only |
 | 270 | 2026-09-29 | **QUAL-05: docs-parity gates (design 0004 finding 5).** `tests/test_docs_parity.py` compares three inventories with their operator docs in both directions: the argparse tree (every runnable command has its own `oc` heading in `docs/cli/commands.md`, every long option appears in its command's section, and no heading names a command that no longer exists); the registered MCP tools (default and gated backup sets equal the spec's tables, and the spec's stated default count); and `OC_*` names (every literal the source reads is in `env_vars.md`, every documented or `.env.example` name is read). Each check first proves it parsed something; 11 deliberate breaks were all caught. The CLI parser moved into `build_parser()` so it can be walked, and `run-once`'s help now lists jobs from the registry (it had omitted `cloud_backup`). The gates found five undocumented `--json` flags and the undocumented `OC_BUILD_REVISION_FILE`, both now documented. Not MCP/REST/CLI parity and no generated docs, per 0004 |
