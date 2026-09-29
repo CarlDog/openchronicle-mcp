@@ -259,6 +259,8 @@ query-revision and NAS Host-list source fixes merged.**
   OPS-05 are done: v3.5.0 (design 0017's backups, `d1c8be25`) is live, and
   its step-5 check passed (snapshot over SMB, digest, disposable restore,
   request tail). Nightly backups now land in `/exports/backups/auto`.
+  OPS-06 is done: every MCP client on the second workstation (seven
+  clients) sends the API key and passed `health`.
   OPS-08 (the nightly encrypted offsite push, design 0001 Phase 1) is
   implemented and in review for v3.6.0: plan-reviewed (amendments A1-A9),
   `cloud_backup` job, `cloud_backup_status` in health, rclone and age in

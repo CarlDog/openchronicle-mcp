@@ -242,7 +242,13 @@ Manually invoke a single maintenance handler. Useful at cutover time
 (`oc maintenance run-once embedding_backfill` after migrating).
 
 Job names: `db_backup`, `db_vacuum`, `db_integrity_check`,
-`embedding_backfill`, `git_onboard_resync`.
+`embedding_backfill`, `git_onboard_resync`, `cloud_backup`.
+
+Prints `OK: <job> complete` when the job did its work, and
+`SKIPPED: <job> did nothing (<reason>)` when it did not: another run was
+already in progress, or the job is not configured (`cloud_backup` with
+`OC_CLOUD_REMOTE` unset). Run `cloud_backup` as uid 1000; see
+[cloud_backup.md](../configuration/cloud_backup.md).
 
 ## Operator
 

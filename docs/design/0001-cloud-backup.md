@@ -651,7 +651,7 @@ a P1 in the code.
   sweeping, the timeout ending before encryption and upload, verifying only
   the newest snapshot, oldest-per-day selection, the operator log lines, and
   each threshold near its edge. The tests now freeze the handler's clock (the
-  day-window test had failed within about an hour after UTC midnight) and
+  day-window test failed from 01:00 to 01:10 UTC, measured minute by minute) and
   catch all 44 mutants (two of them cover the reporting fixes below).
 - **Fixed: the image smoke.** It now decrypts each artifact with a different
   one of two distinct identities (before, both recipients were the same key),
