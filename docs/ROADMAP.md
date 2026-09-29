@@ -10,11 +10,13 @@ holds the order.
 
 **Built:** 2026-09-28, from a full inventory of V3_PLAN, the assessment,
 design records 0001-0021, OpenChronicle memories, GitHub issues and PRs,
-long-lived branches and code comments (the code carries no work-marker comments).
+long-lived branches and code comments. Reconciled at the 2026-09-29 phase-end
+audit; the one work marker in the code is the `git_onboard_resync` placeholder
+in `jobs.py`.
 **Operator priorities:**
 
-- the persistent-storage review first;
-- production health next;
+- persistent storage and production health first (Phases 1 and 2, done
+  2026-09-28/29 apart from OPS-07, OPS-08's close-out and DATA-01's decision 5);
 - accuracy first, then speed and responsiveness (2026-09-08).
 
 ## How to read and maintain it
@@ -42,19 +44,19 @@ long-lived branches and code comments (the code carries no work-marker comments)
 | ID | Item | Size | Detail |
 |---|---|---|---|
 | HYG-01 | Close issue #27: all four findings shipped in the v3.4.0 tag, with CI green on the exact commit | S | Evidence in assessment revs 201-204 and 233 |
-| HYG-02 | Standards gaps in issue #17: tick UNI-05 (done in rev 200); add `.editorconfig` (UNI-06); add a `Last updated:` line to `STATUS.md` (UNI-08); add the `Fleet standards:` stamp (UNI-09); create GitHub Releases for the tags that lack one (every `v*` tag except v3.3.0, including v3.4.0) (UNI-19) | S | #17 |
+| HYG-02 | Standards gaps in issue #17: tick UNI-05 (done in rev 200); add `.editorconfig` (UNI-06); add a `Last updated:` line to `STATUS.md` (UNI-08); add the `Fleet standards:` stamp (UNI-09); create GitHub Releases for the tags that lack one (every `v*` tag except v3.3.0, including v3.4.0 to v3.6.0; GitHub shows v3.3.0 as Latest while v3.6.0 runs in production) (UNI-19) | S | #17 |
 | HYG-03 | OpenChronicle memory cleanup (needs the API key now): a stale pinned "current state" memory (claims v3.1.0 live) floats into every search; a junk memory with content "test"; eight milestone-tagged memories describe the deleted Gemini branch; an obsolete v3.4.0 changelog draft; resolved `mcp-feedback` notes still open; portainer-mcp notes filed under this project | S | 2026-09-28 inventory |
 | HYG-04 | Delete stale branches and worktrees: `origin/v3/develop` (0 ahead of `main`, 290 behind); the `vigilant-mendel` worktree (on `c7f36a7c`) | S | **Done 2026-09-29:** deleted `origin/v3/develop` (0 ahead) and the remote `claude/ops-08-cloud-backup` (its one commit is in `main` as `fb0fea3f`); removed the `vigilant-mendel` worktree and two review worktrees, all clean; deleted 27 local branches, each checked to have no commit missing from `main`. Kept `main`, `v4/develop`, `archive/*` and the branches of open PRs #38, #45 and #46 |
 | HYG-05 | Review and merge Dependabot PRs #45 and #46 on fresh CI | S | |
-| HYG-06 | Design-record status corrections still open: the 0002, 0003 and 0004 headers (0004's shipped ranks 2, 4, 5, 8 and 10); 0016's track-3 checkpoint still says "unmerged branch" | S | Design index rows were corrected on 2026-09-28 |
+| HYG-06 | Design-record status corrections still open: the 0002, 0003 and 0004 headers (0004's shipped ranks 2, 4, 5, 8 and 10, and rank 11's claim that CI never starts the image it publishes, fixed by the image smoke in rev 207); 0016's track-3 checkpoint still says "unmerged branch" | S | The design index and the 0001, 0016 and 0020 headers were corrected in the 2026-09-29 phase-end audit |
 | HYG-07 | Decide whether to enforce "work lands through a PR" with branch protection on `main` (revs 201-211 were direct pushes) | S | **Done 2026-09-28 (operator decision):** classic branch protection on `main` requires a PR (0 approvals) and these checks: `ubuntu-latest`, `windows-latest`, `lint + format + types`, `Scan for secrets`, `Analyze (python)`, `Analyze (actions)`, and since 2026-09-28 (OPS-08) `Image smoke test`, the PR-only job that builds the image and runs both smoke scripts; it has no path filter, so it reports on every PR to `main`. The branch must be up to date (`strict`). It is enforced for admins too, so the operator's token, which agents use, cannot push directly. Force pushes and deletion are blocked. The same was applied to portainer-mcp. Emergency path: switch protection off briefly in Settings |
 
-## Phase 1 — Persistent storage and data safety (HIGH PRIORITY)
+## Phase 1 — Persistent storage and data safety
 
 | ID | Item | Size | Detail |
 |---|---|---|---|
-| DATA-01 | **Persistent-storage architecture review.** Covers: the volume is keyed to the compose project name; automatic backups share the data volume; the live log path is wrong; everything sits on one NAS; the `docker` share grants `Everyone` read; `/config` is mode 0777; whether `assets`, `output`, `plugins` and `oc-output` are still needed. Output: a reviewed target layout plus a cutover and rollback plan | M | V3_PLAN active 14. The premise was checked on 2026-09-24: the database has persisted since the 2026-05-06 cutover, and it survived the 2026-09-25 recreate (1,088 memories). **Review written 2026-09-28:** [0020](design/0020-persistent-storage-review.md), decisions 1-4 adopted as recommended on 2026-09-28 and step A (the log path, environment only) applied the same day. Step B deployed with OPS-03 the same day. Open: decision 5 (the share root's access) |
-| DATA-02 | Cloud-backup Phase 0: Dropbox App Folder probe, two age keypairs with independent escrow, a two-identity decrypt drill. Answers the "one NAS" risk | S | **Done 2026-09-28** ([0001 Phase 0 record](design/0001-cloud-backup.md#phase-0-record-2026-09-28)): App folder verified, both identities decrypted the uploaded artifact to `integrity_check` `ok` and 99%/100% row counts. The one-NAS risk stays open until OPS-08 pushes nightly |
+| DATA-01 | **Persistent-storage architecture review.** Covers: the volume is keyed to the compose project name; automatic backups share the data volume; the live log path is wrong; everything sits on one NAS; the `docker` share grants `Everyone` read; `/config` is mode 0777; whether `assets`, `output`, `plugins` and `oc-output` are still needed. Output: a reviewed target layout plus a cutover and rollback plan | M | V3_PLAN active 14. The premise was checked on 2026-09-24: the database has persisted since the 2026-05-06 cutover, and it survived the 2026-09-25 recreate (1,088 memories). **Review written 2026-09-28:** [0020](design/0020-persistent-storage-review.md), decisions 1-4 adopted as recommended on 2026-09-28 and step A (the log path, environment only) applied the same day. Step B deployed with OPS-03 the same day. Open: decision 5 for the share root (the `exports/` half was settled in rev 249) |
+| DATA-02 | Cloud-backup Phase 0: Dropbox App Folder probe, two age keypairs with independent escrow, a two-identity decrypt drill. Answers the "one NAS" risk | S | **Done 2026-09-28** ([0001 Phase 0 record](design/0001-cloud-backup.md#phase-0-record-2026-09-28)): App folder verified, both identities decrypted the uploaded artifact to `integrity_check` `ok` and 99%/100% row counts. The one-NAS risk stays open until OPS-08 closes (nightly pushes since 2026-09-29) |
 | DATA-03 | Dropbox retention decision: keep the account as the backup target; how much of the existing 6.75 GB to keep | S | 0001 §13 Q7. Decision |
 | DATA-04 | Check that the restore path has a post-swap writeability probe (`BEGIN IMMEDIATE`); add it if missing | S | 0004 F8 step 5 |
 | DATA-05 | Delete the v2 pre-migration backup (its condition, a verified v3 backup, is now met) | S | V3_PLAN Phase 9 Day 7. After DATA-01's inventory |
@@ -69,8 +71,8 @@ long-lived branches and code comments (the code carries no work-marker comments)
 | OPS-04 | Next release, carrying 0017's nightly-backup change (catalogued, verified, quarantined) and the 0016 track-1 search fix, with its own deploy check and a design 0010 change-impact review | M | V3_PLAN 0017 entry 1; 0016 §5. **Done 2026-09-28** (assessment rev 251): v3.5.0 tagged on `d1c8be25` after its tag CI passed, and deployed (`package_version` 3.5.0, `backup_last_run_failed` false). Built as a release PR for v3.5.0 (0017 only; the 0016 track-1 search fix already shipped in v3.4.0). 0010 exception extended; decision 5 settled for `exports` (the operator is the only DSM user, so `1000:100 0750` is operator-only). The merge-integration review found no merge defect; its finding 1 (backup failures invisible in health) is fixed in the release, and finding 2 is QUAL-12 |
 | OPS-05 | Deploy the `/exports` mount. Needs: a host directory owned by uid 1000 and restricted ACLs. Check: read a snapshot through the share, compare it with the off-NAS digest, run disposable restore checks, and measure request-tail impact | M | 0017 steps 4-5. After OPS-03 and OPS-04. **Done 2026-09-28** (rev 251): the mount deployed with OPS-03; the step-5 check ran on v3.5.0. Five catalogued snapshots were taken with `oc maintenance run-once db_backup` in the container console at 23:57:47-23:58:33Z: each is a 10,014,720-byte `.db` plus `.json` manifest pair in `/exports/backups/auto`, with `backups/` at `oc:users 0750` (filesystem-mcp is refused `EACCES`). The newest, read over SMB by the operator's account, has the manifest's SHA-256 (`7ebac5a1...20fe7f6`) on the share and in the off-NAS copy. A disposable restore was a standalone rollback-journal database: `integrity_check` ok, 0 FK violations, schema 4, 1,100 memories, 39 projects and 1,100 embedding rows (1,079 ok, 21 `content_too_long`), all matching the manifest; the project fingerprint recomputes; four memories saved that day are present; FTS search hits and the FTS5 integrity check passes; a write transaction works. Request tail during the snapshots, measured from the operator's desktop on `/api/v1/health` (the keyword search needs the key and was not scripted): 1,884 requests, 0 failures, idle p95 66.4 ms, during p95 68.9 ms (ratio 1.04, budget 2x and under 500 ms): PASS, also with the windows widened to +10 s. Two tail outliers (1.0 s and 3.0 s) fall in the first snapshot's window only; `run-once` starts a second, cold Python process, which the in-process nightly job does not. An idle capture before the run also had one unexplained 7 s outlier with no backup running. The verified copy is kept at `D:\Backups\openchronicle\step5-20260928\` |
 | OPS-06 | Client migration after the auth change: every MCP client (Claude Code on each machine, and any other client) sends the bearer key; inventory non-Claude clients | S | Auth enabled 2026-09-25; 0014 F13 exposure. **Done 2026-09-28** (assessment rev 252). Second workstation: the operator configured Claude Code, Claude Desktop (through `mcp-remote`), Codex, Gemini CLI, Antigravity, VS Code and Visual Studio, and all seven passed `health`. Primary workstation, inventoried by inspecting each client's config file with key values redacted: Claude Code, Claude Desktop (`mcp-remote`), Codex (`http_headers`), Antigravity and VS Code (`mcp.json`) each carry an OpenChronicle entry with an authorization header; Gemini CLI and Visual Studio have no OpenChronicle entry. Of those five, only Claude Code was exercised live there; the other four were checked by configuration, not by a `health` call. The per-client recipes are in `mcp_client_setup.md` |
-| OPS-07 | Decide whether to enable the MCP backup tools. Auth is on now, so only an explicit `OC_BACKUP_DIR` (from OPS-05) and the operator's call remain | S | 0017; decision |
-| OPS-08 | Cloud-backup Phase 1: an rclone plus age job in the image, three health fields, compose lines and tests. Done when three green NAS nights pass plus a decrypt check | M | 0001 Phase 1. **Deployed 2026-09-29 in v3.6.0** (`99bd68cb`): the boot-time run pushed three snapshots and health reads `ok`. Plan reviewed (0001 amendments A1-A9); merged in PR #59 after a diff review; implemented with the `cloud_backup` job, `cloud_backup_status` in health (one field; `misconfigured` derived, not a third), rclone and age in the image, and a PR image-smoke job. The escrow decrypt of a daemon-pushed artifact passed 2026-09-29 (0001 Phase 1 record). Done still needs three green NAS nights and a deliberate-breakage check after them |
+| OPS-07 | Decide whether to enable the MCP backup tools. Auth is on and production sets `OC_BACKUP_DIR` (since v3.5.0), so only the operator's call remains. Part of the call: whether to wait for PAR-01, whose scoped tokens would let the tools run under a key that cannot delete | S | 0017; decision |
+| OPS-08 | Cloud-backup Phase 1: an rclone plus age job in the image, three health fields, compose lines and tests. Done when three green NAS nights pass plus a decrypt check | M | 0001 Phase 1. **Deployed 2026-09-29 in v3.6.0** (`99bd68cb`): the boot-time run pushed three snapshots and health reads `ok`. Plan reviewed (0001 amendments A1-A9); merged in PR #59 after a diff review; implemented with the `cloud_backup` job, `cloud_backup_status` in health (one field; `misconfigured` derived, not a third), rclone and age in the image, and a PR image-smoke job. The escrow decrypt of a daemon-pushed artifact passed 2026-09-29 (0001 Phase 1 record). Done still needs three green NAS nights, a deliberate-breakage check after them, and design 0010's request-latency sample during one nightly run (missed at deploy, rev 257) |
 
 ## Phase 3 — Timestamp ordering fix (draft PR #38)
 
@@ -79,13 +81,13 @@ long-lived branches and code comments (the code carries no work-marker comments)
 | TS-01 | Inspect the verified off-NAS copy's raw `created_at` values for naive or malformed timestamps | S | V3_PLAN active 12. Unblocked now |
 | TS-02 | Decide the policy for naive legacy rows, and whether rejecting naive input counts as MINOR or MAJOR under STABILITY.md | S | 0016 track 2; decision |
 | TS-03 | Pre-migration gate: a fresh off-NAS copy, plus an old/new image-pair rehearsal. Also close the drill's coverage gaps: restoring the restart policy, Portainer freeze and recreation, the production host-source `stage` block, and the failure paths | M | 0017 steps 6-7; runbook "What that drill did not cover" |
-| TS-04 | Rebase PR #38 (37 commits behind `main` on 2026-09-28; docs conflicts only as of 2026-09-24), then fresh CI, review, release, and a deploy with the rehearsed rollback | M | After TS-01 to TS-03 |
+| TS-04 | Rebase PR #38 (91 commits behind `main` on 2026-09-29; docs conflicts only as of 2026-09-24), then fresh CI, review, release, and a deploy with the rehearsed rollback | M | After TS-01 to TS-03 |
 
 ## Phase 4 — v4.0.0
 
 | ID | Item | Size | Detail |
 |---|---|---|---|
-| V4-01 | Merge `main` into `v4/develop` (6 ahead and 79 behind on 2026-09-28; conflicts in `embedding_service.py`, `sqlite_store.py`, `cli/commands/memory.py`, the CHANGELOG and the assessment); run the v4 tests | L | Overdue under the "merge regularly" convention |
+| V4-01 | Merge `main` into `v4/develop` (6 ahead and 133 behind on 2026-09-29; conflicts in `embedding_service.py`, `sqlite_store.py`, `cli/commands/memory.py`, the CHANGELOG and the assessment); run the v4 tests | L | Overdue under the "merge regularly" convention |
 | V4-02 | v4.0.0 tag decision and release (ADR 0008 pins as ranking prior, `PIN_RANK_LIFT = 0`; MAJOR) | S | V3_PLAN active 1; decision |
 | V4-03 | Sweep-harness hardening minors: the channel-integrity assertion, run-identity metadata, the `--sweep`/`--out` collision, and noise labels in verdicts | S | V3_PLAN active 1 residual |
 
@@ -113,7 +115,7 @@ on.
 
 | ID | Item | Size | Detail |
 |---|---|---|---|
-| MEAS-01 | Design 0010 disposition. Needs a new scoped decision first; then a quiet NAS window with interference attribution; a frozen acceptance run (C/A overhead, REST list p99, MCP list p99 with at least 1,000 samples); the affected 4D checks; and keep-or-remove for stack 216 | M-L | 0010 4C final disposition; the attribution record |
+| MEAS-01 | Design 0010 disposition. Needs a new scoped decision first; then a quiet NAS window with interference attribution; a frozen acceptance run (C/A overhead, REST list p99, MCP list p99 with at least 1,000 samples); and the affected 4D checks. (Stack 216 was deleted and its history volume pruned on 2026-09-28.) | M-L | 0010 4C final disposition; the attribution record |
 | MEAS-02 | Concurrency probe: reconcile V3_PLAN active 3 (the probe already exists as `scripts/probe_performance.py`), then measure store-lock contention at realistic fleet N | S-M | 0007 Stage 0 |
 | MEAS-03 | OC-FT-01: measure duplicate query-embedding rate and the embedding share of latency | M | 0012 |
 | MEAS-04 | Public, reproducible memory-quality evaluation on a sanitized corpus | M | 0011 H1 |
@@ -146,11 +148,11 @@ that any change can be shown not to hurt accuracy.
 
 ## Phase 9 — Parity and beyond (#memory, design 0021)
 
-The operator's aspiration (2026-09-28): do everything #memory (usememory.com) does, and better. Each item needs ratification first; none is scheduled. RET-04 covers their human interface. Suggested order: PAR-07 and PAR-01 first (small, and PAR-01 unblocks OPS-07), PAR-06 after MEAS-04, PAR-02 after RET-03's ADR, PAR-03 as its own design; PAR-04 and PAR-05 stay research.
+The operator's aspiration (2026-09-28): do everything #memory (usememory.com) does, and better. Each item needs ratification first; none is scheduled. RET-04 covers their human interface. Suggested order: PAR-07 and PAR-01 first (small, and PAR-01 makes enabling OPS-07's tools safer), PAR-06 after MEAS-04, PAR-02 after RET-03's ADR, PAR-03 as its own design; PAR-04 and PAR-05 stay research.
 
 | ID | Item | Size | Detail |
 |---|---|---|---|
-| PAR-01 | Scoped credentials: per-client tokens with `read`/`write`/`delete` scopes and a project or tag restriction, revocable one at a time; later OAuth 2.1 with PKCE and dynamic client registration | M, then L | 0021 gap 1. Precondition for enabling the backup tools (OPS-07) and handing deletes to an agent |
+| PAR-01 | Scoped credentials: per-client tokens with `read`/`write`/`delete` scopes and a project or tag restriction, revocable one at a time; later OAuth 2.1 with PKCE and dynamic client registration | M, then L | 0021 gap 1. Would let the backup tools (OPS-07) and deletes run under a key that cannot delete |
 | PAR-02 | Integration sync: idempotent upsert by an external reference with a source-timestamp staleness guard, `updated_since` cursor polling, and a deletion feed (their stated gap) | M | 0021 gap 2. After RET-03's operation-identity ADR |
 | PAR-03 | Attachments: a blob store beside memories, extracted text and local-model captions joining hybrid search, with backup, export and offsite coverage | XL | 0021 gap 3. Its own design and plan review |
 | PAR-04 | Per-project encryption at rest with an operator-held key, keeping search for unlocked projects | ? | 0021 gap 5. Research first; the self-hosted threat model differs from theirs |
@@ -189,15 +191,12 @@ The operator's aspiration (2026-09-28): do everything #memory (usememory.com) do
 These wait on the operator, not on engineering:
 
 - **Storage and data:**
-  - DATA-01's target layout;
+  - DATA-01's decision 5 (the share root's access);
   - DATA-03 (Dropbox retention).
-- **Production:**
-  - when to deploy (OPS-01);
-  - compose reconciliation or Git re-attach (OPS-03);
-  - MCP backup tools (OPS-07).
+- **Production:** MCP backup tools (OPS-07).
 - **Timestamps:** the naive-row policy and version classification (TS-02).
 - **Releases:** the v4.0.0 tag (V4-02).
-- **Measurement:** the next 0010 cycle, and stack 216 (MEAS-01).
+- **Measurement:** the next 0010 cycle (MEAS-01).
 - **Prompts and cost:**
   - Stage 0 isolation and start (LLM-03);
   - 0015 Q1-Q8 and the 0018 fork (LLM-04);
