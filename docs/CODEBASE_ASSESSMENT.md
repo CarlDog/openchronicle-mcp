@@ -2,12 +2,12 @@
 
 **The project's single source of truth for current state.** Updated in
 the same commit as the work that changes it (standing rule). Release
-narrative lives in [CHANGELOG.md](../CHANGELOG.md); the live backlog
-lives in [V3_PLAN.md](V3_PLAN.md) (see "Where things live" below); the
+narrative lives in [CHANGELOG.md](../CHANGELOG.md); the order of all
+open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-28 UTC · **Revision:** 258 (OPS-08 escrow decrypt passed)
+**Snapshot date:** 2026-09-29 UTC · **Revision:** 259 (phase-end audit: docs currency)
 
 ## Current state
 
@@ -25,11 +25,11 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 | Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth enabled on production since 2026-09-25 (operator; previously intentionally disabled on the home LAN) ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
-| Tests | Backup branch source checkpoint: full Windows suite **1,169 passed, one Linux-only skip**; Ruff, mypy, Markdown and commit hooks passed. PR #39 hosted checks are assessed separately on its exact head. PR #35 Windows/Ubuntu tests, quality, CodeQL and secret scan passed on head `87b891ed` (Windows on one retry after a Docker CLI startup timeout). Exact-main Windows/Ubuntu tests, quality and image smoke/publish passed on merge `77ea0173`. Focused Linux contracts: **106 passed** on each of Prometheus 0.26.0 and 0.23.1 for the earlier metrics integration, including the native process test. See [integration verification](design/0010-4c-attribution.md#local-integration-checkpoint) |
+| Tests | Full Windows suite on `main` (`aa9ed34e`, source identical to v3.6.0): **1,259 passed, 2 skipped** (one Linux-only test, one POSIX-mode test), 2026-09-29 phase-end audit; the v3.6.0 tag's CI passed on Windows and Ubuntu (rev 257). The cloud-backup suite catches 44 of 44 deliberate mutants (rev 254) |
 | Lint / types | ruff (minor-pinned) + mypy clean; both enforced per commit and in CI |
 | Toolchain | Python **3.14+** everywhere — `requires-python`, CI matrix (ubuntu + windows), Dockerfile, ruff/mypy targets. The floor is real: the code uses PEP 758 syntax |
 | Dependency resolution | `uv.lock` is tracked for graph inspection, but CI and Docker still install from `pyproject.toml`; frozen lock consumption remains open and reproducibility must not be claimed yet |
-| CI | One workflow, four jobs: test matrix → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only; runs the image and cloud-backup smokes before pushing); on pull requests an image-smoke job builds the image and runs both smokes without pushing |
+| CI | Test workflow: test matrix → quality (incl. tag↔version guard) → build-and-push (gated on both; amd64 only; runs the image and cloud-backup smokes before pushing), plus a PR-only image-smoke job. Separate gitleaks and CodeQL workflows. `main` is protected: the required checks are listed under ROADMAP HYG-07 |
 | Canonical OC project | `fe2ef898-0152-40a4-af97-ed97cc86ca45` on the NAS deployment |
 | Coverage measurement | None (deliberate; the test count and per-commit gates are the regression signal) |
 
@@ -40,281 +40,65 @@ drivers in `interfaces/`), enforced by tests — see
 
 ## Where things live
 
-### Source checkpoint — 2026-09-09 UTC
-
-The operator authorized committing and pushing all current OpenChronicle
-changes: recorder/exporter optimizations and contracts, attribution/readiness
-documentation, and comparative reviews 0011/0012. The recorded regression
-baseline is 1,020 Windows passes with one Linux-only skip; the assembled commit
-must pass the configured pre-commit checks, including the full pytest suite.
-Source publication does not clear the unresolved 4C or affected live 4D gates.
-The corrected integration remains untimed and metrics remain off by default.
-
-Read-only verification at 02:08 UTC found stack 151 detached from Git and pinned
-to `OC_TAG=v3.3.0`; health reported build
-`7349f94ab8bd8b9a8c60e1def63ad4997f7f9a45`. A `main` push can trigger CI and
-publish its development image without changing that pinned runtime. This
-checkpoint includes no release tag, deployment, enablement or new benchmark.
-Earlier revision entries describe their original local-only checkpoints;
-their no-commit/no-push statements are historical, not the current scope.
-
 ### Documentation map
 
 - **This file** — current state only. If it isn't true today, it
   doesn't belong here.
 - **[CHANGELOG.md](../CHANGELOG.md)** — what shipped in each release,
   rc1 through current.
-- **[V3_PLAN.md](V3_PLAN.md)** — mostly historical (the v3 design +
-  phase tracker), but two sections are declared **live**: "Post-cutover
-  follow-ups" (the backlog) and "Open Questions" 20-22 (Q20/Q21 shipped
-  2026-08-17; Q22 heatmaps remains exploratory). The 2026-08-15
-  review's punch list is mirrored in OC memory `e22472b8`.
-- **[ROADMAP.md](ROADMAP.md)** — the ordered development plan for all open
-  work, with stable item IDs; reconciled at every phase-end audit.
-- **[Backup/restore handoff](handoffs/2026-09-24-backup-restore.md)** — dated
-  continuation checkpoint for draft PR #39 and the remaining NAS gates.
+- **[ROADMAP.md](ROADMAP.md)** — the order of all open work, with stable
+  item IDs; reconciled at every phase-end audit. Cite items by ID.
+- **[V3_PLAN.md](V3_PLAN.md)** — the v3 design and phase tracker, plus the
+  detailed entries and open questions that ROADMAP items cite. It no longer
+  sets the order of work. The 2026-08-15 review's punch list is mirrored in
+  OC memory `e22472b8`.
 - **`AGENTS.md` / `CLAUDE.md` "Current Sprint"** — the in-flight batch
   only; `AGENTS.md` is canonical and a repository-hygiene test keeps the
   compatibility mirror byte-identical. History rolls into the revision
   table below and the CHANGELOG.
-- **[design/](design/)** — numbered design docs, ADRs, and design
-  reviews (`NNNN-topic.md`). A design or recommendation here is a
-  *proposal* until its phases ship; current state still lives in this
-  file.
+- **[design/](design/)** — numbered design docs, ADRs, reviews and idea
+  records (`NNNN-topic.md`), indexed in [design/README.md](design/README.md).
+  A design or recommendation is a *proposal* until its phases ship; current
+  state still lives in this file.
+- **[handoffs/](handoffs/)** — dated continuation checkpoints, historical
+  once their work lands (the 2026-09-24 backup/restore handoff's work shipped
+  in v3.5.0).
 - **[archive/v2/](archive/v2/README.md)** — frozen v2 docs, never
   maintained.
 
 ## Known-open items (summary)
 
-- ~~**Phase 9 decommission**~~ — **done 2026-08-28.** `v3.0.0` tagged,
-  STABILITY.md now binding, dangling v2 volumes removed. The written
-  checklist was corrected first: it would have deleted the live stack and
-  an in-use volume. See V3_PLAN's Day-7 section, which preserves the
-  failure mode rather than hiding it.
-- **Ollama revision-probe defect in v3.3.0, fixed in v3.4.0 (rev 208), deployed 2026-09-28** ([0014](design/0014-gemini-audit-branch-review.md)
-  §1.1). A failed first `/api/tags` probe is cached as revision `None`
-  for the process lifetime. Semantic search then returns nothing while
-  health reads `active`, and the backfill re-embeds the whole corpus,
-  twice per incident. Production can reach it; it had not fired as of
-  2026-09-23 (`model_revision` set, `stale: 0`). The fix (ADR 0005 §7)
-  and the four fleet-review issue #27 items are on `main` (revs
-  201-208) and shipped with v3.4.0, deployed 2026-09-28 (rev 245). On its
-  first start the revision read `known` and the reconcile backfill generated
-  0 embeddings. The live restart gate (OPS-02, rev 248) then proved it across
-  OC and Ollama restarts in both start orders.
-- **Query-revision race, released in v3.4.0 and deployed 2026-09-28** ([0016](design/0016-review-findings-plan.md)
-  track 1). The previous search path read the revision snapshot after
-  embedding a query, which could score an old-revision query against
-  new-revision rows. PR #34 now snapshots before and after the
-  embed, retries one observed change, and fails closed on repeated churn or
-  known-to-unknown transition. Hybrid falls back to keywords without counting
-  a provider outage; semantic-only returns typed `MODEL_REVISION_CHANGED`
-  (HTTP 502). Ten focused regression tests and the full Windows suite (1,146
-  passed, one skip), Ruff and mypy passed locally. Windows/Ubuntu tests,
-  quality and CodeQL passed on the exact PR head `2c3a2557`; PR #34 merged
-  as `7ffc277c`, shipped in v3.4.0, and deployed 2026-09-28 (rev 245).
-- **NAS compose Host allowlist, deployed 2026-09-28 with OPS-03** ([0016](design/0016-review-findings-plan.md)
-  track 3). The repository compose now injects an empty API Host list by
-  default so REST inherits the MCP LAN list. The optional metrics profile
-  requires an explicit API list with every external REST host and
-  `host.docker.internal:*` (the collector scrapes OC's published port since
-  OPS-03, rev 243; before that it was `oc:*`); the runbook and collector
-  examples state this. PR #35 merged as `77ea0173`
-  after its rendered-compose REST/MCP regression tests and PR checks passed.
-  Stack 151's stored compose was reconciled with the repository file and
-  deployed on 2026-09-28 (OPS-03, rev 244).
-- **Timestamp ordering remains open** (V3_PLAN item 12, design 0016 track 2).
-  A bounded read-only inventory of live MCP metadata returned 1,080 memories,
-  matching `memory_stats`: 93 `created_at` values have `-05:00` or `-06:00`
-  offsets, and the API's chronological order has 24 adjacent instant-order
-  inversions. No naive or malformed timestamp surfaced through the API;
-  all 39 project creation timestamps are UTC-aware. This is not raw SQLite
-  inspection or a backup. The input-compatibility/version decision, a
-  fail-closed policy for any unseen naive row, and an intact backup with a
-  disposable restore rehearsal remain prerequisites to migration.
-- **Exposed local backup/restore preparation is source-only** ([0017](design/0017-exposed-backup-and-restore.md)).
-  Draft PR #39 adds a verified snapshot catalog, the `/exports` export mount,
-  and an offline stage/activate/rollback helper. A Claude adversarial review
-  of `f65be230` found P1 defects; revs 221-227 fix them, and the fix round had
-  its own independent review. The MCP backup tools are parked; their auth precondition
-  is now met (auth enabled 2026-09-25), and enabling them is ROADMAP OPS-07. A verified off-NAS v3.3.0 copy exists (rev 230) and the NAS restore
-  drill passed (rev 232). Merged to `main` after the v3.4.0 tag (rev 234),
-  unreleased and not deployed. Open:
-  before timestamp PR #38, a fresh copy and an image-pair rehearsal. Production is unchanged. V3_PLAN holds the
-  ordered list and a separate storage-layout review.
-- **Unmerged branch `gemini-3.8-flash/audit-18092026`.** Reviewed
-  adversarially and not merged ([0014](design/0014-gemini-audit-branch-review.md)).
-  Its docs and eight OC milestone memories describe unshipped work;
-  the memories now carry a NOT MERGED status line.
-- Remaining V3_PLAN follow-ups (mcp 2.x migration, the MCP `error_code`
-  gap, sqlite-vec ceiling, offline write-behind sync, dependency audit,
-  frozen lock consumption,
-  and a quarterly re-check of Ollama Cloud embeddings — viable host, no
-  embedding models hosted as of 2026-08-28, baseline recorded so the
-  re-check is a diff).
-  Every
-  code-level finding from the 2026-08-15 review is now closed.
-- **Application performance measurement (design 0010)** — Phases 1–3 are
-  implemented and verified in the working tree, and Phase 4 has been
-  evaluated and retested on a controlled host, including a two-CPU process-
-  affinity follow-up. The standard image and development extra
-  contain `prometheus-client`; runtime collection remains off by default
-  (`OC_METRICS_ENABLED=false`). The optional local Prometheus profile, saved
-  query catalog, runbook, source-root probe, direct scrape loop with complete
-  attempt-duration retention, working-set sampler, and event-loop-lag sampler
-  are present. The matched scrape-
-  responsiveness gate passed, but the rotated A/B/C overhead gate is
-  inconclusive because the disabled and enabled runs are noisy and the enabled
-  retest median exceeded the 5% throughput-loss limit; the affinity follow-up
-  still produced an 11.62% enabled median loss and a 0.18–14.08% disabled /
-  8.69–16.18% enabled spread. Process affinity was insufficient; release and
-  enabling are blocked. A post-reboot serialized-setup same-run pilot passed,
-  but its full three-probe matrix was ineligible with 2,438/2,488/2,285
-  failures (mostly connection failures); an isolated clean-base control was
-  clean, so the concurrent method saturated this host. A follow-up using
-  equal rotating eight-CPU partitions and per-worker keep-alive connections
-  produced three eligible blocks, but B/C median throughput losses were
-  1.351%/10.867% with reversed order effects (corrected from raw reports; the
-  previous narrative confused maxima with medians). Release/enabling remain
-  blocked. Phase 4D then passed on disposable NAS observation stack 216:
-  fixed Prometheus queries retained history across target restart and
-  rollback, idle and outage states were distinguished, the access matrix
-  matched the documented contracts, and both recovery paths passed with
-  candidate-created data preserved. The operator approved sequential testing
-  on CARLDOG-NAS; dedicated hardware is not an
-  application requirement. After upload approval, the twelve-case sequential
-  NAS run completed in 505.56 seconds: 25,995 successful requests, zero
-  failures/timeouts, unchanged corpora and successful enabled scrapes. B/C
-  median throughput losses were 4.678%/8.344%, but a repeated A control slowed
-  by 5.331% and latency controls also exceeded budget; both comparisons remain
-  inconclusive. Evidence is retained under
-  `data/performance/phase4-20260904/nas-sequential/`. Only the one-shot benchmark
-  stack was removed afterward. Production remained healthy and unchanged at
-  that checkpoint; no release or production deployment was performed.
-  Implementation was committed in `682c68f0`. A proposed
-  [Phase 4 remaining-work plan](design/0010-performance-measurement.md#phase-4-remaining-work-plan)
-  now specifies diagnosis, targeted changes, gate evaluation, NAS recovery
-  evidence, release, and observation. Subphase 4A completed server-side
-  profiling and three fresh NAS A/R calibration pairs; the third control
-  exceeded the predeclared variability budget, so readiness remains
-  inconclusive. Subphase 4B completed locally with a narrow disabled-path
-  instrumentation bypass; focused metrics tests, Ruff, formatting, and mypy
-  pass. The frozen unprofiled 4C gate then completed all twelve cases with
-  27,272 successful requests, zero failures/timeouts, matching corpora, and
-  successful enabled scrapes. Its independently recalculated B/A median
-  throughput loss was 0.129% and C/A was 7.769%; B/A was inconclusive because
-  repeated-A list-p95 noise reached 1.540 budget fractions, and C/A remained
-  inconclusive overall under the existing veto. The report and summary are
-  retained under `data/performance/phase4-20260904/nas-sequential/`; disposable
-  stack 212 was removed and production remained unchanged. The sanitized 4D
-  report and summary are retained under
-  `data/performance/phase4-20260904/phase4d-20260905/`. Stack 216 has since
-  been deleted, and its Prometheus history volume was pruned on 2026-09-28
-  ([0020](design/0020-persistent-storage-review.md) S7). Subphase 4D passed; 4E/4F
-  remain gated by the inconclusive 4C result. Runtime metrics remain off by
-  default and no release/deployment has occurred.
-  Forward-planning inspection found timestamp contamination in the retained
-  4C report: the current assessor rejects a condition-state mismatch and
-  produces no comparisons, so the earlier saved-report verification claim
-  needs correction. The adopted
-  [4C recovery plan](design/0010-performance-measurement.md#4c-recovery-plan)
-  starts with report integrity, then one longer A/R calibration, enabled-cost
-  diagnosis, a targeted patch if justified, and one frozen comparison under
-  unchanged budgets. Recovery implemented checksummed report transport and
-  measured-only resource sampling. The six-case NAS calibration completed
-  41,441 requests without failures and passed every control budget. A post-run
-  CPU-mask type check was corrected; the unchanged report validates. The
-  operator approved calibration reuse on 2026-09-05 as an explicit
-  validation-only frozen-harness exception. A bounded recorder cache patch has passed local
-  correctness tests and reduced targeted recorder-cycle CPU by 42.857%; this
-  is not an application overhead claim. The bounded cycle is now finished:
-  candidate `ddd21dee` was published as a uniquely tagged non-release image;
-  all twelve NAS cases completed 75,786 requests without failures. Verified
-  B/A and C/A remain inconclusive (median throughput losses 0.399%/6.392%)
-  because the last repeated baseline slowed 53.339% while NAS load rose sharply.
-  Full-cardinality responsiveness also did not pass: REST list p99 exceeded
-  its budget by 4.086 ms, and MCP list samples were insufficient. Unchanged 4D
-  evidence was reused after source/configuration review. All new disposable
-  containers were removed, production is unchanged, and release/enabling remain
-  blocked pending a new scoped decision. Evidence: `data/performance/phase4-20260904/recovery-20260905/`.
-  The subsequently authorized diagnostic phase is complete. Retained counters
-  show 85.005% host CPU activity during the bad control, but available logs do
-  not identify the competing process. Validated single-thread diagnostics target
-  redundant healthy-gauge writes, HTTP/embedding label lookup, and exposition
-  formatting. Mixed-run profiler durations are explicitly rejected because of
-  cross-thread clock errors. The [attribution report and recorder patch](design/0010-4c-attribution.md)
-  record evidence and limitations. Operator-approved Patch 1 is now implemented
-  locally: ordered health transitions skip redundant healthy writes, and
-  bounded HTTP/embedding child caches preserve exact and partial observations.
-  Patch 1 verified all 951 tests across the full run and a two-test fixture-isolated
-  retry; Ruff, formatting and mypy passed. Patch 2's local bounded-prefix exporter
-  experiment then passed 53 separate contract tests and completed a 9.702-second
-  CPU diagnostic: full-cardinality median scrape CPU 17.50 → 10.3125 ms, median
-  paired reduction 41.799%, with about 1.94 MiB traced retained allocations.
-  The subsequent operator-approved integration now instantiates one bounded
-  prefix cache per enabled recorder and preserves fresh collection, standard
-  fallback, scrape ownership and disabled dependency isolation. Maintained
-  regressions correct warm-cache string-subclass and whole-scrape encoding-error
-  edge cases. Linux contracts passed with Prometheus 0.26.0 and the 0.23.1 floor,
-  including native process metrics. Final Windows suite: 1,020 passed, one
-  Linux-only skip; Ruff, formatting, mypy and Markdown passed. The corrected integration has not been
-  timed; prototype CPU/allocation results do not clear NAS overhead, RSS or
-  responsiveness gates. Implementation is included in the source checkpoint
-  above. No new NAS acceptance or production action followed. Host readiness and
-  unchanged performance gates remain unresolved; affected live 4D checks are
-  recorded in the integration checkpoint, not claimed passed for this candidate.
-  A subsequent bounded read-only [NAS readiness snapshot](design/0010-4c-attribution.md#nas-readiness-snapshot--completed-not-a-baseline-control-pass)
-  completed all stats/process reads for 42 containers. Host busy CPU was 8.852%,
-  niced CPU zero; the largest container share was 0.660% of eight-CPU host
-  capacity. No heavy Docker workload was identified to pause. The sample does
-  not explain the old spike or pass baseline variability controls; agree a quiet
-  window and retain all controls before acceptance. Production identity remained
-  unchanged. No benchmark, publication, pause, new privilege or commit occurred.
-- **OpenClaw comparative assessment (2026-08-27)** — identified four
-  local retrieval/embedding integrity defects plus one demonstrated
-  filtered-recency need; the same review benchmark-gates MMR and keeps
-  agent-runtime features out of scope. Findings and dispositions are
-  recorded in
-  [design/0002-openclaw-memory-review.md](design/0002-openclaw-memory-review.md);
-  none is scheduled merely by being documented.
-- **Ollama comparative assessment (2026-08-27)** — verified optional
-  adapter contract defects, strengthened the proposed composite
-  embedding identity with Ollama's manifest digest, and identified
-  provider-independent batching, health, and backup-publication patterns.
-  Model-runtime breadth remains out of scope. Findings and dispositions
-  are recorded in
-  [design/0003-ollama-repository-review.md](design/0003-ollama-repository-review.md);
-  none is scheduled merely by being documented.
-- **NemoClaw comparative assessment (2026-08-28)** — found no competing
-  memory-retrieval capability and no reason to adopt its agent/runtime
-  stack. The same closeout fixed the agent-instruction authority and six
-  current public-fact errors. Portable-envelope validation, git-child
-  credential scope, immutable build identity, and broader parity gates
-  remain unscheduled; its replay and restore patterns constrain two
-  already-planned features. Findings, trigger-gated ideas, and explicit
-  non-fits are recorded in
-  [design/0004-nemoclaw-repository-review.md](design/0004-nemoclaw-repository-review.md);
-  no implementation batch is authorized by the review.
+The full list, in order, is [ROADMAP.md](ROADMAP.md). The items that shape
+current work:
 
-- **Memory ecosystem comparative assessment (2026-09-08)** — research
-  retained in [design/0011-memory-ecosystem-review.md](design/0011-memory-ecosystem-review.md).
-  Basic Memory, Graphiti and Hindsight are the strongest references;
-  Mem0, Cognee and LangMem offer narrower lessons. The review records
-  source evidence, public-evaluation, replay/concurrency, provenance/history,
-  context-budget and inspector proposals, plus existing release/durability
-  obligations. The operator's standing priority is recorded in the review,
-  V3_PLAN and AGENTS/CLAUDE: accuracy first, speed/responsiveness second.
-  Documentation is complete; recommendations remain unscheduled.
-  The review adds no runtime change, acceptance evidence or deployment;
-  its documentation is included in the source checkpoint above.
-
-- **FreeToken comparative review (2026-09-09 UTC)** —
-  [design/0012-freetoken-repository-review.md](design/0012-freetoken-repository-review.md)
-  records the missing embedding-provider fit and a measurement-gated
-  exact-query embedding cache/singleflight candidate. Research is complete;
-  recommendations remain unratified and unscheduled. Accuracy remains the
-  first gate. Existing embedding configuration, exporter work, memory
-  ecosystem review, and performance/live acceptance gates are unchanged.
+- **OPS-08 closes after three green nights and a deliberate-breakage check.**
+  v3.6.0's nightly encrypted offsite push is deployed (rev 257) and the escrow
+  decrypt of a pushed artifact passed (rev 258).
+- **Timestamp ordering** (TS-01 to TS-04, draft PR #38, design 0016 track 2).
+  Chronological listings misorder memories whose `created_at` carries a UTC
+  offset, which `onboard_git` output does: a 2026-09-23 read-only inventory
+  found 93 offset-bearing values among 1,080 memories and 24 adjacent
+  instant-order inversions. Migration waits on the input-compatibility
+  decision, a fail-closed policy for naive rows, and a fresh backup with an
+  image-pair rehearsal.
+- **The MCP backup tools** (design 0017) ship in the image but stay off
+  (`OC_BACKUP_MCP_ENABLED=false`). Auth is on and production sets
+  `OC_BACKUP_DIR`, so enabling them is the operator's decision (OPS-07).
+- **Runtime metrics** (design 0010) are in the released image since v3.4.0,
+  under the operator's release exception, and off by default. Enabling them
+  stays blocked: the 4C overhead comparison is inconclusive and the REST
+  list-tail responsiveness gate failed (MEAS-01). The evidence and every
+  measurement round are in design 0010 and
+  [its attribution record](design/0010-4c-attribution.md).
+- **v4.0.0** (ADR 0008, pins as a ranking prior) is complete on `v4/develop`
+  and waits on the operator's tag call (V4-01).
+- **The Gemini audit branch** was rejected as a unit
+  ([0014](design/0014-gemini-audit-branch-review.md)) and survives only as the
+  tag `archive/gemini-audit-18092026`. Its eight OC milestone memories carry a
+  NOT MERGED status line.
+- **Comparative reviews and idea records** (0002, 0003, 0004, 0011, 0012,
+  0015, 0018, 0019, 0021) record findings and dispositions; none is scheduled
+  by being documented. Their open proposals are ROADMAP items.
 
 ## Revision history
 
@@ -324,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 259 | 2026-09-29 | **Phase-end audit: docs currency.** The front matter again states only what is true today. Removed the 2026-09-09 source checkpoint and the design 0010 narrative (both recorded in revs 194-200 and design 0010) and the known-open entries for work that shipped and deployed (the Ollama revision probe, the query-revision race, the NAS Host allowlist, design 0017). Known-open now lists OPS-08's close-out, the timestamp fix, the OPS-07 decision, metrics enabling, the v4.0.0 tag and the Gemini archive tag. ROADMAP owns the order of work; V3_PLAN keeps the entries it cites. Tests row: 1,259 passed, 2 skipped on `main` |
 | 258 | 2026-09-29 | **OPS-08 escrow decrypt passed.** The operator pulled a daemon-pushed artifact (`openchronicle-20260928T235822033276Z-4a03fe3274cd.db.age`) and decrypted it on the desktop with the primary identity from the password manager, which derived the expected public key. The plaintext's SHA-256 matched the job's logged value (`67cb8a88…fdb351502`), so the configured recipients are the escrowed ones. The temporary identity and plaintext were deleted. OPS-08 still needs three green nights and a deliberate-breakage check |
 | 257 | 2026-09-29 | **v3.6.0 deployed; the first offsite push landed (OPS-08).** Tag `v3.6.0` (annotated, on `99bd68cb`) passed its CI: tests, quality, the image smoke and cloud-backup smoke, publish (run `36516679501`). The operator installed the `[ocdrop]`-only `rclone.conf` in the running container as uid 1000 (verified: mode 600, owner `oc`, one section). Deploy in amendment A7's order: stack file version 144 on v3.5.0 (only the reviewed OPS-08 lines differ from version 143), then `OC_TAG=v3.6.0` with `OC_CLOUD_REMOTE` and the two escrowed recipients. Health: 3.6.0 at `99bd68cb`, `maintenance_degraded` and `backup_last_run_failed` false. The boot-time run logged both recipients, pushed three snapshots (`.db.age` about 10 MB plus `.json.age` each) in about 15 seconds, and `cloud_backup_status` reads `ok`. Not done: design 0010's promised latency sample during the run (it finished before sampling began). OPS-08 closes after three green nights, an escrow decrypt and a deliberate-breakage check |
 | 256 | 2026-09-28 | **#memory (usememory.com) review recorded (design 0021); docs only.** Four public pages read: a hosted, keyword-only memory service with native apps, an MCP server behind OAuth 2.0 with PKCE and read/write/delete scopes, keyword-restricted tokens, `externalRef` upserts with `updatedSince` polling, attachments and client-side encryption. OC is already ahead on self-hosting, semantic recall, projects, pins, git ingestion, size and recovery. The operator's aspiration is parity and better; the gaps are ROADMAP Phase 9, PAR-01 to PAR-07, all unratified and unscheduled. Checking the code corrected one draft claim: tags are already in the FTS index, weighted equally with content |

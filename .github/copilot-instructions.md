@@ -381,4 +381,3 @@ npm run lint:md:fix   # if markdown changed
 - **v2 / v3 / v4** — major generational cuts of the project; v2 had a conversation
   engine and separate MCP/REST ports, v3 (current `main`) unified them and dropped
   the LLM, v4 (`v4/develop`) is in-progress MAJOR-breaking work (pins-as-ranking-prior).
-

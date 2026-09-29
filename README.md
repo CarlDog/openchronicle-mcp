@@ -34,20 +34,24 @@ MCP from a single ASGI process. Runs on your hardware.
   degraded state via `/api/v1/health` and the MCP `health` tool.
   Backfill catches up when the provider returns; the static `/health`
   endpoint remains a minimal liveness probe.
-- **Optional operational metrics (unreleased).** Development and benchmark
-  builds include the bounded Prometheus recorder and guarded `/metrics`
-  endpoint; the released v3.3.0 image does not. Release and enabled collection
-  remain subject to the [performance gates](docs/design/0010-performance-measurement.md).
-  Eligible builds opt in with `OC_METRICS_ENABLED=true`; the default stays off. See the
+- **Optional operational metrics.** Released images (since v3.4.0) include
+  the bounded Prometheus recorder and guarded `/metrics` endpoint, off by
+  default. Opt in with `OC_METRICS_ENABLED=true`; enabling it in production
+  stays subject to the [performance gates](docs/design/0010-performance-measurement.md). See the
   [metrics configuration](docs/configuration/env_vars.md) and the optional
   [local monitoring runbook](docs/monitoring/runbook.md).
 - **Schema migration framework.** Versioned `.sql` migrations with
   savepoint atomicity. Re-runs are idempotent. Future schema changes
   drop in as `NNN_<slug>.sql` files.
-- **Atomic online backups.** Uses SQLite's online backup API.
-  Backup-before-destructive policy: vacuum runs a backup first as
-  part of the same job. Integrity-check failures trigger emergency
-  backups.
+- **Verified online backups.** Uses SQLite's online backup API; each
+  nightly snapshot is published with a verified manifest in
+  `OC_BACKUP_DIR`, and one that fails verification is quarantined.
+  Backup-before-destructive policy: vacuum runs a backup first as part
+  of the same job. Integrity-check failures trigger emergency backups.
+- **Optional encrypted offsite copies.** A nightly job encrypts the
+  newest snapshots with [age](https://age-encryption.org) and copies them
+  to any [rclone](https://rclone.org) remote, append-only. See
+  [cloud_backup.md](docs/configuration/cloud_backup.md).
 
 ## What it isn't
 
@@ -57,10 +61,10 @@ MCP from a single ASGI process. Runs on your hardware.
   is supported but optional — disabled by default for trusted-LAN
   deployments. See `docs/configuration/security_posture.md` for the
   when-to-enable guidance.
-- Not a cloud sync layer. The DB lives on your hardware. Backups go
-  to a directory next to it. Cross-device sync isn't built in; a
-  backup-only Dropbox design is documented but not implemented in
-  [`docs/design/0001-cloud-backup.md`](docs/design/0001-cloud-backup.md).
+- Not a cloud sync layer. The DB lives on your hardware. Backups go to
+  a local backup directory and, optionally, encrypted to a cloud remote,
+  as backup only. Cross-device sync isn't built in
+  ([`docs/design/0001-cloud-backup.md`](docs/design/0001-cloud-backup.md)).
 
 By design.
 
@@ -96,7 +100,12 @@ a 421 (see
 [env_vars.md](docs/configuration/env_vars.md)).
 
 For a Portainer stack on a NAS, use the `docker-compose.nas.yml` at
-the repo root.
+the repo root. It needs three things first: `OC_TAG` set to a release tag
+(there is no `:latest` fallback), the data volume created once
+(`docker volume create openchronicle-mcp_oc-data`; the compose never
+creates it, so a missing volume fails the deploy instead of starting
+empty), and the host exports directory created and owned by uid 1000. The
+file's header comments list every variable.
 
 ## Quickstart
 

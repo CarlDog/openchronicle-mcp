@@ -85,8 +85,9 @@ the artifact hash detects accidental changes but cannot authenticate a writer
 who can change both the database and its manifest. The five backup/restore
 preparation MCP tools require an explicit backup root and nonempty HTTP API key
 and are off by default. They never accept a caller-supplied path or activate a
-restore. Production does not expose them: auth is on since 2026-09-25, but no
-explicit backup root is set there, and enabling them is an operator decision
+restore. Production does not expose them: auth is on (since 2026-09-25) and
+the backup root is set (`OC_BACKUP_DIR=/exports/backups`, since v3.5.0), but
+`OC_BACKUP_MCP_ENABLED` stays `false`; enabling them is an operator decision
 (ROADMAP OPS-07).
 
 ## Transport
@@ -104,9 +105,11 @@ explicit backup root is set there, and enabling them is an operator decision
   protection against accidentally placing the WAL on a filesystem
   that doesn't fsync correctly (the lesson from the 2026-04-29
   bind-mount WAL incident).
-- Backups go to the resolved DB path's directory + `/backups/auto/`
-  (`/data/backups/auto/` on the NAS deployment, which sets
-  `OC_DB_PATH=/data/openchronicle.db`; also inside the volume). The backup module uses `sqlite3.Connection.backup()` with
+- Backups go to `OC_BACKUP_DIR` + `/auto/` (default: the resolved DB
+  path's directory + `/backups/`). The NAS deployment sets
+  `OC_BACKUP_DIR=/exports/backups`, a host bind separate from the data
+  volume; `/data/backups/auto/` there holds only frozen pre-v3.5.0
+  snapshots. The backup module uses `sqlite3.Connection.backup()` with
   atomic `.tmp`→rename, so no half-written backup files exist on
   disk.
 
@@ -156,8 +159,9 @@ Hardened 2026-07-30 (the review-driven CI batch):
   shared Docker bridge (`network_mode: bridge`, the fleet's address-pool
   rule); there is no project network. The collector scrapes OC's published
   port through `host.docker.internal`. Stack 151 is file-based: its stored
-  compose matched this file when OPS-03 deployed it on 2026-09-28 (file
-  version 143); later edits reach it only through another reviewed
+  compose matches this file (OPS-03 deployed it on 2026-09-28 as file
+  version 143; OPS-08 updated it to 144 on 2026-09-29); later edits reach
+  it only through another reviewed
   `portainer_update_stack_file`, not merely because the file changed. Prometheus UI port `19090`
   is bound to NAS loopback only by default; it is not a LAN service. Its history volume is
   separate from OC's memory, config, and output volumes.

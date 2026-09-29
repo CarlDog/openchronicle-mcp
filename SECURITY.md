@@ -11,15 +11,14 @@ the scope and develop a fix.
 
 ## Supported Versions
 
-OpenChronicle v3.0.0 is the current stable release (tagged 2026-08-28).
-Security fixes are applied to `main`, which has been the active
-development branch since the v3 cutover on 2026-05-06. `v3/develop` is
-abandoned (no commits ahead of `main`; dead since 2026-05-05) and is no
-longer a CI trigger.
+The newest v3 release (see [CHANGELOG.md](CHANGELOG.md)) is the supported
+version. Security fixes land on `main`, the production line since the v3
+cutover on 2026-05-06, and ship in the next tagged release; there are no
+maintenance branches. `v4/develop` is an unreleased development line.
 
 | Version | Supported |
 | --------- | ----------- |
-| v3 (3.0.x, current release) | Yes |
+| v3 (the newest 3.x release) | Yes |
 | v2 (frozen on `archive/openchronicle.v2`) | No |
 | v1 (frozen on `archive/openchronicle.v1`) | No |
 

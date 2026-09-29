@@ -46,15 +46,15 @@ So a config that tunes one interval is safe:
 {"maintenance": {"jobs": [{"name": "db_backup", "interval_seconds": 43200}]}}
 ```
 
-leaves `db_vacuum`, `db_integrity_check`, `embedding_backfill` and
-`git_onboard_resync` exactly as shipped.
+leaves `db_vacuum`, `db_integrity_check`, `embedding_backfill`,
+`git_onboard_resync` and `cloud_backup` exactly as shipped.
 
 **Omitting a job does NOT disable it.** Set `"enabled": false` explicitly
 — the same way the example expresses "off" for `git_onboard_resync`.
 
 Ordering always follows `_DEFAULT_JOBS` in code — `db_vacuum`,
 `db_integrity_check`, `embedding_backfill`, `db_backup`,
-`git_onboard_resync` — not the file, and not the reading order of the
+`git_onboard_resync`, `cloud_backup` — not the file, and not the reading order of the
 table above, which groups by topic. So the status surface is stable
 however the JSON is arranged. Unknown job names are
 skipped with a warning (typo-safe); a missing `maintenance` section falls
