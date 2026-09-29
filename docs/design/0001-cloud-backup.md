@@ -674,6 +674,16 @@ a P1 in the code.
   `-` fails loudly without writing plaintext. One rotted older snapshot
   blocks the push until its day leaves the window, up to three nights; that
   is A3's fail-closed intent, and the 48 h `stale` alarm fires first.
+- **Left, deliberately (Copilot review).** The 900 s bound cancels the await
+  on `verify`, not its worker thread, so a verify that outlives the bound
+  keeps reading after the loop's global lock is released. The bound exists
+  for a hung upload, which the child kill does stop. Verification hashes
+  snapshots of about 10 MB in well under a second each, so only an I/O hang
+  could exhaust the budget in it, and no in-process design can interrupt
+  that. Moving verification into a killable subprocess is the fix if one is
+  ever observed. The entrypoint's `chmod 600` failure is now reported on
+  stderr rather than swallowed; it does not stop startup, which would
+  crash-loop the memory service over the token's file mode.
 
 ### Phase 1 — The push job
 

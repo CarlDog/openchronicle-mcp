@@ -53,9 +53,14 @@ chown -R oc:oc "$(dirname "$OC_DB_PATH")" "$OC_CONFIG_DIR" "$OC_OUTPUT_DIR"
 
 # The offsite-backup token (design 0001). rclone keeps an existing file's mode
 # when it rewrites it after a token refresh, so a copy that arrived 0644 would
-# stay readable by others forever. Guarded: under `set -eu` a bare chmod on a
-# /config without the file would abort the entrypoint and crash-loop the stack.
-[ -f "$OC_CONFIG_DIR/rclone.conf" ] && chmod 600 "$OC_CONFIG_DIR/rclone.conf" || true
+# stay readable by others forever. Only an absent file is expected; a chmod that
+# fails is reported, not swallowed. It does not stop startup: under
+# `restart: unless-stopped` that would crash-loop the whole memory service over
+# the offsite token's mode.
+if [ -f "$OC_CONFIG_DIR/rclone.conf" ]; then
+  chmod 600 "$OC_CONFIG_DIR/rclone.conf" \
+    || echo "entrypoint: WARNING: could not chmod 600 $OC_CONFIG_DIR/rclone.conf; the rclone token may be readable by others" >&2
+fi
 
 # gosu replaces this shell with the target process running as `oc` (a
 # single setuid+setgid+execve, no wrapper process), so PID-1 signal
