@@ -485,6 +485,77 @@ Run on the operator's Windows desktop, not the NAS. The exit gate passed.
   assumes to a named volume. It becomes an OPS-03/OPS-08 input: keep a small
   bind for `rclone.conf` alone, or `docker cp` it into the named volume.
 
+### Phase 1 reconciliation, 2026-09-28 (plan for ROADMAP OPS-08)
+
+This design predates design 0017 (backups moved to an exposed root with
+manifests) and design 0020 (`/config` became a named volume). Phase 1 is
+built as specified above, except for the following, which change *where* it
+reads and writes and not *what* it does. Operator decisions (2026-09-28): the
+`rclone.conf` token lives in the named `/config` volume; review covers this
+plan delta first, then the diff.
+
+1. **Source set: published snapshots only.** Push the 3 newest snapshots
+   in `container.backup_dir / "auto"` (on the NAS, `/exports/backups/auto`)
+   that have their `.json` manifest, which is the catalog's definition of a
+   published artifact. Order by filename (`openchronicle-<UTC stamp>-<hex>.db`),
+   not mtime. A `*.db.failed-verify` or `*.db.failed-quick-check` quarantine
+   never matches `*.db`. The frozen pre-0017 `/data/backups/auto` is outside
+   `backup_dir` and is never pushed. `_retention_prune` already filters on
+   manifest presence, so the "published" predicate is lifted into one helper
+   shared by retention and the push. Two copies of that rule would drift, and
+   one that drifted would push an unpublished file or prune a published one.
+   `manual/` snapshots are not pushed, as in the original design.
+2. **Temp dir under the backup root, named, and swept.** Encrypt into
+   `tempfile.TemporaryDirectory(prefix="cloud-push-", dir=container.backup_dir)`.
+   Python creates it 0700, so even the `users` group cannot list the
+   ciphertext. The catalog lists only `auto/` and `manual/`, so it cannot
+   mistake the directory for an artifact. A SIGKILL mid-run (the Docker stop
+   grace period is shorter than the 900 s bound) skips the context manager's
+   cleanup, so each run first removes any `cloud-push-*` directory older than
+   the timeout. It holds ciphertext only, but it would otherwise accumulate.
+3. **`rclone.conf` in the named `/config` volume.** `RCLONE_CONFIG` stays
+   hardcoded to `/config/rclone.conf`. The operator installs it once, from the
+   desktop's verified `ocdrop` remote, over SSH:
+   `sudo docker cp rclone.conf openchronicle-mcp:/config/rclone.conf`, then
+   restarts the container. The entrypoint's existing `chown -R oc:oc` on
+   `/config` plus the guarded `chmod 600` from §5 set the ownership and mode.
+   The volume is owned by uid 1000 and writable, which rclone's token-refresh
+   rewrite (temp file, then rename) needs. The desktop copy remains the
+   re-install source if the volume is ever lost. The two copies share one
+   Dropbox refresh token, so revoking the app in the Dropbox console stops
+   both.
+4. **Versions.** `COPY --from=rclone/rclone:1.75.1` (the version Phase 0 used)
+   and `age` from Debian trixie's apt (1.2.x), both gated at build time by
+   `RUN rclone version && age --version`. That adds about 88 MiB to the image,
+   as §3.4 accepted.
+5. **The compose file changes, so the deploy is not env-only.** Stack 151 is
+   file-based: the three `environment` lines of §5 reach it only through a
+   reviewed `portainer_update_stack_file`, followed by the two stack env values
+   `OC_CLOUD_REMOTE=ocdrop:openchronicle/nas` and `OC_CLOUD_AGE_RECIPIENTS`
+   (the two Phase 0 public keys). The Phase 0 probe object
+   `openchronicle/nas/probe.db.age` cannot collide with the daemon's
+   `openchronicle-<stamp>-<hex>.db.age` names.
+6. **Health.** The `cloud_backup_status` block of §6.2 is added beside the
+   v3.5.0 `backup_last_run_failed` field. It never touches that field or
+   `maintenance_degraded`.
+7. **Ordering and no-home.** `cloud_backup` and `db_backup` both run every
+   24 hours with no ordering between them. On a night the push runs first, it
+   sends the previous night's newest snapshot. That is at most one day of lag,
+   well inside the 3-deep window and the 48-hour staleness alarm. The `oc`
+   user has no home directory, so the subprocess environment also sets
+   `RCLONE_CACHE_DIR` and `XDG_CACHE_HOME` under the temp dir. The container
+   test verifies that rclone writes nothing outside `/config` and the temp dir.
+
+Tests beyond §8's list:
+
+- only published `auto/` snapshots are selected, never quarantines, `manual/`
+  or unpublished files;
+- the push and retention helpers agree on "published";
+- stale `cloud-push-*` directories are swept;
+- the temp dir is 0700;
+- the Dockerfile gate is proven by the CI image smoke test, extended to run
+  `rclone version` and `age --version` inside the built image.
+
 ### Phase 1 — The push job
 
 ~~Two commits. **First:** `JobState.last_success_at` for all five jobs plus persistence, on its own (§6.1).~~ *That prerequisite shipped 2026-08-23; what remains is one commit.* **Namely:** Dockerfile, the `cloud_backup` handler in `jobs.py`, all three registrations (`HANDLERS`, `_DEFAULT_JOBS`, `core.json.example`), the health block, the guarded entrypoint chmod, compose lines, ignore files, and docs (ADR + `docs/configuration/cloud_backup.md` runbook + security_posture section + env_vars + MAINTENANCE job table + V3_PLAN Q12 resolved + CHANGELOG).
