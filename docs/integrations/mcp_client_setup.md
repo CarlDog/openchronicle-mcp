@@ -136,9 +136,21 @@ is not being sent.
   {"servers":{"openchronicle":{"type":"http","url":"http://your-nas:18000/mcp","headers":{"Authorization":"Bearer YOUR_KEY_HERE"}}}}
   ```
 
-Claude Desktop, Antigravity and Visual Studio hold the key in plain text in
-their config files; Codex (environment variable) and VS Code (masked prompt)
-do not. After a key rotation, update every one of these.
+Almost every one of these stores the key in plain text somewhere your user
+account can read. "Not in the client's config file" is not the same as "not
+stored in plain text":
+
+- **In the config file:** Claude Code (`~/.claude.json`), Claude Desktop,
+  Antigravity, Visual Studio, and Gemini CLI (`gemini mcp add -H` writes the
+  header into `settings.json`). So is Codex when it uses `http_headers`.
+- **In the user environment:** Codex with `bearer_token_env_var`. `setx`
+  writes the value to the Windows user environment in the registry, so it is
+  out of `config.toml` but not encrypted.
+- **Prompted and masked:** VS Code's `${input:}`. Where VS Code keeps the value
+  after the prompt is not confirmed here.
+
+Protect those locations as you would the key itself, and after a key rotation
+update every one of them on every machine.
 
 ## Local development
 
