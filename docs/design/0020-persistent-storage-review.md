@@ -1,11 +1,14 @@
 # 0020 — Persistent storage review (DATA-01)
 
 **Status:** Review, 2026-09-28. **Recommendations adopted by the operator the
-same day; step A done.** The inventory was read-only. The operator then
-adopted decisions 1-4 as recommended and had step A applied (see
-[Step A result](#step-a-result-2026-09-28)). Step B still runs as its own
-reviewed step with OPS-03, and decisions 5 and 6 wait on the operator-run
-checks. Roadmap item: [DATA-01](../ROADMAP.md).
+same day; steps A and B deployed.** The inventory was read-only. The operator
+adopted decisions 1-4 as recommended; step A was applied (see
+[Step A result](#step-a-result-2026-09-28)) and step B was deployed with OPS-03
+the same day. Decision 6 is answered (no DSM backup covers the Docker paths).
+Decision 5 is settled for `exports/` (single DSM user, `1000:100`, `0750`;
+assessment rev 249); the share root's access remains open. Step 7, removing
+the dead host directories, waits for a week of green nights. Roadmap item:
+[DATA-01](../ROADMAP.md).
 
 ## Why this review
 

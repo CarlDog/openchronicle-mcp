@@ -1,15 +1,14 @@
 # 0016 — Plan for the 2026-09-23 review findings
 
-**Status:** Adversarially reviewed. Track 1 entered `main` through
-[PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34) (merge `7ffc277c`);
-track 3 entered `main` through
-[PR #35](https://github.com/CarlDog/openchronicle-mcp/pull/35) (merge `77ea0173`).
-Tracks 2, 4 and 5 remain proposed or gated. No track is released or deployed
-by this document.
+**Status:** Adversarially reviewed. Track 1 ([PR #34](https://github.com/CarlDog/openchronicle-mcp/pull/34),
+merge `7ffc277c`) and track 3 ([PR #35](https://github.com/CarlDog/openchronicle-mcp/pull/35),
+merge `77ea0173`) shipped in v3.4.0 and were deployed on 2026-09-28. Track 2
+(timestamps) is ROADMAP TS-01 to TS-04 (draft PR #38); track 4 (the prompt
+pilot) is LLM-03 and LLM-04; track 5's release decision was made with v3.4.0.
 **Baseline:** `main` at
-`c7f36a7c`; production remains the tag-pinned v3.3.0 image. This plan covers the four findings in the
+`c7f36a7c`, when production ran the tag-pinned v3.3.0 image. This plan covers the four findings in the
 2026-09-23 adversarial review and the pre-existing `created_at` ordering
-defect in [V3_PLAN items 8, 10–12](../V3_PLAN.md#post-cutover-follow-ups-tech-debt).
+defect (now ROADMAP TS-01 to TS-04).
 The prompt-library Stage 1 and a production compose replacement remain
 separate, gated decisions.
 

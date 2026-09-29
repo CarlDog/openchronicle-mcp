@@ -1,6 +1,6 @@
 # Cloud Backup for OpenChronicle — Design
 
-**Status:** Phase 0 complete (2026-09-28, [record](#phase-0-record-2026-09-28)); Phase 1 not built · **Date:** 2026-08-23
+**Status:** Phase 0 complete (2026-09-28, [record](#phase-0-record-2026-09-28)); Phase 1 deployed in v3.6.0 (2026-09-29, [record](#phase-1-record-2026-09-29)), closing after three green nights and a breakage check (ROADMAP OPS-08); Phase 2 trigger-gated (GATE-15) · **Date:** 2026-08-23
 **Resolves:** `docs/V3_PLAN.md` open question 12 · **Leaves open:** sync-as-store (stays in the Out of Scope table)
 
 > **Corrected baseline.** The brief said ~3.7 MB / 277 memories. Live health on 2026-08-23T17:29Z: **8,650,752 bytes (8.25 MiB), 730 memories, 728 embedded**, `package_version 3.0.0rc8`, `schema_version 1`. Growth ≈ 5 MiB/quarter. Nothing below changes at this scale — but size the work off 8.25 MiB.
