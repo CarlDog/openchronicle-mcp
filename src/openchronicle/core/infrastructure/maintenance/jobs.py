@@ -332,7 +332,7 @@ async def cloud_backup(container: CoreContainer) -> dict[str, Any] | None:
         _logger.debug("cloud_backup: OC_CLOUD_REMOTE is unset; skipped")
         # Skipped, never a success: a success stamp now would make health read
         # "ok" on the day the feature is first enabled, before anything pushed.
-        return {"skipped": 1}
+        return {"skipped": 1, "reason": "OC_CLOUD_REMOTE is unset"}
     if config.problem:
         raise ValueError(f"cloud_backup: {config.problem}")
     geteuid = getattr(os, "geteuid", None)
@@ -401,6 +401,10 @@ async def cloud_backup(container: CoreContainer) -> dict[str, Any] | None:
             rc, stderr = await _run_captured(_rclone_argv(out, config.remote), env)
             if rc != 0:
                 raise RuntimeError(f"cloud_backup: rclone exited {rc}: {_stderr_tail(stderr)}")
+            if b"ERROR" in stderr:
+                # rclone exits 0 when it cannot save a refreshed token; the
+                # upload landed, but the next refresh may not.
+                _logger.warning("cloud_backup: rclone reported errors: %s", _stderr_tail(stderr))
 
     for path in selected:
         manifest = path.with_suffix(".json").read_text(encoding="utf-8")

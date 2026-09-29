@@ -104,6 +104,10 @@ def _cloud_backup_status() -> dict[str, Any]:
             last = datetime.fromisoformat(stamp)
     except ValueError, AttributeError:
         last = None
+    if last is not None and last.tzinfo is None:
+        # The loop writes aware stamps; a naive one (a hand-edited or foreign
+        # state file) is read as UTC rather than raising out of health.
+        last = last.replace(tzinfo=UTC)
     age = utc_now() - last if last is not None else None
     if config.problem:
         status = "misconfigured"

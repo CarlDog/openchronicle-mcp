@@ -633,6 +633,48 @@ they conflict with it.
   `rclone copy [flags] -- <tmpdir> <remote>/`, and the argv test asserts its
   position.
 
+#### Diff review (2026-09-28, PR #59)
+
+Two independent reviewers of the implementation diff: one for correctness and
+operational safety (it built the image and probed it as uid 1000), and one
+for test honesty (it ran its own mutants in its own worktree). Neither found
+a P1 in the code.
+
+- **Fixed: health could raise.** A success stamp without a UTC offset made
+  `_cloud_backup_status` raise `TypeError`, taking down the whole health
+  payload. The loop writes aware stamps, so only a hand-edited or foreign
+  state file reaches it; a naive stamp is now read as UTC.
+- **Fixed: the tests did not pin what the code claims.** The test-honesty
+  reviewer's 16 new mutants all escaped the original 25-mutant suite. Among
+  them: age getting the primary key twice, an ignored age failure (a false
+  success), the temp dir created outside the backup root, the handler never
+  sweeping, the timeout ending before encryption and upload, verifying only
+  the newest snapshot, oldest-per-day selection, the operator log lines, and
+  each threshold near its edge. The tests now freeze the handler's clock (the
+  day-window test had failed within about an hour after UTC midnight) and
+  catch all 44 mutants (two of them cover the reporting fixes below).
+- **Fixed: the image smoke.** It now decrypts each artifact with a different
+  one of two distinct identities (before, both recipients were the same key),
+  pushes twice to prove append-only, and checks the real entrypoint leaves
+  `rclone.conf` at 600. A check for `/.cache` that could never fail was
+  removed. Both new checks were shown to fail against a broken image.
+- **Fixed: two misleading reports.** A manual `run-once` with the feature off
+  printed `OK`; it now prints `SKIPPED` with the reason. rclone exits 0 when
+  it cannot save a refreshed token, so an `ERROR` in its output on a zero exit
+  is now logged as a warning.
+- **Done: `Image smoke test` is a required check on `main`** (operator,
+  ROADMAP HYG-07). Docs-only PRs pay for an image build; accepted.
+- **Left, deliberately.** With runtime metrics enabled, the disabled job's
+  daily skip is counted under the `overlap` outcome, the label the loop uses
+  for every skip. Metrics are off by default, and a separate label means
+  changing the recorder's label set. Children inherit the full environment,
+  including API keys; neither age nor rclone sends its environment anywhere,
+  and trimming it could drop proxy or TLS settings rclone needs. age gets no
+  `--` guard: its sources are absolute paths, and a recipient beginning with
+  `-` fails loudly without writing plaintext. One rotted older snapshot
+  blocks the push until its day leaves the window, up to three nights; that
+  is A3's fail-closed intent, and the 48 h `stale` alarm fires first.
+
 ### Phase 1 — The push job
 
 ~~Two commits. **First:** `JobState.last_success_at` for all five jobs plus persistence, on its own (§6.1).~~ *That prerequisite shipped 2026-08-23; what remains is one commit.* **Namely:** Dockerfile, the `cloud_backup` handler in `jobs.py`, all three registrations (`HANDLERS`, `_DEFAULT_JOBS`, `core.json.example`), the health block, the guarded entrypoint chmod, compose lines, ignore files, and docs (ADR + `docs/configuration/cloud_backup.md` runbook + security_posture section + env_vars + MAINTENANCE job table + V3_PLAN Q12 resolved + CHANGELOG).

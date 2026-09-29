@@ -101,7 +101,13 @@ sudo docker exec --user 1000:1000 openchronicle-mcp oc maintenance run-once clou
 
 (or the Portainer console with **User** `oc`). A manual run bypasses the
 maintenance loop, so it neither advances `cloud_backup_status` nor clears
-`stale`: the next scheduled run does.
+`stale`: the next scheduled run does. With `OC_CLOUD_REMOTE` unset it prints
+`SKIPPED: cloud_backup did nothing (OC_CLOUD_REMOTE is unset)`.
+
+A log line `cloud_backup: rclone reported errors: ...` after a successful
+push usually means rclone could not save a refreshed token to `rclone.conf`.
+The upload landed. Check that `/config` and the file are owned by `oc`; a
+restart re-runs the entrypoint's `chown`.
 
 ## Restoring from the cloud (the NAS is gone)
 
