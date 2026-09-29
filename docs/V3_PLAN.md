@@ -954,7 +954,7 @@ historical order. Since 2026-09-28 [ROADMAP.md](ROADMAP.md) sets the order
 of work; each line here still points at the full entry (below, or in its
 design doc):
 
-1. ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
+1. [ROADMAP V4-01 to V4-03] ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
    ships as v4.0.0 on the operator's tag call).** ADR 0008 (rev 4,
    three review rounds) implemented on `v4/develop`
    (`de7e5c6d`+`8072cf4a`+`0f9cf940`, 818 tests): float retired from
@@ -970,7 +970,7 @@ design doc):
    labels not consulted by ablation verdicts) — recorded in
    `data/embedding_benchmark/sweep_verifier_findings.txt`, batch into
    the next harness touch.
-2. **Cloud-backup Phase 0** ([design 0001](design/0001-cloud-backup.md),
+2. [ROADMAP DATA-02] **Cloud-backup Phase 0** ([design 0001](design/0001-cloud-backup.md),
    reinforced by [0007](design/0007-long-term-scale-and-resilience.md)
    Stage 0): the operator-run ~30-min desktop runbook — Dropbox App
    Folder probe, age keypairs, key escrow, two-key decrypt drill.
@@ -979,7 +979,7 @@ design doc):
    The off-NAS copy from 0017's bootstrap (see the backup entry above)
    is a ready input for that drill. **Done 2026-09-28** (ROADMAP DATA-02;
    [0001 Phase 0 record](design/0001-cloud-backup.md#phase-0-record-2026-09-28)).
-3. **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
+3. [ROADMAP MEAS-02] **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
    sibling driving N simulated clients (mixed search/save/list)
    against a store, reporting latency percentiles vs N — the
    instrument that turns every 0007 stage trigger into a number.
@@ -995,14 +995,14 @@ design doc):
    first backfill after the redeploy writes the 9 tombstones, reports
    `ok` with `tombstoned: 9`, and health goes `active` with
    `unembeddable: 9`.
-5. **`dimensions` optional-send in the openai adapter** (full entry
+5. [ROADMAP GATE-05] **`dimensions` optional-send in the openai adapter** (full entry
    below) — real, live-confirmed, but demand-gated: pick up when a
    cloud provider is actually wanted again.
-6. **MCP `error_code` gap** (full entry below) — parked against the
+6. [ROADMAP GATE-04] **MCP `error_code` gap** (full entry below) — parked against the
    mcp 2.x migration by its own entry.
-7. **Docs parity gates (CLI/MCP/env)** — batch into the next
+7. [ROADMAP QUAL-05] **Docs parity gates (CLI/MCP/env)** — batch into the next
    phase-end audit.
-8. **Provider SDK integration survey** — evaluate optional agent/runtime
+8. [ROADMAP LLM-02] **Provider SDK integration survey** — evaluate optional agent/runtime
    integrations while keeping OpenChronicle's memory service boundary intact:
 
    - [GitHub Copilot SDK](https://docs.github.com/en/copilot/how-tos/copilot-sdk/setup)
@@ -1024,7 +1024,7 @@ design doc):
 
    Define the supported setup path, authentication model, lifecycle, tool/session
    isolation, licensing/terms, and provider-neutral abstraction before implementation.
-9. ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
+9. [ROADMAP OPS-01, QUAL-02] ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
    `9b1e83e6`), DEPLOYED 2026-09-28** (ROADMAP OPS-01) ([0014](design/0014-gemini-audit-branch-review.md);
    [review-findings plan](design/0016-review-findings-plan.md), source
    tracks 1 and 3 merged to `main`).
@@ -1097,7 +1097,7 @@ design doc):
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
    files that still stored CR bytes were renormalized on `main`, ahead
    of the next main→`v4/develop` merge.
-11. **Prompt library Stage 0** ([0015](design/0015-prompt-library.md);
+11. [ROADMAP LLM-03] **Prompt library Stage 0** ([0015](design/0015-prompt-library.md);
     [proposed isolation plan](design/0016-review-findings-plan.md#4-bound-the-prompt-library-pilot-and-later-adr)).
     Operator-run, zero code: record reused prompts for about two weeks.
     A dedicated project in the live store alone does not isolate drafts
@@ -1108,7 +1108,7 @@ design doc):
     [0018](design/0018-self-improving-prompts.md), which answers 0015's
     outcome-signal question and proposes that Stage 0 also test the
     improvement loop.
-12. **Chronological order ignores `created_at` offsets**
+12. [ROADMAP TS-01 to TS-04] **Chronological order ignores `created_at` offsets**
     (see the [proposed correction plan](design/0016-review-findings-plan.md#2-specify-and-correct-timestamp-storage)).
     Found 2026-09-23 and reproduced against `SqliteStore`. A backdated
     `created_at` is stored with its offset (`isoformat()`), and every
@@ -1131,7 +1131,7 @@ design doc):
     an unseen naive row must not be silently interpreted. The input
     compatibility/version decision and backup/restore rehearsal remain gates.
     Those gates are the 0017 sequence in the backup entry above.
-13. ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
+13. [ROADMAP OPS-03] ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
     (ROADMAP OPS-03)**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     *History, measured read-only 2026-09-23, before OPS-03 (the network and
@@ -1170,7 +1170,7 @@ design doc):
     not operator configuration. **Deployed to stack 151 on 2026-09-28** (file
     version 143, then `HOST_CONFIG_DIR` removed); the stored file now
     matches `main` at `5a207070`.
-14. ✅ **Persistent-storage review — DONE 2026-09-28 (ROADMAP DATA-01)**
+14. [ROADMAP DATA-01] ✅ **Persistent-storage review — DONE 2026-09-28 (ROADMAP DATA-01)**
     (operator, 2026-09-24; full entry under the post-cutover follow-ups,
     beside the 0017 backup entry). Cite items by their stable
     [ROADMAP](ROADMAP.md) IDs: these numbers shift when an entry is inserted.
@@ -1184,7 +1184,7 @@ design doc):
     [0020](design/0020-persistent-storage-review.md). Its recommendations
     were adopted, and step A (the log path) went live the same day. Step B
     was deployed with OPS-03 the same day.
-15. **Persistent Ollama HTTP client** (salvage from
+15. [ROADMAP QUAL-08] **Persistent Ollama HTTP client** (salvage from
     [0014](design/0014-gemini-audit-branch-review.md), its last open item).
     The Ollama adapter opens a new connection for every call
     (`httpx.post`), about 12-13 ms per call on desktop loopback against
@@ -1199,7 +1199,7 @@ design doc):
     - a test that the adapter reuses one client and closes it;
     - evidence: NAS p50/p95/p99 before and after, at 1 and 8 clients,
       cold and warm, with an Ollama restart mid-run. The concurrency
-      probe (item 3) is the natural instrument;
+      probe (ROADMAP MEAS-02) is the natural instrument;
     - the embedding path is instrumented, so check design 0010's gates
       if metrics are enabled by then.
 
