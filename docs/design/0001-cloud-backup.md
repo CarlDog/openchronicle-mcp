@@ -685,6 +685,21 @@ a P1 in the code.
   stderr rather than swallowed; it does not stop startup, which would
   crash-loop the memory service over the token's file mode.
 
+#### Phase 1 record (2026-09-29)
+
+- **Deployed** in v3.6.0 (`99bd68cb`) in amendment A7's order. The
+  boot-time run pushed three snapshots and health reads `ok`.
+- **Escrow decrypt of a daemon-pushed artifact: passed.** This is the check
+  that catches a valid-but-wrong recipient, which the Phase 0 probe cannot.
+  `openchronicle-20260928T235822033276Z-4a03fe3274cd.db.age` was pulled from
+  `ocdrop:openchronicle/nas` and decrypted by the operator on the desktop
+  with the primary identity pasted from the password manager (it derived the
+  expected public key). The plaintext's SHA-256,
+  `67cb8a88d6332d980b5601e93a1aebbb6bbb59bfdd06f0e5af55512fdb351502`,
+  matches the job's `cloud_backup: offsite ... sha256=` log line for that
+  snapshot. The temporary identity file and plaintext were deleted.
+- **Still open:** three green nights, then a deliberate-breakage check.
+
 ### Phase 1 — The push job
 
 ~~Two commits. **First:** `JobState.last_success_at` for all five jobs plus persistence, on its own (§6.1).~~ *That prerequisite shipped 2026-08-23; what remains is one commit.* **Namely:** Dockerfile, the `cloud_backup` handler in `jobs.py`, all three registrations (`HANDLERS`, `_DEFAULT_JOBS`, `core.json.example`), the health block, the guarded entrypoint chmod, compose lines, ignore files, and docs (ADR + `docs/configuration/cloud_backup.md` runbook + security_posture section + env_vars + MAINTENANCE job table + V3_PLAN Q12 resolved + CHANGELOG).

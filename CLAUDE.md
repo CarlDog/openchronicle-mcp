@@ -265,9 +265,9 @@ query-revision and NAS Host-list source fixes merged.**
   OPS-08 (the nightly encrypted offsite push, design 0001 Phase 1) is
   deployed: v3.6.0 (`99bd68cb`) is live since 2026-09-29, and its
   boot-time run pushed three encrypted snapshots to
-  `ocdrop:openchronicle/nas` (`cloud_backup_status` `ok`). OPS-08 closes
-  after three green nights, an escrow decrypt of a daemon-pushed artifact,
-  and a deliberate-breakage check; the
+  `ocdrop:openchronicle/nas` (`cloud_backup_status` `ok`), and the escrow
+  decrypt of a pushed artifact matched its logged SHA-256. OPS-08 closes
+  after three green nights and a deliberate-breakage check; the
   [runbook](docs/configuration/cloud_backup.md) has the procedures.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
