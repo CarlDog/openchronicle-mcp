@@ -103,7 +103,8 @@ back is moving `OC_TAG` back.
   until it is fixed. Under `restart: unless-stopped`, raising instead would
   crash-loop the memory service.
 - **Backup MCP tools, off by default** (0017). `db_backup_create`,
-  `db_backup_list`, `db_backup_verify` and `db_restore_plan` register only when
+  `db_backup_list`, `db_backup_verify`, `db_restore_plan` and `db_restore_stage`
+  register only when
   `OC_BACKUP_MCP_ENABLED=true`, `OC_API_KEY` is set and `OC_BACKUP_DIR` is
   explicit. The default tool inventory is unchanged, so this is MINOR under
   STABILITY.md. Enabling them is ROADMAP OPS-07.
