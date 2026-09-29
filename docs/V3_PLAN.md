@@ -7,7 +7,9 @@ is historical reference for the design decisions and phase plan —
 (the ambiguity was a 2026-08-15 review finding: the freshest state was
 accumulating in a doc that disclaimed being current):
 
-- **"Post-cutover follow-ups (tech debt)"** — the project backlog.
+- **"Post-cutover follow-ups (tech debt)"** — the detailed backlog
+  entries. Since 2026-09-28 [ROADMAP.md](ROADMAP.md) sets the order of
+  work and gives each item a stable ID; cite items by that ID.
 - **"Open Questions" 20-22** — active research threads.
 
 Current state lives in
@@ -904,11 +906,12 @@ in the assessment (revs 217-227). Open, in order:
 5. Before the timestamp migration: a fresh off-NAS copy and an old/new
    image-pair rehearsal.
 
-The MCP backup tools are parked (operator, 2026-09-24). Auth was enabled on
-2026-09-25, which meets their API-key precondition; enabling them still needs an
-explicit `OC_BACKUP_DIR` and the operator's call (ROADMAP OPS-07). The `/exports` mount needs the
-detached compose reconciled (item 13); without it, `OC_BACKUP_DIR` stays
-unset and catalogued auto backups remain in `/data/backups/auto`.
+The MCP backup tools ship off by default (operator, 2026-09-24). Auth has been
+on since 2026-09-25, and production sets `OC_BACKUP_DIR=/exports/backups`
+(v3.5.0 with the `/exports` mount, OPS-03 and OPS-05), so enabling them is
+only the operator's call (ROADMAP OPS-07). Catalogued auto backups land in
+`/exports/backups/auto`; `/data/backups/auto` holds only frozen pre-v3.5.0
+snapshots.
 
 Deferred from the 2026-09-24 review, deliberately:
 
@@ -920,10 +923,12 @@ Deferred from the 2026-09-24 review, deliberately:
   not while touching restore code.
 - `docker-compose.nas.yml` hardcodes `OC_BACKUP_DIR: /exports/backups`.
   Both reviewers read it as mount wiring rather than operator
-  configuration. Revisit when the detached compose is reconciled (item 13).
+  configuration. Settled at OPS-03 (2026-09-28): it stays as container
+  wiring.
 
-**Persistent storage architecture review — HIGH PRIORITY, next after the
-0017 work** (operator, 2026-09-24). The operator raised it as a fear that each
+**Persistent storage architecture review — DONE 2026-09-28**
+([0020](design/0020-persistent-storage-review.md), ROADMAP DATA-01; steps A
+and B deployed). Raised by the operator on 2026-09-24. The operator raised it as a fear that each
 release had replaced the database. The verified production copy says it has
 not: its `schema_version` table records creation at the 2026-05-06 cutover and
 migrations applied on 2026-08-29, by containers that no longer exist (the live
@@ -945,8 +950,9 @@ layout and an operator cutover/rollback plan before changing mounts or removing
 any folder. This note authorizes review only; 0017 does not do that migration.
 
 **Active queue — sorted by need (operator-ratified 2026-08-29).** The
-authoritative order for picking up work; each line points at the full
-entry (below, or in its design doc):
+historical order. Since 2026-09-28 [ROADMAP.md](ROADMAP.md) sets the order
+of work; each line here still points at the full entry (below, or in its
+design doc):
 
 1. ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
    ships as v4.0.0 on the operator's tag call).** ADR 0008 (rev 4,
@@ -1086,7 +1092,7 @@ entry (below, or in its design doc):
    with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
   **deployed 2026-09-28** (ROADMAP OPS-01, assessment rev 245); the NAS
   restart gate (OPS-02) passed the same day (rev 248). PR #39 (design 0017) merged after this
-   tag and is unreleased.
+   tag and shipped in v3.5.0.
 10. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
    `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
    files that still stored CR bytes were renormalized on `main`, ahead
@@ -1125,7 +1131,8 @@ entry (below, or in its design doc):
     an unseen naive row must not be silently interpreted. The input
     compatibility/version decision and backup/restore rehearsal remain gates.
     Those gates are the 0017 sequence in the backup entry above.
-13. **Stack 151 runs a detached, older compose**
+13. ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
+    (ROADMAP OPS-03)**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
     *History, measured read-only 2026-09-23, before OPS-03 (the network and
     `oc:*` statements in this paragraph no longer describe the repository;
@@ -1163,7 +1170,7 @@ entry (below, or in its design doc):
     not operator configuration. **Deployed to stack 151 on 2026-09-28** (file
     version 143, then `HOST_CONFIG_DIR` removed); the stored file now
     matches `main` at `5a207070`.
-14. **Persistent-storage review — HIGH PRIORITY, next after the 0017 work**
+14. ✅ **Persistent-storage review — DONE 2026-09-28 (ROADMAP DATA-01)**
     (operator, 2026-09-24; full entry under the post-cutover follow-ups,
     beside the 0017 backup entry). Cite items by their stable
     [ROADMAP](ROADMAP.md) IDs: these numbers shift when an entry is inserted.
@@ -1176,14 +1183,15 @@ entry (below, or in its design doc):
     mode 0777. **Review written 2026-09-28:**
     [0020](design/0020-persistent-storage-review.md). Its recommendations
     were adopted, and step A (the log path) went live the same day. Step B
-    rides item 13 (ROADMAP OPS-03).
+    was deployed with OPS-03 the same day.
 15. **Persistent Ollama HTTP client** (salvage from
     [0014](design/0014-gemini-audit-branch-review.md), its last open item).
     The Ollama adapter opens a new connection for every call
     (`httpx.post`), about 12-13 ms per call on desktop loopback against
     about 0.8 ms with a reused `httpx.Client`, as 0014 measured on the
     Gemini branch. 0003's trigger for this has fired. It is a
-    speed-second item: no correctness gain, so it waits behind item 14.
+    speed-second item: no correctness gain, so it waited behind the storage
+    review, now done (ROADMAP QUAL-08).
     Build it fresh on `main`, not from the branch. What 0014 requires:
     - a thread-safe client with its lifecycle wired: created with the
       adapter and closed on shutdown, including the CLI and stdio paths;
@@ -1622,7 +1630,8 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
     checking what the cap did to reachability. A cap on a channel that
     is a row's *only* route to the caller is a silent delete.
 
-- **2026-08-15 full-repo review — Batches B–E queued.** A six-agent
+- **2026-08-15 full-repo review — Batches A–E shipped** (Batch E as
+  assessment rev 71). A six-agent
   review (~60 findings; punch list in OC memory `e22472b8`, full report
   in the session artifact "OpenChronicle Repo Review") produced five
   work batches. **Batch A shipped 2026-08-16** (Python-floor truth,
