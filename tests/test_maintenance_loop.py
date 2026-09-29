@@ -1090,3 +1090,18 @@ def test_health_reads_a_failed_run_through_mixed_naive_and_aware_stamps(
         encoding="utf-8",
     )
     assert _backup_failure_persisted() is True
+
+
+def test_the_resync_placeholder_never_records_a_success(tmp_path: Path) -> None:
+    """Enabled in core.json, the do-nothing placeholder used to return None,
+    which the loop recorded as a success every hour (phase-end audit C4)."""
+    job = maintenance_loop.JobState(name="git_onboard_resync", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(),
+        jobs=[job],
+        handlers={"git_onboard_resync": maintenance_jobs.git_onboard_resync},
+        state_path=tmp_path / "maintenance_state.json",
+    )
+    asyncio.run(loop.run_once("git_onboard_resync"))
+    assert job.last_outcome == "skipped"
+    assert job.last_success_at is None
