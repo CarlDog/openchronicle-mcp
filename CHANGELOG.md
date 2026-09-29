@@ -5,6 +5,57 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## v3.6.0 — 2026-09-28
+
+The offsite release: a nightly, encrypted, append-only push of the newest
+backup snapshots to a cloud remote (design 0001 Phase 1, ROADMAP OPS-08).
+
+**Deploy note** (design 0001 amendment A7; the runbook is
+[cloud_backup.md](docs/configuration/cloud_backup.md)). The job runs on its
+first maintenance tick after boot, and a failed first run waits 24 hours, so
+the order matters:
+
+1. The operator installs the minimal `[ocdrop]`-only `rclone.conf` into the
+   running v3.5.0 container's `/config` volume as uid 1000
+   (`docker exec -i --user 1000:1000 ... 'umask 077; cat > /config/rclone.conf'`).
+   The named volume carries it into the new container.
+2. Tag `v3.6.0` and let its CI publish the image.
+3. One stack update: `main`'s `docker-compose.nas.yml` (it adds the
+   `OC_CLOUD_REMOTE`, `OC_CLOUD_AGE_RECIPIENTS` and `RCLONE_CONFIG` lines)
+   together with `OC_TAG=v3.6.0`, `OC_CLOUD_REMOTE=ocdrop:openchronicle/nas`
+   and `OC_CLOUD_AGE_RECIPIENTS=<primary>,<recovery>` (the escrowed public keys).
+4. Verify `health.package_version=3.6.0` and `health.build_revision`; after the
+   boot-time run, `cloud_backup_status.status=ok` and
+   `/api/v1/maintenance/status` shows `cloud_backup` `last_outcome: ok`; the
+   `cloud_backup: age recipients` log line matches escrow.
+
+Rollback is moving `OC_TAG` back to `v3.5.0`: no schema change, v3.5.0
+ignores the new variables, and the remote keeps what was pushed.
+
+- **Nightly offsite push** (`cloud_backup`, daily). It selects the 3 newest
+  published snapshots plus the newest from each of the 3 most recent UTC days,
+  verifies each against its manifest, encrypts the `.db` and its `.json` with
+  age to both escrowed recipients in a private temp dir under the backup root,
+  and `rclone copy --ignore-existing`s them: the job never deletes or
+  overwrites. The whole run is bounded at 900 s and a hung child is killed.
+  It succeeds only when something fresh went offsite: an empty, stale (over
+  26 h) or future-stamped source, a root run, a missing `rclone.conf`, invalid
+  configuration, a manifest mismatch, or an age or rclone failure all fail
+  the run. With `OC_CLOUD_REMOTE` unset it skips and never records a success.
+- **Health gains `cloud_backup_status`** (additive, MINOR): `disabled`, `ok`,
+  `stale` (no push within 48 hours, or ever) or `misconfigured`, which takes
+  precedence. It never touches `maintenance_degraded` or
+  `backup_last_run_failed`.
+- **The image adds rclone 1.75.1 and age.** The entrypoint sets an existing
+  `rclone.conf` to 600, and reports a failed `chmod` instead of hiding it.
+- **`oc maintenance run-once`** prints `SKIPPED` with the reason when a job
+  did nothing, instead of `OK`.
+- **CI:** a PR-only `Image smoke test` job (now a required check) builds the
+  image and runs the image smoke plus an end-to-end push, decrypt and
+  append-only check.
+- **Design 0010:** the release exception is extended to v3.6.0 (operator,
+  2026-09-28); no metrics code changed.
+
 ## v3.5.0 — 2026-09-28
 
 The backup release: design 0017's catalogued, verified snapshots, written to

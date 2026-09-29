@@ -15,6 +15,8 @@ an inconclusive B/A blocks release; see [the exception](#operator-release-except
 Enabling metrics in production still requires this design's gates.
 **Extended to v3.5.0 (operator, 2026-09-28):** that release changes no
 metrics code; see [the extension](#extension-to-v350-2026-09-28).
+**Extended to v3.6.0 (operator, 2026-09-28):** likewise no metrics code; see
+[that extension](#extension-to-v360-2026-09-28).
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
 This identifies the planning work, not a GitHub issue or an approved build.
@@ -1446,6 +1448,18 @@ job, which is off the request path. Its request-tail impact was within budget
 on the 2026-09-24 NAS drill, and it is measured again during this release's
 0017 step 5 deploy check. Metrics stay off by default, and enabling them still
 needs this design's gates.
+
+### Extension to v3.6.0 (2026-09-28)
+
+The operator extended the exception to v3.6.0, on the same terms. The
+release adds design 0001's nightly offsite push (ROADMAP OPS-08). `git diff
+v3.5.0` changes no metrics, observability, middleware, request-route, search
+or `sqlite_store.py` code; the runtime changes are the new maintenance job,
+one health field, the entrypoint and the CLI's skip message. The new load is
+the nightly job, off the request path: it hashes and encrypts a few snapshots
+of about 10 MB and uploads them. Its first run happens at boot, so the deploy
+check samples request latency during it. Metrics stay off by default, and
+enabling them still needs this design's gates.
 
 ## Completion and subsequent decisions
 
