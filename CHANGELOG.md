@@ -10,6 +10,8 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 The backup release: design 0017's catalogued, verified snapshots, written to
 an exposed backup root that is separate from the live database's volume.
 
+**Deployed 2026-09-28** (ROADMAP OPS-04; the 0017 step-5 check passed).
+
 **Deploy note:** stack 151 already runs the reconciled compose (OPS-03). It sets
 `OC_BACKUP_DIR=/exports/backups` and binds `/volume1/docker/openchronicle/exports`
 (owned by uid 1000, group `users`, mode 0750). The deploy moves only `OC_TAG`
