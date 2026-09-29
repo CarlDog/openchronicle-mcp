@@ -473,6 +473,10 @@ _DEFAULT_JOBS: list[dict[str, Any]] = [
     {"name": "embedding_backfill", "interval_seconds": 6 * 3600, "enabled": True},
     {"name": "db_backup", "interval_seconds": 24 * 3600, "enabled": True},
     {"name": "git_onboard_resync", "interval_seconds": 3600, "enabled": False},
+    # Enabled by default and a skipped no-op until OC_CLOUD_REMOTE is set: job
+    # enablement is core.json-only, so False would make it unreachable from
+    # Portainer (design 0001 section 1).
+    {"name": "cloud_backup", "interval_seconds": 24 * 3600, "enabled": True},
 ]
 
 

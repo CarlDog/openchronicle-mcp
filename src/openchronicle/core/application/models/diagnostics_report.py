@@ -38,4 +38,6 @@ class DiagnosticsReport:
     # Separate from maintenance_degraded, which means "the DB may be corrupt"
     # (design 0001 §6.2): a failed backup is not a corrupt database.
     backup_last_run_failed: bool | None = field(default=None)
+    # Offsite push freshness: disabled | ok | stale | misconfigured (design 0001).
+    cloud_backup_status: dict[str, Any] | None = field(default=None)
     fts5_active: bool | None = field(default=None)

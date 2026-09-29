@@ -196,6 +196,9 @@ docs, OC memories, issues and branches, some of it in no plan at all.
 
 ### Quarterly additions
 
+- **Bump rclone** (design 0001 §3.4): Dependabot does not track the
+  Dockerfile's `COPY --from=rclone/rclone:<tag>`, and a stale rclone falls
+  behind provider OAuth changes. Check the latest release and bump it.
 - **Embedding-provider sweep** (operator-directed 2026-08-29): diff the
   Ollama library embedding catalog, Ollama Cloud, Atlas Cloud, and the
   Anthropic embeddings page (no first-party API as of 2026-08-29)
@@ -258,6 +261,11 @@ query-revision and NAS Host-list source fixes merged.**
   request tail). Nightly backups now land in `/exports/backups/auto`.
   OPS-06 is done: every MCP client on the second workstation (seven
   clients) sends the API key and passed `health`.
+  OPS-08 (the nightly encrypted offsite push, design 0001 Phase 1) is
+  implemented and in review for v3.6.0: plan-reviewed (amendments A1-A9),
+  `cloud_backup` job, `cloud_backup_status` in health, rclone and age in
+  the image, a PR image-smoke job. Not released or deployed; the runbook
+  is [cloud_backup.md](docs/configuration/cloud_backup.md).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

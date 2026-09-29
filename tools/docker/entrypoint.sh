@@ -51,6 +51,12 @@ fi
 # the first time it started as `oc`.
 chown -R oc:oc "$(dirname "$OC_DB_PATH")" "$OC_CONFIG_DIR" "$OC_OUTPUT_DIR"
 
+# The offsite-backup token (design 0001). rclone keeps an existing file's mode
+# when it rewrites it after a token refresh, so a copy that arrived 0644 would
+# stay readable by others forever. Guarded: under `set -eu` a bare chmod on a
+# /config without the file would abort the entrypoint and crash-loop the stack.
+[ -f "$OC_CONFIG_DIR/rclone.conf" ] && chmod 600 "$OC_CONFIG_DIR/rclone.conf" || true
+
 # gosu replaces this shell with the target process running as `oc` (a
 # single setuid+setgid+execve, no wrapper process), so PID-1 signal
 # forwarding for graceful shutdown works exactly as it would running

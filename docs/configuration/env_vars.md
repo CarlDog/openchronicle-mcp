@@ -22,6 +22,9 @@ rather than silently shadowing them.
 | `OC_CONFIG_DIR` | Directory containing `core.json` | `config` |
 | `OC_OUTPUT_DIR` | Directory for operator-export artifacts | `output` |
 | `OC_BACKUP_DIR` | Existing absolute directory for catalogued SQLite snapshots (`auto/` and `manual/`); a configured missing or unwritable directory logs an ERROR and fails each backup (no fallback, service keeps running) | Database parent `/backups` |
+| `OC_CLOUD_REMOTE` | rclone destination for the nightly encrypted offsite push, in `name:path` form (e.g. `ocdrop:openchronicle/nas`); empty disables it. A connection string, a leading `-`, spaces or quotes are rejected as `misconfigured`. See [cloud_backup.md](cloud_backup.md) | *(unset)* |
+| `OC_CLOUD_AGE_RECIPIENTS` | Comma-separated age **public** keys the push encrypts to (primary and recovery). Empty while `OC_CLOUD_REMOTE` is set is `misconfigured`: nothing is pushed unencrypted | *(unset)* |
+| `RCLONE_CONFIG` | Path of the rclone config holding the remote's token; container wiring, set in the NAS compose | `/config/rclone.conf` |
 
 The four-layer precedence (constructor arg > per-path env > `OC_DATA_DIR`-derived > default) is implemented in
 `application/config/paths.py:RuntimePaths.resolve`.

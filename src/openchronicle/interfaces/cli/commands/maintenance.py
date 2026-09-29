@@ -78,9 +78,13 @@ def cmd_maintenance_run_once(args: argparse.Namespace, container: CoreContainer)
 
     print(f"Running maintenance job: {name}")
     try:
-        asyncio.run(handler(container))
+        result = asyncio.run(handler(container))
     except Exception as exc:  # noqa: BLE001
         print(f"Error: job {name} failed: {exc}")
         return 1
+    if isinstance(result, dict) and result.get("skipped"):
+        # Did nothing: "OK" would read as the work having happened.
+        print(f"SKIPPED: {name} did nothing ({result.get('reason', 'already running')})")
+        return 0
     print(f"OK: {name} complete")
     return 0

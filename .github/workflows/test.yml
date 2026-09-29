@@ -123,6 +123,41 @@ jobs:
           print(f"tag {tag} matches pyproject version {version}")
           EOF
 
+  # The image checks on every PR, without pushing (design 0001 plan review
+  # A8). build-and-push only runs after a merge, so a broken Dockerfile, a
+  # missing binary or a bad entrypoint would otherwise pass every PR check
+  # and first fail at publish.
+  image-smoke:
+    name: Image smoke test
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: oc-smoke:pr
+          build-args: |
+            OC_BUILD_REVISION=${{ github.sha }}
+          cache-from: type=gha
+
+      - name: Smoke-test the image
+        run: bash tools/ci/smoke-image.sh oc-smoke:pr "${{ github.sha }}"
+
+      - name: Smoke-test the cloud backup push inside the image
+        run: bash tools/ci/smoke-cloud-backup.sh oc-smoke:pr
+
   build-and-push:
     name: Build and push Docker image
     # Only on push to MAIN or a tag — never on pull_request, never for
@@ -186,6 +221,9 @@ jobs:
 
       - name: Smoke-test the image before pushing
         run: bash tools/ci/smoke-image.sh oc-smoke:ci "${{ github.sha }}"
+
+      - name: Smoke-test the cloud backup push inside the image
+        run: bash tools/ci/smoke-cloud-backup.sh oc-smoke:ci
 
       - name: Build and push
         uses: docker/build-push-action@v7
