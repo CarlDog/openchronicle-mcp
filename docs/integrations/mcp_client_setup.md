@@ -78,6 +78,68 @@ extensions:
       Authorization: Bearer ${OC_API_KEY}
 ```
 
+### Other clients (verified 2026-09-28)
+
+Production has required the key since 2026-09-25. Each client below was
+configured on a second workstation and passed OpenChronicle's `health` tool
+(ROADMAP OPS-06). Formats were checked against each client's documentation on
+that date; re-check a client's docs if one stops connecting after an update.
+Use the hostname `your-nas` (or `your-nas.local`), never the NAS's IP address:
+the Host-header allowlist answers anything else with 421. A 401 means the key
+is not being sent.
+
+- **Claude Desktop.** Custom connectors connect from Anthropic's cloud, which
+  cannot reach a LAN host, so use the `mcp-remote` bridge (needs Node.js) in
+  `%APPDATA%\Claude\claude_desktop_config.json`. Keep `Authorization:${AUTH_HEADER}`
+  without a space after the colon: passing the value through an env var is how
+  mcp-remote's docs avoid a Windows argument-quoting bug. Fully restart after editing.
+
+  ```json
+  {"mcpServers":{"openchronicle":{"command":"npx","args":["-y","mcp-remote","http://your-nas:18000/mcp","--allow-http","--transport","http-only","--header","Authorization:${AUTH_HEADER}"],"env":{"AUTH_HEADER":"Bearer YOUR_KEY_HERE"}}}}
+  ```
+
+- **OpenAI Codex** (`%USERPROFILE%\.codex\config.toml`). The key stays in an
+  environment variable (`setx OC_API_KEY "..."`, then a new shell):
+
+  ```toml
+  [mcp_servers.openchronicle]
+  url = "http://your-nas:18000/mcp"
+  bearer_token_env_var = "OC_API_KEY"
+  ```
+
+- **Gemini CLI.** `httpUrl` is Streamable HTTP; `url` means SSE.
+
+  ```bash
+  gemini mcp add --transport http -H "Authorization: Bearer YOUR_KEY_HERE" openchronicle http://your-nas:18000/mcp
+  ```
+
+- **Google Antigravity** (`%USERPROFILE%\.gemini\config\mcp_config.json`, a
+  different file and key from Gemini CLI):
+
+  ```json
+  {"mcpServers":{"openchronicle":{"serverUrl":"http://your-nas:18000/mcp","headers":{"Authorization":"Bearer YOUR_KEY_HERE"}}}}
+  ```
+
+- **VS Code** (*MCP: Open User Configuration*). The top-level key is
+  `servers`, and the key is prompted for once and masked:
+
+  ```json
+  {"inputs":[{"type":"promptString","id":"oc-key","description":"OpenChronicle API key","password":true}],
+   "servers":{"openchronicle":{"type":"http","url":"http://your-nas:18000/mcp","headers":{"Authorization":"Bearer ${input:oc-key}"}}}}
+  ```
+
+- **Visual Studio 2022 17.14+ / 2026** (`%USERPROFILE%\.mcp.json`). Its docs
+  do not mention `headers`, but it reads the VS Code format, and this worked.
+  Enable the tools afterwards in Chat → Agent → Tools; they start disabled.
+
+  ```json
+  {"servers":{"openchronicle":{"type":"http","url":"http://your-nas:18000/mcp","headers":{"Authorization":"Bearer YOUR_KEY_HERE"}}}}
+  ```
+
+Claude Desktop, Antigravity and Visual Studio hold the key in plain text in
+their config files; Codex (environment variable) and VS Code (masked prompt)
+do not. After a key rotation, update every one of these.
+
 ## Local development
 
 `oc serve` from a checkout binds to `127.0.0.1:8000` by default, so:
