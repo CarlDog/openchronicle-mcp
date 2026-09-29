@@ -206,3 +206,91 @@ def test_env_example_names_are_real() -> None:
     assert example, "premise: .env.example lists OC_* settings"
     stale = sorted(example - _source_env_names())
     assert not stale, f".env.example lists OC_* settings nothing reads: {stale}"
+
+
+# --- Compose: docker-compose.nas.yml (ROADMAP QUAL-17) ------------------------------
+#
+# A setting that is implemented and documented but missing from the compose
+# file cannot be set from Portainer without a compose edit (fleet docker rule 10;
+# botify-mcp once shipped a whole feature that way). These checks tie the
+# served stack's `oc` environment to what the source reads.
+
+COMPOSE = ROOT / "docker-compose.nas.yml"
+
+# Read by the source but deliberately absent from the served stack's environment.
+NOT_IN_COMPOSE = {
+    "OC_MCP_HOST": "the stdio MCP entry point only; the served stack is the unified ASGI app",
+    "OC_MCP_PORT": "the stdio MCP entry point only; the served stack is the unified ASGI app",
+    "OC_MCP_TRANSPORT": "the stdio MCP entry point only; the served stack is the unified ASGI app",
+    "OC_DATA_DIR": "the entrypoint derives paths from it; the compose sets those paths directly",
+    "OC_BUILD_REVISION_FILE": "a test override; the image bakes the revision at build time",
+}
+
+# In the compose file but read by no Python code.
+COMPOSE_ONLY = {
+    "OC_TAG": "selects the image tag in the `image:` line; the application never sees it",
+}
+
+# Fixed container wiring, not operator configuration: changing one without the
+# image would break the container rather than configure it (docker rule 10).
+WIRING = {
+    "OC_CONFIG_DIR": "the /config volume's mount point",
+    "OC_DB_PATH": "the database inside the /data volume",
+    "OC_BACKUP_DIR": "the /exports bind's backup root",
+    "OC_OUTPUT_DIR": "the /output volume's mount point",
+    "OC_API_HOST": "0.0.0.0, so the published port reaches the app",
+    "OC_API_PORT": "must match EXPOSE and the healthcheck",
+}
+
+_ENV_LINE = re.compile(r"^      (OC_[A-Z0-9_]+): *(.*?) *$")
+
+
+def _compose_oc_environment() -> dict[str, str]:
+    """The `oc` service's `environment:` entries (name -> raw value)."""
+    lines = _read(COMPOSE).split("\n")
+    start = lines.index("  oc:")
+    env_at = next(i for i in range(start, len(lines)) if lines[i] == "    environment:")
+    env: dict[str, str] = {}
+    for line in lines[env_at + 1 :]:
+        if line.strip() and not line.startswith("      "):
+            break  # the next key of the service ends the block
+        m = _ENV_LINE.match(line)
+        if m:
+            env[m.group(1)] = m.group(2)
+    return env
+
+
+def test_every_setting_the_source_reads_is_in_the_compose() -> None:
+    env = _compose_oc_environment()
+    assert len(env) >= 20, f"premise: the oc environment block parsed ({len(env)})"
+    missing = sorted(_source_env_names() - set(env) - set(NOT_IN_COMPOSE))
+    assert not missing, (
+        f"OC_* settings the source reads but docker-compose.nas.yml does not pass to the oc service "
+        f"(add a `${{VAR:-default}}` line, or list the name in NOT_IN_COMPOSE with a reason): {missing}"
+    )
+    wrongly_listed = sorted(set(NOT_IN_COMPOSE) & set(env))
+    assert not wrongly_listed, f"NOT_IN_COMPOSE names that the compose now sets (remove them): {wrongly_listed}"
+
+
+def test_every_compose_setting_is_read_by_the_source() -> None:
+    compose_names = set(_OC_NAME.findall(_read(COMPOSE)))
+    assert len(compose_names) >= 20, f"premise: the compose file parsed ({len(compose_names)})"
+    stale = sorted(compose_names - _source_env_names() - set(COMPOSE_ONLY))
+    assert not stale, f"OC_* names in docker-compose.nas.yml that nothing reads: {stale}"
+
+
+def test_compose_settings_are_portainer_tunable() -> None:
+    """Each value is `${SAME_NAME...}`, so Portainer's stack env can set it."""
+    env = _compose_oc_environment()
+    assert len(env) >= 20, f"premise: the oc environment block parsed ({len(env)})"
+    hardcoded = sorted(
+        f"{name}: {value}"
+        for name, value in env.items()
+        if name not in WIRING and not re.match(r"\$\{" + re.escape(name) + r"(?:[:}?-]|$)", value)
+    )
+    assert not hardcoded, (
+        f"oc environment values Portainer cannot override (use `${{NAME:-default}}`, or list container "
+        f"wiring in WIRING with a reason): {hardcoded}"
+    )
+    stale_wiring = sorted(set(WIRING) - set(env))
+    assert not stale_wiring, f"WIRING names the compose no longer sets (remove them): {stale_wiring}"
