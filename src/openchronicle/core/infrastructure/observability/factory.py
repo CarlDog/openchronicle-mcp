@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import cast
 
 from openchronicle.core.application.config.env_helpers import parse_bool_env
 from openchronicle.core.application.observability.exporter import MetricsExporter
@@ -33,4 +32,4 @@ def create_metrics() -> tuple[MetricsRecorder, MetricsExporter | None]:
             "OC_METRICS_ENABLED is true but prometheus-client is not installed; "
             "install openchronicle-mcp[metrics] or use the standard image",
         ) from exc
-    return cast(MetricsRecorder, recorder), cast(MetricsExporter, recorder)
+    return recorder, recorder
