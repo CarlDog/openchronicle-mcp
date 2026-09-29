@@ -9,7 +9,7 @@ for *current state*. [V3_PLAN.md](V3_PLAN.md) and the
 holds the order.
 
 **Built:** 2026-09-28, from a full inventory of V3_PLAN, the assessment,
-design records 0001-0019, OpenChronicle memories, GitHub issues and PRs,
+design records 0001-0021, OpenChronicle memories, GitHub issues and PRs,
 long-lived branches and code comments (the code carries no work-marker comments).
 **Operator priorities:**
 
@@ -143,6 +143,20 @@ that any change can be shown not to hurt accuracy.
 | RET-04 | A small human-facing memory inspector | L | 0011 H5 |
 | RET-05 | A score-aware fusion ADR for the hybrid R@1 deficit (RRF dilutes semantic top-1) | ? | 0008 out-of-scope note; 0006 Finding 4 |
 | RET-06 | Benchmark MMR and other channels offline, without changing defaults | M | 0002 F5 |
+
+## Phase 9 — Parity and beyond (#memory, design 0021)
+
+The operator's aspiration (2026-09-28): do everything #memory (usememory.com) does, and better. Each item needs ratification first; none is scheduled. RET-04 covers their human interface. Suggested order: PAR-07 and PAR-01 first (small, and PAR-01 unblocks OPS-07), PAR-06 after MEAS-04, PAR-02 after RET-03's ADR, PAR-03 as its own design; PAR-04 and PAR-05 stay research.
+
+| ID | Item | Size | Detail |
+|---|---|---|---|
+| PAR-01 | Scoped credentials: per-client tokens with `read`/`write`/`delete` scopes and a project or tag restriction, revocable one at a time; later OAuth 2.1 with PKCE and dynamic client registration | M, then L | 0021 gap 1. Precondition for enabling the backup tools (OPS-07) and handing deletes to an agent |
+| PAR-02 | Integration sync: idempotent upsert by an external reference with a source-timestamp staleness guard, `updated_since` cursor polling, and a deletion feed (their stated gap) | M | 0021 gap 2. After RET-03's operation-identity ADR |
+| PAR-03 | Attachments: a blob store beside memories, extracted text and local-model captions joining hybrid search, with backup, export and offsite coverage | XL | 0021 gap 3. Its own design and plan review |
+| PAR-04 | Per-project encryption at rest with an operator-held key, keeping search for unlocked projects | ? | 0021 gap 5. Research first; the self-hosted threat model differs from theirs |
+| PAR-05 | Read-only, revocable sharing | ? | 0021 gap 6. Only if OC gains a second person; record, don't build |
+| PAR-06 | Weigh tag matches above body text in the keyword channel (`bm25()` column weights) | S | 0021 gap 7. Gated on MEAS-04's evaluation |
+| PAR-07 | Write down and test the telemetry boundary: metrics and logs never carry memory content, search text or tags | S | 0021 gap 8. `security_posture.md` plus a test over the metric label sets |
 
 ## Gated register (no phase until the trigger fires)
 

@@ -27,6 +27,7 @@ as shipped.
 | [0018 — Self-improving prompts](0018-self-improving-prompts.md) | Idea capture | Recorded 2026-09-24: the operator's intent behind 0015, prompts that improve from tracked outcomes. Concepts, research warnings and the open architectural fork. Not a design; nothing scheduled |
 | [0019 — Cloud LLM cost north star](0019-cloud-llm-cost-north-star.md) | Idea capture | Recorded 2026-09-24: the operator's aspiration that OC lower the cost of cloud LLM use; candidate levers from measurement to a request-path gateway, and the gap in 0012's FreeToken scope. Nothing scheduled |
 | [0020 — Persistent storage review](0020-persistent-storage-review.md) | Review | DATA-01, 2026-09-28: read-only inventory of the NAS storage layout, eight findings, a target layout and a two-step cutover plan. Awaiting operator decisions; nothing changed |
+| [0021 — #memory (usememory.com) review](0021-usememory-review.md) | Comparative review and operator aspiration | Recorded 2026-09-28 from four public pages: a hosted, keyword-only memory service with native apps, scoped OAuth, sync upserts, attachments and client-side encryption. The operator's aim is parity and better; gaps are ROADMAP PAR-01 to PAR-07, all unratified and unscheduled |
 
 The numbering is chronological, not a priority ranking. Current backlog
 status lives in `docs/V3_PLAN.md`; release history lives in
