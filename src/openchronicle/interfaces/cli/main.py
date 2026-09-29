@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 
+from openchronicle.core.infrastructure.maintenance.jobs import HANDLERS
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.commands import COMMANDS, PRE_CONTAINER_COMMANDS
 
@@ -19,7 +20,10 @@ def _build_container(args: argparse.Namespace) -> CoreContainer | None:
         return None
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The `oc` argument parser. Separate from `main` so tests can walk it
+    (tests/test_docs_parity.py checks it against docs/cli/commands.md).
+    """
     parser = argparse.ArgumentParser(prog="oc", description="OpenChronicle v3 — memory database for LLM agents")
     sub = parser.add_subparsers(dest="command")
 
@@ -214,13 +218,17 @@ def main(argv: list[str] | None = None) -> int:
     maintenance_list = maintenance_sub.add_parser("list", help="Show configured jobs")
     maintenance_list.add_argument("--json", action="store_true", help="Emit JSON output")
     maintenance_run = maintenance_sub.add_parser("run-once", help="Run a single job and exit")
-    maintenance_run.add_argument(
-        "job_name", help="One of: db_backup, db_vacuum, db_integrity_check, embedding_backfill, git_onboard_resync"
-    )
+    maintenance_run.add_argument("job_name", help=f"One of: {', '.join(sorted(HANDLERS))}")
 
     serve_cmd = sub.add_parser("serve", help="Run the unified HTTP + MCP ASGI server")
     serve_cmd.add_argument("--host", default=None, help="Bind address (default: 127.0.0.1)")
     serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 8000)")
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
 
     # --- Parse ---
     args = parser.parse_args(argv)

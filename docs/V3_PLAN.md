@@ -1000,8 +1000,8 @@ design doc):
    cloud provider is actually wanted again.
 6. [ROADMAP GATE-04] **MCP `error_code` gap** (full entry below) — parked against the
    mcp 2.x migration by its own entry.
-7. [ROADMAP QUAL-05] **Docs parity gates (CLI/MCP/env)** — batch into the next
-   phase-end audit.
+7. [ROADMAP QUAL-05] ✅ **Docs parity gates (CLI/MCP/env) — DONE 2026-09-29**
+   (`tests/test_docs_parity.py`).
 8. [ROADMAP LLM-02] **Provider SDK integration survey** — evaluate optional agent/runtime
    integrations while keeping OpenChronicle's memory service boundary intact:
 
