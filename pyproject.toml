@@ -27,7 +27,7 @@ classifiers = [
 ]
 dependencies = [
 	"fastapi>=0.110.0",
-	"uvicorn[standard]>=0.52.4",
+	"uvicorn[standard]>=0.54.0",
 ]
 
 [project.urls]
