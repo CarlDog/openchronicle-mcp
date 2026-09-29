@@ -171,7 +171,7 @@ them.
 
 | Var | Purpose | Default |
 |---|---|---|
-| `OC_MAINTENANCE_DISABLED` | `1`/`true`/`yes`/`on` short-circuits the loop entirely | unset (loop runs) |
+| `OC_MAINTENANCE_DISABLED` | `1`/`true`/`yes`/`on` short-circuits the loop entirely; an unrecognized value logs a warning and leaves the loop running | unset (loop runs) |
 
 Job-level intervals and enabled flags live in `core.json`'s
 `maintenance.jobs` section. See `docs/architecture/MAINTENANCE.md`.
@@ -180,7 +180,7 @@ Job-level intervals and enabled flags live in `core.json`'s
 
 | Var | Purpose | Default |
 |---|---|---|
-| `OC_SEARCH_FTS5_ENABLED` | `0` to skip FTS5 setup (forces fallback keyword search) | `1` |
+| `OC_SEARCH_FTS5_ENABLED` | `0`/`false`/`no`/`off` skips FTS5 setup (forces fallback keyword search); an unrecognized value logs a warning and keeps FTS5 on | `1` |
 
 ## Git onboarding
 

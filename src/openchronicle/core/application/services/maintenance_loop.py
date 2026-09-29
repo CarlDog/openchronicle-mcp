@@ -35,6 +35,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from openchronicle.core.application.config.env_helpers import parse_bool_env
 from openchronicle.core.domain.exceptions import ProviderError
 from openchronicle.core.domain.time_utils import utc_now
 
@@ -508,8 +509,7 @@ _DEFAULT_JOBS: list[dict[str, Any]] = [
 
 def is_disabled() -> bool:
     """Honor `OC_MAINTENANCE_DISABLED=1` (or `true`/`yes`/`on`)."""
-    raw = os.getenv("OC_MAINTENANCE_DISABLED", "").strip().lower()
-    return raw in {"1", "true", "yes", "on"}
+    return parse_bool_env(os.getenv("OC_MAINTENANCE_DISABLED"), default=False, name="OC_MAINTENANCE_DISABLED")
 
 
 def load_jobs(file_config: dict[str, Any] | None = None) -> list[JobState]:

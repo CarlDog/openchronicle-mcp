@@ -17,6 +17,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from starlette.requests import Request
 
+from openchronicle.core.application.config.env_helpers import parse_bool_env
 from openchronicle.core.application.observability.exporter import (
     MetricsScrapeBusyError,
     MetricsScrapeError,
@@ -38,11 +39,9 @@ def _backup_tools_enabled(config: HTTPConfig, container: CoreContainer) -> bool:
     leaves them unregistered: under `restart: unless-stopped`, raising here
     would crash-loop the whole memory service over an optional tool set.
     """
-    flag = os.environ.get("OC_BACKUP_MCP_ENABLED", "").strip().lower()
-    if flag in ("", "0", "false", "no", "off"):
-        return False
-    if flag not in ("1", "true", "yes", "on"):
-        logger.error("OC_BACKUP_MCP_ENABLED=%r is not true or false; backup MCP tools are not registered", flag)
+    if not parse_bool_env(
+        os.environ.get("OC_BACKUP_MCP_ENABLED"), default=False, name="OC_BACKUP_MCP_ENABLED", level=logging.ERROR
+    ):
         return False
     if not config.api_key or not container.backup_dir_explicit:
         logger.error("Backup MCP tools need OC_API_KEY and an explicit OC_BACKUP_DIR; they are not registered")
