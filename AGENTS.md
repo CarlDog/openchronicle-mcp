@@ -77,11 +77,10 @@ enforces parity.
   that cannot start never reaches `:latest`.
   Doc-only / hook-only pushes don't need a redeploy.
 
-  **Stack 151 is detached from Git** (recorded 2026-09-09; its stored
-  compose was last updated 2026-08-31). It runs Portainer's own copy of
-  the compose, which predates `682c68f0`, so a git redeploy does not
-  apply. Look up the stack id dynamically (don't hardcode it), then
-  move the tag with one call, which redeploys a file-based stack:
+  **Stack 151 is file-based and detached from Git** (operator decision).
+  Portainer holds its own copy of the compose, so a git redeploy does not
+  apply. Look up the stack id dynamically (don't hardcode it), then move
+  the tag with one call, which redeploys a file-based stack:
 
   ```text
   portainer_list_stacks → filter for name == "openchronicle-mcp" → use that .Id
@@ -89,16 +88,17 @@ enforces parity.
                           confirm=true, pull_image=true)
   ```
 
-  Do not paste the repo's `docker-compose.nas.yml` over the stored file
-  unreviewed. OPS-03 (2026-09-28) reconciled the repo file with the
-  production target: the shared bridge, design 0020's volume layout
-  (the data volume external and pinned by name) and `container_name`.
-  The stack stays file-based by operator decision, so the repo file
-  reaches production only through a reviewed `portainer_update_stack_file`,
-  never by a git redeploy. It was deployed on 2026-09-28 (file version
-  143, matching `main` at `5a207070`; `HOST_CONFIG_DIR` removed, so
-  `/config` is a named volume), and updated on 2026-09-29 to file
-  version 144, matching `main` at `99bd68cb` (OPS-08's cloud lines). The container is `openchronicle-mcp`.
+  The stored compose matches the repository file. OPS-03 (2026-09-28)
+  reconciled it: the shared bridge, design 0020's volume layout (the data
+  volume external and pinned by name, `/config` a named volume) and
+  `container_name: openchronicle-mcp`. It is at file version 144, matching
+  `main` at `99bd68cb` (2026-09-29, OPS-08's cloud lines). The repository
+  file reaches production only through a reviewed
+  `portainer_update_stack_file`, never pasted unreviewed and never by a git
+  redeploy. When a release needs both new compose lines and new env values,
+  update the file first and the env second: `update_stack_file` only
+  round-trips the existing env, and a new image booted under the old
+  compose can miss settings its first maintenance run needs.
   `OC_LOG_FILE=/output/logs/openchronicle.log` is set in the stack env
   (0020 step A).
 
@@ -219,275 +219,36 @@ docs, OC memories, issues and branches, some of it in no plan at all.
 
 ## Current Sprint
 
-**2026-09-23 — Gemini branch rejected as a unit; prompt library researched;
-query-revision and NAS Host-list source fixes merged.**
+**2026-09-29 — production caught up with `main`; OPS-08 in its
+three-night window; phase-end audit in progress.**
 
-- **Backup/restore (design [0017](docs/design/0017-exposed-backup-and-restore.md),
-  draft PR #39).** A Claude adversarial review of `f65be230` (2026-09-24)
-  found P1 defects; their fixes are on the PR (assessment revs 221-227,
-  including an independent review of the fix round), and the review record
-  is in 0017. The MCP backup tools are **parked** (their auth precondition is now met,
-  because auth was enabled on 2026-09-25; enabling them is ROADMAP OPS-07), so
-  production restores use the CLI and the offline helper's
-  `stage`/`activate`/`rollback`. It merged to `main` **after the v3.4.0
-  tag** (operator, 2026-09-24) and is unreleased: the nightly backup change
-  ships in the next release. A verified off-NAS v3.3.0 copy exists, and the NAS restore drill
-  passed on 2026-09-24 (both legs, latency budget met, accepted with gaps by
-  an independent checker; details in the
-  [runbook](docs/configuration/local_backup_restore.md)). Remaining: before
-  timestamp PR #38, a fresh copy plus an image-pair rehearsal. Next, at
-  high priority: the persistent-storage review (V3_PLAN active queue item
-  14). Then the last open 0014 salvage item, a persistent Ollama HTTP
-  client (item 15).
-  Production is unchanged. Resume from the
-  [handoff](docs/handoffs/2026-09-24-backup-restore.md).
-- **Development roadmap (2026-09-28):** [docs/ROADMAP.md](docs/ROADMAP.md)
-  orders all open work with stable IDs. The persistent-storage review
-  (DATA-01) is written up as
-  [0020](docs/design/0020-persistent-storage-review.md): a read-only
-  inventory, eight findings, a target layout and a two-step cutover plan.
-  The operator adopted the recommendations; step A (`OC_LOG_FILE` on the
-  stack, environment only) is live on v3.3.0 as of 2026-09-28. Step B
-  rides OPS-03; decision 5 waits on the operator's ACL check, and decision
-  6 is answered (no DSM backup covers the Docker paths). Cloud-backup
-  Phase 0 (DATA-02) passed on 2026-09-28: both escrowed identities decrypted
-  an uploaded artifact. Nightly off-NAS push is OPS-08. OPS-03 is done and
-  deployed (2026-09-28): stack 151 runs `main`'s compose (bridge network,
-  0020's volume layout, container `openchronicle-mcp`, no Watchtower
-  label). v3.4.0 (`9b1e83e6`) is live since 2026-09-28, and OPS-01 is done,
-  including a live rollback drill to v3.3.0 and back. OPS-02, the NAS
-  restart gate, passed in both start orders the same day. OPS-04 and
-  OPS-05 are done: v3.5.0 (design 0017's backups, `d1c8be25`) is live, and
-  its step-5 check passed (snapshot over SMB, digest, disposable restore,
-  request tail). Nightly backups now land in `/exports/backups/auto`.
-  OPS-06 is done: every MCP client on the second workstation (seven
-  clients) sends the API key and passed `health`.
-  OPS-08 (the nightly encrypted offsite push, design 0001 Phase 1) is
-  deployed: v3.6.0 (`99bd68cb`) is live since 2026-09-29, and its
-  boot-time run pushed three encrypted snapshots to
-  `ocdrop:openchronicle/nas` (`cloud_backup_status` `ok`), and the escrow
-  decrypt of a pushed artifact matched its logged SHA-256. OPS-08 closes
-  after three green nights and a deliberate-breakage check; the
+- **Live:** v3.6.0 (`99bd68cb`) on stack 151 since 2026-09-29, stack file
+  version 144. Nightly catalogued backups land in `/exports/backups/auto`
+  ([0017](docs/design/0017-exposed-backup-and-restore.md)), and the nightly
+  encrypted offsite push ([0001](docs/design/0001-cloud-backup.md) Phase 1)
+  sends them to `ocdrop:openchronicle/nas`. Auth is on.
+- **Closed 2026-09-28/29:** DATA-01 ([0020](docs/design/0020-persistent-storage-review.md),
+  steps A and B), DATA-02, OPS-01 to OPS-06, HYG-04, HYG-07; v3.4.0, v3.5.0
+  and v3.6.0 released and deployed. The record is in the assessment's
+  revision history (revs 240-258).
+- **Open now:** OPS-08 closes after three green nights (scheduled morning
+  checks 2026-09-30 to 2026-10-02) and a deliberate-breakage check; the
   [runbook](docs/configuration/cloud_backup.md) has the procedures.
-
-- The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
-  merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
-  Its docs and OC milestone memories describe unshipped work.
-- The v3.4.0 correctness release (V3_PLAN item 9) is on `main` and
-  reviewed (revs 201-210): the four fleet-review #27 items, the §1.1
-  Ollama revision fix (ADR 0005 §7), three hygiene fixes, and the fixes
-  from the pre-deploy review and its completeness critic (among them
-  the NAS log file, which never existed). **Released as v3.4.0 on
-  2026-09-24 and deployed 2026-09-28 (OPS-01):** the operator granted an exception to design
-  0010's B/A gate (metrics stay off by default), and the tag points at the
-  release PR's merge. The deploy only moved `OC_TAG`: OPS-03 had already
-  reconciled the stack's compose, including 0017's `/exports` mount.
-  With v3.4.0 live, 0014's interim restart control is retired: the
-  restart gate (OPS-02) proved recovery without a manual restart.
-- Source tracks 1 and 3 of [plan 0016](docs/design/0016-review-findings-plan.md)
-  entered `main` through PR #34 (merge `7ffc277c`) and PR #35 (merge
-  `77ea0173`), respectively. Track 1:
-  search snapshots the revision before and after embedding, retries one
-  observed change, and fails closed if a known revision becomes unknown.
-  Repeated churn gets keyword-only hybrid fallback; semantic-only returns
-  typed `MODEL_REVISION_CHANGED` (HTTP 502), without a provider-failure
-  count. Ten focused regression tests and the full Windows suite (1,146
-  passed, one skip), Ruff and mypy passed locally. Windows/Ubuntu tests,
-  quality and CodeQL passed on the exact PR head `2c3a2557`. Track 3
-  corrects the repository compose API Host-list default, with
-  rendered-compose REST/MCP tests and an explicit `oc:*` collector
-  requirement. PR #35 Windows/Ubuntu tests, quality, CodeQL and secret
-  scan passed on head `87b891ed` (Windows on one retry after a Docker CLI
-  startup timeout). The detached live stack is unchanged. Timestamp,
-  prompt-pilot and release tracks remain gated. Neither change has a tagged
-  release or deployment.
-- Found 2026-09-23, not yet fixed: chronological listings misorder
-  memories whose `created_at` carries a UTC offset, which `onboard_git`
-  output does (V3_PLAN item 12). A bounded read-only live MCP inventory
-  found 93 offset-bearing values among 1,080 memories and 24 adjacent
-  instant-order inversions. Input-version and backup/restore gates remain.
-- The prompt library ([0015](docs/design/0015-prompt-library.md)) is
-  research only; its Stage 0 is operator-run.
-
-**2026-08-29 — the ranking/identity/provider arc closed; v3.3.0
-shipping to prod.** One day's arc, all reviewed adversarially and all
-pushed:
-
-- **v3.2.0 shipped and deployed** with the LAN-local embedding cutover:
-  `ollama/nomic-embed-text` on the NAS (`content_egress: local`),
-  chosen by the 0006 gold-set benchmark (nomic topped 15 candidates at
-  parity with the best cloud models) and a NAS latency leg.
-- **ADR 0008 (pins as ranking prior, ACCEPTED rev 4 after three review
-  rounds) is COMPLETE on `v4/develop`** (tip includes the sweep):
-  float retired from all modes, bounded rank lift implemented, and the
-  step-4 sweep's held-out veto rejected every nonzero lift —
-  **`PIN_RANK_LIFT = 0` is the recorded winning cell; the float
-  removal alone was the fix** (broad-query crowding fell mean
-  10.0 → 5.0). Ships as **v4.0.0 on the operator's tag call** (not
-  yet made).
-- **ADR 0009 (permanent embed-failure classification, ACCEPTED rev 3)
-  is IMPLEMENTED and merged to `main`** (844 tests): over-length rows
-  park as space/content-scoped tombstones instead of poisoning
-  health; `unembeddable` health bucket; `BackfillResult.tombstoned`;
-  the live OpenAI capture falsified the spec's error shape (recorded
-  in the ADR's Implementation note).
-- **v3.3.0 releases from `main`** carrying ADR 0009 +
-  `memory_embed background=true`. Deploy note: after redeploy, run
-  one backfill (`memory_embed background=true`) — it writes 9
-  tombstones and the live NAS health flips
-  `degraded`/`stale: 9` → `active`/`unembeddable: 9`.
-
-**Performance measurement (design 0010, operator-adopted 2026-09-04):**
-Phases 1–3 are implemented and verified in the working tree, and Phase 4 has
-been evaluated and retested on a controlled host, including a two-CPU process-affinity
-follow-up. The standard image and development extra
-include `prometheus-client`, but runtime metrics remain off by default
-(`OC_METRICS_ENABLED=false`). Phase 1's disposable REST/MCP probe, Phase 2's
-bounded recorder/exporter and instrumentation, and Phase 3's profile-gated
-local Prometheus configuration, saved query catalog, and runbook are complete;
-a disposable Docker scrape/restart smoke check also passed. The probe now
-retains every attempted direct-scrape duration and enforces a 10-ms minimum
-interval. The local
-scrape-responsiveness gate passed, but the original and retest A/B/C overhead
-gates remain inconclusive because host/order noise is larger than the measured
-effect; the enabled retest median also exceeded the 5% throughput-loss limit.
-The affinity follow-up still showed 0.18–14.08% disabled and 8.69–16.18%
-enabled throughput loss, with the enabled median at 11.62%. One retest case
-had connection failures and was excluded. Phase 4D then passed on disposable
-NAS observation stack 216: retained Prometheus history across target restart
-and rollback, distinct idle/outage signals, documented REST/MCP/metrics access
-behavior, and both recovery paths with candidate-created data preserved.
-Production release observation remains unstarted. After
-the reboot, the serialized-setup same-run pilot passed, but the full
-three-probe matrix was ineligible with 2,438/2,488/2,285 failed operations
-(mostly connection failures); an isolated clean-base control was clean, so
-that concurrent method saturated this host. A follow-up with equal rotating
-eight-CPU partitions and per-worker keep-alive connections produced three
-eligible blocks, but corrected B/C median throughput losses were 1.351%/10.867%
-with reversed order effects; earlier prose incorrectly used maxima as medians.
-The overhead gate remains inconclusive. The operator approved sequential runs
-on CARLDOG-NAS with repeated baseline controls; dedicated hardware is not an
-application requirement. The first twelve-case run completed with 25,995
-successful requests and remained inconclusive. The committed 4B candidate was
-then published as the non-release benchmark image and the frozen unprofiled
-4C run completed all twelve cases with 27,272 successful requests, zero
-failures/timeouts, matching corpora, and successful enabled scrapes. B/A's
-median throughput loss was 0.129% but remained inconclusive because repeated-A
-list-p95 noise reached 1.540 budget fractions; C/A's median throughput loss
-was 7.769% and remained inconclusive under the same veto. Evidence is retained
-under data/performance/phase4-20260904/nas-sequential/. Disposable stack 212
-was removed; production remained unchanged. Phase 4D then passed on
-disposable observation stack 216 with retained Prometheus history across
-target restart/rollback, distinct idle/outage signals, documented access
-contracts, and both recovery paths preserving candidate-created data. Stack
-216 no longer exists, and its Prometheus history volume was pruned on
-2026-09-28 ([0020](docs/design/0020-persistent-storage-review.md) S7).
-Normal runtime metrics
-remain off. All 897 tests passed for the candidate.
-
-**Active queue after this release** (V3_PLAN carries the full
-entries): (1) performance-measurement disposition
-(the bounded 4C recovery cycle is finished with trustworthy evidence; overhead
-and final responsiveness gates remain unresolved/failed and require a new
-scoped decision; 4D evidence remains applicable after impact review),
-(2) cloud-backup Phase 0 + restore drill (operator at a desktop; 0007 Stage 0),
-then demand-/trigger-gated items. Design 0007 (long-term scale & resilience)
-is ACCEPTED with its staged trigger-gated path. Open operator decision: the
-**v4.0.0 tag** from
-`v4/develop`.
-
-The Phase 4 remaining-work plan is recorded in
-`docs/design/0010-performance-measurement.md` with subphases 4A–4F,
-acceptance evidence, and finite stop conditions. Subphase 4A completed
-server-side profiling and three fresh NAS A/R calibration pairs; one control
-breached the predeclared variability budget. Subphase 4B completed locally
-with a narrow disabled-path instrumentation bypass and passing focused
-metrics tests, Ruff, formatting, and mypy. Subphase 4C then completed the
-frozen unprofiled sequential NAS run with 27,272 successful requests and zero
-failures/timeouts; B/A and C/A remain inconclusive under the existing
-repeated-baseline veto. Phase 4D then passed on disposable stack 216 with
-fixed-range history, access, outage/recovery, and rollback evidence; its
-sanitized report is retained under
-`data/performance/phase4-20260904/phase4d-20260905/`. Runtime metrics remain
-off by default and production is unchanged; 4E/4F remain gated by the
-inconclusive 4C result and release authorization.
-
-Forward-planning inspection found log timestamp contamination in the retained
-4C JSON, including its disabled-state value; the current assessor returns a
-condition mismatch and no comparisons. The earlier saved-report verification
-claim is unconfirmed. The adopted
-[4C recovery plan](docs/design/0010-performance-measurement.md#4c-recovery-plan)
-starts with evidence integrity, then baseline calibration, enabled-cost
-diagnosis, one targeted patch batch, one frozen comparison, and disposition.
-It preserves the existing budgets. Recovery now has checksummed report
-transport, measured-only scrape/RSS sampling, and a locally verified bounded
-metric-child cache patch. NAS calibration completed 41,441 requests without
-failures and met every control budget. A final CPU-mask validator type check
-was corrected; measurement logic and the checksummed data are unchanged.
-The operator approved calibration reuse on 2026-09-05 as an explicit
-validation-only exception to the frozen-harness rule. Frozen candidate
-`ddd21dee` was published as the non-release `phase4-recovery-20260905-ddd21dee`
-image. The final NAS suite completed all twelve cases: 75,786 successes, no
-failures/timeouts, and nine successful C scrapes. Checksums and independent
-arithmetic verified the report. B/A and C/A remain inconclusive, with median
-throughput losses of 0.399%/6.392%; the final repeated baseline slowed 53.339%
-as NAS load rose from 1.73 to 15.10. All three observed C throughput losses
-exceeded 5%, but the unchanged noise veto prevents a definitive classification.
-Final full-cardinality responsiveness did not pass: REST list p99 +9.086 ms
-exceeds 5 ms; MCP list samples 733/736 are insufficient. Scrape duration, ASGI
-lag and overlap/cancellation checks passed. Explicit source/configuration
-comparison supports reuse of the passed 4D evidence. New NAS/local test
-containers are removed, observation history is preserved, and production is
-unchanged. This cycle is finished; release/enabling remain blocked and no
-automatic retest or optimization follows it.
-The full suite passed 932 tests before that final validation-only correction;
-49 artifact/validator tests passed afterward. Runtime metrics remain off.
-
-The subsequent operator-authorized diagnostic phase is complete; see
-[4C attribution and recorder patch](docs/design/0010-4c-attribution.md).
-Retained host counters show 85.005% busy CPU during the bad control, but the
-competing process remains unidentified. Validated single-thread diagnostics
-target redundant recorder health writes, HTTP/embedding child lookup and
-exposition formatting; mixed-thread profiler durations are rejected. The
-operator subsequently approved recorder-only Patch 1: ordered health transitions
-skip redundant healthy writes, and bounded HTTP/embedding child caches preserve
-exact observations and lazy failure handling. All 951 tests passed across the
-full run and a two-test Git-fixture-isolated retry; Ruff, format and mypy passed.
-Implementation is included in the source checkpoint below. Patch 2's local exporter prototype
-passed 53 separate contract tests, and the
-full-matrix single-thread Windows diagnostic showed 41.799% median paired CPU
-reduction with about 1.94 MiB retained traced allocations (not RSS). The
-subsequent authorized local integration now instantiates one bounded prefix
-cache per enabled recorder. Fresh values, standard fallback, disabled dependency
-isolation and scrape ownership are preserved; regression tests correct unusual
-string cache hits and whole-scrape encoding error behavior. Linux contracts
-passed 106 tests on both Prometheus 0.26.0 and the 0.23.1 floor, including native
-process collection. Final full Windows suite: 1,020 passed, one Linux-only skip;
-Ruff, formatting, mypy and Markdown passed. The corrected integration has not been timed. No new NAS
-test, publication, release, deployment, enablement, commit or push occurred.
-Host readiness and unchanged 4C gates remain unresolved; prior 4D reuse applies
-to the old frozen candidate. Affected live 4D checks for the changed health and
-exporter paths are recorded in the integration checkpoint and remain pending.
-
-The subsequent bounded read-only NAS readiness snapshot is complete: all stats
-and process-list requests for 42 containers succeeded; host busy CPU was 8.852%
-and niced CPU zero. No heavy Docker workload was identified to pause. One
-ambiguous process pair was excluded from coarse process-time deltas, with raw
-evidence/container accounting retained. This short observation does not explain
-the earlier spike, prove future quietness or pass baseline controls. Production
-identity remained unchanged; no NAS load test, publication, service/privilege
-change, enablement, commit or push occurred. Agree the next benchmark window and
-retain contemporaneous host checks and all existing acceptance/noise budgets.
-
-**Source checkpoint — 2026-09-09 UTC:** the operator authorized committing
-and pushing all current OpenChronicle changes, including the recorder/exporter
-implementation and tests, attribution/readiness evidence and comparative reviews
-0011/0012. The configured commit hooks remain required. Earlier no-commit/no-push
-statements describe those historical checkpoints. Live readback confirms the
-detached stack remains pinned to `v3.3.0`, build `7349f94`; pushing `main` does
-not move that tag. Metrics remain off by default, the corrected integration
-remains untimed, and existing 4C/affected 4D gates remain unresolved. See
-[assessment rev 194](docs/CODEBASE_ASSESSMENT.md#source-checkpoint--2026-09-09-utc).
+- **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
+  work. After OPS-08: the Phase 0 hygiene items, the OPS-07 decision, DATA-01
+  decision 5 and DATA-03 to DATA-05, then the timestamp fix (TS-01 to TS-04,
+  PR #38), then v4.0.0 on the operator's tag call (V4-01).
+- **Standing:**
+  - The Gemini audit branch was rejected as a unit and survives only as the
+    tag `archive/gemini-audit-18092026`
+    ([0014](docs/design/0014-gemini-audit-branch-review.md)). Never merge it
+    or take from it wholesale; its docs and OC milestone memories describe
+    unshipped work.
+  - Runtime metrics ([0010](docs/design/0010-performance-measurement.md))
+    are in the released image but off by default; enabling them stays
+    blocked on MEAS-01.
+  - Research and idea records (0011, 0012, 0015, 0018, 0019, 0021) are not
+    authorization to implement.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
@@ -495,9 +256,10 @@ cut plugin system entirely; MCP tool description quality pass done;
 ship `oc memory export/import` day 1; `OC_LOG_FORMAT=human|json`
 default human.
 
-See [docs/V3_PLAN.md](docs/V3_PLAN.md) for the canonical phase tracker
-and [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for
-current state.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the order of open work,
+[docs/V3_PLAN.md](docs/V3_PLAN.md) for the detailed entries and history
+it cites, and [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md)
+for current state.
 
 ## Build and Development
 
