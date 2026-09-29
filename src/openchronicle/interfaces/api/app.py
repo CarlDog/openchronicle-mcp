@@ -109,7 +109,7 @@ def create_app(
             # Schedule survives restarts — without this every enabled job
             # fires on boot, and the redeploy-on-push deployment model
             # turned that into two backups per push.
-            state_path=container.paths.db_path.parent / "maintenance_state.json",
+            state_path=maintenance_loop.maintenance_state_path(container.paths.db_path),
         )
 
     @asynccontextmanager

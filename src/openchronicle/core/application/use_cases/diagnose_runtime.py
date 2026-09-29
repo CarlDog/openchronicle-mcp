@@ -18,6 +18,10 @@ from typing import TYPE_CHECKING, Any
 from openchronicle.core.application.config.offsite import read_cloud_backup_config
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
+from openchronicle.core.application.services.maintenance_loop import (
+    maintenance_state_path,
+    parse_state_timestamp,
+)
 from openchronicle.core.domain.time_utils import utc_now
 from openchronicle.version import build_revision, package_version
 
@@ -58,7 +62,7 @@ def _backup_failure_persisted() -> bool:
 
 def _read_state() -> dict[str, Any] | None:
     """The maintenance loop's persisted state, or None when absent or unreadable."""
-    state_path = RuntimePaths.resolve().db_path.parent / "maintenance_state.json"
+    state_path = maintenance_state_path(RuntimePaths.resolve().db_path)
     try:
         raw = json.loads(state_path.read_text(encoding="utf-8"))
     except Exception:
@@ -70,15 +74,13 @@ def _last_run_failed(job: str) -> bool:
     """True when `job`'s persisted last run is newer than its last success."""
     try:
         raw = _read_state() or {}
-        run = raw.get("last_run_at", {}).get(job)
-        success = raw.get("last_success_at", {}).get(job)
-        if not run:
-            return False
-        if not success:
-            return True
-        return datetime.fromisoformat(success) < datetime.fromisoformat(run)
-    except Exception:
+        run = parse_state_timestamp(raw.get("last_run_at", {}).get(job))
+        success = parse_state_timestamp(raw.get("last_success_at", {}).get(job))
+    except AttributeError:
         return False
+    if run is None:
+        return False
+    return success is None or success < run
 
 
 # Design 0001 section 6.3: two failed nights before anything can be missed offsite.
@@ -97,17 +99,10 @@ def _cloud_backup_status() -> dict[str, Any]:
     config = read_cloud_backup_config()
     if not config.enabled:
         return {"status": "disabled", "last_success_at": None, "hours_since_last_success": None}
-    last: datetime | None = None
     try:
-        stamp = ((_read_state() or {}).get("last_success_at") or {}).get("cloud_backup")
-        if isinstance(stamp, str):
-            last = datetime.fromisoformat(stamp)
-    except ValueError, AttributeError:
+        last = parse_state_timestamp(((_read_state() or {}).get("last_success_at") or {}).get("cloud_backup"))
+    except AttributeError:
         last = None
-    if last is not None and last.tzinfo is None:
-        # The loop writes aware stamps; a naive one (a hand-edited or foreign
-        # state file) is read as UTC rather than raising out of health.
-        last = last.replace(tzinfo=UTC)
     age = utc_now() - last if last is not None else None
     if config.problem:
         status = "misconfigured"

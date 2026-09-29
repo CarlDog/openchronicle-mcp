@@ -1021,3 +1021,72 @@ def test_degraded_survives_restart_via_persisted_state(tmp_path: Path, monkeypat
     # Never ran / no state file: fail-soft to False.
     state.unlink()
     assert _integrity_failure_persisted() is False
+
+
+# --- one state file, one timestamp rule (phase-end audit C2) -------------------
+
+
+def test_the_state_file_name_is_defined_once_in_source() -> None:
+    """Writer and health readers share maintenance_state_path; a second
+    literal would let one side move while the other reads a stale path."""
+    src = Path(__file__).resolve().parents[1] / "src" / "openchronicle"
+    files = list(src.rglob("*.py"))
+    assert files, "premise: the source tree resolved"
+    hits = [f for f in files if "maintenance_state.json" in f.read_text(encoding="utf-8")]
+    assert [f.name for f in hits] == ["maintenance_loop.py"]
+
+
+def test_the_state_path_sits_beside_the_database(tmp_path: Path) -> None:
+    db = tmp_path / "data" / "oc.db"
+    assert maintenance_loop.maintenance_state_path(db) == tmp_path / "data" / "maintenance_state.json"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2026-09-28T10:00:00+00:00", datetime(2026, 9, 28, 10, tzinfo=UTC)),
+        ("2026-09-28T05:00:00-05:00", datetime(2026, 9, 28, 10, tzinfo=UTC)),
+        ("2026-09-28T10:00:00", datetime(2026, 9, 28, 10, tzinfo=UTC)),  # naive reads as UTC
+        ("not a time", None),
+        (12345, None),
+        (None, None),
+    ],
+)
+def test_parse_state_timestamp(value: object, expected: datetime | None) -> None:
+    parsed = maintenance_loop.parse_state_timestamp(value)
+    assert parsed == expected
+    assert parsed is None or parsed.tzinfo is not None
+
+
+def test_a_naive_stamp_loads_as_utc_and_schedules_without_raising(tmp_path: Path) -> None:
+    """A hand-edited naive stamp used to load naive, then raise TypeError in
+    `_is_due`'s subtraction from an aware now, inside every scheduler tick."""
+    state_path = tmp_path / "maintenance_state.json"
+    state_path.write_text(json.dumps({"last_run_at": {"probe": "2026-08-01T12:00:00"}}), encoding="utf-8")
+    job = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={}, state_path=state_path)
+    loop._load_state()
+    assert job.last_run_at == datetime(2026, 8, 1, 12, tzinfo=UTC)
+    assert maintenance_loop._is_due(job, datetime(2026, 8, 1, 14, tzinfo=UTC)) is True
+
+
+def test_health_reads_a_failed_run_through_mixed_naive_and_aware_stamps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Comparing a naive run stamp with an aware success stamp used to raise,
+    which the reader swallowed as "no failure": a failed backup read clean."""
+    from openchronicle.core.application.use_cases.diagnose_runtime import _backup_failure_persisted
+
+    db_path = tmp_path / "data" / "oc.db"
+    db_path.parent.mkdir(parents=True)
+    monkeypatch.setenv("OC_DB_PATH", str(db_path))
+    maintenance_loop.maintenance_state_path(db_path).write_text(
+        json.dumps(
+            {
+                "last_run_at": {"db_backup": "2026-09-28T10:00:00"},
+                "last_success_at": {"db_backup": "2026-09-27T10:00:00+00:00"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert _backup_failure_persisted() is True

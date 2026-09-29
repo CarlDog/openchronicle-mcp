@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-09-29 UTC · **Revision:** 260 (audit C1: one backfill verdict)
+**Snapshot date:** 2026-09-29 UTC · **Revision:** 261 (audit C2: one state file, one timestamp rule)
 
 ## Current state
 
@@ -108,6 +108,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 261 | 2026-09-29 | **Audit C2: one maintenance state-file path and one timestamp rule.** The loop's writer (`app.py`) and health's reader (`diagnose_runtime`) each spelled out `maintenance_state.json`, and three readers handled a timestamp without an offset three ways: the loop kept it naive (then `_is_due` raised on an aware now inside every tick), `_last_run_failed` swallowed the TypeError as "no failure" (a failed backup read clean), and `_cloud_backup_status` read it as UTC. Now `maintenance_state_path()` and `parse_state_timestamp()` in `maintenance_loop` are the one definition (naive reads as UTC) for the writer and every reader. Ten tests; the two naive-stamp regressions fail against the old code, and a source guard asserts the file name appears exactly once |
 | 260 | 2026-09-29 | **Audit C1: the backfill verdict has one definition.** A background (operator or reconcile) backfill computed its own job-metric label and called a total failure (0 generated, N failed) `partial`, while the maintenance job raised and `BackfillResult.outcome` said `failed`. The metric label is now mapped from `BackfillResult.outcome` (skipped→overlap, ok→success, partial→partial, failed→failure), and the maintenance job raises on `outcome == "failed"` instead of repeating the rule. A parametrized test pins all four verdicts; the total-failure case failed with the old code. Metrics are off by default, so nothing live changed |
 | 259 | 2026-09-29 | **Phase-end audit: docs currency.** The front matter again states only what is true today. Removed the 2026-09-09 source checkpoint and the design 0010 narrative (both recorded in revs 194-200 and design 0010) and the known-open entries for work that shipped and deployed (the Ollama revision probe, the query-revision race, the NAS Host allowlist, design 0017). Known-open now lists OPS-08's close-out, the timestamp fix, the OPS-07 decision, metrics enabling, the v4.0.0 tag and the Gemini archive tag. ROADMAP owns the order of work; V3_PLAN keeps the entries it cites. Tests row: 1,259 passed, 2 skipped on `main` |
 | 258 | 2026-09-29 | **OPS-08 escrow decrypt passed.** The operator pulled a daemon-pushed artifact (`openchronicle-20260928T235822033276Z-4a03fe3274cd.db.age`) and decrypted it on the desktop with the primary identity from the password manager, which derived the expected public key. The plaintext's SHA-256 matched the job's logged value (`67cb8a88…fdb351502`), so the configured recipients are the escrowed ones. The temporary identity and plaintext were deleted. OPS-08 still needs three green nights and a deliberate-breakage check |
