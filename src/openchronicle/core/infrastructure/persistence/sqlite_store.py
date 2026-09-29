@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Concatenate, Literal
 
+from openchronicle.core.application.config.env_helpers import parse_bool_env
 from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
@@ -264,10 +265,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         self._metrics = metrics if metrics is not None and metrics.enabled else None
         self._transaction_depth = 0
         self._configure_connection()
-        # Empty means unset (compose ${VAR:-} injects "" for blank stack
-        # env) — without the `or "1"` an empty var silently disabled FTS5.
-        fts5_env = os.getenv("OC_SEARCH_FTS5_ENABLED", "").strip() or "1"
-        self._fts5_user_enabled = fts5_env.lower() in {"1", "true", "yes", "on"}
+        # Empty means unset (compose ${VAR:-} injects "" for blank stack env),
+        # and an unrecognized value keeps search on with a warning: both used
+        # to disable FTS5 silently.
+        self._fts5_user_enabled = parse_bool_env(
+            os.getenv("OC_SEARCH_FTS5_ENABLED"), default=True, name="OC_SEARCH_FTS5_ENABLED"
+        )
         self._fts5_active: bool = False
 
     @_locked

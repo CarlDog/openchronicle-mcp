@@ -83,6 +83,31 @@ def parse_int_env(raw: str | None, *, default: int, name: str) -> int:
         return default
 
 
+_TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
+_FALSE_WORDS = frozenset({"0", "false", "no", "off"})
+
+
+def parse_bool_env(raw: str | None, *, default: bool, name: str, level: int = logging.WARNING) -> bool:
+    """A yes/no env value: the one parser for every boolean switch.
+
+    Unset or blank (compose's ``${VAR:-}`` injects ``""``) is the default.
+    ``1``/``true``/``yes``/``on`` and ``0``/``false``/``no``/``off`` are
+    recognized, case-insensitively. Anything else is logged, naming the
+    variable, and falls back to the default rather than to a guess: a typo
+    must never silently flip a switch away from its safe setting, and must
+    never stop startup either.
+    """
+    if raw is None or not raw.strip():
+        return default
+    value = raw.strip().lower()
+    if value in _TRUE_WORDS:
+        return True
+    if value in _FALSE_WORDS:
+        return False
+    _logger.log(level, "Invalid %s=%r (expected true or false); using the default, %s", name, raw, default)
+    return default
+
+
 def env_override(env_name: str, file_value: object) -> object:
     """Return env var if set to a non-empty value, otherwise file_value.
 

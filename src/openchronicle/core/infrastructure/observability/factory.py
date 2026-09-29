@@ -6,6 +6,7 @@ import logging
 import os
 from typing import cast
 
+from openchronicle.core.application.config.env_helpers import parse_bool_env
 from openchronicle.core.application.observability.exporter import MetricsExporter
 from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
 from openchronicle.core.domain.exceptions import ConfigError
@@ -16,15 +17,7 @@ logger = logging.getLogger(__name__)
 
 def metrics_enabled_from_env() -> bool:
     """Parse OC_METRICS_ENABLED, defaulting safely to disabled."""
-    raw = os.getenv("OC_METRICS_ENABLED", "").strip().lower()
-    if not raw:
-        return False
-    if raw in {"1", "true", "yes", "on"}:
-        return True
-    if raw in {"0", "false", "no", "off"}:
-        return False
-    logger.warning("Invalid OC_METRICS_ENABLED=%r; using default false", raw)
-    return False
+    return parse_bool_env(os.getenv("OC_METRICS_ENABLED"), default=False, name="OC_METRICS_ENABLED")
 
 
 def create_metrics() -> tuple[MetricsRecorder, MetricsExporter | None]:
