@@ -262,10 +262,11 @@ query-revision and NAS Host-list source fixes merged.**
   OPS-06 is done: every MCP client on the second workstation (seven
   clients) sends the API key and passed `health`.
   OPS-08 (the nightly encrypted offsite push, design 0001 Phase 1) is
-  implemented and in review for v3.6.0: plan-reviewed (amendments A1-A9),
-  `cloud_backup` job, `cloud_backup_status` in health, rclone and age in
-  the image, a PR image-smoke job. Not released or deployed; the runbook
-  is [cloud_backup.md](docs/configuration/cloud_backup.md).
+  merged (PR #59, after plan and diff reviews) and the v3.6.0 release is
+  prepared: `cloud_backup` job, `cloud_backup_status` in health, rclone
+  and age in the image, a required PR image-smoke check. Not tagged or
+  deployed; the deploy follows amendment A7's order in the
+  [runbook](docs/configuration/cloud_backup.md).
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).

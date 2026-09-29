@@ -75,7 +75,8 @@ fails the next attempt is 24 hours later.
    ```
 
    Or paste it in the Portainer console with **User** set to `oc`. A restart
-   also runs the entrypoint's `chown` and `chmod 600` on it.
+   also runs the entrypoint's `chown` and `chmod 600` on it; if the `chmod`
+   fails, the container log says `entrypoint: WARNING: could not chmod 600`.
 3. **Deploy the release that carries the job, in one step:** the compose file
    (its three `OC_CLOUD_*` and `RCLONE_CONFIG` lines), then `OC_TAG` together with
    `OC_CLOUD_REMOTE=ocdrop:openchronicle/nas` and
