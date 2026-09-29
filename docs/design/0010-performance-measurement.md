@@ -74,7 +74,7 @@ precede a new acceptance decision. No load test or publication followed.
 
 **Source checkpoint, 2026-09-09 UTC:** commit/push of all current source and
 documentation is operator-authorized. See the
-[assessment checkpoint](../CODEBASE_ASSESSMENT.md#source-checkpoint--2026-09-09-utc).
+[assessment checkpoint (rev 194)](../CODEBASE_ASSESSMENT.md#revision-history).
 This source publication leaves the pinned live build, default-off metrics and
 the unresolved acceptance gates unchanged; earlier no-publication statements
 describe their original checkpoints.

@@ -14,7 +14,7 @@ The instrumentation release and enabled collection remain blocked.
 
 **Source checkpoint, 2026-09-09 UTC:** the operator authorized committing and
 pushing the integrated recorder/exporter, maintained tests and this evidence.
-The [assessment checkpoint](../CODEBASE_ASSESSMENT.md#source-checkpoint--2026-09-09-utc)
+The [assessment checkpoint (rev 194)](../CODEBASE_ASSESSMENT.md#revision-history)
 records scope and the unchanged pinned live build. Historical local-only
 statements below describe their original checkpoints. Source publication
 provides no new timing, 4C/affected 4D acceptance or release authorization.

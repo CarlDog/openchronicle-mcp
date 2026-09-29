@@ -1333,7 +1333,7 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   pushing all current code, tests and documentation. Earlier no-publication
   statements describe their historical checkpoints; source publication clears
   no performance gate and leaves the pinned live build unchanged. See
-  [assessment rev 194](CODEBASE_ASSESSMENT.md#source-checkpoint--2026-09-09-utc).
+  [assessment rev 194](CODEBASE_ASSESSMENT.md#revision-history).
   The delivered `scripts/`-level probe (sibling of
   `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
   mix (search-heavy, small saves, lists) against a throwaway store seeded from
