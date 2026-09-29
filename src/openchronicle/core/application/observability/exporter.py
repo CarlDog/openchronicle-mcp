@@ -16,6 +16,9 @@ class MetricsScrapeError(RuntimeError):
 class MetricsExporter(Protocol):
     """Expose metrics without making the domain depend on Prometheus."""
 
-    content_type: str
+    @property
+    def content_type(self) -> str:
+        """The scrape response's media type."""
+        ...
 
     async def render(self) -> bytes: ...
