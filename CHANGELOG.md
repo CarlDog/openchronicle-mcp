@@ -10,6 +10,10 @@ reconstructed from the status-doc revision addenda for rc1-rc5.
 The offsite release: a nightly, encrypted, append-only push of the newest
 backup snapshots to a cloud remote (design 0001 Phase 1, ROADMAP OPS-08).
 
+**Deployed 2026-09-29** in the A7 order: stack file version 144 on v3.5.0,
+then `OC_TAG` and the cloud settings. The boot-time run pushed three
+snapshots in about 15 seconds, and `cloud_backup_status` reads `ok`.
+
 **Deploy note** (design 0001 amendment A7; the runbook is
 [cloud_backup.md](docs/configuration/cloud_backup.md)). The job runs on its
 first maintenance tick after boot, and a failed first run waits 24 hours, so
