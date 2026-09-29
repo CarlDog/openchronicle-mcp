@@ -188,6 +188,12 @@ Job-level intervals and enabled flags live in `core.json`'s
 |---|---|---|
 | `OC_GIT_TOKEN` | GitHub PAT (fine-grained, `contents:read`) for the `onboard_git` MCP tool to clone private repos | — |
 
+## Build identity
+
+| Var | Purpose | Default |
+|---|---|---|
+| `OC_BUILD_REVISION_FILE` | Path of the file holding the git SHA the image was built from, which `health.build_revision` and `oc version` report. The image bakes it at build time; the override exists for tests and should not be set in a deployment, where it would let configuration claim a revision the image was never built from | `/app/build-revision` |
+
 ## See also
 
 - `docs/configuration/config_files.md` — `core.json` schema
