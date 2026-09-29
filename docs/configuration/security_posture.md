@@ -22,10 +22,10 @@ deployment context.
   (liveness + diagnostics probes), plus the OpenAPI surface (`/docs`,
   `/redoc`, `/openapi.json` — tool discovery shouldn't require
   credentials). Everything else, including the mounted `/mcp`
-  transport, requires the key when one is configured. Caveat worth
-  knowing: `/api/v1/health` includes absolute filesystem paths
-  (`db_path`, `config_dir`) — acceptable on the trusted LAN, worth
-  revisiting if the port is ever exposed.
+  transport, requires the key when one is configured. With a key set,
+  `/api/v1/health` omits the absolute filesystem paths (`db_path`,
+  `config_dir`) unless the caller presents the key (2026-09-29), so the
+  exempt probe no longer discloses the storage layout.
 
 **When to leave auth disabled (`OC_API_KEY` empty):**
 

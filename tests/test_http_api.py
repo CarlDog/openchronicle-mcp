@@ -178,6 +178,22 @@ class TestAuthMiddleware:
         resp = authed_client.get("/api/v1/health")
         assert resp.status_code == 200
 
+    def test_unauthenticated_health_omits_filesystem_paths(self, authed_client: TestClient) -> None:
+        """The exempt probe keeps working without the key, minus the layout."""
+        for headers in ({}, {"Authorization": "Bearer wrong-key"}):
+            body = authed_client.get("/api/v1/health", headers=headers).json()
+            assert "package_version" in body, "premise: the full diagnostic payload came back"
+            assert "db_path" not in body and "config_dir" not in body, headers
+
+    def test_authenticated_health_keeps_filesystem_paths(self, authed_client: TestClient) -> None:
+        for headers in ({"Authorization": "Bearer test-secret-key"}, {"X-API-Key": "test-secret-key"}):
+            body = authed_client.get("/api/v1/health", headers=headers).json()
+            assert "db_path" in body and "config_dir" in body, headers
+
+    def test_health_keeps_filesystem_paths_when_auth_is_off(self, client: TestClient) -> None:
+        body = client.get("/api/v1/health").json()
+        assert "db_path" in body and "config_dir" in body
+
     def test_docs_is_public_even_with_auth(self, authed_client: TestClient) -> None:
         resp = authed_client.get("/docs")
         assert resp.status_code == 200
