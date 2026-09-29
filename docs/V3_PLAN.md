@@ -879,7 +879,8 @@ in the assessment (revs 217-227). Open, in order:
 1. Merge: **done after the v3.4.0 tag** (operator decision, 2026-09-24),
    so v3.4.0 kept its reviewed scope. The nightly backup change
    (catalogued, verified, failures quarantined) ships in **v3.5.0**
-   (ROADMAP OPS-04, prepared 2026-09-28), with its own deploy check. The review
+   (ROADMAP OPS-04), **tagged and deployed 2026-09-28**; its deploy check, 0017
+   step 5, passed the same day (ROADMAP OPS-05). The review
    fixes and an independent review of the fix round are done (revs
    221-227).
 2. Off-NAS v3.3.0 copy before any stack change: **done 2026-09-24.** Taken

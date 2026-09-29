@@ -55,7 +55,7 @@ enforces parity.
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
   with it unset fails loudly instead of silently tracking `:latest`),
-  and stack 151 pins it (`v3.4.0` since 2026-09-28); a push to `main`
+  and stack 151 pins it (`v3.5.0` since 2026-09-28); a push to `main`
   refreshes only `:latest`, which that stack does not pull. **Code goes
   live when `OC_TAG` moves — a push alone deploys nothing.** So runtime
   changes (`src/`, `pyproject.toml`, `Dockerfile`) ship with the next
@@ -252,9 +252,10 @@ query-revision and NAS Host-list source fixes merged.**
   0020's volume layout, container `openchronicle-mcp`, no Watchtower
   label). v3.4.0 (`9b1e83e6`) is live since 2026-09-28, and OPS-01 is done,
   including a live rollback drill to v3.3.0 and back. OPS-02, the NAS
-  restart gate, passed in both start orders the same day. OPS-04 is in
-  progress: the v3.5.0 release (design 0017's backups) is prepared, and a
-  tag and deploy follow a merge-integration review.
+  restart gate, passed in both start orders the same day. OPS-04 and
+  OPS-05 are done: v3.5.0 (design 0017's backups, `d1c8be25`) is live, and
+  its step-5 check passed (snapshot over SMB, digest, disposable restore,
+  request tail). Nightly backups now land in `/exports/backups/auto`.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
