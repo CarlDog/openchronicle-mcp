@@ -39,7 +39,9 @@ def register(mcp: FastMCP) -> None:
         is unwritable, which is not a reason to restore. If the maintenance
         status error names integrity_check, foreign_key_check or
         quick_check, though, the live database failed its checks: run the
-        integrity check first.
+        integrity check first. `cloud_backup_status.status` is the offsite
+        push: `ok`, `stale` (no push within 48 h), `misconfigured` or
+        `disabled`.
         """
         container = _get_container(ctx)
         return await asyncio.to_thread(build_health_payload, container)

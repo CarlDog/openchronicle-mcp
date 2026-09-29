@@ -98,6 +98,12 @@ services:
       # Exposed snapshots only. The live SQLite file stays in oc-data.
       OC_BACKUP_DIR: /exports/backups
       OC_BACKUP_MCP_ENABLED: ${OC_BACKUP_MCP_ENABLED:-false}
+      # Offsite backups (design 0001). An empty OC_CLOUD_REMOTE turns the
+      # nightly push off. The recipients are age PUBLIC keys, safe here; the
+      # rclone token lives only in rclone.conf on the /config volume.
+      OC_CLOUD_REMOTE: ${OC_CLOUD_REMOTE:-}
+      OC_CLOUD_AGE_RECIPIENTS: ${OC_CLOUD_AGE_RECIPIENTS:-}
+      RCLONE_CONFIG: /config/rclone.conf
       OC_OUTPUT_DIR: /output
       # Bind the unified ASGI to all interfaces inside the container.
       OC_API_HOST: 0.0.0.0

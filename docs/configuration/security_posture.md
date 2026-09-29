@@ -236,6 +236,31 @@ PII half in CI where a local hook can be bypassed. Both verified green
 across every commit made on 2026-08-28. Nothing new is accumulating —
 that is the part that matters, and it is handled.
 
+## Cloud backup
+
+The nightly offsite push ([cloud_backup.md](cloud_backup.md), design 0001)
+encrypts snapshots with age to two escrowed public keys before they leave
+the NAS. The private identities never touch the NAS, Dropbox or
+OpenChronicle.
+
+- **Protects against:** a breach at the provider, a compromise of the cloud
+  account, or a stolen `rclone.conf`. None of them can read an artifact.
+- **Does not protect against:** NAS shell access (the live database is
+  plaintext there), or legal compulsion of the operator, who holds the keys.
+- **Confidentiality, not authenticity:** age recipient mode does not
+  authenticate the sender. Anyone with the public keys and write access to
+  the remote folder could plant a well-formed artifact. Check a restore
+  candidate's SHA-256 against an off-cloud record where one exists.
+- **The token is broader than the job:** the Dropbox App-folder token
+  confines access to one folder but can delete and overwrite inside it. The
+  job is append-only; the credential is not. A compromised NAS or desktop
+  (they share the token) could wipe the offsite copy, and Dropbox's 30-day
+  deleted-file retention is the backstop.
+- **`OC_CLOUD_REMOTE` is validated** to `name:path` form, so a credential-
+  bearing rclone connection string can never sit in a plain stack variable.
+  `rclone.conf` is mode 0600 in the `/config` named volume, owned by uid
+  1000, and the job refuses to run as root.
+
 ## Incident response
 
 - DB corruption: the maintenance loop's `db_integrity_check` job

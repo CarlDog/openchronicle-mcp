@@ -64,7 +64,7 @@ LLM need to write a memory" shape:
 
 | Tool | Purpose |
 |---|---|
-| `health` | Probe server state: DB reachability, config, embedding subsystem status, `maintenance_degraded`, `backup_last_run_failed`, `package_version`, `schema_version`, and `fts5_active`. Identical key set to `GET /api/v1/health`. |
+| `health` | Probe server state: DB reachability, config, embedding subsystem status, `maintenance_degraded`, `backup_last_run_failed`, `cloud_backup_status`, `package_version`, `schema_version`, and `fts5_active`. Identical key set to `GET /api/v1/health`. |
 
 ## Optional local backup and restore preparation
 
