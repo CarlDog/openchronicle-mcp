@@ -52,7 +52,13 @@ def render_nas_compose(tmp_path: Path, env_overrides: dict[str, str]) -> dict[st
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith(_STRIPPED_PREFIXES)}
     env.update({"DOCKER_CONFIG": str(docker_config), **env_overrides})
 
-    version = subprocess.run([docker, "compose", "version"], capture_output=True, text=True, env=env, timeout=10)
+    # A cold Docker CLI on a hosted Windows runner has taken more than 10 s to
+    # answer this probe (PR #35, PR #58), so allow a minute, and treat a timeout
+    # as "unavailable" (skip locally, fail on Linux CI) rather than a crash.
+    try:
+        version = subprocess.run([docker, "compose", "version"], capture_output=True, text=True, env=env, timeout=60)
+    except subprocess.TimeoutExpired:
+        _unavailable("`docker compose version` did not answer within 60 s")
     if version.returncode != 0:
         _unavailable(version.stderr.strip() or f"exit {version.returncode}")
 
@@ -61,7 +67,7 @@ def render_nas_compose(tmp_path: Path, env_overrides: dict[str, str]) -> dict[st
         capture_output=True,
         text=True,
         env=env,
-        timeout=30,
+        timeout=60,
     )
     assert result.returncode == 0, f"Docker Compose could not render the NAS file: {result.stderr}"
     rendered: dict[str, Any] = json.loads(result.stdout)

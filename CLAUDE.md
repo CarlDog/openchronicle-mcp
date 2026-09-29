@@ -256,6 +256,8 @@ query-revision and NAS Host-list source fixes merged.**
   OPS-05 are done: v3.5.0 (design 0017's backups, `d1c8be25`) is live, and
   its step-5 check passed (snapshot over SMB, digest, disposable restore,
   request tail). Nightly backups now land in `/exports/backups/auto`.
+  OPS-06 is done: every MCP client on the second workstation (seven
+  clients) sends the API key and passed `health`.
 
 - The unmerged branch `gemini-3.8-flash/audit-18092026` must not be
   merged as a unit ([0014](docs/design/0014-gemini-audit-branch-review.md)).
