@@ -1058,8 +1058,10 @@ def test_a_shm_without_its_wal_is_refused(tmp_path: Path) -> None:
     db, candidate, expected = _stopped_wal_fixture(tmp_path)
     _activate(db, candidate, "lone-shm", expected)
     Path(f"{db}-shm").write_bytes(b"not SQLite's")
-    with pytest.raises(offline_restore.RestoreError, match="written since the swap"):
+    with pytest.raises(offline_restore.RestoreError, match="-shm is not something SQLite leaves.*remove it"):
         offline_restore.probe(db, "lone-shm")
+    Path(f"{db}-shm").unlink()
+    assert offline_restore.probe(db, "lone-shm")["write_probe"] == "ok", "removing it is the way out"
 
 
 def test_a_refused_rollback_names_only_the_way_that_is_left(tmp_path: Path) -> None:
@@ -1071,3 +1073,58 @@ def test_a_refused_rollback_names_only_the_way_that_is_left(tmp_path: Path) -> N
         offline_restore.probe(db, "after-rollback")
     assert "activate a verified artifact again" in str(raised.value)
     assert "roll back" not in str(raised.value), "a rolled-back operation cannot roll back again"
+
+
+def test_a_symlinked_sidecar_is_named_with_the_way_out(tmp_path: Path) -> None:
+    """Rollback and activation both refuse a non-regular family member, so
+    "roll back, or activate again" did not work for one; removing it does."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "linked", expected)
+    target = tmp_path / "empty-target"
+    target.write_bytes(b"")
+    try:
+        Path(f"{db}-wal").symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"cannot create a symlink here: {exc}")
+    with pytest.raises(offline_restore.RestoreError, match="-wal is not something SQLite leaves.*remove it"):
+        offline_restore.probe(db, "linked")
+    Path(f"{db}-wal").unlink()
+    assert offline_restore.probe(db, "linked")["write_probe"] == "ok"
+
+
+@needs_permissions
+def test_an_unwritable_sidecar_is_named(tmp_path: Path) -> None:
+    """A read-only look at a read-only file leaves -wal/-shm with its mode, so
+    fixing the file alone still fails the service; the probe names them."""
+    import stat
+
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "ro-sidecar", expected)
+    Path(f"{db}-wal").write_bytes(b"")
+    Path(f"{db}-shm").write_bytes(b"")
+    Path(f"{db}-shm").chmod(stat.S_IREAD)
+    try:
+        with pytest.raises(offline_restore.RestoreError, match="openchronicle.db-shm is not writable"):
+            offline_restore.probe(db, "ro-sidecar")
+    finally:
+        Path(f"{db}-shm").chmod(stat.S_IREAD | stat.S_IWRITE)
+    assert offline_restore.probe(db, "ro-sidecar")["write_probe"] == "ok"
+
+
+def test_a_write_after_a_failed_probe_is_still_caught(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The second review's scenario: the probe failed on a held lock, then the
+    holder wrote. The identity check must not depend on the earlier result."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "held-then-written", expected)
+    recovery = tmp_path / ".recovery" / "held-then-written"
+    state = offline_restore._load_state(recovery)
+    monkeypatch.setattr(offline_restore, "_PROBE_TIMEOUT", 0.1)
+    with closing(sqlite3.connect(db, isolation_level=None)) as holder:
+        holder.execute("BEGIN IMMEDIATE")
+        with pytest.raises(offline_restore.RestoreError, match="Another process holds"):
+            offline_restore._require_writable(recovery, state, db, "held-then-written", "then start the service.")
+        holder.execute("INSERT INTO memory_items VALUES ('holder-wrote', 'project-1')")
+        holder.execute("COMMIT")
+    assert str(offline_restore._load_state(recovery)["write_probe"]).startswith("failed:"), "premise"
+    with pytest.raises(offline_restore.RestoreError, match="written since the swap"):
+        offline_restore.probe(db, "held-then-written")
