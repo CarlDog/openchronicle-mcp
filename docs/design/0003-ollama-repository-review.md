@@ -1,7 +1,8 @@
 # Ollama Repository Review — Applicable Lessons for OpenChronicle
 
-**Status:** Research complete; verified optional-adapter defects and
-proposed hardening recorded; no implementation batch approved or shipped
+**Status:** Research complete. All verified findings shipped (assessment
+revs 125-126, and 134-136 via ADR 0005); the benchmark- and trigger-gated
+items remain
 
 **Assessment date:** 2026-08-27
 
