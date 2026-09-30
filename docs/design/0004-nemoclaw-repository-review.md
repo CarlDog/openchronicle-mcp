@@ -515,7 +515,9 @@ Amend the existing live-restore design before implementing it:
 3. Validate SQLite integrity and expected schema before mutation.
 4. Require a successful pre-restore recoverable backup.
 5. Stage, replace, remove stale `-wal`/`-shm`, restart, and perform a real
-   `BEGIN IMMEDIATE`/rollback writeability probe.
+   `BEGIN IMMEDIATE`/rollback writeability probe. (Implemented 2026-09-30,
+   ROADMAP DATA-04: `BEGIN IMMEDIATE` alone succeeds on a read-only file,
+   so the probe also makes a change inside the transaction.)
 6. Record explicit outcomes such as candidate invalid, pre-backup failed,
    swapped/restart pending, and post-restore validation failed.
 

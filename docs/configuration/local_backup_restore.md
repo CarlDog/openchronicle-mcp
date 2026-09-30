@@ -602,7 +602,64 @@ test -z "$USERS"
 ```
 
 Keep the service stopped if either call fails or
-the `state.json` phase is not `activated`. The helper keeps the original raw
+the `state.json` phase is not `activated`, or `write_probe` is not `ok`.
+After the swap, the helper proves the installed file takes a write as uid
+1000 (a change it rolls back) and records `write_probe` in `state.json`.
+Integrity and identity checks only read, so they pass on a file the service
+cannot write. The entrypoint's `chown -R` at service start fixes ownership,
+but not a missing owner-write mode bit or a directory uid 1000 cannot write,
+and those fail on the service's first write. The helper refuses to run as
+root, which would pass the probe on exactly such a file. `write_probe` reads
+`pending` from just before the swap until the probe runs, so an interrupted
+run never inherits an earlier `ok`.
+
+If the probe fails, activation exits non-zero with phase `activated`, and
+the error says which case it is:
+
+- **Not writable:** restore the mode bits on the database and any `-wal` or
+  `-shm` beside it (a read-only look at a read-only file leaves sidecars with
+  the same mode). `chown` alone does not help, and the helper will not run as
+  root, so use a throwaway root container:
+
+  ```bash
+  docker run --rm --pull never --network none --user 0:0 \
+    --mount "type=volume,source=$VOL,target=/data" --entrypoint sh "$HELPER_IMAGE_ID" \
+    -c 'chmod u+w /data /data/openchronicle.db* && chown 1000:1000 /data /data/openchronicle.db*'
+  ```
+
+- **Another process holds the database:** find the container that still has
+  `/data` open and stop it.
+- **A sidecar SQLite never leaves** (a symlink, or a `-shm` without its
+  `-wal`): something else put it there. Remove it, then rerun `probe`.
+
+`probe` refuses, and records `write_probe` as `stale`, if anything wrote to
+the installed file since the swap (a changed file, or a non-empty `-wal`
+left by a writer). The file is then no longer this operation's: roll back,
+or activate a verified artifact again under a new operation ID. To look at
+the file first, use `ls -la` and `sha256sum`, not `sqlite3`: a `sqlite3`
+open changes nothing, but it is not how to check. A read-only open alone does
+not make `probe` refuse.
+
+Then rerun the check, which changes nothing but its recorded result, and
+start the service only once it prints `ok`:
+
+```bash
+set -euo pipefail
+VOL='<same VOL>'
+HELPER_IMAGE_ID='<same HELPER_IMAGE_ID>'
+OP='<same OP>'
+USERS=$(docker ps -q --filter "volume=$VOL")
+test -z "$USERS"
+offline() {
+  docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+    --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
+    --entrypoint python --env OC_OFFLINE_RESTORE=1 "$HELPER_IMAGE_ID" \
+    /app/scripts/offline_restore.py "$@"
+}
+offline probe --db /data/openchronicle.db --operation-id "$OP"
+```
+
+Or run the rollback below. The helper keeps the original raw
 DB/WAL/SHM in `/data/.recovery/$OP/raw-old`, and a consolidated
 `old-consistent.db` for rollback, with the old state's integrity, foreign-key
 and identity verdicts under `old_state` in `state.json`. A damaged live store
@@ -689,7 +746,10 @@ test -z "$USERS"
 The rollback dry-run checks the consolidated old snapshot against its
 recorded SHA-256 and prints the recorded `old_state` verdicts. The apply step
 archives the forward DB family before replacement and writes phase
-`rolled_back`. If it is interrupted, leave all services stopped. A retry is
+`rolled_back`, then runs the same write probe. A failed probe exits
+non-zero with the same two cases; fix it and run `offline probe` as above
+before starting anything.
+If it is interrupted, leave all services stopped. A retry is
 allowed only when the forward archive and checksums are complete; a partial
 archive fails closed and requires inspected manual recovery. Restore the
 recorded **old** stack image/configuration before restarting; `docker start

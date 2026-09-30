@@ -7,10 +7,17 @@ import subprocess
 import sys
 from contextlib import closing
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from scripts import offline_restore
+
+# The helper refuses root by design (its write probe would prove nothing for
+# the service's uid), so its operations cannot run in a root test process.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "linux" and __import__("os").geteuid() == 0, reason="the offline helper refuses root"
+)
 
 
 def _abrupt_wal_insert(db: Path, memory_id: str) -> None:
@@ -158,6 +165,10 @@ def test_interrupted_rollback_retries_from_verified_forward_archive(
     monkeypatch.setattr(offline_restore.os, "replace", real_replace)
     recovery = tmp_path / ".recovery" / "drill-004"
     assert offline_restore._load_state(recovery)["phase"] == "rolling_back"
+    # Activation's "ok" described the file this rollback was replacing.
+    assert str(offline_restore._load_state(recovery)["write_probe"]).startswith("pending")
+    with pytest.raises(offline_restore.RestoreError, match="Nothing installed to probe in phase 'rolling_back'"):
+        offline_restore.probe(db, "drill-004")
     assert (recovery / "forward-state" / "openchronicle.db").exists()
     displaced_wal = recovery / "forward-state" / "displaced-openchronicle.db-wal"
     original_wal = displaced_wal.read_bytes()
@@ -723,3 +734,397 @@ def test_stage_from_a_read_only_custody_copy_gives_a_writable_candidate(tmp_path
         assert os.access(db, os.W_OK)
     finally:
         exported.chmod(stat.S_IREAD | stat.S_IWRITE)
+
+
+def _read_only_after_swap(monkeypatch: pytest.MonkeyPatch, db: Path, prefix: str) -> None:
+    """Make the file swapped into place read-only, as a wrong owner would."""
+    import stat
+
+    real_replace = offline_restore.os.replace
+
+    def swap_then_lock(source: str | Path, target: str | Path) -> None:
+        real_replace(source, target)
+        if Path(source).name.startswith(prefix) and Path(target) == db:
+            db.chmod(stat.S_IREAD)
+
+    monkeypatch.setattr(offline_restore.os, "replace", swap_then_lock)
+
+
+needs_permissions = pytest.mark.skipif(
+    sys.platform != "win32" and __import__("os").geteuid() == 0, reason="root ignores file permissions"
+)
+
+
+def test_activation_proves_the_installed_database_takes_a_write(tmp_path: Path) -> None:
+    """The probe records success, leaves the database byte-identical to the
+    candidate, and leaves no sidecar behind."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    state = _activate(db, candidate, "probe-ok", expected)["state"]
+    assert isinstance(state, dict)
+    assert state["write_probe"] == "ok"
+    assert offline_restore._sha256(db) == expected["sha256"]
+    assert [path.name for path in offline_restore._family(db)] == ["openchronicle.db"]
+
+
+@needs_permissions
+def test_activation_stops_when_the_installed_database_is_not_writable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every read-only check passes on an unwritable file; only the probe
+    sees that the restarted service would fail on its first write. A failed
+    probe leaves no sidecar, so fixing the file alone is enough, and `probe`
+    confirms the fix before anything starts."""
+    import stat
+
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _read_only_after_swap(monkeypatch, db, ".incoming-")
+    try:
+        with pytest.raises(
+            offline_restore.RestoreError,
+            match="not writable by this user.*probe --operation-id probe-ro.*roll back probe-ro",
+        ):
+            _activate(db, candidate, "probe-ro", expected)
+        state = offline_restore._load_state(tmp_path / ".recovery" / "probe-ro")
+        assert state["phase"] == "activated", "the swap happened, so rollback stays available"
+        assert str(state["write_probe"]).startswith("failed:")
+        assert [path.name for path in offline_restore._family(db)] == ["openchronicle.db"]
+        with pytest.raises(offline_restore.RestoreError, match="not writable by this user"):
+            offline_restore.probe(db, "probe-ro")
+    finally:
+        db.chmod(stat.S_IREAD | stat.S_IWRITE)
+    assert offline_restore.probe(db, "probe-ro")["write_probe"] == "ok"
+    assert offline_restore._load_state(tmp_path / ".recovery" / "probe-ro")["write_probe"] == "ok"
+    assert offline_restore.rollback(db, "probe-ro", apply=True)["state"]["phase"] == "rolled_back"
+
+
+@needs_permissions
+def test_rollback_stops_when_the_restored_database_is_not_writable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import stat
+
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "rollback-ro", expected)
+    _read_only_after_swap(monkeypatch, db, ".rollback-")
+    try:
+        with pytest.raises(
+            offline_restore.RestoreError,
+            match="not writable by this user.*probe --operation-id rollback-ro.*then start the service",
+        ):
+            offline_restore.rollback(db, "rollback-ro", apply=True)
+        state = offline_restore._load_state(tmp_path / ".recovery" / "rollback-ro")
+        assert state["phase"] == "rolled_back"
+        assert str(state["write_probe"]).startswith("failed:")
+    finally:
+        db.chmod(stat.S_IREAD | stat.S_IWRITE)
+    assert offline_restore.probe(db, "rollback-ro")["write_probe"] == "ok"
+
+
+@needs_permissions
+def test_an_unwritable_file_is_refused_before_sqlite_opens_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """SQLite opens a read-only file read-only, and the -wal/-shm that open
+    creates copy its read-only mode, outlasting a fix to the file alone."""
+    import stat
+
+    db = tmp_path / "openchronicle.db"
+    with closing(sqlite3.connect(db)) as conn:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("CREATE TABLE t(x)")
+    db.chmod(stat.S_IREAD)
+    opened: list[object] = []
+    real_connect = sqlite3.connect
+
+    def spy(*args: Any, **kwargs: Any) -> Any:
+        opened.append(args)
+        return real_connect(*args, **kwargs)
+
+    monkeypatch.setattr(offline_restore.sqlite3, "connect", spy)
+    try:
+        assert offline_restore._probe_writable(db).startswith("failed: EACCES")
+    finally:
+        db.chmod(stat.S_IREAD | stat.S_IWRITE)
+    assert opened == []
+
+
+def test_a_held_lock_is_reported_as_a_lock_not_as_permissions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A live writer on the volume needs stopping; permission advice would
+    send the operator to the wrong fix."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "held", expected)
+    recovery = tmp_path / ".recovery" / "held"
+    state = offline_restore._load_state(recovery)
+    monkeypatch.setattr(offline_restore, "_PROBE_TIMEOUT", 0.1)
+    with closing(sqlite3.connect(db, isolation_level=None)) as holder:
+        holder.execute("BEGIN IMMEDIATE")
+        # The check activate and rollback run right after their swap.
+        with pytest.raises(offline_restore.RestoreError, match="Another process holds.*SQLITE_BUSY.*probe"):
+            offline_restore._require_writable(recovery, state, db, "held", "then start the service.")
+        # A holder that has not written leaves only an empty -wal, so a later
+        # `probe` gets as far as the lock and gives the same advice.
+        with pytest.raises(offline_restore.RestoreError, match="Another process holds.*SQLITE_BUSY"):
+            offline_restore.probe(db, "held")
+        holder.execute("ROLLBACK")
+    assert offline_restore.probe(db, "held")["write_probe"] == "ok", (
+        "a holder that only read and closed leaves it intact"
+    )
+
+
+def test_probe_requires_an_installed_phase(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+
+    real_replace = offline_restore.os.replace
+
+    def interrupt(source: str | Path, target: str | Path) -> None:
+        if Path(source).name.startswith(".incoming-"):
+            raise OSError("interrupted before the swap")
+        real_replace(source, target)
+
+    monkeypatch.setattr(offline_restore.os, "replace", interrupt)
+    with pytest.raises(OSError, match="interrupted"):
+        _activate(db, candidate, "not-swapped", expected)
+    with pytest.raises(offline_restore.RestoreError, match="Nothing installed to probe"):
+        offline_restore.probe(db, "not-swapped")
+
+
+def test_the_helper_refuses_root(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Root passes the write probe on a root-owned file uid 1000 cannot use."""
+    monkeypatch.setattr(offline_restore.sys, "platform", "linux")
+    monkeypatch.setattr(offline_restore.os, "geteuid", lambda: 0, raising=False)
+    with pytest.raises(offline_restore.RestoreError, match="not root"):
+        offline_restore._refuse_root()
+    monkeypatch.setattr(offline_restore.os, "geteuid", lambda: 1000, raising=False)
+    offline_restore._refuse_root()
+
+
+def test_main_probe_wiring(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setattr(offline_restore, "_require_helper", lambda: None)
+    assert offline_restore.main(["probe", "--db", "/data/openchronicle.db", "--operation-id", "op-1", "--apply"]) == 1
+    assert "no --apply" in capsys.readouterr().err
+    calls: list[tuple[Path, str]] = []
+
+    def fake_probe(db: Path, operation_id: str) -> dict[str, Any]:
+        calls.append((db, operation_id))
+        return {"write_probe": "ok"}
+
+    monkeypatch.setattr(offline_restore, "probe", fake_probe)
+    assert offline_restore.main(["probe", "--db", "/data/openchronicle.db", "--operation-id", "op-1"]) == 0
+    assert calls == [(Path("/data/openchronicle.db"), "op-1")]
+
+
+def test_an_interrupted_rollback_never_keeps_activations_probe_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Activation's "ok" described the file rollback replaces. Interrupted
+    after its swap but before its own probe, rollback used to leave it."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "interrupted", expected)
+    assert offline_restore._load_state(tmp_path / ".recovery" / "interrupted")["write_probe"] == "ok"
+
+    def interrupt(*_args: object) -> None:
+        raise OSError("interrupted after the swap")
+
+    monkeypatch.setattr(offline_restore, "_remove_incoming", interrupt)
+    with pytest.raises(OSError, match="after the swap"):
+        offline_restore.rollback(db, "interrupted", apply=True)
+    state = offline_restore._load_state(tmp_path / ".recovery" / "interrupted")
+    assert state["phase"] == "rolled_back"
+    assert str(state["write_probe"]).startswith("pending")
+    assert offline_restore.probe(db, "interrupted")["write_probe"] == "ok"
+
+
+def test_activation_marks_the_probe_pending_before_the_swap(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    real_replace = offline_restore.os.replace
+    at_swap: dict[str, object] = {}
+
+    def observe(source: str | Path, target: str | Path) -> None:
+        if Path(source).name.startswith(".incoming-"):
+            at_swap.update(offline_restore._load_state(tmp_path / ".recovery" / "pending"))
+        real_replace(source, target)
+
+    monkeypatch.setattr(offline_restore.os, "replace", observe)
+    _activate(db, candidate, "pending", expected)
+    assert str(at_swap["write_probe"]).startswith("pending")
+
+
+def test_activate_rollback_and_probe_refuse_root_themselves(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The runbook's drill imports the module and calls activate directly,
+    which bypasses the CLI's helper guard, so the refusal lives in each."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    monkeypatch.setattr(offline_restore.sys, "platform", "linux")
+    monkeypatch.setattr(offline_restore.os, "geteuid", lambda: 0, raising=False)
+    with pytest.raises(offline_restore.RestoreError, match="not root"):
+        _activate(db, candidate, "as-root", expected)
+    assert not (tmp_path / ".recovery").exists(), "refused before any change"
+    for call in (lambda: offline_restore.rollback(db, "as-root"), lambda: offline_restore.probe(db, "as-root")):
+        with pytest.raises(offline_restore.RestoreError, match="not root"):
+            call()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or __import__("os").geteuid() == 0, reason="needs POSIX directory permissions, as non-root"
+)
+def test_a_writable_file_in_an_unwritable_directory_fails_the_probe(tmp_path: Path) -> None:
+    """os.access passes and so does BEGIN IMMEDIATE; only a real change
+    fails, because a rollback-journal database cannot create its journal."""
+    folder = tmp_path / "data"
+    folder.mkdir()
+    db = folder / "openchronicle.db"
+    with closing(sqlite3.connect(db)) as conn:
+        conn.execute("PRAGMA journal_mode=DELETE")
+        conn.execute("CREATE TABLE t(x)")
+    folder.chmod(0o555)
+    try:
+        assert offline_restore._probe_writable(db).startswith("failed:")
+    finally:
+        folder.chmod(0o755)
+
+
+def test_probe_refuses_a_file_written_since_the_swap(tmp_path: Path) -> None:
+    """A service restarted on the installed file (a redeploy, say) changes
+    it. `probe` used to record "ok" for that different database, and its
+    open checkpointed the writer's WAL into the file."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "written", expected)
+    _abrupt_wal_insert(db, "written-after-swap")  # a writer that died, leaving its WAL
+    wal_before = Path(f"{db}-wal").read_bytes()
+    with pytest.raises(offline_restore.RestoreError, match="written since the swap.*roll back written, or activate"):
+        offline_restore.probe(db, "written")
+    assert Path(f"{db}-wal").read_bytes() == wal_before, "the refusal left the writer's WAL untouched"
+    # `status` is the runbook's gate: activation's "ok" must not survive to
+    # describe a file that has since changed.
+    assert str(offline_restore._load_state(tmp_path / ".recovery" / "written")["write_probe"]).startswith("stale")
+
+
+def test_probe_refuses_a_checkpointed_change_since_the_swap(tmp_path: Path) -> None:
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "checkpointed", expected)
+    with closing(sqlite3.connect(db)) as conn:
+        conn.execute("INSERT INTO memory_items VALUES ('later', 'project-1')")
+        conn.commit()
+    assert [path.name for path in offline_restore._family(db)] == ["openchronicle.db"], "premise: no sidecar left"
+    with pytest.raises(offline_restore.RestoreError, match="written since the swap"):
+        offline_restore.probe(db, "checkpointed")
+
+
+def test_probe_refuses_state_that_belongs_to_another_database(tmp_path: Path) -> None:
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "mine", expected)
+    other = tmp_path / "other" / "openchronicle.db"
+    other.parent.mkdir()
+    other.write_bytes(db.read_bytes())
+    (other.parent / ".recovery").mkdir()
+    (other.parent / ".recovery" / "mine").mkdir()
+    state = offline_restore._load_state(tmp_path / ".recovery" / "mine")
+    offline_restore._save_state(other.parent / ".recovery" / "mine", state)
+    with pytest.raises(offline_restore.RestoreError, match="different database"):
+        offline_restore.probe(other, "mine")
+
+
+@needs_permissions
+def test_advice_after_a_rollback_never_says_roll_back(tmp_path: Path) -> None:
+    import stat
+
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "advice", expected)
+    offline_restore.rollback(db, "advice", apply=True)
+    db.chmod(stat.S_IREAD)  # a mode change keeps the file's bytes, so it is still this operation's
+    try:
+        with pytest.raises(offline_restore.RestoreError) as raised:
+            offline_restore.probe(db, "advice")
+    finally:
+        db.chmod(stat.S_IREAD | stat.S_IWRITE)
+    assert "not writable" in str(raised.value), "premise: the probe ran and failed"
+    assert "roll back" not in str(raised.value) and "start the service" in str(raised.value)
+
+
+def test_a_read_only_look_at_the_installed_file_is_not_a_change(tmp_path: Path) -> None:
+    """A read-only open leaves an empty -wal and a -shm. Refusing on those
+    stranded a good restore after the inspection the error itself advised."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "looked-at", expected)
+    reader = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
+    reader.execute("SELECT COUNT(*) FROM memory_items").fetchone()
+    try:
+        assert Path(f"{db}-wal").exists() and Path(f"{db}-wal").stat().st_size == 0, "premise: empty -wal left"
+        assert offline_restore.probe(db, "looked-at")["write_probe"] == "ok"
+    finally:
+        reader.close()
+    assert offline_restore._sha256(db) == expected["sha256"]
+
+
+def test_a_shm_without_its_wal_is_refused(tmp_path: Path) -> None:
+    """SQLite never leaves a -shm without a -wal; something else made it."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "lone-shm", expected)
+    Path(f"{db}-shm").write_bytes(b"not SQLite's")
+    with pytest.raises(offline_restore.RestoreError, match="-shm is not something SQLite leaves.*remove it"):
+        offline_restore.probe(db, "lone-shm")
+    Path(f"{db}-shm").unlink()
+    assert offline_restore.probe(db, "lone-shm")["write_probe"] == "ok", "removing it is the way out"
+
+
+def test_a_refused_rollback_names_only_the_way_that_is_left(tmp_path: Path) -> None:
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "after-rollback", expected)
+    offline_restore.rollback(db, "after-rollback", apply=True)
+    _abrupt_wal_insert(db, "written-after-rollback")
+    with pytest.raises(offline_restore.RestoreError) as raised:
+        offline_restore.probe(db, "after-rollback")
+    assert "activate a verified artifact again" in str(raised.value)
+    assert "roll back" not in str(raised.value), "a rolled-back operation cannot roll back again"
+
+
+def test_a_symlinked_sidecar_is_named_with_the_way_out(tmp_path: Path) -> None:
+    """Rollback and activation both refuse a non-regular family member, so
+    "roll back, or activate again" did not work for one; removing it does."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "linked", expected)
+    target = tmp_path / "empty-target"
+    target.write_bytes(b"")
+    try:
+        Path(f"{db}-wal").symlink_to(target)
+    except OSError as exc:
+        pytest.skip(f"cannot create a symlink here: {exc}")
+    with pytest.raises(offline_restore.RestoreError, match="-wal is not something SQLite leaves.*remove it"):
+        offline_restore.probe(db, "linked")
+    Path(f"{db}-wal").unlink()
+    assert offline_restore.probe(db, "linked")["write_probe"] == "ok"
+
+
+@needs_permissions
+def test_an_unwritable_sidecar_is_named(tmp_path: Path) -> None:
+    """A read-only look at a read-only file leaves -wal/-shm with its mode, so
+    fixing the file alone still fails the service; the probe names them."""
+    import stat
+
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "ro-sidecar", expected)
+    Path(f"{db}-wal").write_bytes(b"")
+    Path(f"{db}-shm").write_bytes(b"")
+    Path(f"{db}-shm").chmod(stat.S_IREAD)
+    try:
+        with pytest.raises(offline_restore.RestoreError, match="openchronicle.db-shm is not writable"):
+            offline_restore.probe(db, "ro-sidecar")
+    finally:
+        Path(f"{db}-shm").chmod(stat.S_IREAD | stat.S_IWRITE)
+    assert offline_restore.probe(db, "ro-sidecar")["write_probe"] == "ok"
+
+
+def test_a_write_after_a_failed_probe_is_still_caught(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The second review's scenario: the probe failed on a held lock, then the
+    holder wrote. The identity check must not depend on the earlier result."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "held-then-written", expected)
+    recovery = tmp_path / ".recovery" / "held-then-written"
+    state = offline_restore._load_state(recovery)
+    monkeypatch.setattr(offline_restore, "_PROBE_TIMEOUT", 0.1)
+    with closing(sqlite3.connect(db, isolation_level=None)) as holder:
+        holder.execute("BEGIN IMMEDIATE")
+        with pytest.raises(offline_restore.RestoreError, match="Another process holds"):
+            offline_restore._require_writable(recovery, state, db, "held-then-written", "then start the service.")
+        holder.execute("INSERT INTO memory_items VALUES ('holder-wrote', 'project-1')")
+        holder.execute("COMMIT")
+    assert str(offline_restore._load_state(recovery)["write_probe"]).startswith("failed:"), "premise"
+    with pytest.raises(offline_restore.RestoreError, match="written since the swap"):
+        offline_restore.probe(db, "held-then-written")
