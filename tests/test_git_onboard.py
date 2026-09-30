@@ -422,6 +422,23 @@ def test_clone_stderr_is_scrubbed_of_token_material(monkeypatch: pytest.MonkeyPa
     assert "***" in message
 
 
+def test_a_failed_clone_names_the_url_without_its_credentials() -> None:
+    """Validation refuses userinfo on https, but an ssh URL keeps its user
+    (the transport's identity) and can carry a password too."""
+
+    def _fake_run(cmd: list[str], **_kw: object) -> SimpleNamespace:
+        return SimpleNamespace(returncode=128, stdout="", stderr="fatal: could not read from remote repository")
+
+    with (
+        patch("openchronicle.core.application.services.git_onboard.subprocess.run", side_effect=_fake_run),
+        pytest.raises(RuntimeError) as excinfo,
+    ):
+        extract_commits_from_url("ssh://git:S3CRET@github.com/foo/bar.git")
+    message = str(excinfo.value)
+    assert "git clone failed for ssh://github.com/foo/bar.git" in message
+    assert "S3CRET" not in message
+
+
 def test_clone_command_uses_no_checkout() -> None:
     """History-only walk: no working tree is materialized from the clone."""
     captured: dict[str, list[str]] = {}

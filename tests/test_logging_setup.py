@@ -144,13 +144,14 @@ def test_log_file_unusable_path_degrades_to_stderr_only(
         root.setLevel(old_level)
 
 
+@pytest.mark.parametrize("name", ["httpx", "httpx2"])  # httpx2: the transport openai 3.x uses
 @pytest.mark.parametrize(("level", "expected"), [("INFO", logging.WARNING), ("DEBUG", logging.NOTSET)])
 def test_request_urls_stay_out_of_the_log_unless_debugging(
-    monkeypatch: pytest.MonkeyPatch, level: str, expected: int
+    monkeypatch: pytest.MonkeyPatch, level: str, expected: int, name: str
 ) -> None:
     """httpx logs each request URL at INFO, userinfo included, so credentials
     in OLLAMA_HOST reached the log on every embed (pre-deploy review)."""
-    httpx_logger = logging.getLogger("httpx")
+    httpx_logger = logging.getLogger(name)
     monkeypatch.setattr(httpx_logger, "level", logging.NOTSET)
     monkeypatch.setenv("OC_LOG_LEVEL", level)
     monkeypatch.delenv("OC_LOG_FILE", raising=False)
@@ -278,7 +279,7 @@ def test_a_failed_boot_reaches_the_log_file_for_serve_and_stderr_otherwise(
         assert cli_main.main(["serve"]) == 1
         for handler in root.handlers:
             handler.flush()
-        assert "Cannot start:" in log_path.read_text(encoding="utf-8")
+        assert "Cannot start: file is not a database" in log_path.read_text(encoding="utf-8")
     finally:
         _restore_root_logger(old_handlers, old_level)
     assert capsys.readouterr().out == ""

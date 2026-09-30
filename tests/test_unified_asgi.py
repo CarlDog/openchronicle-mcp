@@ -246,7 +246,7 @@ def test_log_format_default_is_human(monkeypatch: pytest.MonkeyPatch) -> None:
     handler = logging.getLogger().handlers[0]
     formatter_cls = type(handler.formatter).__name__
     # Plain logging.Formatter, not _JsonFormatter
-    assert formatter_cls == "Formatter"
+    assert formatter_cls == "_RedactingFormatter"  # the human format, redacting (QUAL-12)
 
 
 def test_log_format_json_switches_formatter(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -271,7 +271,7 @@ def test_log_format_invalid_falls_back_to_human(monkeypatch: pytest.MonkeyPatch)
 
     configure_root_logger()
     handler = logging.getLogger().handlers[0]
-    assert type(handler.formatter).__name__ == "Formatter"
+    assert type(handler.formatter).__name__ == "_RedactingFormatter"
     monkeypatch.delenv("OC_LOG_FORMAT", raising=False)
     configure_root_logger()
 
