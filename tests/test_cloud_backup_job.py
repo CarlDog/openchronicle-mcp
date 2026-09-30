@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
 import logging
 import os
 import sys
 import time
+import warnings
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -480,6 +482,56 @@ def test_cancelled_child_is_killed() -> None:
     with pytest.raises(TimeoutError):
         asyncio.run(go())
     assert time.monotonic() - started < 10
+
+
+def test_cancelled_child_leaves_no_transport_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Killing without draining left the pipe transports open once the loop
+    closed. Windows reports it from __del__, so collect before asserting."""
+    leaks: list[str] = []
+    monkeypatch.setattr(sys, "unraisablehook", lambda u: leaks.append(str(u.exc_value)))
+
+    async def go() -> None:
+        async with asyncio.timeout(0.5):
+            await jobs._run_captured([sys.executable, "-c", "import time; time.sleep(30)"], dict(os.environ))
+
+    with warnings.catch_warnings():
+        # "error" turns __del__'s ResourceWarning into an unraisable exception,
+        # so it reaches the hook above instead of pytest's warning summary.
+        warnings.simplefilter("error", ResourceWarning)
+        with pytest.raises(TimeoutError):
+            asyncio.run(go())
+        gc.collect()
+    assert [leak for leak in leaks if "unclosed" in leak] == []
+
+
+def test_cancel_drain_is_bounded_when_a_grandchild_holds_the_pipe(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """kill() stops only the child; a grandchild keeps the pipe open, so an
+    unbounded drain would hang the cancelled handler."""
+    monkeypatch.setattr(jobs, "_CHILD_DRAIN_SECONDS", 1.0)
+    child = (
+        "import subprocess, sys, time\n"
+        "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(10)'],"
+        " stdout=sys.stdout, stderr=sys.stderr)\n"
+        "time.sleep(30)\n"
+    )
+
+    async def go() -> None:
+        async with asyncio.timeout(1.0):
+            await jobs._run_captured([sys.executable, "-c", child], dict(os.environ))
+
+    # Here the bounded drain gives up by design, so the pipe transports are
+    # left to the collector. Collect them inside this test, or their warning
+    # lands on whichever test runs next.
+    monkeypatch.setattr(sys, "unraisablehook", lambda u: None)
+    started = time.monotonic()
+    with caplog.at_level(logging.WARNING, logger=jobs._logger.name), pytest.raises(TimeoutError):
+        asyncio.run(go())
+    elapsed = time.monotonic() - started
+    gc.collect()
+    assert elapsed < 6
+    assert "left its pipes open after kill" in caplog.text
 
 
 def test_operator_log_lines(h: Harness, caplog: pytest.LogCaptureFixture) -> None:

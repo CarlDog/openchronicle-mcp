@@ -59,6 +59,10 @@ _CLOUD_SOURCE_MAX_AGE = timedelta(hours=26)
 _CLOUD_CLOCK_SKEW = timedelta(minutes=5)
 _CLOUD_WINDOW = 3  # the 3 newest, plus the newest from each of 3 recent UTC days (A2)
 _CLOUD_TMP_PREFIX = "cloud-push-"
+# After killing a cancelled child, its pipes are drained so their transports
+# close. A grandchild holding a pipe open would stall the drain, so it is
+# bounded; this adds at most this much to the timeout above.
+_CHILD_DRAIN_SECONDS = 5.0
 _STAMP_FORMAT = "%Y%m%dT%H%M%S%fZ"
 _recipients_logged: tuple[str, ...] | None = None
 
@@ -277,6 +281,9 @@ async def _run_captured(argv: list[str], env: dict[str, str]) -> tuple[int, byte
 
     A native subprocess rather than to_thread(subprocess.run): cancelling a
     thread does not stop it, and a hung upload would outlive the timeout.
+    On cancellation the killed child's pipes are read to EOF, or the pipe
+    transports are left open once the loop moves on (seen on Windows as
+    "unclosed transport" warnings from a later test).
     """
     proc = await asyncio.create_subprocess_exec(
         *argv,
@@ -291,6 +298,11 @@ async def _run_captured(argv: list[str], env: dict[str, str]) -> tuple[int, byte
     finally:
         if proc.returncode is None:
             proc.kill()
+            try:
+                async with asyncio.timeout(_CHILD_DRAIN_SECONDS):
+                    await proc.communicate()
+            except TimeoutError:
+                _logger.warning("cloud_backup: %s left its pipes open after kill", argv[0])
             await proc.wait()
 
 
