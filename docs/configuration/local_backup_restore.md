@@ -926,6 +926,32 @@ check passes. With one value changed to a naive one, it refuses and names that
 row. Writes that land between the snapshot and the tag move are not covered by
 this check. If one of them is naive, the boot refuses as described next.
 
+### After moving `OC_TAG`: verify the migration ran
+
+1. Health reports the release's `package_version`, a `build_revision` equal to
+   the tag's full SHA, and `schema_version` 5.
+2. The container log shows `Applying migration 005
+   (005_normalize_timestamps.sql)` followed by `Migrations applied: [5]`.
+3. No stored value is left outside UTC. This read-only block must print
+   `schema_version 5` and `non-UTC values 0`:
+
+```bash
+set -euo pipefail
+CID=$(docker ps -q --filter 'name=^openchronicle-mcp$')
+test -n "$CID"
+docker exec --user 1000:1000 "$CID" python -c '
+import sqlite3
+c = sqlite3.connect("file:/data/openchronicle.db?mode=ro", uri=True)
+print("schema_version", c.execute("SELECT MAX(version) FROM schema_version").fetchone()[0])
+print("non-UTC values", sum(c.execute(q, ("%+00:00",)).fetchone()[0] for q in (
+    "SELECT count(*) FROM projects WHERE created_at NOT LIKE ?",
+    "SELECT count(*) FROM memory_items WHERE created_at NOT LIKE ?",
+    "SELECT count(*) FROM memory_items WHERE updated_at NOT LIKE ?")))'
+```
+
+On the 2026-09-28 copy it printed 94 non-UTC values before the migration and 0
+after.
+
 ### If 005 refuses at boot
 
 Symptoms:

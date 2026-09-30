@@ -159,6 +159,8 @@ def apply_pending(
             ) from exc
         finally:
             if has_timestamp_udf:
+                # CPython keeps a stub that raises rather than removing the
+                # function; either way, no later statement can use it.
                 conn.create_function("oc_normalize_utc", 1, None)
         applied.append(version)
 
