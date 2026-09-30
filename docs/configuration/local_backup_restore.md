@@ -37,7 +37,9 @@ bind mount before changing it; a Git push or tag does not update the stack's
 mounts. Confirm free capacity for at least one current snapshot plus a
 restore-stage copy, filesystem permissions for uid 1000, and restricted SMB
 ACLs. A configured missing or unwritable `OC_BACKUP_DIR` logs an ERROR at
-startup and fails every catalog backup; it never writes into the named volume
+startup, to `OC_LOG_FILE` as well as the container log, naming the cause
+(missing, not a directory, a symlink, not writable, or a parent directory
+uid 1000 cannot traverse), and fails every catalog backup; it never writes into the named volume
 or the container layer instead. The service keeps running, so check the
 startup log and the `db_backup` job status after any mount change.
 

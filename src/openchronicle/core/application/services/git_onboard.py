@@ -23,6 +23,7 @@ from typing import Any
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.redaction import redact_url_userinfo
 from openchronicle.core.domain.time_utils import utc_now
 
 _logger = logging.getLogger(__name__)
@@ -298,15 +299,6 @@ def format_cluster_as_raw_memory(cluster: CommitCluster) -> str:
 _HTTPS_URL = re.compile(r"^https://[^\s]+$", re.IGNORECASE)
 _SSH_URL = re.compile(r"^ssh://[^\s]+$", re.IGNORECASE)
 _SCP_URL = re.compile(r"^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+:[^\s]+$")
-
-
-def _redact_url(repo_url: str) -> str:
-    """Strip ``user:secret@`` userinfo from a URL before it lands in an error.
-
-    A token embedded in an https URL (``https://x:token@github.com/...``)
-    would otherwise leak into the raised message and any log that captures it.
-    """
-    return re.sub(r"(https?://)[^/@\s]+@", r"\1", repo_url, flags=re.IGNORECASE)
 
 
 def _validate_repo_url(repo_url: str) -> None:
@@ -797,7 +789,7 @@ def extract_commits_from_url(
 
         if result.returncode != 0:
             stderr = _redact_clone_secrets(result.stderr.strip(), clone_env)
-            raise RuntimeError(f"git clone failed for {_redact_url(repo_url)}: {stderr}")
+            raise RuntimeError(f"git clone failed for {redact_url_userinfo(repo_url)}: {stderr}")
 
         resolved_branch, head = _resolve_ref(tmpdir)
         commits, unreachable = _extract_with_recovery(tmpdir, max_commits, since_commit)

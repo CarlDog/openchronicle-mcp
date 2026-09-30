@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
+import sys
 
 from openchronicle.core.infrastructure.maintenance.jobs import HANDLERS
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -16,7 +18,13 @@ def _build_container(args: argparse.Namespace) -> CoreContainer | None:
     try:
         return CoreContainer()
     except Exception as exc:  # noqa: BLE001
-        print(str(exc))
+        # `serve` configured logging first, so this reaches OC_LOG_FILE: a
+        # crash-looping container's only lasting record of why. Otherwise
+        # stderr, keeping stdout for command output.
+        if args.command == "serve":
+            logging.getLogger(__name__).error("Cannot start: %s", exc)
+        else:
+            print(str(exc), file=sys.stderr)
         return None
 
 
@@ -248,6 +256,15 @@ def main(argv: list[str] | None = None) -> int:
         except Exception as exc:  # noqa: BLE001
             print(str(exc))
             return 1
+
+    # `serve` owns OC_LOG_FILE, so configure logging before the container:
+    # building it logs boot problems (a bad OC_BACKUP_DIR, an unrecognized
+    # OC_SEARCH_FTS5_ENABLED), which otherwise reach only the bare stderr a
+    # Portainer recreate discards. One-shot commands keep their own output.
+    if args.command == "serve":
+        from openchronicle.interfaces.logging_setup import configure_root_logger
+
+        configure_root_logger()
 
     container = _build_container(args)
     if container is None:

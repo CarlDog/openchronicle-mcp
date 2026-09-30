@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import errno
 import logging
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -17,6 +19,7 @@ from openchronicle.core.domain.errors.error_codes import CONFIG_ERROR
 from openchronicle.core.domain.exceptions import ConfigError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
+from openchronicle.core.domain.redaction import redact_url_userinfo
 from openchronicle.core.infrastructure.config.config_loader import load_config_files
 from openchronicle.core.infrastructure.observability.factory import create_metrics
 from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
@@ -55,8 +58,21 @@ def _backup_dir_problem(path: Path) -> str | None:
     """Why an explicitly configured backup directory is unusable, or None."""
     if not path.is_absolute():
         return "must be an absolute path"
-    if path.is_symlink() or not path.is_dir():
+    # lstat, not is_dir(): is_dir() answers False on any OSError, so a parent
+    # this user cannot traverse read as "not a directory" and sent the
+    # operator after the wrong fix.
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return "must be an existing directory; it does not exist"
+    except OSError as exc:
+        if exc.errno in (errno.EACCES, errno.EPERM):
+            return f"cannot be checked ({exc.strerror or exc}); check the permissions on its parent directories"
+        return f"cannot be checked ({exc.strerror or exc})"
+    if stat.S_ISLNK(mode):
         return "must be an existing directory, not a symlink"
+    if not stat.S_ISDIR(mode):
+        return "must be an existing directory; it is not a directory"
     try:
         with tempfile.TemporaryFile(dir=path):
             pass
@@ -284,7 +300,7 @@ class CoreContainer:
                     "If that is not intended, point OC_EMBEDDING_PROVIDER=ollama at a LAN host to "
                     "keep embedding local. See docs/design/0006-embedding-provider-review.md.",
                     settings.provider,
-                    self._embedding_endpoint(),
+                    redact_url_userinfo(self._embedding_endpoint()),
                 )
             return port
         except Exception as exc:

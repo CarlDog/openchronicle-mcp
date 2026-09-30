@@ -32,6 +32,7 @@ from openchronicle.core.domain.exceptions import ProviderError as LLMProviderErr
 from openchronicle.core.domain.exceptions import RevisionUnknownError
 from openchronicle.core.domain.models.revision_snapshot import UNKNOWN_REVISION, RevisionSnapshot
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.domain.redaction import redact_url_userinfo
 from openchronicle.core.domain.time_utils import utc_now
 from openchronicle.core.infrastructure.embedding.response_validation import validate_embeddings
 from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
@@ -93,7 +94,10 @@ class OllamaEmbeddingAdapter(EmbeddingPort):
         # endpoint actually usable.
         self._verify_tls = os.getenv("OLLAMA_VERIFY_TLS", "").strip().lower() not in ("0", "false", "no", "off")
         if not self._verify_tls:
-            logger.warning("OLLAMA_VERIFY_TLS disabled — TLS certificates for %s will not be verified", self._host)
+            logger.warning(
+                "OLLAMA_VERIFY_TLS disabled — TLS certificates for %s will not be verified",
+                redact_url_userinfo(self._host),
+            )
         self._timeout = timeout_seconds
         # The model revision (ADR 0005 §7). It starts unknown, and only a
         # probe that finds the model in /api/tags sets it. Replaced whole,
