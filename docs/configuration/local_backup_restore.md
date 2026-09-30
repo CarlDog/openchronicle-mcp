@@ -607,24 +607,47 @@ Keep the service stopped if either call fails or
 the `state.json` phase is not `activated`, or `write_probe` is not `ok`.
 After the swap, the helper proves the installed file takes a write as uid
 1000 (a change it rolls back) and records `write_probe` in `state.json`.
-Integrity and identity checks only read, so a file left owned by root, or
-read-only, passes them and would fail on the service's first write. The
-helper refuses to run as root, which would pass that probe on exactly such a
-file. `write_probe` reads `pending` from just before the swap until the
-probe runs, so an interrupted run never inherits an earlier `ok`.
+Integrity and identity checks only read, so they pass on a file the service
+cannot write. The entrypoint's `chown -R` at service start fixes ownership,
+but not a missing owner-write mode bit or a directory uid 1000 cannot write,
+and those fail on the service's first write. The helper refuses to run as
+root, which would pass the probe on exactly such a file. `write_probe` reads
+`pending` from just before the swap until the probe runs, so an interrupted
+run never inherits an earlier `ok`.
 
 If the probe fails, activation exits non-zero with phase `activated`, and
 the error says which case it is:
 
-- **Not writable:** make `openchronicle.db`, any `-wal` or `-shm`, and
-  `/data` writable for uid 1000.
-- **Another process holds the database:** find what still has `/data` open
-  and stop it.
+- **Not writable:** restore the mode bits. `chown` alone does not help, and
+  the helper will not run as root, so use a throwaway root container:
+
+  ```bash
+  docker run --rm --pull never --network none --user 0:0 \
+    --mount "type=volume,source=$VOL,target=/data" --entrypoint sh "$HELPER_IMAGE_ID" \
+    -c 'chmod u+w /data /data/openchronicle.db && chown 1000:1000 /data /data/openchronicle.db'
+  ```
+
+- **Another process holds the database:** find the container that still has
+  `/data` open and stop it. If it wrote, the file is no longer this
+  operation's, and `probe` refuses; inspect it before going further.
 
 Then rerun the check, which changes nothing but its recorded result, and
-start the service only once it prints `ok`:
+start the service only once it prints `ok`. It refuses if the installed file
+was opened or written since the swap:
 
 ```bash
+set -euo pipefail
+VOL='<same VOL>'
+HELPER_IMAGE_ID='<same HELPER_IMAGE_ID>'
+OP='<same OP>'
+USERS=$(docker ps -q --filter "volume=$VOL")
+test -z "$USERS"
+offline() {
+  docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+    --user 1000:1000 --mount "type=volume,source=$VOL,target=/data" \
+    --entrypoint python --env OC_OFFLINE_RESTORE=1 "$HELPER_IMAGE_ID" \
+    /app/scripts/offline_restore.py "$@"
+}
 offline probe --db /data/openchronicle.db --operation-id "$OP"
 ```
 

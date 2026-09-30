@@ -271,6 +271,17 @@ def probe(db: Path, operation_id: str) -> dict[str, Any]:
     phase = state.get("phase")
     if phase not in ("activated", "rolled_back"):
         raise RestoreError(f"Nothing installed to probe in phase {phase!r}")
+    # The recorded result must describe the file this operation installed.
+    # If anything opened or wrote it since the swap (a service restarted on
+    # it, say), probing would record "ok" for a different database, and
+    # opening it would checkpoint that writer's WAL into it.
+    installed = state.get("candidate_info") if phase == "activated" else state.get("old_state")
+    expected_sha = str((installed or {}).get("sha256", ""))
+    if _family(db) != [db] or not expected_sha or _sha256(db) != expected_sha:
+        raise RestoreError(
+            "The installed database was opened or written since the swap, so its probe would describe a "
+            "different file. Keep the service stopped and inspect it before relying on this operation."
+        )
     then = "start the service" if phase == "rolled_back" else f"start the service, or roll back {operation_id}"
     _require_writable(recovery, state, db, operation_id, then)
     return {"action": "probe", "phase": phase, "write_probe": state["write_probe"]}
