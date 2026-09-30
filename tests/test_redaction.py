@@ -34,7 +34,7 @@ def test_the_tls_warning_names_the_host_without_its_credentials(
     with caplog.at_level(logging.WARNING):
         OllamaEmbeddingAdapter(host="https://oluser:S3CRET@ollama.invalid:11434")
     assert "OLLAMA_VERIFY_TLS disabled" in caplog.text, "premise: the warning was logged"
-    assert "ollama.invalid" in caplog.text
+    assert "TLS certificates for https://ollama.invalid:11434 will not be verified" in caplog.text
     assert "S3CRET" not in caplog.text and "oluser" not in caplog.text
 
 
@@ -51,7 +51,7 @@ def test_the_remote_endpoint_warning_names_the_host_without_its_credentials(
         container = CoreContainer(db_path=str(tmp_path / "oc.db"), config_dir=str(config_dir))
     container.storage.close()
     assert "REMOTE endpoint" in caplog.text, "premise: the egress warning was logged"
-    assert "ollama.example.com" in caplog.text
+    assert "REMOTE endpoint (ollama.example.com:11434)" in caplog.text
     assert "S3CRET" not in caplog.text and "oluser" not in caplog.text
 
 
