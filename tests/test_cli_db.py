@@ -28,8 +28,8 @@ def container(tmp_path: Path) -> Iterator[CoreContainer]:
 
 
 def test_the_cli_closes_its_container_on_the_way_out(container: CoreContainer) -> None:
-    """Left to process exit, the store never closed, so SQLite's WAL was never
-    checkpointed on a clean `oc` exit or `oc serve` shutdown (audit C7)."""
+    """Left to process exit, the store closed only at interpreter teardown,
+    with a ResourceWarning (audit C7)."""
     with patch("builtins.print"), patch("openchronicle.interfaces.cli.main._build_container", return_value=container):
         assert main(["db", "info"]) == 0
     with pytest.raises(sqlite3.ProgrammingError, match="closed database"):

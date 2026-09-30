@@ -194,6 +194,45 @@ class TestAuthMiddleware:
         body = client.get("/api/v1/health").json()
         assert "db_path" in body and "config_dir" in body
 
+    @pytest.mark.parametrize("headers", [{b"x-api-key": b"k\xc3\xa9"}, {b"authorization": b"Bearer k\xc3\xa9"}])
+    def test_a_non_ascii_key_is_a_wrong_key_not_a_500(
+        self, authed_client: TestClient, headers: dict[bytes, bytes]
+    ) -> None:
+        """str compare_digest raised TypeError on non-ASCII, a 500 on every
+        route, the exempt health probe included."""
+        health = authed_client.get("/api/v1/health", headers=headers)
+        assert health.status_code == 200
+        assert "db_path" not in health.json()
+        assert authed_client.get("/api/v1/project", headers=headers).status_code == 403
+
+    def test_a_non_ascii_configured_key_authenticates_by_its_utf8_bytes(self) -> None:
+        from openchronicle.interfaces.api.app import create_app
+
+        app = create_app(_make_mock_container(), HTTPConfig(api_key="clé-secrète"))
+        with TestClient(app) as c:
+            right = {b"x-api-key": "clé-secrète".encode()}
+            assert c.get("/api/v1/project", headers=right).status_code == 200
+            assert "db_path" in c.get("/api/v1/health", headers=right).json()
+
+    @pytest.mark.parametrize(
+        ("raw", "matches"),
+        [
+            ("clé".encode(), True),  # the key's UTF-8 bytes, as a client sends them
+            ("clé".encode("latin-1"), False),  # the same text in another encoding
+            (b"cl\xff\xfe", False),  # bytes that are not UTF-8 at all
+            (b"cle", False),
+        ],
+    )
+    def test_request_has_key_compares_the_bytes_the_client_sent(self, raw: bytes, matches: bool) -> None:
+        """Built from an ASGI scope, because the test client re-encodes
+        non-UTF-8 header bytes before sending them."""
+        from starlette.requests import Request
+
+        from openchronicle.interfaces.api.middleware.auth import request_has_key
+
+        request = Request({"type": "http", "headers": [(b"x-api-key", raw)]})
+        assert request_has_key(request, "clé") is matches
+
     def test_docs_is_public_even_with_auth(self, authed_client: TestClient) -> None:
         resp = authed_client.get("/docs")
         assert resp.status_code == 200

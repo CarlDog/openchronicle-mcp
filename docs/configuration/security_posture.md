@@ -24,8 +24,10 @@ deployment context.
   credentials). Everything else, including the mounted `/mcp`
   transport, requires the key when one is configured. With a key set,
   `/api/v1/health` omits the absolute filesystem paths (`db_path`,
-  `config_dir`) unless the caller presents the key (2026-09-29), so the
-  exempt probe no longer discloses the storage layout.
+  `config_dir`) unless the caller presents the key (2026-09-29). It still
+  says, through `persistence_hint`, whether the database sits in the
+  container's `/data` volume, which the published compose file shows
+  anyway.
 
 **When to leave auth disabled (`OC_API_KEY` empty):**
 
