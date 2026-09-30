@@ -206,16 +206,21 @@ def _probe_writable(db: Path) -> str:
 
     Integrity and identity checks only read, so a swap that leaves the file,
     or its directory, unwritable for the service passes them all and fails on
-    the first write after restart (design 0004 F8 step 5). The helper runs as
-    the service uid, so this is the service's own view.
+    the first write after restart (design 0004 F8 step 5). Every caller
+    refuses root (`_refuse_root`), so this is the view of the uid the helper
+    runs as, which the runbook sets to the service's (1000).
 
     `BEGIN IMMEDIATE` alone is not a probe: on a read-only file SQLite opens
     read-only and grants it (measured). A real change is refused, so this
-    makes one and rolls it back; the file keeps its bytes and the sidecars go
-    on close.
+    makes one and rolls it back; the file keeps its bytes. An unwritable file
+    is refused before SQLite opens it: that read-only open creates
+    `-wal`/`-shm` files that copy the file's read-only mode, so they would
+    outlast a fix to the file alone (found in review).
     """
+    if not os.access(db, os.W_OK):
+        return "failed: EACCES: the file is not writable by this user"
     try:
-        with closing(sqlite3.connect(db, timeout=5, isolation_level=None)) as conn:
+        with closing(sqlite3.connect(db, timeout=_PROBE_TIMEOUT, isolation_level=None)) as conn:
             conn.execute("BEGIN IMMEDIATE")
             conn.execute("CREATE TABLE _offline_restore_write_probe(x)")
             conn.execute("ROLLBACK")
@@ -224,15 +229,51 @@ def _probe_writable(db: Path) -> str:
     return "ok"
 
 
-def _require_writable(recovery: Path, state: dict[str, Any], db: Path, next_step: str) -> None:
-    """Record the write probe in state, and stop with `next_step` if it failed."""
+_HELD = ("SQLITE_BUSY", "SQLITE_LOCKED")
+# Recorded before each swap. Only a probe of the file then installed replaces
+# it, so an interrupted operation never inherits an earlier "ok".
+_PROBE_PENDING = "pending: the installed file has not been probed; run `probe` after checking why the helper stopped"
+# How long the probe waits on a lock someone else holds before reporting it.
+_PROBE_TIMEOUT = 5.0
+
+
+def _require_writable(recovery: Path, state: dict[str, Any], db: Path, operation_id: str, then: str) -> None:
+    """Record the write probe in state, and stop with the next step if it failed.
+
+    `then` is what the operator does once the probe passes. A lock and a
+    permissions problem need different fixes, so they get different advice.
+    """
     state["write_probe"] = _probe_writable(db)
     _save_state(recovery, state)
-    if state["write_probe"] != "ok":
+    probe = str(state["write_probe"])
+    if probe == "ok":
+        return
+    recheck = f"run `probe --operation-id {operation_id}`"
+    if any(code in probe for code in _HELD):
         raise RestoreError(
-            f"The installed database is not writable by this user ({state['write_probe']}). "
-            f"Keep the service stopped; {next_step}"
+            f"Another process holds the installed database ({probe}). Keep the service stopped; find what still "
+            f"has /data open and stop it, then {recheck}; {then}"
         )
+    raise RestoreError(
+        f"The installed database is not writable by this user ({probe}). Keep the service stopped; make "
+        f"{db.name}, any {db.name}-wal or -shm, and {db.parent} writable for uid 1000, then {recheck}; {then}"
+    )
+
+
+def probe(db: Path, operation_id: str) -> dict[str, Any]:
+    """Re-run the write probe after an operator fix or an interruption."""
+    _refuse_root()
+    _regular(db)
+    recovery = _recovery_dir(db, operation_id)
+    state = _load_state(recovery)
+    if state.get("db") != str(db) or state.get("operation_id") != operation_id:
+        raise RestoreError("Recovery state belongs to a different database or operation")
+    phase = state.get("phase")
+    if phase not in ("activated", "rolled_back"):
+        raise RestoreError(f"Nothing installed to probe in phase {phase!r}")
+    then = "start the service" if phase == "rolled_back" else f"start the service, or roll back {operation_id}"
+    _require_writable(recovery, state, db, operation_id, then)
+    return {"action": "probe", "phase": phase, "write_probe": state["write_probe"]}
 
 
 def _describe(path: Path) -> dict[str, Any]:
@@ -385,6 +426,7 @@ def activate(
     apply: bool = False,
 ) -> dict[str, Any]:
     """Archive old state, then replace a stopped database with a staged copy."""
+    _refuse_root()
     expected = {
         "sha256": expected_sha256,
         "schema_version": expected_schema,
@@ -445,6 +487,7 @@ def activate(
         if _sha256(incoming) != candidate_info["sha256"]:
             raise RestoreError("Incoming copy differs from the staged candidate")
         state["phase"] = "prepared"
+        state["write_probe"] = _PROBE_PENDING
         _save_state(recovery, state)
 
         for sidecar in (Path(f"{db}-wal"), Path(f"{db}-shm")):
@@ -456,12 +499,7 @@ def activate(
         _fsync_dir(db.parent)
         state["phase"] = "activated"
         _save_state(recovery, state)
-        _require_writable(
-            recovery,
-            state,
-            db,
-            f"make the file and its directory writable for uid 1000, or roll back {operation_id}.",
-        )
+        _require_writable(recovery, state, db, operation_id, f"then start the service, or roll back {operation_id}.")
     except BaseException:
         # Never restart the service after an incomplete phase. The raw family
         # and consolidated old snapshot remain in recovery for rollback.
@@ -471,6 +509,7 @@ def activate(
 
 def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, Any]:
     """Restore the verified old-state snapshot after a failed cutover."""
+    _refuse_root()
     _regular(db)
     recovery = _recovery_dir(db, operation_id)
     state = _load_state(recovery)
@@ -528,6 +567,9 @@ def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, A
             forward_files[source.name] = digest
         state["forward_files"] = forward_files
         state["phase"] = "rolling_back"
+        # Activation's result described the file this rollback replaces; an
+        # interruption from here on must not leave it reading "ok".
+        state["write_probe"] = _PROBE_PENDING
         _save_state(recovery, state)
     else:
         if not forward.is_dir() or forward.is_symlink():
@@ -576,7 +618,7 @@ def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, A
     state["phase"] = "rolled_back"
     _save_state(recovery, state)
     cleanup = _remove_incoming(db, operation_id, candidate_sha)
-    _require_writable(recovery, state, db, "make the file and its directory writable for uid 1000 before starting it.")
+    _require_writable(recovery, state, db, operation_id, "then start the service.")
     return {"action": "rollback", "applied": True, "recovery_dir": str(recovery), "state": state, "cleanup": cleanup}
 
 
@@ -627,11 +669,19 @@ def _require_helper() -> None:
         raise RestoreError("Set OC_OFFLINE_RESTORE=1 only in the stopped-volume helper container")
     if sys.platform == "linux" and b"offline_restore.py" not in Path("/proc/1/cmdline").read_bytes():
         raise RestoreError("Run as PID 1 of a disposable helper, not docker exec in the live service")
+    _refuse_root()
+
+
+def _refuse_root() -> None:
+    # The write probe proves the installed file works for the user running
+    # the helper. Root passes it on a root-owned file the service cannot use.
+    if sys.platform == "linux" and os.geteuid() == 0:
+        raise RestoreError("Run the helper as the service user (--user 1000:1000), not root")
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("stage", "activate", "rollback", "retire-stage", "status"))
+    parser.add_argument("action", choices=("stage", "activate", "rollback", "probe", "retire-stage", "status"))
     parser.add_argument("--db", type=Path, required=True)
     parser.add_argument("--operation-id")
     parser.add_argument("--source", type=Path, help="stage: absolute path of a verified snapshot")
@@ -667,6 +717,10 @@ def main(argv: list[str] | None = None) -> int:
             )
         elif args.action == "rollback":
             result = rollback(args.db, args.operation_id, apply=args.apply)
+        elif args.action == "probe":
+            if args.apply:
+                raise RestoreError("Probe takes no --apply: it changes nothing but its recorded result")
+            result = probe(args.db, args.operation_id)
         elif args.action == "retire-stage":
             result = retire_stage(args.db, args.operation_id, apply=args.apply)
         else:

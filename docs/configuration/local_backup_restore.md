@@ -602,14 +602,31 @@ test -z "$USERS"
 ```
 
 Keep the service stopped if either call fails or
-the `state.json` phase is not `activated`. After the swap, the helper proves
-the installed file takes a write as uid 1000 (a change it rolls back) and
-records `write_probe` in `state.json`. Integrity and identity checks only
-read, so a file left owned by root, or read-only, passes them and would
-fail on the service's first write. If the probe fails, activation exits
-non-zero with phase `activated` and `write_probe` starting `failed:`: keep
-the service stopped, and either make the file and `/data` writable for uid
-1000 or run the rollback below. The helper keeps the original raw
+the `state.json` phase is not `activated`, or `write_probe` is not `ok`.
+After the swap, the helper proves the installed file takes a write as uid
+1000 (a change it rolls back) and records `write_probe` in `state.json`.
+Integrity and identity checks only read, so a file left owned by root, or
+read-only, passes them and would fail on the service's first write. The
+helper refuses to run as root, which would pass that probe on exactly such a
+file. `write_probe` reads `pending` from just before the swap until the
+probe runs, so an interrupted run never inherits an earlier `ok`.
+
+If the probe fails, activation exits non-zero with phase `activated`, and
+the error says which case it is:
+
+- **Not writable:** make `openchronicle.db`, any `-wal` or `-shm`, and
+  `/data` writable for uid 1000.
+- **Another process holds the database:** find what still has `/data` open
+  and stop it.
+
+Then rerun the check, which changes nothing but its recorded result, and
+start the service only once it prints `ok`:
+
+```bash
+offline probe --db /data/openchronicle.db --operation-id "$OP"
+```
+
+Or run the rollback below. The helper keeps the original raw
 DB/WAL/SHM in `/data/.recovery/$OP/raw-old`, and a consolidated
 `old-consistent.db` for rollback, with the old state's integrity, foreign-key
 and identity verdicts under `old_state` in `state.json`. A damaged live store
@@ -697,7 +714,8 @@ The rollback dry-run checks the consolidated old snapshot against its
 recorded SHA-256 and prints the recorded `old_state` verdicts. The apply step
 archives the forward DB family before replacement and writes phase
 `rolled_back`, then runs the same write probe. A failed probe exits
-non-zero; make the file writable for uid 1000 before starting anything.
+non-zero with the same two cases; fix it and run `offline probe` as above
+before starting anything.
 If it is interrupted, leave all services stopped. A retry is
 allowed only when the forward archive and checksums are complete; a partial
 archive fails closed and requires inspected manual recovery. Restore the
