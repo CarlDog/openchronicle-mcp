@@ -1127,8 +1127,12 @@ design doc):
     `created_at` values; its chronological listing had 24 adjacent
     instant-order inversions. No naive or malformed timestamp surfaced via
     the API, and all 39 project creation times were UTC-aware. This is not
-    raw SQLite inspection or an immutable backup. Recheck the raw backup;
-    an unseen naive row must not be silently interpreted. The input
+    raw SQLite inspection or an immutable backup. The raw recheck (TS-01,
+    2026-09-29, immutable read of the verified step-5 copy, 1,100 memories)
+    found no naive and no malformed value in any timestamp column: 94
+    offset-bearing `created_at` values (-05:00 and -06:00), 24 adjacent
+    inversions, all offset-then-UTC, and 10 UTC values without
+    microseconds. A naive row seen later must still fail closed. The input
     compatibility/version decision and backup/restore rehearsal remain gates.
     Those gates are the 0017 sequence in the backup entry above.
 13. [ROADMAP OPS-03] ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
