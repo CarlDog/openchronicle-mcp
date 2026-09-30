@@ -5,9 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sys
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -1036,6 +1039,38 @@ def test_the_state_file_name_is_defined_once_in_source() -> None:
     assert [f.name for f in hits] == ["maintenance_loop.py"]
 
 
+def test_the_served_loop_writes_the_state_file_health_reads(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The loop create_app builds and the health readers find their paths
+    separately (container.paths vs RuntimePaths.resolve()). A state_path of
+    None, or one beside another file, used to pass every test, and then a
+    failing nightly backup would read clean."""
+    from openchronicle.core.application.use_cases.diagnose_runtime import _backup_failure_persisted
+    from openchronicle.core.infrastructure.wiring.container import CoreContainer
+    from openchronicle.interfaces.api.app import create_app
+    from openchronicle.interfaces.api.config import HTTPConfig
+
+    monkeypatch.delenv("OC_MAINTENANCE_DISABLED", raising=False)
+    built: list[maintenance_loop.MaintenanceLoop] = []
+    real = maintenance_loop.MaintenanceLoop
+
+    def capture(*args: Any, **kwargs: Any) -> maintenance_loop.MaintenanceLoop:
+        built.append(real(*args, **kwargs))
+        return built[-1]
+
+    monkeypatch.setattr(maintenance_loop, "MaintenanceLoop", capture)
+    with CoreContainer() as container:
+        create_app(container, HTTPConfig())
+        assert len(built) == 1, "premise: create_app built the maintenance loop"
+        loop = built[0]
+        assert "db_backup" in loop._jobs, "premise: the backup job is scheduled"
+        assert _backup_failure_persisted() is False, "premise: no state file yet"
+
+        loop._jobs["db_backup"].last_run_at = datetime.now(UTC)  # ran, never succeeded
+        loop._persist_state()
+
+        assert _backup_failure_persisted() is True
+
+
 def test_the_state_path_sits_beside_the_database(tmp_path: Path) -> None:
     db = tmp_path / "data" / "oc.db"
     assert maintenance_loop.maintenance_state_path(db) == tmp_path / "data" / "maintenance_state.json"
@@ -1056,6 +1091,26 @@ def test_parse_state_timestamp(value: object, expected: datetime | None) -> None
     parsed = maintenance_loop.parse_state_timestamp(value)
     assert parsed == expected
     assert parsed is None or parsed.tzinfo is not None
+
+
+def _tzset() -> None:
+    if sys.platform != "win32":
+        time.tzset()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="time.tzset() is POSIX-only")
+def test_a_naive_stamp_reads_as_utc_on_a_host_that_is_not_on_utc(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both CI runners use UTC, where reading a naive stamp as local time
+    gives the same answer, so pin decision C2 in a zone where they differ."""
+    monkeypatch.setenv("TZ", "America/Chicago")
+    _tzset()
+    try:
+        assert time.timezone != 0, "premise: local time is not UTC"
+        parsed = maintenance_loop.parse_state_timestamp("2026-09-28T10:00:00")
+        assert parsed == datetime(2026, 9, 28, 10, tzinfo=UTC)
+    finally:
+        monkeypatch.undo()
+        _tzset()
 
 
 def test_a_naive_stamp_loads_as_utc_and_schedules_without_raising(tmp_path: Path) -> None:

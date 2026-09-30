@@ -935,14 +935,15 @@ class TestWiring:
         container.embedding_service.port.refresh_revision.side_effect = lambda: order.append("refresh")
         server = MagicMock()
         server.run.side_effect = lambda **_kwargs: order.append("run")
+        container.__exit__.side_effect = lambda *_exc: order.append("close")
         monkeypatch.setattr("openchronicle.core.infrastructure.wiring.container.CoreContainer", lambda: container)
         monkeypatch.setattr("openchronicle.interfaces.mcp.server.create_server", lambda _c, _cfg: server)
         monkeypatch.delenv("OC_MCP_TRANSPORT", raising=False)
 
         entry.main()
 
-        assert order == ["refresh", "run"]
-        container.__exit__.assert_called_once()  # the store closes when the server stops
+        # The store closes once, after the server stops, never before it serves.
+        assert order == ["refresh", "run", "close"]
 
     def test_a_refused_save_logs_no_warning(self, caplog: pytest.LogCaptureFixture) -> None:
         """The adapter warns once about the unverified revision. A traceback on

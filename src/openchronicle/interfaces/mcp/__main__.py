@@ -22,7 +22,7 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
-    # The store closes, and checkpoints its WAL, when the server stops.
+    # The store closes when the server stops, not at interpreter teardown.
     container = CoreContainer()
     with container:
         config = MCPConfig.from_env()

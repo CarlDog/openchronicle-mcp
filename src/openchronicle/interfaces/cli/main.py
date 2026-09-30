@@ -253,8 +253,9 @@ def main(argv: list[str] | None = None) -> int:
     if container is None:
         return 1
 
-    # Closing the store on the way out checkpoints SQLite's WAL, including
-    # after `oc serve` shuts down; left to process exit it never closed.
+    # Close the store here, including after `oc serve` shuts down, rather
+    # than leave it to interpreter teardown: that did close it and
+    # checkpoint the WAL, but with a ResourceWarning and no guarantee.
     with container:
         handler = COMMANDS.get(args.command)
         if handler is None:
