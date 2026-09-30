@@ -545,7 +545,9 @@ def extract_commits_from_git(
 
         # Parse date
         try:
-            date = require_utc(datetime.fromisoformat(date_str), field="git author date")
+            # Keep the author's offset: summaries print the author's calendar
+            # day, as `git log` does. Storage converts to UTC (TS-04 review C1).
+            date = datetime.fromisoformat(date_str)
         except ValueError:
             date = utc_now()
 

@@ -135,7 +135,7 @@ class TestClusterToSummary:
         summary = cluster_to_summary(CommitCluster(commits=[commit], label="x", time_span_days=0.0))
         assert summary["created_at"] == "2026-09-23T09:41:37+00:00"
 
-    def test_naive_author_date_does_not_become_current_time(self) -> None:
+    def test_summary_refuses_a_naive_author_date(self) -> None:
         commit = _commit(0)
         commit.date = datetime(2026, 9, 23, 4, 41, 37)
         with pytest.raises(ValidationError, match="git author date must include a UTC offset"):

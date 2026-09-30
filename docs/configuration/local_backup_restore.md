@@ -864,3 +864,108 @@ What that drill did **not** cover:
 The image pair remains a timestamp-migration gate. Keep both image IDs available: the wrong image may migrate a restored database on
 startup. Staging does not establish that recovery succeeded. Do not run the timestamp migration until
 the NAS drill and a fresh independently retained pre-upgrade snapshot pass.
+
+## Timestamp migration 005: deploy and rollback
+
+The timestamp release (ROADMAP TS-04) ships on its own, after v3.7.0
+(operator decision, 2026-09-30). Its image applies migration
+`005_normalize_timestamps.sql` on first boot. The migration first checks every
+`projects.created_at`, `memory_items.created_at` and `memory_items.updated_at`
+value. If any value is naive (no UTC offset), malformed, or outside the range
+UTC can hold, it refuses and changes nothing. Otherwise it rewrites each aware
+value as the same instant in UTC. On the 2026-09-28 copy that changed 94
+values. TS-03 rehearses everything in this section before production.
+
+### Before moving `OC_TAG`: run the migration on a copy
+
+Take the fresh pre-upgrade snapshot immediately before the tag move, and verify
+it as usual. Then run the candidate image's own migration on a throwaway copy
+of it. The block bind-mounts the snapshot read-only and copies it into the
+container's tmpfs, so neither the snapshot nor the live volume changes. The
+snapshot must be readable by uid 1000.
+
+```bash
+set -euo pipefail
+SNAP='<absolute NAS host path of the fresh pre-upgrade snapshot>'
+NEW_IMAGE_ID='<verified image ID of the timestamp release>'
+test -f "$SNAP"
+docker image inspect "$NEW_IMAGE_ID" >/dev/null
+docker run --rm --pull never --network none --read-only --tmpfs /tmp \
+  --user 1000:1000 \
+  --mount "type=bind,source=$SNAP,target=/snapshot.db,readonly" \
+  --env OC_DB_PATH=/tmp/preflight.db --env OC_CONFIG_DIR=/tmp/config \
+  --env OC_EMBEDDING_PROVIDER=none \
+  --entrypoint sh "$NEW_IMAGE_ID" -c \
+  'cp /snapshot.db /tmp/preflight.db && mkdir /tmp/config && oc db info'
+```
+
+- **Pass:** it exits 0, with `Integrity: ok` and five `schema_version` rows.
+- **Refusal:** it exits 1 and prints `Migration 005_normalize_timestamps.sql
+  failed: N naive, malformed or out-of-range timestamp(s):` followed by up to
+  ten `table.column id='...'` entries. Do not move `OC_TAG`. Record the IDs and
+  see the refusal section below.
+
+Measured on 2026-09-30, on a copy of the verified 2026-09-28 snapshot: the
+check passes. With one value changed to a naive one, it refuses and names that
+row. Writes that land between the snapshot and the tag move are not covered by
+this check. If one of them is naive, the boot refuses as described next.
+
+### If 005 refuses at boot
+
+Symptoms:
+
+- The container restarts repeatedly under `restart: unless-stopped`.
+- The log repeats `Cannot start: Migration 005_normalize_timestamps.sql failed:
+  ...`, and health is unreachable.
+- Every data `oc` command fails with the same message. `oc version`, `oc init`
+  and `oc config` still run.
+
+1. Move `OC_TAG` back to the previous release tag. The refusal happens inside
+   the migration savepoint, before any row changes, so the database is
+   unchanged and still at schema 4. The previous image serves it as before.
+2. Record the listed IDs. A naive value has no known instant, so there is no
+   automatic fix, and the STABILITY exception forbids assigning one
+   implicitly. The operator decides each value's offset, if this ever
+   happens. There was no such row as of 2026-09-28. Retry the deploy only
+   after the pre-flight block passes on a new snapshot.
+
+### Rolling back after 005 has applied
+
+The rollback target is the pre-migration snapshot, never the previous image on
+the migrated volume. The previous image opens a schema-5 database without a
+warning and serves it, and its write path stores `created_at` values both with
+a non-UTC offset and with no offset at all. This was measured with v3.6.0 on
+2026-09-30. The new image checks timestamps only while 005 is pending, so it
+never re-checks such a volume. Ordering then breaks again, silently, and a
+later export and import fails on the naive row. **A volume the previous image
+has served after 005 must never be rolled forward.** Restore the pre-migration
+snapshot instead.
+
+This is the generic order from
+[Offline activation and rollback](#offline-activation-and-rollback), applied to
+this release:
+
+1. Stop the service container, set its restart policy to `no`, and freeze
+   Portainer. Do **not** move `OC_TAG` first: on this file-based stack, moving
+   it recreates the container and starts the previous image on the migrated
+   volume.
+2. `stage` and `activate` the pre-migration snapshot with
+   `--expected-schema 4`.
+3. Move `OC_TAG` to the previous release tag. That tag is the "recorded
+   matching image" here. The stopped container runs the new image, so never
+   restart it: the new image would migrate the restored snapshot again.
+4. Validate: health reports the previous `package_version`, `schema_version`
+   is 4, and the counts match the snapshot.
+
+**Write loss:** every write accepted after the snapshot was taken is
+discarded. If those writes matter, export them with `oc memory export` before
+step 1. Importing them back is a separate, operator-reviewed step.
+
+### Restoring a pre-005 snapshot later
+
+Every snapshot taken before the timestamp release is at schema 4. That
+includes the `/exports/backups/auto` catalog, the frozen `/data/backups/auto`
+set, and the offsite copies. After the release, the next boot of the current
+image migrates a restored one. Run the pre-flight block on the chosen snapshot
+before activating it. If the boot refuses anyway, the helper's `rollback`
+returns the volume to the database that was active before the restore.

@@ -81,6 +81,28 @@ def test_aware_writes_order_by_instant_across_readers_and_round_trip(tmp_path: P
         store.close()
 
 
+def test_projects_sharing_an_instant_list_in_id_order(tmp_path: Path) -> None:
+    """Insertion order is p1, p3, p2; without the ID tie-break SQLite
+    returns the scan order."""
+    store = SqliteStore(str(tmp_path / "ties.db"))
+    store.init_schema()
+    try:
+        same = datetime(2026, 9, 23, 7, 0, tzinfo=UTC)
+        for project_id in ("p1", "p3", "p2"):
+            store.add_project(Project(id=project_id, name=f"tie {project_id}", created_at=same))
+        assert [p.id for p in store.list_projects()] == ["p3", "p2", "p1"]
+        assert [p.id for p in store.list_projects(name_contains="tie")] == ["p3", "p2", "p1"]
+    finally:
+        store.close()
+
+
+def test_require_utc_refuses_an_instant_utc_cannot_hold() -> None:
+    from openchronicle.core.domain.time_utils import require_utc
+
+    with pytest.raises(ValidationError, match="created_at is outside the supported UTC range"):
+        require_utc(datetime(1, 1, 1, tzinfo=timezone(timedelta(hours=5))), field="created_at")
+
+
 def test_direct_store_and_import_refuse_naive_timestamps(tmp_path: Path) -> None:
     store = SqliteStore(str(tmp_path / "current.db"))
     store.init_schema()
@@ -181,23 +203,80 @@ def test_005_preserves_instants_embeddings_and_fts(tmp_path: Path, monkeypatch: 
         store.close()
 
 
-@pytest.mark.parametrize("bad", ["2026-09-23T04:41:37", "not-a-date"])
-def test_005_refuses_uninterpretable_legacy_rows(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, bad: str) -> None:
+def test_005_converts_an_offset_updated_at_beside_a_utc_created_at(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The WHERE clause must select a row on updated_at alone."""
     store = _pre_005_store(tmp_path, monkeypatch)
     try:
         store._conn.execute(
-            "INSERT INTO projects (id, name, metadata, created_at) VALUES ('p', 'P', '{}', '2026-09-23T04:00:00-05:00')"
+            "INSERT INTO projects (id, name, metadata, created_at) VALUES ('p', 'P', '{}', '2026-09-23T06:00:00+00:00')"
         )
         store._conn.execute(
-            "INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source)"
-            " VALUES (?, 'needle', '[]', ?, 0, 'p', 'git')",
-            ("bad-row", bad),
+            "INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source, updated_at)"
+            " VALUES ('m', 'note', '[]', '2026-09-23T06:00:00+00:00', 0, 'p', 'git', '2026-09-23T04:42:00-05:00')"
         )
-        with pytest.raises(ConfigError, match=r"005_normalize_timestamps.sql failed: 1 .*id='bad-row'"):
+        store.init_schema()
+        assert migrator.current_version(store._conn) == 5
+        migrated = store.get_memory("m")
+        assert migrated is not None and migrated.updated_at is not None
+        assert migrated.updated_at.isoformat() == "2026-09-23T09:42:00+00:00"
+    finally:
+        store.close()
+
+
+_LEGACY_OK = "2026-09-23T04:00:00-05:00"
+
+
+@pytest.mark.parametrize("bad", ["2026-09-23T04:41:37", "not-a-date", "0001-01-01T00:00:00+05:00"])
+@pytest.mark.parametrize("column", ["projects.created_at", "memory_items.created_at", "memory_items.updated_at"])
+def test_005_refuses_uninterpretable_legacy_rows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, column: str, bad: str
+) -> None:
+    store = _pre_005_store(tmp_path, monkeypatch)
+    try:
+        store._conn.execute(
+            "INSERT INTO projects (id, name, metadata, created_at) VALUES ('p', 'P', '{}', ?)",
+            (bad if column == "projects.created_at" else _LEGACY_OK,),
+        )
+        store._conn.execute(
+            "INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source, updated_at)"
+            " VALUES ('bad-row', 'needle', '[]', ?, 0, 'p', 'git', ?)",
+            (
+                bad if column == "memory_items.created_at" else _LEGACY_OK,
+                bad if column == "memory_items.updated_at" else _LEGACY_OK,
+            ),
+        )
+        row_id = "p" if column == "projects.created_at" else "bad-row"
+        with pytest.raises(ConfigError, match=rf"005_normalize_timestamps.sql failed: 1 .*{column} id='{row_id}'"):
             store.init_schema()
         assert migrator.current_version(store._conn) == 4
-        assert store._conn.execute("SELECT created_at FROM projects WHERE id='p'").fetchone()[0].endswith("-05:00")
+        row = store._conn.execute("SELECT created_at, updated_at FROM memory_items WHERE id='bad-row'").fetchone()
+        assert _LEGACY_OK in row, "the valid offset value was left unconverted"
         assert store._conn.execute("SELECT count(*) FROM memory_fts WHERE memory_fts MATCH 'needle'").fetchone()[0] == 1
+    finally:
+        store.close()
+
+
+def test_005_refusal_names_ten_rows_and_counts_the_rest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    store = _pre_005_store(tmp_path, monkeypatch)
+    try:
+        store._conn.execute(
+            "INSERT INTO projects (id, name, metadata, created_at) VALUES ('p', 'P', '{}', ?)", (_LEGACY_OK,)
+        )
+        for n in range(11):
+            store._conn.execute(
+                "INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source)"
+                " VALUES (?, 'note', '[]', '2026-09-23T04:41:37', 0, 'p', 'git')",
+                (f"naive-{n:02d}",),
+            )
+        with pytest.raises(ConfigError) as refused:
+            store.init_schema()
+        message = str(refused.value)
+        assert "failed: 11 naive, malformed or out-of-range" in message
+        assert message.count("memory_items.created_at id=") == 10
+        assert message.endswith(" ...")
+        assert migrator.current_version(store._conn) == 4
     finally:
         store.close()
 

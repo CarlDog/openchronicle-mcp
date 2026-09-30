@@ -68,7 +68,9 @@ reject **new naive `created_at` and `updated_at` values** at REST, MCP, import,
 and direct storage boundaries in a v3.x correctness release. Such values have
 no unambiguous instant; accepting them would perpetuate incorrect ordering.
 Aware offsets remain accepted and are stored in UTC without changing their
-instant or microseconds. This exception does not relax the policy for other
+instant or microseconds. The one exception is an aware value whose instant UTC
+cannot represent, such as year 1 at a positive offset; it is rejected too.
+This exception does not relax the policy for other
 input changes or itself authorize a release. The release version and notes
 remain a separate gate. Legacy naive or malformed database rows cause the
 versioned migration to stop with IDs; they are never assigned an implicit

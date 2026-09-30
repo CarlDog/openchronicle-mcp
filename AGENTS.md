@@ -239,7 +239,7 @@ three-night window; phase-end audit in progress.**
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
   work. After OPS-08: the Phase 0 hygiene items, the OPS-07 decision, DATA-01
   decision 5 and DATA-03 to DATA-05, then the timestamp fix (TS-01 to TS-04,
-  PR #38), then v4.0.0 on the operator's tag call (V4-01).
+  PR #38; its own release after v3.7.0, operator decision 2026-09-30), then v4.0.0 on the operator's tag call (V4-01).
 - **Standing:**
   - The Gemini audit branch was rejected as a unit and survives only as the
     tag `archive/gemini-audit-18092026`

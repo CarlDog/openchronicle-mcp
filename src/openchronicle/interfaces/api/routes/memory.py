@@ -97,7 +97,10 @@ class MemorySaveRequest(BaseModel):
     project_id: str = Field(min_length=1, max_length=200)
     tags: list[str] | None = Field(default=None, max_length=50)
     pinned: bool = False
-    created_at: str | None = None
+    created_at: str | None = Field(
+        default=None,
+        description="ISO 8601 datetime with a UTC offset (Z, +00:00, -05:00); a value without one is rejected. Stored in UTC.",
+    )
 
 
 @router.post("")

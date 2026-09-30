@@ -193,6 +193,15 @@ UTC rows, but its write path can reintroduce offsets, so running it on a
 migrated database is not a clean rollback. The rollback target after 005 is
 the pre-migration snapshot.
 
+**Pre-deploy review (2026-09-30)** measured that caveat and widened it. v3.6.0
+opens a schema-5 database silently and stores naive `created_at` values as
+well as offset ones. The new image re-checks only while 005 is pending, so a
+volume the previous image has served after 005 must never be rolled forward.
+The review also measured a refusal at boot: the container crash-loops and the
+database is left unchanged at schema 4. The deploy pre-flight, the refusal
+recovery and the ordered rollback are now in the [runbook](../configuration/local_backup_restore.md#timestamp-migration-005-deploy-and-rollback). The migration
+ships as its own release, after v3.7.0 (operator decision, 2026-09-30).
+
 The disposable restore and image-pair rehearsal (TS-03) remains before any
 production migration.
 
