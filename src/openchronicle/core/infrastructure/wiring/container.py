@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+import stat
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -55,8 +56,19 @@ def _backup_dir_problem(path: Path) -> str | None:
     """Why an explicitly configured backup directory is unusable, or None."""
     if not path.is_absolute():
         return "must be an absolute path"
-    if path.is_symlink() or not path.is_dir():
+    # lstat, not is_dir(): is_dir() answers False on any OSError, so a parent
+    # this user cannot traverse read as "not a directory" and sent the
+    # operator after the wrong fix.
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return "must be an existing directory; it does not exist"
+    except OSError as exc:
+        return f"cannot be checked ({exc.strerror or exc}); check the permissions on its parent directories"
+    if stat.S_ISLNK(mode):
         return "must be an existing directory, not a symlink"
+    if not stat.S_ISDIR(mode):
+        return "must be an existing directory; it is not a directory"
     try:
         with tempfile.TemporaryFile(dir=path):
             pass

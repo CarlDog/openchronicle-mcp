@@ -161,3 +161,37 @@ def test_request_urls_stay_out_of_the_log_unless_debugging(
         assert httpx_logger.level == expected
     finally:
         root.handlers[:], root.level = saved[0], saved[1]
+
+
+def test_serve_logs_boot_problems_to_the_log_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Building the container logs boot problems. Before `serve` configured
+    logging first, they reached only the bare stderr a Portainer recreate
+    discards, not OC_LOG_FILE (ROADMAP QUAL-12)."""
+    import logging
+
+    from openchronicle.interfaces.cli import main as cli_main
+
+    log_path = tmp_path / "logs" / "oc.log"
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    monkeypatch.setenv("OC_LOG_FILE", str(log_path))
+    monkeypatch.setenv("OC_CONFIG_DIR", str(config_dir))
+    monkeypatch.setenv("OC_BACKUP_DIR", "relative/backups")
+    monkeypatch.setenv("OC_SEARCH_FTS5_ENABLED", "ture")
+    monkeypatch.setitem(cli_main.COMMANDS, "serve", lambda _args, _container: 0)
+    root = logging.getLogger()
+    old_handlers = root.handlers[:]
+    old_level = root.level
+    try:
+        assert cli_main.main(["serve"]) == 0
+        for handler in root.handlers:
+            handler.flush()
+        text = log_path.read_text(encoding="utf-8")
+        assert "OC_BACKUP_DIR relative" in text and "must be an absolute path" in text
+        assert "Invalid OC_SEARCH_FTS5_ENABLED='ture'" in text
+    finally:
+        for handler in root.handlers[:]:
+            if handler not in old_handlers:
+                handler.close()
+                root.removeHandler(handler)
+        root.setLevel(old_level)

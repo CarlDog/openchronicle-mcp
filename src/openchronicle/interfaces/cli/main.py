@@ -249,6 +249,15 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc))
             return 1
 
+    # `serve` owns OC_LOG_FILE, so configure logging before the container:
+    # building it logs boot problems (a bad OC_BACKUP_DIR, an unrecognized
+    # OC_SEARCH_FTS5_ENABLED), which otherwise reach only the bare stderr a
+    # Portainer recreate discards. One-shot commands keep their own output.
+    if args.command == "serve":
+        from openchronicle.interfaces.logging_setup import configure_root_logger
+
+        configure_root_logger()
+
     container = _build_container(args)
     if container is None:
         return 1

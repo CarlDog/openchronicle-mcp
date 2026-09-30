@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import sqlite3
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -491,3 +492,43 @@ def test_integrity_failure_does_not_raise_the_backup_field(tmp_path: Path, monke
         container.storage.close()
     assert payload["maintenance_degraded"] is True
     assert payload["backup_last_run_failed"] is False
+
+
+def test_backup_directory_problems_name_their_cause(tmp_path: Path) -> None:
+    """is_dir() answers False on any OSError, so every cause read as "must be
+    an existing directory, not a symlink" (ROADMAP QUAL-12)."""
+    from openchronicle.core.infrastructure.wiring.container import _backup_dir_problem
+
+    assert _backup_dir_problem(tmp_path) is None
+    assert "does not exist" in (_backup_dir_problem(tmp_path / "missing") or "")
+    a_file = tmp_path / "a-file"
+    a_file.write_text("", encoding="utf-8")
+    assert "is not a directory" in (_backup_dir_problem(a_file) or "")
+
+
+def test_a_symlinked_backup_directory_is_named_as_one(tmp_path: Path) -> None:
+    from openchronicle.core.infrastructure.wiring.container import _backup_dir_problem
+
+    link = tmp_path / "link"
+    try:
+        link.symlink_to(tmp_path, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"cannot create a symlink here: {exc}")
+    assert "not a symlink" in (_backup_dir_problem(link) or "")
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or __import__("os").geteuid() == 0, reason="needs POSIX permissions, as non-root"
+)
+def test_an_untraversable_parent_is_reported_as_a_permission_problem(tmp_path: Path) -> None:
+    """The NAS case: a root-owned 0700 parent. Not "not a directory"."""
+    from openchronicle.core.infrastructure.wiring.container import _backup_dir_problem
+
+    parent = tmp_path / "locked"
+    (parent / "backups").mkdir(parents=True)
+    parent.chmod(0)
+    try:
+        problem = _backup_dir_problem(parent / "backups") or ""
+    finally:
+        parent.chmod(0o700)
+    assert "cannot be checked" in problem and "parent directories" in problem, problem
