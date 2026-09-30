@@ -723,3 +723,73 @@ def test_stage_from_a_read_only_custody_copy_gives_a_writable_candidate(tmp_path
         assert os.access(db, os.W_OK)
     finally:
         exported.chmod(stat.S_IREAD | stat.S_IWRITE)
+
+
+def _read_only_after_swap(monkeypatch: pytest.MonkeyPatch, db: Path, prefix: str) -> None:
+    """Make the file swapped into place read-only, as a wrong owner would."""
+    import stat
+
+    real_replace = offline_restore.os.replace
+
+    def swap_then_lock(source: str | Path, target: str | Path) -> None:
+        real_replace(source, target)
+        if Path(source).name.startswith(prefix) and Path(target) == db:
+            db.chmod(stat.S_IREAD)
+
+    monkeypatch.setattr(offline_restore.os, "replace", swap_then_lock)
+
+
+needs_permissions = pytest.mark.skipif(
+    sys.platform != "win32" and __import__("os").geteuid() == 0, reason="root ignores file permissions"
+)
+
+
+def test_activation_proves_the_installed_database_takes_a_write(tmp_path: Path) -> None:
+    """The probe records success, leaves the database byte-identical to the
+    candidate, and leaves no sidecar behind."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    state = _activate(db, candidate, "probe-ok", expected)["state"]
+    assert isinstance(state, dict)
+    assert state["write_probe"] == "ok"
+    assert offline_restore._sha256(db) == expected["sha256"]
+    assert [path.name for path in offline_restore._family(db)] == ["openchronicle.db"]
+
+
+@needs_permissions
+def test_activation_stops_when_the_installed_database_is_not_writable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every read-only check passes on an unwritable file; only the probe
+    sees that the restarted service would fail on its first write."""
+    import stat
+
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _read_only_after_swap(monkeypatch, db, ".incoming-")
+    try:
+        with pytest.raises(offline_restore.RestoreError, match="not writable by this user.*roll back probe-ro"):
+            _activate(db, candidate, "probe-ro", expected)
+        state = offline_restore._load_state(tmp_path / ".recovery" / "probe-ro")
+        assert state["phase"] == "activated", "the swap happened, so rollback stays available"
+        assert str(state["write_probe"]).startswith("failed:")
+    finally:
+        db.chmod(stat.S_IREAD | stat.S_IWRITE)
+    assert offline_restore.rollback(db, "probe-ro", apply=True)["state"]["phase"] == "rolled_back"
+
+
+@needs_permissions
+def test_rollback_stops_when_the_restored_database_is_not_writable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import stat
+
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "rollback-ro", expected)
+    _read_only_after_swap(monkeypatch, db, ".rollback-")
+    try:
+        with pytest.raises(offline_restore.RestoreError, match="not writable by this user.*before starting it"):
+            offline_restore.rollback(db, "rollback-ro", apply=True)
+        state = offline_restore._load_state(tmp_path / ".recovery" / "rollback-ro")
+        assert state["phase"] == "rolled_back"
+        assert str(state["write_probe"]).startswith("failed:")
+    finally:
+        db.chmod(stat.S_IREAD | stat.S_IWRITE)

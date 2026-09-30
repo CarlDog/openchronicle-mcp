@@ -602,7 +602,14 @@ test -z "$USERS"
 ```
 
 Keep the service stopped if either call fails or
-the `state.json` phase is not `activated`. The helper keeps the original raw
+the `state.json` phase is not `activated`. After the swap, the helper proves
+the installed file takes a write as uid 1000 (a change it rolls back) and
+records `write_probe` in `state.json`. Integrity and identity checks only
+read, so a file left owned by root, or read-only, passes them and would
+fail on the service's first write. If the probe fails, activation exits
+non-zero with phase `activated` and `write_probe` starting `failed:`: keep
+the service stopped, and either make the file and `/data` writable for uid
+1000 or run the rollback below. The helper keeps the original raw
 DB/WAL/SHM in `/data/.recovery/$OP/raw-old`, and a consolidated
 `old-consistent.db` for rollback, with the old state's integrity, foreign-key
 and identity verdicts under `old_state` in `state.json`. A damaged live store
@@ -689,7 +696,9 @@ test -z "$USERS"
 The rollback dry-run checks the consolidated old snapshot against its
 recorded SHA-256 and prints the recorded `old_state` verdicts. The apply step
 archives the forward DB family before replacement and writes phase
-`rolled_back`. If it is interrupted, leave all services stopped. A retry is
+`rolled_back`, then runs the same write probe. A failed probe exits
+non-zero; make the file writable for uid 1000 before starting anything.
+If it is interrupted, leave all services stopped. A retry is
 allowed only when the forward archive and checksums are complete; a partial
 archive fails closed and requires inspected manual recovery. Restore the
 recorded **old** stack image/configuration before restarting; `docker start

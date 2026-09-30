@@ -201,6 +201,40 @@ def _sqlite_error_name(exc: sqlite3.Error) -> str:
     return str(getattr(exc, "sqlite_errorname", None) or type(exc).__name__)
 
 
+def _probe_writable(db: Path) -> str:
+    """Prove the installed database takes a write transaction as this user.
+
+    Integrity and identity checks only read, so a swap that leaves the file,
+    or its directory, unwritable for the service passes them all and fails on
+    the first write after restart (design 0004 F8 step 5). The helper runs as
+    the service uid, so this is the service's own view.
+
+    `BEGIN IMMEDIATE` alone is not a probe: on a read-only file SQLite opens
+    read-only and grants it (measured). A real change is refused, so this
+    makes one and rolls it back; the file keeps its bytes and the sidecars go
+    on close.
+    """
+    try:
+        with closing(sqlite3.connect(db, timeout=5, isolation_level=None)) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("CREATE TABLE _offline_restore_write_probe(x)")
+            conn.execute("ROLLBACK")
+    except sqlite3.Error as exc:
+        return f"failed: {_sqlite_error_name(exc)}: {exc}"
+    return "ok"
+
+
+def _require_writable(recovery: Path, state: dict[str, Any], db: Path, next_step: str) -> None:
+    """Record the write probe in state, and stop with `next_step` if it failed."""
+    state["write_probe"] = _probe_writable(db)
+    _save_state(recovery, state)
+    if state["write_probe"] != "ok":
+        raise RestoreError(
+            f"The installed database is not writable by this user ({state['write_probe']}). "
+            f"Keep the service stopped; {next_step}"
+        )
+
+
 def _describe(path: Path) -> dict[str, Any]:
     """Assess an old-state copy without requiring it to pass.
 
@@ -422,6 +456,12 @@ def activate(
         _fsync_dir(db.parent)
         state["phase"] = "activated"
         _save_state(recovery, state)
+        _require_writable(
+            recovery,
+            state,
+            db,
+            f"make the file and its directory writable for uid 1000, or roll back {operation_id}.",
+        )
     except BaseException:
         # Never restart the service after an incomplete phase. The raw family
         # and consolidated old snapshot remain in recovery for rollback.
@@ -536,6 +576,7 @@ def rollback(db: Path, operation_id: str, *, apply: bool = False) -> dict[str, A
     state["phase"] = "rolled_back"
     _save_state(recovery, state)
     cleanup = _remove_incoming(db, operation_id, candidate_sha)
+    _require_writable(recovery, state, db, "make the file and its directory writable for uid 1000 before starting it.")
     return {"action": "rollback", "applied": True, "recovery_dir": str(recovery), "state": state, "cleanup": cleanup}
 
 
