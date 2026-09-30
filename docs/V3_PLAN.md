@@ -446,6 +446,10 @@ Before v3 replaces main:
 
 ### Migration script (`scripts/migrate_v2_to_v3.py`)
 
+> **Removed 2026-09-30** (ROADMAP DATA-05), with `scripts/verify_v3_db.py` and
+> their tests: the one remaining v2 recovery (cutover item L3) was done as a
+> triage instead. The plan below is kept as history.
+
 1. Read v2 DB read-only
 2. Create new v3-shaped DB next to it (or in tmpdir)
 3. Copy `projects` table

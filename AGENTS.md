@@ -33,6 +33,18 @@ enforces parity.
   - Nothing is "shipped" or "verified" before it is in a tagged
     release, and CI has passed on the exact commit.
   - Never write OpenChronicle milestone memories for unmerged work.
+- **Voice and posture** (operator standing rule, 2026-05-02; restored from
+  the v2 backup on 2026-09-30). Applies to the README and all user-facing
+  docs:
+  - Don't undersell. State what the work is, confidently; no "just a
+    personal project" qualifiers or apologetic hedges.
+  - Don't sell competitors' products. No "consider also" pointers; the
+    README is not a market survey.
+  - State the scope honestly: memory, git onboarding and projects, by design.
+    Honest about boundaries is not apologetic about quality.
+  - The high bar stays: lean scope does not mean lean rigor.
+  - No benchmark chasing for marketing; running one is curiosity.
+  - Competitive context is internal only and never goes in user-facing copy.
 - **Docs + memories before every commit.** Standing rule (2026-05-05).
   Before any `git commit` on this repo, update the affected docs (at
   minimum `docs/CODEBASE_ASSESSMENT.md`; for in-flight work also
@@ -613,4 +625,3 @@ the LLM, so OC's role is memory/retrieval only.
 - `src/openchronicle/interfaces/cli/main.py` — `oc` command entry point
 - `src/openchronicle/core/infrastructure/wiring/container.py` — DI composition root
 - `src/openchronicle/core/infrastructure/persistence/migrator.py` — schema migration runner
-- `scripts/migrate_v2_to_v3.py` + `scripts/verify_v3_db.py` — one-shot cutover migration
