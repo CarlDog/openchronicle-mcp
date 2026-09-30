@@ -626,12 +626,18 @@ the error says which case it is:
   ```
 
 - **Another process holds the database:** find the container that still has
-  `/data` open and stop it. If it wrote, the file is no longer this
-  operation's, and `probe` refuses; inspect it before going further.
+  `/data` open and stop it.
+
+`probe` refuses, and records `write_probe` as `stale`, if anything wrote to
+the installed file since the swap (a changed file, or a non-empty `-wal`
+left by a writer). The file is then no longer this operation's: roll back,
+or activate a verified artifact again under a new operation ID. To look at
+the file first, use `ls -la` and `sha256sum`, not `sqlite3`: a `sqlite3`
+open changes nothing, but it is not how to check. A read-only open alone does
+not make `probe` refuse.
 
 Then rerun the check, which changes nothing but its recorded result, and
-start the service only once it prints `ok`. It refuses if the installed file
-was opened or written since the swap:
+start the service only once it prints `ok`:
 
 ```bash
 set -euo pipefail
