@@ -547,7 +547,9 @@ def extract_commits_from_git(
         try:
             # Keep the author's offset: summaries print the author's calendar
             # day, as `git log` does. Storage converts to UTC (TS-04 review C1).
+            # Still refuse a naive date here, before the watermark is saved.
             date = datetime.fromisoformat(date_str)
+            require_utc(date, field="git author date")
         except ValueError:
             date = utc_now()
 

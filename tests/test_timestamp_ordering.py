@@ -258,13 +258,17 @@ def test_005_refuses_uninterpretable_legacy_rows(
         store.close()
 
 
-def test_005_refusal_names_ten_rows_and_counts_the_rest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("count", [10, 11])
+def test_005_refusal_names_at_most_ten_rows_and_counts_them_all(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, count: int
+) -> None:
+    """The runbook quotes this message; the suffix marks a truncated list."""
     store = _pre_005_store(tmp_path, monkeypatch)
     try:
         store._conn.execute(
             "INSERT INTO projects (id, name, metadata, created_at) VALUES ('p', 'P', '{}', ?)", (_LEGACY_OK,)
         )
-        for n in range(11):
+        for n in range(count):
             store._conn.execute(
                 "INSERT INTO memory_items (id, content, tags, created_at, pinned, project_id, source)"
                 " VALUES (?, 'note', '[]', '2026-09-23T04:41:37', 0, 'p', 'git')",
@@ -273,9 +277,12 @@ def test_005_refusal_names_ten_rows_and_counts_the_rest(tmp_path: Path, monkeypa
         with pytest.raises(ConfigError) as refused:
             store.init_schema()
         message = str(refused.value)
-        assert "failed: 11 naive, malformed or out-of-range" in message
+        prefix = (
+            f"Migration 005_normalize_timestamps.sql failed: {count} naive, malformed or out-of-range timestamp(s): "
+        )
+        assert message.startswith(prefix)
         assert message.count("memory_items.created_at id=") == 10
-        assert message.endswith(" ...")
+        assert message.endswith(" ...") == (count > 10)
         assert migrator.current_version(store._conn) == 4
     finally:
         store.close()

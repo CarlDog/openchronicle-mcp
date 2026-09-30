@@ -221,6 +221,17 @@ def test_an_evening_commit_shows_the_authors_day_and_stores_utc() -> None:
     assert summary["created_at"] == "2026-09-30T03:24:32+00:00"
 
 
+def test_extract_refuses_a_naive_author_date_before_anything_is_saved() -> None:
+    """%aI always carries an offset. A naive date must stop extraction,
+    before onboard_git_prepare saves its watermark, and must not become
+    the current time (TS-04 review F1)."""
+    from openchronicle.core.domain.exceptions import ValidationError
+
+    out = _fake_log_output([_entry("h1", "feat: thing", "", ["1\t0\ta.py"], date="2026-09-23T04:41:37")])
+    with pytest.raises(ValidationError, match="git author date must include a UTC offset"):
+        _run_extract(out)
+
+
 def test_extract_multiline_body_does_not_pollute_numstat() -> None:
     # A body line that looks numstat-ish ("3   1  file") must NOT be counted
     # as a file change — it lives before the body sentinel.

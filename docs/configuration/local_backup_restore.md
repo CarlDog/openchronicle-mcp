@@ -879,15 +879,31 @@ values. TS-03 rehearses everything in this section before production.
 ### Before moving `OC_TAG`: run the migration on a copy
 
 Take the fresh pre-upgrade snapshot immediately before the tag move, and verify
-it as usual. Then run the candidate image's own migration on a throwaway copy
-of it. The block bind-mounts the snapshot read-only and copies it into the
-container's tmpfs, so neither the snapshot nor the live volume changes. The
-snapshot must be readable by uid 1000.
+it as usual. Nothing has pulled the release image onto the NAS yet, so pull
+it by tag and check that it was built from the tagged commit:
+
+```bash
+set -euo pipefail
+NEW_TAG='<timestamp release tag>'
+EXPECTED_REVISION='<full git SHA of that tag>'
+IMAGE="ghcr.io/carldog/openchronicle-mcp:$NEW_TAG"
+docker pull "$IMAGE"
+docker image inspect -f '{{.Id}}' "$IMAGE"
+REVISION=$(docker run --rm --pull never --network none --read-only --entrypoint cat "$IMAGE" /app/build-revision)
+echo "$REVISION"
+test "$REVISION" = "$EXPECTED_REVISION"
+```
+
+Use the printed ID as `NEW_IMAGE_ID` below. The next block runs the
+candidate image's own migration on a throwaway copy of the snapshot. It
+bind-mounts the snapshot read-only and copies it into the container's tmpfs,
+so neither the snapshot nor the live volume changes. The snapshot must be
+readable by uid 1000.
 
 ```bash
 set -euo pipefail
 SNAP='<absolute NAS host path of the fresh pre-upgrade snapshot>'
-NEW_IMAGE_ID='<verified image ID of the timestamp release>'
+NEW_IMAGE_ID='<image ID printed by the pull block>'
 test -f "$SNAP"
 docker image inspect "$NEW_IMAGE_ID" >/dev/null
 docker run --rm --pull never --network none --read-only --tmpfs /tmp \
@@ -963,9 +979,10 @@ step 1. Importing them back is a separate, operator-reviewed step.
 
 ### Restoring a pre-005 snapshot later
 
-Every snapshot taken before the timestamp release is at schema 4. That
-includes the `/exports/backups/auto` catalog, the frozen `/data/backups/auto`
-set, and the offsite copies. After the release, the next boot of the current
+Every snapshot taken before the timestamp release is at schema 4 or older.
+That includes the `/exports/backups/auto` catalog, the frozen `/data/backups/auto`
+set, and the offsite copies. Activate it with `--expected-schema` set to its
+recorded schema, not always 4. After the release, the next boot of the current
 image migrates a restored one. Run the pre-flight block on the chosen snapshot
 before activating it. If the boot refuses anyway, the helper's `rollback`
 returns the volume to the database that was active before the restore.
