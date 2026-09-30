@@ -217,8 +217,9 @@ def _probe_writable(db: Path) -> str:
     `-wal`/`-shm` files that copy the file's read-only mode, so they would
     outlast a fix to the file alone (found in review).
     """
-    if not os.access(db, os.W_OK):
-        return "failed: EACCES: the file is not writable by this user"
+    for path in _family(db):
+        if not os.access(path, os.W_OK):
+            return f"failed: EACCES: {path.name} is not writable by this user"
     try:
         with closing(sqlite3.connect(db, timeout=_PROBE_TIMEOUT, isolation_level=None)) as conn:
             conn.execute("BEGIN IMMEDIATE")
@@ -258,8 +259,24 @@ def _require_writable(recovery: Path, state: dict[str, Any], db: Path, operation
         )
     raise RestoreError(
         f"The installed database is not writable by this user ({probe}). Keep the service stopped; make "
-        f"{db.name} and {db.parent} writable for uid 1000, then {recheck}; {then}"
+        f"{db.name}, any {db.name}-wal or -shm, and {db.parent} writable for uid 1000, then {recheck}; {then}"
     )
+
+
+def _foreign_sidecar(db: Path) -> Path | None:
+    """A sidecar SQLite never leaves: a symlink, or a `-shm` without a `-wal`.
+
+    Something other than SQLite put it there, and rollback and activation
+    both refuse a non-regular family member, so it has to be removed first.
+    """
+    wal, shm = Path(f"{db}-wal"), Path(f"{db}-shm")
+    extras = set(_family(db)) - {db}
+    for path in sorted(extras):
+        if path.is_symlink():
+            return path
+    if shm in extras and wal not in extras:
+        return shm
+    return None
 
 
 def _unchanged_since_swap(db: Path, expected_sha: str) -> bool:
@@ -269,15 +286,12 @@ def _unchanged_since_swap(db: Path, expected_sha: str) -> bool:
     non-empty `-wal` or a changed main file. A read-only open (an operator
     inspecting with `sqlite3 -readonly`, say) leaves only an empty `-wal`
     and a `-shm`, which the probe's own close removes, so that is not a
-    change. SQLite never makes a `-shm` without a `-wal`.
+    change. `_foreign_sidecar` has already ruled out what SQLite never makes.
     """
-    wal, shm = Path(f"{db}-wal"), Path(f"{db}-shm")
-    extras = set(_family(db)) - {db}
-    if not expected_sha or any(path.is_symlink() for path in extras):
+    wal = Path(f"{db}-wal")
+    if not expected_sha:
         return False
-    if shm in extras and wal not in extras:
-        return False
-    if wal in extras and wal.stat().st_size != 0:
+    if wal.exists() and wal.stat().st_size != 0:
         return False
     return _sha256(db) == expected_sha
 
@@ -299,6 +313,12 @@ def probe(db: Path, operation_id: str) -> dict[str, Any]:
     # opening it would checkpoint that writer's WAL into it.
     installed = state.get("candidate_info") if phase == "activated" else state.get("old_state")
     expected_sha = str((installed or {}).get("sha256", ""))
+    foreign = _foreign_sidecar(db)
+    if foreign is not None:
+        raise RestoreError(
+            f"{foreign.name} is not something SQLite leaves (a symlink, or a -shm without its -wal). Keep the "
+            f"service stopped; remove it, then run `probe --operation-id {operation_id}`."
+        )
     if not _unchanged_since_swap(db, expected_sha):
         # `status` is the runbook's gate, so the refusal must not leave the
         # earlier "ok" behind to describe a file that is no longer this one.

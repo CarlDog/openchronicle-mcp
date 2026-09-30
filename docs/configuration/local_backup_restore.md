@@ -616,17 +616,21 @@ run never inherits an earlier `ok`.
 If the probe fails, activation exits non-zero with phase `activated`, and
 the error says which case it is:
 
-- **Not writable:** restore the mode bits. `chown` alone does not help, and
-  the helper will not run as root, so use a throwaway root container:
+- **Not writable:** restore the mode bits on the database and any `-wal` or
+  `-shm` beside it (a read-only look at a read-only file leaves sidecars with
+  the same mode). `chown` alone does not help, and the helper will not run as
+  root, so use a throwaway root container:
 
   ```bash
   docker run --rm --pull never --network none --user 0:0 \
     --mount "type=volume,source=$VOL,target=/data" --entrypoint sh "$HELPER_IMAGE_ID" \
-    -c 'chmod u+w /data /data/openchronicle.db && chown 1000:1000 /data /data/openchronicle.db'
+    -c 'chmod u+w /data /data/openchronicle.db* && chown 1000:1000 /data /data/openchronicle.db*'
   ```
 
 - **Another process holds the database:** find the container that still has
   `/data` open and stop it.
+- **A sidecar SQLite never leaves** (a symlink, or a `-shm` without its
+  `-wal`): something else put it there. Remove it, then rerun `probe`.
 
 `probe` refuses, and records `write_probe` as `stale`, if anything wrote to
 the installed file since the swap (a changed file, or a non-empty `-wal`
