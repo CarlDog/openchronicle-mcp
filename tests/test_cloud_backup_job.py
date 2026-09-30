@@ -471,22 +471,38 @@ def test_timeout_bounds_the_whole_handler(h: Harness, monkeypatch: pytest.Monkey
     assert time.monotonic() - started < 3
 
 
-def test_cancelled_child_is_killed() -> None:
-    """The shared finally kills the child; otherwise proc.wait() would block ~30 s."""
+def test_cancelled_child_is_killed(tmp_path: Path) -> None:
+    """The shared finally kills the child. Elapsed time alone cannot show it,
+    since the drain bound returns either way, so the child writes a heartbeat
+    and the test checks the heartbeat stops."""
+    beat = tmp_path / "beat"
+    child = (
+        "import sys, time\n"
+        "for _ in range(600):\n"
+        "    with open(sys.argv[1], 'a') as f:\n"
+        "        f.write('.')\n"
+        "    time.sleep(0.05)\n"
+    )
 
     async def go() -> None:
         async with asyncio.timeout(0.5):
-            await jobs._run_captured([sys.executable, "-c", "import time; time.sleep(30)"], dict(os.environ))
+            await jobs._run_captured([sys.executable, "-c", child, str(beat)], dict(os.environ))
 
     started = time.monotonic()
     with pytest.raises(TimeoutError):
         asyncio.run(go())
     assert time.monotonic() - started < 10
+    size = beat.stat().st_size
+    assert size > 0, "the child never started, so this proves nothing"
+    time.sleep(0.5)
+    assert beat.stat().st_size == size, "the child is still running after cancellation"
 
 
 def test_cancelled_child_leaves_no_transport_open(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Killing without draining left the pipe transports open once the loop
-    closed. Windows reports it from __del__, so collect before asserting."""
+    """Killing without draining left the pipe transports open when the loop
+    closed at once, as asyncio.run does here. Windows reports it from
+    __del__, so collect before asserting. Windows-only in effect: on Linux
+    the old code passes too, and a long-lived loop closes them at EOF."""
     leaks: list[str] = []
     monkeypatch.setattr(sys, "unraisablehook", lambda u: leaks.append(str(u.exc_value)))
 
@@ -504,12 +520,15 @@ def test_cancelled_child_leaves_no_transport_open(monkeypatch: pytest.MonkeyPatc
     assert [leak for leak in leaks if "unclosed" in leak] == []
 
 
+@pytest.mark.parametrize("bound", [1.0, 0.0])
 def test_cancel_drain_is_bounded_when_a_grandchild_holds_the_pipe(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    bound: float, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
 ) -> None:
     """kill() stops only the child; a grandchild keeps the pipe open, so an
-    unbounded drain would hang the cancelled handler."""
-    monkeypatch.setattr(jobs, "_CHILD_DRAIN_SECONDS", 1.0)
+    unbounded drain would hang the cancelled handler. The zero bound gives up
+    before the kill is observed: on Linux a wait() after the bound then
+    returned only when the grandchild exited (the review's F1)."""
+    monkeypatch.setattr(jobs, "_CHILD_DRAIN_SECONDS", bound)
     child = (
         "import subprocess, sys, time\n"
         "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(10)'],"
@@ -530,7 +549,9 @@ def test_cancel_drain_is_bounded_when_a_grandchild_holds_the_pipe(
         asyncio.run(go())
     elapsed = time.monotonic() - started
     gc.collect()
-    assert elapsed < 6
+    # The 1 s caller timeout plus the bound, with 2 s of slack; the grandchild
+    # lives 10 s, so an unbounded path lands far outside this.
+    assert elapsed < 1.0 + bound + 2.0
     assert "left its pipes open after kill" in caplog.text
 
 
