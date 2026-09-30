@@ -113,3 +113,36 @@ def test_the_log_file_never_holds_a_host_credential(tmp_path: Path, monkeypatch:
     text = log_path.read_text(encoding="utf-8")
     assert "HTTPStatusError" in text and "127.0.0.1:11999" in text, "premise: the traceback and URL were logged"
     assert "S3CRET" not in text and "oluser" not in text
+
+
+def test_text_redaction_ignores_the_scheme_case() -> None:
+    """The parser lowercases a scheme anyway; free text is matched as written."""
+    from openchronicle.core.domain.redaction import redact_userinfo_in_text
+
+    text = "for url 'HTTPS://oluser:S3CRET@host:11434/api/embed'"
+    assert redact_userinfo_in_text(text) == "for url 'HTTPS://host:11434/api/embed'"
+
+
+def test_json_log_extras_are_redacted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The JSON formatter copies string extras into the line as they are."""
+    from openchronicle.interfaces.logging_setup import configure_root_logger
+
+    log_path = tmp_path / "oc.log"
+    monkeypatch.setenv("OC_LOG_FILE", str(log_path))
+    monkeypatch.setenv("OC_LOG_FORMAT", "json")
+    root = logging.getLogger()
+    old_handlers, old_level = root.handlers[:], root.level
+    try:
+        configure_root_logger()
+        logging.getLogger("oc.test").warning("request failed", extra={"url": "http://oluser:S3CRET@nas:11434/x"})
+        for handler in root.handlers:
+            handler.flush()
+    finally:
+        for handler in root.handlers[:]:
+            if handler not in old_handlers:
+                handler.close()
+                root.removeHandler(handler)
+        root.setLevel(old_level)
+    text = log_path.read_text(encoding="utf-8")
+    assert '"url": "http://nas:11434/x"' in text, "premise: the extra was logged"
+    assert "S3CRET" not in text
