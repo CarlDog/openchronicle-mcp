@@ -233,6 +233,8 @@ _HELD = ("SQLITE_BUSY", "SQLITE_LOCKED")
 # Recorded before each swap. Only a probe of the file then installed replaces
 # it, so an interrupted operation never inherits an earlier "ok".
 _PROBE_PENDING = "pending: the installed file has not been probed; run `probe` after checking why the helper stopped"
+# Recorded when `probe` finds the installed file changed since the swap.
+_PROBE_STALE = "stale: the installed file was written since the swap; this result does not describe it"
 # How long the probe waits on a lock someone else holds before reporting it.
 _PROBE_TIMEOUT = 5.0
 
@@ -256,8 +258,28 @@ def _require_writable(recovery: Path, state: dict[str, Any], db: Path, operation
         )
     raise RestoreError(
         f"The installed database is not writable by this user ({probe}). Keep the service stopped; make "
-        f"{db.name}, any {db.name}-wal or -shm, and {db.parent} writable for uid 1000, then {recheck}; {then}"
+        f"{db.name} and {db.parent} writable for uid 1000, then {recheck}; {then}"
     )
+
+
+def _unchanged_since_swap(db: Path, expected_sha: str) -> bool:
+    """Is the installed file still exactly what the operation installed?
+
+    A writer that died, or a service restarted on the file, leaves a
+    non-empty `-wal` or a changed main file. A read-only open (an operator
+    inspecting with `sqlite3 -readonly`, say) leaves only an empty `-wal`
+    and a `-shm`, which the probe's own close removes, so that is not a
+    change. SQLite never makes a `-shm` without a `-wal`.
+    """
+    wal, shm = Path(f"{db}-wal"), Path(f"{db}-shm")
+    extras = set(_family(db)) - {db}
+    if not expected_sha or any(path.is_symlink() for path in extras):
+        return False
+    if shm in extras and wal not in extras:
+        return False
+    if wal in extras and wal.stat().st_size != 0:
+        return False
+    return _sha256(db) == expected_sha
 
 
 def probe(db: Path, operation_id: str) -> dict[str, Any]:
@@ -277,10 +299,16 @@ def probe(db: Path, operation_id: str) -> dict[str, Any]:
     # opening it would checkpoint that writer's WAL into it.
     installed = state.get("candidate_info") if phase == "activated" else state.get("old_state")
     expected_sha = str((installed or {}).get("sha256", ""))
-    if _family(db) != [db] or not expected_sha or _sha256(db) != expected_sha:
+    if not _unchanged_since_swap(db, expected_sha):
+        # `status` is the runbook's gate, so the refusal must not leave the
+        # earlier "ok" behind to describe a file that is no longer this one.
+        state["write_probe"] = _PROBE_STALE
+        _save_state(recovery, state)
+        way_out = f"roll back {operation_id}, or " if phase == "activated" else ""
         raise RestoreError(
-            "The installed database was opened or written since the swap, so its probe would describe a "
-            "different file. Keep the service stopped and inspect it before relying on this operation."
+            "The installed database was written since the swap, so this operation's result no longer "
+            f"describes it. Keep the service stopped; {way_out}activate a verified artifact again under a "
+            "new operation ID."
         )
     then = "start the service" if phase == "rolled_back" else f"start the service, or roll back {operation_id}"
     _require_writable(recovery, state, db, operation_id, then)

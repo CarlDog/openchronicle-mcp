@@ -859,9 +859,9 @@ def test_a_held_lock_is_reported_as_a_lock_not_as_permissions(tmp_path: Path, mo
         # The check activate and rollback run right after their swap.
         with pytest.raises(offline_restore.RestoreError, match="Another process holds.*SQLITE_BUSY.*probe"):
             offline_restore._require_writable(recovery, state, db, "held", "then start the service.")
-        # A later `probe` sees the holder's sidecars: the file was opened
-        # since the swap, which it refuses before probing.
-        with pytest.raises(offline_restore.RestoreError, match="opened or written since the swap"):
+        # A holder that has not written leaves only an empty -wal, so a later
+        # `probe` gets as far as the lock and gives the same advice.
+        with pytest.raises(offline_restore.RestoreError, match="Another process holds.*SQLITE_BUSY"):
             offline_restore.probe(db, "held")
         holder.execute("ROLLBACK")
     assert offline_restore.probe(db, "held")["write_probe"] == "ok", (
@@ -988,10 +988,12 @@ def test_probe_refuses_a_file_written_since_the_swap(tmp_path: Path) -> None:
     _activate(db, candidate, "written", expected)
     _abrupt_wal_insert(db, "written-after-swap")  # a writer that died, leaving its WAL
     wal_before = Path(f"{db}-wal").read_bytes()
-    with pytest.raises(offline_restore.RestoreError, match="opened or written since the swap"):
+    with pytest.raises(offline_restore.RestoreError, match="written since the swap.*roll back written, or activate"):
         offline_restore.probe(db, "written")
     assert Path(f"{db}-wal").read_bytes() == wal_before, "the refusal left the writer's WAL untouched"
-    assert offline_restore._load_state(tmp_path / ".recovery" / "written")["write_probe"] == "ok", "unchanged"
+    # `status` is the runbook's gate: activation's "ok" must not survive to
+    # describe a file that has since changed.
+    assert str(offline_restore._load_state(tmp_path / ".recovery" / "written")["write_probe"]).startswith("stale")
 
 
 def test_probe_refuses_a_checkpointed_change_since_the_swap(tmp_path: Path) -> None:
@@ -1001,7 +1003,7 @@ def test_probe_refuses_a_checkpointed_change_since_the_swap(tmp_path: Path) -> N
         conn.execute("INSERT INTO memory_items VALUES ('later', 'project-1')")
         conn.commit()
     assert [path.name for path in offline_restore._family(db)] == ["openchronicle.db"], "premise: no sidecar left"
-    with pytest.raises(offline_restore.RestoreError, match="opened or written since the swap"):
+    with pytest.raises(offline_restore.RestoreError, match="written since the swap"):
         offline_restore.probe(db, "checkpointed")
 
 
@@ -1034,3 +1036,38 @@ def test_advice_after_a_rollback_never_says_roll_back(tmp_path: Path) -> None:
         db.chmod(stat.S_IREAD | stat.S_IWRITE)
     assert "not writable" in str(raised.value), "premise: the probe ran and failed"
     assert "roll back" not in str(raised.value) and "start the service" in str(raised.value)
+
+
+def test_a_read_only_look_at_the_installed_file_is_not_a_change(tmp_path: Path) -> None:
+    """A read-only open leaves an empty -wal and a -shm. Refusing on those
+    stranded a good restore after the inspection the error itself advised."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "looked-at", expected)
+    reader = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
+    reader.execute("SELECT COUNT(*) FROM memory_items").fetchone()
+    try:
+        assert Path(f"{db}-wal").exists() and Path(f"{db}-wal").stat().st_size == 0, "premise: empty -wal left"
+        assert offline_restore.probe(db, "looked-at")["write_probe"] == "ok"
+    finally:
+        reader.close()
+    assert offline_restore._sha256(db) == expected["sha256"]
+
+
+def test_a_shm_without_its_wal_is_refused(tmp_path: Path) -> None:
+    """SQLite never leaves a -shm without a -wal; something else made it."""
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "lone-shm", expected)
+    Path(f"{db}-shm").write_bytes(b"not SQLite's")
+    with pytest.raises(offline_restore.RestoreError, match="written since the swap"):
+        offline_restore.probe(db, "lone-shm")
+
+
+def test_a_refused_rollback_names_only_the_way_that_is_left(tmp_path: Path) -> None:
+    db, candidate, expected = _stopped_wal_fixture(tmp_path)
+    _activate(db, candidate, "after-rollback", expected)
+    offline_restore.rollback(db, "after-rollback", apply=True)
+    _abrupt_wal_insert(db, "written-after-rollback")
+    with pytest.raises(offline_restore.RestoreError) as raised:
+        offline_restore.probe(db, "after-rollback")
+    assert "activate a verified artifact again" in str(raised.value)
+    assert "roll back" not in str(raised.value), "a rolled-back operation cannot roll back again"
