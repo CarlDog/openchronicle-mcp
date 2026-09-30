@@ -32,7 +32,12 @@ The job **fails** rather than report a hollow success when:
 - a snapshot is stamped in the future;
 - verification, age or rclone fails.
 
-The whole run is bounded at 900 s.
+The whole run is bounded at 900 s. On timeout the running rclone or age
+child is killed and its output drained for at most 5 s more. If a child's
+own subprocess keeps the output open past that, the log says
+`cloud_backup: <program> left its pipes open after kill`. That is
+harmless for the run, but it means something is still running in the
+container.
 
 ## Health
 

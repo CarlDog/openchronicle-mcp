@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
 import logging
 import os
 import sys
 import time
+import warnings
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
@@ -469,17 +471,88 @@ def test_timeout_bounds_the_whole_handler(h: Harness, monkeypatch: pytest.Monkey
     assert time.monotonic() - started < 3
 
 
-def test_cancelled_child_is_killed() -> None:
-    """The shared finally kills the child; otherwise proc.wait() would block ~30 s."""
+def test_cancelled_child_is_killed(tmp_path: Path) -> None:
+    """The shared finally kills the child. Elapsed time alone cannot show it,
+    since the drain bound returns either way, so the child writes a heartbeat
+    and the test checks the heartbeat stops."""
+    beat = tmp_path / "beat"
+    child = (
+        "import sys, time\n"
+        "for _ in range(600):\n"
+        "    with open(sys.argv[1], 'a') as f:\n"
+        "        f.write('.')\n"
+        "    time.sleep(0.05)\n"
+    )
 
     async def go() -> None:
         async with asyncio.timeout(0.5):
-            await jobs._run_captured([sys.executable, "-c", "import time; time.sleep(30)"], dict(os.environ))
+            await jobs._run_captured([sys.executable, "-c", child, str(beat)], dict(os.environ))
 
     started = time.monotonic()
     with pytest.raises(TimeoutError):
         asyncio.run(go())
     assert time.monotonic() - started < 10
+    size = beat.stat().st_size
+    assert size > 0, "the child never started, so this proves nothing"
+    time.sleep(0.5)
+    assert beat.stat().st_size == size, "the child is still running after cancellation"
+
+
+def test_cancelled_child_leaves_no_transport_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Killing without draining left the pipe transports open when the loop
+    closed at once, as asyncio.run does here. Windows reports it from
+    __del__, so collect before asserting. Windows-only in effect: on Linux
+    the old code passes too, and a long-lived loop closes them at EOF."""
+    leaks: list[str] = []
+    monkeypatch.setattr(sys, "unraisablehook", lambda u: leaks.append(str(u.exc_value)))
+
+    async def go() -> None:
+        async with asyncio.timeout(0.5):
+            await jobs._run_captured([sys.executable, "-c", "import time; time.sleep(30)"], dict(os.environ))
+
+    with warnings.catch_warnings():
+        # "error" turns __del__'s ResourceWarning into an unraisable exception,
+        # so it reaches the hook above instead of pytest's warning summary.
+        warnings.simplefilter("error", ResourceWarning)
+        with pytest.raises(TimeoutError):
+            asyncio.run(go())
+        gc.collect()
+    assert [leak for leak in leaks if "unclosed" in leak] == []
+
+
+@pytest.mark.parametrize("bound", [1.0, 0.0])
+def test_cancel_drain_is_bounded_when_a_grandchild_holds_the_pipe(
+    bound: float, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """kill() stops only the child; a grandchild keeps the pipe open, so an
+    unbounded drain would hang the cancelled handler. The zero bound gives up
+    before the kill is observed: on Linux a wait() after the bound then
+    returned only when the grandchild exited (the review's F1)."""
+    monkeypatch.setattr(jobs, "_CHILD_DRAIN_SECONDS", bound)
+    child = (
+        "import subprocess, sys, time\n"
+        "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(10)'],"
+        " stdout=sys.stdout, stderr=sys.stderr)\n"
+        "time.sleep(30)\n"
+    )
+
+    async def go() -> None:
+        async with asyncio.timeout(1.0):
+            await jobs._run_captured([sys.executable, "-c", child], dict(os.environ))
+
+    # Here the bounded drain gives up by design, so the pipe transports are
+    # left to the collector. Collect them inside this test, or their warning
+    # lands on whichever test runs next.
+    monkeypatch.setattr(sys, "unraisablehook", lambda u: None)
+    started = time.monotonic()
+    with caplog.at_level(logging.WARNING, logger=jobs._logger.name), pytest.raises(TimeoutError):
+        asyncio.run(go())
+    elapsed = time.monotonic() - started
+    gc.collect()
+    # The 1 s caller timeout plus the bound, with 2 s of slack; the grandchild
+    # lives 10 s, so an unbounded path lands far outside this.
+    assert elapsed < 1.0 + bound + 2.0
+    assert "left its pipes open after kill" in caplog.text
 
 
 def test_operator_log_lines(h: Harness, caplog: pytest.LogCaptureFixture) -> None:
