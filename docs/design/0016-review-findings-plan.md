@@ -196,7 +196,8 @@ existing client access or violate the fleet network rule. The v3.4.0
 deployment, if separately approved, remains the documented env-only
 `OC_TAG` plus `OC_LOG_FILE` update on the detached stack.
 
-**Local implementation checkpoint (2026-09-23):** On the unmerged
+**Local implementation checkpoint (2026-09-23; merged the same day as
+PR #35, `77ea0173`, and shipped in v3.4.0):** On the then-unmerged
 `codex/nas-host-allowlist` branch, the repo compose injects an empty API
 Host list by default. The runbook requires an explicit external-hosts-plus-
 `oc:*` list for the opt-in collector and checks LAN REST, MCP and scrape
