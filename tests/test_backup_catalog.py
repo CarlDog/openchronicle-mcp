@@ -532,3 +532,13 @@ def test_an_untraversable_parent_is_reported_as_a_permission_problem(tmp_path: P
     finally:
         parent.chmod(0o700)
     assert "cannot be checked" in problem and "parent directories" in problem, problem
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows reports a file used as a directory as missing")
+def test_a_non_permission_error_does_not_suggest_permissions(tmp_path: Path) -> None:
+    from openchronicle.core.infrastructure.wiring.container import _backup_dir_problem
+
+    a_file = tmp_path / "a-file"
+    a_file.write_text("", encoding="utf-8")
+    problem = _backup_dir_problem(a_file / "backups") or ""
+    assert problem.startswith("cannot be checked") and "permissions" not in problem, problem

@@ -20,7 +20,6 @@ from openchronicle.core.application.services.git_onboard import (
     _build_clone_env,
     _generate_label,
     _jaccard,
-    _redact_url,
     _validate_repo_url,
     cluster_commits,
     extract_commits_from_git,
@@ -440,8 +439,10 @@ def test_clone_command_uses_no_checkout() -> None:
 
 
 def test_redact_url_strips_embedded_credentials() -> None:
-    assert _redact_url("https://x:ghp_secret@github.com/foo/bar") == "https://github.com/foo/bar"
-    assert _redact_url("https://github.com/foo/bar") == "https://github.com/foo/bar"
+    from openchronicle.core.domain.redaction import redact_url_userinfo
+
+    assert redact_url_userinfo("https://x:ghp_secret@github.com/foo/bar") == "https://github.com/foo/bar"
+    assert redact_url_userinfo("https://github.com/foo/bar") == "https://github.com/foo/bar"
 
 
 def test_clone_command_uses_end_of_options_guard() -> None:

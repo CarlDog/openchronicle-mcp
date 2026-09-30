@@ -195,3 +195,93 @@ def test_serve_logs_boot_problems_to_the_log_file(tmp_path: Path, monkeypatch: p
                 handler.close()
                 root.removeHandler(handler)
         root.setLevel(old_level)
+
+
+def _restore_root_logger(old_handlers: list[logging.Handler], old_level: int) -> None:
+    root = logging.getLogger()
+    for handler in root.handlers[:]:
+        if handler not in old_handlers:
+            handler.close()
+            root.removeHandler(handler)
+    root.setLevel(old_level)
+
+
+def test_serve_writes_each_boot_line_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`serve` now configures logging in main() and again in cmd_serve; the
+    second call must not stack a second file handler."""
+    import signal
+
+    import uvicorn
+
+    from openchronicle.interfaces.cli import main as cli_main
+
+    log_path = tmp_path / "logs" / "oc.log"
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    monkeypatch.setenv("OC_LOG_FILE", str(log_path))
+    monkeypatch.setenv("OC_CONFIG_DIR", str(config_dir))
+    monkeypatch.setenv("OC_BACKUP_DIR", "relative/backups")
+    monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+    monkeypatch.setattr(uvicorn.Server, "run", lambda self, sockets=None: None)
+    old_signals = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+    root = logging.getLogger()
+    old_handlers, old_level = root.handlers[:], root.level
+    try:
+        assert cli_main.main(["serve"]) == 0
+        for handler in root.handlers:
+            handler.flush()
+        lines = log_path.read_text(encoding="utf-8").splitlines()
+    finally:
+        _restore_root_logger(old_handlers, old_level)
+        for sig, saved in old_signals.items():
+            signal.signal(sig, saved)
+    boot = [line for line in lines if "OC_BACKUP_DIR relative" in line]
+    assert len(boot) == 1, lines
+
+
+def test_one_shot_commands_leave_logging_alone(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from openchronicle.interfaces.cli import main as cli_main
+
+    log_path = tmp_path / "logs" / "oc.log"
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    monkeypatch.setenv("OC_LOG_FILE", str(log_path))
+    monkeypatch.setenv("OC_CONFIG_DIR", str(config_dir))
+    root = logging.getLogger()
+    old_handlers, old_level = root.handlers[:], root.level
+    try:
+        assert cli_main.main(["list-projects"]) == 0
+        assert root.handlers == old_handlers
+    finally:
+        _restore_root_logger(old_handlers, old_level)
+    assert not log_path.exists()
+
+
+def test_a_failed_boot_reaches_the_log_file_for_serve_and_stderr_otherwise(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The crash-loop case: a container that cannot start leaves its reason
+    only where OC_LOG_FILE keeps it, and never on stdout."""
+    from openchronicle.interfaces.cli import main as cli_main
+
+    log_path = tmp_path / "logs" / "oc.log"
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    db = tmp_path / "oc.db"
+    db.write_bytes(b"this is not a database" * 100)
+    monkeypatch.setenv("OC_LOG_FILE", str(log_path))
+    monkeypatch.setenv("OC_CONFIG_DIR", str(config_dir))
+    monkeypatch.setenv("OC_DB_PATH", str(db))
+    root = logging.getLogger()
+    old_handlers, old_level = root.handlers[:], root.level
+    try:
+        assert cli_main.main(["serve"]) == 1
+        for handler in root.handlers:
+            handler.flush()
+        assert "Cannot start:" in log_path.read_text(encoding="utf-8")
+    finally:
+        _restore_root_logger(old_handlers, old_level)
+    assert capsys.readouterr().out == ""
+    assert cli_main.main(["list-projects"]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == "" and "not a database" in captured.err
