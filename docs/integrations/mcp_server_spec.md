@@ -71,9 +71,9 @@ LLM need to write a memory" shape:
 Five additional tools register on the HTTP MCP surface only when
 `OC_BACKUP_MCP_ENABLED=true`, `OC_BACKUP_DIR` is explicitly configured, and
 the effective `OC_API_KEY` is nonempty; any other setting logs an ERROR and
-leaves them off without stopping startup. They are off in production:
+leaves them off without stopping startup. They are off in production for now:
 auth is on and `OC_BACKUP_DIR` is set there, but `OC_BACKUP_MCP_ENABLED`
-stays `false` until the operator decides (ROADMAP OPS-07). The default 18-tool inventory and stdio server omit them. All take generated artifact IDs, never file paths.
+stays `false` until then: the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07). The default 18-tool inventory and stdio server omit them. All take generated artifact IDs, never file paths.
 
 | Tool | Purpose |
 |---|---|

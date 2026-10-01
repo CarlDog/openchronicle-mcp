@@ -912,8 +912,8 @@ in the assessment (revs 217-227). Open, in order:
 
 The MCP backup tools ship off by default (operator, 2026-09-24). Auth has been
 on since 2026-09-25, and production sets `OC_BACKUP_DIR=/exports/backups`
-(v3.5.0 with the `/exports` mount, OPS-03 and OPS-05), so enabling them is
-only the operator's call (ROADMAP OPS-07). Catalogued auto backups land in
+(v3.5.0 with the `/exports` mount, OPS-03 and OPS-05), and
+the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07). Catalogued auto backups land in
 `/exports/backups/auto`; `/data/backups/auto` holds only frozen pre-v3.5.0
 snapshots.
 
