@@ -87,10 +87,9 @@ the artifact hash detects accidental changes but cannot authenticate a writer
 who can change both the database and its manifest. The five backup/restore
 preparation MCP tools require an explicit backup root and nonempty HTTP API key
 and are off by default. They never accept a caller-supplied path or activate a
-restore. Production does not expose them: auth is on (since 2026-09-25) and
+restore. Production does not expose them yet: auth is on (since 2026-09-25) and
 the backup root is set (`OC_BACKUP_DIR=/exports/backups`, since v3.5.0), but
-`OC_BACKUP_MCP_ENABLED` stays `false`; enabling them is an operator decision
-(ROADMAP OPS-07).
+`OC_BACKUP_MCP_ENABLED` stays `false` until then: the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07).
 
 ## Transport
 

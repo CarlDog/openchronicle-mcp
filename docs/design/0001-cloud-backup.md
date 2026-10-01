@@ -846,10 +846,9 @@ Only decisions that genuinely need a human.
    consumer plans do not meter egress; the per-drill transfer is ~9 MiB regardless.
    The question survives only if the provider ever changes.
 
-7. **How much of that account's existing 6.75 GB do you want to keep?** Not a design
-   question — but you had planned to retire this account, and clearing what you no
-   longer want pushes the prune trigger (§8) further out at zero engineering cost.
-   Purely yours; the design works either way.
+7. ~~**How much of that account's existing 6.75 GB do you want to keep?**~~ **RESOLVED 2026-09-30:**
+   keep all of it (ROADMAP DATA-03). Reopen only if free space falls below about 2 GB,
+   and never close the account.
 
 ---
 

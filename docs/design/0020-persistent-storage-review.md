@@ -346,7 +346,10 @@ recommendations, do step A now").
    production health was unchanged. The Phase 4D Prometheus history is gone;
    its sanitized report and summary remain outside the repository.
 5. **Share access:** owner, group and mode for `/volume1/docker/openchronicle`
-   and `exports/`, after the ACL check.
+   and `exports/`, after the ACL check. **Decided:** `exports/` on 2026-09-28
+   (`1000:100 0750`, rev 249). The share root, on 2026-09-30: tighten it to
+   `1000:100 0750` in the DATA-06 session, after checking the `docker`
+   share's DSM permissions.
 6. **DSM-level backup:** does one cover these paths today, and should one?
    **Answered 2026-09-28: none does.** No Hyper Backup or Snapshot
    Replication task covers the `docker` share or `/volume1/@docker`.
