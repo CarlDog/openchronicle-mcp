@@ -1773,6 +1773,64 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
 - **Docker base image refresh.** ✅ Landed 2026-07-29/30 (`9e71c207` + `c839ddb9`): base moved to `python:3.14-slim` with a multi-stage build, non-root `oc` user, and HEALTHCHECK. The follow-on truth-reconciliation (requires-python `>=3.14`, badge, docs) landed 2026-08-16 in review Batch A.
 - **Consume the tracked lock in CI and Docker.** A generated `uv.lock` is now tracked for review and dependency inspection, but the build remains intentionally honest about its current behavior: CI and Docker still resolve/install from `pyproject.toml`, so the lock does not yet make either path reproducible. When scheduled, make frozen lock consumption authoritative on supported Python/OS markers, fail on drift, audit the exact locked runtime graph, and retain Dependabot for updates.
 - **Offline / write-behind sync for LAN-unreachable clients.** OC's single-user home-LAN posture (no auth, NAS-only, per `docs/configuration/security_posture.md`) means any client MCP call fails outright — not gracefully degrades — the moment the client isn't on the LAN (VPN off, in-office, mobile). Surfaced 2026-07-30: a Claude Code session working on an unrelated repo (IRIS) finished a real milestone worth a `memory_save`, but the user was in-office and OC was unreachable; the only mitigation available was holding the draft in Claude's own local memory system and re-offering to file it next session — an entirely manual, per-session stopgap with no OC-side support, and it evaporates if the AI or user forgets. Two directions worth researching, not yet scoped or estimated: (a) a **client-side write-behind queue** — buffer `memory_save`/`project_*` calls locally (e.g. a JSON-lines journal) when the NAS request fails/times out, replay them through the real MCP tools once reachable; no server change needed, smallest lift, but doesn't help *reads* (`memory_search`, `context_recent`) while offline. (b) A **local shadow OC instance** — `oc serve` already runs standalone against a local SQLite DB for local dev (a separate memory pool from the NAS one per this file's Project Identity section); journal writes while offline and reconcile into the NAS DB on reconnect. Helps reads too, but needs a real merge story OC has no design for today — a memory created locally and one created on the NAS in the same offline window need distinguishable ids, not naive overwrite-by-id, and reconciliation ordering/conflict rules don't exist yet. Lean toward (a) first: smaller lift, and it covers the case that actually bit us (a write, not a read).
+- **Git onboarding for a repo the server cannot clone (ROADMAP QUAL-19, GATE-22).**
+  Surfaced 2026-10-01 from a client session on a work repository (HERMES)
+  that had moved to a GitHub Enterprise Managed Users (EMU) organization.
+  The MCP `onboard_git` call passed the GitHub-only URL gate, then the clone
+  failed with git's own `remote: Repository not found`. The server's
+  `OC_GIT_TOKEN` cannot read that organization, and an EMU organization's
+  private repositories are readable only with a token from one of its own
+  managed accounts, which is a work credential the operator would have to
+  place on the home NAS.
+
+  The tool then points at a fallback that does not reach the server. The
+  `onboard_git` docstring says "For unpushed local history use the
+  `oc onboard git` CLI instead", and the GitHub-only refusal in
+  `git_onboard.py` says to run `oc onboard git` "on the machine that has
+  them". The CLI opens its own SQLite store (`OC_DB_PATH`, else
+  `OC_DATA_DIR`, else `./data/openchronicle.db` under the working
+  directory), and `cmd_onboard_git` looks the project up there before
+  anything else, `--dry-run` included. Reproduced on `main` (`e5ed3f0a`)
+  from an empty directory: without a `config/` directory the command stops
+  with "Config directory not found"; with one, it creates an empty
+  `data/openchronicle.db` (and `output/`) and exits 1 with a bare
+  `Error: project not found: <id>`, naming neither the store it opened nor
+  why the project is absent. The watermark is device-local as well (export
+  and import both drop it). So today the only route into the server's
+  project is the CLI run on the NAS itself, with the repository mounted into
+  the container, and the client machine that holds the credentials cannot
+  take it. The HERMES commits went into a hand-written memory instead.
+
+  Two pieces, with different authorization:
+
+  1. **QUAL-19: honest guidance and errors (S).** (a) The `onboard_git`
+     docstring, the GitHub-only refusal and `docs/cli/commands.md` say that
+     the CLI writes to its own local store, so it reaches the server's
+     projects only when run where the server's database lives. (b) A clone
+     that fails with "Repository not found" or an authentication error says
+     whether `OC_GIT_TOKEN` was set and presented for that host, so "no
+     token", "the token cannot see the repo" and "the repo does not exist"
+     stop looking identical. (c) The CLI's `project not found` names the
+     resolved store path and how to point elsewhere (`OC_DB_PATH`,
+     `OC_DATA_DIR`), and a failed lookup does not leave a newly created
+     empty store behind.
+  2. **GATE-22: client-side onboarding into a server project (design;
+     operator ratification).** Clone and cluster where the credentials
+     already are, then save on the server and record the watermark there,
+     which keeps work credentials off the home server. The MCP path already
+     returns clusters for the caller to save with `memory_save`, so the
+     missing parts are extraction that runs on the client and a way to
+     record the watermark on the server. The smallest version is a
+     `--dry-run` that needs no local project and can emit JSON for the
+     caller to save; without a server-side watermark, each run re-walks
+     history unless given a starting commit. A fuller version is
+     `oc onboard git --server <url>` acting as an HTTP client. Open
+     questions: where the watermark lives (GATE-12 already wants its own
+     table), how the CLI authenticates to the server, and whether the
+     server trusts client-supplied history as it trusts any `memory_save`.
+     Related but distinct: the offline write-behind entry above (GATE-06)
+     is a client that cannot reach the server; this is a server that cannot
+     reach the repository.
 
 ---
 
