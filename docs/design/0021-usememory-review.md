@@ -89,8 +89,10 @@ Each gap names what "better" would mean here and its roadmap ID.
    every client shares, with full read, write and delete. *Better:* per-client
    tokens with `read`/`write`/`delete` scopes and a project or tag restriction,
    revocable one at a time, with each token named in the audit trail. This
-   is also the precondition that makes the parked backup tools (OPS-07) and
-   `memory_delete` safe to hand to an autonomous agent. OAuth 2.1 with PKCE and
+   is also the precondition that makes `memory_delete` and `project_delete`
+   safe to hand to an autonomous agent. (It was also listed for the backup
+   tools, OPS-07, but none of them restores or deletes; the operator decided
+   on 2026-09-30 to enable them without waiting for PAR-01.) OAuth 2.1 with PKCE and
    dynamic client registration is the MCP-spec route; per-client static tokens
    are the smaller first step.
 2. **Integration sync semantics (PAR-02).** `externalRef` upsert with a
@@ -140,6 +142,6 @@ Each gap names what "better" would mean here and its roadmap ID.
 ## Order, if ratified
 
 PAR-07 (a document and a test) and PAR-01's per-client tokens first: they are
-small and they unblock OPS-07. PAR-06 needs MEAS-04's evaluation. PAR-02 after
+small, and PAR-01 narrows what a leaked key can delete. PAR-06 needs MEAS-04's evaluation. PAR-02 after
 RET-03's ADR. PAR-03 is its own design with a plan review. PAR-04 and PAR-05
 stay research.

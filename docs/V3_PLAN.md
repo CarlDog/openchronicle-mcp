@@ -446,6 +446,10 @@ Before v3 replaces main:
 
 ### Migration script (`scripts/migrate_v2_to_v3.py`)
 
+> **Removed 2026-09-30** (ROADMAP DATA-05), with `scripts/verify_v3_db.py` and
+> their tests: the one remaining v2 recovery (cutover item L3) was done as a
+> triage instead. The plan below is kept as history.
+
 1. Read v2 DB read-only
 2. Create new v3-shaped DB next to it (or in tmpdir)
 3. Copy `projects` table
@@ -908,8 +912,8 @@ in the assessment (revs 217-227). Open, in order:
 
 The MCP backup tools ship off by default (operator, 2026-09-24). Auth has been
 on since 2026-09-25, and production sets `OC_BACKUP_DIR=/exports/backups`
-(v3.5.0 with the `/exports` mount, OPS-03 and OPS-05), so enabling them is
-only the operator's call (ROADMAP OPS-07). Catalogued auto backups land in
+(v3.5.0 with the `/exports` mount, OPS-03 and OPS-05), and
+the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07). Catalogued auto backups land in
 `/exports/backups/auto`; `/data/backups/auto` holds only frozen pre-v3.5.0
 snapshots.
 

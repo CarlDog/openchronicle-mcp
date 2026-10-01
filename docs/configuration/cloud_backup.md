@@ -150,5 +150,7 @@ restart re-runs the entrypoint's `chown`.
 - **Bump rclone** (`COPY --from=rclone/rclone:<tag>` in the Dockerfile) at the
   phase-end audit. Dependabot does not track `COPY --from` images, and a stale
   rclone falls behind provider OAuth changes.
-- Remote growth is about 10 MB a night, append-only. Prune by hand only if the
-  Dropbox quota ever runs short (design 0001 §8).
+- Remote growth is about 10 MB a night, append-only. Nothing is pruned: the
+  account's existing files are kept and the account is never closed
+  (ROADMAP DATA-03). If free space ever falls below about 2 GB, reopen DATA-03
+  before removing anything (design 0001 §8).

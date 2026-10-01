@@ -61,7 +61,7 @@ src/openchronicle/
     cli/main.py            # `oc` entrypoint; cli/commands/ subcommands (db, config, etc.)
 tests/                    # pytest, one test_*.py per concern, mirrors src topics not 1:1 files
 migrations = src/openchronicle/core/infrastructure/persistence/migrations/  (NOT top-level)
-scripts/                  # one-shot ops scripts: migrate_v2_to_v3.py, verify_v3_db.py, benchmark_embeddings.py, offline_restore.py
+scripts/                  # ops scripts: benchmark_embeddings.py, offline_restore.py
 docs/CODEBASE_ASSESSMENT.md  # single source of truth for project status — update before every commit
 docs/V3_PLAN.md              # phase tracker / open questions
 docs/architecture/ARCHITECTURE.md  # full layout + schema + ASGI design

@@ -33,6 +33,18 @@ enforces parity.
   - Nothing is "shipped" or "verified" before it is in a tagged
     release, and CI has passed on the exact commit.
   - Never write OpenChronicle milestone memories for unmerged work.
+- **Voice and posture** (operator standing rule, 2026-05-02; restored from
+  the v2 backup on 2026-09-30). Applies to the README and all user-facing
+  docs:
+  - Don't undersell. State what the work is, confidently; no "just a
+    personal project" qualifiers or apologetic hedges.
+  - Don't sell competitors' products. No "consider also" pointers; the
+    README is not a market survey.
+  - State the scope honestly: memory, git onboarding and projects, by design.
+    Honest about boundaries is not apologetic about quality.
+  - The high bar stays: lean scope does not mean lean rigor.
+  - No benchmark chasing for marketing; running one is curiosity.
+  - Competitive context is internal only and never goes in user-facing copy.
 - **Docs + memories before every commit.** Standing rule (2026-05-05).
   Before any `git commit` on this repo, update the affected docs (at
   minimum `docs/CODEBASE_ASSESSMENT.md`; for in-flight work also
@@ -237,8 +249,8 @@ three-night window; phase-end audit in progress.**
   checks 2026-09-30 to 2026-10-02) and a deliberate-breakage check; the
   [runbook](docs/configuration/cloud_backup.md) has the procedures.
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
-  work. After OPS-08: the Phase 0 hygiene items, the OPS-07 decision, DATA-01
-  decision 5 and DATA-03 to DATA-05, then the timestamp fix (TS-01 to TS-04,
+  work. After OPS-08: v3.7.0 (which enables the MCP backup tools, OPS-07), the
+  DATA-05 triage, the DATA-06/07 NAS session from about 2026-10-05, then the timestamp fix (TS-01 to TS-04,
   PR #38), then v4.0.0 on the operator's tag call (V4-01).
 - **Standing:**
   - The Gemini audit branch was rejected as a unit and survives only as the
@@ -613,4 +625,3 @@ the LLM, so OC's role is memory/retrieval only.
 - `src/openchronicle/interfaces/cli/main.py` — `oc` command entry point
 - `src/openchronicle/core/infrastructure/wiring/container.py` — DI composition root
 - `src/openchronicle/core/infrastructure/persistence/migrator.py` — schema migration runner
-- `scripts/migrate_v2_to_v3.py` + `scripts/verify_v3_db.py` — one-shot cutover migration

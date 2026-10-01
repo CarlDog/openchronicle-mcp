@@ -74,7 +74,7 @@ relationships).
 | `OC_API_HOST` | Bind address | `127.0.0.1` |
 | `OC_API_PORT` | Listen port | `8000` |
 | `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
-| `OC_BACKUP_MCP_ENABLED` | Register five fixed-root backup and restore-preparation HTTP MCP tools; requires an explicit `OC_BACKUP_DIR` and a nonempty effective API key; otherwise, or for an unrecognized value, logs an ERROR and leaves them off. Off in production pending the operator's decision (ROADMAP OPS-07) | `false` |
+| `OC_BACKUP_MCP_ENABLED` | Register five fixed-root backup and restore-preparation HTTP MCP tools; requires an explicit `OC_BACKUP_DIR` and a nonempty effective API key; otherwise, or for an unrecognized value, logs an ERROR and leaves them off. Off in production until the v3.7.0 deploy, which enables it (operator decision 2026-09-30, ROADMAP OPS-07) | `false` |
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
 | `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset or empty. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
 | `OC_API_CORS_ORIGINS` | CSV of allowed CORS origins; the CORS middleware is only registered when this is non-empty | — |

@@ -201,11 +201,11 @@ OPS-03 it wrote to the then SMB-visible `/config` bind; the 2026-09-24 and
 
 ## Enable and use the MCP surface
 
-**The MCP tools are parked** (operator decision, 2026-09-24). They register only
-with `OC_BACKUP_MCP_ENABLED=true`, an explicit `OC_BACKUP_DIR` and a nonempty
-effective `OC_API_KEY`. Production auth was enabled on 2026-09-25, which meets
-the key precondition, but production sets no explicit backup root, so they do
-not register there; enabling them is an operator decision (ROADMAP OPS-07).
+**The MCP tools are off in production until the v3.7.0 deploy.** They register
+only with `OC_BACKUP_MCP_ENABLED=true`, an explicit `OC_BACKUP_DIR` and a
+nonempty effective `OC_API_KEY`. Production meets both preconditions: auth
+since 2026-09-25 and `OC_BACKUP_DIR=/exports/backups` since v3.5.0. They were
+parked on 2026-09-24; the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07).
 Every production step in this runbook uses the CLI and the offline helper.
 Scheduled backups need `OC_BACKUP_DIR` (or its default) and no MCP auth. The
 stdio server never registers the tools. If they are ever enabled, do not place
@@ -440,7 +440,7 @@ backup-facility drill and remains a timestamp release gate.
 ## Offline activation and rollback
 
 Stage and verify the selected snapshot with the helper's `stage` action. This
-is the production path while the MCP tools stay parked,
+is the production path, whether or not the MCP tools are enabled,
 and it works whether or not the service is running or even starts: it only
 reads the snapshot and writes `/data/.restore-stage`. `--expected-sha256` must
 come from an **independent record**: the artifact's manifest or earlier verify
