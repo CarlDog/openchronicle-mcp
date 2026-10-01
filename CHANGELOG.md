@@ -16,21 +16,29 @@ log (QUAL-12), and dependency updates. No schema change.
 three green nights and its breakage check pass.
 
 **Deploy note.** `docker-compose.nas.yml` is unchanged since v3.6.0, so stack
-151's stored file needs no update, and the release is one env change:
+151's stored file needs no update, and the release is one env change.
+Tagging waits for OPS-08 to close, so all three of its nights ran v3.6.0.
 
-1. Start the request-latency sample **before** the change. This is design
+1. Pick a time away from the nightly push. `/api/v1/maintenance/status`
+   shows `cloud_backup.last_run_at`. Recreating the container cancels a push
+   in flight, the cancelled run still stamps `last_run_at`, and the job then
+   waits 24 hours, so health would read `stale` at the 48-hour mark.
+2. Start the request-latency sample **before** the change. This is design
    0010's deploy check for this release; v3.6.0's sample was missed because
    its boot-time work finished before sampling began.
-2. `portainer_set_stack_env` with `OC_TAG=v3.7.0` and
+3. `portainer_set_stack_env` with `OC_TAG=v3.7.0` and
    `OC_BACKUP_MCP_ENABLED=true` in the same call, with `pull_image=true`. The
    second setting enables the MCP backup tools (operator decision 2026-09-30,
    ROADMAP OPS-07); production already sets `OC_API_KEY` and `OC_BACKUP_DIR`.
-3. Verify:
+4. Verify:
    - `health.package_version` is 3.7.0, `health.build_revision` is the tag's
      full SHA, and `schema_version` is still 4;
    - `/api/v1/health` without the key omits `db_path` and `config_dir`;
    - the MCP tool list now includes `db_backup_create`, `db_backup_list`,
-     `db_backup_verify`, `db_restore_plan` and `db_restore_stage`;
+     `db_backup_verify`, `db_restore_plan` and `db_restore_stage`. Exercise
+     create, list, verify and plan, but **do not call `db_restore_stage` as a
+     check**: a stage that is never activated has no discard path except
+     deleting it by hand with the service stopped (ROADMAP DATA-07);
    - the boot log has no warning from the new settings parser;
    - the latency sample's p95 is within budget.
 
@@ -59,8 +67,9 @@ which nothing prunes (ROADMAP DATA-07).
 - **Boot problems reach `OC_LOG_FILE`** (QUAL-12, #88). `oc serve` configures
   logging before building the container, so an unusable `OC_BACKUP_DIR` or an
   unrecognized setting is in the durable log, not only in the stderr a
-  Portainer recreate discards. A failed container build is logged for `serve`
-  and printed to stderr for other commands. A bad backup directory now names
+  Portainer recreate discards. A failed container build is logged as
+  `Cannot start: <reason>` for `serve` and printed to stderr for other
+  commands; before, the reason went to stdout. A bad backup directory now names
   its cause: missing, not a directory, a symlink, not writable, or a parent
   that cannot be checked.
 - **URL credentials never reach the log** (#88). Both log formats strip URL
@@ -70,7 +79,11 @@ which nothing prunes (ROADMAP DATA-07).
   default, and an unrecognized value logs a warning naming the variable and
   keeps the default. **Behavior change:** an unrecognized
   `OC_SEARCH_FTS5_ENABLED` used to turn search off silently; it now keeps
-  search on. `OC_BACKUP_MCP_ENABLED` still logs at ERROR.
+  search on. An unrecognized `OC_MAINTENANCE_DISABLED` or
+  `OC_METRICS_ENABLED` now warns too, keeping the same default.
+  `OC_BACKUP_MCP_ENABLED` still logs at ERROR, with new wording. Stack 151
+  sets none of the four (checked 2026-10-01), so production behaves as
+  before.
 - **Maintenance fixes** (audit C1, C2 and C4: #66, #67, #69). A total
   backfill failure is labelled `failure` in the job metric, not `partial`.
   The loop and health find the state file through one path, and a stored
@@ -81,13 +94,18 @@ which nothing prunes (ROADMAP DATA-07).
   `left its pipes open after kill` when that bound is hit.
 - **The `oc` CLI and the stdio MCP server close their store on exit** (audit
   C7, #72).
+- **`oc maintenance run-once`'s help lists the registered jobs**, which now
+  include `cloud_backup`.
 - **Removed:** `scripts/migrate_v2_to_v3.py` and `scripts/verify_v3_db.py`, the
   one-shot v2 cutover tools (DATA-05, #90).
-- **Dependencies** (#81, #85): uvicorn 0.54.0, openai 3.19.2 and ruff 0.16.9.
-  `uv.lock` also carries pyjwt 2.14.0, a security release whose fixes do not
-  reach OpenChronicle (it arrives only through `mcp[crypto]`). The
-  `pyproject.toml` floors are raised, not pinned: CI and the image still
-  resolve fresh from the `>=` floors (ROADMAP QUAL-06).
+- **Dependency floors raised** (#81, #85): `uvicorn>=0.54.0`, `openai>=3.19.2`
+  and `ruff>=0.16.9`. These are minimums, not the versions the image ships:
+  CI and the Dockerfile resolve fresh from the floors, so the image gets
+  whatever is newest at build time. A build from `main` on 2026-10-01
+  installed openai 3.22.1 and pyjwt 2.15.1. `uv.lock` (openai 3.19.2, pyjwt
+  2.14.0) is used by neither (ROADMAP QUAL-06). pyjwt arrives only through
+  `mcp[crypto]`, and the security fixes in 2.14.0 do not reach
+  OpenChronicle.
 - **Development:** the commit hook's identity check is an allowlist on author
   and committer (audit C5, #70); docs-parity and compose-parity tests
   (QUAL-05, QUAL-17: #76, #78).
