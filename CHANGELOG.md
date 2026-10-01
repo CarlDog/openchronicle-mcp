@@ -5,6 +5,98 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## v3.7.0 — 2026-09-30
+
+The hardening release: the 2026-09-29 phase-end audit's fixes (C1 to C7), the
+pre-deploy review's fixes for `v3.6.0..733c89ed`, a write probe for offline
+restores (DATA-04), boot problems and URL credentials handled correctly in the
+log (QUAL-12), and dependency updates. No schema change.
+
+**Status:** prepared 2026-09-30; not yet tagged. It is tagged once OPS-08's
+three green nights and its breakage check pass.
+
+**Deploy note.** `docker-compose.nas.yml` is unchanged since v3.6.0, so stack
+151's stored file needs no update, and the release is one env change:
+
+1. Start the request-latency sample **before** the change. This is design
+   0010's deploy check for this release; v3.6.0's sample was missed because
+   its boot-time work finished before sampling began.
+2. `portainer_set_stack_env` with `OC_TAG=v3.7.0` and
+   `OC_BACKUP_MCP_ENABLED=true` in the same call, with `pull_image=true`. The
+   second setting enables the MCP backup tools (operator decision 2026-09-30,
+   ROADMAP OPS-07); production already sets `OC_API_KEY` and `OC_BACKUP_DIR`.
+3. Verify:
+   - `health.package_version` is 3.7.0, `health.build_revision` is the tag's
+     full SHA, and `schema_version` is still 4;
+   - `/api/v1/health` without the key omits `db_path` and `config_dir`;
+   - the MCP tool list now includes `db_backup_create`, `db_backup_list`,
+     `db_backup_verify`, `db_restore_plan` and `db_restore_stage`;
+   - the boot log has no warning from the new settings parser;
+   - the latency sample's p95 is within budget.
+
+Rollback is one env change: `OC_TAG=v3.6.0` and `OC_BACKUP_MCP_ENABLED=false`.
+There is no schema change, and v3.6.0 reads the same maintenance state file.
+Manual snapshots taken through the tools stay in `/exports/backups/manual`,
+which nothing prunes (ROADMAP DATA-07).
+
+- **Unauthenticated health omits filesystem paths** (#75). With a key set,
+  `/api/v1/health` returns `db_path` and `config_dir` only to a caller that
+  presents the key. A keyed caller, and every caller when auth is off, still
+  gets the full payload, so REST and MCP health match. This narrows what an
+  unauthenticated probe sees; the two fields were never in the OpenAPI
+  schema, so it is a MINOR change. `scripts/smoke_test.py` checks
+  `package_version` instead of `db_path`.
+- **A non-ASCII key header is a wrong key, not a 500** (#83). The middleware
+  and the health route share one constant-time comparison of the header's
+  bytes. ASCII keys authenticate exactly as before.
+- **Offline restores prove the database takes a write** (DATA-04, #86).
+  `scripts/offline_restore.py` probes after the swap in `activate` and
+  `rollback`, records `write_probe` in `state.json`, and stops with the next
+  step when the probe fails. A new `probe` action re-checks after a fix. The
+  helper refuses to run as root, refuses an unwritable or foreign sidecar,
+  and refuses a database written since the swap. See
+  [local_backup_restore.md](docs/configuration/local_backup_restore.md).
+- **Boot problems reach `OC_LOG_FILE`** (QUAL-12, #88). `oc serve` configures
+  logging before building the container, so an unusable `OC_BACKUP_DIR` or an
+  unrecognized setting is in the durable log, not only in the stderr a
+  Portainer recreate discards. A failed container build is logged for `serve`
+  and printed to stderr for other commands. A bad backup directory now names
+  its cause: missing, not a directory, a symlink, not writable, or a parent
+  that cannot be checked.
+- **URL credentials never reach the log** (#88). Both log formats strip URL
+  userinfo from the whole line, tracebacks and JSON extras included, and
+  `httpx`/`httpx2` request lines are kept to DEBUG.
+- **One parser for yes/no settings** (audit C3, #68). Blank means the
+  default, and an unrecognized value logs a warning naming the variable and
+  keeps the default. **Behavior change:** an unrecognized
+  `OC_SEARCH_FTS5_ENABLED` used to turn search off silently; it now keeps
+  search on. `OC_BACKUP_MCP_ENABLED` still logs at ERROR.
+- **Maintenance fixes** (audit C1, C2 and C4: #66, #67, #69). A total
+  backfill failure is labelled `failure` in the job metric, not `partial`.
+  The loop and health find the state file through one path, and a stored
+  timestamp without an offset reads as UTC everywhere. The
+  `git_onboard_resync` placeholder reports `skipped`, not `ok`.
+- **A cancelled cloud-backup child cannot hold the maintenance lock** (#80).
+  The job kills the child and drains it for at most 5 s, logging
+  `left its pipes open after kill` when that bound is hit.
+- **The `oc` CLI and the stdio MCP server close their store on exit** (audit
+  C7, #72).
+- **Removed:** `scripts/migrate_v2_to_v3.py` and `scripts/verify_v3_db.py`, the
+  one-shot v2 cutover tools (DATA-05, #90).
+- **Dependencies** (#81, #85): uvicorn 0.54.0, openai 3.19.2 and ruff 0.16.9.
+  `uv.lock` also carries pyjwt 2.14.0, a security release whose fixes do not
+  reach OpenChronicle (it arrives only through `mcp[crypto]`). The
+  `pyproject.toml` floors are raised, not pinned: CI and the image still
+  resolve fresh from the `>=` floors (ROADMAP QUAL-06).
+- **Development:** the commit hook's identity check is an allowlist on author
+  and committer (audit C5, #70); docs-parity and compose-parity tests
+  (QUAL-05, QUAL-17: #76, #78).
+- **Design 0010:** the release exception is extended to v3.7.0 (operator,
+  2026-09-30), on stated terms because this release does touch the
+  instrumented files. Two changes run per request: the auth key comparison
+  and the log-line redaction (measured at 2.1 µs per access line). Metrics
+  stay off by default.
+
 ## v3.6.0 — 2026-09-28
 
 The offsite release: a nightly, encrypted, append-only push of the newest

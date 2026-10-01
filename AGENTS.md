@@ -249,7 +249,7 @@ three-night window; phase-end audit in progress.**
   checks 2026-09-30 to 2026-10-02) and a deliberate-breakage check; the
   [runbook](docs/configuration/cloud_backup.md) has the procedures.
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
-  work. After OPS-08: v3.7.0 (which enables the MCP backup tools, OPS-07),
+  work. After OPS-08: v3.7.0 (prepared 2026-09-30; its deploy enables the MCP backup tools, OPS-07),
   the DATA-06/07 NAS session from about 2026-10-05, then the timestamp fix
   (TS-01 to TS-04, PR #38; its own release after v3.7.0, operator decision
   2026-09-30), then v4.0.0 on the operator's tag call (V4-01).

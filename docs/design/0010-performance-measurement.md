@@ -17,6 +17,9 @@ Enabling metrics in production still requires this design's gates.
 metrics code; see [the extension](#extension-to-v350-2026-09-28).
 **Extended to v3.6.0 (operator, 2026-09-28):** likewise no metrics code; see
 [that extension](#extension-to-v360-2026-09-28).
+**Extended to v3.7.0 (operator, 2026-09-30):** on stated terms, because this
+release does touch the instrumented files; see
+[that extension](#extension-to-v370-2026-09-30).
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
 This identifies the planning work, not a GitHub issue or an approved build.
@@ -1465,6 +1468,36 @@ enabling them still needs this design's gates.
 boot-time run started at the first tick and finished about 15 seconds later,
 before a sample began. Its load is therefore unmeasured; the next nightly run
 is the chance to sample it.
+
+### Extension to v3.7.0 (2026-09-30)
+
+The operator extended the exception to v3.7.0. Unlike v3.5.0 and v3.6.0,
+`git diff v3.6.0` changes files on the instrumented paths, so the terms name
+each one and say whether it runs per request:
+
+- `observability/exporter.py` and `observability/factory.py` (audit C6 and
+  C3): the exporter protocol declares `content_type` as a property, the two
+  casts are gone, and `OC_METRICS_ENABLED` goes through the shared
+  `parse_bool_env`. Type-level and startup-only.
+- `sqlite_store.py` (audit C3): only the constructor's
+  `OC_SEARCH_FTS5_ENABLED` parsing changed.
+- `routes/system.py` (#75): `/api/v1/health` omits `db_path` and
+  `config_dir` for a caller without the key. Health probes only.
+- `embedding_service.py` (audit C1): the backfill job's metric label is
+  mapped from its result. Off the request path.
+- **Per request, `middleware/auth.py` (#83):** the key check encodes the
+  header as latin-1 and compares bytes with `hmac.compare_digest`, instead of
+  comparing strings, which raised on non-ASCII input. Constant-time over a
+  short key.
+- **Per request, `logging_setup.py` (#88):** uvicorn's access line reaches
+  the root handler (`log_config=None`), so the URL-userinfo redaction regex
+  now runs once per request. Measured at 2.1 µs per access line on the
+  development desktop (200,000 runs). The same change silences `httpx` and
+  `httpx2` below DEBUG, which removes one INFO line per embedding call.
+
+Metrics stay off by default. The deploy check is the request-latency sample
+OPS-08 already plans: p95 before and after the deploy, against the existing
+budget. Enabling metrics still needs this design's gates.
 
 ## Completion and subsequent decisions
 
