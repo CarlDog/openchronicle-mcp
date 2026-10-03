@@ -10,6 +10,21 @@ MCP's wire format.
 For client setup see `docs/integrations/mcp_client_setup.md`. For
 stability guarantees see `docs/api/STABILITY.md`.
 
+**Unknown arguments are refused** (ROADMAP QUAL-11). A call that passes
+a key the tool does not declare fails before the handler runs, so nothing
+is written, and the error names each refused key, a likely replacement
+and every valid argument:
+
+```text
+Error executing tool memory_search: INVALID_ARGUMENT: unknown argument
+'limit' (did you mean 'top_k'?). Valid arguments: query, top_k, ...
+```
+
+Before this, FastMCP ignored extra keys, so `memory_search(limit=3)`
+returned the default 8 results with no error. Note the sibling naming:
+search counts with `top_k`, while `memory_list` and `db_backup_list` use
+`limit`; REST splits the same way.
+
 ## Memory
 
 | Tool | Purpose |
