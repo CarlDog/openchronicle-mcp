@@ -3,19 +3,23 @@
 from __future__ import annotations
 
 import asyncio
+import difflib
 import functools
 import inspect
 import logging
 import time
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from typing import Any, cast
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.fastmcp.tools import Tool
 from mcp.server.transport_security import TransportSecuritySettings
-from mcp.types import AnyFunction, Icon, ToolAnnotations
+from mcp.types import AnyFunction, ContentBlock, Icon, ToolAnnotations
 
 from openchronicle.core.application.observability.null_recorder import NullMetricsRecorder
+from openchronicle.core.domain.errors.error_codes import INVALID_ARGUMENT
 from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.mcp.config import MCPConfig
@@ -39,7 +43,8 @@ def _mcp_outcome(result: object) -> str:
 
 
 class MetricsFastMCP(FastMCP):
-    """FastMCP subclass that wraps only registered handlers.
+    """FastMCP subclass that wraps only registered handlers, and refuses
+    arguments a tool does not declare (see ``call_tool``).
 
     FastMCP 1.29 has no public middleware hook. Wrapping at ``add_tool``
     keeps argument validation and protocol traffic out of the execution
@@ -138,6 +143,56 @@ class MetricsFastMCP(FastMCP):
             callback()
         except Exception:  # metrics must never replace an MCP result
             logger.warning("metrics recorder failed in MCP handler", exc_info=False)
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]) -> Sequence[ContentBlock] | dict[str, Any]:
+        """Refuse arguments a tool does not declare, then dispatch.
+
+        FastMCP's generated argument model ignores extra keys, so a caller
+        who sends ``limit`` to ``memory_search`` (whose count is ``top_k``)
+        silently got the default of 8 (QUAL-11). The check runs before
+        dispatch, so a refused call never reaches the handler or its
+        execution metric. Classified MINOR under a narrow STABILITY.md
+        exception (operator, 2026-10-03).
+        """
+        tool = self._tool_manager.get_tool(name)
+        if tool is not None:
+            _reject_unknown_arguments(tool, arguments)
+        return await super().call_tool(name, arguments)
+
+
+#: Parameter names that mean the same thing on sibling tools. A caller who
+#: uses one where the tool takes the other is pointed at the right name.
+_SYNONYMS: dict[str, tuple[str, ...]] = {
+    "limit": ("top_k",),
+    "top_k": ("limit",),
+}
+
+
+def _reject_unknown_arguments(tool: Tool, arguments: dict[str, Any]) -> None:
+    """Raise INVALID_ARGUMENT naming each undeclared key and the valid ones.
+
+    The text follows FastMCP's own "Error executing tool {name}: " prefix,
+    so a refused argument reads like any other argument failure. The code
+    is spelled out in the message because MCP drops an exception's
+    structured ``code`` (the GATE-04 gap).
+    """
+    fields = tool.fn_metadata.arg_model.model_fields
+    accepted = [info.alias or field_name for field_name, info in fields.items()]
+    known = set(accepted) | set(fields)
+    unknown = sorted(key for key in arguments if key not in known)
+    if not unknown:
+        return
+    named: list[str] = []
+    for key in unknown:
+        candidates = [s for s in _SYNONYMS.get(key, ()) if s in known]
+        candidates += difflib.get_close_matches(key, accepted, n=1)
+        named.append(f"'{key}' (did you mean '{candidates[0]}'?)" if candidates else f"'{key}'")
+    message = (
+        f"Error executing tool {tool.name}: {INVALID_ARGUMENT}: unknown argument"
+        f"{'s' if len(unknown) > 1 else ''} {', '.join(named)}"
+    )
+    message += f". Valid arguments: {', '.join(accepted) if accepted else '(none)'}."
+    raise ToolError(message)
 
 
 def create_server(container: CoreContainer, config: MCPConfig, *, backup_tools_enabled: bool = False) -> FastMCP:

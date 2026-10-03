@@ -253,6 +253,8 @@ phase-end audit in progress.**
   timestamp release (TS-04), verified with health, 0 non-UTC values and the
   latency sample (p95 5.8 ms) (assessment rev 300). Its rollback target is the
   16:40Z pre-migration snapshot.
+- **Open now:** QUAL-11 (MCP tools refuse undeclared arguments, PR #94) is
+  classified MINOR (operator, 2026-10-03) and rides the release after v3.8.0.
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
   work. Now: the DATA-06/07 NAS session, then v4.0.0 on the
   operator's tag call (V4-01).
