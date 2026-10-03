@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-10-03 UTC · **Revision:** 310 (ROADMAP QUAL-06: the `uv.lock` decision)
+**Snapshot date:** 2026-10-03 UTC · **Revision:** 311 (V4-01: `main` merged into `v4/develop`)
 
 ## Current state
 
@@ -95,8 +95,10 @@ current work:
   REST list-tail gate had failed. The evidence and every
   measurement round are in design 0010 and
   [its attribution record](design/0010-4c-attribution.md).
-- **v4.0.0** (ADR 0008, pins as a ranking prior) is complete on `v4/develop`
-  and waits on the operator's tag call (V4-01).
+- **v4.0.0** (ADR 0008, pins as a ranking prior) is complete on `v4/develop`,
+  which contains `main` as of v3.8.0 (V4-01, rev 311), and waits on the
+  operator's tag call (V4-02). Two test gaps in its search path are filed as
+  V4-04.
 - **The Gemini audit branch** was rejected as a unit
   ([0014](design/0014-gemini-audit-branch-review.md)) and survives only as the
   tag `archive/gemini-audit-18092026`. Its eight OC milestone memories carry a
@@ -113,6 +115,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 311 | 2026-10-03 | **V4-01 done: `main` merged into `v4/develop`; the stray timestamp branch deleted.** PR #100 merged `main` at `13365856` (v3.8.0, rev 306) into `v4/develop`, now `6617276e`; the branch had been 6 commits ahead and 264 behind. The five files ROADMAP predicted conflicted. The one that could break search was `embedding_service.py`, where `main`'s stage timing and model-revision handling were written around the pin float that ADR 0008 removed; the resolution, one adapted test and the checks are in the branch's own assessment row, `306-v4`, numbered so that it cannot collide with a revision here as 159 did. The merged source differs from `main` in the same ten files as v4's own delta. Windows suite on the merged tree: 1,411 passed, 8 skipped (POSIX-only or symlink privilege). CI on `6617276e`: 1,419 passed on Ubuntu with none skipped, 1,413 passed and 6 skipped on Windows, lint and types clean. The Test workflow runs on pull requests into `main` only, so PR #100 itself had no test run and the push to `v4/develop` was the first. Mutating the merged search path found two gaps that the whole suite misses, both in v4's own lines: the keyword-only fallback ignoring `offset`, and the keyword channel's fetch dropping the lift extension (V4-04). The same day the operator had the remote branch `codex/timestamp-utc-migration` deleted. It held one commit that never reached `main`, `5610d475`, pushed after PR #38 merged: an instant digest for `ts03-rehearsal.sh`, with a docs row numbered 294 that `main` had already used. Rev 306's production check supersedes it. Remote branches are now `main`, `v4/develop` and the two `archive/*` branches. The pointers that named V4-01 as the tag call now name V4-02 |
 | 310 | 2026-10-03 | **ROADMAP QUAL-06 restated as an operator decision: what is `uv.lock` for?** Nothing ships from it: the Dockerfile and CI install with pip, while `dependabot.yml` says the repo "resolves through uv.lock" and its alerts track the lock. Rev 309's PyJWT alert is the worked example (lock 2.14.0, shipped 2.15.1). The options are now explicit: (a) consume the lock with `uv sync --locked` in CI and Docker, the existing recommendation, or (b) declare it development-only and correct `dependabot.yml` and the docs. Numbered after rev 309 (PR #104). Docs only |
 | 309 | 2026-10-03 | **uv.lock: PyJWT 2.14.0 → 2.15.1 (Dependabot alert #22, GHSA-42vr-xj54-vc7v, medium).** PyJWT ≤ 2.14.0 lets a deeply nested payload escape as a raw `RecursionError` when a token is decoded before signature verification (`verify_signature=False` or `PyJWKClient.get_signing_key_from_jwt`); 2.15.0 fixes it. Not reachable here: PyJWT arrives only through `mcp` (`pyjwt[crypto]>=2.10.1`), OC never imports it, and the SDK's one use is `jwt.encode` in a client-side auth extension; OC authenticates with a static API key. Production was not exposed either: the Dockerfile and CI install with pip, not from `uv.lock`, and the v3.8.0 image builds (`3e9fa8d7`) and the latest `main` CI run installed 2.15.1. `uv lock --upgrade-package pyjwt` changed only PyJWT. No release or redeploy needed. Lockfile only |
 | 308 | 2026-10-03 | **Agent instructions: four stale passages corrected (prompt audit F1-F4).** `AGENTS.md`/`CLAUDE.md`: the "No backwards compatibility ... no production" rule, which contradicted Branch state and `docs/api/STABILITY.md`, now says there are no compatibility shims and every change follows STABILITY.md's semver rules, with breaking changes on `v4/develop`; the port list adds the `MetricsRecorder` protocol (`metrics_port.py`); the fresh-registration command sends `Authorization: Bearer $OC_API_KEY`, as `docs/integrations/mcp_client_setup.md` documents, since auth has been on since 2026-09-25; and QUAL-11 reads merged to `main` (PR #94, `9f203c09`), unreleased. ROADMAP QUAL-11 no longer says "draft PR, not merged". Rev 301's "Not merged" was true when written and is left as history. Numbered after rev 307 (PR #102), which corrects F7-F10. Docs only |

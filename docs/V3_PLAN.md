@@ -958,7 +958,7 @@ historical order. Since 2026-09-28 [ROADMAP.md](ROADMAP.md) sets the order
 of work; each line here still points at the full entry (below, or in its
 design doc):
 
-1. [ROADMAP V4-01 to V4-03] ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
+1. [ROADMAP V4-01 to V4-04] ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
    ships as v4.0.0 on the operator's tag call).** ADR 0008 (rev 4,
    three review rounds) implemented on `v4/develop`
    (`de7e5c6d`+`8072cf4a`+`0f9cf940`, 818 tests): float retired from

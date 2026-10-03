@@ -252,12 +252,14 @@ phase-end audit in progress.**
   timestamp release (TS-04), verified with health, 0 non-UTC values and the
   latency sample (p95 5.8 ms) (assessment rev 300). Its rollback target is the
   16:40Z pre-migration snapshot.
+- **Merged 2026-10-03:** `main` into `v4/develop` (V4-01, PR #100), which now
+  contains v3.8.0 (assessment rev 311).
 - **Merged, unreleased:** QUAL-11 (MCP tools refuse undeclared arguments,
   PR #94, merged to `main` 2026-10-03) is classified MINOR (operator,
   2026-10-03) and ships in the release after v3.8.0.
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
   work. Now: the DATA-06/07 NAS session, then v4.0.0 on the
-  operator's tag call (V4-01).
+  operator's tag call (V4-02), after the two search test gaps (V4-04).
 - **Standing:**
   - The Gemini audit branch was rejected as a unit and survives only as the
     tag `archive/gemini-audit-18092026`

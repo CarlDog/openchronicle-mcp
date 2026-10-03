@@ -92,7 +92,8 @@ in `jobs.py`.
 
 | ID | Item | Size | Detail |
 |---|---|---|---|
-| V4-01 | Merge `main` into `v4/develop` (6 ahead and 133 behind on 2026-09-29; conflicts in `embedding_service.py`, `sqlite_store.py`, `cli/commands/memory.py`, the CHANGELOG and the assessment); run the v4 tests | L | Overdue under the "merge regularly" convention |
+| V4-01 | Merge `main` into `v4/develop` (6 ahead and 133 behind on 2026-09-29; conflicts in `embedding_service.py`, `sqlite_store.py`, `cli/commands/memory.py`, the CHANGELOG and the assessment); run the v4 tests | L | Overdue under the "merge regularly" convention. **Done 2026-10-03 (PR #100):** `v4/develop` (`6617276e`) contains `main` at `13365856` (v3.8.0); it had fallen 264 behind. The five predicted files conflicted, and the resolution is recorded on the branch (its assessment row `306-v4`). CI on `6617276e`: 1,419 passed on Ubuntu, 1,413 passed and 6 skipped on Windows (assessment rev 311) |
+| V4-04 | Close two test gaps in `search_hybrid` on `v4/develop`: a keyword-only fallback that ignores `offset`, and a keyword-channel fetch that drops the lift extension, each pass the whole suite | S | Found by mutation during V4-01 (assessment rev 311). Both lines are v4's own, so the gaps predate the merge |
 | V4-02 | v4.0.0 tag decision and release (ADR 0008 pins as ranking prior, `PIN_RANK_LIFT = 0`; MAJOR) | S | V3_PLAN "Pins as ranking prior"; decision |
 | V4-03 | Sweep-harness hardening minors: the channel-integrity assertion, run-identity metadata, the `--sweep`/`--out` collision, and noise labels in verdicts | S | V3_PLAN "Pins as ranking prior" residual |
 
