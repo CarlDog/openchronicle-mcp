@@ -69,7 +69,7 @@ enforces parity.
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
   with it unset fails loudly instead of silently tracking `:latest`),
-  and stack 151 pins it (`v3.6.0` since 2026-09-29); a push to `main`
+  and stack 151 pins it (`v3.8.0` since 2026-10-03); a push to `main`
   refreshes only `:latest`, which that stack does not pull. **Code goes
   live when `OC_TAG` moves — a push alone deploys nothing.** So runtime
   changes (`src/`, `pyproject.toml`, `Dockerfile`) ship with the next
@@ -233,11 +233,11 @@ docs, OC memories, issues and branches, some of it in no plan at all.
 
 ## Current Sprint
 
-**2026-10-03 — OPS-08 closed; v3.7.0 ready to merge and tag;
+**2026-10-03 — v3.8.0 deployed (migration 005, schema 5);
 phase-end audit in progress.**
 
-- **Live:** v3.6.0 (`99bd68cb`) on stack 151 since 2026-09-29, stack file
-  version 144. Nightly catalogued backups land in `/exports/backups/auto`
+- **Live:** v3.8.0 (`3e9fa8d7`, schema 5) on stack 151 since 2026-10-03, with
+  the MCP backup tools on (OPS-07); stack file version 144. Nightly catalogued backups land in `/exports/backups/auto`
   ([0017](docs/design/0017-exposed-backup-and-restore.md)), and the nightly
   encrypted offsite push ([0001](docs/design/0001-cloud-backup.md) Phase 1)
   sends them to `ocdrop:openchronicle/nas`. Auth is on.
@@ -248,14 +248,16 @@ phase-end audit in progress.**
 - **Closed 2026-10-03:** OPS-08, after three green nights, the
   deliberate-breakage check and the latency sample during a nightly push
   (assessment rev 286).
+- **Deployed 2026-10-03:** v3.7.0, verified with health, the latency sample
+  (p95 6.0 ms) and the backup tools (assessment rev 295); then v3.8.0, the
+  timestamp release (TS-04), verified with health, 0 non-UTC values and the
+  latency sample (p95 5.8 ms) (assessment rev 300). Its rollback target is the
+  16:40Z pre-migration snapshot.
 - **Open now:** QUAL-11 (MCP tools refuse undeclared arguments, PR #94) is
-  classified MINOR (operator, 2026-10-03) and rides the release after v3.7.0.
+  classified MINOR (operator, 2026-10-03) and rides the release after v3.8.0.
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
-  work. Now: v3.7.0 (PR #92, prepared 2026-09-30; its deploy enables the MCP backup tools, OPS-07),
-  the DATA-06/07 NAS session from about 2026-10-05, then the timestamp fix
-  (TS-01 to TS-04, PR #38; TS-03 closed 2026-10-03, FTS and embeddings
-  verified; its own
-  release after v3.7.0, operator decision 2026-09-30), then v4.0.0 on the operator's tag call (V4-01).
+  work. Now: the DATA-06/07 NAS session, then v4.0.0 on the
+  operator's tag call (V4-01).
 - **Standing:**
   - The Gemini audit branch was rejected as a unit and survives only as the
     tag `archive/gemini-audit-18092026`
@@ -264,7 +266,8 @@ phase-end audit in progress.**
     unshipped work.
   - Runtime metrics ([0010](docs/design/0010-performance-measurement.md))
     are in the released image but off by default; enabling them stays
-    blocked on MEAS-01.
+    blocked on MEAS-01. Since 2026-10-03 its release gate covers only
+    releases that change metrics code; other releases need no exception.
   - Research and idea records (0011, 0012, 0015, 0018, 0019, 0021) are not
     authorization to implement.
 

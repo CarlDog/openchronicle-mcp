@@ -1145,7 +1145,8 @@ design doc):
     no blocker. It ships as its own release after v3.7.0 (operator decision).
     TS-03's rehearsal on a fresh copy and an image pair passed on 2026-10-03;
     its re-run with the FTS and embedding checks passed the same day
-    (assessment rev 294). What remains is release and deploy.
+    (assessment rev 294). PR #38 merged on 2026-10-03 and is prepared as
+    v3.8.0 (rev 295); what remains is the tag and the deploy.
 13. [ROADMAP OPS-03] ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
     (ROADMAP OPS-03)**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
