@@ -26,7 +26,10 @@ classifiers = [
 	"Typing :: Typed",
 ]
 dependencies = [
-	"fastapi>=0.110.0",
+	# Floor = the locked version. The old 0.110.0 was unsatisfiable once
+	# starlette>=1.7.0 is required: the lowest fastapi that resolves with it
+	# is 0.133.0 (uv --resolution lowest-direct).
+	"fastapi>=0.142.2",
 	# Plain uvicorn plus the two [standard] extras OC actually uses (QUAL-06
 	# part 2). `oc serve` builds a default uvicorn.Config, which picks uvloop
 	# and httptools automatically when installed. The rest of [standard]
@@ -99,7 +102,9 @@ dev = [
 	# new minor lands.
 	"ruff>=0.16.9,<0.17",
 	# The runtime extras, by reference rather than as copies, so each
-	# constraint (the mcp <2 cap above all) lives in exactly one place.
+	# constraint (the mcp <2 cap above all) lives once in this file. The
+	# mypy hook in .pre-commit-config.yaml cannot reference extras and keeps
+	# its own list; keep its floors and the mcp cap in step with these.
 	"openchronicle-mcp[openai,ollama,mcp,metrics]",
 ]
 

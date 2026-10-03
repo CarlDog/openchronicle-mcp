@@ -746,7 +746,7 @@ openai = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fastapi", specifier = ">=0.110.0" },
+    { name = "fastapi", specifier = ">=0.142.2" },
     { name = "httptools", specifier = ">=0.8.0" },
     { name = "httpx", marker = "extra == 'ollama'", specifier = ">=0.25.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.30.0,<2" },
