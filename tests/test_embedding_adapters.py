@@ -114,9 +114,17 @@ class TestOpenAIEmbeddingAdapter:
             (([float("nan"), 1.0],), "non-finite"),
             (([float("inf"), 1.0],), "non-finite"),
             (([1.0, 0.0], [1.0, 0.0, 0.0]), "inconsistent dimensions"),
-            # bool is an int subclass; true/false must not pass as 1/0.
+            # bool is an int subclass; true/false must not pass as 1/0. These
+            # rows test the shared validator through a mock only: the real
+            # openai SDK coerces JSON true/false to 1.0/0.0 before the
+            # adapter sees the vector (QUAL-24). The live boolean path is
+            # Ollama's raw JSON, tested in TestOllamaEmbeddingAdapter.
             (([True, False],), "contains boolean values"),
             (([0.5, True],), "contains boolean values"),
+            (([0.5, False],), "contains boolean values"),
+            (([1.0, 0.0], [True, 0.0]), "vector 1 contains boolean values"),
+            # The type half of the numeric check: a string is not a number.
+            ((["0.5", 1.0],), "non-finite or non-numeric"),
         ],
     )
     def test_malformed_vectors_are_rejected(self, vectors: tuple[list[float], ...], reason: str) -> None:
@@ -271,6 +279,20 @@ class TestOllamaEmbeddingAdapter:
         with patch("httpx.post", return_value=bool_response):
             with pytest.raises(LLMProviderError, match="contains boolean values"):
                 adapter.embed("a")
+
+    def test_boolean_in_a_later_batch_vector_is_rejected(self) -> None:
+        """Backfill embeds in batches, so the guard must check every vector,
+        not just the first; `false` alone must be caught too."""
+        adapter = self._make_adapter()
+        batch_response = httpx.Response(
+            200,
+            content=b'{"embeddings": [[0.1, 0.2, 0.3], [0.4, false, 0.5]]}',
+            headers={"content-type": "application/json"},
+            request=httpx.Request("POST", "http://localhost:11434/api/embed"),
+        )
+        with patch("httpx.post", return_value=batch_response):
+            with pytest.raises(LLMProviderError, match="vector 1 contains boolean values"):
+                adapter.embed_batch(["a", "b"])
 
     def test_inconsistent_batch_dimensions_are_rejected(self) -> None:
         adapter = self._make_adapter()
