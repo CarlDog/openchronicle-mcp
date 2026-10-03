@@ -14,7 +14,9 @@ on:
     # force-pull + bounce the auto-deploying stack for a pure
     # documentation/tooling commit. package*.json is markdownlint dev
     # tooling only — before it was listed here, every weekly Dependabot
-    # npm bump rebuilt and republished the image for nothing.
+    # npm bump rebuilt and republished the image for nothing. uv.lock is
+    # deliberately NOT listed: CI and the image install from it (QUAL-06),
+    # so a lock-only push changes what ships and must rebuild.
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -28,11 +30,19 @@ on:
       - ".github/dependabot.yml"
       - ".github/FUNDING.yml"
       - ".codex/**"
-      - "uv.lock"
       - ".github/workflows/gitleaks.yml"
       - ".github/workflows/retag-image.yml"
   pull_request:
     branches: [main]
+
+# Dependencies come from uv.lock, never a fresh resolve (QUAL-06).
+# `uv sync --locked` fails when uv.lock is out of date with pyproject.toml,
+# which makes lock drift a CI failure. UV_PYTHON_DOWNLOADS=never keeps uv
+# on the interpreter setup-python installed, rather than a managed one.
+# The uv version is pinned in each setup-uv step (and in the Dockerfile);
+# keep the three in step.
+env:
+  UV_PYTHON_DOWNLOADS: never
 
 # Two rapid pushes to main otherwise run build-and-push concurrently,
 # and whichever finishes LAST owns :latest — possibly the older commit.
@@ -69,16 +79,21 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-          cache: "pip"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.21"
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -e ".[dev,mcp,openai,ollama,metrics]"
+        run: uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 
       - name: Test
         # Integration tests require live provider keys and the
         # `integration` marker; CI validates unit + functional only.
         # -v gives per-test names so a hang surfaces which test died.
-        run: pytest -v
+        run: uv run --no-sync pytest -v
 
   quality:
     name: lint + format + types
@@ -91,19 +106,24 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-          cache: "pip"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          version: "0.12.21"
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -e ".[dev,mcp,openai,ollama,metrics]"
+        run: uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 
       - name: Ruff lint
-        run: ruff check src tests scripts
+        run: uv run --no-sync ruff check src tests scripts
 
       - name: Ruff format check
-        run: ruff format --check src tests scripts
+        run: uv run --no-sync ruff format --check src tests scripts
 
       - name: Mypy
-        run: mypy src tests --config-file=pyproject.toml
+        run: uv run --no-sync mypy src tests --config-file=pyproject.toml
 
       # Release integrity: the version stayed at 3.0.0.dev0 through five
       # rc tags, which made health's package_version useless as a deploy
