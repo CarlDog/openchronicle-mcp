@@ -65,6 +65,14 @@ class TestMCPConfigValidation:
         config = MCPConfig.from_env(file_config={"server_name": "my-oc"})
         assert config.server_name == "my-oc"
 
+    def test_boolean_port_in_file_config_falls_back_to_default(self) -> None:
+        """bool is an int subclass; `"port": true` must not become port 1.
+        (`false` would be port 0, which the range check already refuses.)"""
+        env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env(file_config={"port": True})
+        assert config.port == 8080
+
 
 class TestMCPConfigAllowedHosts:
     """OC_MCP_ALLOWED_HOSTS controls FastMCP's Host-header allowlist.

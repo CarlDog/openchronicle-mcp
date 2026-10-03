@@ -56,7 +56,8 @@ class MCPConfig:
         host = os.environ.get("OC_MCP_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
         port_file = fc.get("port")
-        default_port = port_file if isinstance(port_file, int) else 8080
+        # bool is an int subclass: `"port": true` must not become port 1.
+        default_port = port_file if isinstance(port_file, int) and not isinstance(port_file, bool) else 8080
         port = parse_int_env(os.environ.get("OC_MCP_PORT"), default=default_port, name="OC_MCP_PORT")
 
         server_name = str_or_default(fc.get("server_name"), "openchronicle")
