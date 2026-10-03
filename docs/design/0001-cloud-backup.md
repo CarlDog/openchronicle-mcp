@@ -1,6 +1,6 @@
 # Cloud Backup for OpenChronicle — Design
 
-**Status:** Phase 0 complete (2026-09-28, [record](#phase-0-record-2026-09-28)); Phase 1 deployed in v3.6.0 (2026-09-29, [record](#phase-1-record-2026-09-29)), closing after three green nights and a breakage check (ROADMAP OPS-08); Phase 2 trigger-gated (GATE-15) · **Date:** 2026-08-23
+**Status:** Phase 0 complete (2026-09-28, [record](#phase-0-record-2026-09-28)); Phase 1 deployed in v3.6.0 (2026-09-29, [record](#phase-1-record-2026-09-29)) and complete 2026-10-03 (ROADMAP OPS-08); Phase 2 trigger-gated (GATE-15) · **Date:** 2026-08-23
 **Resolves:** `docs/V3_PLAN.md` open question 12 · **Leaves open:** sync-as-store (stays in the Out of Scope table)
 
 > **Corrected baseline.** The brief said ~3.7 MB / 277 memories. Live health on 2026-08-23T17:29Z: **8,650,752 bytes (8.25 MiB), 730 memories, 728 embedded**, `package_version 3.0.0rc8`, `schema_version 1`. Growth ≈ 5 MiB/quarter. Nothing below changes at this scale — but size the work off 8.25 MiB.
@@ -698,7 +698,22 @@ a P1 in the code.
   `67cb8a88d6332d980b5601e93a1aebbb6bbb59bfdd06f0e5af55512fdb351502`,
   matches the job's `cloud_backup: offsite ... sha256=` log line for that
   snapshot. The temporary identity file and plaintext were deleted.
-- **Still open:** three green nights, then a deliberate-breakage check.
+- **Three green nights: passed** (operator, 2026-10-03). Health read
+  `last_success_at` `2026-10-02T03:38:16Z` before the breakage check.
+- **Deliberate breakage: passed, 2026-10-03** on v3.6.0 (`99bd68cb`). With
+  `OC_CLOUD_REMOTE=not-a-remote` set through the stack env:
+  - health's `cloud_backup_status.status` read `misconfigured`, with
+    `maintenance_degraded` and `backup_last_run_failed` both `false`;
+  - `oc maintenance run-once cloud_backup` as uid 1000 raised
+    `OC_CLOUD_REMOTE must be an rclone remote in name:path form`;
+  - `oc maintenance run-once db_backup` wrote a snapshot and pruned to 7.
+
+  The restart did not run the job: the loop restores `last_run_at`, so a
+  scheduled run would only have come at the nightly slot. The raise was
+  therefore shown with a manual run, and the remote was restored before
+  that slot so the nightly push was not lost.
+- **Request latency during a nightly push: passed, 2026-10-03.** See design
+  0010's [v3.6.0 deploy record](0010-performance-measurement.md#extension-to-v360-2026-09-28).
 
 ### Phase 1 — The push job
 
