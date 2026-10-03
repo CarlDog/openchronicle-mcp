@@ -1566,6 +1566,11 @@ paths and whether each runs per request:
 
 The deploy check is the same latency sample, before and after the tag move.
 
+**Deploy sample (2026-10-03).** The same 120-request sampler inside the
+production container: p50 4.7 ms and p95 6.0 ms on v3.7.0 just before the
+change, p50 3.4 ms and p95 5.8 ms on v3.8.0 just after, with no failed
+requests. No measurable change.
+
 ### Release gate scoped to metrics code (2026-10-03)
 
 **Decision (operator, 2026-10-03).** Step 3's rule that an inconclusive or
