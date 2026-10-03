@@ -63,17 +63,15 @@
 #   Optional — metrics (all off by default; runbook: docs/monitoring/runbook.md):
 #     OC_METRICS_ENABLED       true registers /metrics and starts recording.
 #                              Enabling stays gated on ROADMAP MEAS-01.
-#     COMPOSE_PROFILES         Set to `metrics` to start the Prometheus
-#                              collector. Compose reads it from the stack
-#                              env, so Portainer needs no CLI flag.
-#     OC_API_ALLOWED_HOSTS     Must include host.docker.internal:* (plus
-#                              every external REST host) while the
-#                              collector runs, or its scrapes get 421.
-#     PROMETHEUS_CONFIG_FILE   /etc/prometheus/openchronicle.yml (default,
-#                              no auth) or /etc/prometheus/openchronicle-
-#                              auth.yml, which sends OC_API_KEY as the
-#                              bearer token. Use the auth file whenever
-#                              OC_API_KEY is set.
+#     COMPOSE_PROFILES         `metrics` starts the collector without auth;
+#                              `metrics-auth` starts it sending OC_API_KEY as
+#                              the bearer token (use it whenever OC_API_KEY is
+#                              set). Never both. Compose reads this from the
+#                              stack env, so Portainer needs no CLI flag.
+#     OC_MCP_ALLOWED_HOSTS     Must include host.docker.internal:* while the
+#                              collector runs (REST inherits it while
+#                              OC_API_ALLOWED_HOSTS is empty), or its scrapes
+#                              get 421.
 #     HOST_PROMETHEUS_PORT     Loopback-only UI port (default: 19090).
 #     HOST_PROMETHEUS_DATA_DIR Local filesystem for collector history (not
 #                              NFS); default is the named prometheus-data
@@ -85,6 +83,24 @@
 #
 # Image: ghcr.io/carldog/openchronicle-mcp (linux/amd64, published by
 # GitHub Actions on every push to main).
+
+# Shared shape of the two optional collector services below. Inline configs
+# and an env-sourced secret, not bind mounts: stack 151 is a file-based
+# Portainer stack with no checkout beside the compose, so a relative bind
+# would mount an empty directory.
+x-prometheus: &prometheus
+  image: prom/prometheus:v3.14.0
+  restart: unless-stopped
+  network_mode: bridge
+  extra_hosts:
+    - host.docker.internal:host-gateway
+  depends_on:
+    oc:
+      condition: service_healthy
+  ports:
+    - "127.0.0.1:${HOST_PROMETHEUS_PORT:-19090}:9090"
+  volumes:
+    - ${HOST_PROMETHEUS_DATA_DIR:-prometheus-data}:/prometheus
 
 services:
   oc:
@@ -190,36 +206,38 @@ services:
       retries: 3
       start_period: 30s
 
+  # The collector comes in two profiles. `metrics` scrapes without auth;
+  # `metrics-auth` sends the stack's OC_API_KEY as the bearer token. They are
+  # separate services because Compose resolves an environment-sourced secret
+  # when it creates the container and fails if the variable is unset, so the
+  # no-auth collector must not mount it. Select one profile, never both: they
+  # share the UI port and the history volume.
   prometheus:
-    image: prom/prometheus:v3.14.0
+    <<: *prometheus
     profiles: [metrics]
-    restart: unless-stopped
-    network_mode: bridge
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    depends_on:
-      oc:
-        condition: service_healthy
     command:
-      - --config.file=${PROMETHEUS_CONFIG_FILE:-/etc/prometheus/openchronicle.yml}
+      - --config.file=/etc/prometheus/openchronicle.yml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-14d}
       - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-1GB}
-    ports:
-      - "127.0.0.1:${HOST_PROMETHEUS_PORT:-19090}:9090"
-    # Inline configs and an env-sourced secret, not bind mounts: stack 151 is
-    # a file-based Portainer stack with no checkout beside the compose, so a
-    # relative bind would mount an empty directory.
     configs:
       - source: prometheus-config
         target: /etc/prometheus/openchronicle.yml
+
+  prometheus-auth:
+    <<: *prometheus
+    profiles: [metrics-auth]
+    command:
+      - --config.file=/etc/prometheus/openchronicle-auth.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-14d}
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-1GB}
+    configs:
       - source: prometheus-auth-config
         target: /etc/prometheus/openchronicle-auth.yml
     secrets:
       - source: oc-api-key
         target: /etc/prometheus/secrets/oc-api-key
-    volumes:
-      - ${HOST_PROMETHEUS_DATA_DIR:-prometheus-data}:/prometheus
 
 # Local-only collector configuration for the opt-in metrics profile. Both
 # services use the shared bridge, so the collector scrapes OC's published

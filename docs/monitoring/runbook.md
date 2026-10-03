@@ -35,62 +35,63 @@ Every setting is a stack environment variable; the full list is in
    `prometheus-data`; set `HOST_PROMETHEUS_DATA_DIR` to a bind-mounted local
    path when you need an explicit storage location.
 2. Ensure the OC stack environment contains `OC_TAG` and set
-   `OC_METRICS_ENABLED=true`. Set `OC_API_ALLOWED_HOSTS` explicitly to every
-   external REST host pattern plus `host.docker.internal:*` for the
-   collector, which scrapes OC's published port on the host. For example,
-   `your-nas:*,host.docker.internal:*` allows clients using that NAS
-   hostname and the collector. An explicit REST list replaces the
-   default inheritance from `OC_MCP_ALLOWED_HOSTS`; retain every external
-   hostname clients use.
-3. Set `COMPOSE_PROFILES=metrics`, which starts the collector.
-4. If `OC_API_KEY` is set, set
-   `PROMETHEUS_CONFIG_FILE=/etc/prometheus/openchronicle-auth.yml`; see
-   [Authenticated scrape](#authenticated-scrape). Leave it unset when
-   `OC_API_KEY` is empty. Either config scrapes
+   `OC_METRICS_ENABLED=true`. Append `host.docker.internal:*` to
+   `OC_MCP_ALLOWED_HOSTS` for the collector, which scrapes OC's published
+   port on the host, and keep every hostname clients already use. While
+   `OC_API_ALLOWED_HOSTS` is empty, REST inherits that list, so one entry
+   covers the scrape. If you set an explicit REST list instead, it replaces
+   the inheritance and must carry every external REST host plus
+   `host.docker.internal:*`.
+3. Set `COMPOSE_PROFILES` to start one collector: `metrics-auth` when
+   `OC_API_KEY` is set (see [Authenticated scrape](#authenticated-scrape)),
+   `metrics` when it is empty. Never both; they share the UI port and the
+   history volume. Either scrapes
    `host.docker.internal:<HOST_HTTP_PORT>/metrics` every 30 seconds with a
    5-second timeout.
-5. Deploy. In Portainer, add the variables in the stack's environment and
+4. Deploy. In Portainer, add the variables in the stack's environment and
    update the stack with the image pulled. From a checkout:
 
    ```powershell
    $env:OC_TAG = "<release-tag>"
    $env:OC_METRICS_ENABLED = "true"
-   $env:OC_API_ALLOWED_HOSTS = "your-nas:*,host.docker.internal:*"
+   $env:OC_MCP_ALLOWED_HOSTS = "your-nas:*,host.docker.internal:*"
    $env:COMPOSE_PROFILES = "metrics"
-   docker compose -f docker-compose.nas.yml up -d oc prometheus
+   docker compose -f docker-compose.nas.yml up -d
    ```
 
    A green compose operation is not proof of a healthy scrape; run the checks
    below.
-6. Open the Prometheus UI through the loopback-only binding, normally
+5. Open the Prometheus UI through the loopback-only binding, normally
    `http://127.0.0.1:19090`, or use an SSH tunnel to the NAS. The UI is not
    published on the LAN by this compose file.
 
 ## Authenticated scrape
 
-When `OC_API_KEY` is non-empty, select the authenticated config:
+When `OC_API_KEY` is non-empty, start the authenticated collector instead:
 
 ```powershell
-$env:PROMETHEUS_CONFIG_FILE = "/etc/prometheus/openchronicle-auth.yml"
-docker compose -f docker-compose.nas.yml up -d oc prometheus
+$env:COMPOSE_PROFILES = "metrics-auth"
+docker compose -f docker-compose.nas.yml up -d
 ```
 
-Compose copies the stack's own `OC_API_KEY` into the collector as the secret
-file `/etc/prometheus/secrets/oc-api-key`, which that config reads; there is no
+Compose copies the stack's own `OC_API_KEY` into the `prometheus-auth`
+container as the secret file `/etc/prometheus/secrets/oc-api-key`, which its
+config reads; Compose refuses to create that container when the variable is
+unset, which is why the no-auth collector is a separate service; there is no
 token file to create or keep. Rotating `OC_API_KEY` therefore needs the
 collector recreated along with `oc`. If the key does not match, Prometheus
 shows a down target rather than silently recording a clean zero.
 
 The metrics endpoint is not an authentication exemption. The collector also
-needs `host.docker.internal:*` in the REST Host allowlist described in the
-start procedure.
+needs `host.docker.internal:*` in the Host allowlist described in the start
+procedure.
 
 ## Verify collection and retention
 
 From an external client, verify `/health` and a REST endpoint using the NAS
-hostname in `OC_API_ALLOWED_HOSTS`, and confirm the MCP client still connects
+hostname in the allowlist, and confirm the MCP client still connects
 using its `OC_MCP_ALLOWED_HOSTS` setting. A loopback-only healthcheck can pass
-even when the explicit REST list has cut off LAN clients. A request with an
+even when an allowlist edit has cut off LAN clients. A request with an
 unlisted `Host:` header should still return 421.
 
 Run these checks in the Prometheus expression browser:
@@ -142,11 +143,11 @@ percentiles.
 To stop collection while leaving OC data intact:
 
 ```powershell
-docker compose -f docker-compose.nas.yml --profile metrics stop prometheus
+docker compose -f docker-compose.nas.yml --profile metrics --profile metrics-auth stop prometheus prometheus-auth
 ```
 
 In Portainer, remove `COMPOSE_PROFILES`, update the stack, and stop the
-`prometheus` container if it is still running: a stack update without the
+`prometheus` or `prometheus-auth` container if it is still running: a stack update without the
 profile no longer manages it but need not remove it. Its volume stays.
 
 To disable the OC exporter, set `OC_METRICS_ENABLED=false`, recreate only the

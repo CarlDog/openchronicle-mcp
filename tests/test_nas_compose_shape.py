@@ -19,8 +19,8 @@ from tests.helpers.nas_compose import NAS_COMPOSE, render_nas_compose
 
 @pytest.fixture
 def rendered(tmp_path: Path) -> dict[str, Any]:
-    # The metrics profile is selected so the optional collector is checked too.
-    return render_nas_compose(tmp_path, {"OC_TAG": "v3.3.0", "COMPOSE_PROFILES": "metrics"})
+    # Both metrics profiles are selected so the optional collectors are checked too.
+    return render_nas_compose(tmp_path, {"OC_TAG": "v3.3.0", "COMPOSE_PROFILES": "metrics,metrics-auth"})
 
 
 def test_database_volume_is_external_and_pinned_by_name(rendered: dict[str, Any]) -> None:
@@ -65,7 +65,7 @@ def test_every_service_uses_the_shared_bridge(rendered: dict[str, Any]) -> None:
     """Fleet address-pool rule: no per-project network."""
     # Pin the set, so a renamed profile cannot quietly drop the collector
     # out of the loop below.
-    assert set(rendered["services"]) == {"oc", "prometheus"}
+    assert set(rendered["services"]) == {"oc", "prometheus", "prometheus-auth"}
     assert not rendered.get("networks")
     for name, service in rendered["services"].items():
         assert service.get("network_mode") == "bridge", name
@@ -74,7 +74,8 @@ def test_every_service_uses_the_shared_bridge(rendered: dict[str, Any]) -> None:
 def test_collector_reaches_the_published_port_through_the_host(rendered: dict[str, Any]) -> None:
     """On the shared bridge the collector scrapes host.docker.internal:18000,
     which does not resolve on Linux without the host-gateway entry."""
-    assert "host.docker.internal=host-gateway" in rendered["services"]["prometheus"]["extra_hosts"]
+    for name in ("prometheus", "prometheus-auth"):
+        assert "host.docker.internal=host-gateway" in rendered["services"][name]["extra_hosts"], name
 
 
 def test_container_name_and_no_auto_updater(rendered: dict[str, Any]) -> None:

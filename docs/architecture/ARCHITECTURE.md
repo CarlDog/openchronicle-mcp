@@ -171,8 +171,9 @@ uvicorn shutdown drains both cleanly.
 ## Metrics history (optional)
 
 The application metrics registry is process-local. Phase 3 adds an optional
-Prometheus collector, activated only through the `metrics` profile in
-`docker-compose.nas.yml`, with its configuration inline in that file. Both services use the shared
+Prometheus collector, activated only through the `metrics` or (with auth)
+`metrics-auth` profile in `docker-compose.nas.yml`, with its configuration
+inline in that file. Both services use the shared
 Docker bridge; the collector reaches OC's published port through
 `host.docker.internal`, scrapes every 30 seconds with a
 5-second timeout, and stores history in a separate local volume with the
