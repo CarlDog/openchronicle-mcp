@@ -22,10 +22,12 @@ from openchronicle.core.application.services.git_onboard import (
     _jaccard,
     _validate_repo_url,
     cluster_commits,
+    cluster_to_summary,
     extract_commits_from_git,
     extract_commits_from_url,
     extract_history_from_path,
     filter_commits,
+    format_cluster_as_raw_memory,
     validate_server_repo_url,
 )
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
@@ -181,8 +183,8 @@ def _fake_log_output(entries: list[str]) -> str:
     return "".join(entries)
 
 
-def _entry(hash: str, subject: str, body: str, numstat: list[str]) -> str:
-    header = _FSEP.join([hash, "Alice", "2026-01-01T00:00:00+00:00", subject, body])
+def _entry(hash: str, subject: str, body: str, numstat: list[str], date: str = "2026-01-01T00:00:00+00:00") -> str:
+    header = _FSEP.join([hash, "Alice", date, subject, body])
     return f"{_SEP}{header}{_BODYEND}\n" + "\n".join(numstat) + "\n"
 
 
@@ -202,6 +204,32 @@ def test_extract_captures_full_multiline_body() -> None:
     assert commits[0].insertions == 10
     assert commits[0].deletions == 2
     assert commits[0].files_changed == ["src/foo.py"]
+
+
+def test_an_evening_commit_shows_the_authors_day_and_stores_utc() -> None:
+    """22:24 at -05:00 is the next day in UTC. The text shows the day
+    `git log` shows; the instant handed to storage is UTC (TS-04 review C1)."""
+    out = _fake_log_output([_entry("h1", "feat: thing", "", ["1\t0\ta.py"], date="2026-09-29T22:24:32-05:00")])
+    commits = _run_extract(out)
+    assert commits[0].date.isoformat() == "2026-09-29T22:24:32-05:00"
+    cluster = CommitCluster(commits=commits, label="x", time_span_days=0.0)
+    summary = cluster_to_summary(cluster)
+    assert summary["date_range"] == "2026-09-29 to 2026-09-29"
+    assert "Date range: 2026-09-29 to 2026-09-29" in summary["commits_summary"]
+    assert "  [2026-09-29] feat: thing" in summary["commits_summary"]
+    assert format_cluster_as_raw_memory(cluster).startswith("[2026-09-29 to 2026-09-29] x")
+    assert summary["created_at"] == "2026-09-30T03:24:32+00:00"
+
+
+def test_extract_refuses_a_naive_author_date_before_anything_is_saved() -> None:
+    """%aI always carries an offset. A naive date must stop extraction,
+    before onboard_git_prepare saves its watermark, and must not become
+    the current time (TS-04 review F1)."""
+    from openchronicle.core.domain.exceptions import ValidationError
+
+    out = _fake_log_output([_entry("h1", "feat: thing", "", ["1\t0\ta.py"], date="2026-09-23T04:41:37")])
+    with pytest.raises(ValidationError, match="git author date must include a UTC offset"):
+        _run_extract(out)
 
 
 def test_extract_multiline_body_does_not_pollute_numstat() -> None:

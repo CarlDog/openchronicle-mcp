@@ -48,7 +48,7 @@ LLM need to write a memory" shape:
   "project_id": "string, required",
   "tags": ["decision", "rejected", "milestone", "context", "convention", "scope"],
   "pinned": false,
-  "created_at": "ISO datetime, optional (for backdated imports)"
+  "created_at": "ISO 8601 datetime with a UTC offset, optional (for backdated imports); a value without an offset is rejected, and the instant is stored in UTC"
 }
 ```
 

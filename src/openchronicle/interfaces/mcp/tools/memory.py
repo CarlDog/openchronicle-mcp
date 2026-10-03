@@ -144,7 +144,9 @@ def register(mcp: FastMCP) -> None:
             project_id: Project to scope the memory to (required).
             tags: Tags for categorization and `memory_search` filtering.
             pinned: True for standing rules; pinned items always surface.
-            created_at: ISO datetime to backdate (e.g. for git-onboard imports).
+            created_at: ISO 8601 datetime to backdate (e.g. for git-onboard
+                imports). It must carry a UTC offset (`Z`, `+00:00`,
+                `-05:00`); a value without one is rejected. Stored in UTC.
         """
         if not content or not content.strip():
             raise DomainValidationError("content must be non-empty")

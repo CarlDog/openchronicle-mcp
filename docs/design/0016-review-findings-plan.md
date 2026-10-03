@@ -173,6 +173,40 @@ by the available filesystem MCP roots. Input-compatibility/version policy,
 an intact backup, a disposable restore rehearsal and a rollback window remain
 gates before data-changing implementation.
 
+**Checkpoint (2026-09-30).** Three of those gates are now met, and one is
+narrowed:
+
+- **Raw read (TS-01).** An immutable read of the verified off-NAS copy found
+  no naive and no malformed value.
+- **Version policy (TS-02).** The operator ratified rejecting new naive
+  input as a MINOR change under the narrow STABILITY exception.
+- **Intact backups.** Design 0017's catalogued nightly backups, plus the
+  OPS-08 offsite push, provide them.
+- **Rebased source (TS-04, first step).** PR #38 now sits on current
+  `main`. Migration `005_normalize_timestamps.sql` refuses and lists any
+  naive or malformed row, then converts aware values to UTC, keeping the
+  instant and microseconds. Writes, import and `onboard_git` pass through
+  `require_utc`, and chronological readers break ties on ID.
+
+**Rollback caveat carried into the rehearsal.** The previous image can read
+UTC rows, but its write path can reintroduce offsets, so running it on a
+migrated database is not a clean rollback. The rollback target after 005 is
+the pre-migration snapshot.
+
+**Pre-deploy review (2026-09-30)** measured that caveat and widened it. v3.6.0
+opens a schema-5 database silently and stores naive `created_at` values as
+well as offset ones. The new image re-checks only while 005 is pending, so a
+volume the previous image has served after 005 must never be rolled forward.
+The review also measured a refusal at boot: the container crash-loops and the
+database is left unchanged at schema 4. The deploy pre-flight, the refusal
+recovery and the ordered rollback are now in the [runbook](../configuration/local_backup_restore.md#timestamp-migration-005-deploy-and-rollback). The migration
+ships as its own release, after v3.7.0 (operator decision, 2026-09-30).
+
+The disposable restore and image-pair rehearsal (TS-03) passed on 2026-10-03
+(`tools/backup-drill/ts03-rehearsal.sh`, assessment rev 292). That run compared row
+counts only; the re-run with the FTS and embedding checks the merge gate names
+passed the same day (rev 294).
+
 ### 3. Preserve Host allowlists when reconciling the NAS compose
 
 Before track 3, the repo compose injected a nonempty `OC_API_ALLOWED_HOSTS` default

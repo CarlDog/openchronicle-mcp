@@ -1136,9 +1136,16 @@ design doc):
     found no naive and no malformed value in any timestamp column: 94
     offset-bearing `created_at` values (-05:00 and -06:00), 24 adjacent
     inversions, all offset-then-UTC, and 10 UTC values without
-    microseconds. A naive row seen later must still fail closed. The input
-    compatibility/version decision and backup/restore rehearsal remain gates.
-    Those gates are the 0017 sequence in the backup entry above.
+    microseconds. A naive row seen later must still fail closed. TS-02 was
+    decided on 2026-09-30: new naive input is rejected under a narrow MINOR
+    exception in [STABILITY.md](api/STABILITY.md). The implementation (PR #38,
+    migration 005, `require_utc` at every write and import boundary, ID
+    tie-breaks in chronological readers) was rebased onto `main` the same day
+    (TS-04's first step), and passed its pre-deploy review on 2026-09-30 with
+    no blocker. It ships as its own release after v3.7.0 (operator decision).
+    TS-03's rehearsal on a fresh copy and an image pair passed on 2026-10-03;
+    its re-run with the FTS and embedding checks passed the same day
+    (assessment rev 294). What remains is release and deploy.
 13. [ROADMAP OPS-03] ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
     (ROADMAP OPS-03)**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
