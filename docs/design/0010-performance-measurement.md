@@ -1521,7 +1521,19 @@ v3.7.0 just after, with no failed requests. No measurable change.
 
 ### Proposed extension to v3.8.0 (2026-10-03)
 
-**The operator chose to measure first (2026-10-03).** `tools/perf/v380-write-path.sh` builds v3.7.0 and v3.8.0 from source on the NAS and compares them on disposable copies of the newest snapshot: eight clients, three rotating blocks with a repeat-baseline R, gated against step 3's budgets and the R/A rules above. Tagging waits on its result. v3.8.0 is PR #38 (migration 005). It
+**The operator chose to measure first (2026-10-03).** `tools/perf/v380-write-path.sh` builds v3.7.0 and v3.8.0 from source on the NAS and compares them on disposable copies of the newest snapshot: eight clients, three rotating blocks with a repeat-baseline R, gated against step 3's budgets and the R/A rules above. v3.8.0 is PR #38 (migration 005).
+
+**NAS result (2026-10-03): inconclusive, on host noise.** No request errors
+(3,600 per run, nine runs). Median B-A deltas were within budget: `memory_save`
+p95 +1.65 ms (budget 3.22), `project_list` p95 -4.51 ms (budget 2.72),
+throughput 0.0%. But the repeat baseline moved far more than either budget
+(`memory_save` R-A +9.1, -17.1 and -33.8 ms; throughput +3.9%, +6.1% and +37.4%,
+one R run being much faster than every other run), so every metric is
+inconclusive under the R/A rules, the search control included. This matches
+the host noise recorded in the 4C cycle: at eight clients this NAS cannot
+resolve a millisecond-scale difference. `tools/perf/v380-microbench.sh` times
+the added work directly instead: `require_utc` and the two tie-break queries,
+on the same image and snapshot. It
 changes no metrics code. Against `v3.7.0`, the files on instrumented paths and
 whether each runs per request:
 
