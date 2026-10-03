@@ -1469,6 +1469,18 @@ boot-time run started at the first tick and finished about 15 seconds later,
 before a sample began. Its load is therefore unmeasured; the next nightly run
 is the chance to sample it.
 
+**Nightly-push sample (2026-10-03): within budget.** A sampler ran inside
+the production container (v3.6.0, `99bd68cb`) on loopback with the API key,
+alternating `/health` and one keyword search at about 8 requests a second.
+It took 60 idle samples, then sampled from the
+`maintenance job cloud_backup: running` log line (03:38:17Z) until
+`cloud_backup.last_run_at` changed. Idle p95 was 30.3 ms and push p95 was
+13.5 ms over 99 samples, with no non-200 responses, against the budget in
+[local_backup_restore.md](../configuration/local_backup_restore.md) step 3
+(no failures, at most 2x idle p95 and under 500 ms, at least 10 samples).
+The idle figure is the higher one because the baseline was the first requests
+the sampler made; it is the conservative side of the comparison.
+
 ### Extension to v3.7.0 (2026-09-30)
 
 The operator extended the exception to v3.7.0. Unlike v3.5.0 and v3.6.0,

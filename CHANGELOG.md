@@ -12,8 +12,9 @@ pre-deploy review's fixes for `v3.6.0..733c89ed`, a write probe for offline
 restores (DATA-04), boot problems and URL credentials handled correctly in the
 log (QUAL-12), and dependency updates. No schema change.
 
-**Status:** prepared 2026-09-30; not yet tagged. It is tagged once OPS-08's
-three green nights and its breakage check pass.
+**Status:** prepared 2026-09-30; not yet tagged. OPS-08 closed 2026-10-03
+(three green nights, the breakage check and the latency sample), so it is
+tagged once this merges and its CI passes.
 
 **Deploy note.** `docker-compose.nas.yml` is unchanged since v3.6.0, so stack
 151's stored file needs no update, and the release is one env change.
