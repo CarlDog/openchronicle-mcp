@@ -8,6 +8,7 @@ import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
 from unittest.mock import MagicMock
@@ -26,14 +27,18 @@ from openchronicle.core.domain.models.project import Project
 from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
 from openchronicle.core.infrastructure.observability.factory import create_metrics
 from openchronicle.core.infrastructure.observability.prometheus_recorder import (
+    _MCP_TOOLS,
     REQUEST_BUCKETS,
     PrometheusMetricsRecorder,
+    normalize_http_route,
 )
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
+from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.app import create_app
 from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.interfaces.api.middleware.metrics import MetricsMiddleware
-from openchronicle.interfaces.mcp.server import MetricsFastMCP
+from openchronicle.interfaces.mcp.config import MCPConfig
+from openchronicle.interfaces.mcp.server import MetricsFastMCP, create_server
 
 
 def _text(recorder: PrometheusMetricsRecorder) -> str:
@@ -137,6 +142,48 @@ def test_metric_cardinality_stays_bounded_under_untrusted_values() -> None:
     series = sum(1 for line in text.splitlines() if line and not line.startswith("#"))
     assert series < 5_000
     assert len(text) < 1_048_576
+
+
+@pytest.mark.asyncio
+async def test_mcp_tool_labels_cover_every_registrable_tool(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A tool missing from the label set is counted as `__unknown__`, which
+    is how the five backup/restore tools went unlabelled (QUAL-22). Pin the
+    set to the live registry, backup tools on, so a new tool cannot drift."""
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "labels.db"))
+    monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+    (tmp_path / "backups").mkdir()
+    monkeypatch.setenv("OC_BACKUP_DIR", str(tmp_path / "backups"))
+    container = CoreContainer()
+    try:
+        server = create_server(container, MCPConfig.from_env(), backup_tools_enabled=True)
+        registered = {tool.name for tool in await server.list_tools()}
+    finally:
+        container.close()
+    # Prove the registry was read at all, backup tools included.
+    assert {"memory_search", "db_backup_create", "db_restore_stage"} <= registered
+    assert registered == set(_MCP_TOOLS)
+
+
+def test_backup_tool_calls_get_their_own_label() -> None:
+    recorder = PrometheusMetricsRecorder()
+    recorder.observe_mcp(tool="db_restore_stage", outcome="ok", duration_seconds=0.01)
+    text = _text(recorder)
+    assert 'tool="db_restore_stage"' in text
+    assert 'tool="__unknown__"' not in text
+
+
+def test_mcp_route_is_labelled_with_or_without_trailing_slash() -> None:
+    """Clients post to /mcp/ (the mount's root); a bare /mcp redirects there.
+    Both are the one /mcp route, never the unknown fallback (QUAL-22)."""
+    assert normalize_http_route("/mcp") == "/mcp"
+    assert normalize_http_route("/mcp/") == "/mcp"
+    # Only the mount root: any other path under it stays the bounded fallback.
+    assert normalize_http_route("/mcp/anything") == "__unknown__"
+    recorder = PrometheusMetricsRecorder()
+    recorder.observe_http(path="/mcp/", method="POST", status_code=200, duration_seconds=0.01)
+    text = _text(recorder)
+    assert 'route="/mcp"' in text
+    assert 'route="__unknown__"' not in text
 
 
 def test_each_recorder_owns_an_independent_registry() -> None:
