@@ -10,7 +10,7 @@ EXPORTS=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/exports"}}{
 SNAP=$(ls -1t "$EXPORTS"/backups/auto/openchronicle-*.db | head -n 1)
 echo "image: $IMG ($(docker run --rm --pull never --network none --entrypoint cat "$IMG" /app/build-revision))"
 echo "snapshot: $SNAP"
-docker run --rm --pull never --network none --read-only --user 1000:1000 \
+docker run --rm -i --pull never --network none --read-only --user 1000:1000 \
   --mount "type=bind,source=$SNAP,target=/s.db,readonly" \
   --entrypoint python "$IMG" - <<'PY'
 import sqlite3, statistics, timeit
