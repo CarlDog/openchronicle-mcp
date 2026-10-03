@@ -62,6 +62,13 @@ _MCP_TOOLS: Final[frozenset[str]] = frozenset(
         "memory_stats",
         "memory_embed",
         "context_recent",
+        # Registered only when OC_BACKUP_MCP_ENABLED is on (on in production);
+        # tests/test_metrics.py pins this set against the live tool registry.
+        "db_backup_create",
+        "db_backup_list",
+        "db_backup_verify",
+        "db_restore_plan",
+        "db_restore_stage",
     }
 )
 _PROVIDERS: Final[frozenset[str]] = frozenset({"none", "stub", "openai", "ollama"})
@@ -130,7 +137,9 @@ def normalize_http_route(path: str) -> str | None:
         return "/api/v1/memory/{memory_id}"
     if path.startswith("/api/v1/project/"):
         return "/api/v1/project/{project_id}"
-    if path == "/mcp":
+    # The MCP app is mounted at /mcp; clients post to /mcp/ (the mount's
+    # root), and a bare /mcp is redirected there. Both are one route.
+    if path in {"/mcp", "/mcp/"}:
         return "/mcp"
     return _UNKNOWN
 

@@ -46,8 +46,10 @@ def test_complete_recorder_matrix_and_updated_values_are_byte_identical(
     if full:
         # 3,642 when Patch 2 was promoted (design 0010-4c), plus 27 for the
         # `reconcile_backfill` job name (ADR 0005 §7), plus two for the
-        # bounded `revision_churn` fallback label (design 0016 track 1).
-        assert sum(line.startswith(b"oc_") for line in expected.splitlines()) == 3671
+        # bounded `revision_churn` fallback label (design 0016 track 1), plus
+        # 160 for the five backup/restore tool labels (QUAL-22): one tool is
+        # 32 series (7 outcome counters + a 25-line duration histogram), x 5.
+        assert sum(line.startswith(b"oc_") for line in expected.splitlines()) == 3831
         assert sum(line.startswith(b"test_process_") for line in expected.splitlines()) == 6
 
     def unexpected_prefix(key: Any) -> str:
