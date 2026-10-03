@@ -39,7 +39,7 @@ from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, Memo
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
 from openchronicle.core.domain.ports.storage_port import StoragePort
-from openchronicle.core.domain.time_utils import utc_now
+from openchronicle.core.domain.time_utils import require_utc, utc_now
 
 logger = logging.getLogger(__name__)
 
@@ -76,9 +76,9 @@ def _require_dt_str(collection: str, index: int, row: dict[str, Any], key: str, 
     if not isinstance(value, str):
         raise _row_error(collection, index, row, f"{key!r} must be an ISO-8601 string, got {type(value).__name__}")
     try:
-        datetime.fromisoformat(value)
-    except ValueError as exc:
-        raise _row_error(collection, index, row, f"{key!r} is not ISO-8601: {exc}") from exc
+        require_utc(datetime.fromisoformat(value), field=key)
+    except (ValueError, ValidationError) as exc:
+        raise _row_error(collection, index, row, f"{key!r} must be an aware ISO-8601 datetime: {exc}") from exc
 
 
 def _validate_envelope(

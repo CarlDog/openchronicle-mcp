@@ -678,6 +678,20 @@ def test_import_row_error_names_collection_index_and_id(tmp_path: Path) -> None:
     dest.close()
 
 
+@pytest.mark.parametrize(
+    ("collection", "field"),
+    [("projects", "created_at"), ("memory_items", "created_at"), ("memory_items", "updated_at")],
+)
+def test_import_rejects_naive_row_timestamps_before_write(tmp_path: Path, collection: str, field: str) -> None:
+    payload = _envelope(memory_ids=("mem-a",))
+    payload[collection][0][field] = "2026-01-01T12:00:00"
+    dest = _empty_store(tmp_path)
+    with pytest.raises(ValidationError, match=rf"{collection}\[0\].*{field}.*aware ISO-8601"):
+        import_memory.execute(storage=dest, memory_store=dest, payload=payload)
+    _assert_untouched(dest)
+    dest.close()
+
+
 def test_import_rejects_unknown_project_reference_before_any_write(tmp_path: Path) -> None:
     """Used to surface as a raw sqlite3.IntegrityError from the FK constraint."""
     payload = _envelope(memory_ids=("mem-a",))
