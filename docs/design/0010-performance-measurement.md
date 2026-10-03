@@ -19,7 +19,10 @@ metrics code; see [the extension](#extension-to-v350-2026-09-28).
 [that extension](#extension-to-v360-2026-09-28).
 **Extended to v3.7.0 (operator, 2026-09-30):** on stated terms, because this
 release does touch the instrumented files; see
-[that extension](#extension-to-v370-2026-09-30).
+[that extension](#extension-to-v370-2026-09-30). Its deploy sample passed on
+2026-10-03.
+**Proposed for v3.8.0 (2026-10-03), awaiting the operator:** see
+[the proposed extension](#proposed-extension-to-v380-2026-10-03).
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
 This identifies the planning work, not a GitHub issue or an approved build.
@@ -1510,6 +1513,32 @@ each one and say whether it runs per request:
 Metrics stay off by default. The deploy check is the request-latency sample
 OPS-08 already plans: p95 before and after the deploy, against the existing
 budget. Enabling metrics still needs this design's gates.
+
+**Deploy sample (2026-10-03).** Inside the production container, 120 requests
+alternating `/health` and a keyword search at about 8 per second: p50 3.4 ms
+and p95 5.9 ms on v3.6.0 just before the change, p50 3.5 ms and p95 6.0 ms on
+v3.7.0 just after, with no failed requests. No measurable change.
+
+### Proposed extension to v3.8.0 (2026-10-03)
+
+**Not yet decided; the operator's call.** v3.8.0 is PR #38 (migration 005). It
+changes no metrics code. Against `v3.7.0`, the files on instrumented paths and
+whether each runs per request:
+
+- `sqlite_store.py`: `add_project` and `add_memory` pass timestamps through
+  `require_utc` (one offset check and one `astimezone`), and
+  `list_projects` and `list_memory_by_source` add an `id DESC` tie-break.
+  **Per request** for `memory_save` and `project_list`; the tie-break sorts at
+  most the project table (41 rows) or one source's memories.
+- `add_memory.py`: the same conversion once more before the store. **Per
+  request** for `memory_save`.
+- `routes/memory.py` and `tools/memory.py`: description text only.
+- `migrator.py` and `005_normalize_timestamps.sql`: once, on first boot
+  (about 5 s on the 2026-10-03 snapshot, TS-03).
+- `git_onboard.py`, `import_memory.py`: off the request path, or once per
+  `onboard_git` call.
+
+The proposed deploy check is the same sample, before and after the tag move.
 
 ## Completion and subsequent decisions
 

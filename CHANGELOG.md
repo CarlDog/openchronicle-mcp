@@ -5,6 +5,74 @@ release; the deployed release is whichever tag the Portainer stack's
 `OC_TAG` env points at. Created 2026-08-16 (review Batch E),
 reconstructed from the status-doc revision addenda for rc1-rc5.
 
+## v3.8.0 — 2026-10-03
+
+The timestamp release: chronological listings order memories by their real
+instant, and every stored timestamp is UTC (ROADMAP TS-01 to TS-04, PR #38,
+design 0016 track 2). Schema 5.
+
+**Status:** prepared 2026-10-03; not yet tagged. Tagging waits on the
+operator's call on design 0010's release exception, which this release would
+extend (see the last entry below).
+
+**Deploy note.** Read this before moving `OC_TAG`; the full procedure is the
+runbook's [timestamp migration 005 section](docs/configuration/local_backup_restore.md#timestamp-migration-005-deploy-and-rollback),
+rehearsed on the NAS on 2026-10-03 (TS-03, `tools/backup-drill/ts03-rehearsal.sh`).
+
+- **Rollback is the pre-migration snapshot, not moving `OC_TAG` back.**
+  Unlike v3.5.0 to v3.7.0, the previous image reads a migrated database
+  without complaint and its writes store offset and naive values again, so a
+  volume it has served after 005 must never be rolled forward. The rollback
+  order is: stop the container and set its restart policy to `no`, freeze
+  Portainer, `stage` and `activate` the snapshot with `--expected-schema 4`,
+  and only then move `OC_TAG` to `v3.7.0`. Writes after the snapshot are lost
+  unless exported first.
+- **Before the tag move:** take a fresh catalogued snapshot, pull the image by
+  tag, check `/app/build-revision` is the tag's SHA, and run the runbook's
+  pre-flight block (the new image's migration on a tmpfs copy of the
+  snapshot). It must exit 0 with `Integrity: ok`.
+- **After it:** health reports 3.8.0, the tag's full SHA and schema 5; the log
+  shows `Applying migration 005` then `Migrations applied: [5]`; the runbook's
+  read-only block prints `non-UTC values 0`. On the 2026-10-03 snapshot the
+  migration took about 5 s on boot.
+- **If 005 refuses at boot** (a naive, malformed or out-of-range value), the
+  container restart-loops with `Cannot start: Migration
+  005_normalize_timestamps.sql failed`, naming the rows. Nothing changed, so
+  moving `OC_TAG` back to `v3.7.0` is the recovery in that one case. None
+  existed on the 2026-10-03 snapshot.
+- `docker-compose.nas.yml` is unchanged since v3.6.0, so stack 151's file
+  needs no update. Deploy away from the 03:38Z nightly push, and start the
+  latency sample before the change.
+
+Changes:
+
+- **Stored timestamps are UTC** (migration 005). Every aware
+  `projects.created_at`, `memory_items.created_at` and
+  `memory_items.updated_at` is rewritten as the same instant in UTC, keeping
+  microseconds, inside one savepoint. The migration checks every value first
+  and stops, naming up to ten rows, if one is naive, malformed or outside
+  UTC's range. **Data change:** 100 values on the 2026-10-03 snapshot (94 on
+  2026-09-28) change text, so an export taken after
+  005 differs from a pre-005 export for those rows. TS-03 verified on a
+  restored copy that counts, integrity, the FTS index and every embedding row
+  are unchanged.
+- **New input without a UTC offset is rejected** with an error naming the
+  field, on `memory_save` (MCP and REST `created_at`), on `oc memory import`,
+  and in the store. Before, such a value was stored as given, an ambiguous
+  instant. This is a MINOR change under the narrow exception in
+  [STABILITY.md](docs/api/STABILITY.md). Aware input is accepted as before and
+  stored in UTC.
+- **`onboard_git` emits UTC timestamps**, so its memories sort correctly
+  against everything else.
+- **Chronological listings break ties by ID**: project listings and the
+  per-source listings `onboard_git` reads, so equal timestamps no longer come
+  back in an arbitrary order.
+- **Design 0010:** the release exception would extend to v3.8.0 if the
+  operator agrees. No metrics code changes. Per request, `memory_save` adds
+  two timezone conversions, and `project_list` gains an `id DESC` tie-break
+  (41 projects). The rest runs once: the migration on first boot. Metrics stay
+  off by default.
+
 ## v3.7.0 — 2026-09-30
 
 The hardening release: the 2026-09-29 phase-end audit's fixes (C1 to C7), the
@@ -12,9 +80,13 @@ pre-deploy review's fixes for `v3.6.0..733c89ed`, a write probe for offline
 restores (DATA-04), boot problems and URL credentials handled correctly in the
 log (QUAL-12), and dependency updates. No schema change.
 
-**Status:** prepared 2026-09-30; not yet tagged. OPS-08 closed 2026-10-03
-(three green nights, the breakage check and the latency sample), so it is
-tagged once this merges and its CI passes.
+**Deployed 2026-10-03** with `OC_TAG=v3.7.0` and `OC_BACKUP_MCP_ENABLED=true`
+in one change. Health reports 3.7.0, build `7feac579` and schema 4, and
+`/api/v1/health` without the key omits both paths. The boot log has no settings
+warning. The latency sample read p50 3.4 ms and p95 5.9 ms before, and 3.5 ms
+and 6.0 ms after, with no failed requests. All five backup tools are listed;
+create, list, verify and plan passed, and `db_restore_stage` was not called
+(OPS-07 done).
 
 **Deploy note.** `docker-compose.nas.yml` is unchanged since v3.6.0, so stack
 151's stored file needs no update, and the release is one env change.

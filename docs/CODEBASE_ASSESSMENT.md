@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-10-03 UTC · **Revision:** 294 (TS-03 closed)
+**Snapshot date:** 2026-10-03 UTC · **Revision:** 295 (v3.7.0 deployed; v3.8.0 prepared)
 
 ## Current state
 
@@ -19,10 +19,10 @@ frozen at `archive/openchronicle.v2` (`bb217d9`).
 
 | Fact | Value |
 |---|---|
-| Deployed release | **`v3.6.0`**, deployed and verified 2026-09-29 (OPS-08, rev 257): Portainer stack 151, endpoint 2, port `18000`, container `openchronicle-mcp`; `health.package_version=3.6.0`, `health.build_revision=99bd68cb209f4de99af8ef8ea5484aeda8beec8d`, `backup_last_run_failed=false`, `cloud_backup_status=ok`. Embedding provider LAN-local `ollama/nomic-embed-text`, `content_egress: local`. Nightly backups go to `/exports/backups/auto` (0017) and, encrypted, to `ocdrop:openchronicle/nas` (0001). Stack file version 144 matches the repository compose |
+| Deployed release | **`v3.7.0`**, deployed and verified 2026-10-03 (rev 295): Portainer stack 151, endpoint 2, port `18000`, container `openchronicle-mcp`; `health.package_version=3.7.0`, `health.build_revision=7feac57901b302d0b5a76dc4499dddd48186104d`, `schema_version=4`, `cloud_backup_status=ok`; `OC_BACKUP_MCP_ENABLED=true` (OPS-07). Embedding provider LAN-local `ollama/nomic-embed-text`, `content_egress: local`. Nightly backups go to `/exports/backups/auto` (0017) and, encrypted, to `ocdrop:openchronicle/nas` (0001). Stack file version 144 matches the repository compose |
 | Deploy verification | `health.package_version` for a version change; `health.build_revision` for a same-version redeploy — since rev 118 CI bakes the full git SHA into the image and health/`oc version` report it (images built earlier read `"unknown"`; fall back to the `org.opencontainers.image.revision` label for those). Never `db_modified_utc` (a WAL checkpoint clock, rev 88). Also `fts5_active`, `embedding_status`, `maintenance_degraded` |
-| Main vs deployed | Production runs the `v3.6.0` tag, the tip of `main`'s runtime source as of 2026-09-29. Stack 151 is file-based and tag-pinned via `OC_TAG`, and its stored compose matches `main`'s (file version 144) |
-| Surface | 18 MCP tools at `/mcp` (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
+| Main vs deployed | Production runs the `v3.7.0` tag. `main` is ahead by PR #38 (migration 005, schema 5), prepared as v3.8.0 and not yet tagged. Stack 151 is file-based and tag-pinned via `OC_TAG`, and its stored compose matches `main`'s (file version 144) |
+| Surface | 18 MCP tools at `/mcp`, 23 with the backup tools on (production since v3.7.0) (stateless streamable-HTTP); REST mirror at `/api/v1/*` (memory, project, system); liveness at `/health`; `oc` CLI |
 | Search | Hybrid FTS5 + embedding cosine via RRF (per-call `mode`: hybrid/keyword/semantic; `phrase` exact matching; every result carries a `relevance` block); hybrid falls back to FTS5-only on provider failure, semantic fails loudly; matching pins float above the ranking, unmatched ones stay out and unfloated ones still rank; NAS runs LAN-local `ollama/nomic-embed-text` embeddings |
 | Security posture | Auth enabled on production since 2026-09-25 (operator; previously intentionally disabled on the home LAN) ([security_posture.md](configuration/security_posture.md)); Host-header allowlists guard both `/mcp` and the REST surface against DNS rebinding |
 | Tests | Full Windows suite on `main` (`aa9ed34e`, source identical to v3.6.0): **1,259 passed, 2 skipped** (one Linux-only test, one POSIX-mode test), 2026-09-29 phase-end audit; the v3.6.0 tag's CI passed on Windows and Ubuntu (rev 257). The cloud-backup suite catches 44 of 44 deliberate mutants (rev 254) |
@@ -81,13 +81,13 @@ current work:
   instant-order inversions. TS-01 (rev 273) read the verified off-NAS copy
   directly: no naive or malformed value anywhere, 94 offset rows. TS-02 is
   decided (naive input rejected, as MINOR). PR #38 is rebased and passed its
-  pre-deploy review (rev 288). It ships as its own release after v3.7.0;
-  TS-03 closed on 2026-10-03: the image-pair rehearsal passed (rev 292), and
-  its re-run with the FTS and embedding checks passed too (rev 294).
-- **The MCP backup tools** (design 0017) ship in the image but stay off
-  (`OC_BACKUP_MCP_ENABLED=false`). Auth is on and production sets
-  `OC_BACKUP_DIR`. The operator decided on 2026-09-30 to enable them at the
-  v3.7.0 deploy (OPS-07).
+  pre-deploy review (rev 288). TS-03 closed on 2026-10-03: the image-pair
+  rehearsal passed (rev 292), and its re-run with the FTS and embedding checks
+  passed too (rev 294). PR #38 merged on 2026-10-03 and is prepared as v3.8.0
+  (rev 295); tagging waits on the operator's design 0010 call.
+- **The MCP backup tools** (design 0017) are on in production since the
+  v3.7.0 deploy on 2026-10-03 (OPS-07): create, list, verify and plan passed
+  there. Manual snapshots are never pruned (DATA-07).
 - **Runtime metrics** (design 0010) are in the released image since v3.4.0,
   under the operator's release exception, and off by default. Enabling them
   stays blocked: the 4C overhead comparison is inconclusive and the REST
@@ -112,6 +112,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 295 | 2026-10-03 | **v3.7.0 deployed and verified (OPS-07 done); v3.8.0 prepared.** The operator moved stack 151 to `OC_TAG=v3.7.0` with `OC_BACKUP_MCP_ENABLED=true` in one change. Health reads 3.7.0, `build_revision` `7feac579…`, schema 4; `/api/v1/health` without the key omits `db_path` and `config_dir`; the boot log has no settings warning. Design 0010's deploy sample (120 requests alternating `/health` and a keyword search, in the container): p50 3.4 ms, p95 5.9 ms before; p50 3.5 ms, p95 6.0 ms after; no failures. The MCP surface lists 23 tools; create, list, verify and plan passed on a fresh manual snapshot (digest equal to the live database's latest, `verified: true`, the plan with no stop reasons and `memory_delta` 0); `db_restore_stage` was not called. PR #38 merged (`707cadb6`) after TS-03, so v3.8.0 is prepared: version 3.8.0 in `pyproject.toml` and `uv.lock`, a CHANGELOG entry carrying the release notes TS-04 requires (rollback is the pre-migration snapshot, naive input rejected as MINOR, 100 stored values change text), and a proposed design 0010 extension. One first-parent commit since v3.7.0. Tagging waits on the operator's call on that extension |
 | 294 | 2026-10-03 | **TS-03 closed: the re-run with FTS and embedding checks passed.** `ts03-rehearsal.sh` at `6c990d5e` ran on the NAS against a fresh catalogued snapshot (2026-10-03T15:54Z, manifest sha256 `db177dc9…`, unchanged since rev 292; 41 projects, 1,148 memories and embeddings, 100 offset values), with v3.7.0 as the old image and the candidate built from `a18212f4`. Every inspection reported FTS `ok`, and the embedding digest (`a27b7966…`) and the FTS result digest (`f20140ad…`, 803 hits over six queries) were identical at the snapshot, under v3.7.0, after 005 and after the rollback. Everything else matched rev 292: 005 on boot in 5 s (schema 5, 0 non-UTC), refusal on a planted naive value with the database unchanged, and the ordered rollback (`activated`, `write_probe` `ok`, schema 4, the 100 offset values back, policy restored). PR #38's merge gate (counts, integrity, FTS, embeddings, migration duration, rollback rehearsal) is met. Next: merge #38 and TS-04's release |
 | 293 | 2026-10-03 | **TS-03 gains FTS and embedding checks; one re-run needed.** Review of PR #38 found that the rev 292 rehearsal compared project, memory and embedding row counts plus `PRAGMA integrity_check`, while the PR's merge gate asks for FTS and embeddings to be verified on the restored copy. Equal counts would miss an FTS trigger dropping or replacing indexed rows, or embedding content changing. `ts03-rehearsal.sh` now runs FTS5 `integrity-check` with rank 1 (index against the external content table) on an in-memory copy, and compares SHA-256 digests of every `memory_embeddings` row and of the rowids six FTS queries return, at the snapshot, after 005 and after the rollback. Checked locally on a synthetic database: the digest moves when an embedding blob changes, and the FTS check fails when `memory_items` changes without its trigger. TS-03 stays open until one run with these checks passes |
 | 292 | 2026-10-03 | **TS-03 passed: the migration 005 rehearsal.** `tools/backup-drill/ts03-rehearsal.sh` ran on the NAS against a fresh catalogued snapshot (2026-10-03T15:17Z, manifest sha256 `db177dc9…`; 41 projects, 1,148 memories and embeddings, schema 4, 100 offset values, 0 naive), with v3.7.0 (`7feac579`) as the old image and a candidate built on the NAS from `a18212f4`. Everything ran on new volumes with no network; production saw one `docker inspect` and one `db_backup`. Pre-flight: exit 0, `Integrity: ok`. Image pair: v3.7.0 served the copy unchanged, then the candidate applied 005 on boot in 3-4 s, leaving schema 5, 0 non-UTC values, integrity ok and unchanged counts. Refusal: one planted naive `created_at` stopped the candidate (exit 1, the runbook's message naming the row) with the database unchanged (schema 4, same counts and timestamp checks), and v3.7.0 served it again. Ordered rollback: restart policy to `no`, stop, the host-source `stage` of the snapshot, `activate --expected-schema 4` (phase `activated`, `write_probe` `ok`), `retire-stage`, v3.7.0 started on the restored volume (schema 4, counts and the 100 offset values back), and the policy restored to `unless-stopped`. Two earlier runs stopped at the script's own guard: `docker ps` still showed the stopped container as running immediately after `docker stop` returned. With a wait for `State.Running` to read false, the stop completed (graceful, exit 0). The runbook's three stop-then-check blocks gain the same wait, since on this NAS the immediate check can fail safe and halt a rollback with the service already stopped. Portainer freeze and recreation stay manual. Next: TS-04's release |
