@@ -13,20 +13,23 @@ enables the metrics profile.
 
 ## Prerequisites
 
-- A repository checkout and Docker Compose access for a planned profile run.
-  The live NAS stack is a detached Portainer file stack; changing its stored
-  compose requires a separate, reviewed reconciliation decision.
+- Either the Portainer stack, or a repository checkout with Docker Compose.
+  The live NAS stack is a detached Portainer file stack: a repository change
+  to the compose reaches it only through a reviewed
+  `portainer_update_stack_file`. The collector's configuration is inline in
+  `docker-compose.nas.yml`, so the stored file is all the stack needs.
 - The OpenChronicle image already selected by `OC_TAG`.
 - A local filesystem with at least 2 GiB available for Prometheus data. Do not
   use NFS for the data directory.
-- If `OC_API_KEY` is set, a host-side file containing only that bearer token.
-  Do not commit it or put it in a compose file.
 
 The repository has no configured collector discovery or cloud remote-write
 destination. The checked-in collector image is pinned to
 `prom/prometheus:v3.14.0`; review the tag before a future collector upgrade.
 
 ## Start the opt-in collector
+
+Every setting is a stack environment variable; the full list is in
+[env_vars.md](../configuration/env_vars.md#metrics).
 
 1. Choose a local data directory. The default named volume is
    `prometheus-data`; set `HOST_PROMETHEUS_DATA_DIR` to a bind-mounted local
@@ -39,43 +42,44 @@ destination. The checked-in collector image is pinned to
    hostname and the collector. An explicit REST list replaces the
    default inheritance from `OC_MCP_ALLOWED_HOSTS`; retain every external
    hostname clients use.
-3. Leave `PROMETHEUS_CONFIG_FILE` unset when `OC_API_KEY` is empty. The
-   default config scrapes `host.docker.internal:18000/metrics` every 30
-   seconds with a 5-second timeout. If `HOST_HTTP_PORT` is not 18000, edit
-   the target in both `prometheus.yml` and `prometheus-auth.yml` to match.
-4. Start the profile from the repository directory:
+3. Set `COMPOSE_PROFILES=metrics`, which starts the collector.
+4. If `OC_API_KEY` is set, set
+   `PROMETHEUS_CONFIG_FILE=/etc/prometheus/openchronicle-auth.yml`; see
+   [Authenticated scrape](#authenticated-scrape). Leave it unset when
+   `OC_API_KEY` is empty. Either config scrapes
+   `host.docker.internal:<HOST_HTTP_PORT>/metrics` every 30 seconds with a
+   5-second timeout.
+5. Deploy. In Portainer, add the variables in the stack's environment and
+   update the stack with the image pulled. From a checkout:
 
    ```powershell
    $env:OC_TAG = "<release-tag>"
    $env:OC_METRICS_ENABLED = "true"
    $env:OC_API_ALLOWED_HOSTS = "your-nas:*,host.docker.internal:*"
-   docker compose -f docker-compose.nas.yml --profile metrics up -d oc prometheus
+   $env:COMPOSE_PROFILES = "metrics"
+   docker compose -f docker-compose.nas.yml up -d oc prometheus
    ```
 
-   Portainer operators should activate the equivalent `metrics` profile in
-   the stack configuration and use the same environment values. Stack 151 is
-   file-based: its stored compose matches the repository only as of the last
-   reviewed `portainer_update_stack_file` (OPS-03). Editing the repository
-   compose does not update the deployed stack. A green compose operation is not proof of
-   a healthy scrape.
-5. Open the Prometheus UI through the loopback-only binding, normally
+   A green compose operation is not proof of a healthy scrape; run the checks
+   below.
+6. Open the Prometheus UI through the loopback-only binding, normally
    `http://127.0.0.1:19090`, or use an SSH tunnel to the NAS. The UI is not
    published on the LAN by this compose file.
 
 ## Authenticated scrape
 
-When `OC_API_KEY` is non-empty, create `oc-api-key` in the directory named by
-`HOST_PROMETHEUS_SECRETS_DIR` and keep the file local. It must contain the raw
-token with no `Bearer` prefix or trailing whitespace. Select the checked-in authenticated config:
+When `OC_API_KEY` is non-empty, select the authenticated config:
 
 ```powershell
 $env:PROMETHEUS_CONFIG_FILE = "/etc/prometheus/openchronicle-auth.yml"
-docker compose -f docker-compose.nas.yml --profile metrics up -d oc prometheus
+docker compose -f docker-compose.nas.yml up -d oc prometheus
 ```
 
-The compose service mounts the configured secrets directory read-only. If the
-file is missing or unreadable, Prometheus should show a down target rather than
-silently recording a clean zero.
+Compose copies the stack's own `OC_API_KEY` into the collector as the secret
+file `/etc/prometheus/secrets/oc-api-key`, which that config reads; there is no
+token file to create or keep. Rotating `OC_API_KEY` therefore needs the
+collector recreated along with `oc`. If the key does not match, Prometheus
+shows a down target rather than silently recording a clean zero.
 
 The metrics endpoint is not an authentication exemption. The collector also
 needs `host.docker.internal:*` in the REST Host allowlist described in the
@@ -140,6 +144,10 @@ To stop collection while leaving OC data intact:
 ```powershell
 docker compose -f docker-compose.nas.yml --profile metrics stop prometheus
 ```
+
+In Portainer, remove `COMPOSE_PROFILES`, update the stack, and stop the
+`prometheus` container if it is still running: a stack update without the
+profile no longer manages it but need not remove it. Its volume stays.
 
 To disable the OC exporter, set `OC_METRICS_ENABLED=false`, recreate only the
 tagged OC service, and stop the collector. The Prometheus volume may be kept

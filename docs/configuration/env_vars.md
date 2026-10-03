@@ -103,16 +103,25 @@ application HTTP traffic series. Do not put content, query text, project or
 memory identifiers, client/IP data, URLs, headers, exception messages, or
 credentials in metric labels.
 
-The NAS compose file adds a profile-gated `prometheus` service. Start it only
-with `--profile metrics` and set `OC_METRICS_ENABLED=true` explicitly. Its
-compose-level controls are:
+The NAS compose file adds a profile-gated `prometheus` service. It starts only
+when the `metrics` profile is selected, and `OC_METRICS_ENABLED` must be set to
+`true` explicitly. Every control below is a stack environment variable, so a
+Portainer stack can set all of them without a compose edit:
 
 | Variable | Purpose | Default |
 |---|---|---|
+| `COMPOSE_PROFILES` | Set to `metrics` to start the collector. Compose reads it from the stack environment, the same as `--profile metrics` on the command line | *(unset; collector not started)* |
+| `PROMETHEUS_CONFIG_FILE` | Container config path; use `/etc/prometheus/openchronicle-auth.yml` whenever `OC_API_KEY` is set | `/etc/prometheus/openchronicle.yml` |
 | `HOST_PROMETHEUS_PORT` | Loopback-only Prometheus UI port on the NAS | `19090` |
 | `HOST_PROMETHEUS_DATA_DIR` | Local host directory for Prometheus history; leave unset to use the named `prometheus-data` volume | `prometheus-data` |
-| `HOST_PROMETHEUS_SECRETS_DIR` | Local directory containing `oc-api-key` for authenticated scrapes | `prometheus-secrets` |
-| `PROMETHEUS_CONFIG_FILE` | Container config path; use `/etc/prometheus/openchronicle-auth.yml` when `OC_API_KEY` is set | `/etc/prometheus/openchronicle.yml` |
+| `PROMETHEUS_RETENTION_TIME` | `--storage.tsdb.retention.time` | `14d` |
+| `PROMETHEUS_RETENTION_SIZE` | `--storage.tsdb.retention.size`, for blocks only; WAL and head data come on top | `1GB` |
+
+Both collector configurations are inline in the compose file, so a file-based
+Portainer stack needs nothing beside it, and their scrape target follows
+`HOST_HTTP_PORT`. The authenticated configuration reads its bearer token from
+a Compose secret sourced from the stack's own `OC_API_KEY`; no token file is
+created by hand and none is tracked.
 
 Keep the collector data on a local filesystem with at least 2 GiB available;
 do not use NFS. The checked-in collector is pinned to
