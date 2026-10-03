@@ -27,7 +27,8 @@ NEW_SHA="${NEW_SHA:-a18212f46fe44af3d2db5a973d887fcefd191b9b}"
 NEW_IMAGE="openchronicle-mcp:ts03-${NEW_SHA:0:8}"
 PROD=openchronicle-mcp
 RUN="ts03-$(date -u +%Y%m%dT%H%M%SZ)"
-WORK="${WORK:-/tmp/oc-$RUN}"
+# An unpredictable, freshly created scratch directory (the script runs as root).
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/oc-ts03.XXXXXXXXXX")
 VOL_A="oc-$RUN-pair"
 VOL_B="oc-$RUN-refusal"
 CREATED_CONTAINERS=()
@@ -133,7 +134,6 @@ offline() {  # the offline restore helper against VOL_A, as uid 1000
     /app/scripts/offline_restore.py "$@"
 }
 
-mkdir -p "$WORK"
 docker pull -q "$OLD_IMAGE" >/dev/null
 docker run --rm --pull never --network none --entrypoint cat "$OLD_IMAGE" /app/build-revision
 
