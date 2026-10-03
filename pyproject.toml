@@ -1,8 +1,8 @@
 [build-system]
 # Floors picked to dodge known CVEs flagged by pip-audit on the slim
 # base image (setuptools PYSEC-2025-49 + CVE-2024-6345,
-# wheel CVE-2026-24049). The Dockerfile also upgrades pip/setuptools/
-# wheel ahead of the package install for the same reason.
+# wheel CVE-2026-24049). The image installs with uv from uv.lock, so its
+# venv carries no pip, setuptools or wheel; these are build-time only.
 requires = ["setuptools>=84.0.0", "wheel>=0.48.0"]
 build-backend = "setuptools.build_meta"
 
