@@ -65,6 +65,16 @@ class TestMCPConfigValidation:
         config = MCPConfig.from_env(file_config={"server_name": "my-oc"})
         assert config.server_name == "my-oc"
 
+    @pytest.mark.parametrize("value", [True, False])
+    def test_boolean_port_in_file_config_falls_back_to_default(self, value: bool) -> None:
+        """bool is an int subclass, so `"port": true` became port 1 and
+        `"port": false` port 0 (an ephemeral port): MCPConfig has no range
+        check to catch either. Both must fall back to the default."""
+        env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
+        with patch.dict(os.environ, env, clear=True):
+            config = MCPConfig.from_env(file_config={"port": value})
+        assert config.port == 8080
+
 
 class TestMCPConfigAllowedHosts:
     """OC_MCP_ALLOWED_HOSTS controls FastMCP's Host-header allowlist.

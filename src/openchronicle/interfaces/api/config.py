@@ -49,7 +49,8 @@ class HTTPConfig:
         host = os.environ.get("OC_API_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
         port_file = fc.get("port")
-        default_port = port_file if isinstance(port_file, int) else 8000
+        # bool is an int subclass: `"port": true` must not become port 1.
+        default_port = port_file if isinstance(port_file, int) and not isinstance(port_file, bool) else 8000
         port = parse_int_env(os.environ.get("OC_API_PORT"), default=default_port, name="OC_API_PORT")
         if not 1 <= port <= 65535:
             # Out-of-range is the same crash-loop trap as non-numeric —

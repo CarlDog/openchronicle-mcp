@@ -559,6 +559,10 @@ def load_jobs(file_config: dict[str, Any] | None = None) -> list[JobState]:
         # zero/negative interval would fire the job every tick.
         interval_raw = entry.get("interval_seconds", 3600)
         try:
+            # bool is an int subclass: `true` would be a 1-second interval,
+            # firing the job on every tick (QUAL-21).
+            if isinstance(interval_raw, bool):
+                raise TypeError("a boolean is not an interval")
             interval = int(interval_raw)
         except TypeError, ValueError:
             _logger.warning("invalid interval_seconds %r for job %s; using 3600", interval_raw, name)

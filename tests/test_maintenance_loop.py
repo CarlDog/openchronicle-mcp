@@ -697,6 +697,16 @@ def test_load_jobs_fails_soft_on_bad_interval() -> None:
     assert states["db_integrity_check"].interval_seconds == 1234
 
 
+def test_load_jobs_refuses_a_boolean_interval() -> None:
+    """bool is an int subclass, so `"interval_seconds": true` was a 1-second
+    interval that fired the job (db_backup here) on every tick. It must fail
+    soft like any invalid value. (`false` is 0, already refused as
+    non-positive.)"""
+    config = {"maintenance": {"jobs": [{"name": "db_backup", "interval_seconds": True, "enabled": True}]}}
+    states = {j.name: j for j in maintenance_loop.load_jobs(config)}
+    assert states["db_backup"].interval_seconds == 3600
+
+
 # ─── last_success_at (V3_PLAN Q16; prerequisite for cloud backup §6.1) ───
 
 

@@ -857,6 +857,13 @@ class TestConfigFailSoft:
         with patch.dict("os.environ", {"OC_API_PORT": "99999"}):
             assert HTTPConfig.from_env().port == 8000
 
+    def test_boolean_port_in_file_config_falls_back_to_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """bool is an int subclass; `"port": true` must not become port 1.
+        (`false` would be port 0, which HTTPConfig's range check already
+        refuses; MCPConfig has no range check, so its test covers both.)"""
+        monkeypatch.delenv("OC_API_PORT", raising=False)
+        assert HTTPConfig.from_env(file_config={"port": True}).port == 8000
+
     def test_invalid_rate_limit_env_uses_default(self) -> None:
         from openchronicle.interfaces.api.middleware.rate_limit import (
             _DEFAULT_RPM,
