@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
+import sys
 
+from openchronicle.core.infrastructure.maintenance.jobs import HANDLERS
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.cli.commands import COMMANDS, PRE_CONTAINER_COMMANDS
 
@@ -15,11 +18,20 @@ def _build_container(args: argparse.Namespace) -> CoreContainer | None:
     try:
         return CoreContainer()
     except Exception as exc:  # noqa: BLE001
-        print(str(exc))
+        # `serve` configured logging first, so this reaches OC_LOG_FILE: a
+        # crash-looping container's only lasting record of why. Otherwise
+        # stderr, keeping stdout for command output.
+        if args.command == "serve":
+            logging.getLogger(__name__).error("Cannot start: %s", exc)
+        else:
+            print(str(exc), file=sys.stderr)
         return None
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The `oc` argument parser. Separate from `main` so tests can walk it
+    (tests/test_docs_parity.py checks it against docs/cli/commands.md).
+    """
     parser = argparse.ArgumentParser(prog="oc", description="OpenChronicle v3 — memory database for LLM agents")
     sub = parser.add_subparsers(dest="command")
 
@@ -217,13 +229,17 @@ def main(argv: list[str] | None = None) -> int:
     maintenance_list = maintenance_sub.add_parser("list", help="Show configured jobs")
     maintenance_list.add_argument("--json", action="store_true", help="Emit JSON output")
     maintenance_run = maintenance_sub.add_parser("run-once", help="Run a single job and exit")
-    maintenance_run.add_argument(
-        "job_name", help="One of: db_backup, db_vacuum, db_integrity_check, embedding_backfill, git_onboard_resync"
-    )
+    maintenance_run.add_argument("job_name", help=f"One of: {', '.join(sorted(HANDLERS))}")
 
     serve_cmd = sub.add_parser("serve", help="Run the unified HTTP + MCP ASGI server")
     serve_cmd.add_argument("--host", default=None, help="Bind address (default: 127.0.0.1)")
     serve_cmd.add_argument("--port", type=int, default=None, help="Port (default: 8000)")
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
 
     # --- Parse ---
     args = parser.parse_args(argv)
@@ -244,15 +260,28 @@ def main(argv: list[str] | None = None) -> int:
             print(str(exc))
             return 1
 
+    # `serve` owns OC_LOG_FILE, so configure logging before the container:
+    # building it logs boot problems (a bad OC_BACKUP_DIR, an unrecognized
+    # OC_SEARCH_FTS5_ENABLED), which otherwise reach only the bare stderr a
+    # Portainer recreate discards. One-shot commands keep their own output.
+    if args.command == "serve":
+        from openchronicle.interfaces.logging_setup import configure_root_logger
+
+        configure_root_logger()
+
     container = _build_container(args)
     if container is None:
         return 1
 
-    handler = COMMANDS.get(args.command)
-    if handler is None:
-        parser.print_help()
-        return 0
-    return handler(args, container)
+    # Close the store here, including after `oc serve` shuts down, rather
+    # than leave it to interpreter teardown: that did close it and
+    # checkpoint the WAL, but with a ResourceWarning and no guarantee.
+    with container:
+        handler = COMMANDS.get(args.command)
+        if handler is None:
+            parser.print_help()
+            return 0
+        return handler(args, container)
 
 
 if __name__ == "__main__":

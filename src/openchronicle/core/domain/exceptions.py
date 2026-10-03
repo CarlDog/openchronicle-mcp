@@ -10,6 +10,7 @@ from __future__ import annotations
 from openchronicle.core.domain.errors.error_codes import (
     CONFIG_ERROR,
     INVALID_ARGUMENT,
+    MODEL_REVISION_CHANGED,
     NOT_FOUND,
     PROVIDER_ERROR,
 )
@@ -60,3 +61,35 @@ class ProviderError(Exception):
         self.hint = hint
         self.details = details
         super().__init__(message)
+
+
+class RevisionUnknownError(ProviderError):
+    """The embedding model's revision is not verified, so nothing may be stamped.
+
+    Raised instead of guessing. Stamping ``None`` for an unverified revision
+    made a transient probe failure re-embed the whole corpus twice (design
+    0014 §1.1). It refuses a write; it is not a provider failure, and the
+    embedding service does not count it as one.
+    """
+
+    def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__(
+            message,
+            error_code=PROVIDER_ERROR,
+            hint=(
+                "The provider has not confirmed the model's revision yet; embedding resumes once it "
+                "does. See health.embedding_status.model_revision_state."
+            ),
+            details=details,
+        )
+
+
+class RevisionChangedError(ProviderError):
+    """A query could not be matched to a stable, verified model revision."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "the embedding model revision changed during semantic search",
+            error_code=MODEL_REVISION_CHANGED,
+            hint="Retry after the model revision settles; check health.embedding_status.model_revision_state.",
+        )

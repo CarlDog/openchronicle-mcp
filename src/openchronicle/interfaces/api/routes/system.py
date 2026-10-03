@@ -9,16 +9,27 @@ from fastapi import APIRouter, Depends, Request
 from openchronicle.core.application.use_cases.diagnose_runtime import build_health_payload
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.deps import get_container
+from openchronicle.interfaces.api.middleware.auth import request_has_key
 
 router = APIRouter()
 
 ContainerDep = Annotated[CoreContainer, Depends(get_container)]
 
+# /api/v1/health is auth-exempt so probes and monitors work without the key,
+# but the filesystem layout is for callers holding it (phase-end audit
+# 2026-09-29; security_posture.md). With auth off there is nothing to protect.
+_PATH_FIELDS = ("db_path", "config_dir")
+
 
 @router.get("/health")
-def health(container: ContainerDep) -> dict[str, Any]:
+def health(request: Request, container: ContainerDep) -> dict[str, Any]:
     """Readiness probe: DB reachability, config status, embedding subsystem."""
-    return build_health_payload(container)
+    payload = build_health_payload(container)
+    api_key = getattr(getattr(request.app.state, "http_config", None), "api_key", None)
+    if api_key and not request_has_key(request, api_key):
+        for field in _PATH_FIELDS:
+            payload.pop(field, None)
+    return payload
 
 
 @router.get("/maintenance/status")

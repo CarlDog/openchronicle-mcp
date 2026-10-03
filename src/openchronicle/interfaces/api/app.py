@@ -8,20 +8,45 @@ v3 fold: a single ASGI process serves both the HTTP REST surface
 from __future__ import annotations
 
 import logging
+import os
 import traceback
 from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.requests import Request
 
+from openchronicle.core.application.config.env_helpers import parse_bool_env
+from openchronicle.core.application.observability.exporter import (
+    MetricsScrapeBusyError,
+    MetricsScrapeError,
+)
+from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.domain.errors.error_codes import FILE_NOT_FOUND, INTERNAL_ERROR
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
 from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.version import package_version
 
 logger = logging.getLogger(__name__)
+
+
+def _backup_tools_enabled(config: HTTPConfig, container: CoreContainer) -> bool:
+    """Whether to register the backup MCP tools; a bad setting never stops startup.
+
+    The tools stay off unless OC_BACKUP_MCP_ENABLED is true, an API key is
+    set, and OC_BACKUP_DIR is explicit. Anything else is logged at ERROR and
+    leaves them unregistered: under `restart: unless-stopped`, raising here
+    would crash-loop the whole memory service over an optional tool set.
+    """
+    if not parse_bool_env(
+        os.environ.get("OC_BACKUP_MCP_ENABLED"), default=False, name="OC_BACKUP_MCP_ENABLED", level=logging.ERROR
+    ):
+        return False
+    if not config.api_key or not container.backup_dir_explicit:
+        logger.error("Backup MCP tools need OC_API_KEY and an explicit OC_BACKUP_DIR; they are not registered")
+        return False
+    return True
 
 
 def create_app(
@@ -49,7 +74,18 @@ def create_app(
         from openchronicle.interfaces.mcp.server import create_server
 
         mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"))
-        mcp_server = create_server(container, mcp_config)
+        mcp_server = create_server(container, mcp_config, backup_tools_enabled=_backup_tools_enabled(config, container))
+
+    metrics_candidate = getattr(container, "metrics", None)
+    metrics_enabled = getattr(metrics_candidate, "enabled", None)
+    metrics_recorder = metrics_candidate if metrics_enabled is True else None
+    exporter_candidate = getattr(container, "metrics_exporter", None)
+    metrics_exporter = (
+        exporter_candidate
+        if isinstance(getattr(exporter_candidate, "content_type", None), str)
+        and callable(getattr(exporter_candidate, "render", None))
+        else None
+    )
 
     # Build the maintenance loop unless explicitly disabled. The loop
     # itself is started inside the lifespan so it shares the asyncio
@@ -58,8 +94,13 @@ def create_app(
     from openchronicle.core.infrastructure.maintenance import jobs as maintenance_jobs
 
     maintenance: maintenance_loop.MaintenanceLoop | None = None
+    reconcile_backfills = False
     if not maintenance_loop.is_disabled():
         loop_jobs = maintenance_loop.load_jobs(container.file_configs)
+        # Revision reconciliation re-embeds whatever is out of date, so it
+        # follows the embedding_backfill job: an operator who disabled that
+        # job (say, to put off a reindex) gets no automatic backfills either.
+        reconcile_backfills = any(job.name == "embedding_backfill" and job.enabled for job in loop_jobs)
         maintenance = maintenance_loop.MaintenanceLoop(
             container=container,
             jobs=loop_jobs,
@@ -67,7 +108,7 @@ def create_app(
             # Schedule survives restarts — without this every enabled job
             # fires on boot, and the redeploy-on-push deployment model
             # turned that into two backups per push.
-            state_path=container.paths.db_path.parent / "maintenance_state.json",
+            state_path=maintenance_loop.maintenance_state_path(container.paths.db_path),
         )
 
     @asynccontextmanager
@@ -80,6 +121,17 @@ def create_app(
             if maintenance is not None:
                 await maintenance.start()
                 stack.push_async_callback(maintenance.stop)
+            # Keeps the embedding model's revision verified (ADR 0005 §7).
+            # Started after the maintenance loop so the exit stack stops it
+            # first: a tick during maintenance.stop() must not start a
+            # backfill mid-shutdown. It runs with maintenance or the backfill
+            # job disabled too, since verification is correctness, but then
+            # starts no backfills.
+            embedding_service = getattr(container, "embedding_service", None)
+            if isinstance(embedding_service, EmbeddingService) and embedding_service.start_revision_refresher(
+                auto_backfill=reconcile_backfills
+            ):
+                stack.push_async_callback(embedding_service.stop_revision_refresher)
             yield
         logger.info("OpenChronicle ASGI shutting down")
 
@@ -99,7 +151,7 @@ def create_app(
 
     from openchronicle.interfaces.api.middleware import register_middleware
 
-    register_middleware(app, config)
+    register_middleware(app, config, metrics=metrics_recorder)
 
     from openchronicle.core.domain.exceptions import (
         NotFoundError,
@@ -170,5 +222,17 @@ def create_app(
     @app.get("/health", include_in_schema=False)
     def liveness() -> dict[str, str]:
         return {"status": "ok"}
+
+    if metrics_exporter is not None:
+
+        @app.get("/metrics", include_in_schema=False)
+        async def metrics() -> Response:
+            try:
+                body = await metrics_exporter.render()
+            except MetricsScrapeBusyError:
+                return Response(status_code=503, headers={"Retry-After": "1"})
+            except MetricsScrapeError:
+                return Response(status_code=503)
+            return Response(content=body, media_type=metrics_exporter.content_type)
 
     return app

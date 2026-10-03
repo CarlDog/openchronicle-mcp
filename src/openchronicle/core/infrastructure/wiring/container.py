@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import errno
+import logging
+import os
+import stat
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from openchronicle.core.application.config.paths import RuntimePaths
@@ -7,11 +13,16 @@ from openchronicle.core.application.config.settings import (
     EmbeddingSettings,
     load_embedding_settings,
 )
+from openchronicle.core.application.observability.exporter import MetricsExporter
 from openchronicle.core.application.services.embedding_service import EmbeddingService
 from openchronicle.core.domain.errors.error_codes import CONFIG_ERROR
 from openchronicle.core.domain.exceptions import ConfigError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
+from openchronicle.core.domain.redaction import redact_url_userinfo
 from openchronicle.core.infrastructure.config.config_loader import load_config_files
+from openchronicle.core.infrastructure.observability.factory import create_metrics
+from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
 
 
@@ -43,6 +54,33 @@ def _looks_private_host(url: str) -> bool:
     return host.rsplit(".", 1)[-1] in ("local", "internal", "lan", "home", "localhost")
 
 
+def _backup_dir_problem(path: Path) -> str | None:
+    """Why an explicitly configured backup directory is unusable, or None."""
+    if not path.is_absolute():
+        return "must be an absolute path"
+    # lstat, not is_dir(): is_dir() answers False on any OSError, so a parent
+    # this user cannot traverse read as "not a directory" and sent the
+    # operator after the wrong fix.
+    try:
+        mode = path.lstat().st_mode
+    except FileNotFoundError:
+        return "must be an existing directory; it does not exist"
+    except OSError as exc:
+        if exc.errno in (errno.EACCES, errno.EPERM):
+            return f"cannot be checked ({exc.strerror or exc}); check the permissions on its parent directories"
+        return f"cannot be checked ({exc.strerror or exc})"
+    if stat.S_ISLNK(mode):
+        return "must be an existing directory, not a symlink"
+    if not stat.S_ISDIR(mode):
+        return "must be an existing directory; it is not a directory"
+    try:
+        with tempfile.TemporaryFile(dir=path):
+            pass
+    except OSError as exc:
+        return f"is not writable ({exc.strerror or exc})"
+    return None
+
+
 class CoreContainer:
     """Slim v3 DI container — memory storage + optional embeddings.
 
@@ -60,6 +98,8 @@ class CoreContainer:
         output_dir: str | None = None,
         *,
         paths: RuntimePaths | None = None,
+        metrics: MetricsRecorder | None = None,
+        metrics_exporter: MetricsExporter | None = None,
     ) -> None:
         if paths is None:
             paths = RuntimePaths.resolve(
@@ -73,9 +113,29 @@ class CoreContainer:
         # conjuring) so mypy actually checks the four call sites.
         self.maintenance_degraded: bool = False
 
+        if metrics is None:
+            metrics, metrics_exporter = create_metrics()
+        self.metrics: MetricsRecorder = metrics
+        self.metrics_exporter: MetricsExporter | None = metrics_exporter
+
         db_path_resolved = paths.db_path
         config_dir_resolved = paths.config_dir
         output_dir_resolved = paths.output_dir
+        backup_dir_env = os.environ.get("OC_BACKUP_DIR", "").strip()
+        self.backup_dir_explicit = bool(backup_dir_env)
+        self.backup_dir = Path(backup_dir_env) if backup_dir_env else db_path_resolved.parent / "backups"
+        # A bad backup directory must not stop the service or the CLI (the
+        # emergency `oc db backup` included): under `restart: unless-stopped`
+        # a startup failure is a crash loop. Log it here; every backup into
+        # the configured directory then fails loudly. There is no fallback.
+        self.backup_dir_problem = _backup_dir_problem(self.backup_dir) if backup_dir_env else None
+        if self.backup_dir_problem is not None:
+            logging.getLogger(__name__).error(
+                "OC_BACKUP_DIR %s: %s. Scheduled and manual catalog backups will fail until it is fixed; "
+                "they are not written anywhere else.",
+                self.backup_dir,
+                self.backup_dir_problem,
+            )
 
         db_path_resolved.parent.mkdir(parents=True, exist_ok=True)
         if not config_dir_resolved.exists():
@@ -87,13 +147,21 @@ class CoreContainer:
 
         file_configs = load_config_files(config_dir_resolved)
 
-        self.storage = SqliteStore(db_path=str(db_path_resolved))
+        self.storage = SqliteStore(
+            db_path=str(db_path_resolved),
+            metrics=self.metrics if self.metrics.enabled else None,
+        )
         self.storage.init_schema()
+        self.backups = BackupCatalog(
+            self.storage, self.backup_dir, db_path_resolved, require_existing_root=self.backup_dir_explicit
+        )
         try:
             self.embedding_settings = load_embedding_settings(file_configs.get("embedding"))
             self.embedding_port: EmbeddingPort | None = self._build_embedding_port()
             self.embedding_service: EmbeddingService | None = (
-                EmbeddingService(self.embedding_port, self.storage) if self.embedding_port is not None else None
+                EmbeddingService(self.embedding_port, self.storage, metrics=self.metrics)
+                if self.embedding_port is not None
+                else None
             )
 
             self.file_configs = file_configs
@@ -133,7 +201,12 @@ class CoreContainer:
         # original search-only counter keeps its keys for continuity.
         search_failures = self.embedding_service.search_failure_count
         failure_count = self.embedding_service.failure_count
-        status = "degraded" if failure_count else "active"
+        # A snapshot read, never a probe and never raising (ADR 0005 §7):
+        # health must explain an unverified revision, not fail on it. While
+        # it is unverified no embedding is written, so the subsystem is
+        # degraded even with no failed provider call.
+        revision = port.revision_snapshot()
+        status = "degraded" if failure_count or not revision.known else "active"
         return {
             "status": status,
             "provider": settings.provider,
@@ -145,13 +218,22 @@ class CoreContainer:
             "dimensions": port.dimensions(),
             "configured_dimensions": settings.dimensions,
             "stored_dimensions": self.storage.stored_embedding_dimensions(),
-            "model_revision": port.model_revision(),
+            # `model_revision` is the last VERIFIED value; while unverified it
+            # is null and `model_revision_state` says why: "known", "none"
+            # (the provider or model has no revision) or "unknown".
+            "model_revision": revision.value,
+            "model_revision_state": revision.state,
+            "model_revision_verified_at": revision.verified_at.isoformat() if revision.verified_at else None,
             "timeout_seconds": settings.timeout,
             "failure_count": failure_count,
             "last_failure_at": self.embedding_service.last_failure_at,
             "last_failure_op": self.embedding_service.last_failure_op,
             "search_failure_count": search_failures,
             "last_search_failure_at": self.embedding_service.last_search_failure_at,
+            # How the last `background=true` backfill ended (null until one
+            # finishes in this process). Nothing awaits that task, so this is
+            # where an operator sees a run that died.
+            "last_background_backfill": self.embedding_service.last_background_backfill,
             # The operator's egress choice, visible where agents look
             # (operator-directed 2026-08-29): "remote" means memory
             # content leaves this host on every save/semantic search.
@@ -218,7 +300,7 @@ class CoreContainer:
                     "If that is not intended, point OC_EMBEDDING_PROVIDER=ollama at a LAN host to "
                     "keep embedding local. See docs/design/0006-embedding-provider-review.md.",
                     settings.provider,
-                    self._embedding_endpoint(),
+                    redact_url_userinfo(self._embedding_endpoint()),
                 )
             return port
         except Exception as exc:

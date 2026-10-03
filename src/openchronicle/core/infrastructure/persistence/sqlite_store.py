@@ -18,14 +18,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Concatenate, Literal
 
+from openchronicle.core.application.config.env_helpers import parse_bool_env
 from openchronicle.core.domain.content_hash import hash_content
 from openchronicle.core.domain.errors.error_codes import MEMORY_NOT_FOUND, PROJECT_NOT_FOUND
 from openchronicle.core.domain.exceptions import NotFoundError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
+from openchronicle.core.domain.ports.metrics_port import MetricsRecorder
 from openchronicle.core.domain.ports.storage_port import StoragePort
-from openchronicle.core.domain.time_utils import utc_now
+from openchronicle.core.domain.time_utils import require_utc, utc_now
 from openchronicle.core.infrastructure.persistence import migrator
 from openchronicle.core.infrastructure.persistence.backup import backup_from_connection
 from openchronicle.core.infrastructure.persistence.row_mappers import (
@@ -152,6 +154,64 @@ _MEMORY_SEARCH_LIMIT = 200
 # Application-level retry for BEGIN IMMEDIATE write-lock contention.
 _BEGIN_MAX_RETRIES = 3
 _BEGIN_BASE_DELAY = 0.5  # seconds
+_LOCK_STATE = threading.local()
+_WRITE_LOCK_METHODS = frozenset(
+    {
+        "add_project",
+        "delete_project",
+        "update_project",
+        "add_memory",
+        "set_pinned",
+        "update_memory",
+        "delete_memory",
+        "save_embedding",
+        "delete_embedding",
+    }
+)
+_MAINTENANCE_LOCK_METHODS = frozenset({"init_schema", "vacuum", "integrity_check", "backup_to"})
+
+
+def _lock_kind(method_name: str) -> Literal["read", "write", "maintenance"]:
+    if method_name in _MAINTENANCE_LOCK_METHODS:
+        return "maintenance"
+    if method_name in _WRITE_LOCK_METHODS:
+        return "write"
+    return "read"
+
+
+@contextmanager
+def _observed_lock(store: SqliteStore, *, kind: Literal["read", "write", "maintenance"]) -> Iterator[None]:
+    """Acquire the RLock and publish only the outermost wait/hold pair."""
+    if store._metrics is None:
+        with store._lock:
+            yield
+        return
+
+    depths: dict[int, int] = getattr(_LOCK_STATE, "depths", {})
+    _LOCK_STATE.depths = depths
+    lock_key = id(store._lock)
+    outermost = depths.get(lock_key, 0) == 0
+    waited_from = time.monotonic()
+    store._lock.acquire()
+    acquired_at = time.monotonic()
+    depths[lock_key] = depths.get(lock_key, 0) + 1
+    try:
+        yield
+    finally:
+        depths[lock_key] -= 1
+        if depths[lock_key] == 0:
+            del depths[lock_key]
+        hold_seconds = time.monotonic() - acquired_at
+        store._lock.release()
+        if outermost and store._metrics is not None:
+            try:
+                store._metrics.observe_store_lock(
+                    kind=kind,
+                    wait_seconds=acquired_at - waited_from,
+                    hold_seconds=hold_seconds,
+                )
+            except Exception:  # metrics must never replace a storage result
+                _logger.warning("metrics recorder failed while observing store lock", exc_info=False)
 
 
 def _locked[**P, R](method: Callable[Concatenate[SqliteStore, P], R]) -> Callable[Concatenate[SqliteStore, P], R]:
@@ -168,7 +228,10 @@ def _locked[**P, R](method: Callable[Concatenate[SqliteStore, P], R]) -> Callabl
 
     @functools.wraps(method)
     def wrapper(self: SqliteStore, *args: P.args, **kwargs: P.kwargs) -> R:
-        with self._lock:
+        if self._metrics is None:
+            with self._lock:
+                return method(self, *args, **kwargs)
+        with _observed_lock(self, kind=_lock_kind(method.__name__)):
             return method(self, *args, **kwargs)
 
     return wrapper
@@ -185,7 +248,7 @@ def _fts5_available(conn: sqlite3.Connection) -> bool:
 
 
 class SqliteStore(StoragePort, MemoryStorePort):
-    def __init__(self, db_path: str) -> None:
+    def __init__(self, db_path: str, *, metrics: MetricsRecorder | None = None) -> None:
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._conn = sqlite3.connect(self.db_path, check_same_thread=False, isolation_level=None)
@@ -195,12 +258,15 @@ class SqliteStore(StoragePort, MemoryStorePort):
         # _transaction_depth and prevents cross-thread statement
         # interleaving inside an open transaction. See _locked.
         self._lock = threading.RLock()
+        self._metrics = metrics if metrics is not None and metrics.enabled else None
         self._transaction_depth = 0
         self._configure_connection()
-        # Empty means unset (compose ${VAR:-} injects "" for blank stack
-        # env) — without the `or "1"` an empty var silently disabled FTS5.
-        fts5_env = os.getenv("OC_SEARCH_FTS5_ENABLED", "").strip() or "1"
-        self._fts5_user_enabled = fts5_env.lower() in {"1", "true", "yes", "on"}
+        # Empty means unset (compose ${VAR:-} injects "" for blank stack env),
+        # and an unrecognized value keeps search on with a warning: both used
+        # to disable FTS5 silently.
+        self._fts5_user_enabled = parse_bool_env(
+            os.getenv("OC_SEARCH_FTS5_ENABLED"), default=True, name="OC_SEARCH_FTS5_ENABLED"
+        )
         self._fts5_active: bool = False
 
     @_locked
@@ -237,12 +303,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
                 time.sleep(total)
 
     @contextmanager
-    def transaction(self) -> Iterator[sqlite3.Connection]:
+    def transaction(self, *, kind: Literal["read", "write", "maintenance"] = "write") -> Iterator[sqlite3.Connection]:
         # The lock is held for the WHOLE transaction (not just BEGIN), so a
         # second thread blocks until COMMIT/ROLLBACK instead of nesting a
         # BEGIN or landing statements inside this transaction. Same-thread
         # nesting re-enters the RLock and takes the savepoint path.
-        with self._lock:
+        with _observed_lock(self, kind=kind):
             is_outer = self._transaction_depth == 0
             savepoint_name = None
             if is_outer:
@@ -274,7 +340,12 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur = self._conn.cursor()
         cur.execute(
             "INSERT INTO projects (id, name, metadata, created_at) VALUES (?, ?, ?, ?)",
-            (project.id, project.name, json.dumps(project.metadata), project.created_at.isoformat()),
+            (
+                project.id,
+                project.name,
+                json.dumps(project.metadata),
+                require_utc(project.created_at, field="created_at").isoformat(),
+            ),
         )
         self._commit_if_needed()
 
@@ -283,11 +354,11 @@ class SqliteStore(StoragePort, MemoryStorePort):
         cur = self._conn.cursor()
         if name_contains is not None:
             rows = cur.execute(
-                "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC",
+                "SELECT * FROM projects WHERE name LIKE ? ESCAPE ? ORDER BY created_at DESC, id DESC",
                 (f"%{_escape_like(name_contains)}%", _LIKE_ESCAPE),
             ).fetchall()
         else:
-            rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC").fetchall()
+            rows = cur.execute("SELECT * FROM projects ORDER BY created_at DESC, id DESC").fetchall()
         return [row_to_project(r) for r in rows]
 
     @_locked
@@ -355,11 +426,11 @@ class SqliteStore(StoragePort, MemoryStorePort):
                     item.id,
                     item.content,
                     json.dumps(item.tags, sort_keys=True),
-                    item.created_at.isoformat(),
+                    require_utc(item.created_at, field="created_at").isoformat(),
                     1 if item.pinned else 0,
                     item.project_id,
                     item.source,
-                    item.updated_at.isoformat() if item.updated_at else None,
+                    require_utc(item.updated_at, field="updated_at").isoformat() if item.updated_at else None,
                 ),
             )
         except sqlite3.IntegrityError as exc:
@@ -452,10 +523,10 @@ class SqliteStore(StoragePort, MemoryStorePort):
     def list_memory_by_source(self, source: str, project_id: str | None = None) -> list[MemoryItem]:
         cur = self._conn.cursor()
         if project_id is not None:
-            sql = "SELECT * FROM memory_items WHERE source = ? AND project_id = ? ORDER BY created_at DESC"
+            sql = "SELECT * FROM memory_items WHERE source = ? AND project_id = ? ORDER BY created_at DESC, id DESC"
             rows = cur.execute(sql, (source, project_id)).fetchall()
         else:
-            sql = "SELECT * FROM memory_items WHERE source = ? ORDER BY created_at DESC"
+            sql = "SELECT * FROM memory_items WHERE source = ? ORDER BY created_at DESC, id DESC"
             rows = cur.execute(sql, (source,)).fetchall()
         return [row_to_memory_item(r) for r in rows]
 
@@ -682,6 +753,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
         model: str,
         settings_fingerprint: str = "",
         model_revision: str | None = None,
+        *,
+        match_revision: bool = True,
     ) -> int:
         """CURRENT tombstones: space identity AND content hash both match.
 
@@ -691,17 +764,23 @@ class SqliteStore(StoragePort, MemoryStorePort):
         (``stale_embedding_counts`` needs no status predicate for that;
         verified, per the ADR). Content hashes are compared in Python,
         same as the content-mismatch bucket.
+
+        ``match_revision=False`` drops the revision predicate. The service
+        passes it while the active revision is unverified (ADR 0005 §7),
+        when there is no revision to compare against.
         """
         cur = self._conn.cursor()
-        rows = cur.execute(
-            """
+        sql = """
             SELECT m.content AS content, e.content_hash AS content_hash
             FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
             WHERE e.status = 'content_too_long'
-              AND e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
-            """,
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchall()
+              AND e.provider = ? AND e.model = ? AND e.settings_fingerprint = ?
+            """
+        params: list[Any] = [provider, model, settings_fingerprint]
+        if match_revision:
+            sql += " AND e.model_revision IS ?"
+            params.append(model_revision)
+        rows = cur.execute(sql, params).fetchall()
         return sum(1 for r in rows if hash_content(r["content"]) == r["content_hash"])
 
     @_locked
@@ -711,6 +790,8 @@ class SqliteStore(StoragePort, MemoryStorePort):
         model: str,
         settings_fingerprint: str = "",
         model_revision: str | None = None,
+        *,
+        match_revision: bool = True,
     ) -> dict[str, int]:
         """Disjoint staleness buckets against the active space (ADR 0005).
 
@@ -721,24 +802,29 @@ class SqliteStore(StoragePort, MemoryStorePort):
         disjoint and their sum equals the row count backfill will
         regenerate. Content hashes are compared in Python (SQLite has no
         sha256) — a full-join scan, milliseconds at this corpus size.
+
+        ``match_revision=False`` leaves the revision out of the space. The
+        service passes it while the active revision is unverified (ADR
+        0005 §7); comparing against an unknown value would report every
+        row as stale.
         """
         cur = self._conn.cursor()
-        row = cur.execute(
-            "SELECT COUNT(*) AS cnt FROM memory_embeddings"
-            " WHERE provider != ? OR model != ? OR settings_fingerprint != ? OR model_revision IS NOT ?",
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchone()
+        space_sql = "SELECT COUNT(*) AS cnt FROM memory_embeddings WHERE provider != ? OR model != ? OR settings_fingerprint != ?"
+        content_sql = """
+            SELECT m.content AS content, e.content_hash AS content_hash
+            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
+            WHERE e.provider = ? AND e.model = ? AND e.settings_fingerprint = ?
+            """
+        params: list[Any] = [provider, model, settings_fingerprint]
+        if match_revision:
+            space_sql += " OR model_revision IS NOT ?"
+            content_sql += " AND e.model_revision IS ?"
+            params.append(model_revision)
+        row = cur.execute(space_sql, params).fetchone()
         space_mismatch = row["cnt"] if row else 0
 
         content_mismatch = 0
-        rows = cur.execute(
-            """
-            SELECT m.content AS content, e.content_hash AS content_hash
-            FROM memory_embeddings e JOIN memory_items m ON m.id = e.memory_id
-            WHERE e.provider = ? AND e.model = ? AND e.settings_fingerprint = ? AND e.model_revision IS ?
-            """,
-            (provider, model, settings_fingerprint, model_revision),
-        ).fetchall()
+        rows = cur.execute(content_sql, params).fetchall()
         for r in rows:
             if hash_content(r["content"]) != r["content_hash"]:
                 content_mismatch += 1

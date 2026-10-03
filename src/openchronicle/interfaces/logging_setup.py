@@ -20,9 +20,23 @@ import os
 import sys
 from typing import Any
 
+from openchronicle.core.domain.redaction import redact_userinfo_in_text
+
 _logger = logging.getLogger(__name__)
 
 _VALID_FORMATS = ("human", "json")
+
+
+class _RedactingFormatter(logging.Formatter):
+    """The human format, with URL userinfo stripped from the whole line.
+
+    The whole rendered line, traceback included: a credential in a host URL
+    reaches the log through exception text too, not only through messages,
+    and OC_LOG_FILE keeps what reaches it.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        return redact_userinfo_in_text(super().format(record))
 
 
 class _JsonFormatter(logging.Formatter):
@@ -30,6 +44,8 @@ class _JsonFormatter(logging.Formatter):
 
     Includes timestamp (ISO 8601 UTC), level, logger name, message, and
     any non-builtin record attributes (e.g. ``extra={"request_id": ...}``).
+    Strings are redacted before encoding: once JSON-escaped, a quote in a
+    password would hide the rest of it from the pattern.
     """
 
     _STANDARD_KEYS = {
@@ -63,10 +79,10 @@ class _JsonFormatter(logging.Formatter):
             "ts": self.formatTime(record, "%Y-%m-%dT%H:%M:%S%z"),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": redact_userinfo_in_text(record.getMessage()),
         }
         if record.exc_info:
-            payload["exc"] = self.formatException(record.exc_info)
+            payload["exc"] = redact_userinfo_in_text(self.formatException(record.exc_info))
         for key, value in record.__dict__.items():
             if key in self._STANDARD_KEYS or key.startswith("_"):
                 continue
@@ -74,7 +90,7 @@ class _JsonFormatter(logging.Formatter):
                 json.dumps(value)
             except TypeError:
                 value = repr(value)
-            payload[key] = value
+            payload[key] = redact_userinfo_in_text(value) if isinstance(value, str) else value
         return json.dumps(payload, sort_keys=True)
 
 
@@ -96,7 +112,7 @@ def configure_root_logger(*, default_level: str = "INFO") -> None:
     if fmt == "json":
         formatter = _JsonFormatter()
     else:
-        formatter = logging.Formatter(
+        formatter = _RedactingFormatter(
             fmt="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
@@ -114,6 +130,15 @@ def configure_root_logger(*, default_level: str = "INFO") -> None:
         root.addHandler(handler)
 
     _attach_file_handler(root, formatter, level)
+
+    # httpx logs every request at INFO with its full URL, userinfo included,
+    # so an OLLAMA_HOST carrying credentials would put them in the log on
+    # every embed and every revision probe. Kept for DEBUG, where an
+    # operator chasing a connection problem wants those lines. The OpenAI
+    # SDK (3.x) sends through httpx2, which logs under its own name.
+    if level > logging.DEBUG:
+        for name in ("httpx", "httpx2"):
+            logging.getLogger(name).setLevel(logging.WARNING)
 
 
 # Rotation bounds for OC_LOG_FILE: 5 MiB × (1 live + 3 rotated) ≈ 20 MiB

@@ -7,15 +7,21 @@ with the LLM stack.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from openchronicle.core.application.config.offsite import read_cloud_backup_config
 from openchronicle.core.application.config.paths import RuntimePaths
 from openchronicle.core.application.models.diagnostics_report import DiagnosticsReport
+from openchronicle.core.application.services.maintenance_loop import (
+    maintenance_state_path,
+    parse_state_timestamp,
+)
 from openchronicle.core.domain.time_utils import utc_now
 from openchronicle.version import build_revision, package_version
 
@@ -37,20 +43,78 @@ def _integrity_failure_persisted() -> bool:
     raised. Fail-soft: an absent or unreadable state file reports False,
     matching the loop's own tolerance of it.
     """
-    state_path = RuntimePaths.resolve().db_path.parent / "maintenance_state.json"
-    try:
-        import json
+    return _last_run_failed("db_integrity_check")
 
+
+def _backup_failure_persisted() -> bool:
+    """Did the last scheduled `db_backup` run fail, per the state file?
+
+    Since v3.5.0 backups go to `OC_BACKUP_DIR`, an operator-managed host
+    bind on the NAS. If its ownership drifts, every nightly backup fails
+    while the service stays healthy, and nothing else in health says so.
+    Same evidence and fail-soft rule as the integrity check. Only the
+    scheduled job stamps this state: a manual `oc maintenance run-once
+    db_backup`, `oc db backup` or MCP `db_backup_create` does not clear it,
+    so a fixed mount reads clean after the next scheduled run.
+    """
+    return _last_run_failed("db_backup")
+
+
+def _read_state() -> dict[str, Any] | None:
+    """The maintenance loop's persisted state, or None when absent or unreadable."""
+    state_path = maintenance_state_path(RuntimePaths.resolve().db_path)
+    try:
         raw = json.loads(state_path.read_text(encoding="utf-8"))
-        run = raw.get("last_run_at", {}).get("db_integrity_check")
-        success = raw.get("last_success_at", {}).get("db_integrity_check")
-        if not run:
-            return False
-        if not success:
-            return True
-        return datetime.fromisoformat(success) < datetime.fromisoformat(run)
     except Exception:
+        return None
+    return raw if isinstance(raw, dict) else None
+
+
+def _last_run_failed(job: str) -> bool:
+    """True when `job`'s persisted last run is newer than its last success."""
+    try:
+        raw = _read_state() or {}
+        run = parse_state_timestamp(raw.get("last_run_at", {}).get(job))
+        success = parse_state_timestamp(raw.get("last_success_at", {}).get(job))
+    except AttributeError:
         return False
+    if run is None:
+        return False
+    return success is None or success < run
+
+
+# Design 0001 section 6.3: two failed nights before anything can be missed offsite.
+_CLOUD_STALE_AFTER = timedelta(hours=48)
+
+
+def _cloud_backup_status() -> dict[str, Any]:
+    """How long since a verified push landed offsite (design 0001 section 6.2).
+
+    `misconfigured` comes from the same validator the job uses and takes
+    precedence (plan review A5): the state file holds only timestamps, so it
+    alone could never say "broken". Enabled with no recorded success, or a
+    success older than 48 h, is `stale`: never `ok` for a deployment that
+    never pushed. Never raises.
+    """
+    config = read_cloud_backup_config()
+    if not config.enabled:
+        return {"status": "disabled", "last_success_at": None, "hours_since_last_success": None}
+    try:
+        last = parse_state_timestamp(((_read_state() or {}).get("last_success_at") or {}).get("cloud_backup"))
+    except AttributeError:
+        last = None
+    age = utc_now() - last if last is not None else None
+    if config.problem:
+        status = "misconfigured"
+    elif age is None or age > _CLOUD_STALE_AFTER:
+        status = "stale"
+    else:
+        status = "ok"
+    return {
+        "status": status,
+        "last_success_at": last.isoformat() if last is not None else None,
+        "hours_since_last_success": round(age.total_seconds() / 3600, 1) if age is not None else None,
+    }
 
 
 def build_health_payload(container: CoreContainer) -> dict[str, Any]:
@@ -66,6 +130,11 @@ def build_health_payload(container: CoreContainer) -> dict[str, Any]:
     # In-process flag OR persisted evidence: the flag is immediate, the
     # state file survives the restart that used to clear it.
     report.maintenance_degraded = container.maintenance_degraded or _integrity_failure_persisted()
+    # Its own field, never folded into maintenance_degraded: that flag means
+    # "the DB may be corrupt" and sends an operator to a restore (0001 §6.2).
+    report.backup_last_run_failed = _backup_failure_persisted()
+    # Offsite freshness, separate from both flags above (design 0001 section 6.2).
+    report.cloud_backup_status = _cloud_backup_status()
     report.fts5_active = container.storage.fts5_active
     data = asdict(report)
     if data.get("timestamp_utc"):

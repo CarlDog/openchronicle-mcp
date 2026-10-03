@@ -10,15 +10,18 @@ stack variable protect both surfaces.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from starlette.testclient import TestClient
 
+from openchronicle.core.infrastructure.observability.prometheus_recorder import PrometheusMetricsRecorder
 from openchronicle.interfaces.api.app import create_app
 from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.interfaces.api.middleware.host_allowlist import host_allowed
 from openchronicle.interfaces.mcp.config import DEFAULT_ALLOWED_HOSTS
+from tests.helpers.nas_compose import render_nas_compose
 
 
 def _client(config: HTTPConfig | None = None, base_url: str = "http://testserver") -> TestClient:
@@ -115,6 +118,111 @@ class TestHTTPConfigAllowedHosts:
         monkeypatch.setenv("OC_API_ALLOWED_HOSTS", "")
         monkeypatch.setenv("OC_MCP_ALLOWED_HOSTS", "mcp-host:*")
         assert HTTPConfig.from_env().allowed_hosts == ("mcp-host:*",)
+
+
+class TestNasComposeAllowlist:
+    """Exercise the Host-header behavior of the NAS compose env values."""
+
+    @pytest.mark.parametrize(
+        ("api_override", "collector_status"),
+        [(None, 421), ("your-nas:*,host.docker.internal:*", 200)],
+        ids=("api-falls-back-to-mcp", "explicit-api-adds-collector"),
+    )
+    def test_rendered_compose_hosts_reach_runtime(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        api_override: str | None,
+        collector_status: int,
+    ) -> None:
+        """Render compose without a daemon, then use its actual container env."""
+        env = {
+            "OC_TAG": "v3.3.0",
+            "OC_MCP_ALLOWED_HOSTS": "your-nas:*",
+            "OC_METRICS_ENABLED": "true",
+        }
+        if api_override is not None:
+            env["OC_API_ALLOWED_HOSTS"] = api_override
+        rendered_env = render_nas_compose(tmp_path, env)["services"]["oc"]["environment"]
+        assert rendered_env["OC_MCP_ALLOWED_HOSTS"] == "your-nas:*"
+        assert rendered_env["OC_API_ALLOWED_HOSTS"] == (api_override or "")
+
+        monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+        monkeypatch.delenv("OC_API_KEY", raising=False)
+        monkeypatch.setenv("OC_API_ALLOWED_HOSTS", rendered_env["OC_API_ALLOWED_HOSTS"])
+        monkeypatch.setenv("OC_MCP_ALLOWED_HOSTS", rendered_env["OC_MCP_ALLOWED_HOSTS"])
+        config = HTTPConfig.from_env()
+
+        recorder = PrometheusMetricsRecorder()
+        container = MagicMock()
+        container.file_configs = {}
+        container.metrics = recorder
+        container.metrics_exporter = recorder
+        app = create_app(container, config, mount_mcp=True)
+        with TestClient(app, base_url="http://your-nas:18000") as client:
+            assert client.get("/api/v1/maintenance/status").status_code == 200
+            mcp_request = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
+            assert client.post("/mcp/", json=mcp_request).status_code != 421
+            assert (
+                client.get("/metrics", headers={"Host": "host.docker.internal:18000"}).status_code == collector_status
+            )
+            assert client.get("/metrics", headers={"Host": "evil.example:18000"}).status_code == 421
+            assert (
+                client.post("/mcp/", json=mcp_request, headers={"Host": "host.docker.internal:18000"}).status_code
+                == 421
+            )
+            assert client.post("/mcp/", json=mcp_request, headers={"Host": "evil.example:18000"}).status_code == 421
+
+    def test_empty_api_value_inherits_mcp_host_on_both_surfaces(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+        monkeypatch.delenv("OC_API_KEY", raising=False)
+        monkeypatch.setenv("OC_API_ALLOWED_HOSTS", "")
+        monkeypatch.setenv("OC_MCP_ALLOWED_HOSTS", "your-nas:*")
+        config = HTTPConfig.from_env()
+        assert config.allowed_hosts == ("your-nas:*",)
+
+        container = MagicMock()
+        container.file_configs = {}
+        app = create_app(container, config, mount_mcp=True)
+        with TestClient(app, base_url="http://your-nas:18000") as client:
+            assert client.get("/health").status_code == 200
+            assert client.get("/api/v1/maintenance/status").status_code == 200
+            mcp_request = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
+            assert client.post("/mcp/", json=mcp_request).status_code != 421
+
+            # The collector alias is a separate opt-in REST Host, not a
+            # side effect of the LAN host or a new MCP allowance.
+            assert client.get("/metrics", headers={"Host": "host.docker.internal:18000"}).status_code == 421
+            assert client.get("/api/v1/maintenance/status", headers={"Host": "evil.example:18000"}).status_code == 421
+            assert client.post("/mcp/", json=mcp_request, headers={"Host": "evil.example:18000"}).status_code == 421
+
+    def test_explicit_api_value_retains_lan_and_adds_collector_only_for_rest(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+        monkeypatch.delenv("OC_API_KEY", raising=False)
+        monkeypatch.setenv("OC_API_ALLOWED_HOSTS", "your-nas:*,host.docker.internal:*")
+        monkeypatch.setenv("OC_MCP_ALLOWED_HOSTS", "your-nas:*")
+        config = HTTPConfig.from_env()
+        assert config.allowed_hosts == ("your-nas:*", "host.docker.internal:*")
+
+        recorder = PrometheusMetricsRecorder()
+        container = MagicMock()
+        container.file_configs = {}
+        container.metrics = recorder
+        container.metrics_exporter = recorder
+        app = create_app(container, config, mount_mcp=True)
+        with TestClient(app, base_url="http://your-nas:18000") as client:
+            assert client.get("/api/v1/maintenance/status").status_code == 200
+            assert client.get("/metrics", headers={"Host": "host.docker.internal:18000"}).status_code == 200
+            assert client.get("/metrics", headers={"Host": "evil.example:18000"}).status_code == 421
+
+            mcp_request = {"jsonrpc": "2.0", "id": 1, "method": "initialize"}
+            assert client.post("/mcp/", json=mcp_request).status_code != 421
+            assert (
+                client.post("/mcp/", json=mcp_request, headers={"Host": "host.docker.internal:18000"}).status_code
+                == 421
+            )
 
 
 class TestMcpSurfaceRejectsForgedHost:

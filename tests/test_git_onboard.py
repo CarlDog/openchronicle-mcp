@@ -20,12 +20,14 @@ from openchronicle.core.application.services.git_onboard import (
     _build_clone_env,
     _generate_label,
     _jaccard,
-    _redact_url,
     _validate_repo_url,
     cluster_commits,
+    cluster_to_summary,
     extract_commits_from_git,
     extract_commits_from_url,
+    extract_history_from_path,
     filter_commits,
+    format_cluster_as_raw_memory,
     validate_server_repo_url,
 )
 from openchronicle.core.domain.models.git_commit import CommitCluster, GitCommit
@@ -181,8 +183,8 @@ def _fake_log_output(entries: list[str]) -> str:
     return "".join(entries)
 
 
-def _entry(hash: str, subject: str, body: str, numstat: list[str]) -> str:
-    header = _FSEP.join([hash, "Alice", "2026-01-01T00:00:00+00:00", subject, body])
+def _entry(hash: str, subject: str, body: str, numstat: list[str], date: str = "2026-01-01T00:00:00+00:00") -> str:
+    header = _FSEP.join([hash, "Alice", date, subject, body])
     return f"{_SEP}{header}{_BODYEND}\n" + "\n".join(numstat) + "\n"
 
 
@@ -202,6 +204,32 @@ def test_extract_captures_full_multiline_body() -> None:
     assert commits[0].insertions == 10
     assert commits[0].deletions == 2
     assert commits[0].files_changed == ["src/foo.py"]
+
+
+def test_an_evening_commit_shows_the_authors_day_and_stores_utc() -> None:
+    """22:24 at -05:00 is the next day in UTC. The text shows the day
+    `git log` shows; the instant handed to storage is UTC (TS-04 review C1)."""
+    out = _fake_log_output([_entry("h1", "feat: thing", "", ["1\t0\ta.py"], date="2026-09-29T22:24:32-05:00")])
+    commits = _run_extract(out)
+    assert commits[0].date.isoformat() == "2026-09-29T22:24:32-05:00"
+    cluster = CommitCluster(commits=commits, label="x", time_span_days=0.0)
+    summary = cluster_to_summary(cluster)
+    assert summary["date_range"] == "2026-09-29 to 2026-09-29"
+    assert "Date range: 2026-09-29 to 2026-09-29" in summary["commits_summary"]
+    assert "  [2026-09-29] feat: thing" in summary["commits_summary"]
+    assert format_cluster_as_raw_memory(cluster).startswith("[2026-09-29 to 2026-09-29] x")
+    assert summary["created_at"] == "2026-09-30T03:24:32+00:00"
+
+
+def test_extract_refuses_a_naive_author_date_before_anything_is_saved() -> None:
+    """%aI always carries an offset. A naive date must stop extraction,
+    before onboard_git_prepare saves its watermark, and must not become
+    the current time (TS-04 review F1)."""
+    from openchronicle.core.domain.exceptions import ValidationError
+
+    out = _fake_log_output([_entry("h1", "feat: thing", "", ["1\t0\ta.py"], date="2026-09-23T04:41:37")])
+    with pytest.raises(ValidationError, match="git author date must include a UTC offset"):
+        _run_extract(out)
 
 
 def test_extract_multiline_body_does_not_pollute_numstat() -> None:
@@ -262,6 +290,34 @@ def test_clone_env_is_an_allowlist_no_unrelated_secret_crosses(monkeypatch: pyte
     assert "OPENAI_API_KEY" not in env
     assert "TOTALLY_NEW_SECRET_SENTINEL" not in env
     assert "PATH" in env, "binary discovery must survive the allowlist"
+
+
+def test_local_git_calls_get_the_same_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`rev-parse` and `log` inherited the whole environment until 2026-09-23.
+
+    That included the server's secrets and any GIT_DIR a hook exported,
+    which overrides `git -C`. The real-git version of the GIT_DIR case is
+    in test_cli_smoke.py.
+    """
+    monkeypatch.setenv("OC_API_KEY", "server-api-secret")
+    monkeypatch.setenv("GIT_DIR", "/elsewhere/.git")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", "/isolated.gitconfig")
+    envs: list[object] = []
+
+    def fake_run(cmd: list[str], **kwargs: object) -> SimpleNamespace:
+        envs.append(kwargs.get("env"))
+        return SimpleNamespace(returncode=0, stdout="" if "log" in cmd else "main\n", stderr="")
+
+    with patch("openchronicle.core.application.services.git_onboard.subprocess.run", side_effect=fake_run):
+        extract_history_from_path("/fake/repo")
+
+    assert len(envs) == 3, "two rev-parse calls and one log"
+    for env in envs:
+        assert isinstance(env, dict), "the child must not inherit the parent environment"
+        assert "OC_API_KEY" not in env
+        assert "GIT_DIR" not in env
+        assert "PATH" in env
+        assert env["GIT_CONFIG_GLOBAL"] == "/isolated.gitconfig", "config isolation must still reach git"
 
 
 def test_clone_env_never_carries_the_raw_token(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -394,6 +450,23 @@ def test_clone_stderr_is_scrubbed_of_token_material(monkeypatch: pytest.MonkeyPa
     assert "***" in message
 
 
+def test_a_failed_clone_names_the_url_without_its_credentials() -> None:
+    """Validation refuses userinfo on https, but an ssh URL keeps its user
+    (the transport's identity) and can carry a password too."""
+
+    def _fake_run(cmd: list[str], **_kw: object) -> SimpleNamespace:
+        return SimpleNamespace(returncode=128, stdout="", stderr="fatal: could not read from remote repository")
+
+    with (
+        patch("openchronicle.core.application.services.git_onboard.subprocess.run", side_effect=_fake_run),
+        pytest.raises(RuntimeError) as excinfo,
+    ):
+        extract_commits_from_url("ssh://git:S3CRET@github.com/foo/bar.git")
+    message = str(excinfo.value)
+    assert "git clone failed for ssh://github.com/foo/bar.git" in message
+    assert "S3CRET" not in message
+
+
 def test_clone_command_uses_no_checkout() -> None:
     """History-only walk: no working tree is materialized from the clone."""
     captured: dict[str, list[str]] = {}
@@ -411,8 +484,10 @@ def test_clone_command_uses_no_checkout() -> None:
 
 
 def test_redact_url_strips_embedded_credentials() -> None:
-    assert _redact_url("https://x:ghp_secret@github.com/foo/bar") == "https://github.com/foo/bar"
-    assert _redact_url("https://github.com/foo/bar") == "https://github.com/foo/bar"
+    from openchronicle.core.domain.redaction import redact_url_userinfo
+
+    assert redact_url_userinfo("https://x:ghp_secret@github.com/foo/bar") == "https://github.com/foo/bar"
+    assert redact_url_userinfo("https://github.com/foo/bar") == "https://github.com/foo/bar"
 
 
 def test_clone_command_uses_end_of_options_guard() -> None:

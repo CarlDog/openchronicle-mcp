@@ -25,7 +25,7 @@ RUN python -m venv /venv \
     # cache could never serve it.
     && mkdir -p src/openchronicle \
     && touch src/openchronicle/__init__.py \
-    && /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp]" \
+	&& /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp,metrics]" \
     && /venv/bin/pip uninstall -y openchronicle-mcp
 
 COPY src ./src
@@ -47,6 +47,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     OC_DB_PATH=/app/data/openchronicle.db \
     OC_CONFIG_DIR=/app/config \
     OC_OUTPUT_DIR=/app/output \
+    OC_METRICS_ENABLED=false \
     PATH=/venv/bin:$PATH
 
 # git is required by onboard_git (clones repos shallow into a tmpdir to
@@ -55,11 +56,22 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # gosu drops root privileges cleanly in the entrypoint (setuid+setgid+exec,
 # no wrapper process — unlike su/sudo it doesn't break PID-1 signal
 # forwarding for graceful shutdown).
+# age encrypts the offsite backups (design 0001). Debian's package is fine:
+# age has a stable file format and no provider policy to keep up with.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git gosu \
+    && apt-get install -y --no-install-recommends git gosu age \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 1000 oc \
     && useradd --uid 1000 --gid oc --no-create-home --shell /usr/sbin/nologin oc
+
+# rclone pushes the encrypted backups offsite (design 0001 section 3.4). Not
+# from apt: Debian's is years behind upstream, and provider OAuth policy moves
+# faster than that. rclone is MIT, (c) Nick Craig-Wood; the release binary is
+# static. Dependabot does not bump COPY --from images, so the phase-end audit
+# checks this tag. The RUN gate makes a missing or broken binary a build
+# failure, not a runtime one.
+COPY --from=rclone/rclone:1.75.1 /usr/local/bin/rclone /usr/local/bin/rclone
+RUN rclone version && age --version
 
 COPY --from=builder /venv /venv
 

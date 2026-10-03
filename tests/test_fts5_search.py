@@ -5,11 +5,14 @@ v2 turn-search FTS coverage was dropped along with the turns table.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import patch
+
+import pytest
 
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore, _fts5_available
@@ -67,6 +70,22 @@ class TestFTS5Detection:
             store = SqliteStore(str(tmp_path / "test.db"))
             store.init_schema()
         assert store._fts5_active is True
+
+    def test_fts5_unrecognized_env_keeps_search_on_and_warns(
+        self, tmp_path: Any, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A typo used to disable FTS5 silently: anything not truthy read as off."""
+        with (
+            caplog.at_level(logging.WARNING),
+            patch.dict("os.environ", {"OC_SEARCH_FTS5_ENABLED": "ture"}),
+        ):
+            store = SqliteStore(str(tmp_path / "test.db"))
+            store.init_schema()
+        try:
+            assert store._fts5_active is True
+            assert "Invalid OC_SEARCH_FTS5_ENABLED='ture'" in caplog.text
+        finally:
+            store.close()
 
     def test_virtual_tables_created(self, tmp_path: Any) -> None:
         store = _store(tmp_path)

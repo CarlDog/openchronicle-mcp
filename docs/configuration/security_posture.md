@@ -22,10 +22,12 @@ deployment context.
   (liveness + diagnostics probes), plus the OpenAPI surface (`/docs`,
   `/redoc`, `/openapi.json` — tool discovery shouldn't require
   credentials). Everything else, including the mounted `/mcp`
-  transport, requires the key when one is configured. Caveat worth
-  knowing: `/api/v1/health` includes absolute filesystem paths
-  (`db_path`, `config_dir`) — acceptable on the trusted LAN, worth
-  revisiting if the port is ever exposed.
+  transport, requires the key when one is configured. With a key set,
+  `/api/v1/health` omits the absolute filesystem paths (`db_path`,
+  `config_dir`) unless the caller presents the key (2026-09-29). It still
+  says, through `persistence_hint`, whether the database sits in the
+  container's `/data` volume, which the published compose file shows
+  anyway.
 
 **When to leave auth disabled (`OC_API_KEY` empty):**
 
@@ -72,11 +74,22 @@ deployment context.
    invalidated immediately on container restart (no in-DB key
    storage; the env var is the source of truth).
 
-**Current stable deployment:** the NAS stack at `your-nas:18000`
-is configured with `OC_API_KEY` empty (auth disabled) — single-user
-home-LAN deployment, intentional, documented per the lessons from the
-2026-05-06 cutover. If that trust boundary changes, follow the steps
-above.
+**Current stable deployment:** the NAS stack at `your-nas:18000` has
+**auth enabled** since 2026-09-25 (operator decision). It superseded the
+2026-05-06 decision to leave `OC_API_KEY` empty on the trusted home LAN.
+Every client sends the bearer key; rotate it with the steps above.
+
+## Exposed SQLite snapshots
+
+The optional backup catalog exports full plaintext SQLite snapshots under
+`/exports/backups`. Restrict the host directory and SMB share to the operator;
+the artifact hash detects accidental changes but cannot authenticate a writer
+who can change both the database and its manifest. The five backup/restore
+preparation MCP tools require an explicit backup root and nonempty HTTP API key
+and are off by default. They never accept a caller-supplied path or activate a
+restore. Production does not expose them yet: auth is on (since 2026-09-25) and
+the backup root is set (`OC_BACKUP_DIR=/exports/backups`, since v3.5.0), but
+`OC_BACKUP_MCP_ENABLED` stays `false` until then: the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07).
 
 ## Transport
 
@@ -93,9 +106,11 @@ above.
   protection against accidentally placing the WAL on a filesystem
   that doesn't fsync correctly (the lesson from the 2026-04-29
   bind-mount WAL incident).
-- Backups go to the resolved DB path's directory + `/backups/auto/`
-  (`/data/backups/auto/` on the NAS deployment, which sets
-  `OC_DB_PATH=/data/openchronicle.db`; also inside the volume). The backup module uses `sqlite3.Connection.backup()` with
+- Backups go to `OC_BACKUP_DIR` + `/auto/` (default: the resolved DB
+  path's directory + `/backups/`). The NAS deployment sets
+  `OC_BACKUP_DIR=/exports/backups`, a host bind separate from the data
+  volume; `/data/backups/auto/` there holds only frozen pre-v3.5.0
+  snapshots. The backup module uses `sqlite3.Connection.backup()` with
   atomic `.tmp`→rename, so no half-written backup files exist on
   disk.
 
@@ -141,6 +156,24 @@ Hardened 2026-07-30 (the review-driven CI batch):
   `18000:8000`). Set `HOST_HTTP_PORT` to relocate.
 - `extra_hosts: host.docker.internal:host-gateway` lets the container
   reach Ollama running on the NAS host. No reverse direction.
+- The NAS compose runs OC, and the optional Prometheus collector, on the
+  shared Docker bridge (`network_mode: bridge`, the fleet's address-pool
+  rule); there is no project network. The collector scrapes OC's published
+  port through `host.docker.internal`. Stack 151 is file-based: its stored
+  compose matches this file (OPS-03 deployed it on 2026-09-28 as file
+  version 143; OPS-08 updated it to 144 on 2026-09-29); later edits reach
+  it only through another reviewed
+  `portainer_update_stack_file`, not merely because the file changed. Prometheus UI port `19090`
+  is bound to NAS loopback only by default; it is not a LAN service. Its history volume is
+  separate from OC's memory, config, and output volumes.
+- When `OC_API_KEY` is set, use the authenticated Prometheus config and mount
+  the token through the operator-managed `oc-api-key` file. The default
+  collector config intentionally contains no secret.
+- The NAS compose leaves `OC_API_ALLOWED_HOSTS` empty so REST inherits
+  `OC_MCP_ALLOWED_HOSTS`. When enabling the collector, explicitly set the
+  REST list to every external client hostname plus `host.docker.internal:*`
+  so the collector's scrape passes the Host allowlist. An explicit REST list replaces the MCP
+  fallback; a healthy loopback probe cannot establish external access.
 - **DNS-rebinding defense: Host-header allowlists on both surfaces.**
   A containerized service can't be secured by its bind address (it
   binds `0.0.0.0` to be reachable at all), and a malicious web page
@@ -208,14 +241,55 @@ PII half in CI where a local hook can be bypassed. Both verified green
 across every commit made on 2026-08-28. Nothing new is accumulating —
 that is the part that matters, and it is handled.
 
+## Cloud backup
+
+The nightly offsite push ([cloud_backup.md](cloud_backup.md), design 0001)
+encrypts snapshots with age to two escrowed public keys before they leave
+the NAS. The private identities never touch the NAS, Dropbox or
+OpenChronicle.
+
+- **Protects against:** a breach at the provider, a compromise of the cloud
+  account, or a stolen `rclone.conf`. None of them can read an artifact.
+- **Does not protect against:** NAS shell access (the live database is
+  plaintext there), or legal compulsion of the operator, who holds the keys.
+- **Confidentiality, not authenticity:** age recipient mode does not
+  authenticate the sender. Anyone with the public keys and write access to
+  the remote folder could plant a well-formed artifact. Check a restore
+  candidate's SHA-256 against an off-cloud record where one exists.
+- **The token is broader than the job:** the Dropbox App-folder token
+  confines access to one folder but can delete and overwrite inside it. The
+  job is append-only; the credential is not. A compromised NAS or desktop
+  (they share the token) could wipe the offsite copy, and Dropbox's 30-day
+  deleted-file retention is the backstop.
+- **`OC_CLOUD_REMOTE` is validated** to `name:path` form, so a credential-
+  bearing rclone connection string can never sit in a plain stack variable.
+  `rclone.conf` is mode 0600 in the `/config` named volume, owned by uid
+  1000, and the job refuses to run as root.
+
 ## Incident response
 
 - DB corruption: the maintenance loop's `db_integrity_check` job
   detects it on a 7-day cadence, takes an emergency backup, and flips
   `/api/v1/health` to `maintenance_degraded: true`. Operators restore
-  from the resolved DB path's `backups/auto/` directory
-  (`/data/backups/auto/` on the NAS; or a manual `oc db backup` taken
-  earlier).
+  from the newest verified snapshot under `OC_BACKUP_DIR`'s `auto/`
+  (on the NAS since v3.5.0, `/exports/backups/auto/`, which is readable as
+  `\\carldog-nas\docker\openchronicle\exports\backups\auto`), using
+  the guarded restore in [local_backup_restore.md](local_backup_restore.md).
+  `/data/backups/auto/` holds only pre-v3.5.0 snapshots, frozen at that
+  cutover and older every day; never restore from it by default.
+- Backup failure: `backup_last_run_failed: true` means the last scheduled
+  backup failed. Read `db_backup`'s `last_error` in
+  `/api/v1/maintenance/status` first. Usually the backup root is at fault:
+  check that `/exports` is still owned by uid 1000 and writable, and do not
+  restore. But a snapshot copies the live database, so the backup also fails
+  when the live database fails its checks. If `last_error` mentions
+  `integrity_check`, `foreign_key_check` or `quick_check`, or a
+  `*.failed-verify` or `*.failed-quick-check` file appears under
+  `exports/backups/auto`, treat it as possible corruption: run
+  `oc maintenance run-once db_integrity_check` in the container before
+  anything else, and follow the corruption steps above if it fails. The
+  weekly integrity check would otherwise take up to 7 days to raise
+  `maintenance_degraded`.
 - Embedding provider compromise: rotate the relevant API key and
   redeploy. The degradation policy keeps search working
   (FTS5-only) until the new key is in place.

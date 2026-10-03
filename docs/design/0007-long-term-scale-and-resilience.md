@@ -33,9 +33,10 @@ is staged below.
    client serializes, stricter than WAL requires (WAL supports
    concurrent readers alongside one writer). This is the first real
    ceiling and the cheapest to lift.
-2. **Long-transaction writers.** `onboard_git` and `memory import`
-   hold write transactions for whole batches; under concurrent fleet
-   load they stall everyone behind the lock.
+2. **Long-transaction writers.** `memory import` holds one write
+   transaction for a whole batch; under concurrent fleet load it
+   stalls everyone behind the lock. (`onboard_git` writes one memory
+   per short autocommit; corrected 2026-09-23.)
 3. **Embedding serialization.** NAS Ollama runs `NUM_PARALLEL=1` by
    fleet policy; concurrent semantic searches queue ~400 ms each at
    the provider.

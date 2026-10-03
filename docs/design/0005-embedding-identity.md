@@ -4,6 +4,10 @@
 **FULLY IMPLEMENTED — Phases B, C, and D all shipped 2026-08-29**
 (assessment revs 134-136, 768 → 789 tests) · **Date:** 2026-08-29
 
+**Amended 2026-09-23 (§7, v3.4.0):** an unknown revision is not "no
+revision". Implemented on `main` (assessment rev 208); it ships with
+the v3.4.0 tag, which is the operator's call.
+
 **Sources:** [0002 Finding 3](0002-openclaw-memory-review.md) (proposed
 hardening), [0003 Finding 1](0003-ollama-repository-review.md) (promoted
 this to an ADR), 0004's independent corroboration.
@@ -221,3 +225,66 @@ configured/effective/stored dimensions status.
 3. **Phase D (0003):** bounded `embed_batch` with per-item fallback —
    an optimization for future reindexes and bulk imports, no longer a
    correctness dependency.
+
+## 7. Amendment (2026-09-23, v3.4.0): an unknown revision is not "no revision"
+
+Design 0014 §1.1 found that the Ollama adapter probed `/api/tags` once
+and cached a failed probe as `None`. Under this ADR, `None` means "the
+provider has no revision", so one transient failure blanked semantic
+search while health read `active`. The next backfill then re-embedded
+the whole corpus stamped NULL, and the next healthy restart re-embedded
+it again. A successful digest was also cached for the process
+lifetime, so a re-pull went undetected until a restart. This amendment
+keeps §2's identity. It changes how the revision half of that identity
+is learned and used. It was planned in three revisions under five
+adversarial reviewer passes (assessment rev 208).
+
+- **Three states, not two.** Adapters expose a `RevisionSnapshot`:
+  - known with a value;
+  - known with none: OpenAI, stub, or an Ollama model listed without a
+    digest;
+  - unknown.
+  Only `refresh_revision()` does I/O, and callers run it on worker
+  threads. `revision_snapshot()` is an in-memory read and never raises.
+- **Only strong evidence sets a value.** A value is set only when
+  `/api/tags` answers 200 and lists the model, compared the way Ollama
+  resolves names: with its digest, or as none if the listing has no
+  digest. Every other result is a failed probe:
+  - the model is not listed (Ollama answers 200 while skipping a model it
+    cannot read);
+  - a non-2xx status;
+  - a connection error;
+  - a timeout;
+  - a malformed body.
+  A failed probe never changes a verified value; it only stops it being
+  re-verified.
+- **One snapshot per operation, taken before the provider call.** The
+  currency check, the stamp and any tombstone use it. A stamp can then
+  only trail the weights; it can never lead them. A trailing stamp heals
+  once the new revision is detected.
+- **Writes refuse while unknown.** A save stores the memory without a
+  vector, and a backfill raises before selecting candidates. Nothing is
+  ever stamped with a guessed revision. The refusal is not a provider
+  failure.
+- **The one exception while unknown: search and counts are
+  revision-agnostic.** `list_embeddings` and the `stale`/`unembeddable`
+  counts drop the revision predicate. This relaxes §2's "never mixed in",
+  but only for that window. The window is short:
+  - the ASGI process probes at startup, then every 30 s;
+  - the stdio server and the CLI probe once;
+  - while Ollama is down, the query embed fails anyway and hybrid search
+    falls back to FTS5.
+- **Re-pull detection and reconciliation.** A service-owned refresher
+  re-probes every 300 s once the revision is known, outside the
+  maintenance loop's global lock. Whenever the verified value differs
+  from the one the last completed backfill used in this process, it
+  starts a backfill. That covers a re-pull, a boot after one, and writes
+  refused while unknown. Only one backfill runs at a time per service.
+- **Named regression versus v3.3.0.** An upstream that serves
+  `/api/embed` but hides `/api/tags`, such as a path-filtering proxy,
+  stays unknown, so every write is refused. Under v3.3.0 it worked with
+  NULL stamps. Mapping a 404 to "none" was rejected: a transient 404,
+  such as a reverse proxy while its backend restarts, would flip a known
+  digest to none, which is the double re-embed this amendment removes.
+  Health shows `degraded` with `model_revision_state: "unknown"`, and a
+  WARNING names the cause.

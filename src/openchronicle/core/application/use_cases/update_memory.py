@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from openchronicle.core.domain.exceptions import RevisionUnknownError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MAX_CONTENT_CHARS, MemoryItem
 from openchronicle.core.domain.ports.memory_store_port import MemoryStorePort
@@ -25,6 +26,13 @@ def execute(
 ) -> MemoryItem:
     if content is None and tags is None:
         raise DomainValidationError("At least one of content or tags must be provided")
+    # Checked before the store write AND before delete_embedding. A blank
+    # update used to blank the memory and drop its vector while reporting
+    # success (fleet-review #27): MCP passed "" straight through, and REST
+    # (min_length=1) and the CLI passed whitespace. Every surface reaches
+    # the store through here.
+    if content is not None and not content.strip():
+        raise DomainValidationError("content must be non-empty")
     if content is not None and len(content) > MAX_CONTENT_CHARS:
         raise DomainValidationError(
             f"content exceeds maximum length of {MAX_CONTENT_CHARS:,} characters (got {len(content):,})"
@@ -46,6 +54,10 @@ def execute(
     if content is not None and embedding_service is not None:
         try:
             embedding_service.generate_for_memory(memory_id, updated.content, force=True)
+        except RevisionUnknownError:
+            # Refused, not failed (ADR 0005 §7): the row stays missing and
+            # reconciliation embeds it once the revision is verified.
+            logger.debug("Embedding for memory %s deferred: model revision not verified", memory_id)
         except Exception:
             logger.warning("Failed to regenerate embedding for memory %s", memory_id, exc_info=True)
     return updated

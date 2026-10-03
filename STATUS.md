@@ -1,5 +1,8 @@
 # Status
 
+**Last updated:** 2026-09-29 (this pointer; the assessment carries its own
+snapshot date and revision)
+
 This project's status lives in [`docs/CODEBASE_ASSESSMENT.md`](docs/CODEBASE_ASSESSMENT.md).
 
 This file exists at the root to match the sibling MCP-repo convention

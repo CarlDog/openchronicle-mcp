@@ -28,7 +28,7 @@ stack is gone. Look in `archive/openchronicle.v2` if you need it.
 Pure business types. No imports of `application/` or `infrastructure/`.
 
 - `models/`: `MemoryItem`, `Project`, `ScoredMemory`, `GitCommit` / `CommitCluster`
-- `ports/`: `MemoryStorePort`, `StoragePort`, `EmbeddingPort`
+- `ports/`: `MemoryStorePort`, `StoragePort`, `EmbeddingPort`, `MetricsRecorder`
 - `exceptions.py`: `NotFoundError`, `ValidationError`, `ConfigError`,
   `ProviderError`
 - `errors/error_codes.py`: SCREAMING_SNAKE_CASE error codes
@@ -42,6 +42,8 @@ imports — anything reaching outside the process goes through a port.
 - `services/embedding_service.py`: hybrid FTS5 + cosine-similarity
   search via Reciprocal Rank Fusion. Falls back to FTS5-only on
   embedding provider failure (the embedding-degradation policy).
+  It also owns the model-revision refresher and one-at-a-time backfills
+  (ADR 0005 §7).
 - `services/git_onboard.py`: clone-and-cluster a remote git repo into
   memory candidates. No LLM call — synthesis is the caller's job.
   **Size judged deliberately (2026-08-28, ~814 lines): cohesive, keep as
@@ -55,7 +57,7 @@ imports — anything reaching outside the process goes through a port.
   premature abstraction the project rules say to inline back rather than
   create.
 - `services/maintenance_loop.py`: in-process asyncio loop that runs
-  scheduled jobs (per-job lock for cross-tick overlap detection,
+  scheduled jobs (per-job lock marks a run in flight, telling a queued job from a real overlap;
   global lock so jobs never run concurrently in this process; per-job
   schedule persisted to `maintenance_state.json`).
 - `use_cases/`: `add_memory`, `delete_memory`, `list_memory`,
@@ -102,11 +104,15 @@ HTTP clients, the wiring container).
 - `embedding/`: stub, OpenAI, Ollama adapters implementing
   `EmbeddingPort`. Adapters never crash startup —
   `_build_embedding_port` catches and falls back to FTS5-only.
+  `response_validation.py` is the boundary check both HTTP adapters
+  run on every response: one finite, non-empty vector per input, one
+  length per batch. Only Ollama also checks the requested length.
 - `maintenance/jobs.py`: handler implementations for the maintenance
   loop's job registry (db_backup, db_vacuum, db_integrity_check,
   embedding_backfill, git_onboard_resync).
 - `wiring/container.py`: composition root. Builds the SQLite store,
-  optional embedding service, runtime paths. The container lifecycle
+  optional embedding service, per-container no-op or Prometheus metrics
+  recorder/exporter, and runtime paths. The container lifecycle
   (`__enter__`/`__exit__`/`close`) closes the DB connection cleanly.
 - `config/config_loader.py`: `core.json` reader.
 
@@ -117,8 +123,11 @@ Driver-side adapters: HTTP, MCP, CLI.
 - `api/`: FastAPI app with FastMCP mounted at `/mcp`. Lifespan starts
   FastMCP's session manager and the maintenance loop together.
   - Routes: `system` (health, maintenance/status), `project`, `memory`
-  - Middleware: Host allowlist (DNS-rebinding defense), API key auth,
-    rate limit, optional CORS
+  - Middleware: metrics observer, Host allowlist (DNS-rebinding defense),
+    API key auth, rate limit, optional CORS
+  - `/metrics` is registered only when `OC_METRICS_ENABLED=true`; its
+    bounded registry is serialized by one worker at a time and remains
+    behind the same Host/auth/rate-limit guards as other non-exempt routes.
 - `mcp/`: FastMCP server + tool modules (18 tools)
   - Tools: `memory_save`, `memory_search`, `memory_list`, `memory_get`,
     `memory_update`, `memory_delete`, `memory_pin`, `memory_stats`,
@@ -158,6 +167,24 @@ async with AsyncExitStack() as stack:
 ```
 
 uvicorn shutdown drains both cleanly.
+
+## Metrics history (optional)
+
+The application metrics registry is process-local. Phase 3 adds an optional
+Prometheus collector, activated only through the `metrics` or (with auth)
+`metrics-auth` profile in `docker-compose.nas.yml`, with its configuration
+inline in that file. Both services use the shared
+Docker bridge; the collector reaches OC's published port through
+`host.docker.internal`, scrapes every 30 seconds with a
+5-second timeout, and stores history in a separate local volume with the
+configured 14-day/1-GB starting retention. The authenticated config reads the
+OC bearer token from a Compose secret sourced from the stack's `OC_API_KEY`;
+no secret is tracked here.
+
+Collector history is operational evidence, not application state: it is not
+written to SQLite, does not participate in memory backups, and may contain a
+gap around an OC or NAS outage. The runtime exporter and collector profile are
+both opt-in; the default OC runtime remains `OC_METRICS_ENABLED=false`.
 
 ## Schema
 

@@ -20,7 +20,8 @@
       {"name": "db_integrity_check", "interval_seconds": 604800, "enabled": true},
       {"name": "embedding_backfill", "interval_seconds": 21600,  "enabled": true},
       {"name": "db_backup",          "interval_seconds": 86400,  "enabled": true},
-      {"name": "git_onboard_resync", "interval_seconds": 3600,   "enabled": false}
+      {"name": "git_onboard_resync", "interval_seconds": 3600,   "enabled": false},
+      {"name": "cloud_backup",       "interval_seconds": 86400,  "enabled": true}
     ]
   }
 }

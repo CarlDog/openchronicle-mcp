@@ -347,7 +347,15 @@ and the architecture/maintenance docs as appropriate.
    import --mode merge`. Recovery deliberately deferred — current
    v3 starts fresh and we're moving forward, not back. The recovery
    recipe is preserved in this doc for future reference if priorities
-   change:
+   change.
+
+   **Resolved 2026-09-30 (ROADMAP DATA-05), without this recipe.** A
+   read-only triage of the 36 against production found 35 obsolete or
+   already covered (markers, git-onboard watermarks, handoffs superseded by
+   the 2026-05-06 per-project handoffs, and content re-saved or held in repo
+   docs). One, the standing rule on how OC describes itself, was restored
+   with its original date and written into AGENTS.md. The migration and
+   verify scripts the recipe names were then removed. The original recipe:
 
    ```text
    1. Copy ~/backups/pre-v3-cutover.db to a workspace dir

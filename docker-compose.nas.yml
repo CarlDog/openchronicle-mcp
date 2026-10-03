@@ -1,8 +1,10 @@
 # OpenChronicle v3 — NAS deployment (Portainer stack)
 #
-# Single service. The unified ASGI process serves the HTTP REST surface
+# The unified ASGI service serves the HTTP REST surface
 # at /api/v1/* and the MCP streamable-HTTP transport at /mcp on the same
-# port. v2's three-service split (serve / mcp / discord) is gone with
+# port. The optional `metrics` profile adds a local Prometheus collector; it
+# is not started by the default compose invocation. v2's three-service split
+# (serve / mcp / discord) is gone with
 # the conversation/Discord/separate-MCP subsystems on
 # `archive/openchronicle.v2`.
 #
@@ -22,16 +24,19 @@
 #     OC_EMBEDDING_MODEL    Provider-specific embedding model name.
 #     OC_EMBEDDING_API_KEY  Explicit embedding API key override.
 #
-#   Optional — persistent storage:
-#     The DB and internal runtime state live in the `oc-data` named
-#     volume (never operator-relocatable). The config dir defaults to
-#     a named volume too; set HOST_CONFIG_DIR to a host path to switch
-#     to bind-mount mode.
-#       HOST_CONFIG_DIR     Host path for /config (core.json). On first
-#                           start with an empty
-#                           bind-mount, the entrypoint copies example
-#                           configs (creates a .bootstrapped marker so
-#                           it doesn't repeat).
+#   Optional — persistent storage (layout: design 0020):
+#     The DB and internal runtime state live in the `oc-data` volume,
+#     declared external below so a missing volume fails the deploy
+#     instead of starting on an empty database. The config dir is the
+#     named `openchronicle-mcp_oc-config` volume, which is not visible
+#     over SMB; edit a core.json there through the container console.
+#       HOST_CONFIG_DIR     Host path for /config, switching it to a bind
+#                           mount. Leave unset on the NAS (0020 S2). On
+#                           first start the entrypoint seeds example
+#                           configs and writes a .bootstrapped marker.
+#       HOST_EXPORTS_DIR    Host path bound at /exports for catalogued
+#                           backups. It must already exist, owned by
+#                           uid 1000: the bind will not create it.
 #
 #   Optional — deployment shape:
 #     OC_TAG                Image tag. REQUIRED — deploy fails with an
@@ -55,13 +60,56 @@
 #                           private repos (fine-grained, contents:read
 #                           scope). Public repos work without it.
 #
+#   Optional — metrics (all off by default; runbook: docs/monitoring/runbook.md):
+#     OC_METRICS_ENABLED       true registers /metrics and starts recording.
+#                              Enabling stays gated on ROADMAP MEAS-01.
+#     COMPOSE_PROFILES         `metrics` starts the collector without auth;
+#                              `metrics-auth` starts it sending OC_API_KEY as
+#                              the bearer token (use it whenever OC_API_KEY is
+#                              set). Never both. Compose reads this from the
+#                              stack env, so Portainer needs no CLI flag.
+#     OC_MCP_ALLOWED_HOSTS     Must include host.docker.internal:* while the
+#                              collector runs (REST inherits it while
+#                              OC_API_ALLOWED_HOSTS is empty), or its scrapes
+#                              get 421.
+#     HOST_PROMETHEUS_PORT     Loopback-only UI port (default: 19090).
+#     HOST_PROMETHEUS_DATA_DIR Local filesystem for collector history (not
+#                              NFS); default is the named prometheus-data
+#                              volume.
+#     PROMETHEUS_RETENTION_TIME  Default 14d.
+#     PROMETHEUS_RETENTION_SIZE  Default 1GB of blocks (not a hard cap).
+#     The collector configs are inline below, so a file-based stack needs
+#     nothing beside this file; the scrape target follows HOST_HTTP_PORT.
+#
 # Image: ghcr.io/carldog/openchronicle-mcp (linux/amd64, published by
 # GitHub Actions on every push to main).
+
+# Shared shape of the two optional collector services below. Inline configs
+# and an env-sourced secret, not bind mounts: stack 151 is a file-based
+# Portainer stack with no checkout beside the compose, so a relative bind
+# would mount an empty directory.
+x-prometheus: &prometheus
+  image: prom/prometheus:v3.14.0
+  restart: unless-stopped
+  network_mode: bridge
+  extra_hosts:
+    - host.docker.internal:host-gateway
+  depends_on:
+    oc:
+      condition: service_healthy
+  ports:
+    - "127.0.0.1:${HOST_PROMETHEUS_PORT:-19090}:9090"
+  volumes:
+    - ${HOST_PROMETHEUS_DATA_DIR:-prometheus-data}:/prometheus
 
 services:
   oc:
     image: ghcr.io/carldog/openchronicle-mcp:${OC_TAG:?set OC_TAG to the release tag this stack should run (e.g. v3.0.0) — no :latest fallback}
+    container_name: openchronicle-mcp
     restart: unless-stopped
+    # Fleet address-pool rule: a single-service stack joins the shared
+    # bridge instead of creating its own network. The optional collector
+    # reaches this service through the published port on the host.
     network_mode: bridge
     ports:
       - "${HOST_HTTP_PORT:-18000}:8000"
@@ -72,18 +120,31 @@ services:
       # /data keeps the SQLite file safe from external interference.
       OC_CONFIG_DIR: /config
       OC_DB_PATH: /data/openchronicle.db
+      # Exposed snapshots only. The live SQLite file stays in oc-data.
+      OC_BACKUP_DIR: /exports/backups
+      OC_BACKUP_MCP_ENABLED: ${OC_BACKUP_MCP_ENABLED:-false}
+      # Offsite backups (design 0001). An empty OC_CLOUD_REMOTE turns the
+      # nightly push off. The recipients are age PUBLIC keys, safe here; the
+      # rclone token lives only in rclone.conf on the /config volume.
+      OC_CLOUD_REMOTE: ${OC_CLOUD_REMOTE:-}
+      OC_CLOUD_AGE_RECIPIENTS: ${OC_CLOUD_AGE_RECIPIENTS:-}
+      RCLONE_CONFIG: /config/rclone.conf
       OC_OUTPUT_DIR: /output
       # Bind the unified ASGI to all interfaces inside the container.
       OC_API_HOST: 0.0.0.0
       OC_API_PORT: "8000"
+      # Runtime collection remains off unless the operator explicitly enables
+      # it together with the optional Prometheus profile.
+      OC_METRICS_ENABLED: ${OC_METRICS_ENABLED:-false}
       # Auth + CORS (Portainer stack env):
       OC_API_KEY: ${OC_API_KEY:-}
       OC_API_CORS_ORIGINS: ${OC_API_CORS_ORIGINS:-}
       # Rate limit ceiling — the var behind the mnemosyne Phase C
       # incident; must be Portainer-tunable without a compose edit:
       OC_API_RATE_LIMIT_RPM: ${OC_API_RATE_LIMIT_RPM:-}
-      # REST Host allowlist; empty falls back to OC_MCP_ALLOWED_HOSTS
-      # so the one stack var below protects both surfaces:
+      # Empty by default so REST inherits OC_MCP_ALLOWED_HOSTS. When the
+      # metrics profile runs, set the external REST hosts plus
+      # `host.docker.internal:*`.
       OC_API_ALLOWED_HOSTS: ${OC_API_ALLOWED_HOSTS:-}
       # Embeddings (Portainer stack env; default 'none' = FTS5-only):
       OC_EMBEDDING_PROVIDER: ${OC_EMBEDDING_PROVIDER:-}
@@ -115,11 +176,13 @@ services:
       # Logging posture (Q19 locked):
       OC_LOG_FORMAT: ${OC_LOG_FORMAT:-human}
       # Rotating file mirror of the log stream (5 MiB x 4 on the output
-      # volume). Container stderr dies with the container — a Portainer
-      # redeploy RECREATES it, so the previous release's logs vanish at
-      # exactly the moment a regression report needs them (observed
-      # 2026-08-29). Empty disables; stderr always stays on.
-      OC_LOG_FILE: ${OC_LOG_FILE:-/app/output/logs/openchronicle.log}
+      # volume, which is mounted at /output). Container stderr dies with
+      # the container — a Portainer redeploy RECREATES it, so the previous
+      # release's logs vanish at exactly the moment a regression report
+      # needs them (observed 2026-08-29). Empty disables; stderr always
+      # stays on. The v3.2.0-v3.3.0 default, /app/output/logs, was on no
+      # volume and root-owned, so the file never existed (found 2026-09-23).
+      OC_LOG_FILE: ${OC_LOG_FILE:-/output/logs/openchronicle.log}
       OC_LOG_LEVEL: ${OC_LOG_LEVEL:-INFO}
     extra_hosts:
       - host.docker.internal:host-gateway
@@ -127,6 +190,11 @@ services:
       - oc-data:/data
       - ${HOST_CONFIG_DIR:-oc-config}:/config
       - oc-output:/output
+      - type: bind
+        source: ${HOST_EXPORTS_DIR:-/volume1/docker/openchronicle/exports}
+        target: /exports
+        bind:
+          create_host_path: false
     healthcheck:
       test:
         [
@@ -138,7 +206,98 @@ services:
       retries: 3
       start_period: 30s
 
+  # The collector comes in two profiles. `metrics` scrapes without auth;
+  # `metrics-auth` sends the stack's OC_API_KEY as the bearer token. They are
+  # separate services because Compose resolves an environment-sourced secret
+  # when it creates the container and fails if the variable is unset, so the
+  # no-auth collector must not mount it. Select one profile, never both: they
+  # share the UI port and the history volume.
+  prometheus:
+    <<: *prometheus
+    profiles: [metrics]
+    command:
+      - --config.file=/etc/prometheus/openchronicle.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-14d}
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-1GB}
+    configs:
+      - source: prometheus-config
+        target: /etc/prometheus/openchronicle.yml
+
+  prometheus-auth:
+    <<: *prometheus
+    profiles: [metrics-auth]
+    command:
+      - --config.file=/etc/prometheus/openchronicle-auth.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=${PROMETHEUS_RETENTION_TIME:-14d}
+      - --storage.tsdb.retention.size=${PROMETHEUS_RETENTION_SIZE:-1GB}
+    configs:
+      - source: prometheus-auth-config
+        target: /etc/prometheus/openchronicle-auth.yml
+    secrets:
+      - source: oc-api-key
+        target: /etc/prometheus/secrets/oc-api-key
+
+# Local-only collector configuration for the opt-in metrics profile. Both
+# services use the shared bridge, so the collector scrapes OC's published
+# port on the host. No remote_write: history stays on the NAS.
+configs:
+  prometheus-config:
+    content: |
+      global:
+        scrape_interval: 30s
+        scrape_timeout: 5s
+        evaluation_interval: 30s
+      scrape_configs:
+        - job_name: openchronicle
+          scheme: http
+          metrics_path: /metrics
+          scrape_interval: 30s
+          scrape_timeout: 5s
+          static_configs:
+            - targets:
+                - host.docker.internal:${HOST_HTTP_PORT:-18000}
+              labels:
+                service: openchronicle
+  prometheus-auth-config:
+    content: |
+      global:
+        scrape_interval: 30s
+        scrape_timeout: 5s
+        evaluation_interval: 30s
+      scrape_configs:
+        - job_name: openchronicle
+          scheme: http
+          metrics_path: /metrics
+          scrape_interval: 30s
+          scrape_timeout: 5s
+          authorization:
+            type: Bearer
+            credentials_file: /etc/prometheus/secrets/oc-api-key
+          static_configs:
+            - targets:
+                - host.docker.internal:${HOST_HTTP_PORT:-18000}
+              labels:
+                service: openchronicle
+
+# The scrape token is the stack's own OC_API_KEY, copied into the collector
+# at start. It never appears in this file or in a rendered config.
+secrets:
+  oc-api-key:
+    environment: OC_API_KEY
+
 volumes:
+  # The live database, pinned by exact name and never created by Compose.
+  # A missing volume, or this file deployed under another project name,
+  # then fails the deploy instead of starting on an empty database
+  # (design 0020, S1). On a fresh host, create it once first:
+  #   docker volume create openchronicle-mcp_oc-data
   oc-data:
+    external: true
+    name: openchronicle-mcp_oc-data
   oc-config:
+    name: openchronicle-mcp_oc-config
   oc-output:
+    name: openchronicle-mcp_oc-output
+  prometheus-data:

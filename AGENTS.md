@@ -8,8 +8,43 @@ enforces parity.
 
 **`docs/CODEBASE_ASSESSMENT.md`** — single source of truth for this project.
 
+**Fleet standards:** python-service v3.0 — audited 2026-09-29 (one open gap: PY-04, whose check predates the uv ecosystem; see issue #17)
+
 ## Project-Specific Notes
 
+- **Development priorities (operator, 2026-09-08).** Accuracy comes first;
+  speed and responsiveness are second only to accuracy. Evaluate new
+  features and architectural changes against both before expanding scope.
+  For runtime-affecting work, use proportionate evidence of request latency,
+  tail latency and responsiveness under relevant load; throughput alone is
+  not enough. Preserve existing acceptance/noise budgets. This priority
+  does not itself authorize a benchmark, release, deployment or enablement.
+- **Rules for autonomous agents** (Claude, Gemini/Antigravity, Codex).
+  Added 2026-09-23 after [design 0014](docs/design/0014-gemini-audit-branch-review.md).
+  - Research and review designs (0003, 0011, 0012 and similar) are
+    not authorization to implement. Implement a gated or parked item
+    only after the operator ratifies it and its named measurement or
+    trigger is met.
+  - Work lands through a pull request so CI runs. A pushed branch
+    alone gets no test run. Since 2026-09-28 GitHub enforces this: `main`
+    is protected for everyone, admins included, requires the CI checks
+    listed under ROADMAP HYG-07, and requires the branch to be up to date.
+    `gh pr merge --auto` now waits for those checks.
+  - Nothing is "shipped" or "verified" before it is in a tagged
+    release, and CI has passed on the exact commit.
+  - Never write OpenChronicle milestone memories for unmerged work.
+- **Voice and posture** (operator standing rule, 2026-05-02; restored from
+  the v2 backup on 2026-09-30). Applies to the README and all user-facing
+  docs:
+  - Don't undersell. State what the work is, confidently; no "just a
+    personal project" qualifiers or apologetic hedges.
+  - Don't sell competitors' products. No "consider also" pointers; the
+    README is not a market survey.
+  - State the scope honestly: memory, git onboarding and projects, by design.
+    Honest about boundaries is not apologetic about quality.
+  - The high bar stays: lean scope does not mean lean rigor.
+  - No benchmark chasing for marketing; running one is curiosity.
+  - Competitive context is internal only and never goes in user-facing copy.
 - **Docs + memories before every commit.** Standing rule (2026-05-05).
   Before any `git commit` on this repo, update the affected docs (at
   minimum `docs/CODEBASE_ASSESSMENT.md`; for in-flight work also
@@ -34,12 +69,13 @@ enforces parity.
   build is not by itself a reason to redeploy. `docker-compose.nas.yml`
   **requires** `OC_TAG` (`${OC_TAG:?...}` since 2026-08-28 — a deploy
   with it unset fails loudly instead of silently tracking `:latest`),
-  and stack 151 sets `OC_TAG=v3.1.0`; a push to `main` refreshes only
-  `:latest`, which that stack does not pull. **Code goes live when
-  `OC_TAG` moves — a push alone deploys nothing.** So runtime changes
-  (`src/`, `pyproject.toml`, `Dockerfile`, `docker-compose.nas.yml`)
-  ship with the next tagged release, and a `portainer-mcp` redeploy is
-  warranted only when you are moving `OC_TAG` to a new tag. The
+  and stack 151 pins it (`v3.8.0` since 2026-10-03); a push to `main`
+  refreshes only `:latest`, which that stack does not pull. **Code goes
+  live when `OC_TAG` moves — a push alone deploys nothing.** So runtime
+  changes (`src/`, `pyproject.toml`, `Dockerfile`) ship with the next
+  tagged release, and a `portainer-mcp` redeploy is warranted only when
+  you are moving `OC_TAG` to a new tag. `docker-compose.nas.yml` changes
+  do not ship even then: see the stack note below. The
   `build-and-push` job in `.github/workflows/test.yml`
   gates that image: it only
   runs `needs: [test, quality]`, so one green check is a stronger
@@ -47,15 +83,39 @@ enforces parity.
   now can't ship `:latest` at all (fixed 2026-07-30, standards-gap
   UNI-14 — `docker-publish.yml` used to have no `needs:` at all,
   since GitHub Actions `needs:` can't cross workflow *files*; the fix
-  merged the publish job into `test.yml` as a third job).
+  merged the publish job into `test.yml` as a third job). Since
+  2026-09-23 it also builds the image locally and runs
+  `tools/ci/smoke-image.sh` before pushing: `oc version` must report
+  the commit's SHA, the runtime extras must import, and a started
+  container must answer `/health` and report the same SHA. An image
+  that cannot start never reaches `:latest`.
   Doc-only / hook-only pushes don't need a redeploy.
 
-  Lookup the stack id dynamically (don't hardcode it):
+  **Stack 151 is file-based and detached from Git** (operator decision).
+  Portainer holds its own copy of the compose, so a git redeploy does not
+  apply. Look up the stack id dynamically (don't hardcode it), then move
+  the tag with one call, which redeploys a file-based stack:
 
   ```text
   portainer_list_stacks → filter for name == "openchronicle-mcp" → use that .Id
-  portainer_redeploy_git_stack(stack_id=<id>, confirm=true, pull_image=true)
+  portainer_set_stack_env(stack_id=<id>, set=[{name: "OC_TAG", value: "<tag>"}],
+                          confirm=true, pull_image=true)
   ```
+
+  The stored compose matches the repository file. OPS-03 (2026-09-28)
+  reconciled it: the shared bridge, design 0020's volume layout (the data
+  volume external and pinned by name, `/config` a named volume) and
+  `container_name: openchronicle-mcp`. Since 2026-10-03 (assessment rev
+  303) it matches `main` at `4f7a71f`: PR #97's inline metrics collector,
+  whose settings all come from the stack env. The repository
+  file reaches production only through a reviewed
+  `portainer_update_stack_file`, never pasted unreviewed and never by a git
+  redeploy. When a release needs both new compose lines and new env values,
+  update the file first and the env second: `update_stack_file` only
+  round-trips the existing env, and a new image booted under the old
+  compose can miss settings its first maintenance run needs.
+  `OC_LOG_FILE=/output/logs/openchronicle.log` is set in the stack env
+  (0020 step A).
 
   Verify with `mcp__openchronicle__health`: `package_version` is the
   signal **when the released version actually changed** — it reports the
@@ -133,8 +193,28 @@ does differently.
   projects, different close behaviour). Tolerated, per the duplication
   bar.
 
+### Every phase end: roadmap reconciliation
+
+Added 2026-09-28, after a manual inventory found open work scattered across
+docs, OC memories, issues and branches, some of it in no plan at all.
+
+1. Sweep every source of open work for this project: `docs/V3_PLAN.md`,
+   `docs/CODEBASE_ASSESSMENT.md` known-open items, `docs/design/`, OC
+   memories for project `fe2ef898-…` (ideas, `mcp-feedback`, deferred
+   notes), open GitHub issues and PRs, long-lived branches (`v4/develop`,
+   draft PR branches), and work-marker comments in the code.
+2. Every open item must appear in [docs/ROADMAP.md](docs/ROADMAP.md) under a
+   stable ID, or be dropped with a recorded reason.
+3. Mark items done that finished since the last audit; correct any status
+   line or cross-reference that no longer matches reality.
+4. Re-check the phase order against the operator's current priorities and
+   record any change the operator makes.
+
 ### Quarterly additions
 
+- **Bump rclone** (design 0001 §3.4): Dependabot does not track the
+  Dockerfile's `COPY --from=rclone/rclone:<tag>`, and a stale rclone falls
+  behind provider OAuth changes. Check the latest release and bump it.
 - **Embedding-provider sweep** (operator-directed 2026-08-29): diff the
   Ollama library embedding catalog, Ollama Cloud, Atlas Cloud, and the
   Anthropic embeddings page (no first-party API as of 2026-08-29)
@@ -154,41 +234,46 @@ does differently.
 
 ## Current Sprint
 
-**2026-08-29 — the ranking/identity/provider arc closed; v3.3.0
-shipping to prod.** One day's arc, all reviewed adversarially and all
-pushed:
+**2026-10-03 — v3.8.0 deployed (migration 005, schema 5);
+phase-end audit in progress.**
 
-- **v3.2.0 shipped and deployed** with the LAN-local embedding cutover:
-  `ollama/nomic-embed-text` on the NAS (`content_egress: local`),
-  chosen by the 0006 gold-set benchmark (nomic topped 15 candidates at
-  parity with the best cloud models) and a NAS latency leg.
-- **ADR 0008 (pins as ranking prior, ACCEPTED rev 4 after three review
-  rounds) is COMPLETE on `v4/develop`** (tip includes the sweep):
-  float retired from all modes, bounded rank lift implemented, and the
-  step-4 sweep's held-out veto rejected every nonzero lift —
-  **`PIN_RANK_LIFT = 0` is the recorded winning cell; the float
-  removal alone was the fix** (broad-query crowding fell mean
-  10.0 → 5.0). Ships as **v4.0.0 on the operator's tag call** (not
-  yet made).
-- **ADR 0009 (permanent embed-failure classification, ACCEPTED rev 3)
-  is IMPLEMENTED and merged to `main`** (844 tests): over-length rows
-  park as space/content-scoped tombstones instead of poisoning
-  health; `unembeddable` health bucket; `BackfillResult.tombstoned`;
-  the live OpenAI capture falsified the spec's error shape (recorded
-  in the ADR's Implementation note).
-- **v3.3.0 releases from `main`** carrying ADR 0009 +
-  `memory_embed background=true`. Deploy note: after redeploy, run
-  one backfill (`memory_embed background=true`) — it writes 9
-  tombstones and the live NAS health flips
-  `degraded`/`stale: 9` → `active`/`unembeddable: 9`.
-
-**Active queue after this release** (V3_PLAN carries the full
-entries): (2) cloud-backup Phase 0 + restore drill (operator at a
-desktop; 0007 Stage 0), (3) the concurrency load probe (0007 Stage 0,
-self-contained), then demand-/trigger-gated items. Design 0007
-(long-term scale & resilience) is ACCEPTED with its staged
-trigger-gated path. Open operator decision: the **v4.0.0 tag** from
-`v4/develop`.
+- **Live:** v3.8.0 (`3e9fa8d7`, schema 5) on stack 151 since 2026-10-03, with
+  the MCP backup tools on (OPS-07) and runtime metrics on (rev 303); stored
+  compose matches `main` at `4f7a71f`. Nightly catalogued backups land in `/exports/backups/auto`
+  ([0017](docs/design/0017-exposed-backup-and-restore.md)), and the nightly
+  encrypted offsite push ([0001](docs/design/0001-cloud-backup.md) Phase 1)
+  sends them to `ocdrop:openchronicle/nas`. Auth is on.
+- **Closed 2026-09-28/29:** DATA-01 ([0020](docs/design/0020-persistent-storage-review.md),
+  steps A and B), DATA-02, OPS-01 to OPS-06, HYG-04, HYG-07; v3.4.0, v3.5.0
+  and v3.6.0 released and deployed. The record is in the assessment's
+  revision history (revs 240-258).
+- **Closed 2026-10-03:** OPS-08, after three green nights, the
+  deliberate-breakage check and the latency sample during a nightly push
+  (assessment rev 286).
+- **Deployed 2026-10-03:** v3.7.0, verified with health, the latency sample
+  (p95 6.0 ms) and the backup tools (assessment rev 295); then v3.8.0, the
+  timestamp release (TS-04), verified with health, 0 non-UTC values and the
+  latency sample (p95 5.8 ms) (assessment rev 300). Its rollback target is the
+  16:40Z pre-migration snapshot.
+- **Open now:** QUAL-11 (MCP tools refuse undeclared arguments, PR #94) is
+  classified MINOR (operator, 2026-10-03) and rides the release after v3.8.0.
+- **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
+  work. Now: the DATA-06/07 NAS session, then v4.0.0 on the
+  operator's tag call (V4-01).
+- **Standing:**
+  - The Gemini audit branch was rejected as a unit and survives only as the
+    tag `archive/gemini-audit-18092026`
+    ([0014](docs/design/0014-gemini-audit-branch-review.md)). Never merge it
+    or take from it wholesale; its docs and OC milestone memories describe
+    unshipped work.
+  - Runtime metrics ([0010](docs/design/0010-performance-measurement.md))
+    are on in production since 2026-10-03 (assessment rev 303; collector
+    profile `metrics-auth`). MEAS-01 is done: its direct-cost run passed
+    every gate (rev 305), and the recorder owns the metrics-failure guard
+    (QUAL-20). GATE-19's 4F observation remains. Since 2026-10-03 its release gate covers only
+    releases that change metrics code; other releases need no exception.
+  - Research and idea records (0011, 0012, 0015, 0018, 0019, 0021) are not
+    authorization to implement.
 
 **Locked decisions** (V3_PLAN open questions 1, 4, 6, 13, 14, 19):
 drop `memory_items.conversation_id`; unified ASGI on port `:18000`;
@@ -196,9 +281,10 @@ cut plugin system entirely; MCP tool description quality pass done;
 ship `oc memory export/import` day 1; `OC_LOG_FORMAT=human|json`
 default human.
 
-See [docs/V3_PLAN.md](docs/V3_PLAN.md) for the canonical phase tracker
-and [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md) for
-current state.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the order of open work,
+[docs/V3_PLAN.md](docs/V3_PLAN.md) for the detailed entries and history
+it cites, and [docs/CODEBASE_ASSESSMENT.md](docs/CODEBASE_ASSESSMENT.md)
+for current state.
 
 ## Build and Development
 
@@ -215,6 +301,11 @@ The optional extras are deliberately small:
 - `[openai]` and `[ollama]` — embedding providers only (v3 has no LLM)
 - `[mcp]` — FastMCP runtime
 - `[dev]` — pytest, mypy, ruff, plus the embedding deps for tests
+
+After changing any hook `rev:` in `.pre-commit-config.yaml`, run
+`pre-commit install-hooks` from a normal shell before committing.
+Installing a hook environment inside a commit lets npm inherit git's
+hook variables, and on 2026-09-23 that overwrote a worktree's index.
 
 ## Testing
 
@@ -426,13 +517,14 @@ table — freeform strings will fail. (Project name on the NAS is
 If the NAS DB is recreated again in the future, create a new project
 with `project_create` and update this UUID.
 
-**Auth posture (decided 2026-05-06, post-cutover):** `OC_API_KEY` on
-stack 151 resolves to empty — auth is **intentionally disabled**.
-This is a single-user home-LAN deployment, the LAN is trusted, no MCP
-clients are configured to send a bearer header, and the cost/benefit
-of switching doesn't pay. If the trust boundary ever changes (public
-exposure, untrusted LAN segment, multi-user environment), follow the
-"How to enable auth on a running deployment" steps in
+**Auth posture: enabled (operator, 2026-09-25).** Stack 151 sets
+`OC_API_KEY`, so `/mcp` and REST require
+`Authorization: Bearer <key>` (or `X-API-Key`); only `/health`,
+`/api/v1/health` and the OpenAPI pages are exempt. Confirmed read-only on
+2026-09-28: `/mcp` answers 401 without a key. Every MCP client must send the
+key, so a client configured without it cannot reach OpenChronicle. The key
+lives only in Portainer and in client configurations, never in the
+repository. This supersedes the 2026-05-06 decision to leave auth off. See
 [docs/configuration/security_posture.md](docs/configuration/security_posture.md#authentication).
 
 ### Session Protocol Addition
@@ -544,4 +636,3 @@ the LLM, so OC's role is memory/retrieval only.
 - `src/openchronicle/interfaces/cli/main.py` — `oc` command entry point
 - `src/openchronicle/core/infrastructure/wiring/container.py` — DI composition root
 - `src/openchronicle/core/infrastructure/persistence/migrator.py` — schema migration runner
-- `scripts/migrate_v2_to_v3.py` + `scripts/verify_v3_db.py` — one-shot cutover migration

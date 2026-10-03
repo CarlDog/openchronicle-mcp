@@ -249,6 +249,21 @@ def test_tags_only_update_keeps_the_vector(tmp_path: Path) -> None:
     store.close()
 
 
+@pytest.mark.parametrize("blank", ["", "   ", "\n\t "])
+def test_blank_content_update_is_refused_before_any_write(tmp_path: Path, blank: str) -> None:
+    """Fleet-review #27: a blank update blanked the row AND deleted its
+    vector, then reported success. The refusal has to come before both
+    writes, so a rejected update leaves the memory exactly as it was."""
+    store = _store_with_embedded_memory(tmp_path)
+    with pytest.raises(DomainValidationError, match="content must be non-empty"):
+        update_memory.execute(store, "m1", content=blank)
+    row = store.get_memory("m1")
+    assert row is not None
+    assert row.content == "original content", "a refused update must not write the content"
+    assert store.get_embedding_model("m1") == "test-model", "a refused update must not drop the vector"
+    store.close()
+
+
 def test_successful_reembed_replaces_the_vector(tmp_path: Path) -> None:
     class _OkPort(_FailingPort):
         def embed(self, text: str) -> list[float]:

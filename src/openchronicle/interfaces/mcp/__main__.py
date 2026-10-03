@@ -22,10 +22,22 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 
+    # The store closes when the server stops, not at interpreter teardown.
     container = CoreContainer()
-    config = MCPConfig.from_env()
-    server = create_server(container, config)
-    server.run(transport=config.transport)
+    with container:
+        config = MCPConfig.from_env()
+        # Verify the embedding model's revision once before serving. This entry
+        # point runs no maintenance loop and no revision refresher, so without
+        # it the semantic channel would match every revision until a write
+        # happened to verify one (ADR 0005 §7). A re-pull is noticed on restart.
+        if container.embedding_service is not None:
+            container.embedding_service.port.refresh_revision()
+        server = create_server(container, config)
+        # The server's own lifespan logs at DEBUG (it runs per request over
+        # stateless HTTP), so the one startup line lives here. logging writes
+        # to stderr, which keeps stdout clean for the stdio protocol.
+        logging.getLogger(__name__).info("OpenChronicle MCP server starting (%s transport)", config.transport)
+        server.run(transport=config.transport)
 
 
 if __name__ == "__main__":

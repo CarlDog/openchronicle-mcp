@@ -36,7 +36,8 @@ mkdir -p "$(dirname "$OC_DB_PATH")" "$OC_CONFIG_DIR" "$OC_OUTPUT_DIR"
 # restart. cp -n (no-clobber) preserves any operator changes that
 # may exist alongside an absent marker.
 if [ -d /config-defaults ] && [ ! -f "$OC_CONFIG_DIR/.bootstrapped" ]; then
-  echo "entrypoint: bootstrapping $OC_CONFIG_DIR from /config-defaults/ (first run)"
+  # stderr: stdout belongs to the command, and `oc ... --json` is parsed.
+  echo "entrypoint: bootstrapping $OC_CONFIG_DIR from /config-defaults/ (first run)" >&2
   cp -rn /config-defaults/. "$OC_CONFIG_DIR"/
   touch "$OC_CONFIG_DIR/.bootstrapped"
 fi
@@ -49,6 +50,17 @@ fi
 # root, and without this chown the app would get EACCES on its own data
 # the first time it started as `oc`.
 chown -R oc:oc "$(dirname "$OC_DB_PATH")" "$OC_CONFIG_DIR" "$OC_OUTPUT_DIR"
+
+# The offsite-backup token (design 0001). rclone keeps an existing file's mode
+# when it rewrites it after a token refresh, so a copy that arrived 0644 would
+# stay readable by others forever. Only an absent file is expected; a chmod that
+# fails is reported, not swallowed. It does not stop startup: under
+# `restart: unless-stopped` that would crash-loop the whole memory service over
+# the offsite token's mode.
+if [ -f "$OC_CONFIG_DIR/rclone.conf" ]; then
+  chmod 600 "$OC_CONFIG_DIR/rclone.conf" \
+    || echo "entrypoint: WARNING: could not chmod 600 $OC_CONFIG_DIR/rclone.conf; the rclone token may be readable by others" >&2
+fi
 
 # gosu replaces this shell with the target process running as `oc` (a
 # single setuid+setgid+execve, no wrapper process), so PID-1 signal
