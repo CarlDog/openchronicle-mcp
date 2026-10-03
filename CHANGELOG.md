@@ -11,9 +11,10 @@ The timestamp release: chronological listings order memories by their real
 instant, and every stored timestamp is UTC (ROADMAP TS-01 to TS-04, PR #38,
 design 0016 track 2). Schema 5.
 
-**Status:** prepared 2026-10-03; not yet tagged. It is tagged once this merges
-and its CI passes. It needs no design 0010 exception: since 2026-10-03 the
-release gate covers only metrics-code changes (see the last entry below).
+**Status:** deployed and verified 2026-10-03 on stack 151 (`3e9fa8d7`, schema
+5, 0 non-UTC values; latency sample p95 6.0 ms before, 5.8 ms after). It needed
+no design 0010 exception: since 2026-10-03 the release gate covers only
+metrics-code changes (see the last entry below).
 
 **Deploy note.** Read this before moving `OC_TAG`; the full procedure is the
 runbook's [timestamp migration 005 section](docs/configuration/local_backup_restore.md#timestamp-migration-005-deploy-and-rollback),
