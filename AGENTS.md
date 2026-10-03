@@ -233,8 +233,8 @@ docs, OC memories, issues and branches, some of it in no plan at all.
 
 ## Current Sprint
 
-**2026-09-29 — production caught up with `main`; OPS-08 in its
-three-night window; phase-end audit in progress.**
+**2026-10-03 — OPS-08 closed; v3.7.0 ready to merge and tag;
+phase-end audit in progress.**
 
 - **Live:** v3.6.0 (`99bd68cb`) on stack 151 since 2026-09-29, stack file
   version 144. Nightly catalogued backups land in `/exports/backups/auto`
@@ -245,11 +245,11 @@ three-night window; phase-end audit in progress.**
   steps A and B), DATA-02, OPS-01 to OPS-06, HYG-04, HYG-07; v3.4.0, v3.5.0
   and v3.6.0 released and deployed. The record is in the assessment's
   revision history (revs 240-258).
-- **Open now:** OPS-08 closes after three green nights (scheduled morning
-  checks 2026-09-30 to 2026-10-02) and a deliberate-breakage check; the
-  [runbook](docs/configuration/cloud_backup.md) has the procedures.
+- **Closed 2026-10-03:** OPS-08, after three green nights, the
+  deliberate-breakage check and the latency sample during a nightly push
+  (assessment rev 286).
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
-  work. After OPS-08: v3.7.0 (which enables the MCP backup tools, OPS-07),
+  work. Now: v3.7.0 (PR #92, prepared 2026-09-30; its deploy enables the MCP backup tools, OPS-07),
   the DATA-06/07 NAS session from about 2026-10-05, then the timestamp fix
   (TS-01 to TS-04, PR #38; its own release after v3.7.0, operator decision
   2026-09-30), then v4.0.0 on the operator's tag call (V4-01).
