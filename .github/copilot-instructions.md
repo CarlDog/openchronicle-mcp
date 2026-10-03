@@ -20,10 +20,10 @@ agent (Claude Code, etc.) is the LLM; OpenChronicle only stores and retrieves.
 | Area | Technology | Version |
 | --- | --- | --- |
 | Language | Python | `>=3.14` (`pyproject.toml`) |
-| Web/ASGI | FastAPI + uvicorn[standard] | `fastapi>=0.110.0`, `uvicorn>=0.52.4` |
+| Web/ASGI | FastAPI + uvicorn (with uvloop and httptools) | `fastapi>=0.142.2`, `uvicorn>=0.54.0` |
 | MCP protocol | `mcp` (FastMCP) | `>=1.30.0,<2` — **never bump past 2.x**, see Gotchas |
 | Storage | SQLite (stdlib) + FTS5, WAL mode | n/a |
-| Embeddings (optional) | OpenAI SDK / Ollama via httpx + numpy | `openai>=3.16.2`, `httpx>=0.25.0`, `numpy>=2.5.3` |
+| Embeddings (optional) | OpenAI SDK / Ollama via httpx + numpy | `openai>=3.19.2`, `httpx>=0.25.0`, `numpy>=2.5.3` |
 | Metrics (optional, off by default) | `prometheus-client` | `>=0.23.1` |
 | Lint/format | ruff | `>=0.16.8,<0.17` (minor-pinned deliberately) |
 | Type checking | mypy | `>=1.8`, strict via `pyproject.toml` config |
