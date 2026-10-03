@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # TS-03 rehearsal for PR #38 (migration 005), on disposable volumes only.
 # Recorded run: assessment rev 292 (passed 2026-10-03 at a18212f4 against
-# the 2026-10-03T15:17Z catalogued snapshot).
+# the 2026-10-03T15:17Z catalogued snapshot). The FTS and embedding checks
+# were added afterwards (rev 293) and need their own run.
 #
 # Run on the NAS as a user who can run docker (sudo bash tools/backup-drill/ts03-rehearsal.sh).
 # It never stops, edits or recreates the production container
@@ -49,14 +50,37 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Read-only counts of an OpenChronicle database: schema, rows, and timestamps
-# that are not stored in UTC (+00:00). Prints one JSON line.
+# Read-only counts of an OpenChronicle database: schema, rows, timestamps
+# that are not stored in UTC (+00:00), the FTS index checked against
+# memory_items, and digests of embedding rows and of FTS search results.
+# Prints one JSON line.
 INSPECT_PY='
-import json, sqlite3, sys
+import hashlib, json, sqlite3, sys
 path, mode = sys.argv[1], sys.argv[2]
 uri = f"file:{path}?mode=ro" + ("&immutable=1" if mode == "stopped" else "")
 c = sqlite3.connect(uri, uri=True)
 q = lambda s, *a: c.execute(s, a).fetchone()[0]
+def digest(rows):
+    h = hashlib.sha256()
+    for r in rows:
+        h.update(repr(tuple(r)).encode())
+    return h.hexdigest()
+# FTS5 integrity-check is written as an INSERT, so it runs on an in-memory
+# copy. rank 1 also compares the index with the external content table, so a
+# trigger that dropped or replaced indexed rows during 005 fails here.
+m = sqlite3.connect(":memory:")
+c.backup(m)
+fts = "absent"
+if m.execute("SELECT count(*) FROM sqlite_master WHERE name = ?", ("memory_fts",)).fetchone()[0]:
+    try:
+        m.execute("INSERT INTO memory_fts(memory_fts, rank) VALUES(?, 1)", ("integrity-check",))
+        fts = "ok"
+    except sqlite3.DatabaseError as exc:
+        fts = f"error: {exc}"
+terms = ("backup", "timestamp", "release", "decision", "migration", "project")
+fts_rows = [] if fts == "absent" else [
+    (t, r[0]) for t in terms
+    for r in m.execute("SELECT rowid FROM memory_fts WHERE memory_fts MATCH ? ORDER BY rowid", (t,))]
 cols = [("projects", "created_at"), ("memory_items", "created_at"), ("memory_items", "updated_at")]
 print(json.dumps({
     "integrity": q("PRAGMA integrity_check"),
@@ -64,6 +88,10 @@ print(json.dumps({
     "projects": q("SELECT count(*) FROM projects"),
     "memories": q("SELECT count(*) FROM memory_items"),
     "embeddings": q("SELECT count(*) FROM memory_embeddings"),
+    "embeddings_sha256": digest(c.execute("SELECT * FROM memory_embeddings ORDER BY memory_id")),
+    "fts": fts,
+    "fts_hits": len(fts_rows),
+    "fts_sha256": digest(fts_rows),
     "non_utc": sum(q(f"SELECT count(*) FROM {t} WHERE {col} IS NOT NULL AND {col} NOT LIKE ?", "%+00:00") for t, col in cols),
     "naive": sum(q(f"SELECT count(*) FROM {t} WHERE {col} IS NOT NULL AND substr({col}, 20) NOT GLOB ?", "*[+-][0-9][0-9]:[0-9][0-9]") for t, col in cols),
 }, sort_keys=True))
@@ -88,8 +116,8 @@ for k in sys.argv[1].split("."):
     d = d[k]
 print(d)' "$1"
 }
-same_counts() {  # same_counts JSON_A JSON_B: projects, memories, embeddings match
-  for k in projects memories embeddings; do
+same_counts() {  # same_counts JSON_A JSON_B: counts, embedding rows and FTS results match
+  for k in projects memories embeddings embeddings_sha256 fts_hits fts_sha256; do
     [ "$(jget "$k" <<<"$1")" = "$(jget "$k" <<<"$2")" ] || return 1
   done
 }
@@ -157,6 +185,7 @@ BASE=$(docker run --rm --pull never --network none --read-only --user 1000:1000 
 echo "snapshot: $BASE"
 [ "$(jget integrity <<<"$BASE")" = ok ] || fail "snapshot integrity"
 [ "$(jget schema <<<"$BASE")" = 4 ] || fail "snapshot is not at schema 4"
+[ "$(jget fts <<<"$BASE")" = ok ] || fail "snapshot FTS index does not match memory_items"
 [ "$(jget naive <<<"$BASE")" = 0 ] || fail "snapshot already holds naive values: 005 would refuse in production"
 pass "snapshot verified against its manifest; schema 4, $(jget non_utc <<<"$BASE") non-UTC values, 0 naive"
 
@@ -206,8 +235,9 @@ M=$(inspect_live "$NEW_A"); echo "new image serving: $M"
 [ "$(jget schema <<<"$M")" = 5 ] || fail "schema is not 5"
 [ "$(jget non_utc <<<"$M")" = 0 ] || fail "non-UTC values remain"
 [ "$(jget integrity <<<"$M")" = ok ] || fail "integrity after 005"
-same_counts "$BASE" "$M" || fail "counts changed in migration"
-pass "005 applied on boot: schema 5, 0 non-UTC, integrity ok, counts unchanged"
+[ "$(jget fts <<<"$M")" = ok ] || fail "FTS index does not match memory_items after 005"
+same_counts "$BASE" "$M" || fail "counts, embedding rows or FTS results changed in migration"
+pass "005 applied on boot: schema 5, 0 non-UTC, integrity and FTS ok, counts, embedding rows and FTS results unchanged"
 
 phase "5. Refusal: a naive value stops the candidate and changes nothing"
 seed_volume "$VOL_B"
@@ -287,10 +317,11 @@ wait_healthy "$OLD_A2" || fail "old image did not serve the restored volume"
 R=$(inspect_live "$OLD_A2"); echo "after rollback: $R"
 [ "$(jget schema <<<"$R")" = 4 ] || fail "restored schema is not 4"
 [ "$(jget non_utc <<<"$R")" = "$(jget non_utc <<<"$BASE")" ] || fail "restored timestamps differ from the snapshot"
-same_counts "$BASE" "$R" || fail "restored counts differ from the snapshot"
+[ "$(jget fts <<<"$R")" = ok ] || fail "restored FTS index does not match memory_items"
+same_counts "$BASE" "$R" || fail "restored counts, embedding rows or FTS results differ from the snapshot"
 docker update --restart="$OLD_RESTART_POLICY" "$OLD_A2" >/dev/null
 [ "$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$OLD_A2")" = "$OLD_RESTART_POLICY" ] || fail "restart policy not restored"
-pass "rolled back to the pre-005 snapshot: schema 4, counts and timestamps match; policy back to $OLD_RESTART_POLICY"
+pass "rolled back to the pre-005 snapshot: schema 4, counts, timestamps, embedding rows and FTS results match; policy back to $OLD_RESTART_POLICY"
 
 phase "7. Result"
 pass "TS-03 rehearsal complete for $NEW_SHA against $(basename "$SNAP")"
