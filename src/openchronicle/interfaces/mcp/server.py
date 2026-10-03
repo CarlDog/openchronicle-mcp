@@ -151,7 +151,8 @@ class MetricsFastMCP(FastMCP):
         who sends ``limit`` to ``memory_search`` (whose count is ``top_k``)
         silently got the default of 8 (QUAL-11). The check runs before
         dispatch, so a refused call never reaches the handler or its
-        execution metric.
+        execution metric. Classified MINOR under a narrow STABILITY.md
+        exception (operator, 2026-10-03).
         """
         tool = self._tool_manager.get_tool(name)
         if tool is not None:

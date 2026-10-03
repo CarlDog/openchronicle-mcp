@@ -60,6 +60,18 @@ the declared version (`v3.0.0-rc6` ↔ `3.0.0rc6`).
 - Changes to the `core.json` schema that aren't backward-compatible.
 - Changes to env var names.
 
+### Narrow unknown-argument exception (operator decision, 2026-10-03, ROADMAP QUAL-11)
+
+The operator authorized one exception to the requires-major-bump validation
+rule above: MCP tools may refuse **arguments a tool does not declare** in a
+v3.x release. Those keys were never part of any tool's signature; FastMCP
+ignored them, so a misspelled or sibling-named parameter (`limit` sent to
+`memory_search`, which counts with `top_k`) succeeded and silently did
+something other than what was asked. The refusal raises INVALID_ARGUMENT
+naming each refused key and the valid ones. Declared parameters, their types
+and defaults are unchanged. This exception does not relax the policy for
+other input changes or itself authorize a release.
+
 ## Deprecation window
 
 When a MAJOR change is required:

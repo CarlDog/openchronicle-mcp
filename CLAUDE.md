@@ -248,8 +248,8 @@ three-night window; phase-end audit in progress.**
 - **Open now:** OPS-08 closes after three green nights (scheduled morning
   checks 2026-09-30 to 2026-10-02) and a deliberate-breakage check; the
   [runbook](docs/configuration/cloud_backup.md) has the procedures.
-  QUAL-11 (MCP tools refuse undeclared arguments) is built on a draft PR
-  and waits on the operator's STABILITY.md classification.
+  QUAL-11 (MCP tools refuse undeclared arguments, PR #94) is classified
+  MINOR (operator, 2026-10-03) and rides the release after v3.7.0.
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
   work. After OPS-08: v3.7.0 (which enables the MCP backup tools, OPS-07),
   the DATA-06/07 NAS session from about 2026-10-05, then the timestamp fix
