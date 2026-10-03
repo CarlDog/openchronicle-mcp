@@ -443,7 +443,7 @@ install reproducible.
 
 > **Update 2026-10-03:** CI and Docker now install from `uv.lock` with
 > `uv sync --locked`, and drift fails the build (ROADMAP QUAL-06 part 1,
-> assessment rev 311). The graph audit below remains open as QUAL-06
+> assessment rev 312). The graph audit below remains open as QUAL-06
 > part 2.
 
 When the existing lock/dependency-audit item is scheduled:
