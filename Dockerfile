@@ -1,35 +1,48 @@
 # OpenChronicle v3 — single-process ASGI image
 
+# ---- uv ------------------------------------------------------------------
+# Pinned uv, from its own stage so Dependabot's docker ecosystem bumps the
+# tag (it does not bump a `COPY --from=<image>` line; see rclone below).
+# This is the ONLY uv pin: test.yml reads the version from this line, so
+# keep exactly one `ghcr.io/astral-sh/uv:<x.y.z>` reference in this file.
+FROM ghcr.io/astral-sh/uv:0.12.21 AS uv
+
 # ---- builder stage --------------------------------------------------------
-# Installs into a venv so the runtime stage can copy just the venv, not pip's
-# cache, setuptools/wheel build artifacts, or apt package lists.
+# Installs into a venv so the runtime stage can copy just the venv, not
+# uv's cache, build artifacts, or apt package lists.
 FROM python:3.14-slim AS builder
 
+# Every package in the venv comes from uv.lock (QUAL-06): what CI tested is
+# what ships, and Dependabot alerts describe this image. Only the project's
+# build backend (setuptools/wheel, pyproject [build-system]) still resolves
+# at build time, in uv's isolated build env; it does not reach the venv.
+# --locked fails the build when uv.lock is out of date with pyproject.toml.
+# UV_PYTHON pins the venv to this image's interpreter, the same path the
+# runtime stage has. UV_COMPILE_BYTECODE keeps the startup cost pip had
+# (pip compiled .pyc at install; uv does not by default).
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    UV_PROJECT_ENVIRONMENT=/venv \
+    UV_PYTHON=/usr/local/bin/python3 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_COMPILE_BYTECODE=1 \
+    UV_NO_CACHE=1
+
+COPY --from=uv /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+COPY pyproject.toml uv.lock README.md ./
 
-RUN python -m venv /venv \
-    # Upgrade install tooling first to dodge CVEs that ship with the base
-    # image (pip 24.0, setuptools 68.1.2, wheel 0.42.0 all flagged by
-    # pip-audit at the time this was pinned). v3 only needs MCP + the
-    # embedding providers (OpenAI / Ollama).
-    && /venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
-    # Dependency layer: install against a stub package so source edits
-    # don't invalidate this slow, network-bound layer. Before this split,
-    # COPY src preceded the install and every code push re-resolved and
-    # re-downloaded the full dependency set from PyPI — the CI build
-    # cache could never serve it.
-    && mkdir -p src/openchronicle \
-    && touch src/openchronicle/__init__.py \
-	&& /venv/bin/pip install --no-cache-dir ".[openai,ollama,mcp,metrics]" \
-    && /venv/bin/pip uninstall -y openchronicle-mcp
+# Dependency layer, without the project, so source edits don't invalidate
+# this slow, network-bound layer. v3 only needs MCP, the embedding
+# providers (OpenAI / Ollama) and the metrics client.
+RUN uv sync --locked --no-dev --no-install-project --no-editable \
+    --extra openai --extra ollama --extra mcp --extra metrics
 
 COPY src ./src
-RUN /venv/bin/pip install --no-cache-dir --no-deps .
+RUN uv sync --locked --no-dev --no-editable \
+    --extra openai --extra ollama --extra mcp --extra metrics
 
 # ---- runtime stage ----------------------------------------------------------
 FROM python:3.14-slim

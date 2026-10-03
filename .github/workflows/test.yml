@@ -14,7 +14,9 @@ on:
     # force-pull + bounce the auto-deploying stack for a pure
     # documentation/tooling commit. package*.json is markdownlint dev
     # tooling only — before it was listed here, every weekly Dependabot
-    # npm bump rebuilt and republished the image for nothing.
+    # npm bump rebuilt and republished the image for nothing. uv.lock is
+    # deliberately NOT listed: CI and the image install from it (QUAL-06),
+    # so a lock-only push changes what ships and must rebuild.
     paths-ignore:
       - "**.md"
       - "docs/**"
@@ -28,11 +30,23 @@ on:
       - ".github/dependabot.yml"
       - ".github/FUNDING.yml"
       - ".codex/**"
-      - "uv.lock"
       - ".github/workflows/gitleaks.yml"
       - ".github/workflows/retag-image.yml"
   pull_request:
     branches: [main]
+
+# Dependencies come from uv.lock, never a fresh resolve (QUAL-06).
+# `uv sync --locked` fails when uv.lock is out of date with pyproject.toml,
+# which makes lock drift a CI failure. UV_PYTHON_DOWNLOADS=never keeps uv
+# on the interpreter setup-python installed, rather than a managed one.
+# The uv version has ONE pin: the Dockerfile's `FROM ghcr.io/astral-sh/uv:
+# <version> AS uv`, which Dependabot's docker ecosystem bumps. Each job reads
+# it from there (step "Read the pinned uv version") rather than repeating it,
+# because Dependabot never updates a setup-uv `with: version:` input.
+# setup-uv is SHA-pinned: it stopped publishing floating major tags at v8,
+# so `@v10` does not resolve.
+env:
+  UV_PYTHON_DOWNLOADS: never
 
 # Two rapid pushes to main otherwise run build-and-push concurrently,
 # and whichever finishes LAST owns :latest — possibly the older commit.
@@ -69,16 +83,35 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-          cache: "pip"
+
+      - name: Read the pinned uv version
+        # From the Dockerfile, the single pin (see the env comment above).
+        # Fails unless exactly one x.y.z is found, so setup-uv can never
+        # fall back to installing the latest uv.
+        id: uv-version
+        shell: bash
+        run: |
+          versions=$(grep -oE 'ghcr\.io/astral-sh/uv:[0-9]+\.[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2 | sort -u)
+          if [ "$(printf '%s\n' "$versions" | grep -c .)" -ne 1 ]; then
+            echo "::error file=Dockerfile::expected exactly one pinned ghcr.io/astral-sh/uv:<x.y.z>, found: '${versions}'"
+            exit 1
+          fi
+          echo "version=${versions}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: ${{ steps.uv-version.outputs.version }}
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -e ".[dev,mcp,openai,ollama,metrics]"
+        run: uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 
       - name: Test
         # Integration tests require live provider keys and the
         # `integration` marker; CI validates unit + functional only.
         # -v gives per-test names so a hang surfaces which test died.
-        run: pytest -v
+        run: uv run --no-sync pytest -v
 
   quality:
     name: lint + format + types
@@ -91,19 +124,36 @@ jobs:
         uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-          cache: "pip"
+
+      - name: Read the pinned uv version
+        # Same step as in the test job; the Dockerfile is the single pin.
+        id: uv-version
+        shell: bash
+        run: |
+          versions=$(grep -oE 'ghcr\.io/astral-sh/uv:[0-9]+\.[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2 | sort -u)
+          if [ "$(printf '%s\n' "$versions" | grep -c .)" -ne 1 ]; then
+            echo "::error file=Dockerfile::expected exactly one pinned ghcr.io/astral-sh/uv:<x.y.z>, found: '${versions}'"
+            exit 1
+          fi
+          echo "version=${versions}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: ${{ steps.uv-version.outputs.version }}
+          enable-cache: true
 
       - name: Install dependencies
-        run: pip install -e ".[dev,mcp,openai,ollama,metrics]"
+        run: uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 
       - name: Ruff lint
-        run: ruff check src tests scripts
+        run: uv run --no-sync ruff check src tests scripts
 
       - name: Ruff format check
-        run: ruff format --check src tests scripts
+        run: uv run --no-sync ruff format --check src tests scripts
 
       - name: Mypy
-        run: mypy src tests --config-file=pyproject.toml
+        run: uv run --no-sync mypy src tests --config-file=pyproject.toml
 
       # Release integrity: the version stayed at 3.0.0.dev0 through five
       # rc tags, which made health's package_version useless as a deploy

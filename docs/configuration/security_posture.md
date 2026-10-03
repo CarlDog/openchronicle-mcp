@@ -133,8 +133,14 @@ the backup root is set (`OC_BACKUP_DIR=/exports/backups`, since v3.5.0), but
 - `pyproject.toml` keeps optional extras for embedding providers
   only: `[openai]`, `[ollama]`, `[mcp]`. The `[discord]` extra is
   removed.
-- `pip-audit` against the runtime image catches CVEs in the slimmer
-  set; run periodically.
+- `pip-audit` the runtime set periodically. The image installs exactly
+  what `uv.lock` pins (QUAL-06), so audit the lock's export:
+  `uv export --locked --no-dev --no-hashes --no-emit-project --extra openai
+  --extra ollama --extra mcp --extra metrics > runtime-reqs.txt`, then
+  `pip-audit -r runtime-reqs.txt`. To list what a running image holds,
+  use `pip --python /venv/bin/python freeze --all`: `/venv` has no pip
+  of its own, so a bare `pip freeze` in the container inspects the base
+  image's system Python and lists nothing.
 
 ## Container hardening
 
@@ -147,7 +153,8 @@ Hardened 2026-07-30 (the review-driven CI batch):
   as root only long enough to chown the mount points (self-healing
   volumes that predate this change), then drops via `gosu`.
 - `HEALTHCHECK` probes `/health` from inside the container.
-- `--no-cache-dir` on `pip install`; `apt-get` lists cleaned after
+- Dependencies install with `uv sync --locked` and `UV_NO_CACHE=1`, so
+  no package cache enters the image; `apt-get` lists cleaned after
   installing `git` + `gosu`.
 
 ## Network

@@ -158,10 +158,14 @@ See `docs/architecture/ARCHITECTURE.md` for the full layout.
 ## Development
 
 ```bash
-pip install -e ".[dev,mcp,openai,ollama]"
+uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 pre-commit install
-pytest
+uv run pytest
 ```
+
+Dependencies are locked in `uv.lock`, which CI and the Docker image
+install from; run `uv lock` after changing anything in `[project]` in
+`pyproject.toml`, including the version.
 
 The architecture is enforced by tests:
 

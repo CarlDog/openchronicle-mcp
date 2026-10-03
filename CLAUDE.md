@@ -289,17 +289,25 @@ for current state.
 ## Build and Development
 
 ```bash
-# Install in development mode
-pip install -e ".[dev,mcp,openai,ollama]"
+# Install in development mode, from uv.lock (the versions CI and the image use)
+uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 
 # Setup pre-commit hooks
 pip install pre-commit && pre-commit install
 ```
 
+`uv sync` installs into `.venv`; activate it, or prefix commands with
+`uv run`. Dependencies come from `uv.lock` (ROADMAP QUAL-06): CI and the
+image install with `uv sync --locked`, which fails when the lock is out
+of date with `pyproject.toml`. After changing anything in `[project]`
+(a dependency, an extra, or the version at release prep), run `uv lock`
+and commit the lock in the same commit.
+
 The optional extras are deliberately small:
 
 - `[openai]` and `[ollama]` — embedding providers only (v3 has no LLM)
 - `[mcp]` — FastMCP runtime
+- `[metrics]` — the Prometheus client, for `OC_METRICS_ENABLED`
 - `[dev]` — pytest, mypy, ruff, plus the embedding deps for tests
 
 After changing any hook `rev:` in `.pre-commit-config.yaml`, run

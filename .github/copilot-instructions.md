@@ -78,8 +78,10 @@ infrastructure or the `mcp`/`fastapi` packages — enforced by
 ## Essential Commands
 
 ```bash
-# Setup (editable install with all extras used by CI/dev)
-pip install -e ".[dev,mcp,openai,ollama,metrics]"
+# Setup: editable install from uv.lock with all extras used by CI/dev.
+# CI and the image install the same way; run `uv lock` after changing
+# anything in [project] in pyproject.toml, including the version.
+uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 
 # Pre-commit hooks (run once per clone)
 pip install pre-commit && pre-commit install
@@ -222,7 +224,8 @@ database-maintenance surface (`interfaces/cli/commands/db.py`).
   `build-and-push` (image publish) — see `.github/workflows/test.yml`.
 - A `v*` tag's version must exactly match `pyproject.toml`'s `[project].version`
   (normalized, e.g. `v3.0.0-rc6` ↔ `3.0.0rc6`) — CI's `quality` job fails the tag
-  build otherwise.
+  build otherwise. `uv.lock` records that version too, so run `uv lock` in the
+  same release-prep commit, or `uv sync --locked` fails in CI and the image build.
 
 ## Configuration & Environment
 
@@ -325,9 +328,9 @@ database-maintenance surface (`interfaces/cli/commands/db.py`).
 2. Wire the new provider name into `OC_EMBEDDING_PROVIDER` handling in the
    config/wiring layer (`core/infrastructure/wiring/container.py`).
 3. Add it as an optional extra in `pyproject.toml` `[project.optional-dependencies]`
-   if it needs new third-party deps, and to the Dockerfile's
-   `pip install ".[openai,ollama,mcp,metrics]"` line if it should ship in the
-   standard image.
+   if it needs new third-party deps (then run `uv lock`), and to the
+   `--extra` list of both `uv sync` lines in the Dockerfile if it should
+   ship in the standard image.
 4. Add adapter tests alongside `tests/test_embedding_adapters.py`.
 
 **Run before opening a PR / calling a task done:**
