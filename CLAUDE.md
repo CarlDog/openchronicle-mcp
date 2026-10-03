@@ -267,10 +267,10 @@ phase-end audit in progress.**
     or take from it wholesale; its docs and OC milestone memories describe
     unshipped work.
   - Runtime metrics ([0010](docs/design/0010-performance-measurement.md))
-    are on in production since 2026-10-03 under an operator exception
-    ahead of MEAS-01 (assessment rev 303; collector profile
-    `metrics-auth`). MEAS-01 and GATE-19 stay open; that exception is
-    not the 0010 4E acceptance. Since 2026-10-03 its release gate covers only
+    are on in production since 2026-10-03 (assessment rev 303; collector
+    profile `metrics-auth`). MEAS-01 is done: its direct-cost run passed
+    every gate (rev 305), and the recorder owns the metrics-failure guard
+    (QUAL-20). GATE-19's 4F observation remains. Since 2026-10-03 its release gate covers only
     releases that change metrics code; other releases need no exception.
   - Research and idea records (0011, 0012, 0015, 0018, 0019, 0021) are not
     authorization to implement.
