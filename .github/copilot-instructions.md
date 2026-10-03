@@ -79,8 +79,8 @@ infrastructure or the `mcp`/`fastapi` packages — enforced by
 
 ```bash
 # Setup: editable install from uv.lock with all extras used by CI/dev.
-# CI and the image install the same way; run `uv lock` after changing a
-# dependency in pyproject.toml.
+# CI and the image install the same way; run `uv lock` after changing
+# anything in [project] in pyproject.toml, including the version.
 uv sync --locked --extra dev --extra mcp --extra openai --extra ollama --extra metrics
 
 # Pre-commit hooks (run once per clone)
@@ -224,7 +224,8 @@ database-maintenance surface (`interfaces/cli/commands/db.py`).
   `build-and-push` (image publish) — see `.github/workflows/test.yml`.
 - A `v*` tag's version must exactly match `pyproject.toml`'s `[project].version`
   (normalized, e.g. `v3.0.0-rc6` ↔ `3.0.0rc6`) — CI's `quality` job fails the tag
-  build otherwise.
+  build otherwise. `uv.lock` records that version too, so run `uv lock` in the
+  same release-prep commit, or `uv sync --locked` fails in CI and the image build.
 
 ## Configuration & Environment
 

@@ -39,8 +39,12 @@ on:
 # `uv sync --locked` fails when uv.lock is out of date with pyproject.toml,
 # which makes lock drift a CI failure. UV_PYTHON_DOWNLOADS=never keeps uv
 # on the interpreter setup-python installed, rather than a managed one.
-# The uv version is pinned in each setup-uv step (and in the Dockerfile);
-# keep the three in step.
+# The uv version has ONE pin: the Dockerfile's `FROM ghcr.io/astral-sh/uv:
+# <version> AS uv`, which Dependabot's docker ecosystem bumps. Each job reads
+# it from there (step "Read the pinned uv version") rather than repeating it,
+# because Dependabot never updates a setup-uv `with: version:` input.
+# setup-uv is SHA-pinned: it stopped publishing floating major tags at v8,
+# so `@v10` does not resolve.
 env:
   UV_PYTHON_DOWNLOADS: never
 
@@ -80,10 +84,24 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Read the pinned uv version
+        # From the Dockerfile, the single pin (see the env comment above).
+        # Fails unless exactly one x.y.z is found, so setup-uv can never
+        # fall back to installing the latest uv.
+        id: uv-version
+        shell: bash
+        run: |
+          versions=$(grep -oE 'ghcr\.io/astral-sh/uv:[0-9]+\.[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2 | sort -u)
+          if [ "$(printf '%s\n' "$versions" | grep -c .)" -ne 1 ]; then
+            echo "::error file=Dockerfile::expected exactly one pinned ghcr.io/astral-sh/uv:<x.y.z>, found: '${versions}'"
+            exit 1
+          fi
+          echo "version=${versions}" >> "$GITHUB_OUTPUT"
+
       - name: Setup uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          version: "0.12.21"
+          version: ${{ steps.uv-version.outputs.version }}
           enable-cache: true
 
       - name: Install dependencies
@@ -107,10 +125,22 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Read the pinned uv version
+        # Same step as in the test job; the Dockerfile is the single pin.
+        id: uv-version
+        shell: bash
+        run: |
+          versions=$(grep -oE 'ghcr\.io/astral-sh/uv:[0-9]+\.[0-9]+\.[0-9]+' Dockerfile | cut -d: -f2 | sort -u)
+          if [ "$(printf '%s\n' "$versions" | grep -c .)" -ne 1 ]; then
+            echo "::error file=Dockerfile::expected exactly one pinned ghcr.io/astral-sh/uv:<x.y.z>, found: '${versions}'"
+            exit 1
+          fi
+          echo "version=${versions}" >> "$GITHUB_OUTPUT"
+
       - name: Setup uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
-          version: "0.12.21"
+          version: ${{ steps.uv-version.outputs.version }}
           enable-cache: true
 
       - name: Install dependencies

@@ -164,7 +164,8 @@ uv run pytest
 ```
 
 Dependencies are locked in `uv.lock`, which CI and the Docker image
-install from; run `uv lock` after changing one in `pyproject.toml`.
+install from; run `uv lock` after changing anything in `[project]` in
+`pyproject.toml`, including the version.
 
 The architecture is enforced by tests:
 

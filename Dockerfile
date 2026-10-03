@@ -3,7 +3,8 @@
 # ---- uv ------------------------------------------------------------------
 # Pinned uv, from its own stage so Dependabot's docker ecosystem bumps the
 # tag (it does not bump a `COPY --from=<image>` line; see rclone below).
-# Keep the version in step with the setup-uv pins in test.yml.
+# This is the ONLY uv pin: test.yml reads the version from this line, so
+# keep exactly one `ghcr.io/astral-sh/uv:<x.y.z>` reference in this file.
 FROM ghcr.io/astral-sh/uv:0.12.21 AS uv
 
 # ---- builder stage --------------------------------------------------------
@@ -11,8 +12,10 @@ FROM ghcr.io/astral-sh/uv:0.12.21 AS uv
 # uv's cache, build artifacts, or apt package lists.
 FROM python:3.14-slim AS builder
 
-# Dependencies come from uv.lock, never a fresh resolve (QUAL-06): what CI
-# tested is what ships, and Dependabot alerts describe this image.
+# Every package in the venv comes from uv.lock (QUAL-06): what CI tested is
+# what ships, and Dependabot alerts describe this image. Only the project's
+# build backend (setuptools/wheel, pyproject [build-system]) still resolves
+# at build time, in uv's isolated build env; it does not reach the venv.
 # --locked fails the build when uv.lock is out of date with pyproject.toml.
 # UV_PYTHON pins the venv to this image's interpreter, the same path the
 # runtime stage has. UV_COMPILE_BYTECODE keeps the startup cost pip had

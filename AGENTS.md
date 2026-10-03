@@ -299,8 +299,9 @@ pip install pre-commit && pre-commit install
 `uv sync` installs into `.venv`; activate it, or prefix commands with
 `uv run`. Dependencies come from `uv.lock` (ROADMAP QUAL-06): CI and the
 image install with `uv sync --locked`, which fails when the lock is out
-of date with `pyproject.toml`. After changing a dependency in
-`pyproject.toml`, run `uv lock` and commit the lock in the same commit.
+of date with `pyproject.toml`. After changing anything in `[project]`
+(a dependency, an extra, or the version at release prep), run `uv lock`
+and commit the lock in the same commit.
 
 The optional extras are deliberately small:
 
