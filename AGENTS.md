@@ -52,8 +52,11 @@ enforces parity.
   keep `AGENTS.md` and `CLAUDE.md` byte-identical, and save a
   milestone/decision/scope memory to OC if the MCP server is reachable.
   The commit and the docs land together — never one without the other.
-- **No backwards compatibility.** Personal project, no public users,
-  no production. Break whatever needs breaking.
+- **Compatibility.** Personal project with no public users, so there
+  are no compatibility shims for old behavior. Production runs the v3.x
+  line (see Branch state), so every change follows the semver rules in
+  `docs/api/STABILITY.md`: a breaking change is MAJOR and goes to
+  `v4/develop`.
 - **Branch state.** `main` is the v3.x PRODUCTION line (it was
   force-pushed from `v3/develop` at the 2026-05-06 cutover). Since
   2026-08-29, **`v4/develop` is the v4.0.0 development line**
@@ -249,8 +252,9 @@ phase-end audit in progress.**
   timestamp release (TS-04), verified with health, 0 non-UTC values and the
   latency sample (p95 5.8 ms) (assessment rev 300). Its rollback target is the
   16:40Z pre-migration snapshot.
-- **Open now:** QUAL-11 (MCP tools refuse undeclared arguments, PR #94) is
-  classified MINOR (operator, 2026-10-03) and rides the release after v3.8.0.
+- **Merged, unreleased:** QUAL-11 (MCP tools refuse undeclared arguments,
+  PR #94, merged to `main` 2026-10-03) is classified MINOR (operator,
+  2026-10-03) and ships in the release after v3.8.0.
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
   work. Now: the DATA-06/07 NAS session, then v4.0.0 on the
   operator's tag call (V4-01).
@@ -347,8 +351,9 @@ for the full layout.
 **Key Concepts:**
 
 - **Ports**: abstract interfaces in `domain/ports/` that
-  infrastructure implements. v3 has three: `StoragePort`,
-  `MemoryStorePort`, `EmbeddingPort`.
+  infrastructure implements: `StoragePort`, `MemoryStorePort`,
+  `EmbeddingPort`, and the `MetricsRecorder` protocol
+  (`metrics_port.py`).
 - **MCP Server**: `interfaces/mcp/` — 18 tools registered via
   FastMCP by default, plus 5 backup tools when `OC_BACKUP_MCP_ENABLED`
   is on (23, as in production), mounted at `/mcp` inside the unified
@@ -479,10 +484,13 @@ transport. No project-level setup required.
 `http://your-nas:18000/mcp`. (Pre-cutover v2 was `:18001/mcp` for MCP
 and `:18000/api/v1` for REST as separate services — that shape is gone.)
 
-For a fresh registration:
+For a fresh registration (auth is on, see Auth posture below, so the
+client must send the key):
 
 ```bash
-claude mcp add --scope user --transport http openchronicle http://your-nas:18000/mcp
+claude mcp add --scope user --transport http \
+    --header "Authorization: Bearer $OC_API_KEY" \
+    openchronicle http://your-nas:18000/mcp
 ```
 
 For local dev (without the NAS), run `oc serve` in a checkout — the
