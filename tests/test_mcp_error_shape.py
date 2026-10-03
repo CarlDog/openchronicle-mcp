@@ -36,6 +36,11 @@ Verbatim 1.29.0 record, for diffing after the migration:
                           'bogus'
     cross-field invariant Error executing tool memory_update: At least one
                           of content or tags must be provided
+    unknown argument      Error executing tool memory_search:
+                          INVALID_ARGUMENT: unknown argument 'limit' (did
+                          you mean 'top_k'?). Valid arguments: query, ...
+                          (ours, not FastMCP's: QUAL-11, pinned in
+                          test_mcp_unknown_arguments.py)
 """
 
 from __future__ import annotations
