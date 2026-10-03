@@ -114,12 +114,20 @@ class TestOpenAIEmbeddingAdapter:
             (([float("nan"), 1.0],), "non-finite"),
             (([float("inf"), 1.0],), "non-finite"),
             (([1.0, 0.0], [1.0, 0.0, 0.0]), "inconsistent dimensions"),
+            # bool is an int subclass; true/false must not pass as 1/0.
+            (([True, False],), "contains boolean values"),
+            (([0.5, True],), "contains boolean values"),
         ],
     )
     def test_malformed_vectors_are_rejected(self, vectors: tuple[list[float], ...], reason: str) -> None:
         adapter = self._adapter_returning(*vectors)
         with pytest.raises(LLMProviderError, match=reason):
             adapter.embed_batch(["x"] * len(vectors))
+
+    def test_integer_components_are_still_accepted(self) -> None:
+        """The boolean guard must not over-reach: a JSON 0 or 1 is a number."""
+        adapter = self._adapter_returning([1, 0, 0])
+        assert adapter.embed("a") == [1, 0, 0]
 
     def test_a_host_that_ignores_requested_dimensions_is_accepted(self) -> None:
         """Deliberately unlike Ollama: a generic OpenAI-compatible host may
@@ -248,6 +256,20 @@ class TestOllamaEmbeddingAdapter:
         )
         with patch("httpx.post", return_value=nan_response):
             with pytest.raises(LLMProviderError, match="non-finite"):
+                adapter.embed("a")
+
+    def test_boolean_components_are_rejected(self) -> None:
+        """JSON true/false parse to Python bool, an int subclass; they must
+        not be stored as 1/0. Raw body, as a real wire payload arrives."""
+        adapter = self._make_adapter()
+        bool_response = httpx.Response(
+            200,
+            content=b'{"embeddings": [[true, false, 0.5]]}',
+            headers={"content-type": "application/json"},
+            request=httpx.Request("POST", "http://localhost:11434/api/embed"),
+        )
+        with patch("httpx.post", return_value=bool_response):
+            with pytest.raises(LLMProviderError, match="contains boolean values"):
                 adapter.embed("a")
 
     def test_inconsistent_batch_dimensions_are_rejected(self) -> None:

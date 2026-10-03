@@ -54,6 +54,11 @@ def validate_embeddings(
             first_len = len(vec)
         elif len(vec) != first_len:
             raise _fail(f"inconsistent dimensions in one batch: {first_len} then {len(vec)}")
+        # bool is a subclass of int, so the numeric check below would take
+        # JSON true/false as 1/0 and store a vector that silently skews
+        # similarity ranking. Integers themselves stay valid.
+        if any(isinstance(x, bool) for x in vec):
+            raise _fail(f"vector {i} contains boolean values")
         if not all(isinstance(x, (int, float)) and math.isfinite(x) for x in vec):
             raise _fail(f"vector {i} contains non-finite or non-numeric values")
     if requested_dimensions is not None and first_len != requested_dimensions:
