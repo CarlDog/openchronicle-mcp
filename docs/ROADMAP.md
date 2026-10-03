@@ -214,7 +214,7 @@ These wait on the operator, not on engineering:
 - ~~**CI:** how Dependabot PRs get past the CodeQL required checks (HYG-09).~~ Decided 2026-09-30: keep default setup and re-land Dependabot changes by hand for now.
 - ~~**Timestamps:** the naive-row policy and version classification (TS-02).~~ Decided 2026-09-30: reject, as a MINOR exception.
 - **Releases:** the v4.0.0 tag (V4-02).
-- **Releases:** extending design 0010's release exception to v3.8.0 (TS-04); tagging waits on it.
+- **Releases:** v3.8.0 (TS-04): the operator chose to measure before extending design 0010's exception (2026-10-03); tagging waits on `tools/perf/v380-write-path.sh`'s NAS result.
 - **Measurement:** the next 0010 cycle (MEAS-01).
 - **Prompts and cost:**
   - ~~Stage 0 isolation and start (LLM-03);~~ deferred 2026-09-30;

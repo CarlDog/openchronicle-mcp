@@ -1521,7 +1521,7 @@ v3.7.0 just after, with no failed requests. No measurable change.
 
 ### Proposed extension to v3.8.0 (2026-10-03)
 
-**Not yet decided; the operator's call.** v3.8.0 is PR #38 (migration 005). It
+**The operator chose to measure first (2026-10-03).** `tools/perf/v380-write-path.sh` builds v3.7.0 and v3.8.0 from source on the NAS and compares them on disposable copies of the newest snapshot: eight clients, three rotating blocks with a repeat-baseline R, gated against step 3's budgets and the R/A rules above. Tagging waits on its result. v3.8.0 is PR #38 (migration 005). It
 changes no metrics code. Against `v3.7.0`, the files on instrumented paths and
 whether each runs per request:
 
