@@ -11,11 +11,12 @@ was overkill.
 
 | Job | Default interval | What it does |
 |---|---|---|
-| `db_backup` | 1 day | Online backup via `sqlite3.Connection.backup()` to `${OC_DATA_DIR}/backups/auto/`; retention keeps the union of the 7 newest files and the newest file per day for the 7 most recent days with backups (a same-day burst can't evict older days) |
+| `db_backup` | 1 day | Online backup via `sqlite3.Connection.backup()` to `${OC_BACKUP_DIR}/auto/` when configured, otherwise beside the database in `backups/auto/`; a SHA-256/SQLite-verified manifest publishes completion. Retention keeps the union of the 7 newest files and the newest file per day for the 7 most recent days with backups, and prunes matching manifests. Manual snapshots are never auto-pruned. |
 | `db_vacuum` | 7 days | Runs `db_backup` first (backup-before-destructive policy enforced in code), then `PRAGMA wal_checkpoint(FULL)` and `VACUUM` |
-| `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup`, sets `container.maintenance_degraded = True` (surfaces via `/api/v1/health` and the MCP `health` tool), raises so the loop counts it. On success: clears any prior degraded flag. |
+| `db_integrity_check` | 7 days | `PRAGMA integrity_check`. On failure: emergency `db_backup` (the snapshot is kept rather than published: `auto/*.db.failed-quick-check` when `quick_check` also fails, otherwise `auto/*.db.failed-verify`), sets `container.maintenance_degraded = True` (surfaces via `/api/v1/health` and the MCP `health` tool), raises so the loop counts it. On success: clears any prior degraded flag. |
+| `cloud_backup` | 1 day | Encrypts the newest published snapshots (3 newest plus the newest per day for 3 days) and their manifests with age, and `rclone copy --ignore-existing`s them to `OC_CLOUD_REMOTE`; append-only, 900 s bound. Skipped while the remote is unset; raises on invalid config, a root run, a missing `rclone.conf`, no or stale (>26 h) or future-stamped snapshots, a manifest mismatch, or an age or rclone failure. Surfaces as `cloud_backup_status` in health. See [cloud_backup.md](../configuration/cloud_backup.md) |
 | `embedding_backfill` | 6 hours | Equivalent to `oc memory embed`; no-op when the embedding service is unset or nothing is missing |
-| `git_onboard_resync` | 1 hour, OFF by default | Placeholder. Full implementation lands when the tracked-repo list spec is finalized. |
+| `git_onboard_resync` | 1 hour, OFF by default | Placeholder. Full implementation lands when the tracked-repo list spec is finalized. If enabled, each run reports a skip, never a success |
 
 ## Configuration
 
@@ -45,15 +46,15 @@ So a config that tunes one interval is safe:
 {"maintenance": {"jobs": [{"name": "db_backup", "interval_seconds": 43200}]}}
 ```
 
-leaves `db_vacuum`, `db_integrity_check`, `embedding_backfill` and
-`git_onboard_resync` exactly as shipped.
+leaves `db_vacuum`, `db_integrity_check`, `embedding_backfill`,
+`git_onboard_resync` and `cloud_backup` exactly as shipped.
 
 **Omitting a job does NOT disable it.** Set `"enabled": false` explicitly
 — the same way the example expresses "off" for `git_onboard_resync`.
 
 Ordering always follows `_DEFAULT_JOBS` in code — `db_vacuum`,
 `db_integrity_check`, `embedding_backfill`, `db_backup`,
-`git_onboard_resync` — not the file, and not the reading order of the
+`git_onboard_resync`, `cloud_backup` — not the file, and not the reading order of the
 table above, which groups by topic. So the status surface is stable
 however the JSON is arranged. Unknown job names are
 skipped with a warning (typo-safe); a missing `maintenance` section falls
@@ -74,12 +75,24 @@ migration windows.
 
 ## Concurrency contract
 
-- **Per-job lock** detects cross-tick overlap. If tick N+1 wakes while
-  job's lock is still held from tick N, the new tick records
-  `runs_skipped_overlap` and moves on. No queueing.
+- **Per-job lock** marks a run in flight, and the tick never spawns a
+  second copy of an in-flight job. It separates two cases:
+  - *Queued*: the job holds its own lock but waits for the global lock
+    behind another job. One INFO line names that job; nothing is
+    counted.
+  - *Overlap*: the job is running and its next scheduled start (its
+    interval, measured from this run's start) has passed. That start
+    is skipped, not queued: `runs_skipped_overlap` counts it, and one
+    WARNING is logged per run.
+
+  Before v3.4.0 both cases counted and warned on every one-second
+  tick, including each tick of an ordinary long run, because a job
+  stays due until its run ends (fleet-review #27).
 - **Global lock** serializes all jobs across the process. Two jobs
-  never run concurrently. This is the guarantee that a vacuum + a
-  backfill can't race the same DB.
+  never run concurrently. Background backfills (`memory_embed
+  background=true` and revision reconciliation) run outside it and
+  can overlap a vacuum or a backup; the store's own lock keeps that
+  safe, and only one backfill runs at a time.
 - **Failure isolation**: handler exceptions are logged + counted on the
   job's `runs_failed` and `last_error`, never crash the loop.
 
@@ -153,7 +166,18 @@ Status payload per job:
 ```
 
 `/api/v1/health` carries `maintenance_degraded` so operators can detect
-an integrity-check failure without polling the dedicated endpoint.
+an integrity-check failure ("the database may be corrupt") without polling
+the dedicated endpoint. Since v3.5.0 it also carries
+`backup_last_run_failed`, true when the last scheduled `db_backup` run
+failed, for example because `OC_BACKUP_DIR` became unwritable. The two are
+deliberately separate, because a failed backup is usually not a corrupt
+database. It can be, though: the snapshot copies the live store, so a live
+database that fails its checks also fails the backup. The incident runbook
+in `security_posture.md` says how to tell the two apart. Both read the persisted run and success
+stamps, so a restart does not clear them. A later successful scheduled run of
+the same job does. Manual runs (`oc maintenance run-once`, `oc db backup`,
+MCP `db_backup_create`) do not write loop state, so after fixing a backup
+root the field clears at the next scheduled backup, within 24 hours.
 
 ## Embedding degradation policy
 
@@ -168,12 +192,58 @@ successful semantic search resets the counter.
 | Field | When |
 |---|---|
 | `status: "active"` | provider configured + most recent search succeeded |
-| `status: "degraded"` | provider configured + at least one recent failure |
+| `status: "degraded"` | provider configured + at least one recent failure, or the model revision is not verified (below) |
 | `status: "disabled"` | `OC_EMBEDDING_PROVIDER=none` (default) |
 | `status: "failed"` | adapter init failed at startup; FTS5-only |
 
 `/api/v1/health` and the MCP `health` tool both return this shape, so
 clients see degradation cleanly without parsing logs.
+
+### Model revision (ADR 0005 §7)
+
+Ollama can re-pull a model tag with different weights under the same
+name, so every stored vector carries the manifest digest it was made
+with. Health reports:
+
+| Field | Meaning |
+|---|---|
+| `model_revision` | The last verified digest. Null while unverified, or when there is none |
+| `model_revision_state` | `known`; `none` (OpenAI, stub, or an Ollama model listed without a digest); or `unknown` |
+| `model_revision_verified_at` | When `/api/tags` last confirmed it |
+
+- **Only `/api/tags` listing the model verifies it.** An unlisted model,
+  an HTTP error, a timeout or a malformed body is a failed probe. It
+  never changes a verified value. While nothing is verified the state
+  stays `unknown`.
+- **While `unknown`, nothing is stamped.** A save stores the memory,
+  FTS5-searchable, without a vector, and a backfill refuses before
+  selecting candidates. Search and the `stale`/`unembeddable` counts
+  leave the revision out meanwhile, and `status` reads `degraded`.
+- **The refresher** runs in the ASGI server only. It probes at startup,
+  then every 30 s while `unknown` and every 300 s once known, outside
+  the maintenance loop's global lock. Once the revision is known, if no
+  backfill has completed against it in this process, it starts one with
+  `trigger: "reconcile"`. That happens after a boot (usually with zero
+  candidates), after a re-pull, and after writes refused while
+  `unknown`. With `OC_MAINTENANCE_DISABLED`, or with the
+  `embedding_backfill` job disabled, it still verifies but starts no
+  backfills: a reconcile run re-embeds whatever is out of date, so it
+  follows that job.
+- **stdio MCP and the CLI** have no refresher. The stdio server verifies
+  once at startup; `oc memory search` (unless `--mode keyword`) and
+  `oc memory embed --status` verify first; writes verify on demand. A
+  re-pull is noticed when those processes restart.
+- **Logs.** An unverified revision warns once, then every 15 minutes. A
+  verified one that stops re-verifying warns after three failed probes
+  in a row, then hourly. A changed digest is a WARNING naming both
+  values. Refused saves log at DEBUG, and a refused backfill logs one
+  line with no traceback.
+
+One backfill runs at a time per process. A call that finds one running
+is skipped: a synchronous `memory_embed` answers `already_running`, and
+the maintenance job records `last_outcome: "skipped"`. `last_run_at`
+advances, so it is not due again at once, but `runs_ok` and
+`last_success_at` do not, because that run did no work.
 
 ### Classified permanent outcomes (ADR 0009)
 
@@ -185,6 +255,26 @@ results). The row parks as a `status='content_too_long'` tombstone and
 stops being retried; a backfill run reports parked rows in the
 `tombstoned` count (neither `generated` nor `failed`), and the
 `embedding_backfill` job treats a tombstoned-only run as a success.
+
+### Background backfills
+
+`memory_embed` with `background=true` (MCP or REST) starts a backfill
+task that nothing awaits, and so does the revision refresher's
+reconciliation. When one ends, health's `last_background_backfill`
+records how it ended:
+
+| `outcome` | Meaning | Other fields |
+|---|---|---|
+| `ok` / `partial` / `failed` | The run returned. Same verdicts as a synchronous `memory_embed` | `generated`, `failed`, `tombstoned` |
+| `skipped` | Another backfill was already running | the same counts, all 0 |
+| `error` | The run raised. It is logged at ERROR: one line for a provider error such as an unverified revision, a traceback otherwise | `error_type`: the exception's class name, never its message |
+| `cancelled` | The task was cancelled, which only process shutdown does | none |
+
+Every record carries `trigger` (`operator` or `reconcile`) and
+`finished_at`. The field is `null` until a run
+finishes. It is held in memory, so a restart clears it. Before
+v3.4.0 an exception in this task left no log line and no health
+signal (fleet-review #27).
 
 ### Coverage-field relationships
 

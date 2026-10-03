@@ -88,8 +88,13 @@ def main() -> int:
 
     # 2. Detailed health (under /api/v1)
     s, body = request(f"{base}/api/v1/health", api_key=api)
-    healthy = s == 200 and isinstance(body, dict) and body.get("db_path")
-    step("/api/v1/health", healthy, f"status={s}, db_path={body.get('db_path') if isinstance(body, dict) else '?'}")
+    # db_path is only shown to a caller holding the key when auth is on.
+    healthy = s == 200 and isinstance(body, dict) and body.get("package_version")
+    step(
+        "/api/v1/health",
+        healthy,
+        f"status={s}, version={body.get('package_version') if isinstance(body, dict) else '?'}",
+    )
 
     # 3. Maintenance loop running
     s, body = request(f"{base}/api/v1/maintenance/status", api_key=api)

@@ -177,6 +177,61 @@ class TestAuthMiddleware:
         resp = authed_client.get("/api/v1/health")
         assert resp.status_code == 200
 
+    def test_unauthenticated_health_omits_filesystem_paths(self, authed_client: TestClient) -> None:
+        """The exempt probe keeps working without the key, minus the layout."""
+        for headers in ({}, {"Authorization": "Bearer wrong-key"}):
+            body = authed_client.get("/api/v1/health", headers=headers).json()
+            assert "package_version" in body, "premise: the full diagnostic payload came back"
+            assert "db_path" not in body and "config_dir" not in body, headers
+
+    def test_authenticated_health_keeps_filesystem_paths(self, authed_client: TestClient) -> None:
+        for headers in ({"Authorization": "Bearer test-secret-key"}, {"X-API-Key": "test-secret-key"}):
+            body = authed_client.get("/api/v1/health", headers=headers).json()
+            assert "db_path" in body and "config_dir" in body, headers
+
+    def test_health_keeps_filesystem_paths_when_auth_is_off(self, client: TestClient) -> None:
+        body = client.get("/api/v1/health").json()
+        assert "db_path" in body and "config_dir" in body
+
+    @pytest.mark.parametrize("headers", [{b"x-api-key": b"k\xc3\xa9"}, {b"authorization": b"Bearer k\xc3\xa9"}])
+    def test_a_non_ascii_key_is_a_wrong_key_not_a_500(
+        self, authed_client: TestClient, headers: dict[bytes, bytes]
+    ) -> None:
+        """str compare_digest raised TypeError on non-ASCII, a 500 on every
+        route, the exempt health probe included."""
+        health = authed_client.get("/api/v1/health", headers=headers)
+        assert health.status_code == 200
+        assert "db_path" not in health.json()
+        assert authed_client.get("/api/v1/project", headers=headers).status_code == 403
+
+    def test_a_non_ascii_configured_key_authenticates_by_its_utf8_bytes(self) -> None:
+        from openchronicle.interfaces.api.app import create_app
+
+        app = create_app(_make_mock_container(), HTTPConfig(api_key="clé-secrète"))
+        with TestClient(app) as c:
+            right = {b"x-api-key": "clé-secrète".encode()}
+            assert c.get("/api/v1/project", headers=right).status_code == 200
+            assert "db_path" in c.get("/api/v1/health", headers=right).json()
+
+    @pytest.mark.parametrize(
+        ("raw", "matches"),
+        [
+            ("clé".encode(), True),  # the key's UTF-8 bytes, as a client sends them
+            ("clé".encode("latin-1"), False),  # the same text in another encoding
+            (b"cl\xff\xfe", False),  # bytes that are not UTF-8 at all
+            (b"cle", False),
+        ],
+    )
+    def test_request_has_key_compares_the_bytes_the_client_sent(self, raw: bytes, matches: bool) -> None:
+        """Built from an ASGI scope, because the test client re-encodes
+        non-UTF-8 header bytes before sending them."""
+        from starlette.requests import Request
+
+        from openchronicle.interfaces.api.middleware.auth import request_has_key
+
+        request = Request({"type": "http", "headers": [(b"x-api-key", raw)]})
+        assert request_has_key(request, "clé") is matches
+
     def test_docs_is_public_even_with_auth(self, authed_client: TestClient) -> None:
         resp = authed_client.get("/docs")
         assert resp.status_code == 200
@@ -533,6 +588,19 @@ class TestMemoryRoutes:
         assert body["code"] == "PROVIDER_ERROR"
         assert body["hint"] == "check OLLAMA_HOST"
 
+    def test_semantic_revision_churn_is_a_typed_502(self, client: TestClient) -> None:
+        from openchronicle.core.domain.exceptions import RevisionChangedError
+
+        service = MagicMock()
+        service.search_semantic.side_effect = RevisionChangedError()
+        _get_container(client).embedding_service = service
+
+        resp = client.get("/api/v1/memory/search", params={"query": "test", "mode": "semantic"})
+        assert resp.status_code == 502
+        body = resp.json()
+        assert body["code"] == "MODEL_REVISION_CHANGED"
+        assert "Retry" in body["hint"]
+
     def test_memory_list(self, client: TestClient) -> None:
         _get_container(client).storage.list_memory.return_value = [_make_memory()]
 
@@ -693,6 +761,23 @@ class TestInputValidation:
             json={"content": "x" * 100_001, "project_id": "p1"},
         )
         assert resp.status_code == 422
+
+    def test_whitespace_only_save_rejected(self, client: TestClient) -> None:
+        """`min_length=1` lets whitespace through; the use case refuses it."""
+        resp = client.post("/api/v1/memory", json={"content": " \n ", "project_id": "p1"})
+        assert resp.status_code == 422
+        assert resp.json()["code"] == "INVALID_ARGUMENT"
+        _get_container(client).storage.add_memory.assert_not_called()
+
+    def test_whitespace_only_update_rejected_before_any_write(self, client: TestClient) -> None:
+        """Fleet-review #27 over REST: a whitespace update blanked the row
+        and deleted its vector."""
+        resp = client.put("/api/v1/memory/m1", json={"content": "   "})
+        assert resp.status_code == 422
+        assert resp.json()["code"] == "INVALID_ARGUMENT"
+        storage = _get_container(client).storage
+        storage.update_memory.assert_not_called()
+        storage.delete_embedding.assert_not_called()
 
     def test_empty_project_name_rejected(self, client: TestClient) -> None:
         resp = client.post("/api/v1/project", json={"name": ""})
@@ -885,6 +970,15 @@ class TestErrorShapeParity:
         )
         assert resp.status_code == 422
         assert "ISO 8601" in resp.text
+
+    def test_naive_created_at_is_422_before_write(self, client: TestClient) -> None:
+        resp = client.post(
+            "/api/v1/memory",
+            json={"content": "x", "project_id": "proj-1", "created_at": "2026-01-01T12:00:00"},
+        )
+        assert resp.status_code == 422
+        assert "created_at must include a UTC offset" in resp.text
+        _get_container(client).storage.add_memory.assert_not_called()
 
     def test_memory_get_404_carries_code_field(self, client: TestClient) -> None:
         """This 404 used to be an inline HTTPException without the "code"

@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
+import sys
+import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -105,6 +110,130 @@ def test_overlap_skip_records_skip_and_does_not_block() -> None:
     skipped = asyncio.run(_exercise())
     assert skipped >= 1, "expected at least one overlap-skip during the slow job"
     assert job.runs_total >= 1
+
+
+_LOOP_LOGGER = "openchronicle.core.application.services.maintenance_loop"
+
+
+async def _wait_for(condition: Callable[[], bool], timeout: float = 2.0) -> None:
+    deadline = asyncio.get_running_loop().time() + timeout
+    while not condition():
+        if asyncio.get_running_loop().time() > deadline:
+            raise AssertionError("condition not reached before the deadline")
+        await asyncio.sleep(0.005)
+
+
+def test_job_queued_behind_another_is_not_an_overlap(caplog: pytest.LogCaptureFixture) -> None:
+    """Fleet-review #27: a job waiting on the global lock holds its own lock
+    while it waits, so every tick counted an overlap and logged a WARNING
+    for a run that never happened. It is now one INFO line naming the job
+    it waits for."""
+    release = asyncio.Event()
+    ran: list[str] = []
+
+    async def _long(c: object) -> None:  # noqa: ARG001
+        await release.wait()
+        ran.append("long")
+
+    async def _short(c: object) -> None:  # noqa: ARG001
+        ran.append("short")
+
+    long_job = maintenance_loop.JobState(name="long", interval_seconds=3600, enabled=True)
+    short_job = maintenance_loop.JobState(name="short", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(),
+        jobs=[long_job, short_job],
+        handlers={"long": _long, "short": _short},
+        tick_seconds=0.005,
+    )
+
+    async def _exercise() -> None:
+        await loop.start()
+        await _wait_for(lambda: short_job._lock.locked())
+        await asyncio.sleep(0.2)  # ~40 ticks with "short" queued behind "long"
+        release.set()
+        await _wait_for(lambda: short_job.runs_total == 1)
+        await loop.stop()
+
+    with caplog.at_level(logging.INFO, logger=_LOOP_LOGGER):
+        asyncio.run(_exercise())
+
+    assert ran == ["long", "short"]
+    assert short_job.runs_skipped_overlap == 0, "queued is not an overlap"
+    assert long_job.runs_skipped_overlap == 0, "a run inside its own interval is not an overlap"
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+    queued = [r.getMessage() for r in caplog.records if "queued" in r.getMessage()]
+    assert queued == ["maintenance job short queued: waiting for long to finish"]
+
+
+def test_each_queued_episode_logs_once_and_names_its_blocker(caplog: pytest.LogCaptureFixture) -> None:
+    """Once per queued episode, not once per job: a run resets the flag.
+
+    Also pins that the running job's name is cleared when its run ends, so a
+    later "waiting for" line cannot name a job that already finished (both
+    were escaping mutants in the pre-deploy review).
+    """
+    job = maintenance_loop.JobState(name="short", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={})
+    now = datetime.now(UTC)
+
+    async def _exercise() -> None:
+        loop._running_job = "long-a"
+        loop._note_in_flight(job, now)
+        loop._note_in_flight(job, now)
+        async with loop._run_slot(job):
+            assert loop._running_job == "short"
+        assert loop._running_job is None, "cleared when the run ends"
+        loop._running_job = "long-b"
+        loop._note_in_flight(job, now)
+
+    with caplog.at_level(logging.INFO, logger=_LOOP_LOGGER):
+        asyncio.run(_exercise())
+    queued = [r.getMessage() for r in caplog.records if "queued" in r.getMessage()]
+    assert queued == [
+        "maintenance job short queued: waiting for long-a to finish",
+        "maintenance job short queued: waiting for long-b to finish",
+    ]
+
+
+def test_real_overlap_is_counted_and_warned_once_per_run(caplog: pytest.LogCaptureFixture) -> None:
+    """A run still going when its next start passes skips that start. That
+    is counted and warned once per run, not once per one-second tick."""
+    gates = [asyncio.Event(), asyncio.Event()]
+    runs = 0
+
+    async def _slow(c: object) -> None:  # noqa: ARG001
+        nonlocal runs
+        gate = gates[runs]
+        runs += 1
+        await gate.wait()
+
+    job = maintenance_loop.JobState(name="slow", interval_seconds=0, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(),
+        jobs=[job],
+        handlers={"slow": _slow},
+        tick_seconds=0.005,
+    )
+
+    async def _exercise() -> list[int]:
+        await loop.start()
+        await _wait_for(lambda: job.runs_skipped_overlap == 1)
+        await asyncio.sleep(0.1)  # ~20 more ticks of the same run
+        first = job.runs_skipped_overlap
+        gates[0].set()
+        await _wait_for(lambda: job.runs_skipped_overlap == 2)  # the next run overruns too
+        await asyncio.sleep(0.1)
+        second = job.runs_skipped_overlap
+        await loop.stop()  # cancels the second run
+        return [first, second]
+
+    with caplog.at_level(logging.WARNING, logger=_LOOP_LOGGER):
+        counts = asyncio.run(_exercise())
+
+    assert counts == [1, 2], "one count per overrunning run"
+    warnings = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+    assert warnings == ["maintenance job slow skipped: previous run still in progress"] * 2
 
 
 def test_disabled_job_is_not_invoked() -> None:
@@ -272,6 +401,10 @@ def test_db_backup_writes_and_prunes(tmp_path: Path) -> None:
     container = MagicMock()
     container.storage = store
     container.paths.db_path = db_path
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     asyncio.run(maintenance_jobs.db_backup(container))
 
@@ -295,6 +428,10 @@ def test_db_vacuum_runs_backup_first(tmp_path: Path) -> None:
     container = MagicMock()
     container.storage = store
     container.paths.db_path = db_path
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     asyncio.run(maintenance_jobs.db_vacuum(container))
 
@@ -336,6 +473,10 @@ def test_db_integrity_check_failure_backs_up_flags_degraded_and_raises(
     container.storage = store
     container.paths.db_path = db_path
     container.maintenance_degraded = False
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     monkeypatch.setattr(store, "integrity_check", lambda: "*** in database main *** page 3: btree corruption")
 
@@ -365,6 +506,10 @@ def test_db_integrity_check_failure_still_flags_when_emergency_backup_fails(
     container.storage = store
     container.paths.db_path = db_path
     container.maintenance_degraded = False
+    container.backup_dir = db_path.parent / "backups"
+    from openchronicle.core.infrastructure.persistence.backup_catalog import BackupCatalog
+
+    container.backups = BackupCatalog(store, container.backup_dir, db_path)
 
     monkeypatch.setattr(store, "integrity_check", lambda: "not ok")
 
@@ -410,6 +555,7 @@ def test_retention_keeps_newest(tmp_path: Path) -> None:
     for i in range(10):
         p = backup_dir / f"old-{i}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         os_time = base - (10 - i) * 60
         os.utime(p, (os_time, os_time))
         paths.append(p)
@@ -446,11 +592,13 @@ def test_retention_burst_cannot_evict_older_days(tmp_path: Path) -> None:
     for d in range(6, 0, -1):
         p = backup_dir / f"day-{d}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         os.utime(p, (now - d * day, now - d * day))
     # ...plus a burst of four backups today.
     for i in range(4):
         p = backup_dir / f"today-{i}.db"
         p.write_bytes(b"x")
+        p.with_suffix(".json").write_text("{}", encoding="utf-8")
         ts = now - (4 - i) * 60
         os.utime(p, (ts, ts))
 
@@ -876,3 +1024,139 @@ def test_degraded_survives_restart_via_persisted_state(tmp_path: Path, monkeypat
     # Never ran / no state file: fail-soft to False.
     state.unlink()
     assert _integrity_failure_persisted() is False
+
+
+# --- one state file, one timestamp rule (phase-end audit C2) -------------------
+
+
+def test_the_state_file_name_is_defined_once_in_source() -> None:
+    """Writer and health readers share maintenance_state_path; a second
+    literal would let one side move while the other reads a stale path."""
+    src = Path(__file__).resolve().parents[1] / "src" / "openchronicle"
+    files = list(src.rglob("*.py"))
+    assert files, "premise: the source tree resolved"
+    hits = [f for f in files if "maintenance_state.json" in f.read_text(encoding="utf-8")]
+    assert [f.name for f in hits] == ["maintenance_loop.py"]
+
+
+def test_the_served_loop_writes_the_state_file_health_reads(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The loop create_app builds and the health readers find their paths
+    separately (container.paths vs RuntimePaths.resolve()). A state_path of
+    None, or one beside another file, used to pass every test, and then a
+    failing nightly backup would read clean."""
+    from openchronicle.core.application.use_cases.diagnose_runtime import _backup_failure_persisted
+    from openchronicle.core.infrastructure.wiring.container import CoreContainer
+    from openchronicle.interfaces.api.app import create_app
+    from openchronicle.interfaces.api.config import HTTPConfig
+
+    monkeypatch.delenv("OC_MAINTENANCE_DISABLED", raising=False)
+    built: list[maintenance_loop.MaintenanceLoop] = []
+    real = maintenance_loop.MaintenanceLoop
+
+    def capture(*args: Any, **kwargs: Any) -> maintenance_loop.MaintenanceLoop:
+        built.append(real(*args, **kwargs))
+        return built[-1]
+
+    monkeypatch.setattr(maintenance_loop, "MaintenanceLoop", capture)
+    with CoreContainer() as container:
+        create_app(container, HTTPConfig())
+        assert len(built) == 1, "premise: create_app built the maintenance loop"
+        loop = built[0]
+        assert "db_backup" in loop._jobs, "premise: the backup job is scheduled"
+        assert _backup_failure_persisted() is False, "premise: no state file yet"
+
+        loop._jobs["db_backup"].last_run_at = datetime.now(UTC)  # ran, never succeeded
+        loop._persist_state()
+
+        assert _backup_failure_persisted() is True
+
+
+def test_the_state_path_sits_beside_the_database(tmp_path: Path) -> None:
+    db = tmp_path / "data" / "oc.db"
+    assert maintenance_loop.maintenance_state_path(db) == tmp_path / "data" / "maintenance_state.json"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("2026-09-28T10:00:00+00:00", datetime(2026, 9, 28, 10, tzinfo=UTC)),
+        ("2026-09-28T05:00:00-05:00", datetime(2026, 9, 28, 10, tzinfo=UTC)),
+        ("2026-09-28T10:00:00", datetime(2026, 9, 28, 10, tzinfo=UTC)),  # naive reads as UTC
+        ("not a time", None),
+        (12345, None),
+        (None, None),
+    ],
+)
+def test_parse_state_timestamp(value: object, expected: datetime | None) -> None:
+    parsed = maintenance_loop.parse_state_timestamp(value)
+    assert parsed == expected
+    assert parsed is None or parsed.tzinfo is not None
+
+
+def _tzset() -> None:
+    if sys.platform != "win32":
+        time.tzset()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="time.tzset() is POSIX-only")
+def test_a_naive_stamp_reads_as_utc_on_a_host_that_is_not_on_utc(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Both CI runners use UTC, where reading a naive stamp as local time
+    gives the same answer, so pin decision C2 in a zone where they differ."""
+    monkeypatch.setenv("TZ", "America/Chicago")
+    _tzset()
+    try:
+        assert time.timezone != 0, "premise: local time is not UTC"
+        parsed = maintenance_loop.parse_state_timestamp("2026-09-28T10:00:00")
+        assert parsed == datetime(2026, 9, 28, 10, tzinfo=UTC)
+    finally:
+        monkeypatch.undo()
+        _tzset()
+
+
+def test_a_naive_stamp_loads_as_utc_and_schedules_without_raising(tmp_path: Path) -> None:
+    """A hand-edited naive stamp used to load naive, then raise TypeError in
+    `_is_due`'s subtraction from an aware now, inside every scheduler tick."""
+    state_path = tmp_path / "maintenance_state.json"
+    state_path.write_text(json.dumps({"last_run_at": {"probe": "2026-08-01T12:00:00"}}), encoding="utf-8")
+    job = maintenance_loop.JobState(name="probe", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(container=MagicMock(), jobs=[job], handlers={}, state_path=state_path)
+    loop._load_state()
+    assert job.last_run_at == datetime(2026, 8, 1, 12, tzinfo=UTC)
+    assert maintenance_loop._is_due(job, datetime(2026, 8, 1, 14, tzinfo=UTC)) is True
+
+
+def test_health_reads_a_failed_run_through_mixed_naive_and_aware_stamps(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Comparing a naive run stamp with an aware success stamp used to raise,
+    which the reader swallowed as "no failure": a failed backup read clean."""
+    from openchronicle.core.application.use_cases.diagnose_runtime import _backup_failure_persisted
+
+    db_path = tmp_path / "data" / "oc.db"
+    db_path.parent.mkdir(parents=True)
+    monkeypatch.setenv("OC_DB_PATH", str(db_path))
+    maintenance_loop.maintenance_state_path(db_path).write_text(
+        json.dumps(
+            {
+                "last_run_at": {"db_backup": "2026-09-28T10:00:00"},
+                "last_success_at": {"db_backup": "2026-09-27T10:00:00+00:00"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert _backup_failure_persisted() is True
+
+
+def test_the_resync_placeholder_never_records_a_success(tmp_path: Path) -> None:
+    """Enabled in core.json, the do-nothing placeholder used to return None,
+    which the loop recorded as a success every hour (phase-end audit C4)."""
+    job = maintenance_loop.JobState(name="git_onboard_resync", interval_seconds=3600, enabled=True)
+    loop = maintenance_loop.MaintenanceLoop(
+        container=MagicMock(),
+        jobs=[job],
+        handlers={"git_onboard_resync": maintenance_jobs.git_onboard_resync},
+        state_path=tmp_path / "maintenance_state.json",
+    )
+    asyncio.run(loop.run_once("git_onboard_resync"))
+    assert job.last_outcome == "skipped"
+    assert job.last_success_at is None

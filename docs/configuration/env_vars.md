@@ -4,7 +4,7 @@ OpenChronicle v3 reads configuration from environment variables and an
 optional `core.json` file. Env vars always win, then `core.json` keys,
 then dataclass defaults.
 
-The total surface is small (~25 vars, all listed below). v2's LLM
+The total surface is small (~26 vars, all listed below). v2's LLM
 provider keys, MoE pool config, Discord settings, and routing knobs are
 gone with the subsystems they configured.
 
@@ -21,6 +21,10 @@ rather than silently shadowing them.
 | `OC_DB_PATH` | SQLite file location | `data/openchronicle.db` |
 | `OC_CONFIG_DIR` | Directory containing `core.json` | `config` |
 | `OC_OUTPUT_DIR` | Directory for operator-export artifacts | `output` |
+| `OC_BACKUP_DIR` | Existing absolute directory for catalogued SQLite snapshots (`auto/` and `manual/`); a configured missing or unwritable directory logs an ERROR and fails each backup (no fallback, service keeps running) | Database parent `/backups` |
+| `OC_CLOUD_REMOTE` | rclone destination for the nightly encrypted offsite push, in `name:path` form (e.g. `ocdrop:openchronicle/nas`); empty disables it. A connection string, a leading `-`, spaces or quotes are rejected as `misconfigured`. See [cloud_backup.md](cloud_backup.md) | *(unset)* |
+| `OC_CLOUD_AGE_RECIPIENTS` | Comma-separated age **public** keys the push encrypts to (primary and recovery). Empty while `OC_CLOUD_REMOTE` is set is `misconfigured`: nothing is pushed unencrypted | *(unset)* |
+| `RCLONE_CONFIG` | Path of the rclone config holding the remote's token; container wiring, set in the NAS compose | `/config/rclone.conf` |
 
 The four-layer precedence (constructor arg > per-path env > `OC_DATA_DIR`-derived > default) is implemented in
 `application/config/paths.py:RuntimePaths.resolve`.
@@ -46,6 +50,11 @@ falls back to FTS5-only and surfaces `"status": "degraded"` from
 `embedding_backfill` job (default every 6 hours) catches up missing
 embeddings when the provider recovers.
 
+With `ollama`, health also reads `degraded` while the model's revision
+is unverified (`model_revision_state: "unknown"`): nothing is
+embedded until Ollama's `/api/tags` lists the configured model. See
+[MAINTENANCE.md](../architecture/MAINTENANCE.md#model-revision-adr-0005-7).
+
 Content the provider rejects as exceeding the model's context is a
 classified PERMANENT outcome (`CONTENT_TOO_LONG`, ADR 0009), not
 degradation: the row parks as an `unembeddable` tombstone instead of
@@ -65,19 +74,71 @@ relationships).
 | `OC_API_HOST` | Bind address | `127.0.0.1` |
 | `OC_API_PORT` | Listen port | `8000` |
 | `OC_API_KEY` | Bearer token for auth (auth is disabled if unset or empty) | — |
+| `OC_BACKUP_MCP_ENABLED` | Register five fixed-root backup and restore-preparation HTTP MCP tools; requires an explicit `OC_BACKUP_DIR` and a nonempty effective API key; otherwise, or for an unrecognized value, logs an ERROR and leaves them off. Off in production until the v3.7.0 deploy, which enables it (operator decision 2026-09-30, ROADMAP OPS-07) | `false` |
 | `OC_API_RATE_LIMIT_RPM` | Per-IP request-per-minute limit | `600` |
-| `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset, so one stack variable protects both surfaces. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
+| `OC_API_ALLOWED_HOSTS` | CSV `Host:` header allowlist for the REST surface (DNS-rebinding defense; same entry format as `OC_MCP_ALLOWED_HOSTS`). Falls back to `OC_MCP_ALLOWED_HOSTS` when unset or empty. Loopback hosts are always allowed on top — the Docker HEALTHCHECK keeps working regardless. Rejections are 421 `INVALID_HOST`. | `127.0.0.1:*,localhost:*,[::1]:*` |
 | `OC_API_CORS_ORIGINS` | CSV of allowed CORS origins; the CORS middleware is only registered when this is non-empty | — |
+
+The NAS compose file passes an empty `OC_API_ALLOWED_HOSTS` by default, so
+REST inherits the MCP Host allowlist, including any configured LAN hostname.
+An explicit REST list replaces that fallback. The optional metrics collector
+scrapes OC's published port as `host.docker.internal`, so append
+`host.docker.internal:*` to `OC_MCP_ALLOWED_HOSTS` (REST inherits it), or to
+the explicit REST list if you set one. A passing
+loopback healthcheck does not verify LAN access; follow the
+[metrics history runbook](../monitoring/runbook.md) when enabling collection.
+
+## Metrics
+
+| Var | Purpose | Default |
+|---|---|---|
+| `OC_METRICS_ENABLED` | Enable bounded Prometheus metrics and the authenticated/Host-guarded `/metrics` endpoint. The standard Docker image and development extra already contain `prometheus-client`; ordinary installs that enable this must install the `[metrics]` extra. | `false` |
+
+Metrics are available in the standard image without changing the default
+runtime behavior. When disabled, the application uses a no-op recorder and
+does not register `/metrics`. When enabled, observations remain in the
+process registry until the process exits; collector history is a separate
+phase. Health, documentation, and metrics requests are not included in the
+application HTTP traffic series. Do not put content, query text, project or
+memory identifiers, client/IP data, URLs, headers, exception messages, or
+credentials in metric labels.
+
+The NAS compose file adds two profile-gated collector services: `prometheus`
+(profile `metrics`, no auth) and `prometheus-auth` (profile `metrics-auth`,
+sends `OC_API_KEY`). Neither starts unless its profile is selected, and `OC_METRICS_ENABLED` must be set to
+`true` explicitly. Every control below is a stack environment variable, so a
+Portainer stack can set all of them without a compose edit:
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `COMPOSE_PROFILES` | `metrics-auth` whenever `OC_API_KEY` is set, `metrics` when it is empty; never both. Compose reads it from the stack environment, the same as `--profile` on the command line | *(unset; no collector)* |
+| `HOST_PROMETHEUS_PORT` | Loopback-only Prometheus UI port on the NAS | `19090` |
+| `HOST_PROMETHEUS_DATA_DIR` | Local host directory for Prometheus history; leave unset to use the named `prometheus-data` volume | `prometheus-data` |
+| `PROMETHEUS_RETENTION_TIME` | `--storage.tsdb.retention.time` | `14d` |
+| `PROMETHEUS_RETENTION_SIZE` | `--storage.tsdb.retention.size`, for blocks only; WAL and head data come on top | `1GB` |
+
+Both collector configurations are inline in the compose file, so a file-based
+Portainer stack needs nothing beside it, and their scrape target follows
+`HOST_HTTP_PORT`. The authenticated collector reads its bearer token from a
+Compose secret sourced from the stack's own `OC_API_KEY`; no token file is
+created by hand and none is tracked. Compose refuses to create a container
+whose environment-sourced secret is unset, so only `prometheus-auth` mounts
+it.
+
+Keep the collector data on a local filesystem with at least 2 GiB available;
+do not use NFS. The checked-in collector is pinned to
+`prom/prometheus:v3.14.0`. See the [metrics history runbook](../monitoring/runbook.md)
+and [PromQL catalog](../monitoring/promql.md) for activation and queries.
 
 Five paths are exempt from auth even when `OC_API_KEY` is set:
 `/health`, `/api/v1/health`, `/docs`, `/redoc`, and `/openapi.json`
 (`_AUTH_EXEMPT_PATHS` plus `_DOCS_PATHS` in
-`interfaces/api/middleware/`). Note that `/api/v1/health` is the *full*
-diagnostic payload, not the static liveness probe — it reports absolute
-`db_path` and `config_dir` values, so on a deployment that enables auth
-this exemption discloses filesystem layout to an unauthenticated caller.
-Narrowing it to the top-level `/health` probe is an open item from the
-2026-08-15 review.
+`interfaces/api/middleware/`). `/api/v1/health` is the full diagnostic
+payload, not the static liveness probe. When a key is set, a caller
+without it gets that payload minus the absolute `db_path` and
+`config_dir`; a caller presenting the key, and every caller when auth is
+off, gets them too (closed 2026-09-29; it was an open item from the
+2026-08-15 review).
 
 **Auth posture:** OC supports auth but does not require it. Whether to
 set `OC_API_KEY` is a deployment decision — see
@@ -114,14 +175,14 @@ them.
 | Var | Purpose | Default |
 |---|---|---|
 | `OC_LOG_FORMAT` | `human` (Python default formatter) or `json` (one JSON object per line, suitable for Loki/OpenSearch/Datadog) | `human` |
-| `OC_LOG_FILE` | Mirror the log stream to this size-rotating file (5 MiB × 1 live + 3 rotated; same format/level as stderr). Point it at a mounted volume so logs survive a container recreate — a Portainer redeploy destroys the previous container's stderr history. Unwritable paths degrade to stderr-only with a warning, never a crash. Empty = disabled. The NAS compose defaults it to `/app/output/logs/openchronicle.log` | *(unset; NAS compose sets it)* |
+| `OC_LOG_FILE` | Mirror the log stream to this size-rotating file (5 MiB × 1 live + 3 rotated; same format/level as stderr). Point it at a mounted volume so logs survive a container recreate — a Portainer redeploy destroys the previous container's stderr history. Unwritable paths degrade to stderr-only with a warning, never a crash. Empty = disabled. The NAS compose defaults it to `/output/logs/openchronicle.log`, on the output volume (before 2026-09-23 it pointed at `/app/output/logs`, which is on no volume, so no file was ever written) | *(unset; NAS compose sets it)* |
 | `OC_LOG_LEVEL` | `DEBUG`, `INFO`, `WARNING`, `ERROR` (`WARN`/`FATAL` accepted as aliases). An unrecognized value logs a warning and falls back to the default rather than failing to start | `INFO` |
 
 ## Maintenance loop
 
 | Var | Purpose | Default |
 |---|---|---|
-| `OC_MAINTENANCE_DISABLED` | `1`/`true`/`yes`/`on` short-circuits the loop entirely | unset (loop runs) |
+| `OC_MAINTENANCE_DISABLED` | `1`/`true`/`yes`/`on` short-circuits the loop entirely; an unrecognized value logs a warning and leaves the loop running | unset (loop runs) |
 
 Job-level intervals and enabled flags live in `core.json`'s
 `maintenance.jobs` section. See `docs/architecture/MAINTENANCE.md`.
@@ -130,13 +191,19 @@ Job-level intervals and enabled flags live in `core.json`'s
 
 | Var | Purpose | Default |
 |---|---|---|
-| `OC_SEARCH_FTS5_ENABLED` | `0` to skip FTS5 setup (forces fallback keyword search) | `1` |
+| `OC_SEARCH_FTS5_ENABLED` | `0`/`false`/`no`/`off` skips FTS5 setup (forces fallback keyword search); an unrecognized value logs a warning and keeps FTS5 on | `1` |
 
 ## Git onboarding
 
 | Var | Purpose | Default |
 |---|---|---|
 | `OC_GIT_TOKEN` | GitHub PAT (fine-grained, `contents:read`) for the `onboard_git` MCP tool to clone private repos | — |
+
+## Build identity
+
+| Var | Purpose | Default |
+|---|---|---|
+| `OC_BUILD_REVISION_FILE` | Path of the file holding the git SHA the image was built from, which `health.build_revision` and `oc version` report. The image bakes it at build time; the override exists for tests and should not be set in a deployment, where it would let configuration claim a revision the image was never built from | `/app/build-revision` |
 
 ## See also
 

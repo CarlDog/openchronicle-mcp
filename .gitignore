@@ -578,3 +578,9 @@ desktop.ini
 .docker/
 docker-compose.override.yml
 docker-compose.local.yml
+
+# Cloud-backup secrets (design 0001 §7): the rclone OAuth token and age
+# identities must never be committed; *.age artifacts are backups, not source.
+rclone.conf
+*.age
+backup-identity*

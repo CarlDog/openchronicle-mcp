@@ -10,6 +10,21 @@ MCP's wire format.
 For client setup see `docs/integrations/mcp_client_setup.md`. For
 stability guarantees see `docs/api/STABILITY.md`.
 
+**Unknown arguments are refused** (ROADMAP QUAL-11). A call that passes
+a key the tool does not declare fails before the handler runs, so nothing
+is written, and the error names each refused key, a likely replacement
+and every valid argument:
+
+```text
+Error executing tool memory_search: INVALID_ARGUMENT: unknown argument
+'limit' (did you mean 'top_k'?). Valid arguments: query, top_k, ...
+```
+
+Before this, FastMCP ignored extra keys, so `memory_search(limit=3)`
+returned the default 8 results with no error. Note the sibling naming:
+search counts with `top_k`, while `memory_list` and `db_backup_list` use
+`limit`; REST splits the same way.
+
 ## Memory
 
 | Tool | Purpose |
@@ -22,7 +37,7 @@ stability guarantees see `docs/api/STABILITY.md`.
 | `memory_delete` | Preview (`confirm=false`) or hard-delete (`confirm=true`). `confirm` is **required** — omitting it is an error, not a preview. Two-step safety; the preview returns content/tags/project_id/pinned plus `deleted: false` and a `next_step`, without touching the DB. |
 | `memory_pin` | Toggle pin state. |
 | `memory_stats` | Counts + per-tag/per-source breakdown. |
-| `memory_embed` | Generate missing (or all, with `force=true` — which also retries rows parked as unembeddable) embeddings. Over-length content parks as a tombstone and is reported in the additive `tombstoned` count (a tombstoned-only run is `status="ok"`). `background=true` starts the backfill and returns immediately (`started`/`already_running`) — required for full reindexes, which outlive MCP tool timeouts; progress via health's `stale`/`missing` (parked rows stay in `unembeddable` by design). |
+| `memory_embed` | Generate missing (or all, with `force=true` — which also retries rows parked as unembeddable) embeddings. Over-length content parks as a tombstone and is reported in the additive `tombstoned` count (a tombstoned-only run is `status="ok"`). `background=true` starts the backfill and returns immediately (`started`/`already_running`) — required for full reindexes, which outlive MCP tool timeouts; progress via health's `stale`/`missing` (parked rows stay in `unembeddable` by design), and how the run ended via health's `last_background_backfill` ([MAINTENANCE.md](../architecture/MAINTENANCE.md#background-backfills)). One backfill runs at a time, so the synchronous form also answers `already_running` when one is in progress, and `failed` with a `message` while the model revision is unverified ([ADR 0005 §7](../design/0005-embedding-identity.md)). |
 
 The `memory_save` tool's input schema is the canonical "what does an
 LLM need to write a memory" shape:
@@ -33,7 +48,7 @@ LLM need to write a memory" shape:
   "project_id": "string, required",
   "tags": ["decision", "rejected", "milestone", "context", "convention", "scope"],
   "pinned": false,
-  "created_at": "ISO datetime, optional (for backdated imports)"
+  "created_at": "ISO 8601 datetime with a UTC offset, optional (for backdated imports); a value without an offset is rejected, and the instant is stored in UTC"
 }
 ```
 
@@ -64,7 +79,27 @@ LLM need to write a memory" shape:
 
 | Tool | Purpose |
 |---|---|
-| `health` | Probe server state: DB reachability, config, embedding subsystem status, `maintenance_degraded`, `package_version`, `schema_version`, and `fts5_active`. Identical key set to `GET /api/v1/health`. |
+| `health` | Probe server state: DB reachability, config, embedding subsystem status, `maintenance_degraded`, `backup_last_run_failed`, `cloud_backup_status`, `package_version`, `schema_version`, and `fts5_active`. Identical key set to `GET /api/v1/health` as seen by a caller holding the key (with auth on, that route omits `db_path` and `config_dir` for callers without it). |
+
+## Optional local backup and restore preparation
+
+Five additional tools register on the HTTP MCP surface only when
+`OC_BACKUP_MCP_ENABLED=true`, `OC_BACKUP_DIR` is explicitly configured, and
+the effective `OC_API_KEY` is nonempty; any other setting logs an ERROR and
+leaves them off without stopping startup. They are off in production for now:
+auth is on and `OC_BACKUP_DIR` is set there, but `OC_BACKUP_MCP_ENABLED`
+stays `false` until then: the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07). The default 18-tool inventory and stdio server omit them. All take generated artifact IDs, never file paths.
+
+| Tool | Purpose |
+|---|---|
+| `db_backup_create` | Create a consistent manual SQLite snapshot in the fixed backup root. |
+| `db_backup_list` | List completed auto/manual snapshots; metadata is not a fresh verification. |
+| `db_backup_verify` | Recheck a snapshot's SHA-256, full SQLite integrity, schema and counts. |
+| `db_restore_plan` | Compare a verified candidate to the running store; read-only. Returns `stop_reasons` (newer schema, or no project shared with the running store) plus `memory_delta` and project differences. |
+| `db_restore_stage` | Reverify and copy a candidate to the DB volume for an offline restore; refuses on any stop reason; does not activate it. |
+
+See [design 0017](../design/0017-exposed-backup-and-restore.md) and the
+[local backup runbook](../configuration/local_backup_restore.md).
 
 ## Tool design philosophy
 

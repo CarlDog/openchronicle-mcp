@@ -80,17 +80,21 @@ Preserves identity (id, created_at), bumps `updated_at`.
 
 Without `--confirm`, prints a deletion preview and leaves the memory
 unchanged. Re-run with `--confirm` for the hard delete. There is no
-soft-delete recovery; backups are the recovery path.
+soft-delete recovery; backups are the recovery path. `--json` for
+structured output.
 
 ### `oc memory embed`
 
 Generate embeddings for memories that lack them. `--force` regenerates
 all (use after switching `OC_EMBEDDING_MODEL`), and also retries rows
 parked as unembeddable. `--status` reports coverage without doing work,
-including the `Unembeddable` count (ADR 0009). The run summary reports
+including the `Unembeddable` count (ADR 0009), and verifies and prints
+the model revision first. While an Ollama model's revision is
+unverified the run is refused: one line and exit 1 (ADR 0005 §7). The
+run summary reports
 `tombstoned` — content the provider rejected as over-length, parked
 rather than retried; a tombstoned-only run exits 0 (it is not a
-failure).
+failure). `--json` for structured output.
 
 ### `oc memory export [--out FILE] [--project-id ID]`
 
@@ -178,20 +182,23 @@ echoes it back after a write.)
 
 Rename or replace metadata. Set at least one of `--name` / `--metadata`;
 whichever you omit is left untouched. Pass `--metadata '{}'` to clear.
+`--json` prints the updated project, metadata included.
 
 ### `oc delete-project PROJECT_ID`
 
 Preview by default — prints the project name and how many memories would
 go with it. Add `--confirm` to actually delete. The cascade takes the
 project row, its memories, and their embeddings in one transaction. There
-is no soft-delete; `oc db backup` is the only recovery path.
+is no soft-delete; `oc db backup` is the only recovery path. `--json`
+for structured output, preview and deletion alike.
 
 ## Database
 
 ### `oc db info`
 
 File sizes, row counts (projects / memory_items / memory_embeddings /
-schema_version), SQLite pragmas, integrity check.
+schema_version), SQLite pragmas, integrity check. `--json` for
+structured output.
 
 ### `oc db vacuum`
 
@@ -241,7 +248,13 @@ Manually invoke a single maintenance handler. Useful at cutover time
 (`oc maintenance run-once embedding_backfill` after migrating).
 
 Job names: `db_backup`, `db_vacuum`, `db_integrity_check`,
-`embedding_backfill`, `git_onboard_resync`.
+`embedding_backfill`, `git_onboard_resync`, `cloud_backup`.
+
+Prints `OK: <job> complete` when the job did its work, and
+`SKIPPED: <job> did nothing (<reason>)` when it did not: another run was
+already in progress, or the job is not configured (`cloud_backup` with
+`OC_CLOUD_REMOTE` unset). Run `cloud_backup` as uid 1000; see
+[cloud_backup.md](../configuration/cloud_backup.md).
 
 ## Operator
 

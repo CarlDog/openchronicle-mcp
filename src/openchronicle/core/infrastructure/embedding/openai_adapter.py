@@ -10,6 +10,7 @@ from openchronicle.core.domain.embedding_fingerprint import settings_fingerprint
 from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG, MISSING_PACKAGE, PROVIDER_ERROR
 from openchronicle.core.domain.exceptions import ProviderError as LLMProviderError
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
+from openchronicle.core.infrastructure.embedding.response_validation import validate_embeddings
 from openchronicle.core.infrastructure.embedding.vector_norm import normalize_unit
 
 logger = logging.getLogger(__name__)
@@ -103,10 +104,20 @@ class OpenAIEmbeddingAdapter(EmbeddingPort):
                 model=self._model,
                 dimensions=self._dimensions,
             )
-            vectors: list[list[float]] = []
-            for item in response.data:
-                vectors.append(normalize_unit(item.embedding))
-            return vectors
+            embeddings = [item.embedding for item in response.data]
+            # No requested-dimensions check, unlike Ollama. A generic
+            # OpenAI-compatible host may ignore `dimensions`, and the store
+            # records the measured length, so that is not a bad response.
+            validate_embeddings(
+                embeddings,
+                expected=len(texts),
+                provider="openai",
+                label="OpenAI",
+                model=self._model,
+            )
+            return [normalize_unit(vec) for vec in embeddings]
+        except LLMProviderError:
+            raise
         except Exception as exc:
             _type = type(exc).__name__
             raise LLMProviderError(

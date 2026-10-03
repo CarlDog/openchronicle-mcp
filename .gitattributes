@@ -1,2 +1,14 @@
+# Line endings (2026-09-23): the repository stores LF for every text file,
+# and working trees check out LF too. Before this, differing core.autocrlf
+# settings across machines and tools committed a mix of CRLF and LF, which
+# turned main -> v4/develop merges into whole-file conflicts. See design
+# 0014 Part 4.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF in working trees; the stored blobs stay LF.
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
 # Ensure shell scripts always have LF endings (required for Docker)
 *.sh text eol=lf

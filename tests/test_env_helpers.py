@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
+
 import pytest
 
 from openchronicle.core.application.config.env_helpers import (
     env_override,
+    parse_bool_env,
     parse_float,
     parse_int,
     parse_str,
@@ -146,3 +149,41 @@ class TestParseIntEnv:
         assert parse_int_env("", default=600, name="X") == 600
         assert parse_int_env("   ", default=600, name="X") == 600
         assert parse_int_env(None, default=600, name="X") == 600
+
+
+# ---------- parse_bool_env ----------
+
+
+@pytest.mark.parametrize(
+    ("raw", "default", "expected"),
+    [
+        (None, True, True),
+        ("", False, False),
+        ("   ", True, True),
+        ("1", False, True),
+        ("TRUE", False, True),
+        (" yes ", False, True),
+        ("on", False, True),
+        ("0", True, False),
+        ("False", True, False),
+        ("no", True, False),
+        ("OFF", True, False),
+    ],
+)
+def test_parse_bool_env_recognized(raw: str | None, default: bool, expected: bool) -> None:
+    assert parse_bool_env(raw, default=default, name="OC_X") is expected
+
+
+@pytest.mark.parametrize("default", [True, False])
+def test_parse_bool_env_unrecognized_logs_and_keeps_the_default(
+    default: bool, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING):
+        assert parse_bool_env("maybe", default=default, name="OC_X") is default
+    assert "Invalid OC_X='maybe'" in caplog.text
+
+
+def test_parse_bool_env_logs_at_the_callers_level(caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.WARNING):
+        parse_bool_env("maybe", default=False, name="OC_X", level=logging.ERROR)
+    assert [r.levelno for r in caplog.records] == [logging.ERROR]

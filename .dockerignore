@@ -17,3 +17,8 @@ data/
 dist/
 build/
 *.egg-info/
+
+# Cloud-backup secrets (design 0001 §7)
+rclone.conf
+*.age
+backup-identity*

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -116,6 +117,92 @@ def test_mcp_post_initialize_hits_transport_at_slash_mcp() -> None:
     )
 
 
+def test_mcp_requests_log_no_lifespan_lines_at_info(caplog: pytest.LogCaptureFixture) -> None:
+    """Stateless streamable-HTTP runs FastMCP's lifespan once per request.
+
+    Its "starting"/"shutting down" pair therefore went into OC_LOG_FILE at
+    INFO on every MCP call (design 0014 Part 4). They are DEBUG now; the
+    once-per-process startup lines live in the ASGI lifespan and the stdio
+    entrypoint.
+    """
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    headers = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
+    with TestClient(app) as client, caplog.at_level(logging.DEBUG, logger="openchronicle.interfaces.mcp.server"):
+        for n in range(3):
+            client.post(
+                "/mcp/",
+                json={
+                    "jsonrpc": "2.0",
+                    "id": n,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-03-26",
+                        "capabilities": {},
+                        "clientInfo": {"name": "log-test", "version": "1"},
+                    },
+                },
+                headers=headers,
+            )
+    lifespan = [
+        r for r in caplog.records if r.name == "openchronicle.interfaces.mcp.server" and "MCP server" in r.getMessage()
+    ]
+    starts = [r for r in lifespan if "starting" in r.getMessage()]
+    assert len(starts) >= 3, "premise: the lifespan runs once per request"
+    assert [r.levelname for r in lifespan if r.levelno != logging.DEBUG] == []
+
+
+def test_stdio_entrypoint_logs_one_startup_line_and_keeps_stdout_clean(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The stdio server's only INFO startup line, now that the lifespan's is DEBUG."""
+    from openchronicle.interfaces.mcp import __main__ as entry
+
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "stdio.db"))
+    monkeypatch.delenv("OC_MCP_TRANSPORT", raising=False)
+    server = MagicMock()
+    monkeypatch.setattr("openchronicle.interfaces.mcp.server.create_server", lambda _c, _cfg: server)
+
+    with caplog.at_level(logging.INFO, logger=entry.__name__):
+        entry.main()
+
+    server.run.assert_called_once_with(transport="stdio")
+    assert [r.getMessage() for r in caplog.records if r.name == entry.__name__] == [
+        "OpenChronicle MCP server starting (stdio transport)"
+    ]
+    assert capsys.readouterr().out == "", "stdout belongs to the stdio protocol"
+
+
+def test_stdio_startup_line_goes_to_stderr_with_production_logging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Under pytest the root logger already has handlers, which makes the
+    entrypoint's logging.basicConfig a no-op, so the test above cannot see
+    which stream the line takes. Here the root logger starts empty, as in
+    production (test-honesty review)."""
+    from openchronicle.interfaces.mcp import __main__ as entry
+
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "stdio.db"))
+    monkeypatch.delenv("OC_MCP_TRANSPORT", raising=False)
+    monkeypatch.setattr("openchronicle.interfaces.mcp.server.create_server", lambda _c, _cfg: MagicMock())
+    root = logging.getLogger()
+    saved_handlers, saved_level = root.handlers[:], root.level
+    root.handlers.clear()
+    try:
+        entry.main()
+    finally:
+        for handler in root.handlers[:]:
+            root.removeHandler(handler)
+        root.handlers.extend(saved_handlers)
+        root.setLevel(saved_level)
+
+    captured = capsys.readouterr()
+    assert "OpenChronicle MCP server starting (stdio transport)" in captured.err
+    assert captured.out == "", "stdout belongs to the stdio protocol"
+
+
 def test_mcp_post_at_doubled_path_does_not_work() -> None:
     """Companion to the regression test above: /mcp/mcp/ should NOT be the
     real endpoint. If a future change accidentally drops streamable_http_path,
@@ -159,7 +246,7 @@ def test_log_format_default_is_human(monkeypatch: pytest.MonkeyPatch) -> None:
     handler = logging.getLogger().handlers[0]
     formatter_cls = type(handler.formatter).__name__
     # Plain logging.Formatter, not _JsonFormatter
-    assert formatter_cls == "Formatter"
+    assert formatter_cls == "_RedactingFormatter"  # the human format, redacting (QUAL-12)
 
 
 def test_log_format_json_switches_formatter(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -184,7 +271,7 @@ def test_log_format_invalid_falls_back_to_human(monkeypatch: pytest.MonkeyPatch)
 
     configure_root_logger()
     handler = logging.getLogger().handlers[0]
-    assert type(handler.formatter).__name__ == "Formatter"
+    assert type(handler.formatter).__name__ == "_RedactingFormatter"
     monkeypatch.delenv("OC_LOG_FORMAT", raising=False)
     configure_root_logger()
 

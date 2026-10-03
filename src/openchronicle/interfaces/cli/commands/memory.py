@@ -16,7 +16,7 @@ from openchronicle.core.application.use_cases import (
     show_memory,
     update_memory,
 )
-from openchronicle.core.domain.exceptions import NotFoundError
+from openchronicle.core.domain.exceptions import NotFoundError, RevisionUnknownError
 from openchronicle.core.domain.exceptions import ValidationError as DomainValidationError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.infrastructure.wiring.container import CoreContainer
@@ -123,6 +123,12 @@ def cmd_memory_pin(args: argparse.Namespace, container: CoreContainer) -> int:
 
 def cmd_memory_search(args: argparse.Namespace, container: CoreContainer) -> int:
     tag_list = parse_csv_tags(args.tags)
+    service = container.embedding_service
+    if service is not None and args.mode != "keyword":
+        # A CLI process starts with the model revision unverified, and while
+        # it is, the semantic channel matches every revision (ADR 0005 §7).
+        # One probe settles it for this invocation.
+        service.port.refresh_revision()
     # args.pinned_limit is deliberately unread — deprecated and inert per ADR 0008 §4;
     # the flag stays accepted until at least v5.0.0.
     try:
@@ -204,7 +210,9 @@ def cmd_memory_delete(args: argparse.Namespace, container: CoreContainer) -> int
 def cmd_memory_update(args: argparse.Namespace, container: CoreContainer) -> int:
     """Update an existing memory item's content and/or tags."""
     tags = parse_csv_tags(args.tags)
-    content = args.content if args.content else None
+    # None when --content is absent; an explicit "" reaches the use case,
+    # which refuses blank content like every other surface (fleet-review #27).
+    content = args.content
 
     if content is None and tags is None:
         print("At least one of --content or --tags must be provided")
@@ -236,7 +244,14 @@ def cmd_memory_embed(args: argparse.Namespace, container: CoreContainer) -> int:
         return 1
 
     if getattr(args, "status", False):
-        status = service.embedding_status()
+        # A fresh process has not verified the revision; without this the
+        # counts would ignore it (ADR 0005 §7) and hide a re-pull.
+        revision = service.port.refresh_revision()
+        status = {
+            **service.embedding_status(),
+            "model_revision": revision.value,
+            "model_revision_state": revision.state,
+        }
         if getattr(args, "json", False):
             print(_json.dumps(status))
         else:
@@ -249,10 +264,16 @@ def cmd_memory_embed(args: argparse.Namespace, container: CoreContainer) -> int:
             # missing, nor stale.
             print(f"Unembeddable:   {status['unembeddable']}")
             print(f"Model:          {service.port.model_name()}")
+            print(f"Revision:       {revision.state}" + (f" ({revision.value})" if revision.value else ""))
         return 0
 
     force = getattr(args, "force", False)
-    result = service.generate_missing(force=force)
+    try:
+        result = service.generate_missing(force=force)
+    except RevisionUnknownError as exc:
+        # Refused before any candidate was selected: one line, not a traceback.
+        print(f"Backfill refused: {exc}. {exc.hint}")
+        return 1
     payload = {
         "generated": result.generated,
         "failed": result.failed,

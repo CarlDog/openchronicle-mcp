@@ -7,7 +7,9 @@ is historical reference for the design decisions and phase plan —
 (the ambiguity was a 2026-08-15 review finding: the freshest state was
 accumulating in a doc that disclaimed being current):
 
-- **"Post-cutover follow-ups (tech debt)"** — the project backlog.
+- **"Post-cutover follow-ups (tech debt)"** — the detailed backlog
+  entries. Since 2026-09-28 [ROADMAP.md](ROADMAP.md) sets the order of
+  work and gives each item a stable ID; cite items by that ID.
 - **"Open Questions" 20-22** — active research threads.
 
 Current state lives in
@@ -444,6 +446,10 @@ Before v3 replaces main:
 
 ### Migration script (`scripts/migrate_v2_to_v3.py`)
 
+> **Removed 2026-09-30** (ROADMAP DATA-05), with `scripts/verify_v3_db.py` and
+> their tests: the one remaining v2 recovery (cutover item L3) was done as a
+> triage instead. The plan below is kept as history.
+
 1. Read v2 DB read-only
 2. Create new v3-shaped DB next to it (or in tmpdir)
 3. Copy `projects` table
@@ -871,11 +877,88 @@ The README is not a market-positioning document. It states what OC is, what it d
 
 ### Post-cutover follow-ups (tech debt)
 
-**Active queue — sorted by need (operator-ratified 2026-08-29).** The
-authoritative order for picking up work; each line points at the full
-entry (below, or in its design doc):
+**Exposed backup/restore capability before timestamp migration.** Design
+[0017](design/0017-exposed-backup-and-restore.md), draft PR #39, runbook
+[local_backup_restore.md](configuration/local_backup_restore.md). Status lives
+in the assessment (revs 217-227). Open, in order:
 
-1. ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
+1. Merge: **done after the v3.4.0 tag** (operator decision, 2026-09-24),
+   so v3.4.0 kept its reviewed scope. The nightly backup change
+   (catalogued, verified, failures quarantined) ships in **v3.5.0**
+   (ROADMAP OPS-04), **tagged and deployed 2026-09-28**; its deploy check, 0017
+   step 5, passed the same day (ROADMAP OPS-05). The review
+   fixes and an independent review of the fix round are done (revs
+   221-227).
+2. Off-NAS v3.3.0 copy before any stack change: **done 2026-09-24.** Taken
+   through the Portainer console route (`pre-change-20260924T040030Z.db`,
+   9,895,936 bytes, SHA-256 `eb85987e55c52dff87a4bfa9e4c83db73a3de77ec7481f1f97ae7ac06a689243`), copied to the operator workstation
+   (`D:\Backups\openchronicle\`, outside the NAS and outside OneDrive), with
+   the same digest in the container, on the share and locally. Read-only
+   checks: integrity ok, no FK violations, schema 4, 1,083 memories and 39
+   projects, matching live health; selected IDs present. The `/config`
+   copies are to be deleted from the console.
+3. Helper image for the NAS drill: **done.** The operator authorized a
+   non-release image (2026-09-24), published as
+   `ghcr.io/carldog/openchronicle-mcp:backup-drill-20260924-1fad2c4c` (`sha256:38b259a98f73e009d12a11edfd34298c72d7d3019c6ebe8f26ef553695f95758`), from `1fad2c4c`; see the runbook.
+4. NAS drill (normal and aborted legs), independently reviewed: **passed
+   2026-09-24** on the drill image, seeded from the verified copy, with the
+   latency budget met; an independent checker accepted it with coverage gaps
+   (listed in the runbook). Evidence is archived off the NAS. The checker also
+   found the share granting `Everyone` read on files under
+   `/volume1/docker/openchronicle` (the seed copy there has been deleted); the
+   storage review below must settle the share ACLs.
+5. Before the timestamp migration: a fresh off-NAS copy and an old/new
+   image-pair rehearsal.
+
+The MCP backup tools ship off by default (operator, 2026-09-24). Auth has been
+on since 2026-09-25, and production sets `OC_BACKUP_DIR=/exports/backups`
+(v3.5.0 with the `/exports` mount, OPS-03 and OPS-05), and
+the operator decided on 2026-09-30 to enable them at the v3.7.0 deploy (ROADMAP OPS-07). Catalogued auto backups land in
+`/exports/backups/auto`; `/data/backups/auto` holds only frozen pre-v3.5.0
+snapshots.
+
+Deferred from the 2026-09-24 review, deliberately:
+
+- Snapshot inspection exists in three shapes: `BackupCatalog._inspect`,
+  `offline_restore._inspect` and `offline_restore._describe`. Together they
+  carry one identity contract (standalone file, checks, project
+  fingerprint). Lift them into one leaf module that the helper can import
+  without constructing `CoreContainer`. Do it as its own reviewed change,
+  not while touching restore code.
+- `docker-compose.nas.yml` hardcodes `OC_BACKUP_DIR: /exports/backups`.
+  Both reviewers read it as mount wiring rather than operator
+  configuration. Settled at OPS-03 (2026-09-28): it stays as container
+  wiring.
+
+**Persistent storage architecture review — DONE 2026-09-28**
+([0020](design/0020-persistent-storage-review.md), ROADMAP DATA-01; steps A
+and B deployed). Raised by the operator on 2026-09-24. The operator raised it as a fear that each
+release had replaced the database. The verified production copy says it has
+not: its `schema_version` table records creation at the 2026-05-06 cutover and
+migrations applied on 2026-08-29, by containers that no longer exist (the live
+one started 2026-08-31). So the named volume `openchronicle-mcp_oc-data` has
+survived every redeploy since the cutover. The only loss was the cutover's
+failed migration, a different failure. The real risks this review must settle
+(add: the `docker` share grants `Everyone` read, and `/config` is mode 0777, both
+seen 2026-09-24):
+the volume is keyed to the Compose project name, so a stack deleted with its
+volumes or redeployed under another name starts empty; automatic backups share
+that volume; the log path is wrong on the live stack; and everything sits on
+one NAS. Inventory the whole `/volume1/docker/openchronicle` tree and the live named
+volumes, their owners, mounts, retention, backups, and recovery paths. Determine
+whether the exposed `assets` and `output` folders are used or needed, including
+the status of `oc-output` and the actual `OC_LOG_FILE` destination. Decide
+which logs and other durable data should live on an external mount and how to
+migrate them without hiding or deleting current data. Record a reviewed target
+layout and an operator cutover/rollback plan before changing mounts or removing
+any folder. This note authorizes review only; 0017 does not do that migration.
+
+**Active queue — sorted by need (operator-ratified 2026-08-29).** The
+historical order. Since 2026-09-28 [ROADMAP.md](ROADMAP.md) sets the order
+of work; each line here still points at the full entry (below, or in its
+design doc):
+
+1. [ROADMAP V4-01 to V4-03] ✅ **Pins as ranking prior — COMPLETE through tuning (2026-08-29;
    ships as v4.0.0 on the operator's tag call).** ADR 0008 (rev 4,
    three review rounds) implemented on `v4/develop`
    (`de7e5c6d`+`8072cf4a`+`0f9cf940`, 818 tests): float retired from
@@ -891,13 +974,16 @@ entry (below, or in its design doc):
    labels not consulted by ablation verdicts) — recorded in
    `data/embedding_benchmark/sweep_verifier_findings.txt`, batch into
    the next harness touch.
-2. **Cloud-backup Phase 0** ([design 0001](design/0001-cloud-backup.md),
+2. [ROADMAP DATA-02] **Cloud-backup Phase 0** ([design 0001](design/0001-cloud-backup.md),
    reinforced by [0007](design/0007-long-term-scale-and-resilience.md)
    Stage 0): the operator-run ~30-min desktop runbook — Dropbox App
    Folder probe, age keypairs, key escrow, two-key decrypt drill.
    Needs the operator at a desktop; the only item whose downside is
    data loss. Per 0007's rule: not done until a restore is drilled.
-3. **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
+   The off-NAS copy from 0017's bootstrap (see the backup entry above)
+   is a ready input for that drill. **Done 2026-09-28** (ROADMAP DATA-02;
+   [0001 Phase 0 record](design/0001-cloud-backup.md#phase-0-record-2026-09-28)).
+3. [ROADMAP MEAS-02] **Concurrency load probe** (new, 0007 Stage 0): a benchmark-harness
    sibling driving N simulated clients (mixed search/save/list)
    against a store, reporting latency percentiles vs N — the
    instrument that turns every 0007 stage trigger into a number.
@@ -913,13 +999,231 @@ entry (below, or in its design doc):
    first backfill after the redeploy writes the 9 tombstones, reports
    `ok` with `tombstoned: 9`, and health goes `active` with
    `unembeddable: 9`.
-5. **`dimensions` optional-send in the openai adapter** (full entry
+5. [ROADMAP GATE-05] **`dimensions` optional-send in the openai adapter** (full entry
    below) — real, live-confirmed, but demand-gated: pick up when a
    cloud provider is actually wanted again.
-6. **MCP `error_code` gap** (full entry below) — parked against the
+6. [ROADMAP GATE-04] **MCP `error_code` gap** (full entry below) — parked against the
    mcp 2.x migration by its own entry.
-7. **Docs parity gates (CLI/MCP/env)** — batch into the next
-   phase-end audit.
+7. [ROADMAP QUAL-05] ✅ **Docs parity gates (CLI/MCP/env) — DONE 2026-09-29**
+   (`tests/test_docs_parity.py`).
+8. [ROADMAP LLM-02] **Provider SDK integration survey** — evaluate optional agent/runtime
+   integrations while keeping OpenChronicle's memory service boundary intact:
+
+   - [GitHub Copilot SDK](https://docs.github.com/en/copilot/how-tos/copilot-sdk/setup)
+     — agent runtime with bundled or local CLI, backend and multi-tenant setup paths.
+   - [OpenAI Agents SDK](https://openai.github.io/openai-agents-python/)
+     — agents, tools, handoffs, guardrails, sessions, tracing, and MCP support.
+   - [Claude Agent SDK](https://github.com/anthropics/claude-agent-sdk-python)
+     — Python and TypeScript agent SDKs with Claude Code tools, sessions, hooks,
+     and in-process MCP tools.
+   - [Google Gen AI SDK](https://github.com/googleapis/python-genai)
+     — Python and JavaScript clients with chats, function calling, experimental
+     MCP support, and the stateful Interactions API.
+   - [Groq SDKs](https://console.groq.com/docs/libraries)
+     — Python and JavaScript model clients with tool use and remote MCP, but no
+     equivalent first-party agent runtime identified in this survey.
+   - [Ollama Python SDK](https://github.com/ollama/ollama-python)
+     — local/cloud model client with chat, streaming, and embeddings; no
+     equivalent first-party agent runtime identified in this survey.
+
+   Define the supported setup path, authentication model, lifecycle, tool/session
+   isolation, licensing/terms, and provider-neutral abstraction before implementation.
+9. [ROADMAP OPS-01, QUAL-02] ✅ **v3.4.0 correctness release — RELEASED 2026-09-24 (tag
+   `9b1e83e6`), DEPLOYED 2026-09-28** (ROADMAP OPS-01) ([0014](design/0014-gemini-audit-branch-review.md);
+   [review-findings plan](design/0016-review-findings-plan.md), source
+   tracks 1 and 3 merged to `main`).
+   Planned as MINOR rather than a patch, because health gains additive
+   fields. The blank-content rejection also tightens accepted input;
+   reconcile it with [STABILITY.md](api/STABILITY.md) before choosing the
+   release version. Contents:
+   - the four fleet-review issue #27 items:
+     - ✅ `memory_update(content="")` blanked a memory and deleted its
+       vector. Fixed in rev 201: the add and update use cases refuse
+       blank content before any write, for every surface;
+     - ✅ background-backfill failures were invisible. Fixed in rev 202:
+       a done-callback logs the exception at ERROR, and health's
+       `last_background_backfill` reports how the last run ended;
+     - ✅ overlap warnings were false. Fixed in rev 203: a job queued
+       behind another logs one INFO line, and a real overlap counts and
+       warns once per run instead of once per tick;
+     - ✅ the OpenAI adapter did no response-shape validation. Fixed in
+       rev 204: both adapters share one boundary validator;
+   - ✅ git_onboard's local `rev-parse` and `log` calls get the same
+     allowlisted environment as the clone (rev 205). An inherited
+     `GIT_DIR`, which every git hook exports, had pointed the walk at
+     a different repository;
+   - ✅ the per-request MCP lifespan lines log at DEBUG (rev 206);
+   - ✅ the §1.1 Ollama revision-probe fix (rev 208, ADR 0005 §7). An
+     unverified revision is refused, never stamped as "none"; one
+     snapshot per write operation, taken before the embed; the subsequent
+     PR #34 also checks search snapshots around query embedding; a refresher
+     outside the maintenance lock with reconciliation backfills; one
+     backfill at a time. Planned in three reviewed revisions;
+     the NAS restart gate (ROADMAP OPS-02) passed on 2026-09-28;
+   - **Released in v3.4.0 and deployed 2026-09-28** (originally merged to `main`
+     unreleased): plan 0016's query-revision race fix
+     entered through PR #34 (merge `7ffc277c`). Search snapshots before and after
+     embedding, retries once on an observed identity change, and fails
+     closed on a known-to-unknown transition even when the retry remains
+     unknown. Exhausted churn leaves hybrid with keyword results and a
+     distinct `revision_churn` metric without marking the provider failed;
+     semantic-only returns typed `MODEL_REVISION_CHANGED` (HTTP 502). Ten
+     focused regression tests and the full Windows suite (1,146 passed, one
+     skip), Ruff and mypy passed locally. Windows/Ubuntu tests, quality and
+     CodeQL passed on the exact PR head `2c3a2557`. It shipped in the v3.4.0 tag
+     and was deployed on 2026-09-28;
+   - ✅ an image smoke test before `build-and-push` pushes (rev 207).
+
+   The pre-deploy review (rev 209) fixed everything it found except
+   these low-severity follow-ups, deliberately deferred:
+   - pin the pushed image to the smoke-tested one (a second build
+     reuses the layer cache; a moved base tag between the builds would
+     push an untested image), or pin the base image digest;
+   - sort OpenAI-compatible `data` by `index` before use;
+   - `LC_ALL=C` for git children, since git errors are matched in
+     English;
+   - redact userinfo from `OLLAMA_HOST` in the adapter's TLS warning
+     (the probe's WARNING and httpx's per-request INFO lines are fixed,
+     rev 210);
+   - a stop flag checked between backfill chunks: a redeploy during a
+     backfill waits out the stop timeout and ends in SIGKILL (exit 137),
+     without data loss, and the next boot's reconciliation resumes it.
+
+   **Release decision (operator, 2026-09-24):** an explicit exception to
+   design 0010's B/A release gate. v3.4.0 is tagged from `main` with the
+   metrics instrumentation off by default. The exception covers release,
+   not enablement; see 0010. The blank-content refusal was reconciled
+   with STABILITY.md as a MINOR change; see the CHANGELOG. The tag is
+  **deployed 2026-09-28** (ROADMAP OPS-01, assessment rev 245); the NAS
+  restart gate (OPS-02) passed the same day (rev 248). PR #39 (design 0017) merged after this
+   tag and shipped in v3.5.0.
+10. ✅ **Line-ending renormalization — DONE 2026-09-23 (rev 200,
+   `10f7bacb`).** `.gitattributes` pins `* text=auto eol=lf`, and the 23
+   files that still stored CR bytes were renormalized on `main`, ahead
+   of the next main→`v4/develop` merge.
+11. [ROADMAP LLM-03] **Prompt library Stage 0** ([0015](design/0015-prompt-library.md);
+    [proposed isolation plan](design/0016-review-findings-plan.md#4-bound-the-prompt-library-pilot-and-later-adr)).
+    Operator-run, zero code: record reused prompts for about two weeks.
+    A dedicated project in the live store alone does not isolate drafts
+    from unscoped recall; resolve plan 0016's pilot isolation gate first.
+    The outcome decides whether Option B gets built.
+    **Operator intent (2026-09-24):** prompts that *improve with use*, by
+    tracking outcomes, not a static library. Captured in
+    [0018](design/0018-self-improving-prompts.md), which answers 0015's
+    outcome-signal question and proposes that Stage 0 also test the
+    improvement loop.
+12. [ROADMAP TS-01 to TS-04] **Chronological order ignores `created_at` offsets**
+    (see the [proposed correction plan](design/0016-review-findings-plan.md#2-specify-and-correct-timestamp-storage)).
+    Found 2026-09-23 and reproduced against `SqliteStore`. A backdated
+    `created_at` is stored with its offset (`isoformat()`), and every
+    recency query sorts the TEXT column, so a memory saved as
+    `2026-09-23T04:41:37-05:00` (09:41Z) lists after one saved as
+    `07:04:17+00:00`. `onboard_git` hands out local-offset timestamps
+    and tells agents to save with them, so git-derived memories in
+    production misorder by their offset in `memory_list`
+    (`order_by="created_at"`, the recency window consumers rely on),
+    `context_recent` and the FTS tie-break. Accuracy defect,
+    pre-existing. Fix: normalize to UTC at one chokepoint, migrate the
+    existing rows, and consider emitting UTC from `onboard_git`. Plan
+    and adversarial review are recorded in 0016; implementation has not
+    started. A bounded read-only live MCP inventory on schema v4 returned
+    1,080 memories (matching `memory_stats`), including 93 offset-bearing
+    `created_at` values; its chronological listing had 24 adjacent
+    instant-order inversions. No naive or malformed timestamp surfaced via
+    the API, and all 39 project creation times were UTC-aware. This is not
+    raw SQLite inspection or an immutable backup. The raw recheck (TS-01,
+    2026-09-29, immutable read of the verified step-5 copy, 1,100 memories)
+    found no naive and no malformed value in any timestamp column: 94
+    offset-bearing `created_at` values (-05:00 and -06:00), 24 adjacent
+    inversions, all offset-then-UTC, and 10 UTC values without
+    microseconds. A naive row seen later must still fail closed. TS-02 was
+    decided on 2026-09-30: new naive input is rejected under a narrow MINOR
+    exception in [STABILITY.md](api/STABILITY.md). The implementation (PR #38,
+    migration 005, `require_utc` at every write and import boundary, ID
+    tie-breaks in chronological readers) was rebased onto `main` the same day
+    (TS-04's first step), and passed its pre-deploy review on 2026-09-30 with
+    no blocker. It ships as its own release after v3.7.0 (operator decision).
+    TS-03's rehearsal on a fresh copy and an image pair passed on 2026-10-03;
+    its re-run with the FTS and embedding checks passed the same day
+    (assessment rev 294). PR #38 merged on 2026-10-03 and is prepared as
+    v3.8.0 (rev 295); what remains is the tag and the deploy.
+13. [ROADMAP OPS-03] ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
+    (ROADMAP OPS-03)**
+    (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
+    *History, measured read-only 2026-09-23, before OPS-03 (the network and
+    `oc:*` statements in this paragraph no longer describe the repository;
+    see the reconciliation note at the end of this item).* Portainer's stored file predates
+    `682c68f0`. It keeps
+    `oc` on `network_mode: bridge`, where the repo's compose now puts
+    `oc` on a dedicated `oc-observability` network. That shape was
+    never deployed and runs against the fleet's address-pool rule
+    (the stack moved to the shared bridge in `343ba47c`, 2026-08-18).
+    The repo compose previously masked the REST Host-list fallback to
+    `OC_MCP_ALLOWED_HOSTS`. Plan 0016 track 3 corrected that default in
+    merged PR #35 (`77ea0173`) and added access tests, including
+    rendered-compose REST/MCP behavior;
+    a future metrics profile still requires an explicit API list with
+    external hosts plus `oc:*`. Adoption needs the plan 0016 access check.
+    The stored compose keeps the old `OC_LOG_FILE` default, and the stack env
+    does not set that variable. 0017's `/exports` bind mount is the one
+    change that cannot ship env-only. So the v3.4.0 deploy stays env-only:
+    move `OC_TAG` and set `OC_LOG_FILE=/output/logs/openchronicle.log`
+    in one `portainer_set_stack_env` call. Operator decision:
+    reconcile the repo compose with the live shape, or re-attach the
+    stack to Git after the network question is settled. It is tied to
+    design 0010's disposition, since the network exists for the
+    metrics scrape. When the compose is reconciled, also add
+    `container_name: openchronicle-mcp` to the `oc` service (operator,
+    2026-09-24: no `-oc-1` suffix). Nothing depends on the name; the
+    backup runbook finds the container by its compose labels.
+    **Reconciled in the repo 2026-09-28 (ROADMAP OPS-03):** both services
+    use `network_mode: bridge`, and the collector scrapes the published port
+    through `host.docker.internal` (so its explicit REST list uses
+    `host.docker.internal:*` instead of `oc:*`). The stack stays file-based,
+    the live file's Watchtower label is dropped, and 0020's layout is applied
+    (external `oc-data`, named `oc-config`/`oc-output`, `container_name`).
+    `OC_BACKUP_DIR: /exports/backups` stays in the file as container wiring,
+    not operator configuration. **Deployed to stack 151 on 2026-09-28** (file
+    version 143, then `HOST_CONFIG_DIR` removed); the stored file now
+    matches `main` at `5a207070`.
+14. [ROADMAP DATA-01] ✅ **Persistent-storage review — DONE 2026-09-28 (ROADMAP DATA-01)**
+    (operator, 2026-09-24; full entry under the post-cutover follow-ups,
+    beside the 0017 backup entry). Cite items by their stable
+    [ROADMAP](ROADMAP.md) IDs: these numbers shift when an entry is inserted.
+    Numbered last only so existing item
+    references stay stable. Its premise was checked: the database has
+    persisted since the 2026-05-06 cutover. What it must settle: the
+    volume is keyed to the compose project name; automatic backups share
+    that volume; the log path is wrong on the live stack; everything sits
+    on one NAS; the `docker` share grants `Everyone` read; `/config` is
+    mode 0777. **Review written 2026-09-28:**
+    [0020](design/0020-persistent-storage-review.md). Its recommendations
+    were adopted, and step A (the log path) went live the same day. Step B
+    was deployed with OPS-03 the same day.
+15. [ROADMAP QUAL-08] **Persistent Ollama HTTP client** (salvage from
+    [0014](design/0014-gemini-audit-branch-review.md), its last open item).
+    The Ollama adapter opens a new connection for every call
+    (`httpx.post`), about 12-13 ms per call on desktop loopback against
+    about 0.8 ms with a reused `httpx.Client`, as 0014 measured on the
+    Gemini branch. 0003's trigger for this has fired. It is a
+    speed-second item: no correctness gain, so it waited behind the storage
+    review, now done (ROADMAP QUAL-08).
+    Build it fresh on `main`, not from the branch. What 0014 requires:
+    - a thread-safe client with its lifecycle wired: created with the
+      adapter and closed on shutdown, including the CLI and stdio paths;
+    - proxy and TLS parity with today's per-call behaviour;
+    - a test that the adapter reuses one client and closes it;
+    - evidence: NAS p50/p95/p99 before and after, at 1 and 8 clients,
+      cold and warm, with an Ollama restart mid-run. The concurrency
+      probe (ROADMAP MEAS-02) is the natural instrument;
+    - the embedding path is instrumented, so check design 0010's gates
+      if metrics are enabled by then.
+
+North star (operator, 2026-09-24; no scheduling): lower the cost and
+improve the efficiency of the fleet's cloud LLM use through OpenChronicle.
+Candidate levers, the gap in the FreeToken review, and the research still to
+do are in [0019](design/0019-cloud-llm-cost-north-star.md). Each lever keeps
+its own gates, and accuracy stays first.
 
 Trigger-gated (no scheduling): 0007 Stages 1-3 on their named
 triggers; sqlite-vec ceiling (superseded by 0007 Stage 2's Postgres+
@@ -931,17 +1235,137 @@ embedding-provider sweep (baselines refreshed 2026-08-29 — next due
 
 These didn't block code-completeness or cutover but should land in a v3.0.x release:
 
-- **Concurrency load probe (0007 Stage 0, filed 2026-08-29).** Nobody
-  has measured OC under concurrent multi-client load, and 0007's
-  stage triggers are meaningless without the instrument. Build a
-  `scripts/`-level probe (sibling of `benchmark_embeddings.py`): N
-  simulated clients issuing a realistic mix (search-heavy, small
-  saves, lists) against a throwaway store seeded from the corpus
-  fixture; report latency percentiles vs N and store-lock wait share.
-  Expected first finding is already named in 0007: the single
-  connection + RLock serializes all access — the probe quantifies at
-  what N it starts to hurt, which is what schedules (or indefinitely
-  defers) Stage 1's read-pool work.
+- **Concurrency load probe (0007 Stage 0, filed 2026-08-29).** ✅ Phases 1–3
+  implemented and verified in the working tree 2026-09-04; Phase 4 was
+  evaluated and retested locally the same day. The probe and bounded metrics
+  implementation are documented in
+  [design 0010](design/0010-performance-measurement.md); the standard image
+  includes the metrics dependency but `OC_METRICS_ENABLED=false` remains the
+  runtime default. Implementation was committed in `682c68f0`. The proposed
+  [Phase 4 remaining-work plan](design/0010-performance-measurement.md#phase-4-remaining-work-plan)
+  defines subphases 4A–4F and their evidence/stop conditions. Subphase 4A is
+  complete: server-side profiling identified disabled-path middleware and
+  SQLite lock-observation work, while three fresh NAS A/R calibration pairs
+  retained one variability-budget breach, so the readiness result remains
+  inconclusive. Subphase 4B is complete locally with a narrow disabled-path
+  bypass; focused metrics tests, Ruff, formatting, and mypy pass. The optional
+  local Prometheus profile includes the
+  30-second scrape, 5-second timeout, retention settings, query catalog, and
+  runbook. The source-root probe now verifies the actual child instrumentation
+  state and can record working-set, event-loop-lag, and every attempted
+  direct-scrape duration; scrape frequency is bounded at a 10-ms minimum.
+  The matched scrape-responsiveness gate passed, but the original and retest
+  A/B/C overhead gates remain inconclusive. Across six valid matched blocks,
+  B's median throughput loss was 3.92% and C's was 5.90%; B spread from
+  −3.62% to +8.33%, while C spread from −36.82% to +12.90%. One additional
+  clean-base case had 564 connection failures and was excluded. The A baseline
+  also shifted between distinct host-speed regimes, so release and enabling
+  remain blocked. A separate three-block two-CPU process-affinity follow-up
+  also completed without application failures, but retained the host/order
+  effect: B median throughput loss was 3.91% with +5.119 ms search p95, while
+  C median loss was 11.62% with +10.192 ms search p95 and +2.919 ms list p95;
+  B's loss ranged 0.18–14.08% and C's 8.69–16.18%. Process affinity was
+  insufficient. After the reboot, the serialized-setup same-run process
+  harness passed a short pilot but its full A/B/C matrix was ineligible: A/B/C
+  had 2,438/2,488/2,285 failed operations, mostly connection failures, and C's
+  only scrape failed. An isolated clean-base A control at the same corpus and
+  client count was clean, so the concurrent three-probe method saturated this
+  host; its sanitized report is retained under
+  `data/performance/phase4-20260904/same-run/`. A follow-up with equal rotating
+  eight-CPU partitions and per-worker keep-alive connections produced three
+  eligible blocks with zero failures, but B/C median throughput losses were
+  1.351%/10.867% and search-p95 deltas were +1.853/+11.204 ms (corrected
+  from retained JSON; earlier prose confused maxima with medians); order signs
+  reversed, so the result remained noisy and over budget. Reports are retained
+  under `data/performance/phase4-20260904/same-run/isolated-*.json`. The next
+  gate will use operator-approved sequential runs on CARLDOG-NAS with repeated
+  A/A controls; dedicated hardware is not required. After upload approval, all
+  twelve NAS cases completed with 25,995 successful requests and zero failures.
+  Median B/C throughput losses were 4.678%/8.344%, but the last repeated A
+  slowed by 5.331% and latency controls also breached budget, so both gates
+  remain inconclusive. The report was independently recalculated and retained
+  under `data/performance/phase4-20260904/nas-sequential/`; only the one-shot
+  benchmark stack was removed. No automatic rerun is planned. Phase 4D then
+  completed on disposable NAS observation stack 216: fixed Prometheus queries
+  retained history across target restart and rollback, idle and outage states
+  were distinguished, the access matrix matched the documented contracts, and
+  both recovery paths passed with candidate-created data preserved. The
+  frozen-candidate unprofiled 4C sequential A/B/C/R gate
+  then completed all twelve cases with 27,272 successful requests, zero
+  failures/timeouts, matching corpora, and successful enabled scrapes. B/A's
+  median throughput loss was 0.129% and C/A's was 7.769%; B/A was inconclusive
+  because repeated-A list-p95 noise reached 1.540 budget fractions, and C/A
+  was inconclusive overall under the same veto. The complete report and
+  independent recalculation are retained under
+  `data/performance/phase4-20260904/nas-sequential/`; disposable stack 212
+  was removed and production remained unchanged. The sanitized 4D report and
+  summary are retained under
+  `data/performance/phase4-20260904/phase4d-20260905/`; observation stack 216
+  is stopped with its Prometheus history volume preserved. Release and
+  enabling remain blocked by the inconclusive 4C gate; 4E/4F remain pending.
+  Planning inspection subsequently found timestamp contamination in the
+  saved 4C JSON; the current assessor rejects its condition state and returns
+  no comparisons. The earlier saved-report verification claim is therefore
+  unconfirmed. The adopted
+  [4C recovery plan](design/0010-performance-measurement.md#4c-recovery-plan)
+  sequences evidence integrity, baseline calibration, enabled-cost diagnosis,
+  a targeted patch, one frozen comparison, and a stopping decision. Recovery
+  now has checksummed artifacts, measured-only resource sampling, a passing
+  six-case NAS calibration (41,441 successful requests), and a locally verified
+  bounded recorder-cache patch. The post-run CPU-mask validator was corrected
+  without changing measurement logic or data. On 2026-09-05 the operator
+  explicitly approved reuse of the verified calibration as a validation-only
+  frozen-harness exception. The bounded cycle is now finished: `ddd21dee`
+  was frozen and published as a uniquely tagged non-release benchmark image;
+  the twelve-case NAS suite completed 75,786 requests without failures. The
+  checksummed report and independent arithmetic classify B/A and C/A as
+  inconclusive (0.399%/6.392% median throughput loss) because the last repeated
+  baseline slowed 53.339% during a NAS load spike. Full-cardinality stress also
+  did not pass: REST list p99 +9.086 ms exceeds its 5-ms budget, and MCP list
+  samples 733/736 cannot establish p99. Unchanged 4D evidence is explicitly
+  reused after source/configuration review. New disposable containers are
+  removed; old observation history and production are unchanged. Release and
+  enablement remain blocked; further investigation needs a new scoped decision,
+  not an automatic rerun. All budgets and metrics-disabled defaults remain
+  unchanged. See the [final disposition](design/0010-performance-measurement.md#4c-recovery-final-disposition). The
+  subsequent authorized [attribution phase](design/0010-4c-attribution.md) is
+  complete: competing host CPU work is evidenced but its process is unidentified;
+  validated isolated profiles target redundant recorder work and exposition
+  formatting. Mixed-thread profiler durations are rejected. Operator-approved
+  recorder Patch 1 is implemented locally with ordered health transitions and
+  bounded HTTP/embedding child caches. All 951 tests passed across the full run
+  and a two-test Git-fixture-isolated retry; Ruff, format and mypy passed.
+  Patch 2's local exporter prototype passed 53 separate contract tests; the
+  full-matrix single-thread CPU diagnostic showed a 41.799% median paired
+  reduction with about 1.94 MiB retained traced allocations, not measured RSS.
+  A subsequent scoped integration now uses one bounded prefix cache per enabled
+  recorder, with fresh values and the existing scrape guard. Maintained tests
+  correct unusual-string cache hits and whole-scrape encoding error behavior.
+  Linux contracts passed 106 tests on both Prometheus 0.26.0 and the 0.23.1 floor,
+  including native process metrics; Windows floor contracts passed 105 with one
+  platform skip. Final full Windows suite: 1,020 passed, one Linux-only skip;
+  Ruff, formatting, mypy and Markdown passed. These checks do not measure the corrected candidate's cost.
+  No new NAS acceptance, publication or production change occurred; metrics
+  remain off. Host readiness/performance gates and affected live 4D verification
+  remain unresolved. See the [integration checkpoint](design/0010-4c-attribution.md#local-integration-checkpoint). The
+  next read-only [readiness snapshot](design/0010-4c-attribution.md#nas-readiness-snapshot--completed-not-a-baseline-control-pass)
+  completed: host CPU 8.852%, niced CPU zero, no heavy Docker workload identified
+  among 42 containers. This is not a baseline-control pass or evidence about the
+  old spike. No workload was paused or benchmark started; an agreed quiet window
+  and contemporaneous controls remain necessary for the fixed acceptance run.
+  **Source checkpoint, 2026-09-09 UTC:** the operator authorized committing and
+  pushing all current code, tests and documentation. Earlier no-publication
+  statements describe their historical checkpoints; source publication clears
+  no performance gate and leaves the pinned live build unchanged. See
+  [assessment rev 194](CODEBASE_ASSESSMENT.md#revision-history).
+  The delivered `scripts/`-level probe (sibling of
+  `benchmark_embeddings.py`) supports N simulated clients issuing a realistic
+  mix (search-heavy, small saves, lists) against a throwaway store seeded from
+  the corpus fixture; report latency percentiles versus N and store-lock wait
+  share. The expected first finding is already named in 0007: the single
+  connection + RLock serializes all access — the probe quantifies at what N it
+  starts to hurt, which is what schedules (or indefinitely defers) Stage 1's
+  read-pool work.
 
 - **Permanently over-length rows keep provider health `degraded`
   forever and are retried every backfill cycle.** ✅ RESOLVED by
@@ -1121,6 +1545,21 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   Ollama Cloud API key, so a live confirmation is available the day it
   becomes worth making.
 
+- **Memory ecosystem review — research retained, implementation unscheduled
+  (2026-09-08).** [Design 0011](design/0011-memory-ecosystem-review.md)
+  compares Basic Memory, Graphiti, Hindsight, Mem0, Cognee and LangMem,
+  plus the MCP reference server and LongMemEval evaluation sources.
+  The operator's standing priority is accuracy first, then speed and
+  responsiveness; proposed features must justify their costs against both.
+  Proposed research order: public reproducible evaluation, predictable
+  replay/concurrent writes, source-linked history/supersession, context
+  budgets, and a human-facing inspector. Existing release/durability work
+  retains its own priority and acceptance gates. History would revise a
+  deferred v3 decision; replay identity and frozen-lock consumption
+  strengthen existing entries rather than create duplicate commitments.
+  Recording the findings does not schedule implementation, reopen a
+  performance cycle, or authorize release/deployment.
+
 - **NemoClaw review — operational/recovery hardening (research complete;
   unscheduled).**
   [The design review](design/0004-nemoclaw-repository-review.md) found no
@@ -1137,7 +1576,8 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
   name collection/index/id) and `oc memory export --out` publishes via
   `mkstemp` + `os.replace`. ~~A least-privilege `onboard_git` child
   environment~~ — **✅ SHIPPED 2026-08-28** (rev 117): allowlisted clone
-  env with a sentinel test, raw token never in the child,
+  env (extended 2026-09-23, rev 205, to the local `rev-parse` and `log`
+  calls, which had inherited everything) with a sentinel test, raw token never in the child,
   `GIT_TERMINAL_PROMPT=0`, `--no-checkout`, userinfo/query/fragment
   rejection, stderr scrubbing. ~~Explicit server-side clone
   *destination policy*~~ — **✅ DECIDED AND SHIPPED 2026-08-28** (rev
@@ -1211,7 +1651,8 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
     checking what the cap did to reachability. A cap on a channel that
     is a row's *only* route to the caller is a silent delete.
 
-- **2026-08-15 full-repo review — Batches B–E queued.** A six-agent
+- **2026-08-15 full-repo review — Batches A–E shipped** (Batch E as
+  assessment rev 71). A six-agent
   review (~60 findings; punch list in OC memory `e22472b8`, full report
   in the session artifact "OpenChronicle Repo Review") produced five
   work batches. **Batch A shipped 2026-08-16** (Python-floor truth,
@@ -1339,6 +1780,64 @@ These didn't block code-completeness or cutover but should land in a v3.0.x rele
 - **Docker base image refresh.** ✅ Landed 2026-07-29/30 (`9e71c207` + `c839ddb9`): base moved to `python:3.14-slim` with a multi-stage build, non-root `oc` user, and HEALTHCHECK. The follow-on truth-reconciliation (requires-python `>=3.14`, badge, docs) landed 2026-08-16 in review Batch A.
 - **Consume the tracked lock in CI and Docker.** A generated `uv.lock` is now tracked for review and dependency inspection, but the build remains intentionally honest about its current behavior: CI and Docker still resolve/install from `pyproject.toml`, so the lock does not yet make either path reproducible. When scheduled, make frozen lock consumption authoritative on supported Python/OS markers, fail on drift, audit the exact locked runtime graph, and retain Dependabot for updates.
 - **Offline / write-behind sync for LAN-unreachable clients.** OC's single-user home-LAN posture (no auth, NAS-only, per `docs/configuration/security_posture.md`) means any client MCP call fails outright — not gracefully degrades — the moment the client isn't on the LAN (VPN off, in-office, mobile). Surfaced 2026-07-30: a Claude Code session working on an unrelated repo (IRIS) finished a real milestone worth a `memory_save`, but the user was in-office and OC was unreachable; the only mitigation available was holding the draft in Claude's own local memory system and re-offering to file it next session — an entirely manual, per-session stopgap with no OC-side support, and it evaporates if the AI or user forgets. Two directions worth researching, not yet scoped or estimated: (a) a **client-side write-behind queue** — buffer `memory_save`/`project_*` calls locally (e.g. a JSON-lines journal) when the NAS request fails/times out, replay them through the real MCP tools once reachable; no server change needed, smallest lift, but doesn't help *reads* (`memory_search`, `context_recent`) while offline. (b) A **local shadow OC instance** — `oc serve` already runs standalone against a local SQLite DB for local dev (a separate memory pool from the NAS one per this file's Project Identity section); journal writes while offline and reconcile into the NAS DB on reconnect. Helps reads too, but needs a real merge story OC has no design for today — a memory created locally and one created on the NAS in the same offline window need distinguishable ids, not naive overwrite-by-id, and reconciliation ordering/conflict rules don't exist yet. Lean toward (a) first: smaller lift, and it covers the case that actually bit us (a write, not a read).
+- **Git onboarding for a repo the server cannot clone (ROADMAP QUAL-19, GATE-22).**
+  Surfaced 2026-10-01 from a client session on a work repository (HERMES)
+  that had moved to a GitHub Enterprise Managed Users (EMU) organization.
+  The MCP `onboard_git` call passed the GitHub-only URL gate, then the clone
+  failed with git's own `remote: Repository not found`. The server's
+  `OC_GIT_TOKEN` cannot read that organization, and an EMU organization's
+  private repositories are readable only with a token from one of its own
+  managed accounts, which is a work credential the operator would have to
+  place on the home NAS.
+
+  The tool then points at a fallback that does not reach the server. The
+  `onboard_git` docstring says "For unpushed local history use the
+  `oc onboard git` CLI instead", and the GitHub-only refusal in
+  `git_onboard.py` says to run `oc onboard git` "on the machine that has
+  them". The CLI opens its own SQLite store (`OC_DB_PATH`, else
+  `OC_DATA_DIR`, else `./data/openchronicle.db` under the working
+  directory), and `cmd_onboard_git` looks the project up there before
+  anything else, `--dry-run` included. Reproduced on `main` (`e5ed3f0a`)
+  from an empty directory: without a `config/` directory the command stops
+  with "Config directory not found"; with one, it creates an empty
+  `data/openchronicle.db` (and `output/`) and exits 1 with a bare
+  `Error: project not found: <id>`, naming neither the store it opened nor
+  why the project is absent. The watermark is device-local as well (export
+  and import both drop it). So today the only route into the server's
+  project is the CLI run on the NAS itself, with the repository mounted into
+  the container, and the client machine that holds the credentials cannot
+  take it. The HERMES commits went into a hand-written memory instead.
+
+  Two pieces, with different authorization:
+
+  1. **QUAL-19: honest guidance and errors (S).** (a) The `onboard_git`
+     docstring, the GitHub-only refusal and `docs/cli/commands.md` say that
+     the CLI writes to its own local store, so it reaches the server's
+     projects only when run where the server's database lives. (b) A clone
+     that fails with "Repository not found" or an authentication error says
+     whether `OC_GIT_TOKEN` was set and presented for that host, so "no
+     token", "the token cannot see the repo" and "the repo does not exist"
+     stop looking identical. (c) The CLI's `project not found` names the
+     resolved store path and how to point elsewhere (`OC_DB_PATH`,
+     `OC_DATA_DIR`), and a failed lookup does not leave a newly created
+     empty store behind.
+  2. **GATE-22: client-side onboarding into a server project (design;
+     operator ratification).** Clone and cluster where the credentials
+     already are, then save on the server and record the watermark there,
+     which keeps work credentials off the home server. The MCP path already
+     returns clusters for the caller to save with `memory_save`, so the
+     missing parts are extraction that runs on the client and a way to
+     record the watermark on the server. The smallest version is a
+     `--dry-run` that needs no local project and can emit JSON for the
+     caller to save; without a server-side watermark, each run re-walks
+     history unless given a starting commit. A fuller version is
+     `oc onboard git --server <url>` acting as an HTTP client. Open
+     questions: where the watermark lives (GATE-12 already wants its own
+     table), how the CLI authenticates to the server, and whether the
+     server trusts client-supplied history as it trusts any `memory_save`.
+     Related but distinct: the offline write-behind entry above (GATE-06)
+     is a client that cannot reach the server; this is a server that cannot
+     reach the repository.
 
 ---
 
@@ -1413,7 +1912,7 @@ After updating each client's config, do a single round-trip call (`memory_search
     - Should `db_integrity_check` failure auto-trigger a backup before doing anything else? (Recommendation: yes — a corrupted DB should snapshot itself before any further writes.)
     - Should the loop expose a `/api/v1/maintenance/status` endpoint reporting last-run timestamp + outcome per job? (Recommendation: yes, useful for monitoring; implement in Phase 6.5.)
 
-12. **Cloud storage backup/sync for the memory store** — **DESIGNED 2026-08-23: see [design/0001-cloud-backup.md](design/0001-cloud-backup.md).** Backup-only is confirmed as the shape (sync-as-store stays in Out of Scope, and §9 of that doc verifies backup-only does not foreclose it). The design is *proposed*, not shipped. Provider was decided 2026-08-23 (Dropbox — the operator's OneDrive preference lost to a scope limitation rclone cannot work around) and so was encryption (age, two recipients, independent custody). Three prerequisites the design surfaced have landed: `JobState.last_success_at` (§6.1), the `import --mode merge` hazard (§11.4), and the §11.3 git-onboard watermark filter. Open: whether to co-push the JSON envelope alongside the `.db` (§13.4) — the only remaining operator question, and it's optional. Original framing below, kept because the sub-questions are what the design answers:
+12. **Cloud storage backup/sync for the memory store** — **DESIGNED 2026-08-23: see [design/0001-cloud-backup.md](design/0001-cloud-backup.md).** Backup-only is confirmed as the shape (sync-as-store stays in Out of Scope, and §9 of that doc verifies backup-only does not foreclose it). Phase 0 passed 2026-09-28 (ROADMAP DATA-02), and Phase 1 merged 2026-09-28 (PR #59, OPS-08) after plan and diff reviews; it ships in v3.6.0. Provider was decided 2026-08-23 (Dropbox — the operator's OneDrive preference lost to a scope limitation rclone cannot work around) and so was encryption (age, two recipients, independent custody). Three prerequisites the design surfaced have landed: `JobState.last_success_at` (§6.1), the `import --mode merge` hazard (§11.4), and the §11.3 git-onboard watermark filter. Open: whether to co-push the JSON envelope alongside the `.db` (§13.4) — the only remaining operator question, and it's optional. Original framing below, kept because the sub-questions are what the design answers:
     - **Backup-only (simpler):** a periodic job (daemon thread or external cron) that uploads `oc db backup` artifacts to cloud storage. SQLite stays the source of truth, cloud is disaster recovery + cross-device restore. Implementable as a single CLI command (`oc backup push --provider dropbox --token $TOKEN`) plus a scheduled-job loop. Pluggable provider abstraction so adding new clouds is trivial.
     - **Sync-as-store (much harder):** memories live IN cloud storage and the SQLite DB becomes a local cache. Requires conflict resolution, offline operation semantics, sync windows, integrity verification. Likely premature for v3 scope.
     - **Recommendation:** plan for backup-only as a v3.1 follow-up feature, not a day-1 ship item. Keep the v3 architecture LLM-side untouched, but design the storage layer with a clean enough seam that a backup-pushing daemon is straightforward to bolt on later. Specifically: keep `oc db backup` working (already exists in v2), keep DB writes through `SqliteStore`, don't bake cloud-specific assumptions into the core. If user wants this on day 1, it adds maybe 1-2 sessions of work for backup-only with one provider (Dropbox is easiest — official SDK, app-folder pattern keeps blast radius small).
@@ -1499,7 +1998,20 @@ OC exists to be the best version of itself: a memory MCP server that runs on you
 
 We are not chasing market share, benchmark wins, or feature parity with VC-backed products. We are building something we use, that we can trust, that will still work when we open it in three months. That's the standard.
 
+**Standing development priority (operator, 2026-09-08): accuracy first;
+speed and responsiveness second only to accuracy.** Feature breadth is
+subordinate to both. Runtime changes need proportionate quality and
+latency/responsiveness evidence; throughput alone is insufficient. Existing
+acceptance/noise budgets and benchmark/release authorization boundaries
+remain unchanged. See the canonical AGENTS.md rule and its application in
+[design 0011](design/0011-memory-ecosystem-review.md#standing-development-priority-accuracy-then-responsiveness).
+
 ### Competitive landscape (as of May 2026)
+
+This section preserves its May 2026 context. The later source-based
+[memory ecosystem review (2026-09-08)](design/0011-memory-ecosystem-review.md)
+records a bounded comparison and proposed development hypotheses; it is
+not a refresh of every product claim below or an accepted roadmap change.
 
 The agent-memory category is mature and crowded. Knowing what exists helps us make architectural decisions; it does not pressure us to feature-match.
 

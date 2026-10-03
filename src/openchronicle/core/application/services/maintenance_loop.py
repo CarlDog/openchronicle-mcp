@@ -8,9 +8,10 @@ configured jobs, and runs the ones whose interval has elapsed.
 Design constraints (locked in V3_PLAN.md):
 - Pure asyncio. No DB-backed queue, no manager/worker, no atomic claim.
 - One process. One loop. Jobs run sequentially within a tick.
-- Overlap protection: each job has its own asyncio.Lock; if a job is
-  still running when its next tick fires, the new tick skips (does NOT
-  queue).
+- Overlap protection: each job has its own asyncio.Lock. If a job is
+  still running when its next scheduled start passes, that start is
+  skipped (NOT queued), counted and warned once per run. A job waiting
+  for another job to finish is queued, not overlapping.
 - Failure isolation: exceptions are logged + counted, never crash the
   loop. Bad jobs degrade the system; they don't stop it.
 - Backup-before-destructive: jobs that touch the whole file
@@ -23,15 +24,19 @@ Design constraints (locked in V3_PLAN.md):
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
-from collections.abc import Awaitable, Callable, Mapping
+import time
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from openchronicle.core.application.config.env_helpers import parse_bool_env
+from openchronicle.core.domain.exceptions import ProviderError
 from openchronicle.core.domain.time_utils import utc_now
 
 if TYPE_CHECKING:
@@ -39,9 +44,38 @@ if TYPE_CHECKING:
 
 _logger = logging.getLogger(__name__)
 
+_STATE_FILE_NAME = "maintenance_state.json"
+
+
+def maintenance_state_path(db_path: Path) -> Path:
+    """Where the loop persists its schedule: beside the database.
+
+    The loop writes this file and health reads it (`maintenance_degraded`,
+    `backup_last_run_failed`, `cloud_backup_status`). One definition, so a
+    moved path cannot leave health reading a file nobody writes.
+    """
+    return db_path.parent / _STATE_FILE_NAME
+
+
+def parse_state_timestamp(value: object) -> datetime | None:
+    """One persisted timestamp, or None when missing or unparseable.
+
+    The loop writes timezone-aware stamps. A naive one, from a hand-edited
+    or foreign state file, is read as UTC: comparing it with an aware time
+    would raise, and each reader used to handle that differently.
+    """
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo is not None else parsed.replace(tzinfo=UTC)
+
+
 # Handler signature: async function that takes the container and returns
 # nothing. Failures must raise; the loop catches and counts.
-JobHandler = Callable[["CoreContainer"], Awaitable[None]]
+JobHandler = Callable[["CoreContainer"], Awaitable[object]]
 
 
 @dataclass
@@ -60,13 +94,21 @@ class JobState:
     # counter resets on every redeploy — and this repo redeploys on
     # every push to main.
     last_success_at: datetime | None = None
-    last_outcome: str | None = None  # "ok" | "failed" | "skipped_overlap"
+    # "ok" | "failed" | "skipped_overlap" (its own run overran its next start)
+    # | "skipped" (another run of the same work was in progress; did nothing)
+    last_outcome: str | None = None
     last_error: str | None = None
     runs_total: int = 0
     runs_ok: int = 0
     runs_failed: int = 0
     runs_skipped_overlap: int = 0
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+    # Set once this run holds the global lock. A job whose own lock is held
+    # while this is None is queued behind another job, not overlapping.
+    _started_at: datetime | None = field(default=None, repr=False)
+    # One log line per episode, not one per tick (fleet-review #27).
+    _queued_logged: bool = field(default=False, repr=False)
+    _overlap_logged: bool = field(default=False, repr=False)
 
 
 class MaintenanceLoop:
@@ -93,6 +135,24 @@ class MaintenanceLoop:
         # vacuum + backfill would otherwise race the same DB).
         self._global_lock: asyncio.Lock = asyncio.Lock()
         self._inflight: set[asyncio.Task[None]] = set()
+        # Name of the job holding the global lock, for the "queued" line.
+        self._running_job: str | None = None
+
+    def _safe_observe_job(self, *, name: str, outcome: str, duration_seconds: float | None = None) -> None:
+        try:
+            self._container.metrics.observe_job(
+                name=name,
+                outcome=outcome,
+                duration_seconds=duration_seconds,
+            )
+        except Exception:  # metrics must never stop maintenance
+            _logger.warning("metrics recorder failed while observing maintenance job", exc_info=False)
+
+    def _safe_set_last_success(self, *, name: str, timestamp: datetime) -> None:
+        try:
+            self._container.metrics.set_job_last_success(name=name, timestamp_seconds=timestamp.timestamp())
+        except Exception:  # metrics must never stop maintenance
+            _logger.warning("metrics recorder failed while seeding maintenance success", exc_info=False)
 
     def status(self) -> list[dict[str, Any]]:
         """Snapshot of every job's runtime state, JSON-safe."""
@@ -119,6 +179,9 @@ class MaintenanceLoop:
         if self._task is not None:
             return
         self._load_state()
+        for job in self._jobs.values():
+            if job.last_success_at is not None:
+                self._safe_set_last_success(name=job.name, timestamp=job.last_success_at)
         self._stop_event.clear()
         self._task = asyncio.create_task(self._run(), name="oc-maintenance")
         _logger.info(
@@ -166,8 +229,8 @@ class MaintenanceLoop:
         Jobs run as background tasks (so the loop can keep ticking while
         a long-running job is in flight), but each job acquires the
         global lock before running its handler — so two jobs never run
-        at the same time. The per-job lock is what the next tick checks
-        to detect overlap.
+        at the same time. The per-job lock tells the tick a run is in
+        flight; `_note_in_flight` decides whether it is queued or overlapping.
         """
         while not self._stop_event.is_set():
             try:
@@ -178,12 +241,7 @@ class MaintenanceLoop:
                     if not _is_due(job, now):
                         continue
                     if job._lock.locked():
-                        job.runs_skipped_overlap += 1
-                        job.last_outcome = "skipped_overlap"
-                        _logger.warning(
-                            "maintenance job %s skipped: previous run still in progress",
-                            job.name,
-                        )
+                        self._note_in_flight(job, now)
                         continue
                     self._spawn(job)
             except asyncio.CancelledError:
@@ -196,15 +254,65 @@ class MaintenanceLoop:
             except TimeoutError:
                 continue
 
+    def _note_in_flight(self, job: JobState, now: datetime) -> None:
+        """Handle a due job that already has a run in flight. Never spawns.
+
+        `_is_due` reads `last_run_at`, which is written when a run ends, so
+        a job stays due on every tick of its own run. Until 2026-09-23 each
+        of those ticks counted an overlap and logged a WARNING, and so did
+        every tick of a job merely queued behind another one: about 1,200
+        false warnings for one 20-minute backfill (fleet-review #27).
+        """
+        if job._started_at is None:
+            # Waiting on the global lock; nothing of its own is running.
+            if not job._queued_logged:
+                job._queued_logged = True
+                _logger.info(
+                    "maintenance job %s queued: waiting for %s to finish",
+                    job.name,
+                    self._running_job or "another job",
+                )
+            return
+        # Running. An overlap only once its next scheduled start has passed.
+        if job._overlap_logged or now - job._started_at < timedelta(seconds=job.interval_seconds):
+            return
+        job._overlap_logged = True
+        job.runs_skipped_overlap += 1
+        job.last_outcome = "skipped_overlap"
+        self._safe_observe_job(name=job.name, outcome="overlap")
+        _logger.warning(
+            "maintenance job %s skipped: previous run still in progress",
+            job.name,
+        )
+
     def _spawn(self, job: JobState) -> None:
         task = asyncio.create_task(self._invoke(job), name=f"oc-maint-{job.name}")
         self._inflight.add(task)
         task.add_done_callback(self._inflight.discard)
 
-    async def _invoke(self, job: JobState) -> None:
-        # job._lock = next-tick overlap detection. self._global_lock =
-        # process-wide mutex so two jobs never run simultaneously.
+    @contextlib.asynccontextmanager
+    async def _run_slot(self, job: JobState) -> AsyncIterator[None]:
+        """Hold the job's lock, then the global lock, and mark the job running.
+
+        The job's lock tells the tick a run is in flight. The global lock
+        is the process-wide mutex, so two jobs never run at once. Only
+        once both are held is the job running rather than queued.
+        """
         async with job._lock, self._global_lock:
+            job._started_at = utc_now()
+            job._queued_logged = False
+            self._running_job = job.name
+            try:
+                yield
+            finally:
+                job._started_at = None
+                job._overlap_logged = False
+                self._running_job = None
+
+    async def _invoke(self, job: JobState) -> None:
+        started = time.monotonic()
+        metric_outcome = "failure"
+        async with self._run_slot(job):
             handler = self._handlers.get(job.name)
             if handler is None:
                 _logger.error("maintenance job %s has no handler registered", job.name)
@@ -213,21 +321,45 @@ class MaintenanceLoop:
                 job.runs_failed += 1
                 job.runs_total += 1
                 job.last_run_at = utc_now()
+                self._safe_observe_job(
+                    name=job.name,
+                    outcome="failure",
+                    duration_seconds=time.monotonic() - started,
+                )
                 return
 
             _logger.info("maintenance job %s: running", job.name)
             succeeded = False
             try:
-                await handler(self._container)
-                job.last_outcome = "ok"
+                result = await handler(self._container)
                 job.last_error = None
-                job.runs_ok += 1
-                succeeded = True
+                if _job_result_is_skipped(result):
+                    # Another run of the same work was already in progress, so
+                    # this one did nothing. Not a success: last_success_at must
+                    # not claim work that never happened. last_run_at still
+                    # advances below, or the job would be due again every tick.
+                    job.last_outcome = "skipped"
+                    metric_outcome = "overlap"
+                else:
+                    job.last_outcome = "ok"
+                    job.runs_ok += 1
+                    succeeded = True
+                    metric_outcome = "partial" if _job_result_is_partial(result) else "success"
             except Exception as exc:
-                _logger.exception("maintenance job %s failed", job.name)
+                if isinstance(exc, ProviderError):
+                    # A known provider condition, such as an unverified model
+                    # revision or a dead provider: the message is the useful
+                    # part. The run still counts as failed.
+                    _logger.error("maintenance job %s failed: %s", job.name, exc)
+                else:
+                    _logger.exception("maintenance job %s failed", job.name)
                 job.last_outcome = "failed"
                 job.last_error = str(exc)
                 job.runs_failed += 1
+                metric_outcome = "failure"
+            except asyncio.CancelledError:
+                metric_outcome = "cancel"
+                raise
             finally:
                 job.runs_total += 1
                 # One timestamp for both, so a successful run reads
@@ -238,6 +370,13 @@ class MaintenanceLoop:
                 job.last_run_at = now
                 if succeeded:
                     job.last_success_at = now
+                    self._safe_set_last_success(name=job.name, timestamp=now)
+                self._safe_observe_job(
+                    name=job.name,
+                    outcome=metric_outcome,
+                    # An overlap skip has no execution duration (design 0010).
+                    duration_seconds=None if metric_outcome == "overlap" else time.monotonic() - started,
+                )
                 await asyncio.to_thread(self._persist_state)
 
     @staticmethod
@@ -254,12 +393,9 @@ class MaintenanceLoop:
         if not isinstance(entries, dict):
             return parsed
         for name, iso in entries.items():
-            if not isinstance(iso, str):
-                continue
-            try:
-                parsed[name] = datetime.fromisoformat(iso)
-            except ValueError:
-                continue
+            stamp = parse_state_timestamp(iso)
+            if stamp is not None:
+                parsed[name] = stamp
         return parsed
 
     def _load_state(self) -> None:
@@ -343,6 +479,16 @@ def _is_due(job: JobState, now: datetime) -> bool:
     return now - job.last_run_at >= timedelta(seconds=job.interval_seconds)
 
 
+def _job_result_is_partial(result: object) -> bool:
+    """Recognize the one built-in handler result that carries partial counts."""
+    return isinstance(result, Mapping) and bool(result.get("failed"))
+
+
+def _job_result_is_skipped(result: object) -> bool:
+    """A handler that found the same work already running returns ``skipped``."""
+    return isinstance(result, Mapping) and bool(result.get("skipped"))
+
+
 # ─────────────────────────────────────────────────────────────────────
 # Default jobs + config loading
 # ─────────────────────────────────────────────────────────────────────
@@ -354,13 +500,16 @@ _DEFAULT_JOBS: list[dict[str, Any]] = [
     {"name": "embedding_backfill", "interval_seconds": 6 * 3600, "enabled": True},
     {"name": "db_backup", "interval_seconds": 24 * 3600, "enabled": True},
     {"name": "git_onboard_resync", "interval_seconds": 3600, "enabled": False},
+    # Enabled by default and a skipped no-op until OC_CLOUD_REMOTE is set: job
+    # enablement is core.json-only, so False would make it unreachable from
+    # Portainer (design 0001 section 1).
+    {"name": "cloud_backup", "interval_seconds": 24 * 3600, "enabled": True},
 ]
 
 
 def is_disabled() -> bool:
     """Honor `OC_MAINTENANCE_DISABLED=1` (or `true`/`yes`/`on`)."""
-    raw = os.getenv("OC_MAINTENANCE_DISABLED", "").strip().lower()
-    return raw in {"1", "true", "yes", "on"}
+    return parse_bool_env(os.getenv("OC_MAINTENANCE_DISABLED"), default=False, name="OC_MAINTENANCE_DISABLED")
 
 
 def load_jobs(file_config: dict[str, Any] | None = None) -> list[JobState]:

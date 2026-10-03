@@ -651,9 +651,15 @@ def test_cli_pinned_limit_flag_is_accepted_and_inert(tmp_path: Path, monkeypatch
         container.storage.add_memory(_mem("m1", "alpha note"))
 
         def _run(argv: list[str]) -> tuple[int, str]:
+            # Like a real process, each invocation gets a fresh container
+            # from the same environment and closes it on exit; the seeding
+            # container above stays open for the whole test.
             with (
                 patch("builtins.print") as mock_print,
-                patch("openchronicle.interfaces.cli.main._build_container", return_value=container),
+                patch(
+                    "openchronicle.interfaces.cli.main._build_container",
+                    side_effect=lambda _args: CoreContainer(),
+                ),
             ):
                 rc = main(argv)
             out = "\n".join(str(c.args[0]) if c.args else "" for c in mock_print.call_args_list)

@@ -1,7 +1,8 @@
 # OpenClaw Memory Design Review — Applicable Lessons for OpenChronicle
 
-**Status:** Research complete; verified defects recorded as unscheduled
-tech debt; no implementation batch approved or shipped
+**Status:** Research complete. Batches A and B shipped 2026-08-28/29
+(assessment revs 120-124 and 129); the ranking-policy items stay
+trigger-gated
 
 **Assessment date:** 2026-08-27
 

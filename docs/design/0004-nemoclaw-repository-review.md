@@ -1,8 +1,8 @@
 # NemoClaw Repository Review — Applicable Lessons for OpenChronicle
 
-**Status:** Research complete; instruction-authority and current-docs
-findings closed in the 2026-08-28 review closeout; runtime findings and
-design constraints recorded but unscheduled
+**Status:** Research complete. Ranks 1-5, 7, 8, 10 and 11 are shipped or
+closed (see the ranking table); rank 6 waits on the write-behind item and
+rank 9 is ROADMAP QUAL-06
 
 **Assessment date:** 2026-08-28
 
@@ -515,7 +515,9 @@ Amend the existing live-restore design before implementing it:
 3. Validate SQLite integrity and expected schema before mutation.
 4. Require a successful pre-restore recoverable backup.
 5. Stage, replace, remove stale `-wal`/`-shm`, restart, and perform a real
-   `BEGIN IMMEDIATE`/rollback writeability probe.
+   `BEGIN IMMEDIATE`/rollback writeability probe. (Implemented 2026-09-30,
+   ROADMAP DATA-04: `BEGIN IMMEDIATE` alone succeeds on a read-only file,
+   so the probe also makes a change inside the transaction.)
 6. Record explicit outcomes such as candidate invalid, pre-backup failed,
    swapped/restart pending, and post-restore validation failed.
 
@@ -656,15 +658,15 @@ implementation.
 |---:|---|---|---:|---:|---:|---:|---|
 | 1 | Canonical agent-instruction source | Documentation / operations | 4 | 5 | 1 | 45 | **Closed 2026-08-28**; exact mirror plus regression test |
 | 2 | Strict export/import envelope + atomic private export | Reliability / data safety | 5 | 5 | 2 | 40 | **✅ Shipped 2026-08-28** (rev 116); Finding 2 records the closeout |
-| 3 | Content-bound, post-write-checked live restore | Reliability / data safety | 5 | 5 | 2 | 40 | Before cloud restore ships; the failure consequence is maximum, but no live restore exists yet |
+| 3 | Content-bound, post-write-checked live restore | Reliability / data safety | 5 | 5 | 2 | 40 | **✅ Shipped for the offline path:** design 0017's helper binds a restore to the recorded SHA-256 and identity at stage and activate (v3.5.0), and proves the installed file takes a write after the swap (DATA-04, rev 279) |
 | 4 | Least-privilege git child environment | Security | 4 | 5 | 2 | 36 | **✅ Shipped 2026-08-28** (rev 117); Finding 3 records the closeout. Destination policy (rank 8) stays open |
 | 5 | Immutable build revision in diagnostics | Operations / provenance | 4 | 4 | 2 | 32 | **✅ Shipped 2026-08-28** (rev 118); Finding 4 records the closeout |
 | 6 | Idempotent postcondition-checked offline replay | Reliability / feature design | 5 | 5 | 3 | 30 | Before the existing write-behind item ships; prevents duplicates after ambiguous timeout |
-| 7 | Repair public docs + CLI/MCP/env parity checks | Documentation / correctness | 3 | 4 | 2 | 28 | **Docs closed 2026-08-28**; broader inventory gates remain unscheduled |
+| 7 | Repair public docs + CLI/MCP/env parity checks | Documentation / correctness | 3 | 4 | 2 | 28 | **Docs closed 2026-08-28**; the CLI, MCP and env inventory gates shipped 2026-09-29 (QUAL-05, `tests/test_docs_parity.py`), plus the compose gate (QUAL-17) |
 | 8 | Outbound clone destination policy | Security / SSRF | 4 | 4 | 3 | 24 | **✅ Decided + shipped 2026-08-28** (rev 119): github.com-only on the server surface; Finding 3 records the closeout |
-| 9 | Lock consumed by CI/Docker + dependency audit | Build / supply chain | 4 | 4 | 3 | 24 | Existing backlog; a prior fresh resolve would have produced a startup-broken image |
+| 9 | Lock consumed by CI/Docker + dependency audit | Build / supply chain | 4 | 4 | 3 | 24 | Open as ROADMAP QUAL-06; a prior fresh resolve would have produced a startup-broken image |
 | 10 | Durable integrity outcome + truthful backfill success | Operations / reliability | 4 | 4 | 3 | 24 | **✅ Shipped 2026-08-28** (rev 126), combined with 0003 F4; Finding 9 records the closeout |
-| 11 | Built artifact/container contract smoke | Testing / packaging | 3 | 3 | 2 | 24 | Bounded experiment; current CI tests editable source but never starts the image it publishes |
+| 11 | Built artifact/container contract smoke | Testing / packaging | 3 | 3 | 2 | 24 | **✅ Shipped 2026-09-23** (rev 207): `build-and-push` runs `tools/ci/smoke-image.sh` on the built image before pushing it, and PRs run it too (OPS-08) |
 | 12 | Dedicated git-onboard operational state | Architecture cleanup | 3 | 3 | 3 | 18 | Triggered by more state or multi-repo use; current filters contain the known cross-device problem |
 | 13 | Container resource limits | Security / resilience | 3 | 3 | 3 | 18 | Pilot first; useful around untrusted repo history, but must not break entrypoint ownership setup |
 | 14 | Backup publication `fsync` | Reliability hardening | 2 | 3 | 3 | 15 | Require a power-loss fault model and platform test before adding complexity |
