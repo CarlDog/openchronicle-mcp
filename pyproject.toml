@@ -30,16 +30,20 @@ dependencies = [
 	# starlette>=1.7.0 is required: the lowest fastapi that resolves with it
 	# is 0.133.0 (uv --resolution lowest-direct).
 	"fastapi>=0.142.2",
-	# Plain uvicorn plus the two [standard] extras OC actually uses (QUAL-06
+	# Plain uvicorn plus the three [standard] extras OC needs (QUAL-06
 	# part 2). `oc serve` builds a default uvicorn.Config, which picks uvloop
-	# and httptools automatically when installed. The rest of [standard]
-	# went: watchfiles (only for --reload), websockets (OC has no WebSocket
-	# routes; MCP is streamable HTTP) and pyyaml (only for a YAML
-	# log_config; OC passes log_config=None). python-dotenv still arrives
-	# through mcp's pydantic-settings. The uvloop marker is uvicorn's own.
+	# and httptools automatically when installed. websockets stays although
+	# OC has no WebSocket routes: without a WebSocket library uvicorn serves
+	# an `Upgrade: websocket` request as plain HTTP and logs two warnings per
+	# request; with it, the request is refused with 403 (operator decision,
+	# 2026-10-03). The rest of [standard] went: watchfiles (only for
+	# --reload) and pyyaml (only for a YAML log_config; OC passes
+	# log_config=None). python-dotenv still arrives through mcp's
+	# pydantic-settings. The uvloop marker is uvicorn's own.
 	"uvicorn>=0.54.0",
 	"uvloop>=0.23.0; sys_platform != 'win32' and sys_platform != 'cygwin' and platform_python_implementation != 'PyPy'",
 	"httptools>=0.8.0",
+	"websockets>=17.2",
 	# Imported directly by src/ (request models, middleware, responses), so
 	# declared rather than left to arrive through fastapi. Floors are the
 	# versions the lock resolves, the ones the tests actually ran on.
