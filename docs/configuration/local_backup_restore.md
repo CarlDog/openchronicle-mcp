@@ -556,6 +556,8 @@ test "$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "$CID")" = no
 if [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = true ]; then
   docker stop --time 60 "$CID"
 fi
+# docker stop can return before inspect reports the exit (seen on the NAS, TS-03).
+for _ in $(seq 1 35); do [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = false ] && break; sleep 2; done
 test "$(docker inspect -f '{{.State.Running}}' "$CID")" = false
 USERS=$(docker ps -q --filter "volume=$VOL")
 test -z "$USERS"
@@ -727,6 +729,8 @@ docker update --restart=no "$CID" >/dev/null
 if [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = true ]; then
   docker stop --time 60 "$CID"
 fi
+# docker stop can return before inspect reports the exit (seen on the NAS, TS-03).
+for _ in $(seq 1 35); do [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = false ] && break; sleep 2; done
 test "$(docker inspect -f '{{.State.Running}}' "$CID")" = false
 offline() {
   docker run --rm --pull never --network none --read-only --tmpfs /tmp \
@@ -787,6 +791,8 @@ RETIRE_RESTART_POLICY=$(docker inspect -f '{{.HostConfig.RestartPolicy.Name}}' "
 echo "RETIRE_RESTART_POLICY=$RETIRE_RESTART_POLICY  (record this)"
 docker update --restart=no "$CID" >/dev/null
 docker stop --time 60 "$CID"
+# docker stop can return before inspect reports the exit (seen on the NAS, TS-03).
+for _ in $(seq 1 35); do [ "$(docker inspect -f '{{.State.Running}}' "$CID")" = false ] && break; sleep 2; done
 test "$(docker inspect -f '{{.State.Running}}' "$CID")" = false
 USERS=$(docker ps -q --filter "volume=$VOL")
 test -z "$USERS"
@@ -874,7 +880,9 @@ The timestamp release (ROADMAP TS-04) ships on its own, after v3.7.0
 value. If any value is naive (no UTC offset), malformed, or outside the range
 UTC can hold, it refuses and changes nothing. Otherwise it rewrites each aware
 value as the same instant in UTC. On the 2026-09-28 copy that changed 94
-values. TS-03 rehearses everything in this section before production.
+values. TS-03 rehearsed this section on a disposable copy on 2026-10-03
+(`tools/backup-drill/ts03-rehearsal.sh`), with a locally built candidate in
+place of the pull step.
 
 ### Before moving `OC_TAG`: run the migration on a copy
 

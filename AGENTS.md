@@ -251,8 +251,8 @@ phase-end audit in progress.**
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
   work. Now: v3.7.0 (PR #92, prepared 2026-09-30; its deploy enables the MCP backup tools, OPS-07),
   the DATA-06/07 NAS session from about 2026-10-05, then the timestamp fix
-  (TS-01 to TS-04, PR #38; its own release after v3.7.0, operator decision
-  2026-09-30), then v4.0.0 on the operator's tag call (V4-01).
+  (TS-01 to TS-04, PR #38; TS-03's rehearsal passed 2026-10-03; its own
+  release after v3.7.0, operator decision 2026-09-30), then v4.0.0 on the operator's tag call (V4-01).
 - **Standing:**
   - The Gemini audit branch was rejected as a unit and survives only as the
     tag `archive/gemini-audit-18092026`

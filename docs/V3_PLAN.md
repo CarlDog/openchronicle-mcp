@@ -1143,8 +1143,8 @@ design doc):
     tie-breaks in chronological readers) was rebased onto `main` the same day
     (TS-04's first step), and passed its pre-deploy review on 2026-09-30 with
     no blocker. It ships as its own release after v3.7.0 (operator decision).
-    What remains is TS-03's rehearsal on a fresh copy and an image pair, then
-    release and deploy.
+    TS-03's rehearsal on a fresh copy and an image pair passed on 2026-10-03;
+    what remains is release and deploy.
 13. [ROADMAP OPS-03] ✅ **Stack 151's detached compose — reconciled and deployed 2026-09-28
     (ROADMAP OPS-03)**
     (see the [proposed reconciliation check](design/0016-review-findings-plan.md#3-preserve-host-allowlists-when-reconciling-the-nas-compose)).
