@@ -1533,7 +1533,16 @@ inconclusive under the R/A rules, the search control included. This matches
 the host noise recorded in the 4C cycle: at eight clients this NAS cannot
 resolve a millisecond-scale difference. `tools/perf/v380-microbench.sh` times
 the added work directly instead: `require_utc` and the two tie-break queries,
-on the same image and snapshot. It
+on the same image and snapshot.
+
+**Microbenchmark (2026-10-03, NAS, the `707cadb6` image, the 15:54Z
+snapshot).** `require_utc` plus `isoformat` costs 2.65 µs against 1.41 µs for
+`isoformat` alone, so `memory_save`'s two calls add about 2.5 µs. The
+`project_list` query reads 92.0 µs before and 87.7 µs after the tie-break (41
+rows, a difference inside noise). The `list_memory_by_source` comparison
+matched no rows (the script's source label is wrong) and is not evidence;
+that path runs only inside `onboard_git`. Against the 1,000 µs budget, the
+added per-request work is under 0.3%. It
 changes no metrics code. Against `v3.7.0`, the files on instrumented paths and
 whether each runs per request:
 
