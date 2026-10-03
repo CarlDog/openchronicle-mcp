@@ -1571,6 +1571,91 @@ production container: p50 4.7 ms and p95 6.0 ms on v3.7.0 just before the
 change, p50 3.4 ms and p95 5.8 ms on v3.8.0 just after, with no failed
 requests. No measurable change.
 
+### MEAS-01 direct-cost result (2026-10-03)
+
+**Scope (operator decision, 2026-10-03).** The 4C protocol compares whole
+runs, and on this NAS the repeated baseline moved by more than the budgets
+every time (4C; the v3.8.0 run above). The operator chose to measure the
+enabled cost directly instead, keeping every budget in this design
+unchanged. Metrics were already on in production under an operator
+exception (assessment rev 303) when this ran.
+
+**Method.** `tools/perf/meas01.sh` runs `tools/perf/meas01.py` inside the
+production image (`v3.8.0`, `3e9fa8d7`) with no network, on three copies of
+the newest catalogued snapshot (16:40Z). Three `oc serve` processes: B
+(metrics off), C (metrics on, scraped) and B2 (metrics off, the repeated
+baseline). One closed-loop client sends each request to all three in a
+rotating order, so host noise lands on all conditions together. Operations:
+REST and MCP keyword search and list, equal shuffled quotas, auth on,
+embeddings off, maintenance off. Phase "prod" scrapes C every 30 s and gates
+p95, throughput (1/mean latency at one client) and RSS; phase "stress"
+scrapes C every 1 s and gates p99. Any metric whose B2-B already exceeds its
+budget is inconclusive. Part 2 times one request's recorder calls on the
+Prometheus and null recorders, and a full-cardinality render.
+
+**NAS result (17:49-17:55Z): every gate passes.** Zero errors in 60,000
+requests. Host busy CPU was 21% (prod) and 30% (stress); load rose from 1.86
+to 3.00, with `wobblebot-advise` at 22% CPU by the end. The B2 control stayed
+well inside every budget.
+
+| Gate | Budget | C - B | B2 - B (control) | Verdict |
+| --- | --- | --- | --- | --- |
+| p95 REST search (n=1,500) | 1 ms | +0.228 ms | +0.037 ms | Pass |
+| p95 REST list | 1 ms | +0.123 ms | +0.040 ms | Pass |
+| p95 MCP search | 1 ms | +0.181 ms | -0.076 ms | Pass |
+| p95 MCP list | 1 ms | +0.184 ms | -0.113 ms | Pass |
+| Throughput loss | 5% | 0.58% | -0.63% | Pass |
+| RSS | 10 MiB | +2.7 MiB | +0.2 MiB | Pass |
+| p99 REST search, 1 s scrapes (n=1,200) | 5 ms | +0.711 ms | -0.384 ms | Pass |
+| p99 REST list | 5 ms | +1.813 ms | +0.064 ms | Pass |
+| p99 MCP search | 5 ms | +2.336 ms | -0.070 ms | Pass |
+| p99 MCP list | 5 ms | +0.723 ms | +0.312 ms | Pass |
+| Scrapes at 1 s | >= 30, each < 1 s | 156 ok, 0 failed, max 20.0 ms | | Pass |
+
+Direct cost: one request's recorder calls (in/out gauges, four search
+stages, one store lock, MCP and HTTP observations) cost 34.3 us on the
+Prometheus recorder and 0.7 us on the null recorder, so 33.5 us added
+against the 1,000 us budget. A full-cardinality render (3,653 series,
+338 KB) takes 26.4 ms CPU median, 70.7 ms max: 0.09% of one core at the
+30 s production interval. At the 30 s interval the prod phase's own scrapes
+took 7.0 ms median, 10.8 ms max.
+
+The earlier REST list-tail breach (+9.086 ms, 4C) does not reproduce:
++1.813 ms here. MCP list now has 1,200 samples per condition, above the
+1,000 the earlier run lacked.
+
+**Limits.** This is one bounded run on the operator's NAS, not a repeated
+series. It is a one-client closed loop, not the eight-client 4C load, so it
+measures the per-request cost, not contention under concurrency. The
+paired-load scrapes covered the cardinality the workload creates, not the
+full matrix; the full matrix is timed separately above. Event-loop lag was
+not measured. Embeddings were off, so provider stages are not exercised. The
+B/A comparison against the uninstrumented `527f2294` was not repeated; the
+null-recorder cost (0.7 us per request) bounds the disabled path. Writes
+were not exercised.
+
+**4D impact.** Since 4D (2026-09-05) the exporter changed (Patch 2, the
+cached-prefix exporter). Production rechecked part of 4D on 2026-10-03
+(assessment rev 303): the authenticated scrape works and `/metrics` answers
+behind auth. History across an OC restart, the outage/idle distinction and
+the two rollback paths were not repeated on this exporter; the next OC
+restart (the next release deploy) is the natural check for history, and
+the documented rollback (`OC_METRICS_ENABLED=false`) is unchanged.
+
+**Guard ownership (operator, 2026-10-03).** The recorder's counted `_safe`
+guard owns "metrics must never break OC". The outer wrappers go, except
+where building a metric's arguments can raise (ROADMAP QUAL-20).
+
+**7 s outlier (v3.5.0 step 5, assessment rev 251): dropped.** One request in
+an idle capture from the operator's desktop over the LAN, with no backup
+running. It has not recurred where it would show: the v3.7.0 and v3.8.0
+deploy samples had no failures and p95 near 6 ms, and this run had zero
+errors or timeouts in 60,000 requests with every p99 under 24 ms (it reports
+quantiles, not the maximum, so it cannot exclude one slow request). A single
+sample taken over the LAN path cannot be attributed to OC. Production
+metrics now record `oc_http_request_duration_seconds`, so a recurrence will
+show in the slowest histogram bucket with a timestamp.
+
 ### Release gate scoped to metrics code (2026-10-03)
 
 **Decision (operator, 2026-10-03).** Step 3's rule that an inconclusive or

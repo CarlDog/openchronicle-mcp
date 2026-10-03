@@ -105,11 +105,9 @@ enforces parity.
   The stored compose matches the repository file. OPS-03 (2026-09-28)
   reconciled it: the shared bridge, design 0020's volume layout (the data
   volume external and pinned by name, `/config` a named volume) and
-  `container_name: openchronicle-mcp`. It is at file version 144, matching
-  `main` at `99bd68cb` (2026-09-29, OPS-08's cloud lines). Since assessment rev 302 the repository
-  file is ahead of it: the metrics collector's configs are inline and every
-  metrics setting comes from the stack env. Stack 151 does not need that
-  until metrics are enabled. The repository
+  `container_name: openchronicle-mcp`. Since 2026-10-03 (assessment rev
+  303) it matches `main` at `4f7a71f`: PR #97's inline metrics collector,
+  whose settings all come from the stack env. The repository
   file reaches production only through a reviewed
   `portainer_update_stack_file`, never pasted unreviewed and never by a git
   redeploy. When a release needs both new compose lines and new env values,
@@ -240,7 +238,8 @@ docs, OC memories, issues and branches, some of it in no plan at all.
 phase-end audit in progress.**
 
 - **Live:** v3.8.0 (`3e9fa8d7`, schema 5) on stack 151 since 2026-10-03, with
-  the MCP backup tools on (OPS-07); stack file version 144. Nightly catalogued backups land in `/exports/backups/auto`
+  the MCP backup tools on (OPS-07) and runtime metrics on (rev 303); stored
+  compose matches `main` at `4f7a71f`. Nightly catalogued backups land in `/exports/backups/auto`
   ([0017](docs/design/0017-exposed-backup-and-restore.md)), and the nightly
   encrypted offsite push ([0001](docs/design/0001-cloud-backup.md) Phase 1)
   sends them to `ocdrop:openchronicle/nas`. Auth is on.
@@ -268,8 +267,10 @@ phase-end audit in progress.**
     or take from it wholesale; its docs and OC milestone memories describe
     unshipped work.
   - Runtime metrics ([0010](docs/design/0010-performance-measurement.md))
-    are in the released image but off by default; enabling them stays
-    blocked on MEAS-01. Since 2026-10-03 its release gate covers only
+    are on in production since 2026-10-03 (assessment rev 303; collector
+    profile `metrics-auth`). MEAS-01 is done: its direct-cost run passed
+    every gate (rev 305), and the recorder owns the metrics-failure guard
+    (QUAL-20). GATE-19's 4F observation remains. Since 2026-10-03 its release gate covers only
     releases that change metrics code; other releases need no exception.
   - Research and idea records (0011, 0012, 0015, 0018, 0019, 0021) are not
     authorization to implement.
