@@ -1,6 +1,7 @@
 # Application Performance Measurement
 
-**Status:** 4C RECOVERY CYCLE COMPLETE; RELEASE/ENABLEMENT BLOCKED — the final
+**Status:** 4C RECOVERY CYCLE COMPLETE; ENABLEMENT BLOCKED (the release gate is
+scoped to metrics-code changes since 2026-10-03, see below) — the final
 NAS B/A and C/A overhead comparisons remain inconclusive, and the final
 maximum-cardinality responsiveness gate did not pass. Phase 1–3 implementation
 is complete. Passed 4D collection/access/recovery evidence was explicitly reused
@@ -21,8 +22,11 @@ metrics code; see [the extension](#extension-to-v350-2026-09-28).
 release does touch the instrumented files; see
 [that extension](#extension-to-v370-2026-09-30). Its deploy sample passed on
 2026-10-03.
-**Proposed for v3.8.0 (2026-10-03), awaiting the operator:** see
-[the proposed extension](#proposed-extension-to-v380-2026-10-03).
+**Release gate scoped (operator, 2026-10-03):** the B/A gate now applies only
+to releases that change metrics code, so releases that leave it alone need no
+exception; see [the scoping decision](#release-gate-scoped-to-metrics-code-2026-10-03).
+v3.8.0 is the first release under it; its measurements are recorded in
+[the v3.8.0 section](#v380-measurement-2026-10-03).
 
 **Work key:** `CarlDog/openchronicle-mcp:work-item:performance-observability-plan`.
 This identifies the planning work, not a GitHub issue or an approved build.
@@ -1519,9 +1523,9 @@ alternating `/health` and a keyword search at about 8 per second: p50 3.4 ms
 and p95 5.9 ms on v3.6.0 just before the change, p50 3.5 ms and p95 6.0 ms on
 v3.7.0 just after, with no failed requests. No measurable change.
 
-### Proposed extension to v3.8.0 (2026-10-03)
+### v3.8.0 measurement (2026-10-03)
 
-**The operator chose to measure first (2026-10-03).** `tools/perf/v380-write-path.sh` builds v3.7.0 and v3.8.0 from source on the NAS and compares them on disposable copies of the newest snapshot: eight clients, three rotating blocks with a repeat-baseline R, gated against step 3's budgets and the R/A rules above. v3.8.0 is PR #38 (migration 005).
+Before deciding on an exception, the operator chose to measure first. `tools/perf/v380-write-path.sh` builds v3.7.0 and v3.8.0 from source on the NAS and compares them on disposable copies of the newest snapshot: eight clients, three rotating blocks with a repeat-baseline R, gated against step 3's budgets and the R/A rules above. v3.8.0 is PR #38 (migration 005).
 
 **NAS result (2026-10-03): inconclusive, on host noise.** No request errors
 (3,600 per run, nine runs). Median B-A deltas were within budget: `memory_save`
@@ -1542,9 +1546,10 @@ snapshot).** `require_utc` plus `isoformat` costs 2.65 µs against 1.41 µs for
 rows, a difference inside noise). The `list_memory_by_source` comparison
 matched no rows (the script's source label is wrong) and is not evidence;
 that path runs only inside `onboard_git`. Against the 1,000 µs budget, the
-added per-request work is under 0.3%. It
-changes no metrics code. Against `v3.7.0`, the files on instrumented paths and
-whether each runs per request:
+added per-request work is under 0.3%.
+
+v3.8.0 changes no metrics code. Against `v3.7.0`, the files on instrumented
+paths and whether each runs per request:
 
 - `sqlite_store.py`: `add_project` and `add_memory` pass timestamps through
   `require_utc` (one offset check and one `astimezone`), and
@@ -1559,7 +1564,32 @@ whether each runs per request:
 - `git_onboard.py`, `import_memory.py`: off the request path, or once per
   `onboard_git` call.
 
-The proposed deploy check is the same sample, before and after the tag move.
+The deploy check is the same latency sample, before and after the tag move.
+
+### Release gate scoped to metrics code (2026-10-03)
+
+**Decision (operator, 2026-10-03).** Step 3's rule that an inconclusive or
+failing B/A blocks release was written for the release that adds or changes
+the instrumentation. Read as applying to every later release, it needed a new
+exception for v3.5.0, v3.6.0 and v3.7.0, and would have needed one for every
+release after, because the B/A test cannot resolve its budget on this NAS
+(4C; v3.8.0's comparison above). Those exceptions added paperwork, not
+protection. From 2026-10-03:
+
+- **A release that changes metrics code** still needs a passing B/A (and
+  C/A, to enable) or an explicit operator exception. Metrics code means
+  `core/infrastructure/observability/`, `core/application/observability/`,
+  `core/domain/ports/metrics_port.py`, `interfaces/api/middleware/metrics.py`,
+  and any change that adds, removes or moves a recorder call elsewhere.
+- **Every other release** lists its per-request changes in its CHANGELOG entry
+  and passes the deploy latency sample: p95 before and after the tag move,
+  against the existing budget. No exception is written.
+- **Enabling metrics in production** stays blocked on this design's gates
+  (MEAS-01), unchanged.
+
+v3.8.0 is the first release under this rule: it changes no metrics code, its
+CHANGELOG lists its per-request changes, and its deploy check is the latency
+sample.
 
 ## Completion and subsequent decisions
 

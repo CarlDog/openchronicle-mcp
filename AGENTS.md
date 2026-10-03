@@ -252,8 +252,8 @@ phase-end audit in progress.**
   (p95 6.0 ms) and the backup tools (assessment rev 295).
 - **Next:** [docs/ROADMAP.md](docs/ROADMAP.md) owns the order of all open
   work. Now: v3.8.0, the timestamp release (TS-04; PR #38 merged 2026-10-03
-  after TS-03), prepared and waiting on the operator's design 0010 call before
-  its tag; its deploy follows the runbook's 005 section and rolls back to the
+  after TS-03), prepared and cleared to tag once PR #95 merges (design 0010's
+  release gate now covers only metrics-code changes); its deploy follows the runbook's 005 section and rolls back to the
   pre-migration snapshot. Then the DATA-06/07 NAS session, then v4.0.0 on the
   operator's tag call (V4-01).
 - **Standing:**
@@ -264,7 +264,8 @@ phase-end audit in progress.**
     unshipped work.
   - Runtime metrics ([0010](docs/design/0010-performance-measurement.md))
     are in the released image but off by default; enabling them stays
-    blocked on MEAS-01.
+    blocked on MEAS-01. Since 2026-10-03 its release gate covers only
+    releases that change metrics code; other releases need no exception.
   - Research and idea records (0011, 0012, 0015, 0018, 0019, 0021) are not
     authorization to implement.
 

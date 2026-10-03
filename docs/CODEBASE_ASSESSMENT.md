@@ -7,7 +7,7 @@ open work lives in [ROADMAP.md](ROADMAP.md) (see "Where things live" below); the
 v2-era assessment this document once carried is frozen verbatim at
 [archive/v2/CODEBASE_ASSESSMENT.md](archive/v2/CODEBASE_ASSESSMENT.md).
 
-**Snapshot date:** 2026-10-03 UTC · **Revision:** 298 (v3.8.0 microbenchmark)
+**Snapshot date:** 2026-10-03 UTC · **Revision:** 299 (0010 release gate scoped)
 
 ## Current state
 
@@ -84,7 +84,7 @@ current work:
   pre-deploy review (rev 288). TS-03 closed on 2026-10-03: the image-pair
   rehearsal passed (rev 292), and its re-run with the FTS and embedding checks
   passed too (rev 294). PR #38 merged on 2026-10-03 and is prepared as v3.8.0
-  (rev 295); tagging waits on the operator's design 0010 call.
+  (rev 295); it needs no 0010 exception (rev 299).
 - **The MCP backup tools** (design 0017) are on in production since the
   v3.7.0 deploy on 2026-10-03 (OPS-07): create, list, verify and plan passed
   there. Manual snapshots are never pruned (DATA-07).
@@ -112,6 +112,7 @@ revision since; details in CHANGELOG.md and git history.
 
 | Rev | Date | What changed |
 |---|---|---|
+| 299 | 2026-10-03 | **Design 0010's release gate scoped to metrics code (operator).** The B/A gate was written for releases that change the instrumentation, but it had been read as covering every release, which took a new exception for v3.5.0, v3.6.0 and v3.7.0 because B/A cannot resolve its budget on this NAS. From now on, only a release that changes metrics code (the observability packages, the metrics port, the metrics middleware, or a recorder call) needs a passing B/A or an exception; every other release lists its per-request changes in the CHANGELOG and passes the deploy latency sample. Enabling metrics stays blocked on MEAS-01. v3.8.0 changes no metrics code, so it is cleared to merge and tag |
 | 298 | 2026-10-03 | **v3.8.0 microbenchmark on the NAS.** On the `707cadb6` image and the 15:54Z snapshot: `require_utc` plus `isoformat` 2.65 µs against 1.41 µs for `isoformat` alone, so `memory_save` adds about 2.5 µs; the `project_list` query 92.0 µs before and 87.7 µs after its `id DESC` tie-break (41 rows, inside noise). The `list_memory_by_source` comparison matched no rows (wrong source label in the script) and is not counted; that path runs only inside `onboard_git`. The first run printed nothing (the heredoc needed `docker run -i`, fixed). The design 0010 extension to v3.8.0 is back with the operator |
 | 297 | 2026-10-03 | **v3.8.0 write-path comparison: inconclusive on host noise.** `v380-write-path.sh` ran on the NAS (both images built from source, the 15:54Z snapshot, 1,200 samples per operation per run, no errors). B-A medians sat inside budget (`memory_save` p95 +1.65 ms against 3.22; `project_list` -4.51 ms against 2.72; throughput 0.0%), but the repeat baseline swung by up to 33.8 ms on `memory_save` p95 and 37.4% on throughput, so the R/A rules mark every metric inconclusive, the ungated search control included. Added `tools/perf/v380-microbench.sh`, which times `require_utc` and the old and new tie-break queries directly on the v3.8.0 image and the snapshot, read-only. Tagging still waits on the operator |
 | 296 | 2026-10-03 | **v3.8.0: measure before extending 0010's exception (operator).** `tools/perf/v380-write-path.sh` builds v3.7.0 (`7feac579`) and `main` with PR #38 (`707cadb6`) from source on the NAS, then runs each on a fresh copy of the newest catalogued snapshot (no network, embeddings off, maintenance off): eight clients each doing `memory_save` with an offset `created_at`, `project_list` and a keyword search (the control), in three rotating blocks (A B R, B R A, R A B) where R repeats A. Gates are design 0010 step 3's (added p95 at most max(1 ms, 5% of A); throughput loss at most 5%) under its R/A inconclusive rules; a request error makes the run inconclusive. The verdict logic was checked against a stub server only. Tagging waits on the NAS result |

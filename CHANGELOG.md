@@ -11,9 +11,9 @@ The timestamp release: chronological listings order memories by their real
 instant, and every stored timestamp is UTC (ROADMAP TS-01 to TS-04, PR #38,
 design 0016 track 2). Schema 5.
 
-**Status:** prepared 2026-10-03; not yet tagged. Tagging waits on the
-operator's call on design 0010's release exception, which this release would
-extend (see the last entry below).
+**Status:** prepared 2026-10-03; not yet tagged. It is tagged once this merges
+and its CI passes. It needs no design 0010 exception: since 2026-10-03 the
+release gate covers only metrics-code changes (see the last entry below).
 
 **Deploy note.** Read this before moving `OC_TAG`; the full procedure is the
 runbook's [timestamp migration 005 section](docs/configuration/local_backup_restore.md#timestamp-migration-005-deploy-and-rollback),
@@ -67,11 +67,13 @@ Changes:
 - **Chronological listings break ties by ID**: project listings and the
   per-source listings `onboard_git` reads, so equal timestamps no longer come
   back in an arbitrary order.
-- **Design 0010:** the release exception would extend to v3.8.0 if the
-  operator agrees. No metrics code changes. Per request, `memory_save` adds
-  two timezone conversions, and `project_list` gains an `id DESC` tie-break
-  (41 projects). The rest runs once: the migration on first boot. Metrics stay
-  off by default.
+- **Design 0010:** the release gate now covers only releases that change
+  metrics code (operator, 2026-10-03), so this release needs no exception.
+  It changes no metrics code. Per request, `memory_save` adds two timezone
+  conversions, measured on the NAS at about 2.5 µs, and `project_list` gains
+  an `id DESC` tie-break with no measurable change (92.0 µs before, 87.7 µs
+  after). The migration runs once, on first boot. The deploy check is the
+  latency sample, before and after the tag move. Metrics stay off by default.
 
 ## v3.7.0 — 2026-09-30
 
