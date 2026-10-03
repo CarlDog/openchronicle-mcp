@@ -106,7 +106,10 @@ enforces parity.
   reconciled it: the shared bridge, design 0020's volume layout (the data
   volume external and pinned by name, `/config` a named volume) and
   `container_name: openchronicle-mcp`. It is at file version 144, matching
-  `main` at `99bd68cb` (2026-09-29, OPS-08's cloud lines). The repository
+  `main` at `99bd68cb` (2026-09-29, OPS-08's cloud lines). Since assessment rev 302 the repository
+  file is ahead of it: the metrics collector's configs are inline and every
+  metrics setting comes from the stack env. Stack 151 does not need that
+  until metrics are enabled. The repository
   file reaches production only through a reviewed
   `portainer_update_stack_file`, never pasted unreviewed and never by a git
   redeploy. When a release needs both new compose lines and new env values,
