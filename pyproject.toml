@@ -27,7 +27,21 @@ classifiers = [
 ]
 dependencies = [
 	"fastapi>=0.110.0",
-	"uvicorn[standard]>=0.54.0",
+	# Plain uvicorn plus the two [standard] extras OC actually uses (QUAL-06
+	# part 2). `oc serve` builds a default uvicorn.Config, which picks uvloop
+	# and httptools automatically when installed. The rest of [standard]
+	# went: watchfiles (only for --reload), websockets (OC has no WebSocket
+	# routes; MCP is streamable HTTP) and pyyaml (only for a YAML
+	# log_config; OC passes log_config=None). python-dotenv still arrives
+	# through mcp's pydantic-settings. The uvloop marker is uvicorn's own.
+	"uvicorn>=0.54.0",
+	"uvloop>=0.23.0; sys_platform != 'win32' and sys_platform != 'cygwin' and platform_python_implementation != 'PyPy'",
+	"httptools>=0.8.0",
+	# Imported directly by src/ (request models, middleware, responses), so
+	# declared rather than left to arrive through fastapi. Floors are the
+	# versions the lock resolves, the ones the tests actually ran on.
+	"pydantic>=2.13.5",
+	"starlette>=1.7.0",
 ]
 
 [project.urls]
@@ -84,15 +98,9 @@ dev = [
 	# the locked version. Dependabot's uv-dev group raises the cap when a
 	# new minor lands.
 	"ruff>=0.16.9,<0.17",
-	"openai>=3.19.2",
-	"httpx>=0.25.0",
-	# Keep in step with the [mcp] extra above — that comment carries the
-	# reasoning. This is the copy CI's test job actually installs, so an
-	# older floor here would resolve the MCP baseline tests against a
-	# version they were never captured on.
-	"mcp>=1.30.0,<2",
-	"numpy>=2.5.3",
-	"prometheus-client>=0.23.1",
+	# The runtime extras, by reference rather than as copies, so each
+	# constraint (the mcp <2 cap above all) lives in exactly one place.
+	"openchronicle-mcp[openai,ollama,mcp,metrics]",
 ]
 
 [tool.pytest.ini_options]
