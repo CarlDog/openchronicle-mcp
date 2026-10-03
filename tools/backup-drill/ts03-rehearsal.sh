@@ -2,7 +2,7 @@
 # TS-03 rehearsal for PR #38 (migration 005), on disposable volumes only.
 # Recorded run: assessment rev 292 (passed 2026-10-03 at a18212f4 against
 # the 2026-10-03T15:17Z catalogued snapshot). The FTS and embedding checks
-# were added afterwards (rev 293) and need their own run.
+# were added afterwards (rev 293); that run passed at 6c990d5e (rev 294).
 #
 # Run on the NAS as a user who can run docker (sudo bash tools/backup-drill/ts03-rehearsal.sh).
 # It never stops, edits or recreates the production container

@@ -204,8 +204,8 @@ ships as its own release, after v3.7.0 (operator decision, 2026-09-30).
 
 The disposable restore and image-pair rehearsal (TS-03) passed on 2026-10-03
 (`tools/backup-drill/ts03-rehearsal.sh`, assessment rev 292). That run compared row
-counts only; the FTS and embedding checks the merge gate names were added in rev
-293 and need one more run.
+counts only; the re-run with the FTS and embedding checks the merge gate names
+passed the same day (rev 294).
 
 ### 3. Preserve Host allowlists when reconciling the NAS compose
 
