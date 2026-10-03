@@ -194,7 +194,7 @@ The operator's aspiration (2026-09-28): do everything #memory (usememory.com) do
 | GATE-16 | A save-response hint when a save is tombstoned | Operator experience asks for it |
 | GATE-17 | Remove the inert `pinned_limit` | v5.0.0 |
 | GATE-18 | Deduplicate the CLI `--confirm` branch | A third such command |
-| GATE-19 | Metrics 4E enablement and 4F observation; Prometheus retention validation; later observability decisions | MEAS-01 passes, plus authorization |
+| GATE-19 | Metrics 4E enablement and 4F observation; Prometheus retention validation; later observability decisions | MEAS-01 passes, plus authorization. **2026-10-03:** metrics are already on in production under an operator exception (assessment rev 303); that is not the 4E acceptance, which still needs MEAS-01 |
 | GATE-20 | Prompt-library Stages 2 and 3 | Stage 1 has shipped; mcp 2.x for Stage 3 |
 | GATE-21 | Run backup verification in a killable subprocess | A verification outlives `cloud_backup`'s 900 s bound in production (0001 Diff review: cancelling the await does not stop the worker thread) |
 | GATE-22 | Client-side git onboarding into a server project: clone and cluster on the client, where the repository credentials are, then save on the server and record the watermark there (smallest form: a `--dry-run` that needs no local project and emits JSON for `memory_save`; fuller form: `oc onboard git --server <url>`). V3_PLAN "Git onboarding for a repo the server cannot clone" | The operator ratifies a design. A consumer exists: HERMES, a work repository whose GitHub EMU organization the server's token cannot read (2026-10-01) |
