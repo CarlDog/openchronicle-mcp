@@ -110,6 +110,14 @@ class TestServerCreation:
         server = create_server(_make_container(), MCPConfig())
         assert server.settings.stateless_http is True
 
+    def test_configured_host_and_port_reach_fastmcp(self) -> None:
+        """FastMCP's sse and streamable-http transports bind settings.port,
+        whose own default is 8000: dropping the hand-off would make the
+        standalone server ignore OC_MCP_PORT (second fix-round review of #110).
+        """
+        server = create_server(_make_container(), MCPConfig(transport="sse", host="127.0.0.2", port=9191))
+        assert (server.settings.host, server.settings.port) == ("127.0.0.2", 9191)
+
 
 # ── Project tools ─────────────────────────────────────────────────
 
