@@ -12,6 +12,7 @@ from openchronicle.core.application.config.env_helpers import (
     parse_float,
     parse_int,
     parse_str,
+    resolve_port,
 )
 
 # ---------- parse_int ----------
@@ -149,6 +150,51 @@ class TestParseIntEnv:
         assert parse_int_env("", default=600, name="X") == 600
         assert parse_int_env("   ", default=600, name="X") == 600
         assert parse_int_env(None, default=600, name="X") == 600
+
+    @pytest.mark.parametrize("raw", ["true", "1.0", "8080.5"])
+    def test_words_and_decimals_are_not_integers(self, raw: str, caplog: pytest.LogCaptureFixture) -> None:
+        """An env var is text: "true" is not 1 and "1.0" is not 1 (QUAL-23)."""
+        from openchronicle.core.application.config.env_helpers import parse_int_env
+
+        with caplog.at_level(logging.WARNING):
+            assert parse_int_env(raw, default=600, name="X") == 600
+        assert f"Invalid X={raw!r}" in caplog.text
+
+
+# ---------- resolve_port ----------
+
+
+class TestResolvePort:
+    """Env var, else core.json "port", else the default; each source must be
+    1-65535, and a bad one falls back with a warning naming that source and
+    the port actually used (QUAL-23)."""
+
+    def test_precedence_env_then_file_then_default(self) -> None:
+        assert resolve_port(env_name="P", env_raw="9002", file_value=9001, default=8000) == 9002
+        assert resolve_port(env_name="P", env_raw=None, file_value=9001, default=8000) == 9001
+        assert resolve_port(env_name="P", env_raw=None, file_value=None, default=8000) == 8000
+
+    def test_range_edges_are_valid(self) -> None:
+        assert resolve_port(env_name="P", env_raw=None, file_value=1, default=8000) == 1
+        assert resolve_port(env_name="P", env_raw=None, file_value=65535, default=8000) == 65535
+        assert resolve_port(env_name="P", env_raw="1", file_value=None, default=8000) == 1
+        assert resolve_port(env_name="P", env_raw="65535", file_value=None, default=8000) == 65535
+
+    @pytest.mark.parametrize("raw", ["0", "65536", "99999", "-1"])
+    def test_out_of_range_env_falls_back_to_the_file_port(self, raw: str, caplog: pytest.LogCaptureFixture) -> None:
+        with caplog.at_level(logging.WARNING):
+            assert resolve_port(env_name="P", env_raw=raw, file_value=7777, default=8000) == 7777
+        assert f"P={raw} is outside 1-65535; using 7777" in caplog.text
+
+    @pytest.mark.parametrize("value", [0, 65536, -1, True, False, "9001", 8080.0])
+    def test_invalid_file_port_falls_back_to_the_default_naming_core_json(
+        self, value: object, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING):
+            assert resolve_port(env_name="P", env_raw=None, file_value=value, default=8000) == 8000
+        assert f"Invalid core.json port {value!r} (must be 1-65535); using 8000" in caplog.text
+        # The old warning blamed the env var for a bad file value.
+        assert "P=" not in caplog.text
 
 
 # ---------- parse_bool_env ----------

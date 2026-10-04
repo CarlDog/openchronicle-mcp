@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from typing import Literal, cast
 
-from openchronicle.core.application.config.env_helpers import parse_int_env
+from openchronicle.core.application.config.env_helpers import resolve_port
 
 # Default allowed Host header values for the streamable-HTTP transport.
 # FastMCP rejects requests whose Host header doesn't match this allowlist
@@ -55,10 +55,12 @@ class MCPConfig:
 
         host = os.environ.get("OC_MCP_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
-        port_file = fc.get("port")
-        # bool is an int subclass: `"port": true` must not become port 1.
-        default_port = port_file if isinstance(port_file, int) and not isinstance(port_file, bool) else 8080
-        port = parse_int_env(os.environ.get("OC_MCP_PORT"), default=default_port, name="OC_MCP_PORT")
+        # Same rules as HTTPConfig (QUAL-23). Only the standalone sse and
+        # streamable-http transports bind this port, and they read only
+        # OC_MCP_PORT; inside `oc serve` MCP shares the API port.
+        port = resolve_port(
+            env_name="OC_MCP_PORT", env_raw=os.environ.get("OC_MCP_PORT"), file_value=fc.get("port"), default=8080
+        )
 
         server_name = str_or_default(fc.get("server_name"), "openchronicle")
 

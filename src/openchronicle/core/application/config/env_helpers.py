@@ -83,6 +83,30 @@ def parse_int_env(raw: str | None, *, default: int, name: str) -> int:
         return default
 
 
+def resolve_port(*, env_name: str, env_raw: str | None, file_value: object, default: int) -> int:
+    """The port a listener binds: ``env_name``, else core.json ``"port"``, else ``default``.
+
+    Each source must be a whole number in 1-65535 (``bool`` is refused, as
+    it is an ``int`` subclass). A bad value degrades to the next source with
+    a warning that names the source it came from and the port actually used,
+    never an exception: under ``restart: unless-stopped`` one bad value would
+    otherwise crash-loop the service (QUAL-23).
+    """
+    fallback = default
+    if file_value is not None:
+        if isinstance(file_value, int) and not isinstance(file_value, bool) and 1 <= file_value <= 65535:
+            fallback = file_value
+        else:
+            _logger.warning("Invalid core.json port %r (must be 1-65535); using %d", file_value, default)
+    if env_raw is None or not env_raw.strip():
+        return fallback
+    port = parse_int_env(env_raw, default=fallback, name=env_name)
+    if not 1 <= port <= 65535:
+        _logger.warning("%s=%d is outside 1-65535; using %d", env_name, port, fallback)
+        return fallback
+    return port
+
+
 _TRUE_WORDS = frozenset({"1", "true", "yes", "on"})
 _FALSE_WORDS = frozenset({"0", "false", "no", "off"})
 

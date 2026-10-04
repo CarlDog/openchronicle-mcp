@@ -65,6 +65,21 @@ class TestMCPConfigValidation:
         config = MCPConfig.from_env(file_config={"server_name": "my-oc"})
         assert config.server_name == "my-oc"
 
+    @pytest.mark.parametrize("raw", ["0", "99999"])
+    def test_out_of_range_env_port_falls_back(self, raw: str) -> None:
+        """MCPConfig had no range check: OC_MCP_PORT=0 meant an ephemeral port
+        on the standalone sse/streamable-http path (QUAL-23)."""
+        env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
+        env["OC_MCP_PORT"] = raw
+        with patch.dict(os.environ, env, clear=True):
+            assert MCPConfig.from_env().port == 8080
+            assert MCPConfig.from_env(file_config={"port": 9090}).port == 9090
+
+    def test_out_of_range_file_port_falls_back(self) -> None:
+        env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
+        with patch.dict(os.environ, env, clear=True):
+            assert MCPConfig.from_env(file_config={"port": 70000}).port == 8080
+
     @pytest.mark.parametrize("value", [True, False])
     def test_boolean_port_in_file_config_falls_back_to_default(self, value: bool) -> None:
         """bool is an int subclass, so `"port": true` became port 1 and

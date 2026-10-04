@@ -6,6 +6,7 @@ paths), and architectural posture (no core → interfaces/api imports).
 
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -856,6 +857,26 @@ class TestConfigFailSoft:
     def test_out_of_range_port_falls_back(self) -> None:
         with patch.dict("os.environ", {"OC_API_PORT": "99999"}):
             assert HTTPConfig.from_env().port == 8000
+
+    def test_out_of_range_port_env_falls_back_to_file_value(self) -> None:
+        """A bad env var degrades to the core.json port, not past it (QUAL-23)."""
+        with patch.dict("os.environ", {"OC_API_PORT": "99999"}):
+            assert HTTPConfig.from_env(file_config={"port": 7777}).port == 7777
+
+    def test_file_port_one_is_valid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OC_API_PORT", raising=False)
+        assert HTTPConfig.from_env(file_config={"port": 1}).port == 1
+
+    def test_bad_file_port_warning_names_core_json_and_the_port_used(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The old warning read "OC_API_PORT 0 out of range; using default 0"
+        for a core.json port of 0, then bound 8000 (QUAL-23)."""
+        monkeypatch.delenv("OC_API_PORT", raising=False)
+        with caplog.at_level(logging.WARNING):
+            assert HTTPConfig.from_env(file_config={"port": 0}).port == 8000
+        assert "Invalid core.json port 0 (must be 1-65535); using 8000" in caplog.text
+        assert "OC_API_PORT" not in caplog.text
 
     def test_boolean_port_in_file_config_falls_back_to_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """bool is an int subclass; `"port": true` must not become port 1.
