@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
+from mcp.shared.memory import create_connected_server_and_client_session
 from prometheus_client import generate_latest
 
 from openchronicle.core.application.observability.exporter import MetricsScrapeBusyError, MetricsScrapeError
@@ -164,6 +165,47 @@ async def test_mcp_tool_labels_cover_every_registrable_tool(monkeypatch: pytest.
     assert registered == set(_MCP_TOOLS)
 
 
+@pytest.mark.asyncio
+async def test_a_real_backup_tool_call_is_recorded_under_its_own_label(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Through the real MetricsFastMCP wrapper. OC registers tools with a
+    bare @mcp.tool(), so the label comes from the wrapper's function-name
+    fallback; a regression there, or in which tools get wrapped, would send
+    every call to `__unknown__` or record nothing (QUAL-22 review)."""
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "call.db"))
+    monkeypatch.setenv("OC_MAINTENANCE_DISABLED", "1")
+    (tmp_path / "backups").mkdir()
+    monkeypatch.setenv("OC_BACKUP_DIR", str(tmp_path / "backups"))
+    container = CoreContainer()
+    recorder = PrometheusMetricsRecorder()
+    container.metrics = recorder
+    try:
+        server = create_server(container, MCPConfig.from_env(), backup_tools_enabled=True)
+        # A real client session: tools take the request context.
+        async with create_connected_server_and_client_session(server._mcp_server) as session:  # noqa: SLF001
+            await session.initialize()
+            result = await session.call_tool("db_backup_list", {})
+        assert not result.isError, result.content
+    finally:
+        container.close()
+    text = _text(recorder)
+    assert re.search(r'oc_mcp_executions_total\{[^}]*tool="db_backup_list"[^}]*\} 1\.0', text)
+    assert 'tool="__unknown__"' not in text
+
+
+def test_job_labels_cover_every_job_that_can_run() -> None:
+    """The cloud_backup job (the nightly offsite push) was missing from the
+    bounded job set, so every run was recorded as `__unknown__`. Pin the set
+    to the maintenance handlers plus the background backfill runs, which are
+    named "{trigger}_backfill" for the two triggers OC uses."""
+    from openchronicle.core.infrastructure.maintenance.jobs import HANDLERS
+    from openchronicle.core.infrastructure.observability.prometheus_recorder import _JOB_NAMES
+
+    assert {"db_backup", "cloud_backup"} <= set(HANDLERS)  # the registry was read
+    assert set(HANDLERS) | {"operator_backfill", "reconcile_backfill"} == set(_JOB_NAMES)
+
+
 def test_backup_tool_calls_get_their_own_label() -> None:
     recorder = PrometheusMetricsRecorder()
     recorder.observe_mcp(tool="db_restore_stage", outcome="ok", duration_seconds=0.01)
@@ -173,16 +215,18 @@ def test_backup_tool_calls_get_their_own_label() -> None:
 
 
 def test_mcp_route_is_labelled_with_or_without_trailing_slash() -> None:
-    """Clients post to /mcp/ (the mount's root); a bare /mcp redirects there.
-    Both are the one /mcp route, never the unknown fallback (QUAL-22)."""
+    """/mcp and /mcp/ both serve the MCP endpoint, with no redirect between
+    them (QUAL-26), so both are the one /mcp route, never the unknown
+    fallback (QUAL-22)."""
     assert normalize_http_route("/mcp") == "/mcp"
     assert normalize_http_route("/mcp/") == "/mcp"
     # Only the mount root: any other path under it stays the bounded fallback.
     assert normalize_http_route("/mcp/anything") == "__unknown__"
     recorder = PrometheusMetricsRecorder()
-    recorder.observe_http(path="/mcp/", method="POST", status_code=200, duration_seconds=0.01)
+    recorder.observe_http(path="/mcp", method="POST", status_code=200, duration_seconds=0.2)
+    recorder.observe_http(path="/mcp/", method="POST", status_code=200, duration_seconds=0.2)
     text = _text(recorder)
-    assert 'route="/mcp"' in text
+    assert 'oc_http_request_duration_seconds_count{method="POST",route="/mcp"} 2.0' in text
     assert 'route="__unknown__"' not in text
 
 

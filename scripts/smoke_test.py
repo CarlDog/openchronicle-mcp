@@ -156,12 +156,14 @@ def main() -> int:
     # smoke test only did GET /mcp; GET happily 307'd, so the probe passed
     # while POST /mcp 404'd. This step now POSTs a real MCP `initialize`
     # request body and accepts any non-404 response (streamable-HTTP returns
-    # SSE; we don't try to read the body). Mirrors
-    # tests/test_unified_asgi.py::test_mcp_post_initialize_hits_transport_at_slash_mcp.
-    s, _ = _post_mcp_initialize(f"{base}/mcp/", api)
+    # SSE; we don't try to read the body). It targets the documented URL,
+    # bare /mcp, and also refuses a redirect: until QUAL-26 that URL was a
+    # 307 to /mcp/, an extra round trip for every client. Mirrors
+    # tests/test_unified_asgi.py::test_mcp_endpoint_is_served_at_both_paths_without_a_redirect.
+    s, _ = _post_mcp_initialize(f"{base}/mcp", api)
     step(
-        "POST /mcp/ (initialize handshake)",
-        s != -1 and s != 404,
+        "POST /mcp (initialize handshake, no redirect)",
+        s != -1 and s != 404 and not 300 <= s < 400,
         f"status={s}",
     )
 

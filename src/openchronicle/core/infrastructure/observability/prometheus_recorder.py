@@ -88,6 +88,9 @@ _JOB_NAMES: Final[frozenset[str]] = frozenset(
         "embedding_backfill",
         "db_backup",
         "git_onboard_resync",
+        # The nightly encrypted offsite push (design 0001, OPS-08).
+        "cloud_backup",
+        # Background backfill runs, "{trigger}_backfill" (embedding_service).
         "operator_backfill",
         "reconcile_backfill",
     }
@@ -137,8 +140,9 @@ def normalize_http_route(path: str) -> str | None:
         return "/api/v1/memory/{memory_id}"
     if path.startswith("/api/v1/project/"):
         return "/api/v1/project/{project_id}"
-    # The MCP app is mounted at /mcp; clients post to /mcp/ (the mount's
-    # root), and a bare /mcp is redirected there. Both are one route.
+    # The MCP endpoint is served at both /mcp (the spec's form and every
+    # documented client URL) and /mcp/ (the mount root), with no redirect
+    # between them (QUAL-26), so both are the one MCP route.
     if path in {"/mcp", "/mcp/"}:
         return "/mcp"
     return _UNKNOWN

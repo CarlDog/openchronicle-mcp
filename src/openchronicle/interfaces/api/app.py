@@ -16,6 +16,8 @@ from contextlib import AsyncExitStack, asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from starlette.requests import Request
+from starlette.routing import Route
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from openchronicle.core.application.config.env_helpers import parse_bool_env
 from openchronicle.core.application.observability.exporter import (
@@ -29,6 +31,25 @@ from openchronicle.interfaces.api.config import HTTPConfig
 from openchronicle.version import package_version
 
 logger = logging.getLogger(__name__)
+
+
+class _ServeExactMcpPath:
+    """Serve the MCP endpoint at exactly ``/mcp``, with no redirect (QUAL-26).
+
+    The MCP spec's endpoint form, and every documented client URL, is
+    ``/mcp``. A Starlette Mount at ``/mcp`` only matches ``/mcp/...``, so a
+    bare ``/mcp`` fell through to the router's trailing-slash redirect: a
+    307 to ``/mcp/`` and an extra round trip on every client request. This
+    route hands ``/mcp`` to the router as ``/mcp/``, which the mount serves.
+    It is an ASGI app, not a function, so Starlette passes every method
+    (MCP uses POST, GET and DELETE) straight through.
+    """
+
+    def __init__(self, router: ASGIApp) -> None:
+        self._router = router
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        await self._router({**scope, "path": "/mcp/", "raw_path": b"/mcp/"}, receive, send)
 
 
 def _backup_tools_enabled(config: HTTPConfig, container: CoreContainer) -> bool:
@@ -212,12 +233,14 @@ def create_app(
     if mcp_server is not None:
         # FastMCP exposes a Starlette app for streamable-HTTP transport.
         # The server is constructed with streamable_http_path="/" (see
-        # mcp/server.py) so the inner app handles its own root; mounting
-        # at /mcp on the host makes the full external URL exactly /mcp.
-        # WITHOUT the "/" override, FastMCP would default to "/mcp" for
-        # its inner path and the mounted endpoint would silently land at
-        # /mcp/mcp — broken for every documented client config.
+        # mcp/server.py) so the inner app handles its own root, and the
+        # mount serves it at /mcp/. WITHOUT the "/" override, FastMCP would
+        # default to "/mcp" for its inner path and the mounted endpoint
+        # would silently land at /mcp/mcp — broken for every client config.
         app.mount("/mcp", mcp_server.streamable_http_app())
+        # A mount answers a bare /mcp, the documented URL, with a 307 to
+        # /mcp/; this exact route serves it directly instead (QUAL-26).
+        app.router.routes.append(Route("/mcp", endpoint=_ServeExactMcpPath(app.router), include_in_schema=False))
 
     @app.get("/health", include_in_schema=False)
     def liveness() -> dict[str, str]:
