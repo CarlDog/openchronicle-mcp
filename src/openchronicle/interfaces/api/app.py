@@ -94,7 +94,8 @@ def create_app(
         from openchronicle.interfaces.mcp.config import MCPConfig
         from openchronicle.interfaces.mcp.server import create_server
 
-        mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"))
+        # Mounted at /mcp on the API port: MCP's own port is never bound here.
+        mcp_config = MCPConfig.from_env(file_config=container.file_configs.get("mcp"), binds_port=False)
         mcp_server = create_server(container, mcp_config, backup_tools_enabled=_backup_tools_enabled(config, container))
 
     metrics_candidate = getattr(container, "metrics", None)

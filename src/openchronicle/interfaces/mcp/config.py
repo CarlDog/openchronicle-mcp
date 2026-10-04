@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from typing import Literal, cast
 
-from openchronicle.core.application.config.env_helpers import parse_int_env
+from openchronicle.core.application.config.env_helpers import resolve_port
 
 # Default allowed Host header values for the streamable-HTTP transport.
 # FastMCP rejects requests whose Host header doesn't match this allowlist
@@ -45,8 +45,15 @@ class MCPConfig:
     allowed_hosts: tuple[str, ...] = DEFAULT_ALLOWED_HOSTS
 
     @classmethod
-    def from_env(cls, file_config: dict[str, object] | None = None) -> MCPConfig:
-        """Load config from environment variables with file_config fallback."""
+    def from_env(cls, file_config: dict[str, object] | None = None, *, binds_port: bool = True) -> MCPConfig:
+        """Load config from environment variables with file_config fallback.
+
+        The port is read and validated only when it is bound: by the
+        standalone server's sse and streamable-http transports. ``stdio``
+        binds none, and ``binds_port=False`` is for the MCP server mounted
+        inside ``oc serve``, which listens on the API port. Either way no
+        warning describes a port nothing binds (QUAL-23).
+        """
         fc = file_config or {}
 
         transport = os.environ.get("OC_MCP_TRANSPORT", "").strip() or str_or_default(fc.get("transport"), "stdio")
@@ -55,10 +62,17 @@ class MCPConfig:
 
         host = os.environ.get("OC_MCP_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
-        port_file = fc.get("port")
-        # bool is an int subclass: `"port": true` must not become port 1.
-        default_port = port_file if isinstance(port_file, int) and not isinstance(port_file, bool) else 8080
-        port = parse_int_env(os.environ.get("OC_MCP_PORT"), default=default_port, name="OC_MCP_PORT")
+        # Same rules as HTTPConfig (QUAL-23), but only where this port is
+        # bound: the standalone server's sse and streamable-http transports.
+        port = 8080
+        if binds_port and transport != "stdio":
+            port = resolve_port(
+                env_name="OC_MCP_PORT",
+                env_raw=os.environ.get("OC_MCP_PORT"),
+                file_key="mcp.port",
+                file_value=fc.get("port"),
+                default=8080,
+            )
 
         server_name = str_or_default(fc.get("server_name"), "openchronicle")
 

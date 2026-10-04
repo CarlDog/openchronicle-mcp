@@ -2,18 +2,15 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from dataclasses import dataclass
 
-from openchronicle.core.application.config.env_helpers import parse_int_env
+from openchronicle.core.application.config.env_helpers import resolve_port
 from openchronicle.interfaces.mcp.config import (
     DEFAULT_ALLOWED_HOSTS,
     parse_allowed_hosts,
     str_or_default,
 )
-
-_logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -48,15 +45,15 @@ class HTTPConfig:
 
         host = os.environ.get("OC_API_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
-        port_file = fc.get("port")
-        # bool is an int subclass: `"port": true` must not become port 1.
-        default_port = port_file if isinstance(port_file, int) and not isinstance(port_file, bool) else 8000
-        port = parse_int_env(os.environ.get("OC_API_PORT"), default=default_port, name="OC_API_PORT")
-        if not 1 <= port <= 65535:
-            # Out-of-range is the same crash-loop trap as non-numeric —
-            # degrade with a warning rather than let __post_init__ raise.
-            _logger.warning("OC_API_PORT %d out of range; using default %d", port, default_port)
-            port = default_port if 1 <= default_port <= 65535 else 8000
+        # Fail soft, never let __post_init__ raise: a bad port degrades with a
+        # warning naming its real source and the port actually used.
+        port = resolve_port(
+            env_name="OC_API_PORT",
+            env_raw=os.environ.get("OC_API_PORT"),
+            file_key="api.port",
+            file_value=fc.get("port"),
+            default=8000,
+        )
 
         api_key = (os.environ.get("OC_API_KEY", "").strip() or str_or_default(fc.get("api_key"), "")) or None
 

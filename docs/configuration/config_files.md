@@ -70,12 +70,25 @@ HTTP REST surface configuration.
 | `api_key` | bearer token (auth disabled when unset/empty) | — |
 | `allowed_hosts` | list of `Host:` patterns for the DNS-rebinding allowlist; `OC_API_ALLOWED_HOSTS` overrides it | loopback only |
 
+`port` must be a whole number from 1 to 65535. A bad value (`0`,
+`70000`, `true`, `"9001"`, `8080.0`) is logged as an invalid `core.json`
+`api.port`, and the default, 8000, is used. `OC_API_PORT`, when set to a
+valid port, overrides it, and the bad file value is then logged as
+ignored.
+
 ### `mcp`
 
 MCP server configuration. Within `oc serve` the streamable-HTTP MCP
 transport is mounted into the FastAPI app at `/mcp` and shares the
-`api.port`; this section is for the standalone-MCP code path used by
-older clients pinning `:8080`.
+`api.port`, so only `server_name` and `allowed_hosts` from this section
+take effect. `host` is read but nothing binds it, and `port` is neither
+read nor validated there, so a bad `mcp.port` or `OC_MCP_PORT` logs
+nothing. `transport` is still checked: a value other than `stdio`, `sse`
+or `streamable-http` (in this section or in `OC_MCP_TRANSPORT`) stops
+`oc serve` at startup (ROADMAP QUAL-30). The standalone MCP server
+(`python -m openchronicle.interfaces.mcp`) does not read this section at
+all: it takes `OC_MCP_TRANSPORT`, `OC_MCP_HOST` and `OC_MCP_PORT` from the
+environment ([env_vars.md](env_vars.md)).
 
 It also reads `allowed_hosts` (same shape and purpose as `api.allowed_hosts`,
 overridden by `OC_MCP_ALLOWED_HOSTS`). Both loaders read the key from the

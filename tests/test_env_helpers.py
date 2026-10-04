@@ -12,6 +12,7 @@ from openchronicle.core.application.config.env_helpers import (
     parse_float,
     parse_int,
     parse_str,
+    resolve_port,
 )
 
 # ---------- parse_int ----------
@@ -149,6 +150,78 @@ class TestParseIntEnv:
         assert parse_int_env("", default=600, name="X") == 600
         assert parse_int_env("   ", default=600, name="X") == 600
         assert parse_int_env(None, default=600, name="X") == 600
+
+    @pytest.mark.parametrize("raw", ["true", "1.0", "8080.5"])
+    def test_words_and_decimals_are_not_integers(self, raw: str, caplog: pytest.LogCaptureFixture) -> None:
+        """An env var is text: "true" is not 1 and "1.0" is not 1 (QUAL-23)."""
+        from openchronicle.core.application.config.env_helpers import parse_int_env
+
+        with caplog.at_level(logging.WARNING):
+            assert parse_int_env(raw, default=600, name="X") == 600
+        assert f"Invalid X={raw!r}" in caplog.text
+
+
+# ---------- resolve_port ----------
+
+
+def _port(env_raw: str | None, file_value: object, default: int = 8000) -> int:
+    return resolve_port(env_name="P", env_raw=env_raw, file_key="x.port", file_value=file_value, default=default)
+
+
+class TestResolvePort:
+    """Env var, else the core.json key, else the default; each source must be
+    1-65535, and a bad one is logged with its source and the port actually
+    used (QUAL-23)."""
+
+    def test_precedence_env_then_file_then_default(self) -> None:
+        assert _port("9002", 9001) == 9002
+        assert _port(None, 9001) == 9001
+        assert _port(None, None) == 8000
+
+    @pytest.mark.parametrize("raw", ["", "   "])
+    def test_blank_env_falls_back_to_the_file_port_silently(self, raw: str, caplog: pytest.LogCaptureFixture) -> None:
+        """MCP and Portainer hosts inject "" for a blank field; it means unset."""
+        with caplog.at_level(logging.WARNING):
+            assert _port(raw, 7777) == 7777
+        assert caplog.text == ""
+
+    def test_range_edges_are_valid(self) -> None:
+        assert _port(None, 1) == 1
+        assert _port(None, 65535) == 65535
+        assert _port("1", None) == 1
+        assert _port("65535", None) == 65535
+
+    @pytest.mark.parametrize("raw", ["0", "65536", "99999", "-1", "abc", "1.0"])
+    def test_bad_env_falls_back_to_the_file_port_naming_it(self, raw: str, caplog: pytest.LogCaptureFixture) -> None:
+        with caplog.at_level(logging.WARNING):
+            assert _port(raw, 7777) == 7777
+        # The port named is the one used: the file's, never called "default".
+        assert f"Invalid P={raw!r} (must be 1-65535); using 7777" in caplog.text
+        assert "default" not in caplog.text
+
+    @pytest.mark.parametrize("value", [0, 65536, -1, True, False, "9001", 8080.0])
+    def test_invalid_file_port_falls_back_to_the_default_naming_the_key(
+        self, value: object, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING):
+            assert _port(None, value) == 8000
+        assert f"Invalid core.json x.port {value!r} (must be 1-65535); using 8000" in caplog.text
+
+    def test_invalid_file_port_overridden_by_a_valid_env_is_reported_as_ignored(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The env var wins, so the bad file value is ignored, not "used" as a
+        fallback that never happened (Copilot and pre-deploy review of #110)."""
+        with caplog.at_level(logging.WARNING):
+            assert _port("9002", 0) == 9002
+        assert "Invalid core.json x.port 0 (must be 1-65535); ignored, P=9002 is set" in caplog.text
+        assert "using" not in caplog.text
+
+    def test_bad_env_and_bad_file_both_name_the_default_they_fall_to(self, caplog: pytest.LogCaptureFixture) -> None:
+        with caplog.at_level(logging.WARNING):
+            assert _port("0", 70000) == 8000
+        assert "Invalid core.json x.port 70000 (must be 1-65535); using 8000" in caplog.text
+        assert "Invalid P='0' (must be 1-65535); using 8000" in caplog.text
 
 
 # ---------- parse_bool_env ----------
