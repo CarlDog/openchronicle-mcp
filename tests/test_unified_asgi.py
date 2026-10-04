@@ -140,6 +140,9 @@ def test_oc_serve_does_not_validate_the_mounted_mcp_port(
     bound there and must be neither validated nor warned about: a warning
     "using 8080" would name a port nothing listens on (Copilot, #110)."""
     monkeypatch.setenv("OC_MCP_PORT", "0")
+    # A transport that binds a port when standalone, so only binds_port=False
+    # keeps the check off (stdio would skip it anyway).
+    monkeypatch.setenv("OC_MCP_TRANSPORT", "streamable-http")
     container = _mock_container()
     container.file_configs = {"mcp": {"port": 70000}}
     with caplog.at_level(logging.WARNING):
@@ -287,6 +290,34 @@ def test_stdio_startup_line_goes_to_stderr_with_production_logging(
     captured = capsys.readouterr()
     assert "OpenChronicle MCP server starting (stdio transport)" in captured.err
     assert captured.out == "", "stdout belongs to the stdio protocol"
+
+
+def test_standalone_entrypoint_validates_oc_mcp_port(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The standalone server is the only path that binds MCP's port, so it
+    must reach the range check: OC_MCP_PORT=0 would otherwise bind an
+    ephemeral port (fix-round review of #110)."""
+    from openchronicle.interfaces.mcp import __main__ as entry
+    from openchronicle.interfaces.mcp.config import MCPConfig
+
+    monkeypatch.setenv("OC_DB_PATH", str(tmp_path / "sse.db"))
+    monkeypatch.setenv("OC_MCP_TRANSPORT", "sse")
+    monkeypatch.setenv("OC_MCP_PORT", "0")
+    seen: list[MCPConfig] = []
+    server = MagicMock()
+
+    def fake_create_server(_container: object, cfg: MCPConfig) -> MagicMock:
+        seen.append(cfg)
+        return server
+
+    monkeypatch.setattr("openchronicle.interfaces.mcp.server.create_server", fake_create_server)
+    with caplog.at_level(logging.WARNING):
+        entry.main()
+
+    server.run.assert_called_once_with(transport="sse")
+    assert [cfg.port for cfg in seen] == [8080]
+    assert "Invalid OC_MCP_PORT='0' (must be 1-65535); using 8080" in caplog.text
 
 
 def test_mcp_post_at_doubled_path_does_not_work() -> None:

@@ -48,9 +48,11 @@ class MCPConfig:
     def from_env(cls, file_config: dict[str, object] | None = None, *, binds_port: bool = True) -> MCPConfig:
         """Load config from environment variables with file_config fallback.
 
-        ``binds_port=False`` is for the MCP server mounted inside ``oc serve``,
-        which listens on the API port: its own port is then neither read nor
-        validated, so no warning describes a port nothing binds (QUAL-23).
+        The port is read and validated only when it is bound: by the
+        standalone server's sse and streamable-http transports. ``stdio``
+        binds none, and ``binds_port=False`` is for the MCP server mounted
+        inside ``oc serve``, which listens on the API port. Either way no
+        warning describes a port nothing binds (QUAL-23).
         """
         fc = file_config or {}
 
@@ -63,7 +65,7 @@ class MCPConfig:
         # Same rules as HTTPConfig (QUAL-23), but only where this port is
         # bound: the standalone server's sse and streamable-http transports.
         port = 8080
-        if binds_port:
+        if binds_port and transport != "stdio":
             port = resolve_port(
                 env_name="OC_MCP_PORT",
                 env_raw=os.environ.get("OC_MCP_PORT"),

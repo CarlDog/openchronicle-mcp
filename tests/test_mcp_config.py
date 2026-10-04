@@ -36,9 +36,10 @@ class TestMCPConfigDefaults:
 class TestMCPConfigEnvPrecedence:
     def test_env_overrides_file_config(self) -> None:
         file_config = {"transport": "sse", "host": "0.0.0.0", "port": 9090}
-        with patch.dict(os.environ, {"OC_MCP_TRANSPORT": "stdio", "OC_MCP_HOST": "localhost", "OC_MCP_PORT": "7070"}):
+        env = {"OC_MCP_TRANSPORT": "streamable-http", "OC_MCP_HOST": "localhost", "OC_MCP_PORT": "7070"}
+        with patch.dict(os.environ, env):
             config = MCPConfig.from_env(file_config=file_config)
-        assert config.transport == "stdio"
+        assert config.transport == "streamable-http"
         assert config.host == "localhost"
         assert config.port == 7070
 
@@ -72,6 +73,7 @@ class TestMCPConfigValidation:
         on the standalone sse/streamable-http path (QUAL-23)."""
         env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
         env["OC_MCP_PORT"] = raw
+        env["OC_MCP_TRANSPORT"] = "sse"
         with patch.dict(os.environ, env, clear=True):
             assert MCPConfig.from_env().port == 8080
             assert MCPConfig.from_env(file_config={"port": 9090}).port == 9090
@@ -79,7 +81,8 @@ class TestMCPConfigValidation:
     def test_out_of_range_file_port_falls_back(self) -> None:
         env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
         with patch.dict(os.environ, env, clear=True):
-            assert MCPConfig.from_env(file_config={"port": 70000}).port == 8080
+            assert MCPConfig.from_env(file_config={"transport": "sse", "port": 70000}).port == 8080
+            assert MCPConfig.from_env(file_config={"transport": "sse", "port": 9090}).port == 9090
 
     def test_bad_port_warnings_name_oc_mcp_port_and_mcp_port(self, caplog: pytest.LogCaptureFixture) -> None:
         """The wiring: MCPConfig's warnings name its own env var and core.json
@@ -87,7 +90,7 @@ class TestMCPConfigValidation:
         env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
         env["OC_MCP_PORT"] = "99999"
         with patch.dict(os.environ, env, clear=True), caplog.at_level(logging.WARNING):
-            assert MCPConfig.from_env(file_config={"port": 0}).port == 8080
+            assert MCPConfig.from_env(file_config={"transport": "sse", "port": 0}).port == 8080
         assert "Invalid core.json mcp.port 0 (must be 1-65535); using 8080" in caplog.text
         assert "Invalid OC_MCP_PORT='99999' (must be 1-65535); using 8080" in caplog.text
 
@@ -97,10 +100,27 @@ class TestMCPConfigValidation:
         env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
         env["OC_MCP_PORT"] = "0"
         with patch.dict(os.environ, env, clear=True), caplog.at_level(logging.WARNING):
-            config = MCPConfig.from_env(file_config={"port": 70000, "server_name": "x"}, binds_port=False)
+            config = MCPConfig.from_env(
+                file_config={"transport": "streamable-http", "port": 70000, "server_name": "x"}, binds_port=False
+            )
         assert config.port == 8080
         assert config.server_name == "x"
         assert caplog.text == ""
+
+    def test_stdio_neither_reads_nor_warns_about_its_port(self, caplog: pytest.LogCaptureFixture) -> None:
+        """stdio binds no port, so a bad one is not reported as "using 8080",
+        and a valid one is not taken either (fix-round review of #110)."""
+        env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
+        env["OC_MCP_PORT"] = "0"
+        with patch.dict(os.environ, env, clear=True), caplog.at_level(logging.WARNING):
+            assert MCPConfig.from_env(file_config={"port": 70000}).port == 8080
+        assert caplog.text == ""
+        env["OC_MCP_PORT"] = "9090"
+        with patch.dict(os.environ, env, clear=True):
+            assert MCPConfig.from_env().port == 8080
+        env["OC_MCP_TRANSPORT"] = "sse"
+        with patch.dict(os.environ, env, clear=True):
+            assert MCPConfig.from_env().port == 9090, "premise: the same port is read on a bound transport"
 
     @pytest.mark.parametrize("value", [True, False])
     def test_boolean_port_in_file_config_falls_back_to_default(self, value: bool) -> None:
@@ -109,7 +129,7 @@ class TestMCPConfigValidation:
         check before QUAL-23 to catch either. Both must fall back."""
         env = {k: v for k, v in os.environ.items() if not k.startswith("OC_MCP_")}
         with patch.dict(os.environ, env, clear=True):
-            config = MCPConfig.from_env(file_config={"port": value})
+            config = MCPConfig.from_env(file_config={"transport": "sse", "port": value})
         assert config.port == 8080
 
 
