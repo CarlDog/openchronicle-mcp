@@ -83,28 +83,48 @@ def parse_int_env(raw: str | None, *, default: int, name: str) -> int:
         return default
 
 
-def resolve_port(*, env_name: str, env_raw: str | None, file_value: object, default: int) -> int:
-    """The port a listener binds: ``env_name``, else core.json ``"port"``, else ``default``.
+def resolve_port(*, env_name: str, env_raw: str | None, file_key: str, file_value: object, default: int) -> int:
+    """The port a listener binds: ``env_name``, else core.json ``file_key``, else ``default``.
 
     Each source must be a whole number in 1-65535 (``bool`` is refused, as
-    it is an ``int`` subclass). A bad value degrades to the next source with
-    a warning that names the source it came from and the port actually used,
-    never an exception: under ``restart: unless-stopped`` one bad value would
-    otherwise crash-loop the service (QUAL-23).
+    it is an ``int`` subclass). A bad value is logged with the source it came
+    from (the env var, or the core.json key such as ``api.port``) and the
+    port actually used, and never raises: under ``restart: unless-stopped``
+    one bad value would otherwise crash-loop the service (QUAL-23). The env
+    var is resolved first, so a bad core.json value that a valid env var
+    overrides is reported as ignored, not as a fallback that never happened.
     """
     fallback = default
+    file_bad = False
     if file_value is not None:
         if isinstance(file_value, int) and not isinstance(file_value, bool) and 1 <= file_value <= 65535:
             fallback = file_value
         else:
-            _logger.warning("Invalid core.json port %r (must be 1-65535); using %d", file_value, default)
-    if env_raw is None or not env_raw.strip():
-        return fallback
-    port = parse_int_env(env_raw, default=fallback, name=env_name)
-    if not 1 <= port <= 65535:
-        _logger.warning("%s=%d is outside 1-65535; using %d", env_name, port, fallback)
-        return fallback
-    return port
+            file_bad = True
+
+    env_text = env_raw.strip() if env_raw is not None else ""
+    env_port: int | None = None
+    if env_text:
+        try:
+            env_port = int(env_text)
+        except ValueError:
+            env_port = None
+    if env_port is not None and 1 <= env_port <= 65535:
+        if file_bad:
+            _logger.warning(
+                "Invalid core.json %s %r (must be 1-65535); ignored, %s=%d is set",
+                file_key,
+                file_value,
+                env_name,
+                env_port,
+            )
+        return env_port
+
+    if file_bad:
+        _logger.warning("Invalid core.json %s %r (must be 1-65535); using %d", file_key, file_value, fallback)
+    if env_text:
+        _logger.warning("Invalid %s=%r (must be 1-65535); using %d", env_name, env_text, fallback)
+    return fallback
 
 
 _TRUE_WORDS = frozenset({"1", "true", "yes", "on"})

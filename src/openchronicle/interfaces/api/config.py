@@ -48,7 +48,11 @@ class HTTPConfig:
         # Fail soft, never let __post_init__ raise: a bad port degrades with a
         # warning naming its real source and the port actually used.
         port = resolve_port(
-            env_name="OC_API_PORT", env_raw=os.environ.get("OC_API_PORT"), file_value=fc.get("port"), default=8000
+            env_name="OC_API_PORT",
+            env_raw=os.environ.get("OC_API_PORT"),
+            file_key="api.port",
+            file_value=fc.get("port"),
+            default=8000,
         )
 
         api_key = (os.environ.get("OC_API_KEY", "").strip() or str_or_default(fc.get("api_key"), "")) or None

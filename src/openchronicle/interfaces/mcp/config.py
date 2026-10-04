@@ -45,8 +45,13 @@ class MCPConfig:
     allowed_hosts: tuple[str, ...] = DEFAULT_ALLOWED_HOSTS
 
     @classmethod
-    def from_env(cls, file_config: dict[str, object] | None = None) -> MCPConfig:
-        """Load config from environment variables with file_config fallback."""
+    def from_env(cls, file_config: dict[str, object] | None = None, *, binds_port: bool = True) -> MCPConfig:
+        """Load config from environment variables with file_config fallback.
+
+        ``binds_port=False`` is for the MCP server mounted inside ``oc serve``,
+        which listens on the API port: its own port is then neither read nor
+        validated, so no warning describes a port nothing binds (QUAL-23).
+        """
         fc = file_config or {}
 
         transport = os.environ.get("OC_MCP_TRANSPORT", "").strip() or str_or_default(fc.get("transport"), "stdio")
@@ -55,12 +60,17 @@ class MCPConfig:
 
         host = os.environ.get("OC_MCP_HOST", "").strip() or str_or_default(fc.get("host"), "127.0.0.1")
 
-        # Same rules as HTTPConfig (QUAL-23). Only the standalone sse and
-        # streamable-http transports bind this port, and they read only
-        # OC_MCP_PORT; inside `oc serve` MCP shares the API port.
-        port = resolve_port(
-            env_name="OC_MCP_PORT", env_raw=os.environ.get("OC_MCP_PORT"), file_value=fc.get("port"), default=8080
-        )
+        # Same rules as HTTPConfig (QUAL-23), but only where this port is
+        # bound: the standalone server's sse and streamable-http transports.
+        port = 8080
+        if binds_port:
+            port = resolve_port(
+                env_name="OC_MCP_PORT",
+                env_raw=os.environ.get("OC_MCP_PORT"),
+                file_key="mcp.port",
+                file_value=fc.get("port"),
+                default=8080,
+            )
 
         server_name = str_or_default(fc.get("server_name"), "openchronicle")
 

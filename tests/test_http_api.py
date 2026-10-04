@@ -859,11 +859,13 @@ class TestConfigFailSoft:
             assert HTTPConfig.from_env().port == 8000
 
     def test_out_of_range_port_env_falls_back_to_file_value(self) -> None:
-        """A bad env var degrades to the core.json port, not past it (QUAL-23)."""
+        """Regression pin: a bad env var degrades to the core.json port, not
+        past it. It held before QUAL-23 and must survive the shared resolver."""
         with patch.dict("os.environ", {"OC_API_PORT": "99999"}):
             assert HTTPConfig.from_env(file_config={"port": 7777}).port == 7777
 
     def test_file_port_one_is_valid(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Regression pin: the lower range edge stays valid (QUAL-23)."""
         monkeypatch.delenv("OC_API_PORT", raising=False)
         assert HTTPConfig.from_env(file_config={"port": 1}).port == 1
 
@@ -875,13 +877,19 @@ class TestConfigFailSoft:
         monkeypatch.delenv("OC_API_PORT", raising=False)
         with caplog.at_level(logging.WARNING):
             assert HTTPConfig.from_env(file_config={"port": 0}).port == 8000
-        assert "Invalid core.json port 0 (must be 1-65535); using 8000" in caplog.text
+        assert "Invalid core.json api.port 0 (must be 1-65535); using 8000" in caplog.text
         assert "OC_API_PORT" not in caplog.text
+
+    def test_bad_env_port_warning_names_oc_api_port(self, caplog: pytest.LogCaptureFixture) -> None:
+        """The wiring: HTTPConfig's warning names its own env var, not MCP's."""
+        with patch.dict("os.environ", {"OC_API_PORT": "99999"}), caplog.at_level(logging.WARNING):
+            assert HTTPConfig.from_env().port == 8000
+        assert "Invalid OC_API_PORT='99999' (must be 1-65535); using 8000" in caplog.text
 
     def test_boolean_port_in_file_config_falls_back_to_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """bool is an int subclass; `"port": true` must not become port 1.
         (`false` would be port 0, which HTTPConfig's range check already
-        refuses; MCPConfig has no range check, so its test covers both.)"""
+        refused before QUAL-23; the MCP test covers both.)"""
         monkeypatch.delenv("OC_API_PORT", raising=False)
         assert HTTPConfig.from_env(file_config={"port": True}).port == 8000
 

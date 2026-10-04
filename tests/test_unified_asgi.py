@@ -133,6 +133,21 @@ def test_mcp_get_reaches_the_transport_without_a_redirect(path: str) -> None:
     assert '"jsonrpc"' in resp.text
 
 
+def test_oc_serve_does_not_validate_the_mounted_mcp_port(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """`oc serve` mounts MCP on the API port, so MCPConfig's own port is not
+    bound there and must be neither validated nor warned about: a warning
+    "using 8080" would name a port nothing listens on (Copilot, #110)."""
+    monkeypatch.setenv("OC_MCP_PORT", "0")
+    container = _mock_container()
+    container.file_configs = {"mcp": {"port": 70000}}
+    with caplog.at_level(logging.WARNING):
+        create_app(container, HTTPConfig(), mount_mcp=True)
+    assert "mcp.port" not in caplog.text
+    assert "OC_MCP_PORT" not in caplog.text
+
+
 def test_mount_mcp_false_skips_mcp_route() -> None:
     app = create_app(_mock_container(), HTTPConfig(), mount_mcp=False)
     with TestClient(app) as client:
