@@ -34,8 +34,11 @@ from openchronicle.core.application.services.embedding_service import (
     lift_single_channel,
 )
 from openchronicle.core.application.use_cases import search_memory
+from openchronicle.core.domain.errors.error_codes import CONTENT_TOO_LONG
+from openchronicle.core.domain.exceptions import ProviderError, RevisionChangedError
 from openchronicle.core.domain.models.memory_item import MemoryItem
 from openchronicle.core.domain.models.project import Project
+from openchronicle.core.domain.models.scored_memory import ScoredMemory
 from openchronicle.core.domain.ports.embedding_port import EmbeddingPort
 from openchronicle.core.infrastructure.embedding.stub_adapter import StubEmbeddingAdapter
 from openchronicle.core.infrastructure.persistence.sqlite_store import SqliteStore
@@ -297,6 +300,61 @@ def test_degraded_hybrid_matches_keyword_mode(monkeypatch: pytest.MonkeyPatch) -
     assert broken.search_failure_count == 1, "the fallback really was the degraded path"
 
 
+@pytest.mark.parametrize(
+    ("failure", "counts_as_provider_failure"),
+    [
+        (RuntimeError("provider down"), True),
+        (RevisionChangedError(), False),
+        (ProviderError("query too long", error_code=CONTENT_TOO_LONG), False),
+    ],
+    ids=["provider_failure", "revision_churn", "over_length_query"],
+)
+def test_keyword_only_fallback_pages_like_keyword_mode(
+    monkeypatch: pytest.MonkeyPatch, failure: Exception, counts_as_provider_failure: bool
+) -> None:
+    """Every keyword-only fallback serves the requested PAGE of the
+    keyword-mode stream, not its first page again: consecutive offsets
+    concatenate to the same stream keyword mode pages through (V4-04;
+    the whole suite passed with the fallback slicing ``[:top_k]``)."""
+    store = _make_store()
+    _seed_keyword_ranked(
+        store,
+        [
+            ("u1", False),
+            ("u2", False),
+            ("u3", False),
+            ("u4", False),
+            ("p5", True),
+            ("u6", False),
+            ("u7", False),
+            ("u8", False),
+            ("p9", True),
+        ],
+    )
+    monkeypatch.setattr(es, "PIN_RANK_LIFT", 8)
+    service = EmbeddingService(port=_FixedQueryPort(), store=store, pin_rank_lift=8)
+
+    def _pages(mode: str) -> list[list[str]]:
+        return [
+            [
+                s.item.id
+                for s in search_memory.execute(
+                    store, "omega", mode=mode, embedding_service=service, top_k=3, offset=off
+                )
+            ]
+            for off in (0, 3, 6)
+        ]
+
+    keyword_pages = _pages("keyword")
+    with patch.object(service, "_semantic_search", side_effect=failure):
+        fallback_pages = _pages("hybrid")
+
+    # The stream test_keyword_mode_clamp_is_offset_invariant computes by hand.
+    assert keyword_pages == [["u1", "u2", "p5"], ["u3", "u4", "u6"], ["p9", "u7", "u8"]]
+    assert fallback_pages == keyword_pages
+    assert service.search_failure_count == (3 if counts_as_provider_failure else 0), "premise: this fallback ran"
+
+
 def test_semantic_mode_applies_the_same_lift() -> None:
     """Semantic-mode parity: the same tuple order over similarity
     ranks, with the reported similarities staying raw."""
@@ -422,6 +480,46 @@ def test_hybrid_pin_at_widened_semantic_fetch_boundary_enters_fusion() -> None:
     assert "aaa-pin" in hits_b
     assert hits_b["aaa-pin"].channel == "keyword", "one past the boundary → keyword term only"
     assert hits_b["aaa-pin"].semantic_similarity is None
+
+
+def test_hybrid_pin_at_widened_keyword_fetch_boundary_enters_fusion() -> None:
+    """The keyword-channel mirror of the test above (V4-04): the keyword
+    fetch widens by the lift's reach too, and by ``fetch_extension`` in
+    the ablation cells. The pin is the only embedded row, so it is
+    semantic rank 1 and always on the page; its channel says whether the
+    keyword fetch reached it (hybrid) or stopped short (semantic). The
+    whole suite passed with the keyword fetch at a plain 2·top_k."""
+    port = _FixedQueryPort()
+
+    def _store(unpinned_keyword: int) -> SqliteStore:
+        """N unpinned keyword rows, then the pin at keyword rank N+1."""
+        store = _make_store()
+        spec = [(f"u{i}", False) for i in range(1, unpinned_keyword + 1)]
+        _seed_keyword_ranked(store, [*spec, ("pin", True)])
+        save_vec(store, "pin", [0.9, 0.0], model=port.model_name(), provider=port.provider_name())
+        return store
+
+    def _pin(service: EmbeddingService) -> ScoredMemory:
+        hits = {s.item.id: s for s in service.search_hybrid("omega", top_k=2)}
+        return hits["pin"]
+
+    # top_k=2, lift=2 → keyword fetch 2·2 + 2 = 6: the pin at keyword
+    # rank 6 is fetched and fuses from both channels.
+    store_a = _store(unpinned_keyword=5)
+    pin = _pin(EmbeddingService(port=port, store=store_a, pin_rank_lift=2))
+    assert pin.channel == "hybrid", "fetched at the widened keyword boundary"
+    assert pin.keyword_rank == 6
+    assert _pin(EmbeddingService(port=port, store=store_a, pin_rank_lift=0)).channel == "semantic", (
+        "premise: without the extension the keyword fetch stops at 4"
+    )
+    # The ablation knob widens the keyword fetch the same way, lift off.
+    assert _pin(EmbeddingService(port=port, store=store_a, pin_rank_lift=0, fetch_extension=2)).channel == "hybrid"
+
+    # One rank deeper (7) is past the fetch, and an extension of 8
+    # clamps to top_k=2 (fetch 6, not 12).
+    store_b = _store(unpinned_keyword=6)
+    assert _pin(EmbeddingService(port=port, store=store_b, pin_rank_lift=2)).channel == "semantic"
+    assert _pin(EmbeddingService(port=port, store=store_b, pin_rank_lift=0, fetch_extension=8)).channel == "semantic"
 
 
 def test_hybrid_fusion_lift_moves_pin_in_fused_order() -> None:

@@ -32,7 +32,10 @@ on:
       - ".github/workflows/gitleaks.yml"
       - ".github/workflows/retag-image.yml"
   pull_request:
-    branches: [main]
+    # v4/develop too, so a PR into it is tested before merge rather than
+    # first by the push after it (V4-04). Publishing stays push-to-main
+    # and tags only (build-and-push's `if:` below).
+    branches: [main, v4/develop]
 
 # Two rapid pushes to main otherwise run build-and-push concurrently,
 # and whichever finishes LAST owns :latest — possibly the older commit.
