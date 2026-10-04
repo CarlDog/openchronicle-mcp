@@ -78,6 +78,49 @@ def test_mcp_endpoint_is_served_at_both_paths_without_a_redirect(path: str) -> N
 
 
 @pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_auth_applies_at_both_paths(path: str) -> None:
+    """Bare /mcp now serves every MCP tool (QUAL-26), so the API key must
+    guard it exactly as it guards /mcp/: no key 401, a wrong key 403, the
+    right key reaches the transport."""
+    app = create_app(_mock_container(), HTTPConfig(api_key="test-key"), mount_mcp=True)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        missing = client.post(path, json=_MCP_INIT, headers=_MCP_HEADERS, follow_redirects=False)
+        wrong = client.post(
+            path, json=_MCP_INIT, headers={**_MCP_HEADERS, "Authorization": "Bearer nope"}, follow_redirects=False
+        )
+        right = client.post(
+            path, json=_MCP_INIT, headers={**_MCP_HEADERS, "Authorization": "Bearer test-key"}, follow_redirects=False
+        )
+    assert (missing.status_code, wrong.status_code, right.status_code) == (401, 403, 200)
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_host_guard_applies_at_both_paths(path: str) -> None:
+    """DNS-rebinding defence: a foreign Host is refused at both paths."""
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        resp = client.post(
+            path, json=_MCP_INIT, headers={**_MCP_HEADERS, "Host": "evil.example:18000"}, follow_redirects=False
+        )
+    assert resp.status_code == 421
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_request_uses_exactly_one_rate_limit_slot(path: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The /mcp route hands the request to the router, not the whole app, so
+    the middleware stack runs once: one rate-limit slot per request (and one
+    auth check, one metric). Forwarding to the app would charge two slots."""
+    monkeypatch.setenv("OC_API_RATE_LIMIT_RPM", "10")
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        remaining = [
+            client.post(path, json=_MCP_INIT, headers=_MCP_HEADERS).headers.get("x-ratelimit-remaining")
+            for _ in range(2)
+        ]
+    assert remaining == ["9", "8"]
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
 def test_mcp_get_reaches_the_transport_without_a_redirect(path: str) -> None:
     """GET (the SSE method) must not be redirected either. A GET that does not
     accept text/event-stream is refused by the transport itself with 406 and a
