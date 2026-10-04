@@ -48,18 +48,89 @@ def test_unified_app_exposes_api_routes() -> None:
     assert resp.status_code == 200
 
 
-def test_unified_app_mounts_mcp_under_slash_mcp() -> None:
-    """The MCP transport is mounted at /mcp.
+_MCP_INIT = {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+        "protocolVersion": "2025-06-18",
+        "capabilities": {},
+        "clientInfo": {"name": "routing-test", "version": "1"},
+    },
+}
+_MCP_HEADERS = {"Accept": "application/json, text/event-stream", "Content-Type": "application/json"}
 
-    A bare `GET /mcp` redirects to `GET /mcp/` (Starlette's mount-trailing-
-    slash convention). That redirect itself proves the mount: an unmounted
-    path would 404 from FastAPI's router instead.
-    """
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_endpoint_is_served_at_both_paths_without_a_redirect(path: str) -> None:
+    """The MCP spec's endpoint form and every documented client URL is
+    exactly /mcp. A Mount alone answered it with a 307 to /mcp/, an extra
+    round trip per request (QUAL-26). Both forms must reach the transport
+    directly: a 200 carrying the initialize result, never a redirect. (OC
+    serves MCP statelessly, so there is no session id to check.)"""
     app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
-    with TestClient(app) as client:
-        resp = client.get("/mcp", follow_redirects=False)
-    assert resp.status_code == 307, f"expected redirect from /mcp → /mcp/ (mount sentinel), got {resp.status_code}"
-    assert resp.headers.get("location", "").endswith("/mcp/")
+    # An allowed Host: the transport's DNS-rebinding guard answers the
+    # TestClient default ("testserver") with 421 before routing matters.
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        resp = client.post(path, json=_MCP_INIT, headers=_MCP_HEADERS, follow_redirects=False)
+    assert resp.status_code == 200, f"POST {path} returned {resp.status_code}, expected the transport's 200"
+    assert '"serverInfo"' in resp.text, f"POST {path} did not return an initialize result: {resp.text[:200]}"
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_auth_applies_at_both_paths(path: str) -> None:
+    """Bare /mcp now serves every MCP tool (QUAL-26), so the API key must
+    guard it exactly as it guards /mcp/: no key 401, a wrong key 403, the
+    right key reaches the transport."""
+    app = create_app(_mock_container(), HTTPConfig(api_key="test-key"), mount_mcp=True)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        missing = client.post(path, json=_MCP_INIT, headers=_MCP_HEADERS, follow_redirects=False)
+        wrong = client.post(
+            path, json=_MCP_INIT, headers={**_MCP_HEADERS, "Authorization": "Bearer nope"}, follow_redirects=False
+        )
+        right = client.post(
+            path, json=_MCP_INIT, headers={**_MCP_HEADERS, "Authorization": "Bearer test-key"}, follow_redirects=False
+        )
+    assert (missing.status_code, wrong.status_code, right.status_code) == (401, 403, 200)
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_host_guard_applies_at_both_paths(path: str) -> None:
+    """DNS-rebinding defence: a foreign Host is refused at both paths."""
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        resp = client.post(
+            path, json=_MCP_INIT, headers={**_MCP_HEADERS, "Host": "evil.example:18000"}, follow_redirects=False
+        )
+    assert resp.status_code == 421
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_request_uses_exactly_one_rate_limit_slot(path: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The /mcp route hands the request to the router, not the whole app, so
+    the middleware stack runs once: one rate-limit slot per request (and one
+    auth check, one metric). Forwarding to the app would charge two slots."""
+    monkeypatch.setenv("OC_API_RATE_LIMIT_RPM", "10")
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        remaining = [
+            client.post(path, json=_MCP_INIT, headers=_MCP_HEADERS).headers.get("x-ratelimit-remaining")
+            for _ in range(2)
+        ]
+    assert remaining == ["9", "8"]
+
+
+@pytest.mark.parametrize("path", ["/mcp", "/mcp/"])
+def test_mcp_get_reaches_the_transport_without_a_redirect(path: str) -> None:
+    """GET (the SSE method) must not be redirected either. A GET that does not
+    accept text/event-stream is refused by the transport itself with 406 and a
+    JSON-RPC error; asserting that proves the request reached the transport
+    without opening an endless SSE stream in the test."""
+    app = create_app(_mock_container(), HTTPConfig(), mount_mcp=True)
+    with TestClient(app, base_url="http://127.0.0.1:8000") as client:
+        resp = client.get(path, headers={"Accept": "application/json"}, follow_redirects=False)
+    assert resp.status_code == 406, f"GET {path} returned {resp.status_code}, expected the transport's 406"
+    assert '"jsonrpc"' in resp.text
 
 
 def test_mount_mcp_false_skips_mcp_route() -> None:
