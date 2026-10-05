@@ -5,7 +5,7 @@
 # tag (it does not bump a `COPY --from=<image>` line; see rclone below).
 # This is the ONLY uv pin: test.yml reads the version from this line, so
 # keep exactly one `ghcr.io/astral-sh/uv:<x.y.z>` reference in this file.
-FROM ghcr.io/astral-sh/uv:0.12.21 AS uv
+FROM ghcr.io/astral-sh/uv:0.12.23 AS uv
 
 # ---- builder stage --------------------------------------------------------
 # Installs into a venv so the runtime stage can copy just the venv, not
