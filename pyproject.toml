@@ -29,7 +29,7 @@ dependencies = [
 	# Floor = the locked version. The old 0.110.0 was unsatisfiable once
 	# starlette>=1.7.0 is required: the lowest fastapi that resolves with it
 	# is 0.133.0 (uv --resolution lowest-direct).
-	"fastapi>=0.142.2",
+	"fastapi>=0.143.0",
 	# Plain uvicorn plus the three [standard] extras OC needs (QUAL-06
 	# part 2). `oc serve` builds a default uvicorn.Config, which picks uvloop
 	# and httptools automatically when installed. websockets stays although
@@ -47,7 +47,7 @@ dependencies = [
 	# Imported directly by src/ (request models, middleware, responses), so
 	# declared rather than left to arrive through fastapi. Floors are the
 	# versions the lock resolves, the ones the tests actually ran on.
-	"pydantic>=2.13.5",
+	"pydantic>=2.14.0",
 	"starlette>=1.7.0",
 ]
 
@@ -64,7 +64,7 @@ Documentation = "https://github.com/CarlDog/openchronicle-mcp/tree/main/docs"
 # embedding extras because EmbeddingService.search_hybrid uses it for
 # vectorized cosine similarity on the read path.
 openai = [
-	"openai>=3.19.2",
+	"openai>=3.27.0",
 	"numpy>=2.5.3",
 ]
 ollama = [
