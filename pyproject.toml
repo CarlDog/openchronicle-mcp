@@ -29,7 +29,7 @@ dependencies = [
 	# Floor = the locked version. The old 0.110.0 was unsatisfiable once
 	# starlette>=1.7.0 is required: the lowest fastapi that resolves with it
 	# is 0.133.0 (uv --resolution lowest-direct).
-	"fastapi>=0.142.2",
+	"fastapi>=0.161.1",
 	# Plain uvicorn plus the three [standard] extras OC needs (QUAL-06
 	# part 2). `oc serve` builds a default uvicorn.Config, which picks uvloop
 	# and httptools automatically when installed. websockets stays although
@@ -42,13 +42,13 @@ dependencies = [
 	# pydantic-settings. The uvloop marker is uvicorn's own.
 	"uvicorn>=0.54.0",
 	"uvloop>=0.23.0; sys_platform != 'win32' and sys_platform != 'cygwin' and platform_python_implementation != 'PyPy'",
-	"httptools>=0.8.0",
-	"websockets>=17.2",
+	"httptools>=0.9.0",
+	"websockets>=17.3",
 	# Imported directly by src/ (request models, middleware, responses), so
 	# declared rather than left to arrive through fastapi. Floors are the
 	# versions the lock resolves, the ones the tests actually ran on.
-	"pydantic>=2.13.5",
-	"starlette>=1.7.0",
+	"pydantic>=2.14.1",
+	"starlette>=1.9.0",
 ]
 
 [project.urls]
@@ -64,12 +64,12 @@ Documentation = "https://github.com/CarlDog/openchronicle-mcp/tree/main/docs"
 # embedding extras because EmbeddingService.search_hybrid uses it for
 # vectorized cosine similarity on the read path.
 openai = [
-	"openai>=3.19.2",
-	"numpy>=2.5.3",
+	"openai>=3.37.0",
+	"numpy>=2.5.4",
 ]
 ollama = [
 	"httpx>=0.25.0",
-	"numpy>=2.5.3",
+	"numpy>=2.5.4",
 ]
 metrics = [
 	# Kept as an extra so local installs can remain dependency-free when
@@ -104,7 +104,7 @@ dev = [
 	# that hook with it or the two gates format differently. CI installs
 	# the locked version. Dependabot's uv-dev group raises the cap when a
 	# new minor lands.
-	"ruff>=0.16.9,<0.17",
+	"ruff>=0.17.2,<0.18",
 	# The runtime extras, by reference rather than as copies, so each
 	# constraint (the mcp <2 cap above all) lives once in this file. The
 	# mypy hook in .pre-commit-config.yaml cannot reference extras and keeps
