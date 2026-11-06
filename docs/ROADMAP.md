@@ -40,10 +40,62 @@ in `jobs.py`.
   the work. Every phase-end audit reconciles this file against all sources
   (see the AGENTS.md checklist).
 
+## MCP client compatibility follow-up (2026-11-06)
+
+### Claude Code MCP task compatibility (planned 2026-11-06)
+
+**Status:** pending verification; documentation-only planning. Source review found
+ordinary tool calls and no explicit MCP protocol-task opt-in. No live Claude
+Code/NAS compatibility test has been run and no runtime change is authorized by
+this entry. JavaScript async handlers, progress notifications and upstream jobs
+are not themselves MCP protocol tasks.
+
+- [ ] With Claude Code 2.1.319 (or the version under evaluation), record the client
+  version, server revision/SDK version and transport. Initialize, list tools and
+  run one harmless read through each supported transport (stdio and Streamable
+  HTTP where configured). Confirm a non-empty result and usable session; check
+  reconnect after an expired HTTP session where applicable.
+- [ ] Inspect advertised capabilities and tool execution metadata: ordinary tools
+  must remain callable without task augmentation; do not advertise task support
+  without a functioning task lifecycle. Preserve existing confirmations, auth,
+  error reporting and bounded resource use.
+- [ ] Record pass/fail evidence and any actual defect in this document. Do not
+  introduce an SDK major upgrade or blanket conversion to tasks solely for this
+  client release. Use existing read-only integration targets or disposable
+  fixtures; compatibility checks must not mutate production.
+
+Claude Code 2.1.319 backgrounds calls invoked as MCP tasks and later delivers the
+result; ordinary calls retain their result contract. The same release fixes an
+older-handshake compatibility issue. If task support is adopted later,
+`CLAUDE_CODE_DISABLE_MCP_TASK_BACKGROUND` is a client-side diagnostic fallback,
+not a required server setting or a replacement for lifecycle correctness.
+
+Sources: [Claude Code changelog, 2.1.319](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md#21319);
+[MCP task capability and tool negotiation](https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks).
+
+**COMPAT-01** tracks the pending baseline verification; it does not claim the
+deployed image has been tested. Check the deployed image separately from source.
+
+**COMPAT-02 — optional protocol-task design.** Evaluate long-running git
+onboarding and embedding backfill/reindex operations only after identifying the
+actual MCP entry points and measuring whether the existing background-job/status
+contract is insufficient. A returned application-level `status: started` is not
+a protocol `CreateTaskResult`. Preserve the existing job/status APIs and
+non-task clients. Keep task integration in the interface/adapter layer, outside
+the agnostic core. Before implementation, review the pinned Python MCP SDK and
+`MetricsFastMCP` registration wrapper; task adoption does not itself authorize
+lifting the existing `mcp<2` cap. Design authenticated ownership, restart and
+disconnect behavior, bounded task storage/concurrency, result retention/TTL,
+status/result retrieval, cancellation semantics for already-running jobs,
+duplicate-start guards and truthful terminal outcomes. Verify against an isolated
+store, including failed/interrupted jobs and a client without task support.
+Implementation remains gated on operator approval of that design.
+
 ## Phase 0 — Records and hygiene (small; any time, alongside other work)
 
 | ID | Item | Size | Detail |
 |---|---|---|---|
+| COMPAT-01 | Verify ordinary MCP calls with Claude Code 2.1.319 or the evaluated newer client | S | Pending; see MCP client compatibility follow-up above. Initialization, tool listing, harmless read, capability negotiation and reconnect; no production mutations |
 | HYG-01 | Close issue #27: all four findings shipped in the v3.4.0 tag, with CI green on the exact commit | S | **Done 2026-09-29:** closed #27 with an evidence comment naming each fix commit (`02f83d67`, `46c88ffc`, `eb23c7f4`, `0d292b79`, plus the review fixes in `93d68560`), each an ancestor of the v3.4.0 tag; assessment revs 201-204 and 233 |
 | HYG-02 | Standards gaps in issue #17: tick UNI-05 (done in rev 200); add `.editorconfig` (UNI-06); add a `Last updated:` line to `STATUS.md` (UNI-08); add the `Fleet standards:` stamp (UNI-09); create GitHub Releases for the tags that lack one (every `v*` tag except v3.3.0, including v3.4.0 to v3.6.0; GitHub shows v3.3.0 as Latest while v3.6.0 runs in production) (UNI-19) | S | #17. **Done 2026-09-29:** `.editorconfig` copied verbatim from the fleet template; a `Last updated:` line on the `STATUS.md` pointer (it dates the pointer, not the assessment); the stamp in AGENTS.md and CLAUDE.md, naming the one open gap; GitHub Releases for all 14 tags that lacked one (notes from the CHANGELOG, release candidates marked pre-release), v3.6.0 now Latest. The audit against catalogue 3.0 leaves PY-04 red: it wants a group named `pip-dev`, but this repo moved to the `uv` ecosystem on purpose and its `uv-dev` group is auto-merge eligible under UNI-07. The check needs the fix, not the repo (fleet-kit, below). Six tags (`v3.0.0-rc2`, `rc7`, `rc8`, `v3.2.0`, `v3.3.0`, `v3.4.0`) are lightweight, where UNI-19 asks for annotated tags; not rewritten |
 | HYG-03 | OpenChronicle memory cleanup (needs the API key now): a stale pinned "current state" memory (claims v3.1.0 live) floats into every search; a junk memory with content "test"; eight milestone-tagged memories describe the deleted Gemini branch; an obsolete v3.4.0 changelog draft; resolved `mcp-feedback` notes still open; portainer-mcp notes filed under this project | S | 2026-09-28 inventory. **Done 2026-09-29:** the current-state memory was rewritten to v3.6.0 as a dated pointer and unpinned; a pinned v3.6.0 release milestone was added; the "test" memory and the v3.4.0 changelog draft (the CHANGELOG has the real entry) were deleted; the eight Gemini-branch memories lost the `milestone` tag and gained `not-merged` and `gemini-branch` (each already opens with a NOT MERGED line); five `mcp-feedback` notes were tagged `resolved`, two with a resolution paragraph; the two portainer-mcp notes were re-saved under that project with their original dates and deleted here |
@@ -190,6 +242,7 @@ The operator's aspiration (2026-09-28): do everything #memory (usememory.com) do
 
 | ID | Item | Trigger |
 |---|---|---|
+| COMPAT-02 | Optional MCP protocol tasks for demonstrated long-running onboarding/backfill needs | COMPAT-01 evidence, a measured need, SDK/wrapper review, and operator-approved lifecycle design; see follow-up above. No blanket migration |
 | GATE-01 | 0007 Stage 1: read pool, chunked import writes, async adapters | Store-lock contention at realistic fleet N (MEAS-02) |
 | GATE-02 | 0007 Stage 2: Postgres plus pgvector (supersedes the sqlite-vec ceiling) | About 10x corpus with semantic latency degradation, or sustained multi-writer contention |
 | GATE-03 | 0007 Stage 3: a replicated app tier | An availability requirement beyond one host |
