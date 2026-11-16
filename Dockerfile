@@ -10,7 +10,7 @@ FROM ghcr.io/astral-sh/uv:0.12.21 AS uv
 # ---- builder stage --------------------------------------------------------
 # Installs into a venv so the runtime stage can copy just the venv, not
 # uv's cache, build artifacts, or apt package lists.
-FROM python:3.14-slim AS builder
+FROM python:3.15-slim AS builder
 
 # Every package in the venv comes from uv.lock (QUAL-06): what CI tested is
 # what ships, and Dependabot alerts describe this image. Only the project's
@@ -45,7 +45,7 @@ RUN uv sync --locked --no-dev --no-editable \
     --extra openai --extra ollama --extra mcp --extra metrics
 
 # ---- runtime stage ----------------------------------------------------------
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 # The full git SHA this image was built from, baked to a FILE the app
 # reads (openchronicle/version.py). A file, not an ENV: several commits
